@@ -19,9 +19,11 @@ from fastapi import FastAPI
 from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import TracerProvider
+from pydantic import ValidationError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.tools import DeferredToolResults
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
@@ -62,7 +64,10 @@ from phoenix.server.api.routers.agents import (
     _APPROVAL_DECISION_ATTRIBUTE,
     _APPROVAL_SOURCE_ATTRIBUTE,
     AgentSessionConflict,
+    ChatRequestBody,
+    SubmittedToolApproval,
     _approval_attributes,
+    _attach_pending_mutation_metadata,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -2705,6 +2710,194 @@ def test_merge_rejects_tool_outputs_without_a_trailing_assistant_message() -> No
             tool_outputs=[ToolOutputAvailablePart.model_validate(_tool_output())],
         )
     assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+_PENDING_MUTATION = {
+    "query": "mutation { deleteEverything }",
+    "variables": None,
+    "digest": "digest-1",
+}
+
+
+def _assistant_message_with_approval_request() -> dict[str, Any]:
+    return {
+        "id": _message_uuid("assistant-1"),
+        "role": "assistant",
+        "parts": [
+            {"type": "text", "text": "This mutation needs approval"},
+            {
+                "type": "tool-bash",
+                "toolCallId": "tool-call-approval",
+                "state": "approval-requested",
+                "input": {"command": "phoenix-gql 'mutation { deleteEverything }'"},
+                "approval": {"id": "approval-1"},
+                "callProviderMetadata": {
+                    "phoenix": {
+                        "toolExecutionEnvironment": "server",
+                        "pendingMutations": [_PENDING_MUTATION],
+                    }
+                },
+            },
+        ],
+    }
+
+
+def test_merge_applies_tool_approvals_to_the_trailing_assistant_message() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    assert continued.id == _message_uuid("assistant-1")
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    # The responded approval survives the interrupted-repair sweep: it is
+    # consumed as a deferred tool result when the run resumes.
+    assert part.state == "approval-responded"
+    assert part.approval.id == "approval-1"
+    assert part.approval.approved is True
+
+
+def test_merge_applies_tool_denials_with_a_reason() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[
+            SubmittedToolApproval(
+                tool_call_id="tool-call-approval",
+                approved=False,
+                reason="Too destructive",
+            )
+        ],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    assert part.state == "approval-responded"
+    assert part.approval.approved is False
+    assert part.approval.reason == "Too destructive"
+
+
+def test_merge_rejects_tool_approvals_that_match_no_tool_call() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-missing", approved=True)],
+        )
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+def test_merge_rejects_tool_approvals_for_calls_not_awaiting_approval() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-done", approved=True)],
+        )
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+def test_merge_with_new_user_message_repairs_an_unanswered_approval_request() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=PhoenixUIMessage.model_validate(
+            _user_message("never mind", message_id=_message_uuid("msg-user-2"))
+        ),
+    )
+
+    repaired = merged.updated_messages[_message_uuid("assistant-1")]
+    part = _parts_by_tool_call_id(repaired)["tool-call-approval"]
+    assert part.state == "output-available"
+    assert "interrupted" in part.output
+
+
+def test_attach_pending_mutation_metadata_threads_the_persisted_payload() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+    deferred_tool_results = DeferredToolResults(approvals={"tool-call-approval": True})
+
+    _attach_pending_mutation_metadata(
+        deferred_tool_results,
+        continued_assistant_message=merged.continued_assistant_message,
+    )
+
+    assert deferred_tool_results.metadata == {
+        "tool-call-approval": {"pendingMutations": [_PENDING_MUTATION]}
+    }
+
+
+def test_chat_request_body_rejects_tool_approvals_with_a_new_message() -> None:
+    with pytest.raises(ValidationError, match="toolApprovals cannot be combined"):
+        ChatRequestBody.model_validate(
+            {
+                "headless": False,
+                "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+                "trigger": "submit-message",
+                "id": "chat-1",
+                "message": _user_message("hello"),
+                "toolApprovals": [{"toolCallId": "tool-call-approval", "approved": True}],
+            }
+        )
+
+
+def test_chat_request_body_accepts_a_tool_approvals_only_continuation() -> None:
+    body = ChatRequestBody.model_validate(
+        {
+            "headless": False,
+            "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+            "trigger": "submit-message",
+            "id": "chat-1",
+            "toolApprovals": [{"toolCallId": "tool-call-approval", "approved": True}],
+        }
+    )
+    assert body.tool_approvals[0].tool_call_id == "tool-call-approval"
+    assert body.tool_approvals[0].approved is True
+
+
+def test_chat_request_body_rejects_duplicate_tool_approval_ids() -> None:
+    with pytest.raises(ValidationError, match="distinct toolCallId"):
+        ChatRequestBody.model_validate(
+            {
+                "headless": False,
+                "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+                "trigger": "submit-message",
+                "id": "chat-1",
+                "toolApprovals": [
+                    {"toolCallId": "tool-call-approval", "approved": True},
+                    {"toolCallId": "tool-call-approval", "approved": False},
+                ],
+            }
+        )
 
 
 async def test_chat_endpoint_rejects_assistant_message_submissions(

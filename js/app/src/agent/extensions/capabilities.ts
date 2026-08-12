@@ -25,7 +25,7 @@ export type AgentCapabilityDefinition = {
 export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
 
 const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
-  "graphql.mutations": false,
+  "graphql.mutations": true,
   "subagents.enabled": false,
   "web.access": false,
 };
@@ -34,10 +34,12 @@ const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
 export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
   {
     key: "graphql.mutations",
-    label: "Dangerously enable mutations",
+    label: "GraphQL mutations",
     description:
-      "Allows the phoenix-gql bash command to execute GraphQL mutations in addition to queries.",
-    defaultValue: false,
+      "Allows the phoenix-gql bash command to execute GraphQL mutations in addition to queries. " +
+      "In manual mode each mutation requires your approval before it executes; " +
+      "in bypass mode mutations run without approval.",
+    defaultValue: true,
     scope: "global",
     controlSurface: "experimental-settings",
   },

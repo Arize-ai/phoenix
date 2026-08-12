@@ -17,6 +17,12 @@ type SessionSummaryChunk = components["schemas"]["SessionSummaryChunk"];
 type TranscriptPersistedChunk =
   components["schemas"]["TranscriptPersistedChunk"];
 type AgentErrorChunk = components["schemas"]["AgentErrorChunk"];
+type BashMutationApprovalChunk =
+  components["schemas"]["BashMutationApprovalChunk"];
+
+/** A resolved GraphQL mutation awaiting the user's approval. */
+export type PendingGraphQLMutation =
+  components["schemas"]["PendingGraphQLMutationMetadata"];
 
 /**
  * Payloads of the custom `data-*` chunks the backend chat route streams
@@ -26,6 +32,7 @@ type AgentUIDataTypes = {
   error: AgentErrorChunk["data"];
   "session-summary": SessionSummaryChunk["data"];
   "transcript-persisted": TranscriptPersistedChunk["data"];
+  "bash-mutation-approval": BashMutationApprovalChunk["data"];
 };
 
 /**

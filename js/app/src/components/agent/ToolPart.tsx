@@ -678,6 +678,11 @@ function ToolInvocationPartDetails({
 }
 
 function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
+  // A tool call awaiting user approval always opens so the Accept/Reject
+  // card is visible without an extra click.
+  if (part.state === "approval-requested") {
+    return true;
+  }
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
   if (uiBehavior?.autoOpen !== true) {

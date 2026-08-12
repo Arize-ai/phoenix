@@ -10753,6 +10753,14 @@
             "title": "Tooloutputs",
             "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs."
           },
+          "toolApprovals": {
+            "items": {
+              "$ref": "#/components/schemas/SubmittedToolApproval"
+            },
+            "type": "array",
+            "title": "Toolapprovals",
+            "description": "User responses to tool calls awaiting approval on the transcript's trailing assistant message, matched by ``toolCallId``. They continue the assistant turn: approved calls execute server-side and denied calls return a denial to the model. Cannot be combined with ``message``."
+          },
           "lastMessageId": {
             "anyOf": [
               {
@@ -19221,6 +19229,38 @@
         "title": "SubmitAgentSessionToolOutputsResponseBody",
         "description": "The trailing assistant message with the submitted outputs applied."
       },
+      "SubmittedToolApproval": {
+        "properties": {
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "description": "Whether the user approved the tool call. Strict for the same reason as ``ToolApprovalResponded.approved``: this field is the user-controlled gate on a deferred tool call, so a non-boolean value must fail validation rather than coerce to an approval."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Optional reason for the approval or denial, shown to the model on denial."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolCallId",
+          "approved"
+        ],
+        "title": "SubmittedToolApproval",
+        "description": "A user's response to a tool call awaiting approval."
+      },
       "TextContentPart": {
         "properties": {
           "type": {
@@ -21827,6 +21867,101 @@
         "title": "AgentErrorData",
         "type": "object"
       },
+      "BashMutationApprovalChunk": {
+        "additionalProperties": false,
+        "description": "Transient ``data-bash-mutation-approval`` stream chunk: the resolved\nGraphQL mutations awaiting user approval on a deferred bash tool call,\nemitted alongside the tool's ``tool-approval-request`` chunk so the\napproval card can show exactly what will execute. The same payload is\nstamped into the persisted part's ``callProviderMetadata`` for reloads.",
+        "properties": {
+          "type": {
+            "const": "data-bash-mutation-approval",
+            "default": "data-bash-mutation-approval",
+            "title": "Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/BashMutationApprovalData"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "BashMutationApprovalChunk",
+        "type": "object"
+      },
+      "BashMutationApprovalData": {
+        "properties": {
+          "toolCallId": {
+            "title": "Toolcallid",
+            "type": "string"
+          },
+          "pendingMutations": {
+            "items": {
+              "$ref": "#/components/schemas/PendingGraphQLMutationMetadata"
+            },
+            "title": "Pendingmutations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "toolCallId",
+          "pendingMutations"
+        ],
+        "title": "BashMutationApprovalData",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "PendingGraphQLMutationMetadata": {
+        "additionalProperties": false,
+        "description": "A resolved GraphQL mutation awaiting user approval, captured by the\n``phoenix-gql`` bash builtin at execution time (after file/stdin\nindirection) so the user reviews exactly what will execute.",
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "variables": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Variables"
+          },
+          "digest": {
+            "title": "Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query",
+          "digest"
+        ],
+        "title": "PendingGraphQLMutationMetadata",
+        "type": "object"
+      },
       "PhoenixToolCallCallbackProviderMetadata": {
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
@@ -21850,6 +21985,21 @@
             ],
             "default": null,
             "title": "Toolinputemittedat"
+          },
+          "pendingMutations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PendingGraphQLMutationMetadata"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pendingmutations"
           },
           "clientStartedAt": {
             "anyOf": [
@@ -21918,6 +22068,21 @@
             ],
             "default": null,
             "title": "Toolinputemittedat"
+          },
+          "pendingMutations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PendingGraphQLMutationMetadata"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pendingmutations"
           }
         },
         "required": [

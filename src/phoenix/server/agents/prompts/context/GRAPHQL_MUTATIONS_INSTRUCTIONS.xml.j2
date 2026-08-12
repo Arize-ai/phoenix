@@ -1,9 +1,12 @@
 <phoenix_gql_mutations_policy>
-{% if enabled %}
-  <status>enabled</status>
-  <guidance>GraphQL mutations are enabled for phoenix-gql. Mutation operations may be executed when they are necessary and appropriate.</guidance>
-{% else %}
+{% if not enabled %}
   <status>disabled</status>
   <guidance>GraphQL mutations are disabled for phoenix-gql. Only read-only GraphQL queries are permitted.</guidance>
+{% elif approval_required %}
+  <status>enabled_with_approval</status>
+  <guidance>GraphQL mutations are enabled for phoenix-gql, but each mutation requires the user's approval before it executes. When a command containing a mutation runs, execution pauses while the user reviews the mutation and approves or rejects it. Do not retry a command while its approval is pending, and if the user rejects a mutation, respect the decision instead of re-attempting it.</guidance>
+{% else %}
+  <status>enabled</status>
+  <guidance>GraphQL mutations are enabled for phoenix-gql. Mutation operations may be executed when they are necessary and appropriate.</guidance>
 {% endif %}
 </phoenix_gql_mutations_policy>

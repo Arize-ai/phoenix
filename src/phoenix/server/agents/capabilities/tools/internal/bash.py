@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
 import logging
 import posixpath
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Generic, Optional
 
@@ -15,7 +17,8 @@ from graphql import OperationType as GraphQLOperationType
 from graphql import parse as parse_graphql
 from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
-from pydantic_ai import Tool
+from pydantic_ai import RunContext, Tool
+from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
@@ -28,6 +31,60 @@ logger = logging.getLogger(__name__)
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
+
+PENDING_MUTATIONS_METADATA_KEY = "pendingMutations"
+"""Key under which a deferred bash tool call's approval metadata carries the
+resolved GraphQL mutation payloads awaiting user approval."""
+
+
+class PendingGraphQLMutation(TypedDict):
+    """A resolved GraphQL mutation captured for user approval.
+
+    ``query`` and ``variables`` are the fully resolved inputs — after file and
+    stdin indirection — so the user approves exactly what will execute, and
+    ``digest`` binds that approval to this document: execution only proceeds
+    when the re-resolved inputs hash to an approved digest.
+    """
+
+    query: str
+    variables: Optional[dict[str, Any]]
+    digest: str
+
+
+def _mutation_digest(query: str, variables: Optional[dict[str, Any]]) -> str:
+    canonical = json.dumps(
+        {"query": query, "variables": variables},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+@dataclass
+class GraphQLMutationPolicy:
+    """Mutable mutation-execution policy shared between the ``bash`` tool and the
+    ``phoenix-gql`` builtin.
+
+    The builtin runs inside the virtual shell where exceptions cannot propagate
+    out, so it reports mutations awaiting approval by appending to ``pending``;
+    the bash tool drains the list after each shell execution. The object lives
+    outside the sandbox, so shell code cannot forge or clear it.
+
+    ``require_approval`` and ``approved_digests`` are set by the bash tool
+    before each execution from the run's edit permission and any user-granted
+    approval, respectively.
+    """
+
+    allow_mutations: bool
+    require_approval: bool = False
+    approved_digests: frozenset[str] = frozenset()
+    pending: list[PendingGraphQLMutation] = field(default_factory=list)
+
+    def drain(self) -> list[PendingGraphQLMutation]:
+        drained, self.pending = self.pending, []
+        return drained
+
 
 _BASH_TOOL_DESCRIPTION_TEMPLATE = Template(
     """\
@@ -121,10 +178,13 @@ Usage: phoenix-gql [query] [options] [query-or-file]
 
 Execute GraphQL operations against Phoenix.
 
-{% if mutations_enabled -%}
-Permissions: queries and mutations are ENABLED.
-{% else -%}
+{% if not mutations_enabled -%}
 Permissions: queries only (mutations are disabled).
+{% elif approval_required -%}
+Permissions: queries and mutations are enabled; each mutation requires the \
+user's approval before it executes.
+{% else -%}
+Permissions: queries and mutations are ENABLED.
 {% endif %}
 Recommended flow:
   1. start with a tiny query or an introspection query to confirm the schema
@@ -146,8 +206,11 @@ Examples:
 )
 
 
-def _get_help_text(mutations_enabled: bool) -> str:
-    return _HELP_TEXT_TEMPLATE.render(mutations_enabled=mutations_enabled)
+def _get_help_text(mutations_enabled: bool, approval_required: bool = False) -> str:
+    return _HELP_TEXT_TEMPLATE.render(
+        mutations_enabled=mutations_enabled,
+        approval_required=approval_required,
+    )
 
 
 @dataclass
@@ -256,19 +319,23 @@ def create_phoenix_gql_builtin(
     *,
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
-    allow_mutations: bool,
+    mutation_policy: GraphQLMutationPolicy,
 ) -> Callable[[BuiltinContext], Awaitable[BuiltinResult]]:
     """Build the ``phoenix-gql`` custom shell command."""
-    allowed_operation_types = (
-        {OperationType.QUERY, OperationType.MUTATION} if allow_mutations else {OperationType.QUERY}
-    )
 
     async def phoenix_gql(ctx: BuiltinContext) -> BuiltinResult:
         try:
             parsed = _parse_args(list(ctx.argv))
 
             if parsed.show_help:
-                return BuiltinResult(stdout=_get_help_text(allow_mutations), stderr="", exit_code=0)
+                return BuiltinResult(
+                    stdout=_get_help_text(
+                        mutation_policy.allow_mutations,
+                        mutation_policy.require_approval,
+                    ),
+                    stderr="",
+                    exit_code=0,
+                )
 
             query = _resolve_query_text(parsed, ctx)
 
@@ -277,10 +344,31 @@ def create_phoenix_gql_builtin(
             if GraphQLOperationType.SUBSCRIPTION in operation_types:
                 raise ValueError("Subscriptions are not supported by phoenix-gql")
 
-            if GraphQLOperationType.MUTATION in operation_types and not allow_mutations:
+            is_mutation = GraphQLOperationType.MUTATION in operation_types
+            if is_mutation and not mutation_policy.allow_mutations:
                 raise ValueError("Mutations are not permitted.")
 
             variables = _resolve_variables(parsed, ctx)
+
+            if is_mutation and mutation_policy.require_approval:
+                digest = _mutation_digest(query, variables)
+                if digest not in mutation_policy.approved_digests:
+                    mutation_policy.pending.append(
+                        PendingGraphQLMutation(query=query, variables=variables, digest=digest)
+                    )
+                    raise ValueError(
+                        "This mutation requires the user's approval. An approval "
+                        "request has been sent; do not retry the command until "
+                        "the user responds."
+                    )
+
+            # Strawberry re-checks the operation type at execution, so a mutation
+            # that evaded the AST classifier above is still rejected here.
+            allowed_operation_types = (
+                {OperationType.QUERY, OperationType.MUTATION}
+                if is_mutation
+                else {OperationType.QUERY}
+            )
 
             result = await schema.execute(
                 query,
@@ -341,19 +429,10 @@ class BashToolResult(TypedDict):
 
 def _build_shell(
     *,
-    schema: strawberry.Schema,
-    build_graphql_context: Callable[[], Context],
-    allow_mutations: bool,
+    custom_builtins: dict[str, Callable[[BuiltinContext], Awaitable[BuiltinResult]]],
     initial_snapshot: Optional[bytes],
 ) -> Bash:
     """Build the virtual shell, restoring prior session state when available."""
-    custom_builtins = {
-        "phoenix-gql": create_phoenix_gql_builtin(
-            schema=schema,
-            build_graphql_context=build_graphql_context,
-            allow_mutations=allow_mutations,
-        ),
-    }
     if initial_snapshot is not None:
         try:
             return Bash.from_snapshot(
@@ -373,6 +452,29 @@ def _build_shell(
     return shell
 
 
+def _resolve_edit_permission(deps: Any) -> Optional[str]:
+    """Read the run's edit permission off the agent dependencies, if it has one.
+
+    The browser agent's ``AgentDependencies`` carries ``edit_permission``; the
+    headless/subagent variants run with ``deps=None`` and get no approval flow.
+    """
+    return getattr(deps, "edit_permission", None)
+
+
+def _approved_digests_from_metadata(tool_call_metadata: Optional[dict[str, Any]]) -> frozenset[str]:
+    """Extract the approved mutation digests from a deferred tool call's metadata."""
+    if not tool_call_metadata:
+        return frozenset()
+    pending = tool_call_metadata.get(PENDING_MUTATIONS_METADATA_KEY)
+    if not isinstance(pending, list):
+        return frozenset()
+    return frozenset(
+        digest
+        for entry in pending
+        if isinstance(entry, dict) and isinstance(digest := entry.get("digest"), str)
+    )
+
+
 class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
     """Toolset exposing a ``bash`` tool backed by a virtual shell."""
 
@@ -385,41 +487,87 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         initial_snapshot: Optional[bytes] = None,
         on_snapshot: Optional[Callable[[bytes], None]] = None,
     ) -> None:
+        mutation_policy = GraphQLMutationPolicy(allow_mutations=allow_mutations)
+        custom_builtins = {
+            "phoenix-gql": create_phoenix_gql_builtin(
+                schema=schema,
+                build_graphql_context=build_graphql_context,
+                mutation_policy=mutation_policy,
+            ),
+        }
         shell = _build_shell(
-            schema=schema,
-            build_graphql_context=build_graphql_context,
-            allow_mutations=allow_mutations,
+            custom_builtins=custom_builtins,
             initial_snapshot=initial_snapshot,
         )
+        # The shell and mutation policy are shared mutable state; parallel tool
+        # calls would race on both.
+        execution_lock = asyncio.Lock()
 
-        async def bash(summary: str, command: str) -> BashToolResult:
-            started_at = datetime.now(timezone.utc)
-            start = time.monotonic()
-            result = await shell.execute(command)
-            completed_at = datetime.now(timezone.utc)
-            duration_ms = round((time.monotonic() - start) * 1000)
-            if on_snapshot is not None:
-                on_snapshot(shell.snapshot())
-            result_dict = result.to_dict()
-            return {
-                "command": command,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "exitCode": result.exit_code,
-                "durationMs": duration_ms,
-                "startedAt": started_at.isoformat(),
-                "completedAt": completed_at.isoformat(),
-                "stdoutBytes": len(result.stdout.encode("utf-8")),
-                "stderrBytes": len(result.stderr.encode("utf-8")),
-                "stdoutTruncated": result_dict["stdout_truncated"],
-                "stderrTruncated": result_dict["stderr_truncated"],
-            }
+        async def bash(ctx: RunContext[AgentDepsT], summary: str, command: str) -> BashToolResult:
+            nonlocal shell
+            async with execution_lock:
+                mutation_policy.require_approval = (
+                    mutation_policy.allow_mutations
+                    and _resolve_edit_permission(ctx.deps) == "manual"
+                )
+                mutation_policy.approved_digests = (
+                    _approved_digests_from_metadata(ctx.tool_call_metadata)
+                    if ctx.tool_call_approved
+                    else frozenset()
+                )
+                mutation_policy.drain()
+                pre_execution_snapshot = (
+                    shell.snapshot() if mutation_policy.require_approval else None
+                )
+                started_at = datetime.now(timezone.utc)
+                start = time.monotonic()
+                result = await shell.execute(command)
+                completed_at = datetime.now(timezone.utc)
+                duration_ms = round((time.monotonic() - start) * 1000)
+                if pending_mutations := mutation_policy.drain():
+                    # Roll the shell back so the command's side effects don't
+                    # survive the dry run: on approval the whole command
+                    # re-executes exactly once against this restored state.
+                    assert pre_execution_snapshot is not None
+                    try:
+                        shell = Bash.from_snapshot(
+                            pre_execution_snapshot,
+                            python=False,
+                            network=None,
+                            custom_builtins=custom_builtins,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Failed to roll back the shell after a pending mutation; "
+                            "an approved re-run may repeat the command's side effects"
+                        )
+                    if on_snapshot is not None:
+                        on_snapshot(pre_execution_snapshot)
+                    raise ApprovalRequired(
+                        metadata={PENDING_MUTATIONS_METADATA_KEY: list(pending_mutations)}
+                    )
+                if on_snapshot is not None:
+                    on_snapshot(shell.snapshot())
+                result_dict = result.to_dict()
+                return {
+                    "command": command,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "exitCode": result.exit_code,
+                    "durationMs": duration_ms,
+                    "startedAt": started_at.isoformat(),
+                    "completedAt": completed_at.isoformat(),
+                    "stdoutBytes": len(result.stdout.encode("utf-8")),
+                    "stderrBytes": len(result.stderr.encode("utf-8")),
+                    "stdoutTruncated": result_dict["stdout_truncated"],
+                    "stderrTruncated": result_dict["stderr_truncated"],
+                }
 
         super().__init__(
             tools=[
                 Tool(
                     bash,
-                    takes_ctx=False,
+                    takes_ctx=True,
                     description=_BASH_TOOL_DESCRIPTION_TEMPLATE.render(),
                 )
             ]

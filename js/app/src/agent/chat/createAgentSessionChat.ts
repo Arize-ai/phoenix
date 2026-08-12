@@ -238,6 +238,13 @@ export function createAgentSessionChat({
         });
       } else if (dataPart.type === "data-transcript-persisted") {
         transcriptPersistence.acknowledge(dataPart.data);
+      } else if (dataPart.type === "data-bash-mutation-approval") {
+        store
+          .getState()
+          .setPendingBashMutations(
+            dataPart.data.toolCallId,
+            dataPart.data.pendingMutations
+          );
       }
     },
     sendAutomaticallyWhen: async ({ messages }) => {
