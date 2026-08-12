@@ -50,6 +50,7 @@ from pathlib import Path
 
 # NAMEDATALEN - 1. SQLite has no equivalent cap.
 POSTGRESQL_MAX_IDENTIFIER_LENGTH = 63
+DDL_DIRECTORY = Path(__file__).resolve().parents[2] / "src/phoenix/db/ddl"
 
 # A definition starts at exactly four spaces. The PostgreSQL generator wraps
 # long constraints onto continuation lines indented further, and those carry
@@ -173,7 +174,6 @@ def verify_parse(path: Path, tables: dict[str, list[str]]) -> list[str]:
 
 
 def main() -> int:
-    script_dir = Path(__file__).parent
     parser = argparse.ArgumentParser(
         description=(
             "Verify the PostgreSQL and SQLite schema files describe the same"
@@ -184,11 +184,14 @@ def main() -> int:
     parser.add_argument(
         "--postgresql",
         type=Path,
-        default=script_dir / "postgresql_schema.sql",
+        default=DDL_DIRECTORY / "postgresql_schema.sql",
         help="PostgreSQL schema file",
     )
     parser.add_argument(
-        "--sqlite", type=Path, default=script_dir / "sqlite_schema.sql", help="SQLite schema file"
+        "--sqlite",
+        type=Path,
+        default=DDL_DIRECTORY / "sqlite_schema.sql",
+        help="SQLite schema file",
     )
     args = parser.parse_args()
 
