@@ -345,6 +345,13 @@ def _check_dialect_specific_syntax(
                 f"{node.key.upper()} is not supported by SQLite. Use LIKE, or lower(...) LIKE "
                 "lower(...) for case-insensitive matching.",
             )
+        if isinstance(node, exp.Distinct) and node.args.get("on"):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "DISTINCT ON is not supported by SQLite. Filter with "
+                "ROW_NUMBER() OVER (PARTITION BY ...) = 1, or run the statement "
+                "on PostgreSQL.",
+            )
     return None
 
 

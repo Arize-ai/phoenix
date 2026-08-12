@@ -285,6 +285,17 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="sqlite",
     ),
     AdmissionCase(
+        sql="SELECT DISTINCT ON (name) id FROM spans ORDER BY name, id",
+        expect=AdmissionOutcome.ADMIT,
+        note="PostgreSQL DISTINCT ON is kept; LIMIT applies to the distinct result",
+    ),
+    AdmissionCase(
+        sql="SELECT DISTINCT ON (name) id FROM spans ORDER BY name, id",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLGlot transpiles DISTINCT ON on SQLite so the injected LIMIT applies before the distinct",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
         sql="SELECT name, COUNT(*) FROM spans GROUP BY CUBE(name)",
         expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
         note="SQLite parses CUBE but cannot execute it; PostgreSQL remains covered by grammar tests",
