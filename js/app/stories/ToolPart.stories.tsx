@@ -55,10 +55,7 @@ import type {
   PendingPromptInstanceRemoval,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
-import {
-  SAVE_PROMPT_TOOL_NAME,
-  type PendingSavePrompt,
-} from "@phoenix/agent/tools/playgroundSavePrompt";
+import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/UIOperations/executeUIAgentTool";
 import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/UIOperations/searchUIAgentTool";
@@ -543,139 +540,6 @@ const docsFileSystemQueryRunningPart = makePart({
 });
 
 // ---------------------------------------------------------------------------
-// Save prompt tool mocks
-// ---------------------------------------------------------------------------
-
-const savePromptApprovalInput = {
-  instanceId: 0,
-  description:
-    "Tighten routing instructions so billing questions go to the payments specialist.",
-  tags: ["staging"],
-};
-
-const savePromptAwaitingApprovalPart = makePart({
-  toolName: SAVE_PROMPT_TOOL_NAME,
-  toolCallId: "save-prompt-approval-update",
-  state: "input-available",
-  input: savePromptApprovalInput,
-});
-
-const pendingSavePromptApproval = {
-  toolCallId: "save-prompt-approval-update",
-  sessionId: "session-playground-demo",
-  input: savePromptApprovalInput,
-  preview: {
-    mode: "update",
-    instanceId: 0,
-    label: "Customer support router",
-    promptId: "UHJvbXB0OjEyMw",
-    promptName: "support_router",
-    description: savePromptApprovalInput.description,
-    tags: savePromptApprovalInput.tags,
-    dirtyBeforeSave: true,
-  },
-  accept: async () => undefined,
-  reject: async () => undefined,
-} satisfies PendingSavePrompt;
-
-const savePromptCreateInput = {
-  instanceId: 1,
-  name: "refund_policy_assistant",
-  description: "Capture the refund-policy answer pattern from the playground.",
-  tags: ["candidate", "qa"],
-};
-
-const savePromptCreateApprovalPart = makePart({
-  toolName: SAVE_PROMPT_TOOL_NAME,
-  toolCallId: "save-prompt-approval-create",
-  state: "input-available",
-  input: savePromptCreateInput,
-});
-
-const pendingSavePromptCreateApproval = {
-  toolCallId: "save-prompt-approval-create",
-  sessionId: "session-playground-demo",
-  input: savePromptCreateInput,
-  preview: {
-    mode: "create",
-    instanceId: 1,
-    label: "Refund policy draft",
-    promptId: null,
-    promptName: "refund_policy_assistant",
-    description: savePromptCreateInput.description,
-    tags: savePromptCreateInput.tags,
-    dirtyBeforeSave: true,
-  },
-  accept: async () => undefined,
-  reject: async () => undefined,
-} satisfies PendingSavePrompt;
-
-const savePromptAcceptedPart = makePart({
-  toolName: SAVE_PROMPT_TOOL_NAME,
-  toolCallId: "save-prompt-accepted",
-  state: "output-available",
-  input: savePromptApprovalInput,
-  output: {
-    status: "saved",
-    mode: "update",
-    instanceId: 0,
-    label: "Customer support router",
-    promptId: "UHJvbXB0OjEyMw",
-    promptName: "support_router",
-    promptVersionId: "UHJvbXB0VmVyc2lvbjo0NTY",
-    tag: "staging",
-    dirtyBeforeSave: true,
-    approvalStatus: "accepted",
-    acceptedBy: "user",
-    message: "New prompt version saved from playground instance.",
-  },
-});
-
-const savePromptCreatedAutoApprovedPart = makePart({
-  toolName: SAVE_PROMPT_TOOL_NAME,
-  toolCallId: "save-prompt-created-auto-approved",
-  state: "output-available",
-  input: savePromptCreateInput,
-  output: {
-    status: "saved",
-    mode: "create",
-    instanceId: 1,
-    label: "Refund policy draft",
-    promptId: "UHJvbXB0Ojc4OQ",
-    promptName: "refund_policy_assistant",
-    promptVersionId: "UHJvbXB0VmVyc2lvbjo3OTA",
-    tag: "candidate",
-    dirtyBeforeSave: true,
-    approvalStatus: "accepted",
-    acceptedBy: "auto",
-    message: "Prompt created from playground instance.",
-  },
-});
-
-const savePromptRejectedPart = makePart({
-  toolName: SAVE_PROMPT_TOOL_NAME,
-  toolCallId: "save-prompt-rejected",
-  state: "output-available",
-  input: savePromptApprovalInput,
-  output: {
-    status: "rejected",
-    message: "User rejected the proposed prompt save.",
-  },
-});
-
-const savePromptErrorPart = makePart({
-  toolName: SAVE_PROMPT_TOOL_NAME,
-  toolCallId: "save-prompt-error",
-  state: "output-error",
-  input: {
-    instanceId: 3,
-    description: "Save the current judge prompt after updating edge cases.",
-  },
-  errorText:
-    "Cannot save prompt because playground instance 3 is no longer mounted.",
-});
-
-// ---------------------------------------------------------------------------
 // ToolPart stories
 // ---------------------------------------------------------------------------
 
@@ -843,42 +707,6 @@ export const DocsFileSystemQuery: Story = {
 /** A docs filesystem query tool currently running. */
 export const DocsFileSystemQueryRunning: Story = {
   args: { part: docsFileSystemQueryRunningPart },
-};
-
-/** A save_prompt tool waiting for approval before saving a new version. */
-export const SavePromptAwaitingApproval: Story = {
-  args: { part: savePromptAwaitingApprovalPart },
-  decorators: [withAgentStore(pendingSavePromptApproval)],
-};
-
-/** A save_prompt tool waiting for approval before creating a new prompt. */
-export const SavePromptCreateApproval: Story = {
-  args: { part: savePromptCreateApprovalPart },
-  decorators: [withAgentStore(pendingSavePromptCreateApproval)],
-};
-
-/** A save_prompt tool after the user accepted and a version was saved. */
-export const SavePromptAccepted: Story = {
-  args: { part: savePromptAcceptedPart },
-  decorators: [withAgentStore()],
-};
-
-/** A save_prompt tool after bypass mode auto-approved prompt creation. */
-export const SavePromptCreatedAutoApproved: Story = {
-  args: { part: savePromptCreatedAutoApprovedPart },
-  decorators: [withAgentStore()],
-};
-
-/** A save_prompt tool after the user rejected the proposed save. */
-export const SavePromptRejected: Story = {
-  args: { part: savePromptRejectedPart },
-  decorators: [withAgentStore()],
-};
-
-/** A save_prompt tool that failed before a save could be proposed. */
-export const SavePromptError: Story = {
-  args: { part: savePromptErrorPart },
-  decorators: [withAgentStore()],
 };
 
 const loadSkillRunningPart = makePart({
@@ -1253,9 +1081,9 @@ const executeUISavePromptChild = {
 } satisfies PendingSavePrompt;
 
 /**
- * Routed through execute_browser_action, save-prompt now renders the shared ApprovalCard
- * with a labeled, curated payload (prompt name, label, tags) rather than a raw
- * `stringifyToolValue(pending.preview)` dump — compare SavePromptAwaitingApproval.
+ * Routed through execute_browser_action, save-prompt renders the shared ApprovalCard with
+ * a labeled, curated payload (prompt name, label, tags) rather than a raw
+ * `stringifyToolValue(pending.preview)` dump.
  */
 export const ExecuteUIAwaitingSavePromptApproval: Story = {
   args: {

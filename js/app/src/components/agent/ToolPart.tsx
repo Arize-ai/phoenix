@@ -38,13 +38,6 @@ import {
 import { LIST_DATASETS_TOOL_NAME } from "@phoenix/agent/tools/listDatasets";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { PATCH_EXPERIMENT_TOOL_NAME } from "@phoenix/agent/tools/patchExperiment";
-import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
-import {
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
-import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import {
   parseSetSpansFilterInput,
   SET_SPANS_FILTER_TOOL_NAME,
@@ -106,21 +99,10 @@ import {
   getEditLlmEvaluatorDraftToolPreview,
 } from "./EditLLMEvaluatorDraftToolDetails";
 import {
-  EditPromptToolDetails,
-  formatEditPromptState,
-  getEditPromptToolPreview,
-} from "./EditPromptToolDetails";
-import {
   ExecuteUIToolDetails,
   formatExecuteUIState,
   getExecuteUIToolPreview,
 } from "./ExecuteUIToolDetails";
-import {
-  formatLoadDatasetState,
-  getLoadDatasetStatusVariant,
-  getLoadDatasetToolPreview,
-  LoadDatasetToolDetails,
-} from "./LoadDatasetToolDetails";
 import {
   getLoadSkillToolPreview,
   LOAD_SKILL_TOOL_NAME,
@@ -137,18 +119,6 @@ import {
   READ_SKILL_RESOURCE_TOOL_NAME,
   ReadSkillResourceToolDetails,
 } from "./ReadSkillResourceToolDetails";
-import {
-  formatRemovePromptInstanceState,
-  getRemovePromptInstanceStatusVariant,
-  getRemovePromptInstanceToolPreview,
-  RemovePromptInstanceToolDetails,
-} from "./RemovePromptInstanceToolDetails";
-import {
-  formatSavePromptState,
-  getSavePromptStatusVariant,
-  getSavePromptToolPreview,
-  SavePromptToolDetails,
-} from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
 import {
   getSearchUIToolPreview,
@@ -172,11 +142,6 @@ import {
   stringifyToolValue,
 } from "./toolPartTypes";
 import { useToolDisclosure } from "./useToolDisclosure";
-import {
-  formatWritePromptToolsState,
-  getWritePromptToolsToolPreview,
-  WritePromptToolsToolDetails,
-} from "./WritePromptToolsToolDetails";
 
 /**
  * Re-export the message part type for consumers that need it for grouping.
@@ -1121,42 +1086,6 @@ function getToolPresentation(
         details: <AskUserToolDetails part={part} />,
       };
     }
-    case EDIT_PROMPT_TOOL_NAME:
-      return {
-        preview: getEditPromptToolPreview(part),
-        stateLabel: formatEditPromptState(part),
-        statusVariant,
-        details: <EditPromptToolDetails part={part} />,
-      };
-    case WRITE_PROMPT_TOOLS_TOOL_NAME:
-      return {
-        preview: getWritePromptToolsToolPreview(part),
-        stateLabel: formatWritePromptToolsState(part),
-        statusVariant,
-        details: <WritePromptToolsToolDetails part={part} />,
-      };
-    case SAVE_PROMPT_TOOL_NAME:
-      return {
-        preview: getSavePromptToolPreview(part),
-        stateLabel: formatSavePromptState(part),
-        statusVariant: getSavePromptStatusVariant(part) ?? statusVariant,
-        details: <SavePromptToolDetails part={part} />,
-      };
-    case REMOVE_PROMPT_INSTANCE_TOOL_NAME:
-      return {
-        preview: getRemovePromptInstanceToolPreview(part),
-        stateLabel: formatRemovePromptInstanceState(part),
-        statusVariant:
-          getRemovePromptInstanceStatusVariant(part) ?? statusVariant,
-        details: <RemovePromptInstanceToolDetails part={part} />,
-      };
-    case LOAD_DATASET_TOOL_NAME:
-      return {
-        preview: getLoadDatasetToolPreview(part),
-        stateLabel: formatLoadDatasetState(part),
-        statusVariant: getLoadDatasetStatusVariant(part) ?? statusVariant,
-        details: <LoadDatasetToolDetails part={part} />,
-      };
     case CREATE_DATASET_TOOL_NAME:
       return {
         preview: getCreateDatasetToolPreview(part),

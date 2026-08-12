@@ -275,20 +275,22 @@ patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
       `PENDING_TOOL_STATE_CLEANUP`/`REWIND_CLEANUP_TOOL_NAMES`; its pending map
       joined `EXECUTE_UI_PENDING_MAP_CLEANERS`.
 
-### Q2 cleanup (final commits on this branch)
+### Q2 cleanup (final commits on this branch) — DONE
 
-Falls out of the subsumption — do last:
-
-- remove the dead `ToolPart.tsx` dispatcher `case` branches + retired
-  `*ToolDetails` cards for tool names no registered tool emits
-  (`SavePromptToolDetails`, `EditPromptToolDetails`,
-  `WritePromptToolsToolDetails`, `RemovePromptInstanceToolDetails`,
-  `LoadDatasetToolDetails`);
-- remove the 5 pure-dead `SavePrompt*` stories in `stories/ToolPart.stories.tsx`
-  (and `SavePromptAwaitingApproval` once its comparison value is gone);
-- reduce the ~20 orphaned, unregistered `tools/*` modules (already superseded by
-  `operations/`) to the constants/parsers the live operations still import —
-  verify no `operations/` file imports a module before removing it.
-
-Tracked as Task #2 (Q1) and Task #3 (Q2) in the session task list, with the same
-inventory and caveats.
+- [x] removed the dead `ToolPart.tsx` dispatcher `case` branches + retired
+      `*ToolDetails` cards (`SavePromptToolDetails`, `EditPromptToolDetails`,
+      `WritePromptToolsToolDetails`, `RemovePromptInstanceToolDetails`,
+      `LoadDatasetToolDetails`);
+- [x] removed all six `SavePrompt*` stories in `stories/ToolPart.stories.tsx`
+      (including `SavePromptAwaitingApproval`, whose comparison role ended with
+      the card);
+- [x] orphan reduction, adjusted from the "~20 orphaned modules" estimate: no
+      `tools/*` module is fully orphaned — each still hosts the live
+      clientActions/schemas/commit functions its operations import. What was
+      dead and removed: the retired `defineTool` definitions of every subsumed
+      write tool (`createDataset`/`datasetEdit`/`spansToDataset`/
+      `annotationConfig` `agentTools`, `patchExperimentAgentTool`,
+      `batchSpanAnnotateAgentTool`), with the mixed `agentTools.ts` files
+      (`datasetExamples`, `datasetSplits`, `datasetLabels`) trimmed to their
+      surviving list tools. A per-file scan found no remaining unreferenced
+      files under `agent/tools/`.
