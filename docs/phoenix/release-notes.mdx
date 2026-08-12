@@ -13,6 +13,31 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
 
+<ReleaseUpdate label="08.12.2026" href="/docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config" title="Session Filter Expressions, REST API Expansion, and Endpoint Configuration">
+**Available in arize-phoenix 19.18.0–20.1.0, arize-phoenix-client 3.0.0+ (Python), @arizeai/phoenix-client 7.4.0+, @arizeai/phoenix-otel 2.2.0+, @arizeai/phoenix-cli 1.15.0+ (TypeScript)**
+
+Filter sessions the way you filter spans, manage more of Phoenix over REST, and point every SDK at one endpoint variable.
+
+- **Session filter expressions** — session intrinsics, per-session aggregates, and comprehensions over spans, traces, annotations, and cost details, plus plain-English AI query
+- **Dataset splits and experiment tags over REST** — create, edit, and delete splits; assign, list, and remove dataset-scoped experiment tags including `baseline`
+- **`POST /v1/traces/transfer`** — re-parent traces into another project by trace ID or OTel trace ID
+- **Prompt description and metadata updates** from the REST API and both client SDKs
+- **`PHOENIX_ENDPOINT`** is the canonical API base URL across every SDK, the `px` CLI, and the MCP server
+- **OAuth2 workload identity** — authenticate to an IDP with a platform-minted JWT instead of a client secret
+- **Breaking change** — `arize-phoenix-client` 3.0.0 Google prompt helpers target `google-genai`
+</ReleaseUpdate>
+
+<ReleaseUpdate label="08.11.2026" href="/docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions" title="Persistent Agent Sessions">
+**Available in arize-phoenix 20.0.0+ (server), @arizeai/phoenix-cli 1.16.0+ and @arizeai/phoenix-client 7.5.0+ (TypeScript)**
+
+Conversations with the Phoenix agent are saved server-side and shared between the browser panel and the `pxi` terminal client.
+
+- **Browse and restore** past chats, rename them, or mark one temporary so it is never saved
+- **Rewind or branch** from any message — edit and re-send in place, or fork a new chat and leave the original alone
+- **Terminal session commands** — `/new`, `/temporary`, `/sessions`, `/model`, and `/compact`
+- **Retention controls** under **Settings → Assistant** for idle-chat deletion and a per-user cap
+</ReleaseUpdate>
+
 <ReleaseUpdate label="08.04.2026" href="/docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts" title="Chat Completions Proxy, AI Query, and Annotation Charts">
 **Available in arize-phoenix 19.11.0–19.17.0, @arizeai/phoenix-evals 2.2.0+ and @arizeai/phoenix-cli 1.14.0+ (TypeScript)**
 
