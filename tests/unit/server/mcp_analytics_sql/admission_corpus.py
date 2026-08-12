@@ -520,4 +520,16 @@ CASES: tuple[AdmissionCase, ...] = (
         expect=AdmissionOutcome.ADMIT,
         note="a qualifier that names a derived relation in this scope is query-local, not a missing table",
     ),
+    AdmissionCase(
+        sql='SELECT "GRAPHQL_NODE_ID" FROM spans',
+        expect=AdmissionOutcome.COLUMN_NOT_ALLOWED,
+        note="virtual overlays follow the same quoting rules as physical columns; the advertised name is graphql_node_id",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql='SELECT "graphql_node_id" FROM spans',
+        expect=AdmissionOutcome.ADMIT,
+        note="quoting the advertised spelling is still that column",
+        dialect="postgresql",
+    ),
 )

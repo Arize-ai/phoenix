@@ -1405,22 +1405,18 @@ def _offers_column(
     """
     spec = allowlist.table_specs[table_name]
     name = reference.name or ""
-    if name.casefold() in {virtual.casefold() for virtual in spec.virtual_columns}:
-        return True
+    offered = (*spec.columns, *spec.virtual_columns)
     if dialect == "sqlite":
-        return name.casefold() in {column.casefold() for column in spec.columns}
+        return name.casefold() in {column.casefold() for column in offered}
 
     # PostgreSQL folds unquoted identifiers to lower-case but preserves quoted
-    # spelling. The DDL loader retains which physical names were quoted, so the
-    # policy admits `"MixedCase"` only when it exactly names that column and
-    # refuses the different physical name `mixedcase`.
+    # spelling. Physical names retain which were quoted in the DDL; virtual
+    # overlays are advertised as unquoted names and follow the same rule.
     identifier = reference.this
     is_quoted = isinstance(identifier, exp.Identifier) and bool(identifier.args.get("quoted"))
     if is_quoted:
-        return name in spec.columns
-    return any(
-        name.casefold() == physical and physical == physical.lower() for physical in spec.columns
-    )
+        return name in offered
+    return any(name.casefold() == column and column == column.lower() for column in offered)
 
 
 def admit(
