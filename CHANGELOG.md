@@ -1,5 +1,25 @@
 # Changelog
 
+## [20.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.0.0...arize-phoenix-v20.1.0) (2026-08-12)
+
+
+### Features
+
+* **auth:** support JWT client assertion for OAuth2 login ([#15314](https://github.com/Arize-ai/phoenix/issues/15314)) ([3b277cf](https://github.com/Arize-ai/phoenix/commit/3b277cffaf6f4b5683e5fd1c24766e7ab6c6b974))
+* refine evaluation metric chart layout and controls ([#15356](https://github.com/Arize-ai/phoenix/issues/15356)) ([39740fa](https://github.com/Arize-ai/phoenix/commit/39740fa8bef58d391fbd5251850482a6307c3898))
+* **server:** add POST /traces/transfer ([#15363](https://github.com/Arize-ai/phoenix/issues/15363)) ([5c38cc7](https://github.com/Arize-ai/phoenix/commit/5c38cc7ff2398569da3bbb23aa9a384ad73a0134))
+
+
+### Bug Fixes
+
+* **agents:** prevent exported session ID collisions ([#15358](https://github.com/Arize-ai/phoenix/issues/15358)) ([4e828c3](https://github.com/Arize-ai/phoenix/commit/4e828c3c97d3515ff82dafec69dbf82b8b4e2695))
+* route OpenAI reasoning models to the Responses API client ([#15362](https://github.com/Arize-ai/phoenix/issues/15362)) ([2d44558](https://github.com/Arize-ai/phoenix/commit/2d44558e2ca13af66f3450cbd2f183944f927101))
+
+
+### Documentation
+
+* add v20.0.0 entry to MIGRATION.md ([#15346](https://github.com/Arize-ai/phoenix/issues/15346)) ([355ebea](https://github.com/Arize-ai/phoenix/commit/355ebeac186579d3aab4715b67e03593ae1544aa))
+
 ## [20.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v19.21.0...arize-phoenix-v20.0.0) (2026-08-11)
 
 
