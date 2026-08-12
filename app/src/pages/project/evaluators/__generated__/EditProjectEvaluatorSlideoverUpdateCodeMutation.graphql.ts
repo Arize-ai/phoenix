@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<34c99ef2501f0d91da6080c86a968f60>>
+ * @generated SignedSource<<ebc43678fb6acda558960c1a74bb99f2>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,7 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type UpdateProjectCodeEvaluatorInput = {
   description?: string | null;
   enabled?: boolean | null;
+  evaluationDelaySeconds?: number | null;
   evaluationTarget: EvaluationTarget;
   evaluatorInputMapping?: EvaluatorInputMappingInput | null;
   filterCondition: string;
