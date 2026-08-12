@@ -760,15 +760,26 @@ def query_local_columns(
     # that is simply wrong, and silently so, since nothing downstream can tell a
     # marking made from knowledge of the tables from one made in their absence.
     table_specs = allowlist.table_specs
-    quoted_derived_aliases = {
-        alias
-        for relation in root.find_all(exp.CTE, exp.Subquery)
-        if (alias_expression := relation.args.get("alias"))
-        and isinstance(alias_expression, exp.TableAlias)
-        and isinstance(alias_expression.this, exp.Identifier)
-        and alias_expression.this.args.get("quoted")
-        and (alias := relation.alias)
-    }
+    quoted_derived_aliases: set[str] = set()
+    # Names a CTE or subquery exposes via ``AS t(col, ...)``. Those do not
+    # appear in the inner SELECT's ``named_selects``.
+    derived_column_lists: dict[str, set[str]] = {}
+    for relation in root.find_all(exp.CTE, exp.Subquery):
+        alias_expression = relation.args.get("alias")
+        if not isinstance(alias_expression, exp.TableAlias):
+            continue
+        alias = relation.alias
+        if not alias:
+            continue
+        if isinstance(alias_expression.this, exp.Identifier) and alias_expression.this.args.get(
+            "quoted"
+        ):
+            quoted_derived_aliases.add(alias)
+        for identifier in alias_expression.args.get("columns") or []:
+            name = identifier.name if isinstance(identifier, exp.Identifier) else ""
+            if name:
+                derived_column_lists.setdefault(alias, set()).add(name.lower())
+                derived_column_lists.setdefault(alias.casefold(), set()).add(name.lower())
     local: dict[int, Locality] = {}
     for scope in scope_root.traverse():
         derived_aliases: set[str] = set()
@@ -784,6 +795,7 @@ def query_local_columns(
             expression = getattr(source, "expression", None)
             if expression is not None:
                 derived_projections.update(name.lower() for name in expression.named_selects)
+            derived_projections.update(derived_column_lists.get(alias, ()))
         select = scope.expression if isinstance(scope.expression, exp.Select) else None
         # A set operation has no input columns of its own, so a sort key over one
         # can only name a result column -- every output name qualifies, not just

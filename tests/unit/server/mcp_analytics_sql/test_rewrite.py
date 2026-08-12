@@ -748,6 +748,26 @@ def test_graphql_node_id_through_a_cte_alias_is_not_called_ambiguous() -> None:
     assert "graphql_node_id" not in ctx.applied
 
 
+def test_graphql_node_id_from_a_cte_column_list_is_not_substituted() -> None:
+    """A column list on the alias is the derived relation's projection."""
+    ctx, rendered = _rewritten(
+        "WITH t(graphql_node_id) AS (SELECT 1) SELECT graphql_node_id FROM spans, t",
+        dialect="postgresql",
+    )
+    assert "ENCODE" not in rendered.upper()
+    assert "graphql_node_id" not in ctx.applied
+
+
+def test_latency_ms_from_a_subquery_column_list_is_not_substituted() -> None:
+    """Same for a subquery alias list: the name is t's, not spans'."""
+    ctx, rendered = _rewritten(
+        "SELECT latency_ms FROM spans, (SELECT 1) AS t(latency_ms)",
+        dialect="postgresql",
+    )
+    assert "EXTRACT" not in rendered.upper()
+    assert "latency_ms" not in ctx.applied
+
+
 def test_latency_ms_is_not_invented_for_a_cte_of_the_same_name() -> None:
     """A CTE named ``spans`` is not a duration table."""
     _, rendered = _rewritten(
