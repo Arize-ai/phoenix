@@ -1464,7 +1464,7 @@ class TestClientAssertionJWT:
         assertion_file = tmp_path / "azure-identity-token"
         assertion_file.write_bytes(b"\xff\xfe\x00\x01")
 
-        with pytest.raises(OAuthError, match="cannot read"):
+        with pytest.raises(OAuthError, match="cannot decode"):
             self._prepare(assertion_file)
 
     def test_client_id_is_not_duplicated_when_already_correct(self, tmp_path: Path) -> None:
@@ -1592,6 +1592,54 @@ class TestClientAssertionJWT:
         assert str(secret_shaped_path) not in repr(assertion_file)
         assert str(secret_shaped_path) not in repr([assertion_file])
         assert "SOME_VARIABLE" in repr(assertion_file)
+
+    def test_short_reads_are_accumulated(self, tmp_path: Path, monkeypatch: Any) -> None:
+        # A regular-file read may legally return fewer bytes than asked before EOF; taking the
+        # first result for the whole value would send a truncated assertion.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        real_read = os.read
+
+        def short_read(fd: int, n: int) -> bytes:
+            return real_read(fd, min(n, 4))
+
+        monkeypatch.setattr(os, "read", short_read)
+
+        assert self._prepare(assertion_file)["client_assertion"] == ["header.payload.sig"]
+
+    def test_indirect_path_is_withheld_from_the_exception_chain(self, tmp_path: Path) -> None:
+        # __str__ and __repr__ redact, but a chained cause carries OSError.filename, which
+        # any traceback logger prints.
+        import traceback
+
+        secret_shaped_path = tmp_path / "s3cr3t-value"
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(
+                AssertionFile(secret_shaped_path, variable="SOME_VARIABLE")
+            ),
+        )
+
+        with pytest.raises(OAuthError) as exc_info:
+            auth.prepare("POST", "https://idp/token", {}, "grant_type=x")
+
+        rendered = "".join(traceback.format_exception(exc_info.value))
+        assert str(secret_shaped_path) not in rendered
+
+    def test_direct_path_keeps_its_exception_chain(self, tmp_path: Path) -> None:
+        # Already in the operator's own config, so the cause is worth keeping for diagnosis.
+        missing = tmp_path / "azure-identity-token"
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(AssertionFile(missing)),
+        )
+
+        with pytest.raises(OAuthError) as exc_info:
+            auth.prepare("POST", "https://idp/token", {}, "grant_type=x")
+
+        assert isinstance(exc_info.value.__cause__, FileNotFoundError)
 
     def test_direct_path_is_shown(self, tmp_path: Path) -> None:
         # Written into the config verbatim, so repeating it discloses nothing.

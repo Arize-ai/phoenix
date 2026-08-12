@@ -28,6 +28,14 @@ logger = logging.getLogger(__name__)
 _MAX_CLIENT_ASSERTION_BYTES = 64 * 1024
 """Generous for a JWT; small enough that a wrong path cannot exhaust the process."""
 
+_ASSERTION_OPEN_FLAGS = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+"""Each flag is present on only one platform, so both are optional.
+
+O_NONBLOCK is POSIX-only and naming it directly is an AttributeError on Windows — which
+`except OSError` would not catch, turning a login into a 500. O_BINARY is Windows-only and
+suppresses the newline translation that would corrupt an assertion there.
+"""
+
 # Pre-compiled default JMESPath for email extraction (standard OIDC "email" claim)
 DEFAULT_EMAIL_PATH = jmespath.compile("email")
 
@@ -120,6 +128,15 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
         super().__init__()
         self._assertion_file = assertion_file
 
+    def _cause(self, error: Exception) -> Optional[Exception]:
+        """Drop the cause when it would carry an indirect path a traceback would print.
+
+        OSError keeps the filename and UnicodeDecodeError keeps the offending bytes, so
+        chaining hands a traceback logger what the message withheld. A direct path may be
+        chained normally, since it is already in the operator's own config.
+        """
+        return None if self._assertion_file.variable else error
+
     def sign(self, auth: Any, token_endpoint: str) -> str:
         # Re-read per request, because the platform rotates the token — Kubernetes by
         # swapping the symlink the configured path resolves through, which also means the
@@ -130,7 +147,7 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
         # waits for a writer and a character device never reaches EOF, either of which would
         # stall the event loop, since this read is synchronous inside the async auth flow.
         try:
-            fd = os.open(self._assertion_file, os.O_RDONLY | os.O_NONBLOCK)
+            fd = os.open(self._assertion_file, _ASSERTION_OPEN_FLAGS)
         except OSError as e:
             # OAuthError is the only failure the login route translates into a redirect;
             # anything else surfaces as a 500. strerror rather than the exception: OSError
@@ -140,7 +157,7 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
                     f"cannot read client assertion file {self._assertion_file}: "
                     f"{e.strerror or type(e).__name__}"
                 )
-            ) from e
+            ) from self._cause(e)
         try:
             if not stat.S_ISREG(os.fstat(fd).st_mode):
                 raise OAuthError(
@@ -151,15 +168,25 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
             # Bounded: a regular file can still be arbitrarily large, and the value is copied
             # again by strip() and once more by form encoding. Reading one byte past the limit
             # distinguishes "at the limit" from "over it" without trusting st_size, which
-            # pseudo-files misreport.
-            raw = os.read(fd, _MAX_CLIENT_ASSERTION_BYTES + 1)
+            # pseudo-files misreport. Looped because a regular-file read may legally return
+            # fewer bytes than asked before EOF, which a single call would take for the whole
+            # assertion — truncating it, or letting an oversized file slip under the limit.
+            chunks = []
+            remaining = _MAX_CLIENT_ASSERTION_BYTES + 1
+            while remaining > 0:
+                chunk = os.read(fd, remaining)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            raw = b"".join(chunks)
         except OSError as e:
             raise OAuthError(
                 description=(
                     f"cannot read client assertion file {self._assertion_file}: "
                     f"{e.strerror or type(e).__name__}"
                 )
-            ) from e
+            ) from self._cause(e)
         finally:
             os.close(fd)
         if len(raw) > _MAX_CLIENT_ASSERTION_BYTES:
@@ -173,7 +200,11 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
             assertion = raw.decode().strip()
         except UnicodeDecodeError as e:
             # A ValueError, not an OSError, and what a path pointing at a binary produces.
-            raise OAuthError(description=f"cannot read client assertion file: {e}") from e
+            # Its `object` holds the offending bytes, so it is dropped for an indirect file
+            # along with the rest.
+            raise OAuthError(
+                description=f"cannot decode client assertion file {self._assertion_file}"
+            ) from self._cause(e)
         if not assertion:
             # An empty value would be sent as `client_assertion=`, which IDPs reject as a
             # generic invalid_client with nothing pointing back at the file.

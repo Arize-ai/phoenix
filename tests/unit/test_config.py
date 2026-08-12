@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from typing import Any, Optional, get_args
 from unittest.mock import MagicMock
@@ -2545,6 +2546,11 @@ class TestClientAssertionJWTFromEnv:
         "PHOENIX_OAUTH2_ENTRA_TOKEN_ENDPOINT_AUTH_METHOD": "client_assertion_jwt",
     }
 
+    @staticmethod
+    def _abs(*parts: str) -> str:
+        """An absolute path on every platform: Windows needs a drive, and >=3.13 enforces it."""
+        return str(Path(tempfile.gettempdir(), *parts))
+
     @pytest.fixture(autouse=True)
     def _base_envs(self, monkeypatch: pytest.MonkeyPatch) -> None:
         for k, v in self._BASE_ENVS.items():
@@ -2552,23 +2558,25 @@ class TestClientAssertionJWTFromEnv:
         monkeypatch.delenv("AZURE_FEDERATED_TOKEN_FILE", raising=False)
 
     def test_explicit_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "/explicit/token")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", self._abs("explicit", "token")
+        )
         config = OAuth2ClientConfig.from_env("entra")
-        assert config.client_assertion_file == "/explicit/token"
+        assert config.client_assertion_file == self._abs("explicit", "token")
         assert config.client_secret is None
         assert config.token_endpoint_auth_method == "client_assertion_jwt"
 
     def test_path_resolved_from_named_variable(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/token")
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
         monkeypatch.setenv(
             "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
         )
         config = OAuth2ClientConfig.from_env("entra")
-        assert config.client_assertion_file == "/webhook/token"
+        assert config.client_assertion_file == self._abs("webhook", "token")
 
     def test_named_variable_is_not_read_implicitly(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # The variable is set but this provider never named it, so it must not be picked up.
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/token")
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
         with pytest.raises(ValueError, match="client_assertion_file is required"):
             OAuth2ClientConfig.from_env("entra")
 
@@ -2577,7 +2585,7 @@ class TestClientAssertionJWTFromEnv:
     ) -> None:
         # The crossover this design exists to prevent: a global variable reaching a provider
         # that never asked for it.
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/azure-token")
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "azure-token"))
         monkeypatch.setenv(
             "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
         )
@@ -2588,13 +2596,17 @@ class TestClientAssertionJWTFromEnv:
         )
         monkeypatch.setenv("PHOENIX_OAUTH2_OKTA_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt")
 
-        assert OAuth2ClientConfig.from_env("entra").client_assertion_file == "/webhook/azure-token"
+        assert OAuth2ClientConfig.from_env("entra").client_assertion_file == self._abs(
+            "webhook", "azure-token"
+        )
         with pytest.raises(ValueError, match="client_assertion_file is required"):
             OAuth2ClientConfig.from_env("okta")
 
     def test_both_settings_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/token")
-        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "/explicit/token")
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", self._abs("explicit", "token")
+        )
         monkeypatch.setenv(
             "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
         )
@@ -2618,9 +2630,11 @@ class TestClientAssertionJWTFromEnv:
         monkeypatch.setenv(
             "PHOENIX_OAUTH2_COMPANY_SSO_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt"
         )
-        monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ASSERTION_FILE", "/spiffe/jwt-svid")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ASSERTION_FILE", self._abs("spiffe", "jwt-svid")
+        )
         config = OAuth2ClientConfig.from_env("company_sso")
-        assert config.client_assertion_file == "/spiffe/jwt-svid"
+        assert config.client_assertion_file == self._abs("spiffe", "jwt-svid")
 
     def test_assertion_file_unset_for_other_methods(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "some-id")
