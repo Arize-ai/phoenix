@@ -166,7 +166,7 @@ def _code_add_input(
         "samplingRate": 0.25,
         "evaluationTarget": "SESSION",
         "inputMapping": _mapping(context="override"),
-        "filterCondition": "num_traces >= 2",
+        "filterCondition": "num_traces >= 1",
         "enabled": False,
         "evaluationDelaySeconds": 30,
     }
@@ -421,7 +421,7 @@ async def test_add_project_code_evaluator_binds_existing_core(
     assert attached["samplingRate"] == 0.25
     assert attached["evaluationTarget"] == "SESSION"
     assert attached["inputMapping"] == _mapping(context="override")
-    assert attached["filterCondition"] == "num_traces >= 2"
+    assert attached["filterCondition"] == "num_traces >= 1"
     assert attached["enabled"] is False
     assert attached["evaluationDelaySeconds"] == 30
 
@@ -804,27 +804,33 @@ async def test_invalid_filter_rejects_before_project_evaluator_writes(
     assert await _row_counts(db) == before
 
 
-async def test_session_evaluator_filter_is_validated_in_the_session_language(
+async def test_session_filter_validation_uses_session_dsl(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
 ) -> None:
     project = await _add_project(db)
-    filter_condition = "any(span.latency_ms > 1_000 for span in spans)"
-    create_input = _llm_input(project, name="session-filter-llm", text="Evaluate {{input}}")
-    create_input["evaluationTarget"] = "SESSION"
-    create_input["filterCondition"] = filter_condition
+    valid_input = _code_create_input(
+        project,
+        sandbox_config,
+        filter_condition="any(span.latency_ms > 1_000 for span in spans)",
+    )
+    valid_input["evaluationTarget"] = "SESSION"
 
-    result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+    valid_result = await gql_client.execute(_CREATE_CODE, {"input": valid_input})
 
-    assert result.data and not result.errors
-    created = result.data["createProjectLlmEvaluator"]["evaluator"]
-    assert created["evaluationTarget"] == "SESSION"
-    async with db() as session:
-        criteria = await session.get(
-            models.ProjectEvaluatorCriteria, int(GlobalID.from_id(created["id"]).node_id)
-        )
-        assert criteria is not None
-        assert criteria.filter_condition == filter_condition
+    assert valid_result.data and not valid_result.errors
+    before = await _row_counts(db)
+    invalid_input = _code_create_input(
+        project,
+        sandbox_config,
+        filter_condition="span_kind == 'LLM'",
+    )
+    invalid_input["evaluationTarget"] = "SESSION"
+    invalid_result = await gql_client.execute(_CREATE_CODE, {"input": invalid_input})
+    assert invalid_result.errors
+    assert "Invalid filter condition:" in str(invalid_result.errors)
+    assert await _row_counts(db) == before
 
 
 async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(

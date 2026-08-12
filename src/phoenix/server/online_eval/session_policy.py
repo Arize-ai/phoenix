@@ -33,8 +33,6 @@ class SchedulabilityReason(Enum):
 
     DISABLED = "DISABLED"
     TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
-    SESSION_FILTER_UNSUPPORTED = "SESSION_FILTER_UNSUPPORTED"
-    SESSION_SAMPLING_UNSUPPORTED = "SESSION_SAMPLING_UNSUPPORTED"
 
 
 @dataclass(frozen=True)
@@ -58,16 +56,6 @@ SESSION_SCHEDULABILITY_CONDITIONS: tuple[SessionSchedulabilityCondition, ...] = 
         blocks=lambda record: not record.enabled,
         blocks_sql=lambda criteria: not_(criteria.enabled),
     ),
-    SessionSchedulabilityCondition(
-        reason=SchedulabilityReason.SESSION_FILTER_UNSUPPORTED,
-        blocks=lambda record: bool(record.filter_condition),
-        blocks_sql=lambda criteria: criteria.filter_condition != "",
-    ),
-    SessionSchedulabilityCondition(
-        reason=SchedulabilityReason.SESSION_SAMPLING_UNSUPPORTED,
-        blocks=lambda record: record.sampling_rate != 1.0,
-        blocks_sql=lambda criteria: criteria.sampling_rate != 1.0,
-    ),
 )
 
 
@@ -84,7 +72,6 @@ def session_schedulability_reason(
 def session_criteria_is_schedulable(
     criteria: type["models.ProjectEvaluatorCriteria"],
 ) -> ColumnElement[bool]:
-    # Session filters shipped in #14101 (#14041); #14038 owns sampling integration.
     return and_(
         criteria.evaluation_target == "SESSION",
         *(not_(condition.blocks_sql(criteria)) for condition in SESSION_SCHEDULABILITY_CONDITIONS),

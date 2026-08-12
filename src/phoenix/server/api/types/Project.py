@@ -13,7 +13,6 @@ from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
 from sqlalchemy import Select, and_, case, desc, distinct, exists, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
-from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
@@ -73,9 +72,8 @@ from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
     apply_session_filter_to_page,
-    compile_session_filter,
     get_filtered_session_rowids_subquery,
-    session_filter_errors,
+    validate_session_filter_condition,
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
@@ -1352,11 +1350,7 @@ class Project(Node):
         as valid is one they will accept.
         """
         try:
-            with session_filter_errors():
-                session_filter = compile_session_filter(condition)
-                stmt = session_filter(select(models.ProjectSession))
-                str(stmt.compile(dialect=sqlite.dialect()))
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            validate_session_filter_condition(condition)
         except SessionFilterConditionError as e:
             return ValidationResult(is_valid=False, error_message=str(e))
         referenced_annotation_names = _referenced_subscript_names(

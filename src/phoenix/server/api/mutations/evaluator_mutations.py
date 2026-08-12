@@ -6,7 +6,6 @@ import strawberry
 from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy import and_, delete, select, true
-from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -72,7 +71,7 @@ from phoenix.server.online_eval.session_policy import (
 )
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
-from phoenix.server.session_filters import compile_session_filter, session_filter_errors
+from phoenix.server.session_filters import validate_session_filter_condition
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import validate_span_filter_condition
 
@@ -83,13 +82,13 @@ _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
 }
 
 _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling "
-    "rate of 1 are evaluated once per session: evaluation is scheduled after the session "
-    "first stays quiet for the evaluation delay, then runs asynchronously. Later activity "
-    "does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE "
-    "evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation "
-    "delay without using it. The target can change only until evaluation work exists for the "
-    "project evaluator."
+    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
+    "session at the first quiet period after the evaluation delay: it applies the session "
+    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
+    "A filter non-match or sampling miss is permanently declined for that evaluator "
+    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
+    "but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. "
+    "The target can change only until evaluation work exists for the project evaluator."
 )
 
 
@@ -320,7 +319,8 @@ async def _ensure_evaluator_prompt_label(
 
 
 def _validate_project_evaluator_filter(
-    filter_condition: str, evaluation_target: EvaluationTarget
+    filter_condition: str,
+    evaluation_target: EvaluationTarget,
 ) -> None:
     """Validate a filter in the language of the target it selects.
 
@@ -328,17 +328,11 @@ def _validate_project_evaluator_filter(
     filter DSL, so the expression is compiled by the same path its target's scheduler
     sweep will use.
     """
-    if evaluation_target is EvaluationTarget.SESSION:
-        if not filter_condition.strip():
-            return
-        with session_filter_errors():
-            session_filter = compile_session_filter(filter_condition)
-            stmt = session_filter(select(models.ProjectSession))
-            stmt.compile(dialect=sqlite.dialect())
-            stmt.compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
-        return
     try:
-        validate_span_filter_condition(filter_condition)
+        if evaluation_target is EvaluationTarget.SESSION:
+            validate_session_filter_condition(filter_condition)
+        else:
+            validate_span_filter_condition(filter_condition)
     except Exception:
         raise BadRequest("Invalid filter condition: unable to compile for supported databases")
 

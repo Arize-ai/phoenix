@@ -1415,7 +1415,9 @@ CREATE TABLE public.eval_session_work_units (
             'RUNNING'::character varying,
             'DONE'::character varying,
             'ERROR'::character varying,
-            'EXPIRED'::character varying
+            'EXPIRED'::character varying,
+            'FILTERED_OUT'::character varying,
+            'SAMPLED_OUT'::character varying
         ])::text[]))),
     CONSTRAINT fk_eval_session_work_units_criteria_id_project_evaluato_744c
         FOREIGN KEY (criteria_id)
@@ -1432,7 +1434,7 @@ CREATE TABLE public.eval_session_work_units (
 );
 
 CREATE INDEX ix_eval_session_work_units_claimable ON public.eval_session_work_units
-    USING btree (status, id) WHERE ((status)::text <> ALL ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_session_work_units_criteria_id ON public.eval_session_work_units
     USING btree (criteria_id);
 CREATE INDEX ix_eval_session_work_units_error_attempts ON public.eval_session_work_units
@@ -1444,7 +1446,7 @@ CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_uni
 CREATE INDEX ix_eval_session_work_units_terminal_watermark ON public.eval_session_work_units
     USING btree (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON public.eval_session_work_units
-    USING btree (project_session_rowid, evaluator_id, config_fingerprint) WHERE (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying])::text[])) OR (((status)::text = 'ERROR'::text) AND (attempts < 3)));
+    USING btree (project_session_rowid, evaluator_id, config_fingerprint) WHERE (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying])::text[])) OR (((status)::text = 'ERROR'::text) AND (attempts < 3)) OR ((status)::text = ANY ((ARRAY['FILTERED_OUT'::character varying, 'SAMPLED_OUT'::character varying])::text[])));
 
 
 -- Table: eval_work_units

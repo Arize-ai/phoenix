@@ -54,13 +54,13 @@ if TYPE_CHECKING:
     from .User import User
 
 _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling "
-    "rate of 1 are evaluated once per session: evaluation is scheduled after the session "
-    "first stays quiet for the evaluation delay, then runs asynchronously. Later activity "
-    "does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE "
-    "evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation "
-    "delay without using it. The target can change only until evaluation work exists for the "
-    "project evaluator."
+    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
+    "session at the first quiet period after the evaluation delay: it applies the session "
+    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
+    "A filter non-match or sampling miss is permanently declined for that evaluator "
+    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
+    "but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. "
+    "The target can change only until evaluation work exists for the project evaluator."
 )
 
 
