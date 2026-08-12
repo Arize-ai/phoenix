@@ -1861,13 +1861,24 @@ class OAuth2ClientConfig:
         client_assertion_file: Optional[str] = None
 
         if token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD:
-            # The platform-minted JWT replaces the client secret entirely. Provider-agnostic:
-            # any IDP accepting RFC 7523 client assertions works, and IDP names are
-            # operator-chosen so they cannot be used to gate this.
+            # The assertion replaces the client secret entirely. Nothing here inspects the
+            # JWT, so the source is whatever writes the file and the IDP is whichever one
+            # accepts the assertion; IDP names are operator-chosen and cannot gate this.
             client_secret = None
-            client_assertion_file = _get_optional("CLIENT_ASSERTION_FILE") or os.getenv(
-                _AZURE_FEDERATED_TOKEN_FILE_ENV
-            )
+            client_assertion_file = _get_optional("CLIENT_ASSERTION_FILE")
+            if not client_assertion_file and (
+                client_assertion_file := os.getenv(_AZURE_FEDERATED_TOKEN_FILE_ENV)
+            ):
+                # This variable is also read by azure-identity for unrelated Azure
+                # credentials, so log which file the login flow actually picked up.
+                logger.info(
+                    "OAuth2 IDP %s: using %s (%s) as the client assertion; set "
+                    "PHOENIX_OAUTH2_%s_CLIENT_ASSERTION_FILE to override.",
+                    idp_name,
+                    _AZURE_FEDERATED_TOKEN_FILE_ENV,
+                    client_assertion_file,
+                    idp_name.upper(),
+                )
         elif token_endpoint_auth_method == "none":
             # Public client - no client authentication required
             client_secret = _get_optional("CLIENT_SECRET")
