@@ -71,14 +71,32 @@ RUN uv pip install dist/*.whl --no-deps
 # executes user code in the sandbox. Uses python (already present in
 # the uv builder image) instead of curl/wget so we don't add an apt-get
 # install layer.
+#
+# Retried with backoff: GitHub intermittently closes the connection to this
+# asset without sending a response, on the native amd64 leg as well as the
+# QEMU-emulated arm64 one. socket.setdefaulttimeout stands in for the
+# timeout argument urlretrieve does not take, and mirrors
+# _WASM_DOWNLOAD_TIMEOUT_SECONDS in _download.py. Verification runs inside
+# the loop and is the only proof of a complete transfer — urlretrieve
+# reports success on a clean close when no Content-Length was received — so
+# the loop breaks only on a digest match and no unverified file survives an
+# attempt.
 RUN mkdir -p /wasm \
-  && python -c "import hashlib, sys, urllib.request; \
-url = 'https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm'; \
+  && for delay in 5 10 20 40 stop; do \
+       python -c "import hashlib, os, socket, sys, urllib.request; \
+socket.setdefaulttimeout(30); \
 dest = '/wasm/python-3.12.0.wasm'; \
 expected = 'e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763'; \
-urllib.request.urlretrieve(url, dest); \
+urllib.request.urlretrieve( \
+'https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm', \
+dest); \
 actual = hashlib.sha256(open(dest, 'rb').read()).hexdigest(); \
-(actual == expected) or sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}')"
+(actual == expected) or (os.remove(dest), \
+sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}'))" && break; \
+       [ "$delay" = stop ] && { echo 'WASM binary fetch failed after 5 attempts' >&2; exit 1; }; \
+       echo "WASM binary fetch failed; retrying in ${delay}s" >&2; \
+       sleep "$delay"; \
+     done
 
 # Bundle the Deno runtime so the local DENO sandbox provider works inside
 # the distroless image. denoland/deno:bin-<version> is a scratch-based
