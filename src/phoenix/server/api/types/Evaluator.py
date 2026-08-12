@@ -37,6 +37,10 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.online_eval.session_policy import (
+    DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+    MINIMUM_EVALUATION_DELAY_SECONDS,
+)
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
@@ -46,6 +50,16 @@ if TYPE_CHECKING:
     from .PromptVersionTag import PromptVersionTag
     from .SandboxConfig import SandboxConfig
     from .User import User
+
+_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
+    "SPAN evaluators run on matching spans. SESSION evaluators with no filter and a sampling "
+    "rate of 1 are evaluated once per session: evaluation is scheduled after the session "
+    "first stays quiet for the evaluation delay, then runs asynchronously. Later activity "
+    "does not schedule another evaluation. Filtered or sampled SESSION evaluators and TRACE "
+    "evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation "
+    "delay without using it. The target can change only until evaluation work exists for the "
+    "project evaluator."
+)
 
 
 @strawberry.enum
@@ -60,6 +74,48 @@ class EvaluationTarget(Enum):
     SPAN = "SPAN"
     TRACE = "TRACE"
     SESSION = "SESSION"
+
+
+@strawberry.enum
+class ProjectEvaluatorSchedulabilityStatus(Enum):
+    SCHEDULABLE = "SCHEDULABLE"
+    NOT_SCHEDULABLE = "NOT_SCHEDULABLE"
+
+
+@strawberry.enum
+class ProjectEvaluatorSchedulabilityReason(Enum):
+    DISABLED = "DISABLED"
+    TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
+    SESSION_FILTER_UNSUPPORTED = "SESSION_FILTER_UNSUPPORTED"
+    SESSION_SAMPLING_UNSUPPORTED = "SESSION_SAMPLING_UNSUPPORTED"
+
+
+def _project_evaluator_schedulability(
+    record: models.ProjectEvaluatorCriteria,
+) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[ProjectEvaluatorSchedulabilityReason]]:
+    if not record.enabled:
+        return (
+            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
+            ProjectEvaluatorSchedulabilityReason.DISABLED,
+        )
+    if record.evaluation_target == "SPAN":
+        return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
+    if record.evaluation_target == "TRACE":
+        return (
+            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
+            ProjectEvaluatorSchedulabilityReason.TRACE_TARGET_UNSUPPORTED,
+        )
+    if record.filter_condition:
+        return (
+            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
+            ProjectEvaluatorSchedulabilityReason.SESSION_FILTER_UNSUPPORTED,
+        )
+    if record.sampling_rate != 1.0:
+        return (
+            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
+            ProjectEvaluatorSchedulabilityReason.SESSION_SAMPLING_UNSUPPORTED,
+        )
+    return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
 
 
 @strawberry.type
@@ -1135,14 +1191,48 @@ class ProjectEvaluator(Node):
         return (await self._get_record(info)).sampling_rate
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "SPAN is currently executable; TRACE and SESSION are "
-            "stored but remain inactive until their runtimes are available."
-        )
+        description=_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION
     )
     async def evaluation_target(self, info: Info[Context, None]) -> EvaluationTarget:
         record = await self._get_record(info)
         return EvaluationTarget(record.evaluation_target)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Whether this project evaluator is currently eligible for scheduling."
+    )
+    async def schedulability_status(
+        self,
+        info: Info[Context, None],
+    ) -> ProjectEvaluatorSchedulabilityStatus:
+        status, _ = _project_evaluator_schedulability(await self._get_record(info))
+        return status
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Machine-readable reason the project evaluator is not schedulable, or null when "
+            "it is schedulable."
+        )
+    )
+    async def schedulability_reason(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[ProjectEvaluatorSchedulabilityReason]:
+        _, reason = _project_evaluator_schedulability(await self._get_record(info))
+        return reason
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
+            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New criteria store the current "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds when no value is "
+            "provided. A session is evaluated only once, and later activity does not schedule "
+            "another evaluation. Non-SESSION targets preserve this value without using it. A "
+            "later change to SESSION uses the stored value, but the target cannot change after "
+            "evaluation work exists for this project evaluator."
+        )
+    )
+    async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:
+        return (await self._get_record(info)).evaluation_delay_seconds
 
     @strawberry.field
     async def input_mapping(self, info: Info[Context, None]) -> EvaluatorInputMapping:
