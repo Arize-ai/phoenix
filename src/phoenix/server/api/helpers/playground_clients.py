@@ -3266,10 +3266,12 @@ def get_openai_client_class(
     """
     Select the OpenAI/Azure client class for a provider, model, and API type.
 
-    The source of truth for parameter fetching and for client instantiation on both
-    the builtin and custom-provider paths, including the default when no API type is
-    configured. The playground registry is not consulted: it carries the model
-    catalog, not routing.
+    The source of truth for the builtin-provider path, including the default when no
+    API type is configured. The playground registry is not consulted: it carries the
+    model catalog, not routing.
+
+    Custom providers do not resolve through here -- their SDK type does not identify
+    the model family, so model-name-based specialization is not sound for them.
 
     Args:
         provider_key: The generative provider (OPENAI, AZURE_OPENAI, etc.)
@@ -4022,16 +4024,23 @@ async def _get_custom_provider_client(
     headers = dict(extra_headers) if extra_headers else None
     cfg = config.root
 
+    # The openai/azure_openai SDK configs serve any OpenAI-compatible endpoint --
+    # DeepSeek, xAI, Ollama, Groq, Together and others (see
+    # is_sdk_compatible_with_model_provider). A model name matching an OpenAI model
+    # does not mean OpenAI is behind it, so the reasoning-model specializations,
+    # which rewrite `system` to `developer`, are deliberately not applied here.
     if cfg.type == "openai":
         try:
             openai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        openai_client_class = get_openai_client_class(
-            GenerativeProviderKey.OPENAI, model_name, OpenAIApiType(cfg.openai_api_type)
-        )
-        assert openai_client_class is not None
-        return openai_client_class(
+        if cfg.openai_api_type == "responses":
+            return OpenAIResponsesAPIStreamingClient(
+                client_factory=openai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return OpenAIStreamingClient(
             client_factory=openai_client_factory,
             model_name=model_name,
             provider=provider,
@@ -4041,11 +4050,13 @@ async def _get_custom_provider_client(
             azure_openai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        azure_client_class = get_openai_client_class(
-            GenerativeProviderKey.AZURE_OPENAI, model_name, OpenAIApiType(cfg.openai_api_type)
-        )
-        assert azure_client_class is not None
-        return azure_client_class(
+        if cfg.openai_api_type == "responses":
+            return AzureOpenAIResponsesAPIStreamingClient(
+                client_factory=azure_openai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return AzureOpenAIStreamingClient(
             client_factory=azure_openai_client_factory,
             model_name=model_name,
             provider=provider,

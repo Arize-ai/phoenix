@@ -888,6 +888,68 @@ class TestDefaultApiTypeRouting:
     The playground registry carries the model catalog, not routing.
     """
 
+    @pytest.mark.parametrize(
+        "model_provider,model_name,expected_class",
+        [
+            # The exact configuration that produced the 400 in #15299: builtin
+            # provider, no connection config, reasoning model, function tool.
+            (ModelProvider.OPENAI, "gpt-5.6-luna", OpenAIResponsesAPIStreamingClient),
+            (ModelProvider.OPENAI, "o3", OpenAIResponsesAPIStreamingClient),
+            (ModelProvider.OPENAI, "gpt-4o", OpenAIStreamingClient),
+            (ModelProvider.OPENAI, "gpt-6-does-not-exist-yet", OpenAIResponsesAPIStreamingClient),
+        ],
+    )
+    async def test_builtin_client_without_connection_config(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        model_provider: ModelProvider,
+        model_name: str,
+        expected_class: type[OpenAIBaseStreamingClient],
+    ) -> None:
+        """End-to-end through the path evaluators take: connection=None.
+
+        The registry is poisoned for this model so the assertion fails if any part of
+        the builtin path starts consulting it again.
+        """
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+
+        class WrongClient(OpenAIStreamingClient):
+            pass
+
+        provider_key = GenerativeProviderKey.from_model_provider(model_provider)
+        poisoned = dict(PLAYGROUND_CLIENT_REGISTRY._registry[provider_key])
+        poisoned[model_name] = WrongClient
+        poisoned[PROVIDER_DEFAULT] = WrongClient
+        monkeypatch.setitem(PLAYGROUND_CLIENT_REGISTRY._registry, provider_key, poisoned)
+
+        async with db() as session:
+            client = await _get_builtin_provider_client(
+                model_provider,
+                model_name,
+                None,
+                None,
+                session,
+                _identity_decrypt,
+            )
+        assert type(client) is expected_class
+
+    def test_legacy_model_list_is_exactly_the_pre_responses_models(self) -> None:
+        """Literal expectation: a name silently added or dropped changes routing."""
+        assert set(OPENAI_CHAT_COMPLETIONS_MODELS) == {
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4.1-nano",
+            "gpt-4o",
+            "chatgpt-4o-latest",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-4-turbo-preview",
+            "gpt-4",
+            "gpt-3.5-turbo",
+        }
+        assert not set(OPENAI_CHAT_COMPLETIONS_MODELS) & set(OPENAI_REASONING_MODELS)
+
     def test_openai_defaults_to_responses_except_legacy_models(self) -> None:
         for model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
             assert (
@@ -906,11 +968,24 @@ class TestDefaultApiTypeRouting:
                 get_openai_client_class(GenerativeProviderKey.AZURE_OPENAI, model_name, None)
                 is AzureOpenAIResponsesAPIStreamingClient
             ), f"Failed for {model_name}"
-        for model_name in ["gpt-4o", "my-custom-deployment"]:
+        for model_name in ["gpt-4o"]:
             assert (
                 get_openai_client_class(GenerativeProviderKey.AZURE_OPENAI, model_name, None)
                 is AzureOpenAIStreamingClient
             ), f"Failed for {model_name}"
+
+    def test_azure_deployment_alias_is_not_recognized_as_a_reasoning_model(self) -> None:
+        """Known limitation, not desired behavior.
+
+        Azure model names are user-chosen deployment names, so a reasoning model
+        deployed under an alias is indistinguishable from any other deployment and
+        falls to Chat Completions -- where function tools plus reasoning_effort still
+        fail. Closing this needs deployment metadata from Azure, not name matching.
+        """
+        assert (
+            get_openai_client_class(GenerativeProviderKey.AZURE_OPENAI, "prod-evaluator", None)
+            is AzureOpenAIStreamingClient
+        )
 
     @pytest.mark.parametrize(
         "provider_key,model_name,expected_class",
@@ -965,7 +1040,13 @@ class TestReasoningChatCompletionsMessages:
 
 
 class TestCustomProviderClientSelection:
-    """Custom providers resolve through ``get_openai_client_class`` like builtins."""
+    """Custom providers select on API type alone, never on the model name.
+
+    The openai SDK config serves any OpenAI-compatible endpoint, so a name matching
+    an OpenAI model does not imply OpenAI semantics. Applying the reasoning clients
+    here would rewrite ``system`` to ``developer`` against providers that may not
+    accept it.
+    """
 
     @pytest.mark.parametrize(
         "openai_api_type,model_name,expected_class",
@@ -973,10 +1054,10 @@ class TestCustomProviderClientSelection:
             ("responses", "gpt-4o", OpenAIResponsesAPIStreamingClient),
             ("responses", "gpt-5.6-luna", OpenAIResponsesAPIStreamingClient),
             ("chat_completions", "gpt-4o", OpenAIStreamingClient),
-            ("chat_completions", "gpt-5.6-luna", OpenAIReasoningChatCompletionsClient),
+            ("chat_completions", "gpt-5.6-luna", OpenAIStreamingClient),
         ],
     )
-    async def test_openai_custom_provider_honors_api_type_and_model(
+    async def test_openai_custom_provider_selects_on_api_type_only(
         self,
         openai_api_type: str,
         model_name: str,
