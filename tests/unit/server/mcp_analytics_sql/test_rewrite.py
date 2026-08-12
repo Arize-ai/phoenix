@@ -437,6 +437,20 @@ def test_quoted_alias_virtual_columns_keep_the_callers_quoting() -> None:
     assert 'AS "S"' in node_id
 
 
+def test_latency_ms_does_not_fold_a_quoted_alias_onto_an_unquoted_qualifier() -> None:
+    """Quoted and unquoted spellings are different names on PostgreSQL."""
+    tree = sqlglot.parse_one('SELECT s.latency_ms FROM spans AS "S"', dialect="postgres")
+    ctx = RewriteContext(
+        dialect="postgresql",
+        allowlist=load_allowlist("sqlite"),
+        row_limit=10,
+    )
+    out = _substitute_latency_ms(cast(exp.Expression, tree), ctx)
+    rendered = out.sql(dialect="postgres")
+    assert "start_time" not in rendered
+    assert "latency_ms" in rendered.lower()
+
+
 def test_star_over_a_query_local_relation_is_a_normal_refusal() -> None:
     """The columns of a CTE are whatever its SELECT produced, which the manifest cannot know.
 

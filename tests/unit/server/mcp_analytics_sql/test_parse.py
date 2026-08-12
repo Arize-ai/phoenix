@@ -1119,6 +1119,7 @@ class TestStructuralPolicyIsDefaultDeny:
             "Between",
             "In",
             "Any",
+            "All",
         }
         # Carry operands through without comparing anything themselves, so a
         # value inside one must be unwrapped to reach the checks. Missing this
@@ -1129,7 +1130,6 @@ class TestStructuralPolicyIsDefaultDeny:
         not_comparing = {
             "Add",
             "Alias",
-            "All",
             "Block",
             "Boolean",
             "CTE",

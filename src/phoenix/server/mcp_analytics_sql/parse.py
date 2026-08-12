@@ -357,9 +357,7 @@ def _check_dialect_specific_syntax(
                 "ROW_NUMBER() OVER (PARTITION BY ...) = 1, or run the statement "
                 "on PostgreSQL.",
             )
-        if isinstance(node, (exp.Any, exp.All)) or (
-            isinstance(node, exp.Anonymous) and (node.name or "").casefold() in _QUANTIFIER_NAMES
-        ):
+        if _is_quantifier(node):
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 f"{(node.name or node.key).upper()} is not supported by SQLite. "
@@ -580,7 +578,7 @@ def _timestamp_comparison_pairs(
     if isinstance(node, _TIMESTAMP_COMPARISONS):
         pairs = [(node.this, node.expression), (node.expression, node.this)]
         for column, other in ((node.this, node.expression), (node.expression, node.this)):
-            if isinstance(other, (exp.Any, exp.All)) or _is_quantifier_call(other):
+            if _is_quantifier(other):
                 # Bounded at the subquery edge: `= ANY(SELECT ...)` compares
                 # against what the subquery returns, so a value written inside
                 # it is beside that subquery's columns, not beside this one.
@@ -624,14 +622,20 @@ def _is_quantifier_call(node: Optional[exp.Expression]) -> bool:
     return isinstance(node, exp.Anonymous) and (node.name or "").casefold() in _QUANTIFIER_NAMES
 
 
-def _quantifier_compared_values(quantifier: exp.Expression) -> list[exp.Expression]:
-    """Operands a = ANY / = ALL compares against in this scope.
+def _is_quantifier(node: Optional[exp.Expression]) -> bool:
+    """ANY / ALL / SOME, whether parsed as a node or as a function call."""
+    return isinstance(node, (exp.Any, exp.All)) or _is_quantifier_call(node)
 
-    A SELECT subquery is computed and is skipped. VALUES, including when the
-    parser wraps it in a Subquery, is a list of literals spelled as a
-    quantifier. ARRAY is the same list in constructor form.
-    """
-    held = [node for node in _within_scope(quantifier, exp.Expression) if node is not quantifier]
+
+def _is_all_quantifier(node: exp.Expression) -> bool:
+    """ALL as opposed to ANY / SOME. ``= ALL`` is conjunction; ``= ANY`` is membership."""
+    return isinstance(node, exp.All) or (
+        isinstance(node, exp.Anonymous) and (node.name or "").casefold() == "all"
+    )
+
+
+def _quantifier_list_container(quantifier: exp.Expression) -> Optional[exp.Expression]:
+    """ARRAY or VALUES a quantifier holds, if that is a stated list rather than a subquery."""
     inner = (
         _strip_parens(quantifier.expressions[0])
         if isinstance(quantifier, exp.Anonymous) and quantifier.expressions
@@ -640,6 +644,20 @@ def _quantifier_compared_values(quantifier: exp.Expression) -> list[exp.Expressi
     if isinstance(inner, exp.Subquery):
         inner = _strip_parens(inner.this)
     if isinstance(inner, (exp.Values, exp.Array)):
+        return inner
+    return None
+
+
+def _quantifier_compared_values(quantifier: exp.Expression) -> list[exp.Expression]:
+    """Operands a = ANY / = ALL compares against in this scope.
+
+    A SELECT subquery is computed and is skipped. VALUES, including when the
+    parser wraps it in a Subquery, is a list of literals spelled as a
+    quantifier. ARRAY is the same list in constructor form.
+    """
+    held = [node for node in _within_scope(quantifier, exp.Expression) if node is not quantifier]
+    inner = _quantifier_list_container(quantifier)
+    if inner is not None:
         held.extend(inner.expressions)
     return held
 
@@ -846,9 +864,7 @@ def query_local_columns(
             if isinstance(source, exp.Table):
                 continue
             derived_aliases.add(
-                alias
-                if dialect == "postgresql" and alias in quoted_derived_aliases
-                else alias.casefold()
+                _identifier_key(alias, quoted=alias in quoted_derived_aliases, dialect=dialect)
             )
             expression = getattr(source, "expression", None)
             if expression is not None:
@@ -870,16 +886,7 @@ def query_local_columns(
                 if isinstance(projection, exp.Alias) and projection.alias
             }
         for column in scope.columns:
-            table_identifier = column.args.get("table")
-            table = (
-                (column.table or "")
-                if (
-                    dialect == "postgresql"
-                    and isinstance(table_identifier, exp.Identifier)
-                    and table_identifier.args.get("quoted")
-                )
-                else (column.table or "").casefold()
-            )
+            table = _column_qualifier_key(column, dialect=dialect) if column.table else ""
             if table:
                 if table in derived_aliases:
                     local[id(column)] = Locality.DERIVED_QUALIFIED
@@ -1123,7 +1130,7 @@ def _check_functions(
             continue
         if isinstance(node, exp.Anonymous):
             name = (node.name or "").lower()
-            if name in _QUANTIFIER_NAMES:
+            if _is_quantifier_call(node):
                 continue
             if name not in allowed_anon:
                 return AdmissionResult(AdmissionOutcome.FUNCTION_NOT_ALLOWED, name or "<anonymous>")
@@ -1173,15 +1180,9 @@ def _allowlisted_table_name(
 
 def _table_identifier_name(table: exp.Table, *, dialect: SupportedSQLDialectName) -> str:
     """Return the identifier spelling by which the engine resolves this table."""
-    name = table.name or ""
     identifier = table.this
-    if (
-        dialect == "postgresql"
-        and isinstance(identifier, exp.Identifier)
-        and identifier.args.get("quoted")
-    ):
-        return name
-    return name.casefold()
+    quoted = isinstance(identifier, exp.Identifier) and bool(identifier.args.get("quoted"))
+    return _identifier_key(table.name or "", quoted=quoted, dialect=dialect)
 
 
 def _identifier_key(name: str, *, quoted: bool, dialect: SupportedSQLDialectName) -> str:
@@ -1189,6 +1190,13 @@ def _identifier_key(name: str, *, quoted: bool, dialect: SupportedSQLDialectName
     if dialect == "sqlite" or not quoted:
         return name.casefold()
     return name
+
+
+def _column_qualifier_key(column: exp.Column, *, dialect: SupportedSQLDialectName) -> str:
+    """The dialect key of this column's table qualifier, if any."""
+    identifier = column.args.get("table")
+    quoted = isinstance(identifier, exp.Identifier) and bool(identifier.args.get("quoted"))
+    return _identifier_key(column.table or "", quoted=quoted, dialect=dialect)
 
 
 def _scope_exposes_qualifier(
@@ -1201,32 +1209,10 @@ def _scope_exposes_qualifier(
     """Whether `qualifier` names a relation this scope exposes."""
     want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
     for source in scope.sources.values():
-        if isinstance(source, exp.Table):
-            alias = source.args.get("alias")
-            alias_identifier = alias.this if isinstance(alias, exp.TableAlias) else alias
-            if (
-                isinstance(alias_identifier, exp.Identifier)
-                and _identifier_key(
-                    alias_identifier.this or "",
-                    quoted=bool(alias_identifier.args.get("quoted")),
-                    dialect=dialect,
-                )
-                == want
-            ):
-                return True
-            table_identifier = source.this
-            if (
-                isinstance(table_identifier, exp.Identifier)
-                and _identifier_key(
-                    table_identifier.this or "",
-                    quoted=bool(table_identifier.args.get("quoted")),
-                    dialect=dialect,
-                )
-                == want
-            ):
-                return True
-            if source.name and _identifier_key(source.name, quoted=False, dialect=dialect) == want:
-                return True
+        if isinstance(source, exp.Table) and want in _relation_identifier_keys(
+            source, dialect=dialect
+        ):
+            return True
     for ident in _derived_alias_identifiers(scope):
         if (
             _identifier_key(
@@ -1249,6 +1235,34 @@ def _alias_identifier(expression: Optional[exp.Expression]) -> Optional[exp.Iden
         ident = alias.this
         return ident if isinstance(ident, exp.Identifier) else None
     return alias if isinstance(alias, exp.Identifier) else None
+
+
+def _relation_identifier_keys(
+    source: exp.Table, *, dialect: SupportedSQLDialectName
+) -> frozenset[str]:
+    """Dialect keys this physical table is reachable as: alias and table name."""
+    keys: set[str] = set()
+    ident = _alias_identifier(source)
+    if ident is not None:
+        keys.add(
+            _identifier_key(
+                ident.this or "",
+                quoted=bool(ident.args.get("quoted")),
+                dialect=dialect,
+            )
+        )
+    table_identifier = source.this
+    if isinstance(table_identifier, exp.Identifier):
+        keys.add(
+            _identifier_key(
+                table_identifier.this or "",
+                quoted=bool(table_identifier.args.get("quoted")),
+                dialect=dialect,
+            )
+        )
+    elif source.name:
+        keys.add(_identifier_key(source.name, quoted=False, dialect=dialect))
+    return frozenset(keys)
 
 
 def _derived_alias_identifiers(scope: Any) -> list[exp.Identifier]:

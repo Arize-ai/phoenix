@@ -25,8 +25,12 @@ from phoenix.server.mcp_analytics_sql.normalize import (
 )
 from phoenix.server.mcp_analytics_sql.parse import (
     _allowlisted_table_name,
+    _column_qualifier_key,
     _identifier_key,
-    _is_quantifier_call,
+    _is_all_quantifier,
+    _is_quantifier,
+    _quantifier_list_container,
+    _relation_identifier_keys,
     _scope_columns,
     _strip_parens,
     _timestamp_literals,
@@ -687,7 +691,7 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     # duration this pass computes.
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
     scope_root = build_scope(root)
-    # Per-column: duration-table count in this scope, and folded names a
+    # Per-column: duration-table count in this scope, and dialect keys a
     # qualifier may use. Only Table sources count; a CTE of the same name is a
     # nested scope.
     duration_scope: dict[int, tuple[int, frozenset[str]]] = {}
@@ -695,7 +699,7 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
         for scope in scope_root.traverse():
             aliases: set[str] = set()
             duration_sources = 0
-            for alias, source in scope.sources.items():
+            for source in scope.sources.values():
                 if not isinstance(source, exp.Table):
                     continue
                 table_name = _allowlisted_table_name(
@@ -707,8 +711,7 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                 ):
                     continue
                 duration_sources += 1
-                aliases.add(alias.casefold())
-                aliases.add((source.name or "").casefold())
+                aliases.update(_relation_identifier_keys(source, dialect=ctx.dialect))
             names = frozenset(aliases)
             for column in (*scope.columns, *_scope_columns(scope.expression)):
                 duration_scope[id(column)] = (duration_sources, names)
@@ -731,9 +734,8 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     for node in list(root.find_all(exp.Column)):
         if (node.name or "").lower() == "latency_ms" and not query_local.is_local(node):
             duration_sources, scope_aliases = duration_scope.get(id(node), (0, frozenset()))
-            qualifier = (node.table or "").casefold()
-            if qualifier:
-                if qualifier not in scope_aliases:
+            if node.table:
+                if _column_qualifier_key(node, dialect=ctx.dialect) not in scope_aliases:
                     continue
             elif duration_sources != 1:
                 continue
@@ -961,20 +963,6 @@ def _decode_node_id(value: str, type_name: str) -> Optional[int]:
         return None
 
 
-def _quantifier_member_container(quantifier: exp.Expression) -> Optional[exp.Expression]:
-    """ARRAY or VALUES a quantifier holds, if that is a stated list rather than a subquery."""
-    inner = (
-        _strip_parens(quantifier.expressions[0])
-        if isinstance(quantifier, exp.Anonymous) and quantifier.expressions
-        else _strip_parens(quantifier.this)
-    )
-    if isinstance(inner, exp.Subquery):
-        inner = _strip_parens(inner.this)
-    if isinstance(inner, (exp.Values, exp.Array)):
-        return inner
-    return None
-
-
 def _string_literals_in_container(container: exp.Expression) -> Optional[list[exp.Literal]]:
     """String literals a membership list holds, or None if a member is computed.
 
@@ -1057,12 +1045,9 @@ def _quantifier_requires_every_member(comparison: exp.Expr, quantifier: exp.Expr
     b would make it ``x = a``. ``x <> ANY(a, b)`` is true if x differs from
     either; dropping a never-matching b would make it ``x <> a``.
     """
-    is_all = isinstance(quantifier, exp.All) or (
-        isinstance(quantifier, exp.Anonymous) and (quantifier.name or "").casefold() == "all"
-    )
     if isinstance(comparison, (exp.EQ, exp.NullSafeEQ)):
-        return is_all
-    return not is_all
+        return _is_all_quantifier(quantifier)
+    return not _is_all_quantifier(quantifier)
 
 
 def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -1124,9 +1109,7 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
         qualifier = node.table or ""
         if not qualifier:
             return fallback
-        identifier = node.args.get("table")
-        quoted = isinstance(identifier, exp.Identifier) and bool(identifier.args.get("quoted"))
-        return by_alias.get(_identifier_key(qualifier, quoted=quoted, dialect=ctx.dialect))
+        return by_alias.get(_column_qualifier_key(node, dialect=ctx.dialect))
 
     def graphql_source_count(node: exp.Column) -> int:
         return resolution.get(id(node), ({}, None, 0))[2]
@@ -1152,8 +1135,8 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                 cmp_node.set("expression", exp.Literal.number(row_id))
                 changed = True
                 break
-            if isinstance(other, (exp.Any, exp.All)) or _is_quantifier_call(other):
-                container = _quantifier_member_container(other)
+            if _is_quantifier(other):
+                container = _quantifier_list_container(other)
                 literals = (
                     _string_literals_in_container(container) if container is not None else None
                 )
@@ -1257,13 +1240,6 @@ def _physical_graphql_types(
     found: dict[str, Optional[str]] = {}
     n_sources = 0
 
-    def record(name: str, type_name: str, *, quoted: bool) -> None:
-        key = _identifier_key(name, quoted=quoted, dialect=dialect)
-        if key in found and found[key] != type_name:
-            found[key] = None
-        else:
-            found.setdefault(key, type_name)
-
     for source in scope.sources.values():
         if not isinstance(source, exp.Table):
             continue
@@ -1274,21 +1250,9 @@ def _physical_graphql_types(
         if type_name is None:
             continue
         n_sources += 1
-        alias_node = source.args.get("alias")
-        alias_identifier = alias_node.this if isinstance(alias_node, exp.TableAlias) else alias_node
-        if isinstance(alias_identifier, exp.Identifier):
-            record(
-                alias_identifier.this or "",
-                type_name,
-                quoted=bool(alias_identifier.args.get("quoted")),
-            )
-        table_identifier = source.this
-        if isinstance(table_identifier, exp.Identifier):
-            record(
-                table_identifier.this or "",
-                type_name,
-                quoted=bool(table_identifier.args.get("quoted")),
-            )
-        elif source.name:
-            record(source.name, type_name, quoted=False)
+        for key in _relation_identifier_keys(source, dialect=dialect):
+            if key in found and found[key] != type_name:
+                found[key] = None
+            else:
+                found.setdefault(key, type_name)
     return {key: value for key, value in found.items() if value is not None}, n_sources

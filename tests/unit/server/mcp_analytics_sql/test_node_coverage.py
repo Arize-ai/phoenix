@@ -121,6 +121,7 @@ GOVERNED_BY_CHECK: dict[str, str] = {
     # SQLite cannot execute it; PostgreSQL can. Timestamp policy also unwraps
     # ANY(VALUES (...)) as a list of literals.
     "Any": "parse._check_dialect_specific_syntax",
+    "All": "parse._check_dialect_specific_syntax",
 }
 
 
