@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
+import httpx
 import jmespath
 import pytest
 from authlib.integrations.base_client import OAuthError
@@ -1611,6 +1612,75 @@ class TestClientAssertionJWT:
 
         assert "named by SOME_VARIABLE" in caplog.text
         assert str(secret_shaped_path) not in caplog.text
+
+    @staticmethod
+    def _client_through_base_app(assertion_file: Path, handler: Any) -> "OAuth2Client":
+        """Build a client whose requests are served by `handler`, with no discovery call."""
+        auth_method = ClientAssertionJWT(AssertionFile(assertion_file))
+        return OAuth2Client(
+            name="entra",
+            client_id="entra-client-id",
+            client_secret=None,
+            access_token_url="https://idp.example.com/token",
+            display_name="Entra",
+            allow_sign_up=True,
+            auto_login=False,
+            client_kwargs={
+                "token_endpoint_auth_method": auth_method,
+                "revocation_endpoint_auth_method": auth_method,
+                "transport": httpx.MockTransport(handler),
+            },
+        )
+
+    async def test_token_request_carries_the_assertion_through_authlib(
+        self, tmp_path: Path
+    ) -> None:
+        # Driven through BaseApp rather than ClientAuth: this is the surface an authlib
+        # upgrade would change, and a signature or encoding change here would not show up in
+        # tests that call prepare() directly.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = request.content.decode()
+            return httpx.Response(200, json={"access_token": "at", "token_type": "Bearer"})
+
+        client = self._client_through_base_app(assertion_file, handler)
+        await client.fetch_access_token(
+            grant_type="authorization_code",
+            code="auth-code",
+            redirect_uri="https://phoenix.example.com/oauth2/entra/tokens",
+        )
+
+        body = parse_qs(captured["body"])
+        assert body["client_assertion"] == ["header.payload.sig"]
+        assert body["client_assertion_type"] == [
+            "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        ]
+        assert body["client_id"] == ["entra-client-id"]
+
+    async def test_revocation_request_carries_the_assertion_through_authlib(
+        self, tmp_path: Path
+    ) -> None:
+        # authlib selects revocation auth separately, so this cannot be inferred from the
+        # token request passing.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = request.content.decode()
+            return httpx.Response(200, json={})
+
+        client = self._client_through_base_app(assertion_file, handler)
+        async with client._get_oauth_client() as session:
+            session.token = {"access_token": "at", "token_type": "Bearer"}
+            await session.revoke_token("https://idp.example.com/revoke", token="at")
+
+        body = parse_qs(captured["body"])
+        assert body["client_assertion"] == ["header.payload.sig"]
+        assert body["client_id"] == ["entra-client-id"]
 
     def test_add_client_registers_the_auth_method(self, tmp_path: Path) -> None:
         assertion_file = tmp_path / "azure-identity-token"
