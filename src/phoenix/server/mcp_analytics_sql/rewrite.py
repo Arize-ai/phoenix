@@ -168,8 +168,8 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
 def _assert_rewrites_preserved_policy(root: exp.Expression, ctx: RewriteContext) -> None:
     """Re-check the finished tree against the guarantees admission established.
 
-    Admission validates the statement the caller sent. Seven passes then edit
-    that statement, and until this ran, nothing looked at the result -- so an
+    Admission validates the statement the caller sent. The rewrite passes then
+    edit that statement, and until this ran, nothing looked at the result -- so an
     admitted query could become a different query on its way to the engine, and
     twice it did. One pass redirected a CTE reference to the base table it was
     named after, turning a filtered count into a count of everything. Another

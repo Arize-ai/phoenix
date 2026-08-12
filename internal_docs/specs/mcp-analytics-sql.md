@@ -111,6 +111,7 @@ Two consequences follow, and both are deliberate:
   curation](#decision-physical-schema-comes-from-packaged-ddl-curation-from-typed-python).
 - **Contention is the residual risk.** With SQLite the execution width is 1, so
   one slow query serialises every other analytics request until its deadline.
+  The permit is taken before parse, so admission and rewrite wait on it too.
   The row limit, byte caps and deadline bound each query; they do not bound
   contention.
 
@@ -133,8 +134,8 @@ caller SQL
    ├─ 1. parse            SQLGlot, one statement; SELECT or set operation
    ├─ 2. admission        allowlist over the parsed tree
    ├─ 3. rewrite          star expansion, derived columns, timestamp
-   │                      literals, JSON canonicalisation, schema
-   │                      qualification, limit injection
+   │                      arithmetic and literals, JSON canonicalisation,
+   │                      schema qualification, limit injection
    ├─ 4. post-rewrite     relations and schema qualification re-checked
    ├─ 5. render           the tree is generated back into SQL text
    │
@@ -177,10 +178,10 @@ WHERE name = 'chat'
 LIMIT 501
 ```
 
-Four passes did nothing to this statement. It contains no `*`, so star
+Five passes did nothing to this statement. It contains no `*`, so star
 expansion had nothing to expand. It names no node id, compares against no
-timestamp literal, and JSON canonicalisation is SQLite-only. The envelope
-reports the three that did fire.
+timestamp literal, does not subtract two timestamps, and JSON
+canonicalisation is SQLite-only. The envelope reports the three that did fire.
 
 The last block is a different string from the one the caller submitted. It was
 printed from the tree rather than edited from the caller's text. Every
@@ -214,7 +215,7 @@ refused so the policy continues to reason over explicit columns.
 
 ### Stage 3 — rewrite
 
-Seven passes, in this order. The order is load-bearing, not incidental:
+Eight passes, in this order. The order is load-bearing, not incidental:
 
 1. **Star expansion** — `*` becomes the ordered physical DDL columns followed
    by the applicable virtual overlays. First, because it *emits* `latency_ms`
@@ -222,22 +223,27 @@ Seven passes, in this order. The order is load-bearing, not incidental:
    send them to the engine unsubstituted.
 2. **`latency_ms`** — substituted with a per-dialect expression.
 3. **`graphql_node_id`** — decoded in a predicate, built in a projection, with
-   the type resolved per reference through the qualifier.
-4. **Timestamp literals** — a literal compared against a timestamp column is
+   the type resolved per reference through the qualifier. Equality, `IN` /
+   `NOT IN`, `= ANY` / `= ALL`, and `IS [NOT] DISTINCT FROM` become an integer
+   comparison on the primary key. A pattern or a range is not a node id, so
+   `LIKE` and `BETWEEN` stay in the projection form.
+4. **Timestamp subtraction** (SQLite only) — `end_time - start_time` is
+   rewritten through `unixepoch`, so the engine does not do text arithmetic.
+5. **Timestamp literals** — a literal compared against a timestamp column is
    re-emitted in the layout the backend compares correctly. PostgreSQL parses
    its own literals, so this is SQLite-only in effect; on both dialects a bare
    date is recorded in `notes` as having been read as UTC.
-5. **JSON canonicalisation** (SQLite only) — accessors are rewritten to the
+6. **JSON canonicalisation** (SQLite only) — accessors are rewritten to the
    spelling the deployment's expression indexes use.
-6. **Schema qualification** — allowlisted relations are qualified with the
+7. **Schema qualification** — allowlisted relations are qualified with the
    resolved PostgreSQL schema.
-7. **Limit injection** — `row_limit + 1`, so truncation is detectable rather
+8. **Limit injection** — `row_limit + 1`, so truncation is detectable rather
    than assumed.
 
 ### Stage 4 — post-rewrite check
 
-Verifies that the rewritten tree references only allowlisted relations, each
-correctly schema-qualified.
+Verifies that the rewritten tree references only allowlisted relations, and
+that a schema qualifier, if present, is the schema the tables live in.
 
 **This is strictly weaker than admission**, and cannot be made equal to it: the
 rewrites deliberately emit SQL admission would refuse — `encode` and
@@ -266,7 +272,7 @@ is backed by a second layer on SQLite and unbacked on PostgreSQL.
 The function policy is a union with declared differences, not an intersection.
 Each backend gets what it can do — `percentile`, `julianday` and `json_each` on
 SQLite; ordered-set aggregates and the JSONB surface on PostgreSQL — on top of
-28 portable node classes. Capping the surface at the lesser of the two engines
+35 portable node classes. Capping the surface at the lesser of the two engines
 would delete real capability from both for the sake of symmetry.
 
 The JSON surface is sized by where the data is rather than by what is portable.
@@ -323,7 +329,7 @@ ordering-sensitive operation uses an uncast JSON extraction; where a live
 expression index exists, the full-detail schema also publishes the exact
 indexed spelling.
 
-So an asymmetry is a decision, and is recorded as one. `admission_corpus.jsonl`
+So an asymmetry is a decision, and is recorded as one. `admission_corpus.py`
 carries the same statement twice, once per dialect, with the outcome and the
 reason. An undeclared asymmetry is a bug by definition, because nothing
 distinguishes it from a gap.
@@ -347,10 +353,10 @@ pipeline. And the round trip is stable on a wrong tree: parsing, rendering and
 parsing again returns what it was given, so a self-consistency check passes.
 
 Two practices follow from the dependency. Admission refuses node classes it
-does not recognise rather than ignoring them. `admission_corpus.jsonl` records
+does not recognise rather than ignoring them. `admission_corpus.py` records
 every construct that ever slipped through. Neither reaches a construct that
 parses cleanly into the wrong shape, which is [open question
-6](#open-questions).
+3](#open-questions).
 
 ### Decision: rewrite the statement rather than reject what needs rewriting
 
@@ -559,10 +565,9 @@ other**. The suite therefore tests agreement between the catalogs, policy,
 rewrites and engine backstops rather than only testing each component in
 isolation:
 
-- **Admission corpus** (`admission_corpus.jsonl`) — data rather than code, one
-  entry per construct that ever slipped through, with the outcome it must now
-  produce. The cheapest way to weaken an allowlist is to widen it while the
-  tests keep passing.
+- **Admission corpus** (`admission_corpus.py`) — one entry per construct that
+  ever slipped through, with the outcome it must now produce. The cheapest way
+  to weaken an allowlist is to widen it while the tests keep passing.
 - **Liveness** — every permitted construct executes against seeded rows and
   must return them. Executing against an empty table verifies that the parser
   and the authorizer agree and nothing about whether the construct computes.
@@ -691,9 +696,7 @@ Ordered by how much they would change the design.
    character-for-character the caller's, so PostgreSQL reparses them under its
    own precedence and the caller's meaning survives by accident rather than by
    design. The first and third render the wrong grouping into a `CAST` or a
-   `JSON_EXTRACT_PATH` call, where no engine can reinterpret it. `?` is refused
-   for an unrelated reason, since the function allowlist does not carry
-   `jsonb_contains`.
+   `JSON_EXTRACT_PATH` call, where no engine can reinterpret it.
 
    Parentheses defeat all four. A parenthesised operand arrives under a `Paren`
    node and binds as a unit, so `a #>> ('{a,b}'::text[])`, `a -> ('a'[1])`,
