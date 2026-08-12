@@ -100,13 +100,6 @@ type RawPxiOptions = {
    */
   enableSubagents?: boolean;
   /**
-   * `--enable-graphql-mutations`: Allow the server agent's GraphQL *mutation*
-   * tools, not just reads — it can then change Phoenix state.
-   *
-   * @example true
-   */
-  enableGraphqlMutations?: boolean;
-  /**
    * `--bypass-edits`: Apply file edits without asking for approval, mapping to
    * a `"bypass"` (rather than `"manual"`) {@link PxiEditPermission}.
    *
@@ -253,7 +246,6 @@ export function resolvePxiRuntimeOptions({
     skipModelPreflight: Boolean(cliOptions.skipModelPreflight),
     enableWebAccess: Boolean(cliOptions.enableWebAccess),
     enableSubagents: Boolean(cliOptions.enableSubagents),
-    enableGraphqlMutations: Boolean(cliOptions.enableGraphqlMutations),
     editPermission,
     ingestTraces: Boolean(cliOptions.ingestTraces),
     exportRemoteTraces: Boolean(cliOptions.exportRemoteTraces),
@@ -290,10 +282,6 @@ export function createPxiProgram(): Command {
     )
     .option("--enable-web-access", "Enable PXI web access context")
     .option("--enable-subagents", "Enable PXI subagent context")
-    .option(
-      "--enable-graphql-mutations",
-      "Allow server-agent GraphQL mutation tools"
-    )
     .option("--bypass-edits", "Bypass manual edit approvals when supported")
     .option("--ingest-traces", "Persist local PXI traces in Phoenix")
     .option("--export-remote-traces", "Export PXI traces remotely")

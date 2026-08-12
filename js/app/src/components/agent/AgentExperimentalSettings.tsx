@@ -1,10 +1,7 @@
 import { css } from "@emotion/react";
 
-import {
-  getAgentCapabilitiesForControlSurface,
-  getAgentCapabilityDefinition,
-} from "@phoenix/agent/extensions/capabilities";
-import { Flex, Switch, Text } from "@phoenix/components";
+import { getAgentCapabilityDefinition } from "@phoenix/agent/extensions/capabilities";
+import { Switch, Text } from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 
@@ -42,46 +39,6 @@ const settingSwitchCSS = css`
     min-width: 0;
   }
 `;
-
-export function AgentExperimentalSettings() {
-  const store = useAgentStore();
-  const capabilities = useAgentContext((state) => state.capabilities);
-  const experimentalCapabilities = getAgentCapabilitiesForControlSurface(
-    "experimental-settings"
-  );
-
-  if (experimentalCapabilities.length === 0) {
-    return null;
-  }
-
-  return (
-    <Flex direction="column" gap="size-200">
-      <ul css={settingsListCSS}>
-        {experimentalCapabilities.map((definition) => (
-          <li key={definition.key} css={settingRowCSS}>
-            <Switch
-              isSelected={capabilities[definition.key]}
-              onChange={(enabled) => {
-                store
-                  .getState()
-                  .setCapability({ key: definition.key, enabled });
-              }}
-              labelPlacement="start"
-              css={settingSwitchCSS}
-            >
-              <span className="agent-settings__label">
-                <Text weight="heavy" size="M">
-                  {definition.label}
-                </Text>
-                <Text color="text-500">{definition.description}</Text>
-              </span>
-            </Switch>
-          </li>
-        ))}
-      </ul>
-    </Flex>
-  );
-}
 
 export function AgentWebAccessSettings() {
   const store = useAgentStore();

@@ -456,7 +456,6 @@ describe("agentStore", () => {
   describe("persisted capabilities", () => {
     it("backfills missing capability keys when rehydrating persisted state", () => {
       const persistedCapabilities: Partial<AgentCapabilities> = {
-        "graphql.mutations": true,
         "web.access": true,
       };
       localStorage.setItem(
@@ -471,7 +470,6 @@ describe("agentStore", () => {
 
       expect(store.getState().capabilities).toEqual({
         ...createDefaultAgentCapabilities(),
-        "graphql.mutations": true,
         "web.access": true,
       });
     });

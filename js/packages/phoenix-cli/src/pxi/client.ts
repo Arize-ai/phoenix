@@ -481,20 +481,18 @@ export function buildPxiHeaders({
 
 /**
  * Build the {@link PxiContext} list sent with every request, telling the server
- * agent the current local time and zone and which capabilities (GraphQL
- * mutations, web access, subagents) are enabled for the run. `now` and
- * `timeZone` default to the live clock/zone but are injectable for testing.
+ * agent the current local time and zone and which capabilities (web access,
+ * subagents) are enabled for the run. `now` and `timeZone` default to the
+ * live clock/zone but are injectable for testing.
  */
 export function buildPxiContexts({
   enableWebAccess,
   enableSubagents,
-  enableGraphqlMutations,
   now = new Date(),
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
 }: {
   enableWebAccess: boolean;
   enableSubagents: boolean;
-  enableGraphqlMutations: boolean;
   now?: Date;
   timeZone?: string;
 }): PxiContext[] {
@@ -503,10 +501,6 @@ export function buildPxiContexts({
       type: "app",
       currentDateTime: toLocalISOWithOffset(now),
       timeZone,
-    },
-    {
-      type: "graphql",
-      mutationsEnabled: enableGraphqlMutations,
     },
     {
       type: "web_access",
@@ -533,7 +527,6 @@ function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
     contexts: buildPxiContexts({
       enableWebAccess: options.enableWebAccess,
       enableSubagents: options.enableSubagents,
-      enableGraphqlMutations: options.enableGraphqlMutations,
     }),
     model: options.modelSelection,
   };

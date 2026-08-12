@@ -48,15 +48,6 @@ def _build_tracer_provider() -> TracerProvider | None:
     )
 
 
-def _resolve_allow_mutations(args: argparse.Namespace) -> bool:
-    if args.allow_mutations:
-        return True
-    if args.step_config is not None and args.step_config.is_file():
-        config = json.loads(args.step_config.read_text())
-        return bool(config.get("allow_mutations", False))
-    return False
-
-
 def _load_or_create_session_id(session_id_file: Path | None) -> str:
     if session_id_file is not None and session_id_file.is_file():
         if session_id := session_id_file.read_text().strip():
@@ -100,7 +91,6 @@ async def run(args: argparse.Namespace) -> None:
                 # Mirror the /agents route so the eval exercises the same base
                 # prompt production serves, not build_server_agent's default.
                 prompts=ServerAgentPrompts(base=AgentPrompts().base),
-                allow_mutations=_resolve_allow_mutations(args),
                 tracer_provider=tracer_provider,
             )
             trace_context = (
@@ -166,9 +156,10 @@ def main() -> None:
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--history-file", type=Path, default=None)
     parser.add_argument("--session-id-file", type=Path, default=None)
+    # Accepted for forward compatibility: Harbor uploads each step's
+    # step-config.json and always passes it, but no keys are read today.
     parser.add_argument("--step-config", type=Path, default=None)
     parser.add_argument("--latest-symlink", type=Path, default=None)
-    parser.add_argument("--allow-mutations", action="store_true")
     asyncio.run(run(parser.parse_args()))
 
 

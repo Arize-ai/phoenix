@@ -14,7 +14,6 @@ import {
   Text,
 } from "@phoenix/components";
 import {
-  AgentExperimentalSettings,
   AgentObservabilitySettings,
   AgentSettingsForm,
   AgentSubagentsSettings,
@@ -46,7 +45,6 @@ function isServerAgentRuntimeEnabled(agentBashDisabled: boolean): boolean {
 
 const ADMIN_SECTION_ID = "admin-settings";
 const PERSONAL_SECTION_ID = "personal-settings";
-const EXPERIMENTAL_SECTION_ID = "experimental-settings";
 
 const sectionPanelCSS = css`
   padding: var(--global-dimension-size-200);
@@ -277,19 +275,6 @@ export function SettingsAgentsPage() {
               </div>
             </DisclosurePanel>
           </Disclosure>
-          {isServerAgentRuntimeEnabled(window.Config.agentBashDisabled) ? (
-            <Disclosure id={EXPERIMENTAL_SECTION_ID}>
-              <AssistantSettingsSectionTrigger
-                title="Experimental settings"
-                description="Early assistant capabilities that may change."
-              />
-              <DisclosurePanel>
-                <div css={sectionPanelCSS}>
-                  <AgentExperimentalSettings />
-                </div>
-              </DisclosurePanel>
-            </Disclosure>
-          ) : null}
         </DisclosureGroup>
       </Card>
       <SettingsAgentSessionsCard query={query} />

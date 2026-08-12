@@ -51,13 +51,13 @@ export type ModelSelection = SchemasV1["AgentModelSelection"];
 /**
  * A capability/environment hint sent alongside the conversation so the server
  * agent knows what it is allowed to do and the world it is operating in — the
- * caller's local clock and time zone, whether GraphQL mutations are permitted,
- * and whether web access and subagents are enabled for this run. A subset of
- * the server's full `ChatContext` union: the rest are browser-only surfaces.
+ * caller's local clock and time zone, and whether web access and subagents
+ * are enabled for this run. A subset of the server's full `ChatContext`
+ * union: the rest are browser-only surfaces.
  */
 export type PxiContext = Extract<
   SchemasV1["ChatContext"],
-  { type: "app" | "graphql" | "web_access" | "subagents" }
+  { type: "app" | "web_access" | "subagents" }
 >;
 
 /**
@@ -106,7 +106,6 @@ export type PxiRuntimeOptions = {
   skipModelPreflight: boolean;
   enableWebAccess: boolean;
   enableSubagents: boolean;
-  enableGraphqlMutations: boolean;
   editPermission: PxiEditPermission;
   ingestTraces: boolean;
   exportRemoteTraces: boolean;

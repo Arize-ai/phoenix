@@ -156,7 +156,6 @@ function renderChatView(
               },
             }}
             capabilities={{
-              "graphql.mutations": false,
               "subagents.enabled": false,
               "web.access": false,
             }}
