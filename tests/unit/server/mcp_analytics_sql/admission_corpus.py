@@ -518,6 +518,30 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="postgresql",
     ),
     AdmissionCase(
+        sql='SELECT t.v FROM (SELECT 1 AS v) AS "T"',
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a quoted derived alias is a different identifier from its unquoted folding; table aliases already require that match",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql='SELECT "T".v FROM (SELECT 1 AS v) AS "T"',
+        expect=AdmissionOutcome.ADMIT,
+        note="the quoted qualifier names the quoted derived alias",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT id FROM spans WHERE id = ALL(ARRAY[1, 2])",
+        expect=AdmissionOutcome.ADMIT,
+        note="ALL(ARRAY[...]) parses as a function named all; ANY(ARRAY[...]) parses as a quantifier. Both are the same PostgreSQL construct",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT id FROM spans WHERE start_time = ALL(ARRAY['2026-01-01T10:30:00'])",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="ALL(ARRAY[...]) is the same comparison as ANY(ARRAY[...]); a naive time of day must be refused",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
         sql="SELECT pg_catalog.localtimestamp FROM spans",
         expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
         note="same column-shaped special form as current_user; the unqualified spelling is refused as a function",

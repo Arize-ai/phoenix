@@ -323,6 +323,9 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
     return None
 
 
+_QUANTIFIER_NAMES = frozenset({"all", "any", "some"})
+
+
 def _check_dialect_specific_syntax(
     root: exp.Expression, *, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
@@ -354,10 +357,13 @@ def _check_dialect_specific_syntax(
                 "ROW_NUMBER() OVER (PARTITION BY ...) = 1, or run the statement "
                 "on PostgreSQL.",
             )
-        if isinstance(node, (exp.Any, exp.All)):
+        if isinstance(node, (exp.Any, exp.All)) or (
+            isinstance(node, exp.Anonymous) and (node.name or "").casefold() in _QUANTIFIER_NAMES
+        ):
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                f"{node.key.upper()} is not supported by SQLite. Use IN (...) or a join.",
+                f"{(node.name or node.key).upper()} is not supported by SQLite. "
+                "Use IN (...) or a join.",
             )
     return None
 
@@ -574,7 +580,7 @@ def _timestamp_comparison_pairs(
     if isinstance(node, _TIMESTAMP_COMPARISONS):
         pairs = [(node.this, node.expression), (node.expression, node.this)]
         for column, other in ((node.this, node.expression), (node.expression, node.this)):
-            if isinstance(other, (exp.Any, exp.All)):
+            if isinstance(other, (exp.Any, exp.All)) or _is_quantifier_call(other):
                 # Bounded at the subquery edge: `= ANY(SELECT ...)` compares
                 # against what the subquery returns, so a value written inside
                 # it is beside that subquery's columns, not beside this one.
@@ -608,18 +614,32 @@ def _timestamp_comparison_pairs(
     return []
 
 
+def _is_quantifier_call(node: Optional[exp.Expression]) -> bool:
+    """Whether this node is ANY / ALL / SOME written as a function call.
+
+    `ANY(ARRAY[...])` parses as `exp.Any`. `ALL(ARRAY[...])` and `SOME(...)`
+    parse as `exp.Anonymous`, so the function allowlist would otherwise refuse
+    them as unknown functions named all and some.
+    """
+    return isinstance(node, exp.Anonymous) and (node.name or "").casefold() in _QUANTIFIER_NAMES
+
+
 def _quantifier_compared_values(quantifier: exp.Expression) -> list[exp.Expression]:
     """Operands a = ANY / = ALL compares against in this scope.
 
     A SELECT subquery is computed and is skipped. VALUES, including when the
     parser wraps it in a Subquery, is a list of literals spelled as a
-    quantifier.
+    quantifier. ARRAY is the same list in constructor form.
     """
     held = [node for node in _within_scope(quantifier, exp.Expression) if node is not quantifier]
-    inner = _strip_parens(quantifier.this)
+    inner = (
+        _strip_parens(quantifier.expressions[0])
+        if isinstance(quantifier, exp.Anonymous) and quantifier.expressions
+        else _strip_parens(quantifier.this)
+    )
     if isinstance(inner, exp.Subquery):
         inner = _strip_parens(inner.this)
-    if isinstance(inner, exp.Values):
+    if isinstance(inner, (exp.Values, exp.Array)):
         held.extend(inner.expressions)
     return held
 
@@ -1103,6 +1123,8 @@ def _check_functions(
             continue
         if isinstance(node, exp.Anonymous):
             name = (node.name or "").lower()
+            if name in _QUANTIFIER_NAMES:
+                continue
             if name not in allowed_anon:
                 return AdmissionResult(AdmissionOutcome.FUNCTION_NOT_ALLOWED, name or "<anonymous>")
             continue
@@ -1178,7 +1200,7 @@ def _scope_exposes_qualifier(
 ) -> bool:
     """Whether `qualifier` names a relation this scope exposes."""
     want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
-    for reference, source in scope.sources.items():
+    for source in scope.sources.values():
         if isinstance(source, exp.Table):
             alias = source.args.get("alias")
             alias_identifier = alias.this if isinstance(alias, exp.TableAlias) else alias
@@ -1205,9 +1227,49 @@ def _scope_exposes_qualifier(
                 return True
             if source.name and _identifier_key(source.name, quoted=False, dialect=dialect) == want:
                 return True
-        elif _identifier_key(reference, quoted=False, dialect=dialect) == want or reference == want:
+    for ident in _derived_alias_identifiers(scope):
+        if (
+            _identifier_key(
+                ident.this or "",
+                quoted=bool(ident.args.get("quoted")),
+                dialect=dialect,
+            )
+            == want
+        ):
             return True
     return False
+
+
+def _alias_identifier(expression: Optional[exp.Expression]) -> Optional[exp.Identifier]:
+    """The alias this relation is exposed as, quoting included."""
+    if expression is None:
+        return None
+    alias = expression.args.get("alias")
+    if isinstance(alias, exp.TableAlias):
+        ident = alias.this
+        return ident if isinstance(ident, exp.Identifier) else None
+    return alias if isinstance(alias, exp.Identifier) else None
+
+
+def _derived_alias_identifiers(scope: Any) -> list[exp.Identifier]:
+    """Aliases of CTEs, subqueries, and other query-local relations in this scope."""
+    expression = getattr(scope, "expression", None)
+    if not isinstance(expression, exp.Select):
+        return []
+    relations: list[Optional[exp.Expression]] = []
+    from_expr = expression.args.get("from_") or expression.args.get("from")
+    if isinstance(from_expr, exp.From):
+        relations.append(from_expr.this)
+    relations.extend(join.this for join in (expression.args.get("joins") or []))
+    with_expr = expression.args.get("with_") or expression.args.get("with")
+    if isinstance(with_expr, exp.With):
+        relations.extend(with_expr.expressions)
+    found: list[exp.Identifier] = []
+    for relation in relations:
+        ident = _alias_identifier(relation)
+        if ident is not None:
+            found.append(ident)
+    return found
 
 
 def _check_base_tables(

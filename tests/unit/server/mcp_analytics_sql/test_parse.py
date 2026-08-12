@@ -785,6 +785,7 @@ class TestTimestampComparisonCoverage:
             ("SELECT CASE start_time WHEN '{}' THEN 1 ELSE 0 END FROM spans", "sqlite"),
             ("SELECT id FROM spans WHERE start_time = ANY(ARRAY['{}'])", "postgresql"),
             ("SELECT id FROM spans WHERE start_time = ANY(VALUES ('{}'))", "postgresql"),
+            ("SELECT id FROM spans WHERE start_time = ALL(ARRAY['{}'])", "postgresql"),
         ],
     )
     def test_a_naive_literal_is_refused_in_a_comparison_that_is_not_spelled_as_one(
