@@ -19,12 +19,15 @@ sdist
 phoenix.db*
 
 # Docgen
-/js/**/docs
+# Scoped to typedoc output locations: /js/**/docs would also swallow
+# source directories like js/app/src/agent/tools/docs/
+/js/docs
+/js/packages/*/docs
 
 # Data files
 *.csv
 !tests/**/fixtures/*.csv
-!app/tests/fixtures/*.csv
+!js/app/tests/fixtures/*.csv
 *.hdf
 *.hdf5
 .jcs-test-data/*

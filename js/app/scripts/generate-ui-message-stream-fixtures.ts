@@ -41,7 +41,7 @@ type ExtractedCase = {
 };
 
 const APP_DIRECTORY = resolve(process.cwd());
-const REPOSITORY_DIRECTORY = resolve(APP_DIRECTORY, "..");
+const REPOSITORY_DIRECTORY = resolve(APP_DIRECTORY, "../..");
 const FIXTURE_DIRECTORY = join(
   REPOSITORY_DIRECTORY,
   "tests",

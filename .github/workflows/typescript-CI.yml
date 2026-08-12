@@ -30,7 +30,11 @@ jobs:
         with:
           filters: |
             app:
-              - "app/**"
+              - "js/app/**"
+              - "js/pnpm-lock.yaml"
+              - "js/pnpm-workspace.yaml"
+              - "js/packages/phoenix-client/**"
+              - "js/packages/phoenix-evals/**"
               - "schemas/openapi.json"
               - "src/phoenix/server/generative_ui/**"
               - "tests/unit/server/agents/fixtures/ui_message_stream/**"
@@ -51,34 +55,37 @@ jobs:
       - name: Install PNPM
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
-          package_json_file: app/package.json
+          package_json_file: js/package.json
       - name: Use Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          cache-dependency-path: ./app/pnpm-lock.yaml
+          cache-dependency-path: ./js/pnpm-lock.yaml
           node-version: lts/*
           cache: "pnpm"
       - name: Install dependencies
-        working-directory: ./app
+        working-directory: ./js
         run: pnpm install --frozen-lockfile
+      - name: Build workspace dependencies
+        working-directory: ./js/app
+        run: pnpm run build:deps
       - name: Type Check
-        working-directory: ./app
+        working-directory: ./js/app
         run: pnpm run typecheck
       - name: Formatting
-        working-directory: ./app
+        working-directory: ./js/app
         run: |
           pnpm run fmt:check
       - name: Lint
-        working-directory: ./app
+        working-directory: ./js/app
         run: |
           pnpm run lint
       - name: Relay Codegen
-        working-directory: ./app
+        working-directory: ./js/app
         run: |
           pnpm run build:relay
           git diff --exit-code
       - name: OpenAPI Codegen
-        working-directory: ./app
+        working-directory: ./js/app
         run: |
           pnpm run generate:openapi
           git diff --exit-code
@@ -91,7 +98,7 @@ jobs:
           make ui-message-stream-fixtures
           git diff --exit-code
       - name: Test
-        working-directory: ./app
+        working-directory: ./js/app
         run: |
           pnpm run test
 

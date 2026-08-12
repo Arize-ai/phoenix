@@ -1,5 +1,5 @@
 {
-  "$schema": "../app/node_modules/oxlint/configuration_schema.json",
+  "$schema": "./app/node_modules/oxlint/configuration_schema.json",
 
   "extends": ["../.oxlintrc.json"],
 
@@ -26,5 +26,11 @@
     }
   ],
 
-  "ignorePatterns": ["**/dist/**", "**/build/**", "**/*.{js,jsx,cjs,mjs}"]
+  "ignorePatterns": [
+    // The app has its own oxlint config and is linted separately (typescript-CI)
+    "app/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/*.{js,jsx,cjs,mjs}"
+  ]
 }

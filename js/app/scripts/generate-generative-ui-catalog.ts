@@ -18,7 +18,7 @@ import {
  * this script via `make schema-generative-ui`. CI also runs that target to ensure
  * checked-in artifacts stay in sync whenever the frontend catalog changes.
  */
-const repoRoot = path.resolve(process.cwd(), "..");
+const repoRoot = path.resolve(process.cwd(), "../..");
 const outputDirectory = path.join(repoRoot, "src/phoenix/server/generative_ui");
 
 const manifest = {

@@ -89,7 +89,7 @@ export default defineConfig(() => {
     },
     build: {
       manifest: true,
-      outDir: resolve(__dirname, "../src/phoenix/server/static"),
+      outDir: resolve(__dirname, "../../src/phoenix/server/static"),
       emptyOutDir: true,
       sourcemap: enableSourceMap,
       rolldownOptions: {

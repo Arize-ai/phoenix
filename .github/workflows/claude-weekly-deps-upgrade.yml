@@ -36,7 +36,7 @@ jobs:
       - name: Install PNPM
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
-          package_json_file: app/package.json
+          package_json_file: js/package.json
 
       - name: Use Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -68,13 +68,7 @@ jobs:
           uv lock --upgrade
           uv sync
 
-      - name: Upgrade JavaScript (pnpm) — app
-        working-directory: ./app
-        run: |
-          pnpm update --recursive
-          pnpm install --frozen-lockfile
-
-      - name: Upgrade JavaScript (pnpm) — js
+      - name: Upgrade JavaScript (pnpm)
         working-directory: ./js
         run: |
           pnpm update --recursive
@@ -131,20 +125,21 @@ jobs:
           # churn from a formatter upgrade rides along in the commit instead
           # of failing the check.
           run app-fmt             make format-frontend
+          run js-fmt              make format-ts
+          run js-lint             make lint-ts
+          # Build before typecheck/test: workspace packages resolve each other
+          # via dist/ (and the app resolves phoenix-client/phoenix-evals via
+          # dist/), so running checks against unbuilt packages fails on module
+          # resolution rather than real regressions. No `git diff --exit-code`
+          # here (unlike typescript-packages-CI.yml): the upgrade itself is
+          # uncommitted at this point, and anything the build regenerates is
+          # committed later by `git add -A`.
+          run js-build            make build-ts
+          run js-test             make test-ts
           run app-typecheck       make typecheck-frontend
           run app-lint            make lint-frontend
           run app-test            make test-frontend
           run app-build           make build-frontend
-          run js-fmt              make format-ts
-          run js-lint             make lint-ts
-          # Build before test: workspace packages resolve each other via dist/,
-          # so running tests against unbuilt packages fails on module resolution
-          # rather than real regressions. No `git diff --exit-code` here (unlike
-          # typescript-packages-CI.yml): the upgrade itself is uncommitted at
-          # this point, and anything the build regenerates is committed later
-          # by `git add -A`.
-          run js-build            make build-ts
-          run js-test             make test-ts
           # Write a one-line index of which checks failed for quick scanning.
           {
             echo "# Verify summary ($(date -u +%FT%TZ))"
@@ -197,7 +192,7 @@ jobs:
               --body "Automated weekly dependency upgrade.
 
           - \`uv lock --upgrade\` (Python)
-          - \`pnpm update --recursive\` in \`app/\` and \`js/\`
+          - \`pnpm update --recursive\` in \`js/\`
 
           All verification checks passed (typecheck, fmt, lint, test, build). Review and merge."
           fi
@@ -238,7 +233,7 @@ jobs:
           prompt: |
             You're on branch `${{ steps.branch.outputs.branch }}`. The weekly dependency upgrade
             already ran (`uv lock --upgrade` for Python, `pnpm update -r`
-            in `app/` and `js/`), but the verification step failed. The upgraded
+            in `js/`), but the verification step failed. The upgraded
             lockfiles and any package manifest changes are in the working tree
             (uncommitted). Your job is to fix the regressions in the working tree
             and write a one-page summary of what you did — nothing more.
@@ -302,7 +297,7 @@ jobs:
 
             ## Constraints
             - Honor the `pnpm.minimumReleaseAge` and `allowBuilds` policies in
-              `app/pnpm-workspace.yaml` and `js/pnpm-workspace.yaml` — never
+              `js/pnpm-workspace.yaml` — never
               bypass them with `--config.dangerouslyAllowAllBuilds` or by editing
               the policy.
             - No pre-releases in production Python deps (CLAUDE.md policy). Dev
@@ -347,7 +342,7 @@ jobs:
             echo "> Review the diff and fixes carefully before merging."
             echo ""
             echo "- \`uv lock --upgrade\` (Python)"
-            echo "- \`pnpm update --recursive\` in \`app/\` and \`js/\`"
+            echo "- \`pnpm update --recursive\` in \`js/\`"
             echo ""
             echo "## Fix summary"
             echo ""

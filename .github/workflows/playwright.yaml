@@ -35,7 +35,9 @@ jobs:
           filters: |
             e2e:
               - "src/**"
-              - "app/**"
+              - "js/app/**"
+              - "js/packages/**"
+              - "js/pnpm-lock.yaml"
               - ".github/workflows/playwright.yaml"
 
 
@@ -46,7 +48,7 @@ jobs:
     if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.e2e == 'true') }}
     defaults:
       run:
-        working-directory: ./app
+        working-directory: ./js/app
     env:
       # We're skipping WebKit because of recurring issues with caching,
       # despite always installing it on cache-hit.
@@ -64,14 +66,15 @@ jobs:
       - name: Install PNPM
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
-          package_json_file: app/package.json
+          package_json_file: js/package.json
       - name: Use Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          cache-dependency-path: ./app/pnpm-lock.yaml
+          cache-dependency-path: ./js/pnpm-lock.yaml
           node-version: lts/*
           cache: pnpm
       - name: Install dependencies
+        working-directory: ./js
         run: pnpm install --frozen-lockfile
       - name: Get installed Playwright version
         id: playwright-version
@@ -81,7 +84,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ hashFiles('app/playwright.config.ts') }}
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ hashFiles('js/app/playwright.config.ts') }}
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps
@@ -101,7 +104,7 @@ jobs:
       - name: Install dependencies (with upgrade)
         if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
         run: |
-          echo ${{ matrix.py }} > ../.python-version
+          echo ${{ matrix.py }} > ../../.python-version
           uv sync --upgrade --extra container
       # Sandbox providers used by the Playwright suite (Deno for TypeScript
       # code evaluators, CPython WASM for Python). The Phoenix container image
@@ -134,7 +137,7 @@ jobs:
         if: always()
         with:
           name: playwright-report-py${{ matrix.py }}-${{ matrix.os }}
-          path: app/playwright-report/
+          path: js/app/playwright-report/
           retention-days: 30
 
   ci-required:

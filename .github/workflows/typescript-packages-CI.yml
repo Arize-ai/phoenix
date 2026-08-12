@@ -29,7 +29,9 @@ jobs:
         with:
           filters: |
             packages:
-              - "js/**"
+              # The app (js/app) is covered by typescript-CI.yml
+              - "js/!(app)/**"
+              - "js/*"
               - "schemas/**"
               - ".oxlintrc.json"
               - ".oxfmtrc.jsonc"
@@ -59,11 +61,11 @@ jobs:
       - name: Build
         working-directory: ./js
         run: |
-          pnpm run -r build
+          pnpm run build
           git diff --exit-code
       - name: Test
         working-directory: ./js
-        run: pnpm run -r test
+        run: pnpm run test
       - name: Formatting
         working-directory: ./js
         run: |
