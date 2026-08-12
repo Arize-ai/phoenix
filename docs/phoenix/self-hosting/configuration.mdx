@@ -101,7 +101,7 @@ session sweeper, and consumers:
 | Environment variable | Default | Effect |
 | --- | ---: | --- |
 | `PHOENIX_ONLINE_EVAL_ENABLED` | `false` | Starts online-evaluation background processing. |
-| `PHOENIX_ONLINE_EVAL_SESSION_ENABLED` | `false` | Starts session evaluation: both the sweeper that materializes session work and the consumer that runs it. Requires `PHOENIX_ONLINE_EVAL_ENABLED`. |
+| `PHOENIX_ONLINE_EVAL_SESSION_ENABLED` | `true` | Starts session evaluation: both the sweeper that materializes session work and the consumer that runs it. Set it to `false` to disable session evaluation. Requires `PHOENIX_ONLINE_EVAL_ENABLED`. |
 | `PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS` | `60` | Waits this long before the span producer advances to an observed high-water span ID. |
 | `PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS` | `3600` | Sets the interval between recovery scans for recently missed spans. |
 | `PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS` | `100000` | Sets the number of span IDs covered by each recovery scan. For gap-free coverage, this must be at least the instance-wide span ingest rate multiplied by the backstop interval. |

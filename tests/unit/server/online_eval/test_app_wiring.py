@@ -7,6 +7,7 @@ with the work unit DONE.
 import asyncio
 from contextlib import AsyncExitStack
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import pytest
 from asgi_lifespan import LifespanManager
@@ -69,19 +70,36 @@ async def test_online_eval_daemons_absent_in_read_only_mode(
     assert app.state.online_eval_session_sweeper is None
 
 
-async def test_session_evaluation_needs_its_own_flag(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("session_enabled", "session_daemons_expected"),
+    [
+        pytest.param(None, True, id="on-by-default"),
+        pytest.param("false", False, id="opted-out"),
+    ],
+)
+async def test_session_evaluation_runs_unless_it_is_turned_off(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    session_enabled: Optional[str],
+    session_daemons_expected: bool,
 ) -> None:
-    """Session evaluation is opt-in as a whole: it stays off until it is asked for
-    explicitly — otherwise it fills the outstanding-work budget and wedges — and both
-    halves of its lifecycle stay off together.
+    """Session evaluation follows the master gate unless its own flag turns it off, and
+    both halves of its lifecycle follow that flag together.
     """
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    if session_enabled is None:
+        monkeypatch.delenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, raising=False)
+    else:
+        monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, session_enabled)
 
     app = _create_app(db)
     assert isinstance(app.state.online_eval_producer, OnlineEvalProducer)
-    assert app.state.online_eval_session_sweeper is None
-    assert app.state.online_eval_session_consumer is None
+    if session_daemons_expected:
+        assert isinstance(app.state.online_eval_session_sweeper, SessionEvalSweeper)
+        assert isinstance(app.state.online_eval_session_consumer, OnlineEvalConsumer)
+    else:
+        assert app.state.online_eval_session_sweeper is None
+        assert app.state.online_eval_session_consumer is None
 
 
 @pytest.mark.parametrize(

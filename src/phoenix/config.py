@@ -3425,9 +3425,12 @@ def get_env_online_eval_session_enabled() -> bool:
     Gets the value of the PHOENIX_ONLINE_EVAL_SESSION_ENABLED environment variable.
 
     Gates session evaluation end to end: with it off, neither the sweeper that
-    materializes session work nor the consumer that executes it runs.
+    materializes session work nor the consumer that executes it runs. Session
+    evaluation is enabled by default, so setting this variable false is what turns
+    it off. It stays subordinate to PHOENIX_ONLINE_EVAL_ENABLED: when that master
+    gate is off, no session evaluation runs no matter what this variable says.
     """
-    return _bool_val(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, False)
+    return _bool_val(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, True)
 
 
 def get_env_online_eval_frontier_lag_seconds() -> float:
