@@ -87,9 +87,13 @@ class _SessionCriteria:
     evaluator_id: int
     fingerprint: str
     delay_seconds: int
+    created_at: datetime
 
 
-def _criteria_relation(criteria: Sequence[_SessionCriteria]) -> Subquery:
+def _criteria_relation(
+    criteria: Sequence[_SessionCriteria],
+    dialect: SupportedSQLDialect,
+) -> Subquery:
     """Return a portable inline relation for resolved session criteria."""
     rows = []
     parameters: dict[str, Any] = {}
@@ -100,16 +104,23 @@ def _criteria_relation(criteria: Sequence[_SessionCriteria]) -> Subquery:
             f"sc{index}_evaluator_id": criterion.evaluator_id,
             f"sc{index}_config_fingerprint": criterion.fingerprint,
             f"sc{index}_delay_seconds": criterion.delay_seconds,
+            f"sc{index}_created_at": criterion.created_at,
         }
         parameters.update(row_parameters)
         placeholders = [f":{name}" for name in row_parameters]
         if index == 0:
+            created_at_type = (
+                "TIMESTAMP WITH TIME ZONE"
+                if dialect is SupportedSQLDialect.POSTGRESQL
+                else "TEXT"
+            )
             placeholders = [
                 f"CAST({placeholders[0]} AS INTEGER)",
                 f"CAST({placeholders[1]} AS INTEGER)",
                 f"CAST({placeholders[2]} AS INTEGER)",
                 f"CAST({placeholders[3]} AS VARCHAR)",
                 f"CAST({placeholders[4]} AS INTEGER)",
+                f"CAST({placeholders[5]} AS {created_at_type})",
             ]
         rows.append(f"({', '.join(placeholders)})")
     statement = text(
@@ -118,7 +129,8 @@ def _criteria_relation(criteria: Sequence[_SessionCriteria]) -> Subquery:
         "sc.column2 AS project_id, "
         "sc.column3 AS evaluator_id, "
         "sc.column4 AS config_fingerprint, "
-        "sc.column5 AS delay_seconds "
+        "sc.column5 AS delay_seconds, "
+        "sc.column6 AS created_at "
         f"FROM (VALUES {', '.join(rows)}) AS sc"
     )
     return (
@@ -129,6 +141,7 @@ def _criteria_relation(criteria: Sequence[_SessionCriteria]) -> Subquery:
             column("evaluator_id", Integer),
             column("config_fingerprint", String),
             column("delay_seconds", Integer),
+            column("created_at", models.UtcTimeStamp()),
         )
         .subquery("sweep_criteria")
     )
@@ -222,6 +235,7 @@ def _eligible_pairs_statement(
         .where(
             models.ProjectSession.content_complete.is_(True),
             models.ProjectSession.last_span_ingested_at.is_not(None),
+            models.ProjectSession.last_span_ingested_at >= criteria_relation.c.created_at,
             due_at <= current_time,
             ~successful_result_exists,
             ~_live_work_exists(criteria_relation),
@@ -449,6 +463,7 @@ class SessionEvalSweeper(DaemonTask):
                     evaluator_id=criteria.evaluator_id,
                     fingerprint=config_fingerprint(resolved),
                     delay_seconds=criteria.evaluation_delay_seconds,
+                    created_at=criteria.created_at,
                 )
             )
         return criteria_rows
@@ -480,7 +495,7 @@ class SessionEvalSweeper(DaemonTask):
     ) -> tuple[int, Optional[int]]:
         if not criteria:
             return 0, 0 if self._publish_metrics else None
-        criteria_relation = _criteria_relation(criteria)
+        criteria_relation = _criteria_relation(criteria, self._db.dialect)
         relation = _eligible_pairs_statement(
             criteria_relation,
             database_now,

@@ -220,6 +220,12 @@ Design questions include:
 
 Project evaluators run after ingestion. They must never delay or fail ingestion.
 
+The live path uses project-evaluator creation as its boundary: an artifact's latest activity must
+be at or after the criterion's `created_at`. Older quiet artifacts belong to backfill. Disabling
+and later re-enabling a criterion deliberately retains that creation boundary, so activity after
+creation can still become eligible. If re-enablement should reset the live boundary, that requires
+a dedicated enablement timestamp and is future work rather than an inference from `enabled`.
+
 ### Spans
 
 Spans are eligible as soon as they are stored. When a matching span is ingested, the project

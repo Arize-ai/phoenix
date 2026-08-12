@@ -23,11 +23,35 @@ from phoenix.server.online_eval.session_sweeper import (
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
-from .test_producer import _seed_criteria
+from .test_producer import _seed_criteria as _seed_criteria_raw
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+async def _seed_criteria(
+    db: DbSessionFactory,
+    project_id: int,
+    *,
+    evaluation_target: str,
+    filter_condition: str = "",
+    sampling_rate: float = 1.0,
+) -> tuple[int, int]:
+    evaluator_id, criteria_id = await _seed_criteria_raw(
+        db,
+        project_id,
+        evaluation_target=evaluation_target,
+        filter_condition=filter_condition,
+        sampling_rate=sampling_rate,
+    )
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(created_at=_now() - timedelta(days=1))
+        )
+    return evaluator_id, criteria_id
 
 
 def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
@@ -209,6 +233,7 @@ async def test_materializes_with_501_schedulable_criteria(
                 filter_condition="",
                 sampling_rate=1.0,
                 evaluation_target="SESSION",
+                created_at=_now() - timedelta(days=1),
             )
             for index in range(500)
         )
@@ -505,6 +530,103 @@ async def test_incomplete_session_is_never_scheduled(
     async with db() as session:
         count = await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit))
     assert count == 0
+
+
+async def test_quiet_session_predating_criterion_creation_is_not_live(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria_raw(db, project_id, evaluation_target="SESSION")
+
+    await SessionEvalSweeper(db)._tick()
+
+    async with db() as session:
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
+        )
+
+
+async def test_reenabled_criterion_reaches_back_to_creation(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, activity_at = await _add_session_liveness(
+        db,
+        age_seconds=600,
+    )
+    _, criteria_id = await _seed_criteria_raw(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+    )
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(created_at=activity_at - timedelta(seconds=1), enabled=False)
+        )
+
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
+        )
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(enabled=True)
+        )
+
+    await sweeper._tick()
+    async with db() as session:
+        scheduled_session_id = await session.scalar(
+            select(models.EvalSessionWorkUnit.project_session_rowid)
+        )
+    assert scheduled_session_id == project_session_id
+
+
+async def test_session_without_liveness_becomes_live_after_new_activity(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, resumed_at = await _add_session_liveness(
+        db,
+        age_seconds=600,
+    )
+    _, criteria_id = await _seed_criteria_raw(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+    )
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(created_at=resumed_at - timedelta(seconds=1))
+        )
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session_id)
+            .values(last_span_ingested_at=None)
+        )
+
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
+        )
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session_id)
+            .values(last_span_ingested_at=resumed_at)
+        )
+
+    await sweeper._tick()
+    async with db() as session:
+        scheduled_session_id = await session.scalar(
+            select(models.EvalSessionWorkUnit.project_session_rowid)
+        )
+    assert scheduled_session_id == project_session_id
 
 
 async def test_outstanding_work_ceiling_defers_eligible_pair(
