@@ -364,7 +364,7 @@ class SessionEvalSweeper(DaemonTask):
         if self._publish_metrics:
             ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS.inc()
         materialized_work_count = 0
-        eligible_pair_count = 0
+        eligible_pair_count: Optional[int] = None
         renewed: Optional[int] = None
         try:
             async with self._db() as session:
@@ -453,11 +453,15 @@ class SessionEvalSweeper(DaemonTask):
             )
         return criteria_rows
 
-    async def _sweep(self, session: AsyncSession, database_now: datetime) -> tuple[int, int]:
+    async def _sweep(
+        self,
+        session: AsyncSession,
+        database_now: datetime,
+    ) -> tuple[int, Optional[int]]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
-            return 0, 0
+            return 0, None
         criteria = await self._load_criteria(session)
         return await self._load_eligible_pairs(
             session,
@@ -473,18 +477,20 @@ class SessionEvalSweeper(DaemonTask):
         criteria: Sequence[_SessionCriteria],
         *,
         limit: int,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, Optional[int]]:
         if not criteria:
-            return 0, 0
+            return 0, 0 if self._publish_metrics else None
         criteria_relation = _criteria_relation(criteria)
         relation = _eligible_pairs_statement(
             criteria_relation,
             database_now,
             self._db.dialect,
         ).subquery("eligible_pairs")
-        eligible_pair_count = (
-            await session.scalar(select(func.count()).select_from(relation))
-        ) or 0
+        eligible_pair_count = None
+        if self._publish_metrics:
+            eligible_pair_count = (
+                await session.scalar(select(func.count()).select_from(relation))
+            ) or 0
         eligible_page = (
             select(relation)
             .order_by(
@@ -533,14 +539,15 @@ class SessionEvalSweeper(DaemonTask):
         )
         return inserted_count, eligible_pair_count
 
-    async def _publish_eligibility_metrics(self, eligible_pair_count: int) -> None:
+    async def _publish_eligibility_metrics(self, eligible_pair_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
 
         Reporting is not materialization: this runs after the work has been committed
         and the lease renewed, over its own read session, so a failing aggregate costs
         a stale gauge rather than the sweep that already succeeded.
         """
-        ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(eligible_pair_count)
+        if eligible_pair_count is not None:
+            ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(eligible_pair_count)
         try:
             async with self._db.read() as session:
                 database_now = await self._database_now(session)

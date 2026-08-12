@@ -89,13 +89,14 @@ async def test_materialization_rechecks_eligibility_at_write_time(
             .where(models.ProjectSession.id == project_session_id)
             .values(last_span_ingested_at=database_now)
         )
-        inserted_count, _ = await sweeper._load_eligible_pairs(
+        inserted_count, eligible_pair_count = await sweeper._load_eligible_pairs(
             session,
             database_now,
             [criterion],
             limit=1,
         )
         assert inserted_count == 0
+        assert eligible_pair_count is None
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
@@ -404,7 +405,7 @@ async def test_closed_admission_gate_skips_criteria_resolution(
     monkeypatch.setattr(session_sweeper, "resolve_criteria_bulk", unexpected_resolution)
     async with db() as session:
         database_now = await sweeper._database_now(session)
-        assert await sweeper._sweep(session, database_now) == (0, 0)
+        assert await sweeper._sweep(session, database_now) == (0, None)
 
 
 async def test_successful_work_closes_evaluate_once_key(
@@ -648,6 +649,11 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
     metrics["ONLINE_EVAL_SESSION_SWEEP_FAILURES"].inc.assert_not_called()
     metrics["ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS"].inc.assert_called_once_with(1)
 
+    sweeper._max_outstanding = 0
+    await sweeper._tick()
+    metrics["ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG"].set.assert_called_once_with(1)
+    assert metrics["ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS"].set.call_count == 2
+
     async def fail_sweep(session: AsyncSession, database_now: datetime) -> int:
         raise RuntimeError("failed sweep")
 
@@ -656,4 +662,4 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
         await sweeper._tick()
 
     metrics["ONLINE_EVAL_SESSION_SWEEP_FAILURES"].inc.assert_called_once_with()
-    assert metrics["ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS"].observe.call_count == 2
+    assert metrics["ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS"].observe.call_count == 3
