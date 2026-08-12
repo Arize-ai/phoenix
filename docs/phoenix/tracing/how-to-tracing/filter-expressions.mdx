@@ -109,6 +109,9 @@ parent_span is not None
 
 Span-specific notes:
 
+- **Trace-level annotations:** `trace_annotations["name"]` filters spans by annotations on their
+  parent *trace* (same `.score` / `.label` / `.explanation` / existence syntax as `annotations`).
+  Span filters only.
 - **Enum case-folding:** `span_kind` and `status_code` hold uppercase values, and a string literal
   compared against them is upper-cased for you — `span_kind == 'llm'` and `span_kind == 'LLM'` match
   the same spans.
