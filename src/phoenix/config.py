@@ -398,11 +398,14 @@ new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Default
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """
-The maximum number of work units an online-eval consumer claims per tick, and so the
-per-replica evaluation concurrency: a consumer runs its whole claimed batch at once and
-waits for all of it before claiming again. Together with
-PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds per-replica evaluation
-throughput at claim_batch_size / tick_interval evaluations per second. Defaults to 10.
+The maximum number of work units each SPAN and SESSION online-eval consumer claims per
+tick. Both consumers deliberately read this one value: provider capacity and database
+connections are per-replica resources, not per-target resources. Each consumer runs its
+whole claimed batch at once and waits for it before claiming again; aggregate evaluator
+execution across both consumers is capped by
+PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY. Together with
+PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds each consumer's claim
+throughput at claim_batch_size / tick_interval work units per second. Defaults to 10.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
 """Maximum aggregate evaluator executions across online-eval consumers. Defaults to 10."""

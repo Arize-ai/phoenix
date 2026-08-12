@@ -13,6 +13,7 @@ from asgi_lifespan import LifespanManager
 from sqlalchemy import select, update
 
 from phoenix.config import (
+    ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
     ENV_PHOENIX_ONLINE_EVAL_ENABLED,
     ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
@@ -126,6 +127,7 @@ async def test_enabled_app_runs_seeded_criteria_end_to_end(
 ) -> None:
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE, "3")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, "4")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, "5")
     _patch_playground_client(monkeypatch, _StubLLMClient())
@@ -143,6 +145,7 @@ async def test_enabled_app_runs_seeded_criteria_end_to_end(
         assert isinstance(session_consumer, OnlineEvalConsumer)
         assert session_consumer is not consumer
         assert session_consumer._evaluation_target == "SESSION"
+        assert consumer._claim_batch_size == session_consumer._claim_batch_size == 3
         assert consumer._evaluator_semaphore is session_consumer._evaluator_semaphore
         assert consumer._evaluator_semaphore._value == 4
         assert consumer._db_semaphore is session_consumer._db_semaphore
