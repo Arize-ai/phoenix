@@ -170,6 +170,12 @@ class TestGetEnvOnlineEval:
                 1,
             ),
             (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_session_outstanding,
+                "1",
+                1,
+            ),
+            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
                 phoenix_config.get_env_online_eval_claim_batch_size,
                 "1",
@@ -204,6 +210,16 @@ class TestGetEnvOnlineEval:
             (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
                 phoenix_config.get_env_online_eval_max_outstanding,
+                "-1",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_session_outstanding,
+                "0",
+            ),
+            (
+                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING,
+                phoenix_config.get_env_online_eval_max_session_outstanding,
                 "-1",
             ),
         ],

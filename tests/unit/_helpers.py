@@ -188,6 +188,48 @@ async def _add_project_session(
     return project_session
 
 
+async def _add_live_session_work_unit(
+    session: AsyncSession,
+    project_session: models.ProjectSession,
+) -> models.EvalSessionWorkUnit:
+    """Seed a claimed session evaluation, so a deleter's stand-down is observable."""
+    from phoenix.db.types.identifier import Identifier
+
+    now = datetime.now(timezone.utc)
+    evaluator = models.BuiltinEvaluator(
+        name=Identifier(root=f"eval-{token_hex(4)}"),
+        kind="BUILTIN",
+        key=token_hex(8),
+        input_schema={},
+        output_configs=[],
+    )
+    session.add(evaluator)
+    await session.flush()
+    criteria = models.ProjectEvaluatorCriteria(
+        project_id=project_session.project_id,
+        evaluator_id=evaluator.id,
+        name=Identifier(root=f"criteria-{token_hex(4)}"),
+        filter_condition="",
+        sampling_rate=1.0,
+        evaluation_target="SESSION",
+    )
+    session.add(criteria)
+    await session.flush()
+    work_unit = models.EvalSessionWorkUnit(
+        project_session_rowid=project_session.id,
+        evaluator_id=evaluator.id,
+        criteria_id=criteria.id,
+        config_fingerprint=token_hex(8),
+        evaluated_through=now,
+        status="RUNNING",
+        claimed_at=now,
+        claimed_by="consumer",
+    )
+    session.add(work_unit)
+    await session.flush()
+    return work_unit
+
+
 _ExperimentGlobalId: TypeAlias = str
 _DatasetExampleGlobalId: TypeAlias = str
 _DatasetExampleRevisionGlobalId: TypeAlias = str

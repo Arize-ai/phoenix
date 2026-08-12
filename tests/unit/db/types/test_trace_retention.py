@@ -1,3 +1,4 @@
+import asyncio
 from collections import defaultdict
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
@@ -10,8 +11,11 @@ import sqlalchemy as sa
 from faker import Faker
 from freezegun import freeze_time
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from phoenix.db import models
+from phoenix.db.helpers import delete_traces
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.trace_retention import (
     MaxCountRule,
     MaxDaysOrCountRule,
@@ -21,6 +25,7 @@ from phoenix.db.types.trace_retention import (
     _MaxDays,
     _time_of_next_run,
 )
+from phoenix.server.app import _db
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
@@ -244,6 +249,208 @@ class TestTraceRetentionRuleMaxCount:
         assert set(remaining_traces.all()) == set(
             chain.from_iterable(unaffected_projects.values())
         ), "Unaffected projects should retain all their traces"
+
+    async def test_marks_affected_session_content_incomplete(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                session_id=token_hex(8),
+                project_id=project.id,
+                start_time=now - timedelta(hours=1),
+                end_time=now,
+            )
+            session.add(project_session)
+            await session.flush()
+            project_id = project.id
+            project_session_id = project_session.id
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root=f"eval-{token_hex(4)}"),
+                kind="BUILTIN",
+                key=token_hex(8),
+                input_schema={},
+                output_configs=[],
+            )
+            session.add(evaluator)
+            await session.flush()
+            criteria = models.ProjectEvaluatorCriteria(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"criteria-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SESSION",
+            )
+            session.add(criteria)
+            await session.flush()
+            work_unit = models.EvalSessionWorkUnit(
+                project_session_rowid=project_session.id,
+                evaluator_id=evaluator.id,
+                criteria_id=criteria.id,
+                config_fingerprint=token_hex(8),
+                evaluated_through=now,
+                status="RUNNING",
+                claimed_at=now,
+                claimed_by="consumer",
+            )
+            session.add(work_unit)
+            await session.flush()
+            work_unit_id = work_unit.id
+            online_eval_annotation = models.ProjectSessionAnnotation(
+                project_session_id=project_session.id,
+                name=token_hex(4),
+                metadata_={},
+                annotator_kind="CODE",
+                identifier=f"online:{token_hex(8)}",
+                source="API",
+            )
+            human_annotation = models.ProjectSessionAnnotation(
+                project_session_id=project_session.id,
+                name=token_hex(4),
+                metadata_={},
+                annotator_kind="HUMAN",
+                identifier=f"human:{token_hex(8)}",
+                source="APP",
+            )
+            session.add_all((online_eval_annotation, human_annotation))
+            await session.flush()
+            online_eval_annotation_id = online_eval_annotation.id
+            human_annotation_id = human_annotation.id
+            session.add_all(
+                [
+                    models.Trace(
+                        project_rowid=project.id,
+                        project_session_rowid=project_session.id,
+                        trace_id=token_hex(16),
+                        start_time=now - timedelta(minutes=offset),
+                        end_time=now - timedelta(minutes=offset),
+                    )
+                    for offset in (0, 1)
+                ]
+            )
+
+        async with db() as session:
+            await MaxCountRule(max_count=1).delete_traces(session, [project_id])
+            retained_session = await session.get(models.ProjectSession, project_session_id)
+            assert retained_session is not None
+            retained_work = await session.get(models.EvalSessionWorkUnit, work_unit_id)
+            assert retained_work is not None
+            remaining_trace_count = await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_session_rowid == project_session_id
+                )
+            )
+            assert retained_session.content_complete is False
+            assert retained_work.status == "EXPIRED"
+            assert retained_work.claimed_by is None
+            assert (
+                await session.get(models.ProjectSessionAnnotation, online_eval_annotation_id)
+                is None
+            )
+            assert (
+                await session.get(models.ProjectSessionAnnotation, human_annotation_id) is not None
+            )
+            assert remaining_trace_count == 1
+
+
+@pytest.mark.postgres_only
+async def test_trace_delete_stands_down_sessions_added_while_delete_waits(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        first_session = models.ProjectSession(
+            session_id=token_hex(8),
+            project_id=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        later_session = models.ProjectSession(
+            session_id=token_hex(8),
+            project_id=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add_all((first_session, later_session))
+        await session.flush()
+        first_trace = models.Trace(
+            project_rowid=project.id,
+            project_session_rowid=first_session.id,
+            trace_id=token_hex(16),
+            start_time=now,
+            end_time=now,
+        )
+        session.add(first_trace)
+        await session.flush()
+        project_id = project.id
+        first_trace_id = first_trace.id
+        first_session_id = first_session.id
+        later_session_id = later_session.id
+
+    async with db() as blocker:
+        assert (
+            await blocker.scalar(
+                sa.select(models.Trace.id)
+                .where(models.Trace.id == first_trace_id)
+                .with_for_update()
+            )
+            == first_trace_id
+        )
+
+        async def run_delete() -> None:
+            async with db() as session:
+                await delete_traces(
+                    session,
+                    models.Trace.project_rowid == project_id,
+                )
+
+        delete_task = asyncio.create_task(run_delete())
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(asyncio.shield(delete_task), timeout=0.1)
+
+        async with db() as session:
+            session.add(
+                models.Trace(
+                    project_rowid=project_id,
+                    project_session_rowid=later_session_id,
+                    trace_id=token_hex(16),
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+
+    await delete_task
+
+    async with db() as session:
+        assert (
+            await session.scalar(
+                sa.select(sa.func.count(models.Trace.id)).where(
+                    models.Trace.project_rowid == project_id
+                )
+            )
+            == 0
+        )
+        content_complete = {
+            session_id: is_complete
+            for session_id, is_complete in (
+                await session.execute(
+                    sa.select(
+                        models.ProjectSession.id,
+                        models.ProjectSession.content_complete,
+                    ).where(models.ProjectSession.id.in_((first_session_id, later_session_id)))
+                )
+            ).all()
+        }
+    assert content_complete == {first_session_id: False, later_session_id: False}
 
 
 class TestTraceRetentionRuleMaxDaysOrCountRule:
