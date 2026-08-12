@@ -1,13 +1,7 @@
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
-import { Flex } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import {
-  ToolPartApprovalActions,
-  ToolPartCodeBlock,
-  ToolPartLabel,
-} from "./ToolPartPrimitives";
-import { stringifyToolValue } from "./toolPartTypes";
+import { ApprovalCard } from "./ApprovalCard";
 
 type PreviewDescriptor = {
   /** Short action label shown at the top of the card. */
@@ -159,21 +153,14 @@ export function DatasetWriteApprovalCard({
 }: {
   pending: PendingDatasetWrite;
 }) {
-  const canRespond = Boolean(pending.accept && pending.reject);
   const { label, payload, note } = describePreview(pending);
   return (
-    <Flex direction="column" gap="size-100" minHeight="0">
-      <ToolPartLabel variant={note ? "danger" : undefined}>
-        {label}
-      </ToolPartLabel>
-      <ToolPartCodeBlock>{stringifyToolValue(payload)}</ToolPartCodeBlock>
-      {note ? <ToolPartLabel variant="danger">{note}</ToolPartLabel> : null}
-      <ToolPartApprovalActions
-        onAccept={() => void pending.accept?.()}
-        onReject={() => void pending.reject?.()}
-        isDisabled={!canRespond}
-        staleMessage="This proposal was made in an earlier session and can't be applied here. Re-run your request to have the assistant propose it again."
-      />
-    </Flex>
+    <ApprovalCard
+      preview={{ title: label, danger: note, body: { kind: "json", payload } }}
+      onAccept={() => void pending.accept?.()}
+      onReject={() => void pending.reject?.()}
+      isDisabled={!(pending.accept && pending.reject)}
+      staleMessage="This proposal was made in an earlier session and can't be applied here. Re-run your request to have the assistant propose it again."
+    />
   );
 }
