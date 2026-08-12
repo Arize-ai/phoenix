@@ -67,6 +67,10 @@ const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
       Object.keys(state.pendingBatchSpanAnnotatesByToolCallId),
     clear: (state, key) => state.setPendingBatchSpanAnnotate(key, null),
   },
+  {
+    getKeys: (state) => Object.keys(state.pendingNavigationsByToolCallId),
+    clear: (state, key) => state.setPendingNavigation(key, null),
+  },
 ];
 
 /**

@@ -108,7 +108,31 @@ tool name, per-tool schema pins in Python, approval factories' old context
 contract) were removed rather than rewritten — new tests land after the
 behavior is validated on this branch. Remaining suites pass.
 
-## Proposed follow-up: approval-gated navigation (`navigation.goTo`)
+## Approval-gated navigation (`navigation.goTo`) — IMPLEMENTED
+
+Implemented on `pxi-navigation-operation` per the design below.
+Where the implementation settled the open decisions:
+
+1. **Never auto-accept**: the handler never consults `permissions.edits`;
+   bypass mode shows the card like manual mode (unit-tested).
+2. **Unsaved-state hazard**: accept polls the pathname over a few animation
+   frames after `navigate()`; a router blocker that holds the page resolves
+   `{ ok: false, error: NAVIGATION_BLOCKED_ERROR }`.
+3. **Rejection continues the script** with `{ ok: false }` and an explicit
+   do-not-retry / offer-a-link instruction.
+4. **Error loop closed**: dispatch's not-mounted error now appends "Use
+   ui.navigation.goTo({ path, reason }) to ask the user to go there, then
+   retry," and the `execute_ui` instructions teach the same recovery.
+
+Path validation matches the concrete path against the registered route
+catalog with the router's own matcher (`matchPath`), so parameterized routes
+(`/datasets/:datasetId`) validate correctly. On accept the promise resolves
+only after the route change commits; destination operations may still be
+registering, so the success output tells the model to retry once on an
+immediate not-mounted error (`waitForRegisteredClientActions`-based waiting
+is a possible refinement).
+
+### Original RFC
 
 PXI cannot navigate today. `get_route_info` is read-only — it resolves the
 route catalog (`handle.agentRoute` in `Routes.tsx`) so the model can render a

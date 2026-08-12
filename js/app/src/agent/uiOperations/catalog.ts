@@ -10,6 +10,7 @@ import { datasetSplitOperations } from "./operations/datasetSplits";
 import { datasetWriteOperations } from "./operations/datasetWrites";
 import { experimentOperations } from "./operations/experiment";
 import { llmEvaluatorDraftOperations } from "./operations/llmEvaluatorDraft";
+import { navigationOperations } from "./operations/navigation";
 import { playgroundLoadDatasetOperations } from "./operations/playgroundLoadDataset";
 import { playgroundModelOperations } from "./operations/playgroundModel";
 import { playgroundPromptOperations } from "./operations/playgroundPrompt";
@@ -50,6 +51,7 @@ const knownUiOperations: UiOperationDescriptor[] = [
   ...annotationConfigOperations,
   ...experimentOperations,
   ...spanOperations,
+  ...navigationOperations,
 ];
 
 /**

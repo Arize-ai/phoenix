@@ -89,7 +89,9 @@ export async function dispatchUiOperationCall({
       ok: false,
       error:
         `Operation "${operationName}" is not available on the current page` +
-        (routeHint ? `; it requires ${routeHint}.` : "."),
+        (routeHint ? `; it requires ${routeHint}.` : ".") +
+        " Use ui.navigation.goTo({ path, reason }) to ask the user to go" +
+        " there, then retry.",
     };
   }
 
