@@ -71,6 +71,7 @@ class _TrackedSession:
     start_ready: Event = field(default_factory=Event)
     start_error: Optional[BaseException] = None
     rebind_count: int = 0
+    execution_lock: Lock = field(default_factory=Lock)
 
 
 class SandboxSession:
@@ -90,6 +91,7 @@ class SandboxSession:
         manager: "Optional[SandboxSessionManager]" = None,
         composite_key: Optional[str] = None,
         key_lock: Optional[Lock] = None,
+        execution_lock: Optional[Lock] = None,
     ) -> None:
         self._backend = backend
         self._session_key = session_key
@@ -97,6 +99,7 @@ class SandboxSession:
         self._manager = manager
         self._composite_key = composite_key
         self._key_lock = key_lock
+        self._execution_lock = execution_lock
 
     @property
     def session_key(self) -> str:
@@ -106,6 +109,16 @@ class SandboxSession:
         self,
         code: str,
         timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        if self._backend.supports_concurrent_session_execution or self._execution_lock is None:
+            return await self._execute(code, timeout)
+        async with self._execution_lock:
+            return await self._execute(code, timeout)
+
+    async def _execute(
+        self,
+        code: str,
+        timeout: Optional[int],
     ) -> ExecutionResult:
         try:
             return await self._backend.execute_in_session(self._handle, code, timeout=timeout)
@@ -255,6 +268,7 @@ class SandboxSessionManager(DaemonTask):
                 manager=self,
                 composite_key=composite_key,
                 key_lock=key_lock,
+                execution_lock=tracked.execution_lock,
             )
         finally:
             await self._release(composite_key, key_lock)

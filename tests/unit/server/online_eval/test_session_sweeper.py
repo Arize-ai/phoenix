@@ -14,8 +14,16 @@ from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import session_sweeper
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, ResolvedCriteria
-from phoenix.server.online_eval.producer import resolve_criteria_bulk
+from phoenix.server.online_eval.coordinator import (
+    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+    LEASE_TTL_SECONDS,
+)
+from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
+from phoenix.server.online_eval.derivation import (
+    MAX_ATTEMPTS,
+    STALE_FINGERPRINT_ERROR,
+    ResolvedCriteria,
+)
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,
@@ -374,6 +382,88 @@ async def test_session_with_null_liveness_is_never_eligible(
     assert work_count == 0
 
 
+async def test_storage_pause_renews_lease_without_materializing(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
+        db,
+        age_seconds=600,
+    )
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    async with db() as session:
+        session.add(
+            models.EvalWorkLease(
+                name=sweeper._lease_name,
+                holder=sweeper._sweeper_id,
+                heartbeat_at=_now() - timedelta(seconds=30),
+            )
+        )
+    db.should_not_insert_or_update = True
+
+    try:
+        await sweeper._tick()
+    finally:
+        db.should_not_insert_or_update = False
+
+    async with db() as session:
+        work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        )
+        project_session = await session.get(models.ProjectSession, project_session_id)
+        assert project_session is not None
+        lease = (
+            await session.scalars(
+                select(models.EvalWorkLease).where(models.EvalWorkLease.name == sweeper._lease_name)
+            )
+        ).one()
+    assert work_count == 0
+    assert project_session.last_span_ingested_at == last_span_ingested_at
+    assert lease.holder == sweeper._sweeper_id
+
+
+async def test_terminalizes_exhausted_lapsed_session_lease(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        unit_id = await session.scalar(
+            select(models.EvalSessionWorkUnit.id).where(
+                models.EvalSessionWorkUnit.project_session_rowid == project_session_id
+            )
+        )
+        assert unit_id is not None
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_id)
+            .values(
+                status="RUNNING",
+                claimed_at=_now() - timedelta(seconds=LEASE_TTL_SECONDS + 1),
+                claimed_by="stopped-consumer",
+                attempts=MAX_ATTEMPTS - 1,
+            )
+        )
+
+    await sweeper._tick()
+
+    async with db() as session:
+        units = (
+            await session.scalars(
+                select(models.EvalSessionWorkUnit)
+                .where(models.EvalSessionWorkUnit.project_session_rowid == project_session_id)
+                .order_by(models.EvalSessionWorkUnit.id)
+            )
+        ).all()
+    (terminal,) = units
+    assert terminal.id == unit_id
+    assert terminal.status == "ERROR"
+    assert terminal.attempts == MAX_ATTEMPTS
+    assert terminal.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
+
+
 async def test_retained_long_delay_pairs_do_not_block_later_due_pair(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -551,9 +641,9 @@ async def _advance_liveness(
 async def test_terminal_history_re_materializes_only_after_new_ingest(
     db: DbSessionFactory,
 ) -> None:
-    """Work that will never run again — exhausted ERROR, EXPIRED — carries the session
-    content it already covered in ``evaluated_through``. Replacing it without newer
-    content just repeats the same failure every tick.
+    """Work that will never run again — exhausted ERROR, EXPIRED — carries the ingest
+    scheduling snapshot in ``evaluated_through``. Replacing it without newer ingest
+    just repeats the same scheduling attempt every tick.
     """
     project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
         db,
@@ -584,6 +674,26 @@ async def test_terminal_history_re_materializes_only_after_new_ingest(
         )
     await sweeper._tick()
     assert await _work_statuses(db) == ["ERROR", "EXPIRED"]
+
+
+async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit).values(
+                status="EXPIRED",
+                error=STALE_FINGERPRINT_ERROR,
+            )
+        )
+
+    await sweeper._tick()
+
+    assert await _work_statuses(db) == ["EXPIRED", "PENDING"]
 
 
 async def test_incomplete_session_is_never_scheduled(
@@ -732,8 +842,8 @@ async def test_lost_lease_rolls_back_sweep(
     sweeper = SessionEvalSweeper(db)
     acquire_lease = sweeper._acquire_lease
 
-    async def acquire_then_lose_lease() -> int | None:
-        lease_id = await acquire_lease()
+    async def acquire_then_lose_lease(**kwargs: bool) -> int | None:
+        lease_id = await acquire_lease(**kwargs)
         assert lease_id is not None
         async with db() as session:
             await session.execute(

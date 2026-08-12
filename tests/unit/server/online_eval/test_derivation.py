@@ -172,7 +172,7 @@ class TestConfigFingerprint:
         )
         assert (
             config_fingerprint(resolved)
-            == "a947137da632fef78f34554fcd4280c6a1207f96746f8667c9b578ea17ed3871"
+            == "803253c6427c634cbf28f14b1627e4c4b77d93344086326f1c336e5ec8d09001"
         )
 
 

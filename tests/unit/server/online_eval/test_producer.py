@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select, update
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -11,6 +12,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -24,20 +26,23 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.evaluators import ContainsEvaluator
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import producer as producer_module
-from phoenix.server.online_eval.coordinator import LEASE_TTL_SECONDS
-from phoenix.server.online_eval.db_coordinator import (
-    STALE_FINGERPRINT_ERROR,
-    DbEvalWorkCoordinator,
+from phoenix.server.online_eval.consumer import OnlineEvalConsumer
+from phoenix.server.online_eval.coordinator import (
+    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+    LEASE_TTL_SECONDS,
 )
+from phoenix.server.online_eval.criteria_resolution import (
+    resolve_criteria,
+    resolve_criteria_bulk,
+)
+from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
+    STALE_FINGERPRINT_ERROR,
     annotation_identifier,
     config_fingerprint,
 )
-from phoenix.server.online_eval.producer import (
-    OnlineEvalProducer,
-    resolve_criteria,
-)
+from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_span, _add_trace
@@ -82,6 +87,49 @@ async def _seed_criteria(
         session.add(criteria)
         await session.flush()
         return evaluator.id, criteria.id
+
+
+async def _seed_code_criteria(
+    db: DbSessionFactory,
+    project_id: int,
+) -> tuple[int, int, int]:
+    async with db() as session:
+        if await session.get(models.Language, "PYTHON") is None:
+            session.add(models.Language(name="PYTHON"))
+        if await session.get(models.SandboxProvider, "WASM") is None:
+            session.add(models.SandboxProvider(backend_type="WASM", enabled=True, config={}))
+        await session.flush()
+        sandbox_config = models.SandboxConfig(
+            backend_type="WASM",
+            language="PYTHON",
+            name=Identifier(root=f"sandbox-{token_hex(4)}"),
+            description=None,
+            config={},
+            timeout=30,
+        )
+        evaluator = models.CodeEvaluator(
+            name=Identifier(root=f"code-{token_hex(4)}"),
+            description=None,
+            kind="CODE",
+            language="PYTHON",
+            sandbox_config=sandbox_config,
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            output_configs=[],
+            versions=[models.CodeEvaluatorVersion(source_code="def evaluate(): return 1")],
+        )
+        session.add(evaluator)
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project_id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SPAN",
+        )
+        session.add(criteria)
+        await session.flush()
+        return evaluator.id, criteria.id, sandbox_config.id
 
 
 async def _seed_cursor(
@@ -146,6 +194,32 @@ async def test_cold_start_initializes_cursor_at_current_high_water(
     assert await _work_unit_span_rowids(db) == []
 
 
+async def test_storage_pause_skips_materialization_and_cursor_advance(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=0,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+    producer = OnlineEvalProducer(db)
+    db.should_not_insert_or_update = True
+
+    try:
+        await producer._tick()
+    finally:
+        db.should_not_insert_or_update = False
+
+    assert await _work_unit_span_rowids(db) == []
+    assert (await _get_cursor(db, cursor_id)).produced_through_id == 0
+
+
 async def test_tick_materializes_matching_spans_and_advances_watermark(
     db: DbSessionFactory,
 ) -> None:
@@ -207,59 +281,6 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         )
     await producer._tick()
     assert len(await _work_unit_span_rowids(db)) == len(llm_spans)
-
-
-async def test_materialization_stamp_is_set_once_and_outlives_the_work_rows(
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace, span_kind="LLM") for _ in range(2)]
-    _, criteria_id = await _seed_criteria(db, project.id)
-    cursor_id = await _seed_cursor(
-        db,
-        observed_high_water_id=spans[-1].id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-
-    async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.work_materialized_at is None
-        updated_at_before = criteria.updated_at
-
-    producer = OnlineEvalProducer(db)
-    await producer._tick()
-
-    async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        first_stamp = criteria.work_materialized_at
-        assert first_stamp is not None
-        # Producer bookkeeping must not read as a configuration change.
-        assert criteria.updated_at == updated_at_before
-
-    # Retention eventually deletes the work rows; the record that work has ever
-    # existed must not go with them, and re-materializing must not move it.
-    async with db() as session:
-        await session.execute(delete(models.EvalWorkUnit))
-        await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.id == cursor_id)
-            .values(
-                produced_through_id=0,
-                observed_high_water_id=spans[-1].id,
-                observed_at=_now() - timedelta(seconds=120),
-            )
-        )
-    await producer._tick()
-
-    assert len(await _work_unit_span_rowids(db)) == len(spans)
-    async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.work_materialized_at == first_stamp
 
 
 async def test_builtin_implementation_version_changes_fingerprint(
@@ -412,6 +433,51 @@ async def test_unregistered_builtin_cannot_resolve_criteria(
         assert await resolve_criteria(session, criteria, evaluator) is None
 
 
+async def test_sandbox_runtime_changes_code_criteria_fingerprint(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    evaluator_id, criteria_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+
+    async with db() as session:
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+        assert evaluator is not None
+        assert criteria is not None
+        assert sandbox_config is not None
+        first = await resolve_criteria(session, criteria, evaluator)
+        assert first is not None
+        sandbox_config.timeout += 1
+        sandbox_config.updated_at = _now() + timedelta(seconds=1)
+        await session.flush()
+        second = await resolve_criteria(session, criteria, evaluator)
+        assert second is not None
+
+    assert config_fingerprint(first) != config_fingerprint(second)
+
+
+async def test_disabled_sandbox_runtime_does_not_resolve_code_criteria(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    evaluator_id, criteria_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+
+    async with db() as session:
+        evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+        assert evaluator is not None
+        assert criteria is not None
+        assert sandbox_config is not None
+        sandbox_config.enabled = False
+        await session.flush()
+
+        assert await resolve_criteria(session, criteria, evaluator) is None
+
+
 async def test_active_criteria_are_bulk_resolved_once(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -423,11 +489,10 @@ async def test_active_criteria_are_bulk_resolved_once(
         await _seed_criteria(db, project_id)
 
     call_sizes: list[int] = []
-    resolve_bulk = producer_module.resolve_criteria_bulk
 
     async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
         call_sizes.append(len(args[1]))
-        return await resolve_bulk(*args, **kwargs)
+        return await resolve_criteria_bulk(*args, **kwargs)
 
     monkeypatch.setattr(producer_module, "resolve_criteria_bulk", _counting_resolver)
 
@@ -705,6 +770,7 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
         assert await coordinator.expire(
             work_unit_id=unit.work_unit_id,
             claimed_by="consumer",
+            error=STALE_FINGERPRINT_ERROR,
         )
 
     async with db() as session:
@@ -767,6 +833,85 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
     assert units[1].status == "EXPIRED"
     assert units[1].error == STALE_FINGERPRINT_ERROR
     assert units[2].status == "DONE"
+
+
+async def test_transcript_caps_enter_the_session_fingerprint(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Transcript caps decide what text a session evaluator reads, so a cap change
+    has to change the identity — results under one identifier must be comparable."""
+    async with db() as session:
+        project = await _add_project(session)
+    evaluator_id, criteria_id = await _seed_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+
+    async def _fingerprint() -> str:
+        async with db() as session:
+            criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+            evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
+            assert criteria is not None
+            assert evaluator is not None
+            resolved = await resolve_criteria(session, criteria, evaluator)
+            assert resolved is not None
+            return config_fingerprint(resolved)
+
+    baseline = await _fingerprint()
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES", "65536")
+    widened_transcript = await _fingerprint()
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES", "131072")
+    widened_message = await _fingerprint()
+
+    assert len({baseline, widened_transcript, widened_message}) == 3
+
+
+async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
+    db: DbSessionFactory,
+) -> None:
+    """The consumer's fingerprint-mismatch expiry and the producer's revival scan
+    key on one constant; drifting apart makes a reverted criteria terminal."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    _, criteria_id = await _seed_criteria(db, project.id)
+    await _seed_cursor(
+        db,
+        produced_through_id=span.id - 1,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        original_sampling_rate = criteria.sampling_rate
+        criteria.sampling_rate = 0.5
+
+    await OnlineEvalConsumer(db, decrypt=lambda value: value)._cycle()
+
+    async with db() as session:
+        unit = await session.scalar(select(models.EvalWorkUnit))
+        assert unit is not None
+        assert unit.status == "EXPIRED"
+        assert unit.error == STALE_FINGERPRINT_ERROR
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        criteria.sampling_rate = original_sampling_rate
+
+    producer._backstop_interval_seconds = 0
+    await producer._tick()
+
+    async with db() as session:
+        unit = await session.scalar(select(models.EvalWorkUnit))
+    assert unit is not None
+    assert unit.status == "PENDING"
+    assert unit.attempts == 0
+    assert unit.error is None
 
 
 async def test_ttl_expired_row_is_not_resurrected(
@@ -977,7 +1122,7 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
     assert lapsed_row is not None
     assert lapsed_row.status == "ERROR"
     assert lapsed_row.attempts == MAX_ATTEMPTS
-    assert lapsed_row.error == "lease lapsed with attempts exhausted"
+    assert lapsed_row.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
     assert failed_lapsed_row is not None
     assert failed_lapsed_row.status == "ERROR"
     assert failed_lapsed_row.attempts == MAX_ATTEMPTS
@@ -1354,3 +1499,45 @@ async def test_renew_lease_refreshes_claimed_at(db: DbSessionFactory) -> None:
 
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.claimed_at == renewed_at
+
+
+async def test_producer_publishes_its_own_frontier_and_ingest_gauges(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both gauges describe the arrival log the producer owns and are sampled at its
+    own tick, so they keep reporting whether or not any consumer is running.
+    """
+    monkeypatch.setattr(producer_module, "get_env_enable_prometheus", lambda: True)
+    frontier_gap = Mock()
+    ingest_rate = Mock()
+    monkeypatch.setattr(producer_module, "ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS", frontier_gap)
+    monkeypatch.setattr(producer_module, "ONLINE_EVAL_INGEST_SPANS_PER_SECOND", ingest_rate)
+
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+
+    producer = OnlineEvalProducer(db)
+    producer._frontier_lag_seconds = 0.0
+
+    # Cold start pins the watermark at the current high water, so nothing is behind.
+    await producer._tick()
+    frontier_gap.set.assert_called_once_with(0)
+    ingest_rate.set.assert_not_called()
+
+    # One arrival puts the log ahead of the watermark and takes the first sample.
+    async with db() as session:
+        await _add_span(session, await session.get(models.Trace, trace.id))
+    await producer._tick()
+    assert frontier_gap.set.call_args.args[0] == 1
+    ingest_rate.set.assert_not_called()
+
+    # The second sample is what a rate can be differenced from.
+    async with db() as session:
+        await _add_span(session, await session.get(models.Trace, trace.id))
+    await producer._tick()
+    ingest_rate.set.assert_called_once()
+    assert ingest_rate.set.call_args.args[0] > 0
