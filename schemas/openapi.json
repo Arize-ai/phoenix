@@ -20271,6 +20271,7 @@
               "type": "string"
             },
             "type": "array",
+            "minItems": 1,
             "title": "Trace Ids",
             "description": "The IDs (GlobalIDs) of the traces to transfer. Must be non-empty, and all traces must currently belong to the same source project."
           },

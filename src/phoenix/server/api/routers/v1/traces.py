@@ -583,8 +583,9 @@ async def _add_spans(
 
 class TransferTracesRequestBody(V1RoutesBaseModel):
     trace_ids: list[str] = Field(
+        min_length=1,
         description="The IDs (GlobalIDs) of the traces to transfer. Must be non-empty, and all "
-        "traces must currently belong to the same source project."
+        "traces must currently belong to the same source project.",
     )
     destination_project_identifier: str = Field(
         description="The destination project: either project ID (GlobalID) or project name."
@@ -625,11 +626,6 @@ async def transfer_traces(
     request: Request,
     request_body: TransferTracesRequestBody,
 ) -> TransferTracesResponseBody:
-    if not request_body.trace_ids:
-        raise HTTPException(
-            detail="Must provide at least one trace ID to transfer",
-            status_code=422,
-        )
     try:
         trace_rowids = {
             from_global_id_with_expected_type(GlobalID.from_id(trace_id), TraceNodeType.__name__)
@@ -644,26 +640,31 @@ async def transfer_traces(
         project = await get_project_by_identifier(
             session, request_body.destination_project_identifier
         )
-        traces = (
-            await session.scalars(select(models.Trace).where(models.Trace.id.in_(trace_rowids)))
+        source_project_rowids = (
+            await session.scalars(
+                select(models.Trace.project_rowid).where(models.Trace.id.in_(trace_rowids))
+            )
         ).all()
-        if len(traces) < len(trace_rowids):
-            raise HTTPException(detail="Invalid trace IDs provided", status_code=404)
+        if len(source_project_rowids) < len(trace_rowids):
+            raise HTTPException(detail="One or more traces not found", status_code=404)
         # Mirrors the transferTracesToProject mutation: a transfer moves traces out of exactly
         # one source project, so a mixed-source request is ambiguous and is rejected.
-        if len({trace.project_rowid for trace in traces}) > 1:
+        if len(set(source_project_rowids)) > 1:
             raise HTTPException(
                 detail="Cannot transfer traces from multiple projects",
                 status_code=422,
             )
-        await session.execute(
+        result = await session.execute(
             update(models.Trace)
             .where(models.Trace.id.in_(trace_rowids))
             .values(project_rowid=project.id)
         )
+    # Invalidate per-project cached aggregates (record counts, token counts/costs, latency
+    # quantiles, time ranges) for both the source and destination projects.
+    request.state.event_queue.put(SpanDeleteEvent(tuple({*source_project_rowids, project.id})))
     return TransferTracesResponseBody(
         data=TransferTracesData(
-            transferred=len(trace_rowids),
+            transferred=result.rowcount,
             destination_project_id=str(GlobalID(ProjectNodeType.__name__, str(project.id))),
         )
     )
