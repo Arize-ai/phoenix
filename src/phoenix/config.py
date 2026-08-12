@@ -2616,6 +2616,7 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "AUTO_LOGIN",  # Automatically redirect to this provider (default: false)
     "USE_PKCE",  # Enable PKCE for authorization code protection (RFC 7636, default: false)
     "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint (OIDC Core §9)
+    "CLIENT_ASSERTION_FILE",  # Path to the JWT sent as client_assertion (RFC 7523 §2.2)
     # Additional OAuth2 scopes beyond "openid email profile" (RFC 6749 §3.3: space-delimited)
     "SCOPES",
     "EMAIL_ATTRIBUTE_PATH",  # JMESPath expression to extract email from ID token
@@ -2653,7 +2654,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider.
           Required by default for confidential clients. Only optional when TOKEN_ENDPOINT_AUTH_METHOD is
-          explicitly set to "none" (for public clients without client authentication).
+          explicitly set to "none" (public clients) or "workload_identity" (client assertion).
 
         - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS
           except for localhost). This URL typically ends with /.well-known/openid-configuration and is
@@ -2686,6 +2687,16 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
             • none: No client authentication (for public clients).
               CLIENT_SECRET is not required. Use this for public clients that cannot
               securely store a client secret, typically in combination with PKCE.
+            • workload_identity: Authenticate with a platform-minted JWT sent as a client
+              assertion (RFC 7523 §2.2). CLIENT_SECRET is not required. The assertion is read
+              from CLIENT_ASSERTION_FILE on every token request, so rotation is picked up
+              without a restart. Requires a federated credential on the IDP that trusts the
+              workload's identity.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE: Path to the file holding the JWT used
+          when TOKEN_ENDPOINT_AUTH_METHOD is "workload_identity". Falls back to the
+          AZURE_FEDERATED_TOKEN_FILE environment variable, then to the path the Azure Workload
+          Identity webhook projects the service account token to. Ignored for other auth methods.
 
           Most providers work with the default behavior. Set this explicitly only if your provider requires
           a specific method or if you're configuring a public client.
