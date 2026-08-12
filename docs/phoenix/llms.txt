@@ -84,7 +84,7 @@
 
 ### Overview
 
-- [LLM Evals](https://arize.com/docs/phoenix/evaluation/llm-evals): LLM-as-judge evaluation with pre-built and custom evaluators
+- [LLM Evals](https://arize.com/docs/phoenix/evaluation/llm-evals): Run LLM-as-judge evaluations with pre-built or custom evaluators
 
 ### How-to
 
@@ -93,7 +93,7 @@
 - [Configuring the LLM](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm): Set up LLM providers for evaluations
 - [Prompt Formats](https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats): Customize evaluator prompt structures
 - [Code Evaluators (SDK)](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators): Deterministic evaluation with Python or TypeScript
-- [Code Evaluator Output Shapes](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes): All accepted return shapes, multi-output routing, and explanation field semantics
+- [Code Evaluator Output Shapes](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes): Return scores, labels, multiple outputs, or explanations from a code evaluator
 - [Batch Evaluations](https://arize.com/docs/phoenix/evaluation/how-to-evals/batch-evaluations): Run evaluations at scale with automatic concurrency
 - [Using Evals with Phoenix](https://arize.com/docs/phoenix/evaluation/how-to-evals/using-evals-with-phoenix): Run evals on traces, datasets, or custom data sources
 
@@ -110,7 +110,7 @@
 
 ### Pre-Built Metrics
 
-- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators — faithfulness, hallucination, toxicity, RAG relevance, tool calling
+- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): Pick a pre-built LLM or code evaluator — faithfulness, hallucination, toxicity, RAG relevance, tool calling
 
 ### Server-Side Evaluations
 
@@ -118,7 +118,7 @@
 - [LLM Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/llm-evaluators): Configure LLM-as-judge evaluators server-side
 - [Server Code Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators): Write custom Python or TypeScript evaluators that Phoenix runs in a managed sandbox
 - [Server Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to server-side evaluator input variables
-- [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): All server-side code metrics — contains, exact match, regex, JSON distance, Levenshtein, tool
+- [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): Pick a server-side code or LLM metric — contains, exact match, regex, distances, tool calling
 
 
 ### Pre-Built Metrics — Individual Pages
@@ -189,7 +189,7 @@
 - [Dataset Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators): Attach evaluators to datasets for automatic scoring
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
 - [Splits](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/splits): Organize datasets into train/test/validation splits
-- [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Run LLM evals as pytest tests, record them as Phoenix experiments, and gate CI on the pytest exit code with arize-phoenix-client[pytest]
+- [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Gate CI on eval results using arize-phoenix-client[pytest], recording each run as an experiment
 - [Run Experiments in the Background](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background): Start Playground experiments that keep running after you close the browser
 
 ## Prompt Engineering
@@ -224,11 +224,11 @@
 
 ## Integrations
 
-- [Integrations Overview](https://arize.com/docs/phoenix/integrations): All Phoenix integrations — LLM providers, frameworks, platforms
+- [Integrations Overview](https://arize.com/docs/phoenix/integrations): Find the instrumentation for your LLM provider, framework, platform, or language
 
 ### Developer Tools
 
-- [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Claude Code, Cursor, and AI coding assistant integration
+- [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Pick a tracing path for Claude Code, Cursor, Codex, and other coding assistants
 - [MCP Overview](https://arize.com/docs/phoenix/integrations/mcp): Compare the Phoenix MCP servers and pick one for your data or docs
 - [Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp): Connect MCP clients to the /mcp endpoint built into the Phoenix server (beta, recommended)
 - [Phoenix Docs MCP](https://arize.com/docs/phoenix/integrations/docs-mcp): Let AI assistants search and retrieve the Phoenix documentation in real time
@@ -452,9 +452,7 @@
 ### Evaluation
 
 - [LLM as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge): LLM-based evaluation best practices
-- [Eval Data Types](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluation-types): Understand evaluation output types — categorical labels, continuous scores, and more
-- [Custom Task Evaluation](https://arize.com/docs/phoenix/evaluation/concepts-evals/building-your-own-evals): Build custom LLM-as-judge eval templates for any task with arize-phoenix-evals
-- [Evaluating Multi-Agent Systems](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluating-multi-agent-systems): Evaluate multi-agent architectures with strategies for routing, coordination, and handoffs
+- [Evaluator Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): Reshape nested payloads to an evaluator's expected fields with `input_mapping` and `bind_evaluator`
 
 ## Resources
 
@@ -570,7 +568,7 @@
 
 ### REST API — Chat Completions
 
-- [OpenAI-Compatible Chat Completions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/chat-completions/openai-compatible-chat-completions): POST /v1/chat/completions — OpenAI wire-format proxy; model is `{provider}:{model_name}` (or `custom:{provider_id}:{model_name}`), provider credentials resolved server-side, `stream: true` for SSE chunks, no tool calling
+- [OpenAI-Compatible Chat Completions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/chat-completions/openai-compatible-chat-completions): POST /v1/chat/completions — OpenAI wire-format proxy; name the model `{provider}:{model_name}`, credentials resolve server-side, `stream: true` for SSE
 
 ### REST API — Datasets
 
@@ -685,11 +683,11 @@
 
 ### Deployment
 
-- [Terminal](https://arize.com/docs/phoenix/self-hosting/deployment-options/terminal): Run from terminal
-- [Docker](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker): Deploy with Docker
-- [Kubernetes](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes): Deploy on Kubernetes
-- [Helm](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes-helm): Deploy with Helm charts
-- [AWS CloudFormation](https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation): Deploy on AWS
+- [Terminal](https://arize.com/docs/phoenix/self-hosting/deployment-options/terminal): Run Phoenix on your local machine via the CLI
+- [Docker](https://arize.com/docs/phoenix/self-hosting/deployment-options/docker): Deploy with docker compose, locally or in the cloud
+- [Kubernetes](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes): Deploy on Kubernetes with PostgreSQL using kustomize
+- [Helm](https://arize.com/docs/phoenix/self-hosting/deployment-options/kubernetes-helm): Install the Phoenix Helm chart on a Kubernetes cluster
+- [AWS CloudFormation](https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation): Deploy on AWS Fargate with a CloudFormation template
 - [Railway](https://arize.com/docs/phoenix/self-hosting/deployment-options/railway): Deploy on Railway via one-click template
 - [Render](https://arize.com/docs/phoenix/self-hosting/deployment-options/render): Deploy on Render via one-click blueprint with managed PostgreSQL
 - [Google Cloud Run](https://arize.com/docs/phoenix/self-hosting/deployment-options/google-cloud-run): Deploy on Google Cloud Run with a one-click button
@@ -697,23 +695,23 @@
 
 ### Features
 
-- [Provisioning](https://arize.com/docs/phoenix/self-hosting/features/provisioning): Initial instance setup
-- [Authentication](https://arize.com/docs/phoenix/self-hosting/features/authentication): User management, SSO, security
-- [Email](https://arize.com/docs/phoenix/self-hosting/features/email): Notification and alert configuration
-- [Management](https://arize.com/docs/phoenix/self-hosting/features/management): Monitoring, scaling, administration
+- [Provisioning](https://arize.com/docs/phoenix/self-hosting/features/provisioning): Seed an admin user and PHOENIX_ADMIN_SECRET at deploy time so the instance accepts data immediately
+- [Authentication](https://arize.com/docs/phoenix/self-hosting/features/authentication): Turn on auth with PHOENIX_ENABLE_AUTH and configure OAuth2 or LDAP identity providers
+- [Email](https://arize.com/docs/phoenix/self-hosting/features/email): Configure SMTP so Phoenix can send password resets and user invitations
+- [Management](https://arize.com/docs/phoenix/self-hosting/features/management): Administer users and projects programmatically with a system key or admin secret
 - [Sandbox Backends](https://arize.com/docs/phoenix/self-hosting/features/sandbox-runtimes): Pick the sandbox providers bundled in the Phoenix container and configure hosted backends for self-hosted deployments
 
 ### Upgrade & Security
 
-- [Migrations](https://arize.com/docs/phoenix/self-hosting/upgrade/migrations): Database migration guide
-- [Privacy](https://arize.com/docs/phoenix/self-hosting/security/privacy): Privacy and data protection
+- [Migrations](https://arize.com/docs/phoenix/self-hosting/upgrade/migrations): Run Phoenix database migrations safely when upgrading a production instance
+- [Privacy](https://arize.com/docs/phoenix/self-hosting/security/privacy): Review what telemetry self-hosted Phoenix collects and how to turn it off
 - [Network Security](https://arize.com/docs/phoenix/self-hosting/security/network-security): Restrict outbound requests, configure network policies, and enable CSRF protection
 - [Encryption](https://arize.com/docs/phoenix/self-hosting/advanced/encryption): Configure TLS/HTTPS, encryption at rest, and application-level encryption of secrets
 - [Self-Hosting FAQs](https://arize.com/docs/phoenix/self-hosting/misc/frequently-asked-questions): Troubleshoot common self-hosting issues
 
 ## Cookbooks
 
-- [Cookbook Index](https://arize.com/docs/phoenix/cookbook): All examples — agents, evaluation, tracing, prompt engineering, datasets
+- [Cookbook Index](https://arize.com/docs/phoenix/cookbook): Browse worked examples across agents, evaluation, tracing, prompts, and experiments
 
 
 ### Individual Cookbook Pages
@@ -828,6 +826,7 @@
 - [07.17.2026: OAuth2 Authorization Server & Remote MCP](https://arize.com/docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server): Phoenix 19 becomes its own OAuth2 server with browser-based px CLI login, a built-in Remote MCP server, and REST API-key management
 - [07.22.2026: MCP Client Setup, Provider Filtering, and User Friction Evals](https://arize.com/docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals): Wire an MCP client with one `px setup mcp` command, scope the Playground picker to provisioned providers, and trace Vercel AI SDK v7
 - [07.28.2026: Experiment Charts, Span Downloads, and Root-Span Filters](https://arize.com/docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters): Chart experiments above the table, download spans as OTLP JSON, filter by root span, and use the Monty sandbox and Claude Opus 5
+- [08.04.2026: Chat Completions Proxy, AI Query, and Annotation Charts](https://arize.com/docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts): Call POST /v1/chat/completions with server-held provider credentials, compose filters in plain English, and chart per-annotation metrics
 
 ### 2025
 
