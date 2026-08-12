@@ -11,6 +11,11 @@ deployment:
   # -- Seconds Kubernetes allows Phoenix to drain in-flight work during shutdown
   terminationGracePeriodSeconds: 90
 
+  # -- Extra labels for the Phoenix pods
+  # Required by admission webhooks that select on pod labels, e.g.
+  # `azure.workload.identity/use: "true"` for OAuth2 workload identity.
+  podLabels: {}
+
   # -- Deployment strategy
   strategy:
     type: RollingUpdate
@@ -545,7 +550,7 @@ auth:
     enabled: false
 
     # -- List of OAuth2 identity providers to configure
-    # Each provider requires client_id, client_secret (unless token_endpoint_auth_method="none"), and oidc_config_url
+    # Each provider requires client_id, client_secret (unless token_endpoint_auth_method="none" or "client_assertion_jwt"), and oidc_config_url
     # You can also define corresponding ENVs via auth.secrets[].valueFrom to use existing secrets
     # ENVs: PHOENIX_OAUTH2_{{ $provider_upper }}_{{ setting }}, e.g. PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET
     providers:
@@ -584,6 +589,35 @@ auth:
       #   # Use "preferred_username" for Azure AD when users don't have the mail attribute populated
       #   email_attribute_path: "preferred_username"  # JMESPath expression to extract email from ID token
 
+      # Example Microsoft Entra ID with workload identity (no client_secret).
+      # The pod's projected service account token is sent as a JWT bearer assertion
+      # (RFC 7523) in place of a client secret. The provider key below is a name of your
+      # choosing. Note the token is minted by the cluster, not by the client: its `sub` is
+      # the service account, so the provider must map an external issuer onto the client
+      # (Entra ID calls this a federated credential). Providers that only implement plain
+      # RFC 7523, where the assertion is signed with the client's own registered key, will
+      # reject it — for those, point client_assertion_file at a client-signed assertion.
+      # Prerequisites:
+      #   1. Install the Azure Workload Identity webhook:
+      #      https://azure.github.io/azure-workload-identity/docs/installation.html
+      #   2. Add a federated credential to the app registration:
+      #      subject: system:serviceaccount:<namespace>:<serviceAccountName>
+      #      issuer: <AKS OIDC issuer URL>  (az aks show --query oidcIssuerProfile.issuerUrl)
+      #   3. Set deployment.podLabels so the webhook projects the token into the pod:
+      #      deployment:
+      #        podLabels:
+      #          azure.workload.identity/use: "true"
+      # microsoft_entra_id:
+      #   client_id: "your-microsoft-entra-id-client-id"
+      #   oidc_config_url: "https://login.microsoftonline.com/your-tenant-id/v2.0/.well-known/openid-configuration"
+      #   token_endpoint_auth_method: "client_assertion_jwt"
+      #   scopes: "offline_access User.Read"
+      #   email_attribute_path: "preferred_username"
+      #   # The webhook owns the token path and has moved it between releases, so name the
+      #   # variable it exports rather than the path itself. Off AKS, set client_assertion_file
+      #   # to an explicit path instead. Exactly one of the two is required.
+      #   client_assertion_file_env_var: "AZURE_FEDERATED_TOKEN_FILE"
+
       # Example Keycloak with nested group path:
       # keycloak:
       #   client_id: "phoenix"
@@ -610,7 +644,7 @@ auth:
       #   auto_login: false
       #   # Advanced: Public client configuration
       #   use_pkce: true  # Enable PKCE for enhanced security (RFC 7636)
-      #   token_endpoint_auth_method: "none"  # No client authentication for public clients
+      #   token_endpoint_auth_method: "none"  # No client authentication for public clients (also: "client_secret_post", "client_assertion_jwt")
 
       # Example with client_secret_post authentication:
       # custom_idp:
