@@ -4,7 +4,7 @@ import io
 import json
 from datetime import datetime, timezone
 from io import BytesIO, StringIO
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 import pandas as pd
@@ -4984,20 +4984,11 @@ async def test_list_dataset_splits_excludes_soft_deleted_examples_from_counts(
     """Soft-deleting an example (DELETE revision) leaves its split membership rows in
     place, but the reported example_count must drop to match the non-split surfaces
     (e.g. GET /datasets/{id}/examples)."""
-    name = "ds_split_soft_delete"
-    examples = [
-        ExampleContent(input={"q": f"Q{i}"}, output={"a": f"A{i}"}, metadata={}) for i in range(3)
-    ]
-    await _append(httpx_client, name, examples)
-    async with db() as session:
-        dataset_rowid = await session.scalar(
-            select(models.Dataset.id).where(models.Dataset.name == name)
-        )
-    dataset_id = str(GlobalID("Dataset", str(dataset_rowid)))
-    examples_response = await httpx_client.get(f"/v1/datasets/{dataset_id}/examples")
-    example_ids = [e["node_id"] for e in examples_response.json()["data"]["examples"]]
+    dataset_id, example_ids = await _create_dataset_with_examples(
+        httpx_client, "ds_split_soft_delete", 3
+    )
     created = await httpx_client.post(
-        url=f"/v1/datasets/{name}/splits",
+        url=f"/v1/datasets/{dataset_id}/splits",
         json={"name": "train", "example_ids": example_ids},
     )
     assert created.status_code == 201
@@ -5006,7 +4997,9 @@ async def test_list_dataset_splits_excludes_soft_deleted_examples_from_counts(
     # Soft-delete the last example with a DELETE revision while leaving its split
     # membership row in place, as GraphQL deleteDatasetExamples does.
     async with db() as session:
-        version = models.DatasetVersion(dataset_id=dataset_rowid, metadata_={})
+        version = models.DatasetVersion(
+            dataset_id=int(GlobalID.from_id(dataset_id).node_id), metadata_={}
+        )
         session.add(version)
         await session.flush()
         session.add(
@@ -5020,7 +5013,7 @@ async def test_list_dataset_splits_excludes_soft_deleted_examples_from_counts(
             )
         )
 
-    response = await httpx_client.get(f"/v1/datasets/{name}/splits")
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/splits")
     assert response.status_code == 200
     assert [s["example_count"] for s in response.json()["data"]] == [2]
 
@@ -5047,26 +5040,21 @@ async def test_list_dataset_splits_paginates(
             )
         ).status_code == 201
 
-    pages: list[dict[str, Any]] = []
-    cursor: Optional[str] = None
-    for _ in range(3):
-        url = f"/v1/datasets/{dataset_id}/splits?limit=2"
-        if cursor:
-            url += f"&cursor={cursor}"
-        page = await httpx_client.get(url)
-        assert page.status_code == 200
-        body = page.json()
-        assert len(body["data"]) <= 2, "page exceeded requested limit"
-        pages.append(body)
-        cursor = body["next_cursor"]
-        if cursor is None:
-            break
-    assert cursor is None
-    assert [len(p["data"]) for p in pages] == [2, 1], "expected pages of sizes 2 and 1"
-    assert pages[0]["next_cursor"] is not None
-    seen = [s["name"] for p in pages for s in p["data"]]
-    assert sorted(seen) == ["split_0", "split_1", "split_2"]
-    assert len(seen) == len(set(seen)), "pagination returned duplicates"
+    url = f"/v1/datasets/{dataset_id}/splits"
+    first = await httpx_client.get(url, params={"limit": 2})
+    assert first.status_code == 200
+    first_page = first.json()
+    assert len(first_page["data"]) == 2
+    assert first_page["next_cursor"] is not None
+
+    second = await httpx_client.get(url, params={"limit": 2, "cursor": first_page["next_cursor"]})
+    assert second.status_code == 200
+    second_page = second.json()
+    assert len(second_page["data"]) == 1
+    assert second_page["next_cursor"] is None
+
+    names = [s["name"] for page in (first_page, second_page) for s in page["data"]]
+    assert sorted(names) == ["split_0", "split_1", "split_2"]
 
 
 async def test_list_dataset_splits_empty(
