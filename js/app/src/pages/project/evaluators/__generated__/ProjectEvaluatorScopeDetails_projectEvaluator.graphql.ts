@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fe16753be59bfb99d4f2104ad3013d02>>
+ * @generated SignedSource<<24b7ef4ebb95475966c437948f62eb85>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "SESSION_FILTER_UNSUPPORTED" | "SESSION_SAMPLING_UNSUPPORTED" | "TRACE_TARGET_UNSUPPORTED";
+export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
 export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorScopeDetails_projectEvaluator$data = {

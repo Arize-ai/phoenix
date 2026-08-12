@@ -70,28 +70,6 @@ export function formatEvaluationDelay(seconds: number): string {
   return `${minutes.toLocaleString()} minute${minutes === 1 ? "" : "s"}`;
 }
 
-/**
- * Why a session evaluator would be stored but never scheduled. Mirrors the
- * server's SESSION schedulability conditions, in their order, so the form can
- * warn before submit; a saved evaluator reports the server's own verdict.
- */
-export type SessionScopeUnschedulableReason = "filter" | "sampling";
-
-export function getSessionScopeUnschedulableReason(
-  scope: ProjectEvaluatorScope
-): SessionScopeUnschedulableReason | null {
-  if (scope.targetType !== "SESSION") {
-    return null;
-  }
-  if (scope.filterCondition !== "") {
-    return "filter";
-  }
-  if (scope.samplingRate !== 1) {
-    return "sampling";
-  }
-  return null;
-}
-
 // Hoisted: Intl.NumberFormat construction does locale resolution, and the
 // evaluators table calls this per row per render.
 const samplingRateFormatter = new Intl.NumberFormat(undefined, {

@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 
 import {
-  Alert,
   Flex,
   Input,
   NumberField,
@@ -14,7 +13,6 @@ import {
   Text,
 } from "@phoenix/components";
 import {
-  getSessionScopeUnschedulableReason,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
   toProjectEvaluatorSamplingFraction,
@@ -55,7 +53,6 @@ export const ProjectEvaluatorScopeFieldGroup = ({
   children?: ReactNode;
 }) => {
   const isSessionTarget = scope.targetType === "SESSION";
-  const unschedulableReason = getSessionScopeUnschedulableReason(scope);
   // Spans and sessions are filtered in different languages, so a condition
   // written for one target cannot carry over to the other.
   const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
@@ -101,17 +98,10 @@ export const ProjectEvaluatorScopeFieldGroup = ({
       />
       {isSessionTarget ? (
         <Text size="XS" color="text-500">
-          Every session in this project is evaluated once, after it stays quiet
-          for the evaluation delay. Later activity in the session does not
-          schedule another evaluation.
+          Each matching session is evaluated once, after it stays quiet for the
+          evaluation delay. Later activity in the session does not schedule
+          another evaluation.
         </Text>
-      ) : null}
-      {unschedulableReason ? (
-        <Alert variant="warning" title="This evaluator will not run">
-          {unschedulableReason === "filter"
-            ? "Session evaluators with a filter are saved but never scheduled. Clear the session filter to schedule this evaluator."
-            : "Session evaluators with a sampling rate below 100% are saved but never scheduled. Set sampling to 100% to schedule this evaluator."}
-        </Alert>
       ) : null}
     </Flex>
   );

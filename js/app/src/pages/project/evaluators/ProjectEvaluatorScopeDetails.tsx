@@ -90,10 +90,6 @@ function getSchedulabilityExplanation(
       return "This evaluator is disabled. Enable it to resume scheduling.";
     case "TRACE_TARGET_UNSUPPORTED":
       return "Trace evaluators are saved but are not scheduled yet.";
-    case "SESSION_FILTER_UNSUPPORTED":
-      return "Session evaluators with a filter are saved but never scheduled. Clear the filter to schedule this evaluator.";
-    case "SESSION_SAMPLING_UNSUPPORTED":
-      return "Session evaluators with a sampling rate below 100% are saved but never scheduled. Set sampling to 100% to schedule this evaluator.";
     default:
       return "This evaluator does not meet the current scheduling requirements.";
   }
