@@ -171,8 +171,12 @@ catalog architecture gives the missing piece an obvious shape: **one more
 
 ## Known follow-ups
 
-1. Bespoke diff cards for script-child approvals (prompt diff, evaluator
-   draft diff) — currently generic summaries.
+1. ~~Bespoke diff cards for script-child approvals~~ — SHIPPED: script-child
+   approvals now render through the shared `ApprovalCard` (`components/agent/
+   ApprovalCard.tsx`), with unified diffs for snapshot changes and curated,
+   labeled payloads (plus danger notes) otherwise. The standalone dataset /
+   annotation-config cards are thin wrappers over it. This is the contract the
+   tool-subsumption plan below builds on.
 2. Streaming per-call progress into the `execute_ui` card while the script
    runs (today the card shows script + approvals + final result).
 3. PXI evals (`evals/pxi/`) and Playwright suites still assert old tool
@@ -181,3 +185,73 @@ catalog architecture gives the missing piece an obvious shape: **one more
    blocks `new Function` in the worker.
 5. Consider advertising the catalog TOC in the request body so simple
    one-action asks skip the `search_ui` round-trip.
+
+## Follow-up: subsume standalone write tools into `execute_ui` (Q1) + cleanup (Q2)
+
+Goal: shrink the model-facing external tool surface to ~2 meta-tools
+(`search_ui`, `execute_ui`) plus genuine server tools. The ~18 remaining
+standalone external tools are UI/client-action writes that should each become a
+`UiOperationDescriptor` under `operations/` and be dispatched by `execute_ui`.
+The shared `ApprovalCard` contract (follow-up 1) means each new write op gets a
+structured approval preview — with a danger note on the destructive ones — for
+free. None of these has a `ui.*` equivalent yet; each needs a new descriptor.
+
+### Subsume (frontend module → proposed op)
+
+| Standalone tool(s) | Frontend module | Proposed op |
+|---|---|---|
+| `create_dataset` | `tools/createDataset` | `dataset.create` |
+| `patch_dataset`, `delete_dataset` | `tools/datasetEdit` | `dataset.patch` / `dataset.delete` (danger) |
+| `add_dataset_examples`, `patch_dataset_examples`, `delete_dataset_examples` | `tools/datasetExamples` | `dataset.examples.add/patch/delete` (delete = danger) |
+| `create_dataset_split`, `patch_dataset_split`, `delete_dataset_splits`, `set_dataset_example_splits` | `tools/datasetSplits` | `dataset.split.create/patch/delete/setExampleSplits` (delete = danger) |
+| `create_dataset_label`, `set_dataset_labels`, `delete_dataset_labels` | `tools/datasetLabels` | `dataset.label.create/set/delete` (delete = danger) |
+| `add_spans_to_dataset` | `tools/spansToDataset` | `dataset.addSpans` |
+| `create_annotation_config`, `update_annotation_config` | `tools/annotationConfig` | `annotationConfig.create/update` (update = danger, full replace) |
+| `patch_experiment` | `tools/patchExperiment` | `experiment.patch` |
+| `batch_span_annotate` | `tools/batchSpanAnnotate` | `spans.annotate` |
+
+### Keep standalone (NOT UI state)
+
+`bash`, docs MCP, `web_search`/`web_fetch`, `ask_user`, `call_subagent`,
+`get_current_datetime`, `write_span_note`, `load_skill`/`read_skill_resource`,
+and the read-only `list_datasets` / `list_labels` / `list_splits` /
+`list_dataset_*` reads (or retire those in favor of `bash` GraphQL).
+
+### Borderline (decide during the work)
+
+`get_route_info` (reads the same catalog `search_ui` fronts) and
+`render_generative_ui` (a rendering side-channel) could fold into the
+meta-tools; lower priority.
+
+### Each subsumed op needs
+
+- a `UiOperationDescriptor` in `operations/` (name, zod input, `kind`,
+  `availability.routeHint`), added to `catalog.ts`;
+- a client-action handler registered on mount via `registerUiOperation`;
+- for writes: an `ApprovalPreview` built on `ApprovalCard` (danger note on the
+  destructive kinds — reuse the `describePreview`/`describeDraft` logic that
+  the dataset/annotation cards already carry);
+- deregistration of the Python `external/` tool def AND removal of the frontend
+  agent tool from `extensions/toolRegistry.ts`;
+- prompting/instruction updates where the op needs guidance.
+
+Land it one commit per operation family (dataset writes → splits → labels →
+annotation config → experiment → span annotate), so each layer is reviewable.
+
+### Q2 cleanup (final commits on this branch)
+
+Falls out of the subsumption — do last:
+
+- remove the dead `ToolPart.tsx` dispatcher `case` branches + retired
+  `*ToolDetails` cards for tool names no registered tool emits
+  (`SavePromptToolDetails`, `EditPromptToolDetails`,
+  `WritePromptToolsToolDetails`, `RemovePromptInstanceToolDetails`,
+  `LoadDatasetToolDetails`);
+- remove the 5 pure-dead `SavePrompt*` stories in `stories/ToolPart.stories.tsx`
+  (and `SavePromptAwaitingApproval` once its comparison value is gone);
+- reduce the ~20 orphaned, unregistered `tools/*` modules (already superseded by
+  `operations/`) to the constants/parsers the live operations still import —
+  verify no `operations/` file imports a module before removing it.
+
+Tracked as Task #2 (Q1) and Task #3 (Q2) in the session task list, with the same
+inventory and caveats.
