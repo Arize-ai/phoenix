@@ -898,7 +898,9 @@ async def _execute_postgres(
                 raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.")
             await session.execute(text(f"SET LOCAL statement_timeout = '{remaining_timeout_ms}'"))
             result = await session.stream(_as_text(rendered_sql))
-            columns, rows, partial, notes = await _consume_stream(result, row_limit=ctx.row_limit)
+            columns, rows, partial, notes = await _consume_stream(
+                result, row_limit=ctx.row_limit, deadline=deadline
+            )
         except AnalyticsSqlError:
             raise
         except Exception as exc:
@@ -1190,6 +1192,7 @@ async def _consume_stream(
     result: Any,
     *,
     row_limit: int,
+    deadline: Optional[float] = None,
 ) -> tuple[list[str], list[list[Any]], bool, list[str]]:
     # Taken from the cursor rather than from the first row, so an empty result
     # still reports its shape. Learning them from row one meant a query that
@@ -1203,6 +1206,10 @@ async def _consume_stream(
     lossy: set[str] = set()
     total_bytes = 0
     async for row in result:
+        # statement_timeout bounds one Execute. Streaming fetches more than
+        # once, so the wall clock on this request is what spans them.
+        if deadline is not None and time.monotonic() >= deadline:
+            raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.")
         if not columns:
             columns = list(row._fields) if hasattr(row, "_fields") else list(row.keys())
         values = normalize_row_values(list(row), lossy)

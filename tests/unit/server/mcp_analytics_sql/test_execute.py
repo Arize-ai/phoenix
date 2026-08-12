@@ -16,6 +16,7 @@ from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.execute import (
     MAX_RESPONSE_BYTES,
     ExecuteParams,
+    _consume_stream,
     _estimated_rows,
     _postgres_execution_error_message,
     _rewrite_attribution,
@@ -223,6 +224,23 @@ def test_postgres_streaming_raw_driver_errors_remain_generic() -> None:
         "The statement was accepted but the database could not run it. "
         "The server log records the underlying error."
     )
+
+
+async def test_a_stream_past_its_deadline_times_out() -> None:
+    class Row:
+        _fields = ("id",)
+
+        def __iter__(self) -> object:
+            return iter([1])
+
+    async def rows() -> AsyncIterator[Row]:
+        yield Row()
+        yield Row()
+
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await _consume_stream(rows(), row_limit=10, deadline=0)
+
+    assert exc.value.code is ErrorCode.TIMEOUT
 
 
 @pytest.mark.postgres_only
