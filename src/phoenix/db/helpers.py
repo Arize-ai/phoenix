@@ -606,6 +606,9 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
     return select(ancestors.c.id)
 
 
+_SESSION_CONTENT_DELETE_BATCH_SIZE = 1_000
+
+
 async def delete_traces(
     session: AsyncSession,
     trace_filter: sa.ColumnElement[bool],
@@ -617,13 +620,24 @@ async def delete_traces(
     stand-down belong to one function rather than to five callers who each have to
     remember. Route new trace deletions through here.
     """
-    affected_session_rowids = (
-        sa.select(models.Trace.project_session_rowid)
-        .where(trace_filter, models.Trace.project_session_rowid.is_not(None))
-        .distinct()
-    )
-    await mark_session_content_incomplete(session, affected_session_rowids)
-    await session.execute(sa.delete(models.Trace).where(trace_filter))
+    while trace_rowids := tuple(
+        await session.scalars(
+            sa.select(models.Trace.id)
+            .where(trace_filter)
+            .order_by(models.Trace.id)
+            .limit(_SESSION_CONTENT_DELETE_BATCH_SIZE)
+        )
+    ):
+        affected_session_rowids = (
+            sa.select(models.Trace.project_session_rowid)
+            .where(
+                models.Trace.id.in_(trace_rowids),
+                models.Trace.project_session_rowid.is_not(None),
+            )
+            .distinct()
+        )
+        await mark_session_content_incomplete(session, affected_session_rowids)
+        await session.execute(sa.delete(models.Trace).where(models.Trace.id.in_(trace_rowids)))
 
 
 async def delete_spans(
@@ -636,16 +650,26 @@ async def delete_spans(
     Removing a span changes what the session contains whether or not its trace survives,
     so span deletion stands down the same way trace deletion does. See `delete_traces`.
     """
-    affected_session_rowids = (
-        sa.select(models.Trace.project_session_rowid)
-        .where(
-            models.Trace.id.in_(sa.select(models.Span.trace_rowid).where(span_filter)),
-            models.Trace.project_session_rowid.is_not(None),
+    while span_rowids := tuple(
+        await session.scalars(
+            sa.select(models.Span.id)
+            .where(span_filter)
+            .order_by(models.Span.id)
+            .limit(_SESSION_CONTENT_DELETE_BATCH_SIZE)
         )
-        .distinct()
-    )
-    await mark_session_content_incomplete(session, affected_session_rowids)
-    await session.execute(sa.delete(models.Span).where(span_filter))
+    ):
+        affected_session_rowids = (
+            sa.select(models.Trace.project_session_rowid)
+            .where(
+                models.Trace.id.in_(
+                    sa.select(models.Span.trace_rowid).where(models.Span.id.in_(span_rowids))
+                ),
+                models.Trace.project_session_rowid.is_not(None),
+            )
+            .distinct()
+        )
+        await mark_session_content_incomplete(session, affected_session_rowids)
+        await session.execute(sa.delete(models.Span).where(models.Span.id.in_(span_rowids)))
 
 
 async def mark_session_content_incomplete(
@@ -660,15 +684,26 @@ async def mark_session_content_incomplete(
     call this before or with the delete. `delete_traces` and `delete_spans` are how
     deletion paths get that for free.
     """
+    session_rowids_stmt = (
+        sa.select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(project_session_rowids))
+        .order_by(models.ProjectSession.id)
+    )
+    if SupportedSQLDialect(session.bind.dialect.name) is SupportedSQLDialect.POSTGRESQL:
+        session_rowids_stmt = session_rowids_stmt.with_for_update()
+    session_rowids = tuple(await session.scalars(session_rowids_stmt))
+    if not session_rowids:
+        return
+
     await session.execute(
         sa.update(models.ProjectSession)
-        .where(models.ProjectSession.id.in_(project_session_rowids))
+        .where(models.ProjectSession.id.in_(session_rowids))
         .values(content_complete=False)
     )
     await session.execute(
         sa.update(models.EvalSessionWorkUnit)
         .where(
-            models.EvalSessionWorkUnit.project_session_rowid.in_(project_session_rowids),
+            models.EvalSessionWorkUnit.project_session_rowid.in_(session_rowids),
             models.EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING", "ERROR")),
         )
         .values(
@@ -677,6 +712,11 @@ async def mark_session_content_incomplete(
             claimed_by=None,
             cooldown_until=None,
             error=SESSION_CONTENT_INCOMPLETE_ERROR,
+        )
+    )
+    await session.execute(
+        sa.delete(models.ProjectSessionAnnotation).where(
+            models.ProjectSessionAnnotation.project_session_id.in_(session_rowids)
         )
     )
 
