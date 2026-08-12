@@ -12,10 +12,6 @@
  * UI-operation catalog (`@phoenix/agent/uiOperations`) and execute through
  * the `search_ui` / `execute_ui` meta-tools registered below.
  */
-import {
-  createAnnotationConfigAgentTool,
-  updateAnnotationConfigAgentTool,
-} from "@phoenix/agent/tools/annotationConfig";
 import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { listDatasetExamplesAgentTool } from "@phoenix/agent/tools/datasetExamples";
 import {
@@ -81,8 +77,6 @@ const tools: AgentToolDefinition[] = [
   askUserAgentTool,
   batchSpanAnnotateAgentTool,
   patchExperimentAgentTool,
-  createAnnotationConfigAgentTool,
-  updateAnnotationConfigAgentTool,
 ];
 
 /** Ordered registry of all frontend-executable tools. */

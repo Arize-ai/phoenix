@@ -70,12 +70,13 @@ STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     }
 )
 
-# Dynamic capabilities that self-include for any non-viewer run, so they are
-# advertised under the playground/project deps these tests construct.
+# Dynamic capabilities that self-include when a dataset context is advertised,
+# so they are present under the dataset deps these tests construct.
 DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
-        _DEFAULT_PROMPTS.create_annotation_config_tool.render(),
-        _DEFAULT_PROMPTS.update_annotation_config_tool.render(),
+        _DEFAULT_PROMPTS.list_dataset_examples_tool.render(),
+        _DEFAULT_PROMPTS.list_dataset_splits_tool.render(),
+        _DEFAULT_PROMPTS.list_dataset_labels_tool.render(),
     }
 )
 
@@ -338,6 +339,7 @@ class TestSystemBlockCacheBoundary:
                     project_node_id="UHJvamVjdDox",
                     span_filter="",
                 ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
         )
 
@@ -366,6 +368,7 @@ class TestSystemBlockCacheBoundary:
                     project_node_id="UHJvamVjdDox",
                     span_filter="",
                 ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
         )
 
@@ -399,6 +402,7 @@ class TestSystemBlockCacheBoundary:
                     project_node_id="UHJvamVjdDox",
                     span_filter="",
                 ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
         )
 

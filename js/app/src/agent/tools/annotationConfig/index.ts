@@ -3,6 +3,10 @@ export {
   updateAnnotationConfigAgentTool,
 } from "./agentTools";
 export {
+  createCreateAnnotationConfigClientAction,
+  createUpdateAnnotationConfigClientAction,
+} from "./clientActions";
+export {
   ANNOTATION_CONFIG_WRITE_REJECTED_MESSAGE,
   CREATE_ANNOTATION_CONFIG_TOOL_NAME,
   UPDATE_ANNOTATION_CONFIG_TOOL_NAME,

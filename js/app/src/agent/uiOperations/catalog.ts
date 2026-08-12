@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { AgentClientAction, AgentStore } from "@phoenix/store/agentStore";
 
+import { annotationConfigOperations } from "./operations/annotationConfig";
 import { codeEvaluatorDraftOperations } from "./operations/codeEvaluatorDraft";
 import { datasetEvaluatorOperations } from "./operations/datasetEvaluators";
 import { datasetLabelOperations } from "./operations/datasetLabels";
@@ -44,6 +45,7 @@ const knownUiOperations: UiOperationDescriptor[] = [
   ...datasetWriteOperations,
   ...datasetSplitOperations,
   ...datasetLabelOperations,
+  ...annotationConfigOperations,
 ];
 
 /**

@@ -1,5 +1,9 @@
 import { useEffect } from "react";
 
+import {
+  createCreateAnnotationConfigClientAction,
+  createUpdateAnnotationConfigClientAction,
+} from "@phoenix/agent/tools/annotationConfig";
 import { createCreateDatasetClientAction } from "@phoenix/agent/tools/createDataset";
 import {
   createDeleteDatasetClientAction,
@@ -25,6 +29,11 @@ import { createAddSpansToDatasetClientAction } from "@phoenix/agent/tools/spansT
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { registerUiOperation, unregisterUiOperation } from "./catalog";
+import {
+  annotationConfigOperations,
+  createAnnotationConfigOperation,
+  updateAnnotationConfigOperation,
+} from "./operations/annotationConfig";
 import {
   createDatasetLabelOperation,
   datasetLabelOperations,
@@ -54,6 +63,7 @@ const rootUiOperations = [
   ...datasetWriteOperations,
   ...datasetSplitOperations,
   ...datasetLabelOperations,
+  ...annotationConfigOperations,
 ];
 
 /**
@@ -136,6 +146,16 @@ export function RootUiOperationsRegistration() {
       agentStore,
       descriptor: deleteDatasetLabelsOperation,
       handler: createDeleteDatasetLabelsClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: createAnnotationConfigOperation,
+      handler: createCreateAnnotationConfigClientAction({ agentStore }),
+    });
+    registerUiOperation({
+      agentStore,
+      descriptor: updateAnnotationConfigOperation,
+      handler: createUpdateAnnotationConfigClientAction({ agentStore }),
     });
     return () => {
       for (const descriptor of rootUiOperations) {

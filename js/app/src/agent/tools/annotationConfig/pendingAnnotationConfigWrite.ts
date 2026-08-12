@@ -1,8 +1,12 @@
 import {
   type ApprovalToolOutputSender,
   bindPendingApproval,
+  stageApprovalOperation,
 } from "@phoenix/agent/shared/pendingApproval";
-import type { AgentStore } from "@phoenix/store/agentStore";
+import type {
+  AgentClientActionResult,
+  AgentStore,
+} from "@phoenix/store/agentStore";
 
 import { ANNOTATION_CONFIG_WRITE_REJECTED_MESSAGE } from "./constants";
 import type {
@@ -45,4 +49,36 @@ export async function stageAnnotationConfigWrite({
   agentStore
     .getState()
     .setPendingAnnotationConfigWrite(proposal.toolCallId, pending);
+}
+
+/**
+ * Stage an approval-gated annotation-config write on behalf of an
+ * `ui.annotationConfig.*` operation call: the operation counterpart of
+ * {@link stageAnnotationConfigWrite}, mirroring `stageDatasetWriteOperation`.
+ * Accept/reject resolve the returned promise the calling `execute_ui` script
+ * is awaiting; bypass edit mode auto-accepts exactly like the tool path.
+ */
+export function stageAnnotationConfigWriteOperation({
+  pending,
+  apply,
+  agentStore,
+}: {
+  pending: {
+    /** Inner operation call id (`<executeUiToolCallId>:<sequence>`). */
+    toolCallId: string;
+    /** Operation name (e.g. `annotationConfig.create`), for attribution. */
+    toolName: string;
+    preview: AnnotationConfigWritePreview;
+  };
+  apply: () => Promise<AnnotationConfigWriteApplyResult>;
+  agentStore: AgentStore;
+}): Promise<AgentClientActionResult> {
+  return stageApprovalOperation({
+    pending,
+    apply,
+    setPending: agentStore.getState().setPendingAnnotationConfigWrite,
+    shouldAutoAccept: () =>
+      agentStore.getState().permissions.edits === "bypass",
+    rejectedMessage: ANNOTATION_CONFIG_WRITE_REJECTED_MESSAGE,
+  });
 }

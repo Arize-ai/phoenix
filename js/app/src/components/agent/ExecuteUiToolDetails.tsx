@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import type { PendingAnnotationConfigWrite } from "@phoenix/agent/tools/annotationConfig";
 import {
   codeEvaluatorDraftFileName,
   codeEvaluatorDraftSnapshotToText,
@@ -25,6 +26,7 @@ import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePromp
 import { parseExecuteUiRunOutput } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
+import { annotationConfigWriteApprovalPreview } from "./AnnotationConfigWriteApprovalCard";
 import {
   ApprovalCard,
   type ApprovalPreview,
@@ -146,6 +148,9 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
   );
   const datasetWrites = useAgentContext(
     (state) => state.pendingDatasetWritesByToolCallId
+  );
+  const annotationConfigWrites = useAgentContext(
+    (state) => state.pendingAnnotationConfigWritesByToolCallId
   );
 
   return useMemo(
@@ -297,6 +302,16 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
           reject: pending.reject,
         }),
       }),
+      ...collectChildApprovals<PendingAnnotationConfigWrite>({
+        record: annotationConfigWrites,
+        childKeyPrefix,
+        toApproval: (pending, key) => ({
+          key,
+          preview: annotationConfigWriteApprovalPreview(pending),
+          accept: pending.accept,
+          reject: pending.reject,
+        }),
+      }),
     ],
     [
       childKeyPrefix,
@@ -308,6 +323,7 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
       llmEvaluatorEdits,
       loadDatasets,
       datasetWrites,
+      annotationConfigWrites,
     ]
   );
 }

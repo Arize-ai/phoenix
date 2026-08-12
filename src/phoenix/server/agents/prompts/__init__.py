@@ -39,12 +39,6 @@ _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS = get_template(
 _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS = get_template(
     "tools/BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS.xml.j2"
 )
-_CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS = get_template(
-    "tools/CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS.xml.j2"
-)
-_UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS = get_template(
-    "tools/UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS.xml.j2"
-)
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -98,8 +92,6 @@ class AgentPrompts:
     list_labels_tool: Template = _LIST_LABELS_TOOL_INSTRUCTIONS
     patch_experiment_tool: Template = _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
-    create_annotation_config_tool: Template = _CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS
-    update_annotation_config_tool: Template = _UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE

@@ -54,6 +54,11 @@ const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
     getKeys: (state) => Object.keys(state.pendingDatasetWritesByToolCallId),
     clear: (state, key) => state.setPendingDatasetWrite(key, null),
   },
+  {
+    getKeys: (state) =>
+      Object.keys(state.pendingAnnotationConfigWritesByToolCallId),
+    clear: (state, key) => state.setPendingAnnotationConfigWrite(key, null),
+  },
 ];
 
 /**

@@ -13,7 +13,7 @@ import type {
   AgentUIMessage,
   AgentUIMessagePart,
 } from "@phoenix/agent/chat/types";
-import { CREATE_ANNOTATION_CONFIG_TOOL_NAME } from "@phoenix/agent/tools/annotationConfig";
+import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -233,28 +233,25 @@ describe("createAgentSessionChat rehydration", () => {
     });
   });
 
-  it("re-stages a seeded pending approval so a page refresh restores the Accept/Reject card", async () => {
+  it("re-stages a seeded pending approval so a page refresh restores the answer card", async () => {
     const store = createAgentStore();
     const seedMessages: AgentUIMessage[] = [
       {
         id: "user-1",
         role: "user",
-        parts: [{ type: "text", text: "propose an annotation config" }],
+        parts: [{ type: "text", text: "ask me something" }],
       },
       {
         id: "assistant-1",
         role: "assistant",
         parts: [
           {
-            type: `tool-${CREATE_ANNOTATION_CONFIG_TOOL_NAME}`,
+            type: `tool-${ASK_USER_TOOL_NAME}`,
             toolCallId: "tool-call-1",
             state: "input-available",
             input: {
-              type: "categorical",
-              name: "quality",
-              values: [
-                { label: "good", score: 1 },
-                { label: "bad", score: 0 },
+              questions: [
+                { id: "q1", prompt: "Which dataset?", type: "freeform" },
               ],
             },
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
@@ -273,11 +270,10 @@ describe("createAgentSessionChat rehydration", () => {
     await flushMicrotasks();
 
     const pending =
-      store.getState().pendingAnnotationConfigWritesByToolCallId["tool-call-1"];
+      store.getState().pendingElicitationBySessionId["test-session"];
     expect(pending).toBeDefined();
-    expect(pending?.preview.kind).toBe("create");
-    expect(pending?.accept).toBeDefined();
-    expect(pending?.reject).toBeDefined();
+    expect(pending?.toolCallId).toBe("tool-call-1");
+    expect(pending?.questions).toHaveLength(1);
   });
 
   it("does not stage anything when the seeded tail has no pending client tool calls", async () => {
@@ -288,14 +284,14 @@ describe("createAgentSessionChat rehydration", () => {
         role: "assistant",
         parts: [
           {
-            type: `tool-${CREATE_ANNOTATION_CONFIG_TOOL_NAME}`,
+            type: `tool-${ASK_USER_TOOL_NAME}`,
             toolCallId: "tool-call-1",
             state: "output-available",
             input: {},
-            output: { status: "accepted" },
+            output: { status: "answered" },
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
           } as AgentUIMessagePart,
-          { type: "text", text: "Created the config." },
+          { type: "text", text: "Thanks for answering." },
         ],
       },
     ];
