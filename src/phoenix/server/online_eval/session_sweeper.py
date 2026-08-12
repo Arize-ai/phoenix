@@ -5,31 +5,34 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from sqlalchemy import (
     ColumnElement,
     Float,
     Insert,
+    Integer,
+    String,
     and_,
     cast,
+    column,
     func,
     literal,
     or_,
     select,
     text,
     type_coerce,
-    union_all,
     update,
 )
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, with_polymorphic
+from sqlalchemy.sql import Select
+from sqlalchemy.sql.selectable import Subquery
 from typing_extensions import assert_never
 
 from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
@@ -59,13 +62,6 @@ SESSION_SWEEP_INTERVAL_SECONDS = 10.0
 _CONSUMER_GROUP = "default"
 _SESSION_SWEEP_LEASE_NAME = "session-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
-_MAX_SESSION_WORK_INSERT_PARAMETERS = 30_000
-# One bind parameter per candidate session id, plus the handful of per-criterion
-# literals the whole statement shares.
-_SESSION_WORK_INSERT_FIXED_PARAMETERS = 16
-_SESSION_WORK_INSERT_BATCH_SIZE = (
-    _MAX_SESSION_WORK_INSERT_PARAMETERS - _SESSION_WORK_INSERT_FIXED_PARAMETERS
-)
 # Only work terminated within this window feeds the watermark-lag gauge; the table has
 # no retention, so an unbounded aggregate would scan more rows on every tick forever.
 _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
@@ -90,13 +86,52 @@ class _SessionCriteria:
     delay_seconds: int
 
 
-@dataclass(frozen=True)
-class _EligiblePair:
-    project_session_rowid: int
-    criteria_id: int
+def _criteria_relation(criteria: Sequence[_SessionCriteria]) -> Subquery:
+    """Return a portable inline relation for resolved session criteria."""
+    rows = []
+    parameters: dict[str, Any] = {}
+    for index, criterion in enumerate(criteria):
+        row_parameters = {
+            f"sc{index}_criteria_id": criterion.criteria_id,
+            f"sc{index}_project_id": criterion.project_id,
+            f"sc{index}_evaluator_id": criterion.evaluator_id,
+            f"sc{index}_config_fingerprint": criterion.fingerprint,
+            f"sc{index}_delay_seconds": criterion.delay_seconds,
+        }
+        parameters.update(row_parameters)
+        placeholders = [f":{name}" for name in row_parameters]
+        if index == 0:
+            placeholders = [
+                f"CAST({placeholders[0]} AS INTEGER)",
+                f"CAST({placeholders[1]} AS INTEGER)",
+                f"CAST({placeholders[2]} AS INTEGER)",
+                f"CAST({placeholders[3]} AS VARCHAR)",
+                f"CAST({placeholders[4]} AS INTEGER)",
+            ]
+        rows.append(f"({', '.join(placeholders)})")
+    statement = text(
+        "SELECT "
+        "sc.column1 AS criteria_id, "
+        "sc.column2 AS project_id, "
+        "sc.column3 AS evaluator_id, "
+        "sc.column4 AS config_fingerprint, "
+        "sc.column5 AS delay_seconds "
+        f"FROM (VALUES {', '.join(rows)}) AS sc"
+    )
+    return (
+        statement.bindparams(**parameters)
+        .columns(
+            column("criteria_id", Integer),
+            column("project_id", Integer),
+            column("evaluator_id", Integer),
+            column("config_fingerprint", String),
+            column("delay_seconds", Integer),
+        )
+        .subquery("sweep_criteria")
+    )
 
 
-def _live_work_exists(criterion: _SessionCriteria) -> ColumnElement[bool]:
+def _live_work_exists(criteria_relation: Subquery) -> ColumnElement[bool]:
     """Whether the session still holds a live dedup key for this criterion."""
     live_work = aliased(models.EvalSessionWorkUnit)
     return (
@@ -104,8 +139,8 @@ def _live_work_exists(criterion: _SessionCriteria) -> ColumnElement[bool]:
         .select_from(live_work)
         .where(
             live_work.project_session_rowid == models.ProjectSession.id,
-            live_work.evaluator_id == criterion.evaluator_id,
-            live_work.config_fingerprint == criterion.fingerprint,
+            live_work.evaluator_id == criteria_relation.c.evaluator_id,
+            live_work.config_fingerprint == criteria_relation.c.config_fingerprint,
             or_(
                 live_work.status.in_(("PENDING", "RUNNING")),
                 and_(
@@ -114,39 +149,104 @@ def _live_work_exists(criterion: _SessionCriteria) -> ColumnElement[bool]:
                 ),
             ),
         )
-        .correlate(models.ProjectSession)
+        .correlate(models.ProjectSession, criteria_relation)
         .exists()
     )
 
 
+def _eligible_pairs_statement(
+    criteria_relation: Subquery,
+    database_now: datetime,
+    dialect: SupportedSQLDialect,
+) -> Select[Any]:
+    successful_work = aliased(models.EvalSessionWorkUnit)
+    terminal_work = aliased(models.EvalSessionWorkUnit)
+    terminal_watermark = (
+        select(func.max(terminal_work.evaluated_through))
+        .where(
+            terminal_work.project_session_rowid == models.ProjectSession.id,
+            terminal_work.evaluator_id == criteria_relation.c.evaluator_id,
+            terminal_work.config_fingerprint == criteria_relation.c.config_fingerprint,
+            or_(
+                terminal_work.status.in_(("DONE", "EXPIRED")),
+                and_(
+                    terminal_work.status == "ERROR",
+                    terminal_work.attempts >= MAX_ATTEMPTS,
+                ),
+            ),
+        )
+        .correlate(models.ProjectSession, criteria_relation)
+        .scalar_subquery()
+    )
+    successful_result_exists = (
+        select(1)
+        .select_from(successful_work)
+        .where(
+            successful_work.project_session_rowid == models.ProjectSession.id,
+            successful_work.evaluator_id == criteria_relation.c.evaluator_id,
+            successful_work.config_fingerprint == criteria_relation.c.config_fingerprint,
+            successful_work.status == "DONE",
+        )
+        .correlate(models.ProjectSession, criteria_relation)
+        .exists()
+    )
+    if dialect is SupportedSQLDialect.SQLITE:
+        due_at = (
+            cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float) * 86_400
+            + criteria_relation.c.delay_seconds
+        )
+        current_time = cast(func.julianday(database_now), Float) * 86_400
+    else:
+        due_at = (
+            func.extract("epoch", models.ProjectSession.last_span_ingested_at)
+            + criteria_relation.c.delay_seconds
+        )
+        current_time = func.extract("epoch", literal(database_now))
+    return (
+        select(
+            models.ProjectSession.id.label("project_session_rowid"),
+            criteria_relation.c.criteria_id,
+            criteria_relation.c.evaluator_id,
+            criteria_relation.c.config_fingerprint,
+            models.ProjectSession.last_span_ingested_at.label("evaluated_through"),
+            due_at.label("effective_due_time"),
+        )
+        .select_from(models.ProjectSession)
+        .join(
+            criteria_relation,
+            models.ProjectSession.project_id == criteria_relation.c.project_id,
+        )
+        .where(
+            models.ProjectSession.content_complete.is_(True),
+            models.ProjectSession.last_span_ingested_at.is_not(None),
+            due_at <= current_time,
+            ~successful_result_exists,
+            ~_live_work_exists(criteria_relation),
+            or_(
+                terminal_watermark.is_(None),
+                terminal_watermark < models.ProjectSession.last_span_ingested_at,
+            ),
+        )
+    )
+
+
 def _session_work_insert_statement(
-    criterion: _SessionCriteria,
-    project_session_rowids: Sequence[int],
+    eligible_pairs: Subquery,
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Materialize work for one criterion, re-deriving eligibility at write time.
-
-    The completeness and no-live-work guards belong to the writing statement, not to
-    the SELECT that picked the candidates: under READ COMMITTED a session can be marked
-    incomplete, or acquire live work, in the gap between the two.
-    """
+    """Materialize the globally ordered eligibility page in one statement."""
     index_elements = (
         models.EvalSessionWorkUnit.project_session_rowid,
         models.EvalSessionWorkUnit.evaluator_id,
         models.EvalSessionWorkUnit.config_fingerprint,
     )
     candidates = select(
-        models.ProjectSession.id,
-        literal(criterion.evaluator_id),
-        literal(criterion.criteria_id),
-        literal(criterion.fingerprint),
-        models.ProjectSession.last_span_ingested_at,
-    ).where(
-        models.ProjectSession.id.in_(project_session_rowids),
-        models.ProjectSession.content_complete.is_(True),
-        models.ProjectSession.last_span_ingested_at.is_not(None),
-        ~_live_work_exists(criterion),
-    )
+        eligible_pairs.c.project_session_rowid,
+        eligible_pairs.c.evaluator_id,
+        eligible_pairs.c.criteria_id,
+        eligible_pairs.c.config_fingerprint,
+        eligible_pairs.c.evaluated_through,
+    ).where(literal(True))
     if dialect is SupportedSQLDialect.POSTGRESQL:
         return (
             insert_postgresql(models.EvalSessionWorkUnit)
@@ -155,6 +255,7 @@ def _session_work_insert_statement(
                 index_elements=index_elements,
                 index_where=_LIVE_WORK_INDEX_PREDICATE,
             )
+            .returning(models.EvalSessionWorkUnit.criteria_id)
         )
     if dialect is SupportedSQLDialect.SQLITE:
         return (
@@ -164,6 +265,7 @@ def _session_work_insert_statement(
                 index_elements=index_elements,
                 index_where=_LIVE_WORK_INDEX_PREDICATE,
             )
+            .returning(models.EvalSessionWorkUnit.criteria_id)
         )
     assert_never(dialect)
 
@@ -338,33 +440,12 @@ class SessionEvalSweeper(DaemonTask):
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, 0
-        eligible_pairs, eligible_pair_count = await self._load_eligible_pairs(
+        return await self._load_eligible_pairs(
             session,
             database_now,
             criteria,
             limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
         )
-        if not eligible_pairs:
-            return 0, eligible_pair_count
-
-        criteria_by_id = {criterion.criteria_id: criterion for criterion in criteria}
-        rowids_by_criteria: defaultdict[int, list[int]] = defaultdict(list)
-        for pair in eligible_pairs:
-            rowids_by_criteria[pair.criteria_id].append(pair.project_session_rowid)
-
-        inserted_count = 0
-        for criteria_id, rowids in rowids_by_criteria.items():
-            criterion = criteria_by_id[criteria_id]
-            for start in range(0, len(rowids), _SESSION_WORK_INSERT_BATCH_SIZE):
-                result = await session.execute(
-                    _session_work_insert_statement(
-                        criterion,
-                        rowids[start : start + _SESSION_WORK_INSERT_BATCH_SIZE],
-                        self._db.dialect,
-                    )
-                )
-                inserted_count += result.rowcount  # type: ignore[attr-defined]
-        return inserted_count, eligible_pair_count
 
     async def _load_eligible_pairs(
         self,
@@ -373,102 +454,36 @@ class SessionEvalSweeper(DaemonTask):
         criteria: Sequence[_SessionCriteria],
         *,
         limit: int,
-    ) -> tuple[list[_EligiblePair], int]:
+    ) -> tuple[int, int]:
         if not criteria:
-            return [], 0
-        statements = []
-        for criterion in criteria:
-            successful_work = aliased(models.EvalSessionWorkUnit)
-            terminal_work = aliased(models.EvalSessionWorkUnit)
-            # How far session content was already carried by work that will never run
-            # again — a completed evaluation, an expired one, or one that exhausted its
-            # retries. Without new content past that mark there is nothing to re-evaluate,
-            # and materializing anyway loops a failing session forever.
-            terminal_watermark = (
-                select(func.max(terminal_work.evaluated_through))
-                .where(
-                    terminal_work.project_session_rowid == models.ProjectSession.id,
-                    terminal_work.evaluator_id == criterion.evaluator_id,
-                    terminal_work.config_fingerprint == criterion.fingerprint,
-                    or_(
-                        terminal_work.status.in_(("DONE", "EXPIRED")),
-                        and_(
-                            terminal_work.status == "ERROR",
-                            terminal_work.attempts >= MAX_ATTEMPTS,
-                        ),
-                    ),
-                )
-                .correlate(models.ProjectSession)
-                .scalar_subquery()
-            )
-            successful_result_exists = (
-                select(1)
-                .select_from(successful_work)
-                .where(
-                    successful_work.project_session_rowid == models.ProjectSession.id,
-                    successful_work.evaluator_id == criterion.evaluator_id,
-                    successful_work.config_fingerprint == criterion.fingerprint,
-                    successful_work.status == "DONE",
-                )
-                .correlate(models.ProjectSession)
-                .exists()
-            )
-            live_work_exists = _live_work_exists(criterion)
-            if self._db.dialect is SupportedSQLDialect.SQLITE:
-                due_at = (
-                    cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float)
-                    * 86_400
-                    + criterion.delay_seconds
-                )
-            else:
-                due_at = (
-                    func.extract("epoch", models.ProjectSession.last_span_ingested_at)
-                    + criterion.delay_seconds
-                )
-            statements.append(
-                select(
-                    models.ProjectSession.id.label("project_session_rowid"),
-                    literal(criterion.criteria_id).label("criteria_id"),
-                    due_at.label("effective_due_time"),
-                ).where(
-                    models.ProjectSession.project_id == criterion.project_id,
-                    models.ProjectSession.content_complete.is_(True),
-                    models.ProjectSession.last_span_ingested_at.is_not(None),
-                    models.ProjectSession.last_span_ingested_at
-                    <= database_now - timedelta(seconds=criterion.delay_seconds),
-                    ~successful_result_exists,
-                    ~live_work_exists,
-                    or_(
-                        terminal_watermark.is_(None),
-                        terminal_watermark < models.ProjectSession.last_span_ingested_at,
-                    ),
-                )
-            )
-        relation = union_all(*statements).subquery()
+            return 0, 0
+        criteria_relation = _criteria_relation(criteria)
+        relation = _eligible_pairs_statement(
+            criteria_relation,
+            database_now,
+            self._db.dialect,
+        ).subquery("eligible_pairs")
         eligible_pair_count = (
             await session.scalar(select(func.count()).select_from(relation))
         ) or 0
-        if limit == 0:
-            return [], eligible_pair_count
-        rows = (
-            await session.execute(
-                select(relation)
-                .order_by(
-                    relation.c.effective_due_time,
-                    relation.c.project_session_rowid,
-                    relation.c.criteria_id,
+        eligible_page = (
+            select(relation)
+            .order_by(
+                relation.c.effective_due_time,
+                relation.c.project_session_rowid,
+                relation.c.criteria_id,
+            )
+            .limit(limit)
+            .subquery("eligible_pair_page")
+        )
+        inserted_count = len(
+            (
+                await session.scalars(
+                    _session_work_insert_statement(eligible_page, self._db.dialect)
                 )
-                .limit(limit)
-            )
-        ).all()
-        pairs = [
-            _EligiblePair(
-                project_session_rowid=row.project_session_rowid,
-                criteria_id=row.criteria_id,
-            )
-            for row in rows
-        ]
-        return pairs, eligible_pair_count
+            ).all()
+        )
+        return inserted_count, eligible_pair_count
 
     async def _publish_eligibility_metrics(self, eligible_pair_count: int) -> None:
         """Publish the sweep's observation gauges from a session of its own.

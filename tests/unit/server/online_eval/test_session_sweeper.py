@@ -6,12 +6,11 @@ from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import Table, func, select, update
-from sqlalchemy.dialects.postgresql import asyncpg
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.eval_work import live_eval_work_index_predicate
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval import session_sweeper
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, ResolvedCriteria
 from phoenix.server.online_eval.producer import resolve_criteria
@@ -27,15 +26,6 @@ from .test_producer import _seed_criteria
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-_CRITERION = session_sweeper._SessionCriteria(
-    criteria_id=1,
-    project_id=1,
-    evaluator_id=1,
-    fingerprint="fingerprint",
-    delay_seconds=10,
-)
 
 
 def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
@@ -61,61 +51,43 @@ def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
     assert migration.live_eval_work_index_predicate is live_eval_work_index_predicate
 
 
-def test_session_work_insert_batch_stays_below_asyncpg_parameter_limit() -> None:
-    statement = session_sweeper._session_work_insert_statement(
-        _CRITERION,
-        list(range(session_sweeper._SESSION_WORK_INSERT_BATCH_SIZE)),
-        SupportedSQLDialect.POSTGRESQL,
-    )
-    compiled = statement.compile(dialect=asyncpg.dialect())  # type: ignore[no-untyped-call]
-
-    assert len(compiled.params) <= session_sweeper._MAX_SESSION_WORK_INSERT_PARAMETERS
-    assert len(compiled.params) < 32_767
-
-
 async def test_materialization_rechecks_eligibility_at_write_time(
     db: DbSessionFactory,
 ) -> None:
-    """The insert re-derives completeness and the live-key check, so a session that
-    turns ineligible after the eligibility SELECT does not get a work unit anyway.
-    """
-    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
-    evaluator_id, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
+        db,
+        age_seconds=600,
+    )
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvalSweeper(db)
 
     async with db() as session:
         criterion = (await sweeper._load_criteria(session))[0]
+        database_now = await sweeper._database_now(session)
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
-            .values(content_complete=False)
+            .values(last_span_ingested_at=database_now)
         )
-        await session.execute(
-            session_sweeper._session_work_insert_statement(
-                criterion,
-                [project_session_id],
-                db.dialect,
-            )
+        inserted_count, _ = await sweeper._load_eligible_pairs(
+            session,
+            database_now,
+            [criterion],
+            limit=1,
         )
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
+        assert inserted_count == 0
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
-            .values(content_complete=True)
+            .values(last_span_ingested_at=last_span_ingested_at)
         )
-        await session.execute(
-            session_sweeper._session_work_insert_statement(
-                criterion,
-                [project_session_id],
-                db.dialect,
-            )
+        inserted_count, _ = await sweeper._load_eligible_pairs(
+            session,
+            database_now,
+            [criterion],
+            limit=1,
         )
-        units = list(await session.scalars(select(models.EvalSessionWorkUnit)))
-    assert len(units) == 1
-    assert units[0].evaluator_id == evaluator_id
-    assert units[0].criteria_id == criteria_id
+        assert inserted_count == 1
 
 
 async def _add_session_liveness(
@@ -191,19 +163,6 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
                 )
             )
         ).one()
-        await session.execute(
-            session_sweeper._session_work_insert_statement(
-                session_sweeper._SessionCriteria(
-                    criteria_id=criteria_id,
-                    project_id=project_id,
-                    evaluator_id=evaluator_id,
-                    fingerprint=unit.config_fingerprint,
-                    delay_seconds=300,
-                ),
-                [project_session_id],
-                db.dialect,
-            )
-        )
         live_work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
@@ -213,6 +172,33 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
     assert unit.status == "PENDING"
     assert lease.holder == sweeper._sweeper_id
     assert live_work_count == 1
+
+
+async def test_materializes_with_501_schedulable_criteria(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    evaluator_id, _ = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    async with db() as session:
+        session.add_all(
+            models.ProjectEvaluatorCriteria(
+                project_id=project_id,
+                evaluator_id=evaluator_id,
+                name=Identifier(root=f"bulk-criteria-{index}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SESSION",
+            )
+            for index in range(500)
+        )
+
+    await SessionEvalSweeper(db)._tick()
+
+    async with db() as session:
+        work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        )
+    assert work_count == 501
 
 
 async def test_session_with_null_liveness_is_never_eligible(
