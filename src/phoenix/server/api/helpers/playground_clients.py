@@ -613,7 +613,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     assert_never(tc.type)
             if tools.disable_parallel_tool_calls:
                 params["parallel_tool_calls"] = False
-            elif tools.tools:
+            if tools.tools:
                 resp_tool_list: list[ToolParam] = []
                 for tool in tools.tools:
                     if tool.type == "raw":
@@ -1887,20 +1887,27 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         return converse_messages
 
 
+OPENAI_CHAT_COMPLETIONS_MODELS = [
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-4o",
+    "chatgpt-4o-latest",
+    "gpt-4o-mini",
+    "gpt-4-turbo",
+    "gpt-4-turbo-preview",
+    "gpt-4",
+    "gpt-3.5-turbo",
+]
+"""OpenAI models that default to /v1/chat/completions. Any other name, known or
+not, defaults to the Responses API. See ``get_openai_client_class``."""
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
-        "gpt-4.1",
-        "gpt-4.1-mini",
-        "gpt-4.1-nano",
-        "gpt-4o",
-        "chatgpt-4o-latest",
-        "gpt-4o-mini",
-        "gpt-4-turbo",
-        "gpt-4-turbo-preview",
-        "gpt-4",
-        "gpt-3.5-turbo",
+        *OPENAI_CHAT_COMPLETIONS_MODELS,
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
@@ -1940,21 +1947,19 @@ OPENAI_REASONING_MODELS = [
 ]
 
 
-class OpenAIReasoningReasoningModelsMixin:
-    """Mixin class for OpenAI-style reasoning model clients (o1, o3 series)."""
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        *OPENAI_REASONING_MODELS,
     ],
 )
-class OpenAIResponsesAPIStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    OpenAIStreamingClient,
-):
-    """OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
+class OpenAIResponsesAPIStreamingClient(OpenAIStreamingClient):
+    """OpenAI Responses API (responses.create) client.
+
+    Encodes reasoning effort as ``reasoning: {"effort": ...}``, which is the only
+    form OpenAI accepts alongside function tools.
+    """
 
     @override
     async def _chat_completion_create(
@@ -1982,15 +1987,10 @@ class OpenAIResponsesAPIStreamingClient(
             yield chunk
 
 
-@register_llm_client(
-    provider_key=GenerativeProviderKey.OPENAI,
-    model_names=OPENAI_REASONING_MODELS,
-)
-class OpenAIReasoningNonStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    OpenAIStreamingClient,
-):
-    def _to_openai_chat_completion_param(
+# Not in the catalog; reachable only via an explicit CHAT_COMPLETIONS api type.
+class OpenAIReasoningChatCompletionsClient(OpenAIStreamingClient):
+    @override
+    def _to_openai_chat_completion_message_param(
         self,
         message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
@@ -2073,10 +2073,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=OPENAI_REASONING_MODELS,
 )
-class AzureOpenAIResponsesAPIStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    AzureOpenAIStreamingClient,
-):
+class AzureOpenAIResponsesAPIStreamingClient(AzureOpenAIStreamingClient):
     """Azure OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
 
     @override
@@ -2110,14 +2107,8 @@ class AzureOpenAIResponsesAPIStreamingClient(
         return (self._client_factory.rate_limit_key, self.model_name)
 
 
-@register_llm_client(
-    provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=OPENAI_REASONING_MODELS,
-)
-class AzureOpenAIReasoningNonStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    AzureOpenAIStreamingClient,
-):
+# Not in the catalog; reachable only via an explicit CHAT_COMPLETIONS api type.
+class AzureOpenAIReasoningChatCompletionsClient(AzureOpenAIStreamingClient):
     @override
     def _to_openai_chat_completion_message_param(
         self,
@@ -3029,7 +3020,6 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
 
 GEMINI_2_5_MODELS = [
-    PROVIDER_DEFAULT,
     "gemini-2.5-pro",  # Will be deprecated and will be shut down on June 17, 2026.
     "gemini-2.5-flash",  # Will be deprecated and will be shut down on June 17, 2026.
     "gemini-2.5-flash-lite",  # Will be deprecated and will be shut down on July 22, 2026.
@@ -3274,45 +3264,53 @@ def get_openai_client_class(
     openai_api_type: Optional["OpenAIApiType"] = None,
 ) -> Optional[type["PlaygroundStreamingClient[Any]"]]:
     """
-    Get the appropriate OpenAI/Azure client class based on provider, model, and API type.
+    Select the OpenAI/Azure client class for a provider, model, and API type.
 
-    This function centralizes the logic for selecting the correct client class for
-    OpenAI and Azure OpenAI providers, ensuring consistency between parameter fetching
-    and client instantiation.
+    The source of truth for the builtin-provider path, including the default when no
+    API type is configured. The playground registry is not consulted: it carries the
+    model catalog, not routing.
 
-    For non-OpenAI providers, returns None (callers should fall back to the registry).
+    Custom providers do not resolve through here -- their SDK type does not identify
+    the model family, so model-name-based specialization is not sound for them.
 
     Args:
         provider_key: The generative provider (OPENAI, AZURE_OPENAI, etc.)
         model_name: The name of the model
         openai_api_type: The API type (CHAT_COMPLETIONS or RESPONSES). If None,
-            falls back to registry behavior.
+            the provider's default for that model applies.
 
     Returns:
-        The appropriate client class, or None if the provider is not OpenAI/Azure.
+        The client class, or None for non-OpenAI providers, whose callers fall
+        back to the registry.
     """
-    from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
     from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
     if provider_key == GenerativeProviderKey.OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
             if model_name in OPENAI_REASONING_MODELS:
-                return OpenAIReasoningNonStreamingClient
+                return OpenAIReasoningChatCompletionsClient
             return OpenAIStreamingClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return OpenAIResponsesAPIStreamingClient
-        # If openai_api_type is None, fall back to registry
-        return PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+        # Unconfigured default: Responses, except the models predating it. Reasoning
+        # models cannot use /v1/chat/completions when function tools are present.
+        if model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
+            return OpenAIStreamingClient
+        return OpenAIResponsesAPIStreamingClient
 
     elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
             if model_name in OPENAI_REASONING_MODELS:
-                return AzureOpenAIReasoningNonStreamingClient
+                return AzureOpenAIReasoningChatCompletionsClient
             return AzureOpenAIStreamingClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
             return AzureOpenAIResponsesAPIStreamingClient
-        # If openai_api_type is None, fall back to registry
-        return PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+        # Unconfigured default: Chat Completions, since an Azure deployment may not
+        # expose /v1/responses. Reasoning models go to Responses regardless -- they
+        # cannot use /v1/chat/completions when function tools are present.
+        if model_name in OPENAI_REASONING_MODELS:
+            return AzureOpenAIResponsesAPIStreamingClient
+        return AzureOpenAIStreamingClient
 
     # For non-OpenAI providers, return None to signal caller should use registry
     return None
@@ -4026,6 +4024,11 @@ async def _get_custom_provider_client(
     headers = dict(extra_headers) if extra_headers else None
     cfg = config.root
 
+    # The openai/azure_openai SDK configs serve any OpenAI-compatible endpoint --
+    # DeepSeek, xAI, Ollama, Groq, Together and others (see
+    # is_sdk_compatible_with_model_provider). A model name matching an OpenAI model
+    # does not mean OpenAI is behind it, so the reasoning-model specializations,
+    # which rewrite `system` to `developer`, are deliberately not applied here.
     if cfg.type == "openai":
         try:
             openai_client_factory = cfg.get_client_factory(extra_headers=headers)
