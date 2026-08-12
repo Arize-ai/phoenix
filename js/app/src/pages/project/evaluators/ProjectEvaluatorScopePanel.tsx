@@ -143,6 +143,7 @@ export const ProjectEvaluatorScopePanel = ({
   inlineCode,
   requiredVariables,
   showAnnotationTemplate = false,
+  isTargetDisabled = false,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
@@ -152,6 +153,7 @@ export const ProjectEvaluatorScopePanel = ({
   inlineCode?: ProjectEvaluatorInlineCode;
   requiredVariables?: string[];
   showAnnotationTemplate?: boolean;
+  isTargetDisabled?: boolean;
 }) => {
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
   return (
@@ -170,6 +172,7 @@ export const ProjectEvaluatorScopePanel = ({
           onFilterValidityChange={onFilterValidityChange}
           timeWindow={timeWindow}
           onTimeWindowChange={setTimeWindow}
+          isTargetDisabled={isTargetDisabled}
         />
         <Flex direction="column" gap="size-25">
           <Heading level={2}>Matching spans</Heading>
@@ -279,6 +282,7 @@ function ScopeEditorCard({
   onFilterValidityChange,
   timeWindow,
   onTimeWindowChange,
+  isTargetDisabled,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
@@ -286,6 +290,7 @@ function ScopeEditorCard({
   onFilterValidityChange?: (isValid: boolean) => void;
   timeWindow: TimeWindow;
   onTimeWindowChange: (timeWindow: TimeWindow) => void;
+  isTargetDisabled: boolean;
 }) {
   // Only validated conditions are lifted into `scope`.
   const [filterConditionDraft, setFilterConditionDraft] = useState(
@@ -306,6 +311,7 @@ function ScopeEditorCard({
           <ProjectEvaluatorTargetField
             value={scope.targetType}
             onChange={(targetType) => onScopeChange({ ...scope, targetType })}
+            isDisabled={isTargetDisabled}
           />
           <Flex direction="column" gap="size-50">
             <Text size="XS" weight="heavy" color="text-700">
