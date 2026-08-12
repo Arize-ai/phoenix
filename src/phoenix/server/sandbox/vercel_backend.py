@@ -88,6 +88,7 @@ class VercelSandboxBackend(SandboxBackend):
     """Sandbox backend executing code via Vercel Sandbox."""
 
     provider: ClassVar[str] = "VERCEL"
+    supports_concurrent_session_execution: ClassVar[bool] = True
 
     def __init__(
         self,

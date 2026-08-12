@@ -43,8 +43,13 @@ from phoenix.db import models
 from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, config_fingerprint
-from phoenix.server.online_eval.producer import resolve_criteria_bulk
+from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
+from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
+from phoenix.server.online_eval.derivation import (
+    MAX_ATTEMPTS,
+    STALE_FINGERPRINT_ERROR,
+    config_fingerprint,
+)
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
@@ -182,7 +187,14 @@ def _eligible_pairs_statement(
             terminal_work.evaluator_id == criteria_relation.c.evaluator_id,
             terminal_work.config_fingerprint == criteria_relation.c.config_fingerprint,
             or_(
-                terminal_work.status.in_(("DONE", "EXPIRED")),
+                terminal_work.status == "DONE",
+                and_(
+                    terminal_work.status == "EXPIRED",
+                    or_(
+                        terminal_work.error.is_(None),
+                        terminal_work.error != STALE_FINGERPRINT_ERROR,
+                    ),
+                ),
                 and_(
                     terminal_work.status == "ERROR",
                     terminal_work.attempts >= MAX_ATTEMPTS,
@@ -323,14 +335,20 @@ class SessionEvalSweeper(DaemonTask):
             await self._release_lease()
 
     async def _tick(self) -> None:
-        lease_id = await self._acquire_lease()
+        mutations_allowed = not self._db.should_not_insert_or_update
+        lease_id = await self._acquire_lease(allow_insert=mutations_allowed)
         if lease_id is None:
             return
-        if not await self._materialize_and_renew(lease_id):
+        renewed = (
+            await self._materialize_and_renew(lease_id)
+            if mutations_allowed
+            else await self._renew_lease(lease_id)
+        )
+        if not renewed:
             self._lease_held = False
             logger.warning("Session evaluation sweeper lost its lease")
 
-    async def _acquire_lease(self) -> Optional[int]:
+    async def _acquire_lease(self, *, allow_insert: bool = True) -> Optional[int]:
         for _ in range(2):
             async with self._db() as session:
                 database_now = await self._database_now(session)
@@ -359,6 +377,8 @@ class SessionEvalSweeper(DaemonTask):
                 )
                 if row_exists is not None:
                     break
+                if not allow_insert:
+                    break
                 await session.execute(
                     insert_on_conflict(
                         {"name": self._lease_name},
@@ -370,6 +390,20 @@ class SessionEvalSweeper(DaemonTask):
                 )
         self._lease_held = False
         return None
+
+    async def _renew_lease(self, lease_id: int) -> bool:
+        async with self._db() as session:
+            renewed_at = await self._database_now(session)
+            renewed = await session.scalar(
+                update(models.EvalWorkLease)
+                .where(
+                    models.EvalWorkLease.id == lease_id,
+                    models.EvalWorkLease.holder == self._sweeper_id,
+                )
+                .values(heartbeat_at=renewed_at)
+                .returning(models.EvalWorkLease.id)
+            )
+        return renewed is not None
 
     async def _materialize_and_renew(self, lease_id: int) -> bool:
         started_at = time.monotonic()
@@ -472,6 +506,7 @@ class SessionEvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[int]]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
+        await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None
