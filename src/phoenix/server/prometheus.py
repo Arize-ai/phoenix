@@ -180,6 +180,41 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     documentation="Span ingest rate derived from successive online-eval cursor "
     "high-water observations",
 )
+ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_eligible_pair_backlog",
+    documentation="Current number of session and evaluator pairs eligible for work",
+)
+ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_result_watermark_lag_seconds",
+    documentation="Largest gap between session activity and a successful result watermark",
+)
+ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS = Counter(
+    namespace="phoenix",
+    name="online_eval_session_sweep_attempts_total",
+    documentation="Total number of session evaluation sweep attempts",
+)
+ONLINE_EVAL_SESSION_SWEEP_SUCCESSES = Counter(
+    namespace="phoenix",
+    name="online_eval_session_sweep_successes_total",
+    documentation="Total number of committed session evaluation sweeps",
+)
+ONLINE_EVAL_SESSION_SWEEP_FAILURES = Counter(
+    namespace="phoenix",
+    name="online_eval_session_sweep_failures_total",
+    documentation="Total number of failed or rolled-back session evaluation sweeps",
+)
+ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS = Histogram(
+    namespace="phoenix",
+    name="online_eval_session_sweep_duration_seconds",
+    documentation="Session evaluation sweep duration in seconds",
+)
+ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS = Counter(
+    namespace="phoenix",
+    name="online_eval_session_materialized_work_units_total",
+    documentation="Total number of session evaluation work units materialized",
+)
 
 
 def _join_paths(prefix: str, path: str) -> str:
