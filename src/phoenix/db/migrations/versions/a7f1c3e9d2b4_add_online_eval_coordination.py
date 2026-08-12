@@ -69,6 +69,11 @@ def _create_session_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
+            "transcript_covered_through",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+        ),
+        sa.Column(
             "status",
             sa.String(),
             sa.CheckConstraint(
@@ -117,6 +122,11 @@ def _create_session_work_units_table() -> None:
         ["updated_at"],
         postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
         sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+    )
+    op.create_index(
+        "ix_eval_session_work_units_terminal_watermark",
+        "eval_session_work_units",
+        ["project_session_rowid", "evaluator_id", "config_fingerprint"],
     )
     op.create_index(
         "ix_eval_session_work_units_error_attempts",
@@ -281,7 +291,6 @@ def upgrade() -> None:
         ),
         sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
-        sa.Column("work_materialized_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -399,6 +408,10 @@ def downgrade() -> None:
     op.drop_index("ix_eval_session_work_units_criteria_id", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_error_attempts", table_name="eval_session_work_units")
+    op.drop_index(
+        "ix_eval_session_work_units_terminal_watermark",
+        table_name="eval_session_work_units",
+    )
     op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
     op.drop_table("eval_session_work_units")
