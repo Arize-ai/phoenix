@@ -10,7 +10,7 @@ import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from phoenix.client.__generated__ import v1
@@ -24,7 +24,7 @@ NOW = datetime(2026, 7, 24, 13, 0, tzinfo=timezone.utc)
 
 
 def _trace(name: str) -> list[v1.Span]:
-    return json.loads(FIXTURE.read_text())[name]
+    return cast(list[v1.Span], json.loads(FIXTURE.read_text())[name])
 
 
 class _FixtureSpans:
