@@ -829,7 +829,12 @@ async def _execute_postgres(
         await session.execute(text("SET LOCAL TimeZone = 'UTC'"))
         await session.execute(text(f"SET LOCAL statement_timeout = '{PG_STATEMENT_TIMEOUT_MS}'"))
         await session.execute(text("SET LOCAL work_mem = '64MB'"))
-        await session.execute(text("SET LOCAL temp_file_limit = '512MB'"))
+        try:
+            await session.execute(text("SET LOCAL temp_file_limit = '512MB'"))
+        except SQLAlchemyError:
+            # Not every role can set this. The statement still runs under the
+            # server default rather than failing before it starts.
+            logger.debug("analytics sql: temp_file_limit could not be set", exc_info=True)
         deadline = time.monotonic() + PG_STATEMENT_TIMEOUT_MS / 1000
 
         # EXPLAIN resolves names, so a name error surfaces here rather than at
