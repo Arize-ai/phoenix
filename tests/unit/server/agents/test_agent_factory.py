@@ -1737,11 +1737,17 @@ class TestToolSearchCapability:
         }
         assert "search_tools" in tools_by_name
         assert tools_by_name["search_tools"].tool_kind == "tool-search"
-        assert "list_datasets" not in tools_by_name
+        tool_visibility = request_parameters.tool_visibility
+        assert tool_visibility is not None
+        assert "list_datasets" in tools_by_name
+        assert tools_by_name["list_datasets"].defer_loading is True
+        assert tool_visibility["list_datasets"] == "withheld"
         assert "get_route_info" in tools_by_name
         assert tools_by_name["get_route_info"].defer_loading is False
+        assert tool_visibility["get_route_info"] == "visible"
         assert "write_span_note" in tools_by_name
         assert tools_by_name["write_span_note"].defer_loading is False
+        assert tool_visibility["write_span_note"] == "visible"
 
 
 class TestDatasetEvaluatorSelectAndEditToolGates:
