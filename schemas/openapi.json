@@ -20268,14 +20268,14 @@
       },
       "TransferTracesRequestBody": {
         "properties": {
-          "trace_ids": {
+          "trace_identifiers": {
             "items": {
               "type": "string"
             },
             "type": "array",
             "minItems": 1,
-            "title": "Trace Ids",
-            "description": "The IDs (GlobalIDs) of the traces to transfer. Must be non-empty, and all traces must currently belong to the same source project."
+            "title": "Trace Identifiers",
+            "description": "The traces to transfer. Each identifier is either a trace ID (GlobalID) or an OpenTelemetry trace_id (hex string). Must be non-empty, and all traces must currently belong to the same source project."
           },
           "destination_project_identifier": {
             "type": "string",
@@ -20285,7 +20285,7 @@
         },
         "type": "object",
         "required": [
-          "trace_ids",
+          "trace_identifiers",
           "destination_project_identifier"
         ],
         "title": "TransferTracesRequestBody"

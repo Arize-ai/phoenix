@@ -582,10 +582,11 @@ async def _add_spans(
 
 
 class TransferTracesRequestBody(V1RoutesBaseModel):
-    trace_ids: list[str] = Field(
+    trace_identifiers: list[str] = Field(
         min_length=1,
-        description="The IDs (GlobalIDs) of the traces to transfer. Must be non-empty, and all "
-        "traces must currently belong to the same source project.",
+        description="The traces to transfer. Each identifier is either a trace ID (GlobalID) "
+        "or an OpenTelemetry trace_id (hex string). Must be non-empty, and all traces must "
+        "currently belong to the same source project.",
     )
     destination_project_identifier: str = Field(
         description="The destination project: either project ID (GlobalID) or project name."
@@ -630,37 +631,48 @@ async def transfer_traces(
     request: Request,
     request_body: TransferTracesRequestBody,
 ) -> TransferTracesResponseBody:
-    try:
-        trace_rowids = {
-            from_global_id_with_expected_type(GlobalID.from_id(trace_id), TraceNodeType.__name__)
-            for trace_id in request_body.trace_ids
-        }
-    except ValueError:
-        raise HTTPException(
-            detail="Invalid trace ID provided",
-            status_code=422,
-        )
+    # Each identifier may be a Trace GlobalID or an OpenTelemetry trace_id (hex string),
+    # mirroring DELETE /traces/{trace_identifier}.
+    trace_rowids: set[int] = set()
+    otel_trace_ids: set[str] = set()
+    for identifier in request_body.trace_identifiers:
+        try:
+            trace_rowids.add(
+                from_global_id_with_expected_type(
+                    GlobalID.from_id(identifier), TraceNodeType.__name__
+                )
+            )
+        except ValueError:
+            otel_trace_ids.add(identifier)
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(
             session, request_body.destination_project_identifier
         )
-        source_project_rowids = (
-            await session.scalars(
-                select(models.Trace.project_rowid).where(models.Trace.id.in_(trace_rowids))
+        traces = (
+            await session.execute(
+                select(models.Trace.id, models.Trace.trace_id, models.Trace.project_rowid).where(
+                    or_(
+                        models.Trace.id.in_(trace_rowids),
+                        models.Trace.trace_id.in_(otel_trace_ids),
+                    )
+                )
             )
         ).all()
-        if len(source_project_rowids) < len(trace_rowids):
+        found_rowids = {trace.id for trace in traces}
+        found_otel_trace_ids = {trace.trace_id for trace in traces}
+        if not (trace_rowids <= found_rowids and otel_trace_ids <= found_otel_trace_ids):
             raise HTTPException(detail="One or more traces not found", status_code=404)
+        source_project_rowids = {trace.project_rowid for trace in traces}
         # Mirrors the transferTracesToProject mutation: a transfer moves traces out of exactly
         # one source project, so a mixed-source request is ambiguous and is rejected.
-        if len(set(source_project_rowids)) > 1:
+        if len(source_project_rowids) > 1:
             raise HTTPException(
                 detail="Cannot transfer traces from multiple projects",
                 status_code=422,
             )
         result = await session.execute(
             update(models.Trace)
-            .where(models.Trace.id.in_(trace_rowids))
+            .where(models.Trace.id.in_(found_rowids))
             .values(project_rowid=project.id)
         )
     # Invalidate per-project cached aggregates (record counts, token counts/costs, latency

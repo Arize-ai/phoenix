@@ -1042,7 +1042,7 @@ class TransferTracesData(TypedDict):
 
 
 class TransferTracesRequestBody(TypedDict):
-    trace_ids: Sequence[str]
+    trace_identifiers: Sequence[str]
     destination_project_identifier: str
 
 

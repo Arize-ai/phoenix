@@ -6328,10 +6328,10 @@ export interface components {
         /** TransferTracesRequestBody */
         TransferTracesRequestBody: {
             /**
-             * Trace Ids
-             * @description The IDs (GlobalIDs) of the traces to transfer. Must be non-empty, and all traces must currently belong to the same source project.
+             * Trace Identifiers
+             * @description The traces to transfer. Each identifier is either a trace ID (GlobalID) or an OpenTelemetry trace_id (hex string). Must be non-empty, and all traces must currently belong to the same source project.
              */
-            trace_ids: string[];
+            trace_identifiers: string[];
             /**
              * Destination Project Identifier
              * @description The destination project: either project ID (GlobalID) or project name.

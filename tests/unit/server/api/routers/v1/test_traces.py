@@ -656,7 +656,7 @@ async def test_transfer_traces_moves_traces_to_destination(
     response = await httpx_client.post(
         "v1/traces/transfer",
         json={
-            "trace_ids": [str(GlobalID("Trace", str(rowid))) for rowid in trace_rowids],
+            "trace_identifiers": [str(GlobalID("Trace", str(rowid))) for rowid in trace_rowids],
             "destination_project_identifier": "dst-proj",
         },
     )
@@ -685,7 +685,7 @@ async def test_transfer_traces_accepts_project_global_id(
     response = await httpx_client.post(
         "v1/traces/transfer",
         json={
-            "trace_ids": [str(GlobalID("Trace", str(trace_rowids[0])))],
+            "trace_identifiers": [str(GlobalID("Trace", str(trace_rowids[0])))],
             "destination_project_identifier": str(GlobalID("Project", str(dest_rowid))),
         },
     )
@@ -704,7 +704,7 @@ async def test_transfer_traces_deduplicates_repeated_ids(
     response = await httpx_client.post(
         "v1/traces/transfer",
         json={
-            "trace_ids": [trace_gid, trace_gid],
+            "trace_identifiers": [trace_gid, trace_gid],
             "destination_project_identifier": "dst-dupe",
         },
     )
@@ -723,7 +723,7 @@ async def test_transfer_traces_rejects_multiple_source_projects(
     response = await httpx_client.post(
         "v1/traces/transfer",
         json={
-            "trace_ids": [
+            "trace_identifiers": [
                 str(GlobalID("Trace", str(traces_a[0]))),
                 str(GlobalID("Trace", str(traces_b[0]))),
             ],
@@ -733,14 +733,14 @@ async def test_transfer_traces_rejects_multiple_source_projects(
     assert response.status_code == 422
 
 
-async def test_transfer_traces_empty_trace_ids(
+async def test_transfer_traces_empty_trace_identifiers(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
     await _project_with_traces(db, "empty-dst", 1, "4444")
     response = await httpx_client.post(
         "v1/traces/transfer",
-        json={"trace_ids": [], "destination_project_identifier": "empty-dst"},
+        json={"trace_identifiers": [], "destination_project_identifier": "empty-dst"},
     )
     assert response.status_code == 422
 
@@ -753,7 +753,7 @@ async def test_transfer_traces_unknown_trace(
     response = await httpx_client.post(
         "v1/traces/transfer",
         json={
-            "trace_ids": [str(GlobalID("Trace", "99999"))],
+            "trace_identifiers": [str(GlobalID("Trace", "99999"))],
             "destination_project_identifier": "unknown-dst",
         },
     )
@@ -768,23 +768,52 @@ async def test_transfer_traces_unknown_destination_project(
     response = await httpx_client.post(
         "v1/traces/transfer",
         json={
-            "trace_ids": [str(GlobalID("Trace", str(trace_rowids[0])))],
+            "trace_identifiers": [str(GlobalID("Trace", str(trace_rowids[0])))],
             "destination_project_identifier": "does-not-exist",
         },
     )
     assert response.status_code == 404
 
 
-async def test_transfer_traces_malformed_trace_id(
+async def test_transfer_traces_accepts_otel_trace_ids(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    source_rowid, trace_rowids = await _project_with_traces(db, "src-otel", 2, "abcd")
+    dest_rowid, _ = await _project_with_traces(db, "dst-otel", 1, "beef")
+
+    # Mix an OpenTelemetry trace_id with a GlobalID in a single request.
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": ["abcd0000", str(GlobalID("Trace", str(trace_rowids[1])))],
+            "destination_project_identifier": "dst-otel",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["transferred_trace_count"] == 2
+
+    async with db() as session:
+        moved = (
+            await session.scalars(
+                select(models.Trace.project_rowid).where(models.Trace.id.in_(trace_rowids))
+            )
+        ).all()
+    assert set(moved) == {dest_rowid}
+
+
+async def test_transfer_traces_unparseable_identifier(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
     await _project_with_traces(db, "malformed-dst", 1, "7777")
+    # An identifier that is not a GlobalID is treated as an OpenTelemetry trace_id;
+    # when no trace has it, the request is a 404.
     response = await httpx_client.post(
         "v1/traces/transfer",
         json={
-            "trace_ids": ["not-a-global-id"],
+            "trace_identifiers": ["not-a-global-id"],
             "destination_project_identifier": "malformed-dst",
         },
     )
-    assert response.status_code == 422
+    assert response.status_code == 404
