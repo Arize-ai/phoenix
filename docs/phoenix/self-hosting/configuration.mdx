@@ -93,6 +93,36 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_ALLOWED\_SANDBOX\_PROVIDERS:** A comma-separated, case-insensitive list of code-execution sandbox providers that Phoenix is permitted to use. When unset, all providers are allowed. Set to `NONE` to disable every sandbox provider. Unrecognized provider names will cause a startup error. Supported values: `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`. Example: `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO`. See [Sandbox Backends](self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) for details.
 
+### Online Evaluation
+
+Online evaluation is disabled by default. These variables configure its producer,
+session sweeper, and consumers:
+
+| Environment variable | Default | Effect |
+| --- | ---: | --- |
+| `PHOENIX_ONLINE_EVAL_ENABLED` | `false` | Starts online-evaluation background processing. |
+| `PHOENIX_ONLINE_EVAL_SESSION_ENABLED` | `true` | Starts session evaluation: both the sweeper that materializes session work and the consumer that runs it. Set it to `false` to disable session evaluation. Requires `PHOENIX_ONLINE_EVAL_ENABLED`. |
+| `PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS` | `60` | Waits this long before the span producer advances to an observed high-water span ID. |
+| `PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS` | `3600` | Sets the interval between recovery scans for recently missed spans. |
+| `PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS` | `100000` | Sets the number of span IDs covered by each recovery scan. For gap-free coverage, this must be at least the instance-wide span ingest rate multiplied by the backstop interval. |
+| `PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK` | `10000` | Limits the span-ID range processed in one producer transaction. |
+| `PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS` | `0` | Expires pending work older than this many seconds. `0` disables pending-work expiry. Expired work is not evaluated or rematerialized. |
+| `PHOENIX_ONLINE_EVAL_RETENTION_SECONDS` | `604800` | Retains terminal work rows for this many seconds before cleanup. |
+| `PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING` | `10000` | Stops span-work materialization at this number of pending, running, and retryable-error units. |
+| `PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING` | `10000` | Stops session-work materialization at this number of pending, running, and retryable-error units. |
+| `PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE` | `10` | Work units each consumer claims per cycle, and so its per-replica evaluation concurrency. |
+| `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` | `10` | Limits aggregate evaluator calls across both consumers per replica. |
+| `PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY` | `5` | Limits aggregate database phases across both consumers per replica. |
+| `PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS` | `5` | Sets the delay between claim cycles. Together with claim batch size, this bounds per-replica claim throughput. |
+| `PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES` | `32768` | Limits the UTF-8 size of the default rendered session transcript. Explicit structured-turn mappings are not truncated. Minimum: `256`. |
+| `PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES` | `65536` | Limits the aggregate UTF-8 size of the final rendered messages sent to an LLM provider. Minimum: `1024`. |
+| `PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES` | `65536` | Limits the UTF-8 size of the rendered span or session code-evaluator payload. Minimum: `1024`. |
+
+Set the three byte limits to the same values on every Phoenix replica. They are
+deployment policy, not part of a persisted evaluator definition, so mixed values
+during a rolling deployment can make replicas derive different inputs or outcomes
+for equivalent work. Complete the rollout before relying on newly configured limits.
+
 ### Logging
 
 * **PHOENIX\_LOG\_SQL:** Whether to log all SQL statements to stdout. Useful for debugging database queries. Defaults to `false`. Available since version 13.4.0.
