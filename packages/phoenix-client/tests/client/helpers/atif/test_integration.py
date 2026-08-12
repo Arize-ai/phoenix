@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from phoenix.client.helpers.atif import (
-    convert_atif_trajectories_to_spans,
+    _convert_atif_trajectories_to_spans,
     upload_atif_trajectories_as_spans,
 )
 from phoenix.client.helpers.atif._convert import (
@@ -52,7 +52,7 @@ class TestUploadIntegration:
         self, simple_trajectory: Dict[str, Any]
     ) -> None:
         mock_client = MagicMock()
-        expected_spans = convert_atif_trajectories_to_spans([simple_trajectory])
+        expected_spans = _convert_atif_trajectories_to_spans([simple_trajectory])
 
         upload_atif_trajectories_as_spans(
             mock_client,

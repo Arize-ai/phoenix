@@ -2,8 +2,10 @@
 """ATIF (Agent Trajectory Interchange Format) to Phoenix trace conversion.
 
 Public API:
-    convert_atif_trajectories_to_spans(trajectories, *, common_parent_span_context=None)
     upload_atif_trajectories_as_spans(client, trajectories, *, project_name)
+
+Conversion and reparenting are internal for now; the user-facing surface
+will be the Harbor integration rather than these helpers directly.
 """
 
 from __future__ import annotations
@@ -14,35 +16,30 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.client import Client
 
 from ._convert import (
-    _IS_EXTERNAL_PARENT_SPAN_CONTEXT_KEY,
-    _PARENT_SPAN_CONTEXT_KEY,
     _build_subagent_ref_map,
     _convert_atif_trajectory_to_spans,
     _flatten_atif_trajectories,
     _get_parent_span_context,
 )
+from ._reparent import _reparent_spans_under_common_parent
 from ._validate import _validate_atif_trajectory
 
-__all__ = [
-    "AtifParentSpanContext",
-    "convert_atif_trajectories_to_spans",
-    "upload_atif_trajectories_as_spans",
-]
+__all__ = ["upload_atif_trajectories_as_spans"]
 
 DEFAULT_TIMEOUT_IN_SECONDS = 30
 
 
-class AtifParentSpanContext(TypedDict):
+class _AtifParentSpanContext(TypedDict):
     """A caller-owned parent span for converted ATIF trajectories."""
 
     trace_id: str  # 32 lowercase hex characters
     span_id: str  # 16 lowercase hex characters
 
 
-def convert_atif_trajectories_to_spans(
+def _convert_atif_trajectories_to_spans(
     trajectories: Sequence[Mapping[str, Any]],
     *,
-    common_parent_span_context: Optional[AtifParentSpanContext] = None,
+    common_parent_span_context: Optional[_AtifParentSpanContext] = None,
 ) -> list[v1.Span]:
     """Validate and convert ATIF trajectories to Phoenix spans without uploading.
 
@@ -141,6 +138,12 @@ def convert_atif_trajectories_to_spans(
     ``trajectory_id`` can generate colliding span IDs. Give each document a
     distinct ``trajectory_id`` when converting several such trajectories.
 
+    When ``common_parent_span_context`` is supplied, span IDs are rederived
+    against the parent's trace ID. Phoenix requires globally unique span IDs,
+    so this keeps the same trajectory converted under two different parents
+    from colliding. IDs stay deterministic per parent: re-converting a group
+    under the same parent reproduces them exactly.
+
     Span and trace IDs are deterministic. If steps omit timestamps, repeated
     conversions may produce different fallback timestamps while retaining
     identical IDs.
@@ -167,10 +170,10 @@ def convert_atif_trajectories_to_spans(
     Examples::
 
         # Normal ATIF grouping: unrelated trajectories remain separate.
-        spans = convert_atif_trajectories_to_spans(trajectories)
+        spans = _convert_atif_trajectories_to_spans(trajectories)
 
         # One logical group: all top-level trajectories belong to this trial.
-        spans = convert_atif_trajectories_to_spans(
+        spans = _convert_atif_trajectories_to_spans(
             trial_trajectories,
             common_parent_span_context={
                 "trace_id": trial_trace_id,
@@ -181,22 +184,7 @@ def convert_atif_trajectories_to_spans(
     for trajectory in trajectories:
         _validate_atif_trajectory(trajectory)
 
-    trajectories_for_conversion: Sequence[Mapping[str, Any]] = trajectories
-    if common_parent_span_context is not None:
-        private_parent_ctx = (
-            common_parent_span_context["span_id"],
-            common_parent_span_context["trace_id"],
-        )
-        trajectories_for_conversion = [
-            {
-                **trajectory,
-                _PARENT_SPAN_CONTEXT_KEY: private_parent_ctx,
-                _IS_EXTERNAL_PARENT_SPAN_CONTEXT_KEY: True,
-            }
-            for trajectory in trajectories
-        ]
-
-    flat_trajectories = _flatten_atif_trajectories(trajectories_for_conversion)
+    flat_trajectories = _flatten_atif_trajectories(trajectories)
     ref_map = _build_subagent_ref_map(flat_trajectories)
 
     all_spans: list[v1.Span] = []
@@ -205,7 +193,14 @@ def convert_atif_trajectories_to_spans(
         all_spans.extend(
             _convert_atif_trajectory_to_spans(trajectory, parent_span_context=parent_ctx)
         )
-    return all_spans
+
+    if common_parent_span_context is None:
+        return all_spans
+    return _reparent_spans_under_common_parent(
+        all_spans,
+        parent_id=common_parent_span_context["span_id"],
+        trace_id=common_parent_span_context["trace_id"],
+    )
 
 
 def upload_atif_trajectories_as_spans(
@@ -366,7 +361,7 @@ def upload_atif_trajectories_as_spans(
         )
         print(result)  # {"total_received": 5, "total_queued": 5}
     """
-    all_spans = convert_atif_trajectories_to_spans(trajectories)
+    all_spans = _convert_atif_trajectories_to_spans(trajectories)
 
     return client.spans.log_spans(
         project_identifier=project_name,

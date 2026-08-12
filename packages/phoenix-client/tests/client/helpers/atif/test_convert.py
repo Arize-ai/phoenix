@@ -5,13 +5,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
 import pytest
 
 from phoenix.client.helpers.atif import (
-    AtifParentSpanContext,
-    convert_atif_trajectories_to_spans,
+    _AtifParentSpanContext,
+    _convert_atif_trajectories_to_spans,
 )
 from phoenix.client.helpers.atif._convert import (
     _base_session_id,
@@ -93,8 +93,8 @@ class TestDeterministicIds:
         assert _sha256_span_id("a") != _sha256_span_id("b")
 
 
-class TestPublicBatchConversion:
-    common_parent_span_context: AtifParentSpanContext = {
+class TestBatchConversion:
+    common_parent_span_context: _AtifParentSpanContext = {
         "trace_id": "0123456789abcdef0123456789abcdef",
         "span_id": "0123456789abcdef",
     }
@@ -104,7 +104,7 @@ class TestPublicBatchConversion:
         simple_trajectory: Dict[str, Any],
         multi_tool_trajectory: Dict[str, Any],
     ) -> None:
-        spans = convert_atif_trajectories_to_spans(
+        spans = _convert_atif_trajectories_to_spans(
             [simple_trajectory, multi_tool_trajectory],
             common_parent_span_context=self.common_parent_span_context,
         )
@@ -126,7 +126,7 @@ class TestPublicBatchConversion:
     def test_embedded_subagent_relationship_precedes_caller_parent(
         self, v17_embedded_subagents: Dict[str, Any]
     ) -> None:
-        spans = convert_atif_trajectories_to_spans(
+        spans = _convert_atif_trajectories_to_spans(
             [v17_embedded_subagents],
             common_parent_span_context=self.common_parent_span_context,
         )
@@ -142,7 +142,7 @@ class TestPublicBatchConversion:
     def test_cross_document_subagent_relationship_precedes_caller_parent(
         self, subagent_fixture: Dict[str, Any]
     ) -> None:
-        spans = convert_atif_trajectories_to_spans(
+        spans = _convert_atif_trajectories_to_spans(
             [subagent_fixture["parent"], subagent_fixture["child"]],
             common_parent_span_context=self.common_parent_span_context,
         )
@@ -168,11 +168,11 @@ class TestPublicBatchConversion:
 
         trajectory_a = trajectory("agent-a", "first")
         trajectory_b = trajectory("agent-b", "second")
-        colliding_spans = convert_atif_trajectories_to_spans([trajectory_a, trajectory_b])
+        colliding_spans = _convert_atif_trajectories_to_spans([trajectory_a, trajectory_b])
         colliding_ids = [span["context"]["span_id"] for span in colliding_spans]
         assert len(set(colliding_ids)) < len(colliding_ids)
 
-        distinct_spans = convert_atif_trajectories_to_spans(
+        distinct_spans = _convert_atif_trajectories_to_spans(
             [
                 {**trajectory_a, "trajectory_id": "trajectory-a"},
                 {**trajectory_b, "trajectory_id": "trajectory-b"},
@@ -191,11 +191,11 @@ class TestPublicBatchConversion:
                 for step in simple_trajectory["steps"]
             ],
         }
-        first = convert_atif_trajectories_to_spans(
+        first = _convert_atif_trajectories_to_spans(
             [without_timestamps],
             common_parent_span_context=self.common_parent_span_context,
         )
-        second = convert_atif_trajectories_to_spans(
+        second = _convert_atif_trajectories_to_spans(
             [without_timestamps],
             common_parent_span_context=self.common_parent_span_context,
         )
@@ -203,11 +203,52 @@ class TestPublicBatchConversion:
 
     def test_does_not_mutate_caller_input(self, simple_trajectory: Dict[str, Any]) -> None:
         original = json.loads(json.dumps(simple_trajectory))
-        convert_atif_trajectories_to_spans(
+        _convert_atif_trajectories_to_spans(
             [simple_trajectory],
             common_parent_span_context=self.common_parent_span_context,
         )
         assert simple_trajectory == original
+
+    def test_same_trajectory_under_different_parents_does_not_collide(
+        self, simple_trajectory: Dict[str, Any]
+    ) -> None:
+        # Phoenix requires globally unique span IDs, so the same trajectory
+        # uploaded under two enclosing operations must not reuse span IDs.
+        first_trial = _convert_atif_trajectories_to_spans(
+            [simple_trajectory],
+            common_parent_span_context={
+                "trace_id": "1" * 32,
+                "span_id": "1" * 16,
+            },
+        )
+        second_trial = _convert_atif_trajectories_to_spans(
+            [simple_trajectory],
+            common_parent_span_context={
+                "trace_id": "2" * 32,
+                "span_id": "2" * 16,
+            },
+        )
+        first_ids = {span["context"]["span_id"] for span in first_trial}
+        second_ids = {span["context"]["span_id"] for span in second_trial}
+        assert first_ids.isdisjoint(second_ids)
+
+    def test_reparenting_preserves_tree_shape(self, v17_embedded_subagents: Dict[str, Any]) -> None:
+        # Rederiving span IDs must remap internal parent links too, or the
+        # tree would flatten against dangling parent IDs.
+        grouped = _convert_atif_trajectories_to_spans(
+            [v17_embedded_subagents],
+            common_parent_span_context=self.common_parent_span_context,
+        )
+        ungrouped = _convert_atif_trajectories_to_spans([v17_embedded_subagents])
+
+        def shape(spans: Sequence[Any]) -> set[tuple[str, str]]:
+            names = {span["context"]["span_id"]: span["name"] for span in spans}
+            return {
+                (names[span["context"]["span_id"]], names.get(span.get("parent_id", ""), "<root>"))
+                for span in spans
+            }
+
+        assert shape(grouped) == shape(ungrouped)
 
 
 class TestSimpleTrajectoryConversion:
