@@ -9,8 +9,6 @@ from phoenix.server.agents.capabilities.tools.external import (
     ask_user,
     batch_span_annotate,
     create_annotation_config,
-    create_dataset_label,
-    delete_dataset_labels,
     execute_browser_action,
     get_route_info,
     list_dataset_examples,
@@ -22,7 +20,6 @@ from phoenix.server.agents.capabilities.tools.external import (
     patch_experiment,
     render_generative_ui,
     search_browser_actions,
-    set_dataset_labels,
     update_annotation_config,
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
@@ -31,12 +28,6 @@ from phoenix.server.agents.capabilities.tools.external.batch_span_annotate impor
 )
 from phoenix.server.agents.capabilities.tools.external.create_annotation_config import (
     CreateAnnotationConfigCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.create_dataset_label import (
-    CreateDatasetLabelCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.delete_dataset_labels import (
-    DeleteDatasetLabelsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.execute_browser_action import (
     ExecuteBrowserActionCapability,
@@ -71,9 +62,6 @@ from phoenix.server.agents.capabilities.tools.external.render_generative_ui impo
 from phoenix.server.agents.capabilities.tools.external.search_browser_actions import (
     SearchBrowserActionsCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.set_dataset_labels import (
-    SetDatasetLabelsCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.update_annotation_config import (
     UpdateAnnotationConfigCapability,
 )
@@ -89,9 +77,6 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         list_labels.TOOL_DEFINITION,
         list_splits.TOOL_DEFINITION,
         list_dataset_labels.TOOL_DEFINITION,
-        create_dataset_label.TOOL_DEFINITION,
-        set_dataset_labels.TOOL_DEFINITION,
-        delete_dataset_labels.TOOL_DEFINITION,
         batch_span_annotate.TOOL_DEFINITION,
         create_annotation_config.TOOL_DEFINITION,
         update_annotation_config.TOOL_DEFINITION,
@@ -129,9 +114,6 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
         ListDatasetExamplesCapability(),
         ListDatasetSplitsCapability(),
         ListDatasetLabelsCapability(),
-        CreateDatasetLabelCapability(),
-        SetDatasetLabelsCapability(),
-        DeleteDatasetLabelsCapability(),
         PatchExperimentCapability(),
         CreateAnnotationConfigCapability(),
         UpdateAnnotationConfigCapability(),
@@ -149,9 +131,6 @@ __all__ = [
     "ListDatasetExamplesCapability",
     "ListDatasetSplitsCapability",
     "ListDatasetLabelsCapability",
-    "CreateDatasetLabelCapability",
-    "SetDatasetLabelsCapability",
-    "DeleteDatasetLabelsCapability",
     "ListDatasetsCapability",
     "ListLabelsCapability",
     "ListSplitsCapability",
