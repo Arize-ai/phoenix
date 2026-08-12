@@ -110,18 +110,22 @@ export type UiOperationSearchResult = {
  * description. An empty query returns the full catalog (the table of
  * contents). At catalog scale (~60 operations) substring scoring is enough —
  * no index or embeddings.
+ *
+ * Matches are never filtered by mounted-ness: hiding an operation because it
+ * is not usable on the current page reads to the model as "does not exist",
+ * and the operations most likely to be unmounted are exactly the ones that
+ * mount after an action it is planning (opening a form, navigating).
+ * Mounted-ness is instead a ranking signal — within equal relevance, usable
+ * operations sort first — and every result states its availability.
  * @param params.agentStore - store consulted for mounted-ness
  * @param params.query - free-text query; empty or whitespace matches all
- * @param params.mountedOnly - restrict to operations usable on this page
  */
 export function searchUiOperations({
   agentStore,
   query,
-  mountedOnly = false,
 }: {
   agentStore: AgentStore;
   query: string;
-  mountedOnly?: boolean;
 }): UiOperationSearchResult[] {
   const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
   return knownUiOperations
@@ -131,19 +135,19 @@ export function searchUiOperations({
       const matchCount = tokens.filter((token) =>
         haystack.includes(token)
       ).length;
-      return { descriptor, matchCount };
+      return {
+        descriptor,
+        matchCount,
+        isMounted: isUiOperationMounted(agentStore, descriptor.name),
+      };
     })
-    .filter(({ descriptor, matchCount }) => {
-      const isMatch = tokens.length === 0 || matchCount > 0;
-      const isAvailable =
-        !mountedOnly || isUiOperationMounted(agentStore, descriptor.name);
-      return isMatch && isAvailable;
-    })
-    .sort((left, right) => right.matchCount - left.matchCount)
-    .map(({ descriptor }) => ({
-      descriptor,
-      isMounted: isUiOperationMounted(agentStore, descriptor.name),
-    }));
+    .filter(({ matchCount }) => tokens.length === 0 || matchCount > 0)
+    .sort(
+      (left, right) =>
+        right.matchCount - left.matchCount ||
+        Number(right.isMounted) - Number(left.isMounted)
+    )
+    .map(({ descriptor, isMounted }) => ({ descriptor, isMounted }));
 }
 
 /**

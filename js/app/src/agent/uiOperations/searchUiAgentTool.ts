@@ -6,29 +6,17 @@ export const SEARCH_UI_TOOL_NAME = "search_ui";
 
 type SearchUiInput = {
   query: string;
-  mountedOnly?: boolean;
 };
 
 function parseSearchUiInput(input: unknown): SearchUiInput | null {
   if (typeof input !== "object" || input === null) {
     return null;
   }
-  const candidate = input as { query?: unknown; mountedOnly?: unknown };
+  const candidate = input as { query?: unknown };
   if (candidate.query !== undefined && typeof candidate.query !== "string") {
     return null;
   }
-  if (
-    candidate.mountedOnly !== undefined &&
-    typeof candidate.mountedOnly !== "boolean"
-  ) {
-    return null;
-  }
-  return {
-    query: candidate.query ?? "",
-    ...(candidate.mountedOnly !== undefined
-      ? { mountedOnly: candidate.mountedOnly }
-      : {}),
-  };
+  return { query: candidate.query ?? "" };
 }
 
 /**
@@ -44,7 +32,7 @@ export const searchUiAgentTool = defineTool<SearchUiInput>({
   name: SEARCH_UI_TOOL_NAME,
   parseInput: parseSearchUiInput,
   invalidInputErrorText:
-    "Invalid search_ui input. Expected { query?: string, mountedOnly?: boolean }.",
+    "Invalid search_ui input. Expected { query?: string }.",
   // Pure catalog read with no side effects: always safe to re-dispatch when
   // an unresolved call is found on session load or after a session sync.
   rehydratable: true,
@@ -52,7 +40,6 @@ export const searchUiAgentTool = defineTool<SearchUiInput>({
     const results = searchUiOperations({
       agentStore,
       query: input.query,
-      mountedOnly: input.mountedOnly ?? false,
     });
     await addToolOutput({
       state: "output-available",
