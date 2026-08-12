@@ -6,7 +6,7 @@ export const SET_TIME_RANGE_TOOL_NAME = "set_time_range";
  * `src/phoenix/server/agents/tools/external/set_time_range.py`
  * (`_SET_TIME_RANGE_PARAMETERS["properties"]["timeRangeKey"]["enum"]`) and
  * the shared TypeScript type `TimeRangeKey` in
- * `app/src/components/datetime/types.ts`.
+ * `js/app/src/components/datetime/types.ts`.
  */
 export const TIME_RANGE_KEYS = [
   "15m",

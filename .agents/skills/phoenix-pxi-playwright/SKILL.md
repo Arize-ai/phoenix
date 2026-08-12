@@ -7,17 +7,17 @@ metadata:
 
 # Phoenix PXI Playwright Tests
 
-Use this skill when authoring or maintaining Playwright specs for PXI, Phoenix's built-in AI assistant. The concrete harness lives in `app/tests/pxi/`; this skill is the authoring guide for using and extending that harness.
+Use this skill when authoring or maintaining Playwright specs for PXI, Phoenix's built-in AI assistant. The concrete harness lives in `js/app/tests/pxi/`; this skill is the authoring guide for using and extending that harness.
 
 ## Start Here
 
-- Read the existing example spec first: `app/tests/pxi/docs-smoke.spec.ts`.
-- Reuse the shared fixture and driver from `app/tests/pxi/fixtures.ts`.
-- Reuse shared constants from `app/tests/pxi/constants.ts` and shared types from `app/tests/pxi/types.ts`.
-- Put pure parsing/API helpers in `app/tests/pxi/utils.ts` rather than in specs or fixture classes.
-- Reuse the generic AI SDK judge from `app/tests/pxi/judge.ts`.
-- Reuse experiment persistence from `app/tests/pxi/experimentPersistence.ts`.
-- Add one entry to `PXI_EXPERIMENT_EXAMPLES` in `app/tests/pxi/experimentPersistence.ts` for every new PXI spec scenario. All specs share the same dataset, and the update upload treats that registry as the complete desired set of examples.
+- Read the existing example spec first: `js/app/tests/pxi/docs-smoke.spec.ts`.
+- Reuse the shared fixture and driver from `js/app/tests/pxi/fixtures.ts`.
+- Reuse shared constants from `js/app/tests/pxi/constants.ts` and shared types from `js/app/tests/pxi/types.ts`.
+- Put pure parsing/API helpers in `js/app/tests/pxi/utils.ts` rather than in specs or fixture classes.
+- Reuse the generic AI SDK judge from `js/app/tests/pxi/judge.ts`.
+- Reuse experiment persistence from `js/app/tests/pxi/experimentPersistence.ts`.
+- Add one entry to `PXI_EXPERIMENT_EXAMPLES` in `js/app/tests/pxi/experimentPersistence.ts` for every new PXI spec scenario. All specs share the same dataset, and the update upload treats that registry as the complete desired set of examples.
 - Do not create a bespoke PXI driver, duplicate experiment client, or duplicate PXI tool schemas in a spec.
 
 ## Current Harness

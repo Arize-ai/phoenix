@@ -11,37 +11,38 @@ metadata:
 
 # TypeScript Tooling Migration
 
-Guide for migrating or upgrading TypeScript tooling in the Phoenix monorepo. This skill covers upgrading core dependencies (TypeScript, React), switching tools (linters, formatters, bundlers), and managing breaking changes across `app/` and `js/` directories.
+Guide for migrating or upgrading TypeScript tooling in the Phoenix monorepo. This skill covers upgrading core dependencies (TypeScript, React), switching tools (linters, formatters, bundlers), and managing breaking changes across `js/app/` and `js/` directories.
 
 ## Monorepo Structure
 
-Phoenix has two TypeScript project directories that must stay in sync:
+All TypeScript code lives in a single pnpm workspace rooted at `js/`:
 
-| Directory | Purpose | Package Manager |
-|-----------|---------|-----------------|
-| `app/` | React/TypeScript frontend (main Phoenix UI) | pnpm |
-| `js/` | TypeScript packages monorepo (phoenix-client, phoenix-evals, etc.) | pnpm (workspace) |
+| Directory | Purpose |
+|-----------|---------|
+| `js/app/` | React/TypeScript frontend (main Phoenix UI, workspace package `phoenix-ui`) |
+| `js/packages/*` | Publishable TypeScript packages (phoenix-client, phoenix-evals, etc.) |
+| `js/` | Workspace root: single `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `.pnpmfile.cjs` |
 
 ### Shared Dependencies
 
-Both directories should use the same versions of shared tooling:
+Shared tooling versions are managed at the workspace root where possible:
 
-| Tool | Sync Enforced | Config Location |
-|------|---------------|-----------------|
-| pnpm | CI check | `package.json` → `packageManager` |
-| TypeScript | CI check | `package.json` → `devDependencies` |
-| oxlint | CI check | `package.json` → `devDependencies` |
-| oxfmt | CI check | `package.json` → `devDependencies` |
+| Tool | Config Location |
+|------|-----------------|
+| pnpm | `js/package.json` → `packageManager` |
+| TypeScript | `package.json` → `devDependencies` (keep `js/app` and `js` root aligned) |
+| oxlint | `package.json` → `devDependencies` (keep `js/app` and `js` root aligned) |
+| oxfmt | `package.json` → `devDependencies` (keep `js/app` and `js` root aligned) |
 
 ### Config File Locations
 
 | Config | Location | Purpose |
 |--------|----------|---------|
-| `.oxlintrc.json` | Root + `app/` + `js/` | Linter config (nested inheritance) |
+| `.oxlintrc.json` | Root + `js/app/` + `js/` | Linter config (nested inheritance) |
 | `.oxfmtrc.jsonc` | Root | Formatter config (shared) |
-| `tsconfig.json` | `app/` and `js/` packages | TypeScript config |
-| `vite.config.ts` | `app/` | Build/dev server config |
-| `relay.config.js` | `app/` | GraphQL/Relay config |
+| `tsconfig.json` | `js/app/` and `js/` packages | TypeScript config |
+| `vite.config.ts` | `js/app/` | Build/dev server config |
+| `relay.config.js` | `js/app/` | GraphQL/Relay config |
 
 ## Migration Types
 
@@ -89,7 +90,7 @@ Upgrading a core dependency that affects application code.
 1. **Read official migration guides** - Most tools publish upgrade guides
 2. **Check GitHub issues** - Look for known migration problems
 3. **Identify scope:**
-   - Which directories affected (`app/`, `js/`, or both)
+   - Which directories affected (`js/app/`, `js/`, or both)
    - What config files need changes
    - What dependencies to add/remove/upgrade
    - What code changes are required
@@ -107,14 +108,14 @@ git checkout -b chore/upgrade-<tool>-<version>
 ### Phase 3: Install/Upgrade Dependencies
 
 ```bash
-# For app/ (standard project)
-cd app && pnpm add -D <package>@<version>
+# For js/app/ (the app workspace package)
+cd js/app && pnpm add -D <package>@<version>
 
 # For js/ (workspace root)
 cd js && pnpm add -D -w <package>@<version>
 
 # For upgrading existing dependencies
-cd app && pnpm update <package>@<version>
+cd js/app && pnpm update <package>@<version>
 ```
 
 **Tip:** Keep old tool installed until migration is verified for tool replacements.
@@ -128,7 +129,7 @@ Phoenix uses **nested configs with inheritance** where possible:
 ```
 phoenix/
 ├── .<tool>rc.json           # Shared base config
-├── app/
+├── js/app/
 │   └── .<tool>rc.json       # Extends base, adds React-specific options
 └── js/
     └── .<tool>rc.json       # Extends base, adds Node-specific options
@@ -168,7 +169,7 @@ pnpm run build      # Build errors
 
 ### Phase 6: Update Package Scripts
 
-Update both `app/package.json` and `js/package.json` if script invocations changed:
+Update both `js/app/package.json` and `js/package.json` if script invocations changed:
 
 ```json
 {
@@ -189,9 +190,9 @@ Edit `.pre-commit-config.yaml` if the tool is used in pre-commit:
 ```yaml
 - id: <tool>-app
   name: <tool> (app)
-  entry: pnpm --dir app run <script>
+  entry: pnpm --dir js/app run <script>
   language: system
-  files: ^app/.*\.[jt]sx?$
+  files: ^js/app/.*\.[jt]sx?$
   pass_filenames: false
 - id: <tool>-js
   name: <tool> (js)
@@ -208,7 +209,7 @@ Edit `.pre-commit-config.yaml` if the tool is used in pre-commit:
 
 ```json
 {
-  "<extension>.path.<binary>": "app/node_modules/<package>/bin/<binary>"
+  "<extension>.path.<binary>": "js/app/node_modules/<package>/bin/<binary>"
 }
 ```
 
@@ -218,38 +219,38 @@ Note: `.vscode/settings.json` is gitignored - document settings in `DEVELOPMENT.
 
 ```bash
 # Remove old dependencies
-cd app && pnpm remove <old-tool> <old-plugins>
+cd js/app && pnpm remove <old-tool> <old-plugins>
 cd js && pnpm remove -w <old-tool> <old-plugins>
 
 # Delete old config files
-rm app/<old-config> js/<old-config>
+rm js/app/<old-config> js/<old-config>
 ```
 
 ### Phase 10: Test and Verify
 
 ```bash
 # Type checking
-cd app && pnpm run typecheck
+cd js/app && pnpm run typecheck
 cd js && pnpm run typecheck
 
 # Linting
-cd app && pnpm run lint
+cd js/app && pnpm run lint
 cd js && pnpm run lint
 
 # Formatting
-cd app && pnpm run fmt:check
+cd js/app && pnpm run fmt:check
 cd js && pnpm run fmt:check
 
 # Unit tests
-cd app && pnpm test
+cd js/app && pnpm test
 cd js && pnpm run -r test
 
 # Build
-cd app && pnpm run build
+cd js/app && pnpm run build
 cd js && pnpm run -r build
 
 # E2E tests (for significant changes)
-cd app && pnpm run test:e2e
+cd js/app && pnpm run test:e2e
 
 # Pre-commit hooks
 pre-commit run --all-files
@@ -263,47 +264,22 @@ Files to check and update:
 |------|----------------|
 | `AGENTS.md` | Tool versions, commands, style conventions |
 | `DEVELOPMENT.md` | Setup instructions, VS Code settings |
-| `app/README.md` | Tool references, test commands |
+| `js/app/README.md` | Tool references, test commands |
 | `.cursor/rules/typescript-packages/RULE.md` | Commands, workflow instructions |
 | `.claude/settings.json` | PostToolUse hooks |
 | `CHANGELOG.md` | Note significant tooling changes |
 
-### Phase 12: Add/Update Version Sync Check
+### Phase 12: Keep Shared Tool Versions Aligned
 
-For shared dependencies, ensure `.github/workflows/package-version-check.yml` enforces consistency:
-
-```yaml
-- name: Check <tool> version consistency
-  run: |
-    APP_VERSION=$(jq -r '.devDependencies.<tool> // empty' app/package.json)
-    JS_VERSION=$(jq -r '.devDependencies.<tool> // empty' js/package.json)
-
-    echo "app/package.json: <tool>@$APP_VERSION"
-    echo "js/package.json: <tool>@$JS_VERSION"
-
-    if [ -z "$APP_VERSION" ]; then
-      echo "::error::app/package.json is missing <tool> in devDependencies"
-      exit 1
-    fi
-
-    if [ -z "$JS_VERSION" ]; then
-      echo "::error::js/package.json is missing <tool> in devDependencies"
-      exit 1
-    fi
-
-    if [ "$APP_VERSION" != "$JS_VERSION" ]; then
-      echo "::error::<tool> versions do not match!"
-      exit 1
-    fi
-
-    echo "<tool> versions are consistent: $APP_VERSION"
-```
+The app (`js/app/package.json`) and the workspace root (`js/package.json`) both
+declare shared tooling (typescript, oxlint, oxfmt). Keep those versions aligned
+when upgrading — the single lockfile makes drift visible in review.
 
 ## Key Principles
 
-### Keep Directories in Sync
+### Keep Packages in Sync
 
-When upgrading shared tooling, always upgrade both `app/` and `js/` together. Version drift causes subtle bugs and CI failures.
+When upgrading shared tooling, upgrade `js/app/` and the `js/` workspace root together. Version drift causes subtle bugs and CI failures.
 
 ### Performance Matters
 
@@ -345,7 +321,7 @@ These directories have their own tooling and should NOT be included in migration
 
 ### Build Failures After Upgrade
 
-1. Clear caches: `rm -rf node_modules/.cache app/dist js/**/dist`
+1. Clear caches: `rm -rf node_modules/.cache js/app/dist js/**/dist`
 2. Reinstall: `pnpm install`
 3. Rebuild: `pnpm run build`
 
@@ -364,7 +340,7 @@ These directories have their own tooling and should NOT be included in migration
 
 - Run `pnpm install` in both directories
 - Verify script name in `package.json` matches hook entry
-- Test script manually: `pnpm --dir app run <script>`
+- Test script manually: `pnpm --dir js/app run <script>`
 
 ### CI Fails But Local Passes
 
@@ -378,9 +354,8 @@ Relevant CI files for TypeScript tooling:
 
 | Workflow | Purpose |
 |----------|---------|
-| `.github/workflows/typescript-CI.yml` | app/ typecheck, lint, test |
-| `.github/workflows/typescript-packages-CI.yml` | js/ build, test, lint |
-| `.github/workflows/package-version-check.yml` | Version sync enforcement |
+| `.github/workflows/typescript-CI.yml` | js/app/ typecheck, lint, test |
+| `.github/workflows/typescript-packages-CI.yml` | js/ packages build, test, lint |
 | `.github/workflows/playwright.yaml` | E2E tests |
 
 ## References
