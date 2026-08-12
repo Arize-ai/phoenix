@@ -14,6 +14,8 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
+from phoenix.db.eval_work import live_eval_work_index_predicate
+
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
     "postgresql",
@@ -38,6 +40,103 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _create_session_work_units_table() -> None:
+    op.create_table(
+        "eval_session_work_units",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "project_session_rowid",
+            _Integer,
+            sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "criteria_id",
+            _Integer,
+            sa.ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("config_fingerprint", sa.String(), nullable=False),
+        sa.Column(
+            "evaluated_through",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+        ),
+        sa.Column(
+            "status",
+            sa.String(),
+            sa.CheckConstraint(
+                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
+                name="valid_eval_work_status",
+            ),
+            nullable=False,
+            server_default="PENDING",
+        ),
+        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_by", sa.String(), nullable=True),
+        sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("error", sa.String(), nullable=True),
+        sa.Column("cooldown_until", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+    )
+    op.create_index(
+        "uq_eval_session_work_units_live_key",
+        "eval_session_work_units",
+        ["project_session_rowid", "evaluator_id", "config_fingerprint"],
+        unique=True,
+        postgresql_where=sa.text(live_eval_work_index_predicate()),
+        sqlite_where=sa.text(live_eval_work_index_predicate()),
+    )
+    op.create_index(
+        "ix_eval_session_work_units_claimable",
+        "eval_session_work_units",
+        ["status", "id"],
+        postgresql_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
+        sqlite_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
+    )
+    op.create_index(
+        "ix_eval_session_work_units_terminal",
+        "eval_session_work_units",
+        ["updated_at"],
+        postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+        sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+    )
+    op.create_index(
+        "ix_eval_session_work_units_error_attempts",
+        "eval_session_work_units",
+        ["attempts"],
+        postgresql_where=sa.text("status = 'ERROR'"),
+        sqlite_where=sa.text("status = 'ERROR'"),
+    )
+    op.create_index(
+        "ix_eval_session_work_units_evaluator_id",
+        "eval_session_work_units",
+        ["evaluator_id"],
+    )
+    op.create_index(
+        "ix_eval_session_work_units_criteria_id",
+        "eval_session_work_units",
+        ["criteria_id"],
+    )
+
+
 def upgrade() -> None:
     # project_sessions carries raw-expression DESC indexes, so add_column/drop_column are used
     # bare here: batch mode would rebuild the table by reflection and silently recreate those
@@ -48,6 +147,15 @@ def upgrade() -> None:
             "last_span_ingested_at",
             sa.TIMESTAMP(timezone=True),
             nullable=True,
+        ),
+    )
+    op.add_column(
+        "project_sessions",
+        sa.Column(
+            "content_complete",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("true"),
         ),
     )
     op.create_index(
@@ -99,6 +207,30 @@ def upgrade() -> None:
         sa.UniqueConstraint("evaluation_target", "consumer_group"),
     )
     op.create_table(
+        "eval_work_leases",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("holder", sa.String(), nullable=True),
+        sa.Column("heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("name"),
+    )
+    op.create_table(
         "project_evaluator_criteria",
         sa.Column(
             "id",
@@ -136,6 +268,16 @@ def upgrade() -> None:
                 name="valid_evaluation_target",
             ),
             nullable=False,
+        ),
+        sa.Column(
+            "evaluation_delay_seconds",
+            sa.Integer(),
+            sa.CheckConstraint(
+                "evaluation_delay_seconds >= 10",
+                name="valid_evaluation_delay_seconds",
+            ),
+            nullable=False,
+            server_default="300",
         ),
         sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
@@ -250,9 +392,17 @@ def upgrade() -> None:
         "eval_work_units",
         ["criteria_id"],
     )
+    _create_session_work_units_table()
 
 
 def downgrade() -> None:
+    op.drop_index("ix_eval_session_work_units_criteria_id", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_error_attempts", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
+    op.drop_table("eval_session_work_units")
+
     op.drop_index("ix_eval_work_units_criteria_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_error_attempts", table_name="eval_work_units")
@@ -266,10 +416,12 @@ def downgrade() -> None:
         "ix_project_evaluator_criteria_project_id", table_name="project_evaluator_criteria"
     )
     op.drop_table("project_evaluator_criteria")
+    op.drop_table("eval_work_leases")
     op.drop_table("eval_work_cursors")
 
     op.drop_index(
         "ix_project_sessions_project_id_last_span_ingested_at",
         table_name="project_sessions",
     )
+    op.drop_column("project_sessions", "content_complete")
     op.drop_column("project_sessions", "last_span_ingested_at")
