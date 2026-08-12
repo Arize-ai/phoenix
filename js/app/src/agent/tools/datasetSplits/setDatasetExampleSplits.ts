@@ -53,7 +53,7 @@ export async function commitSetDatasetExampleSplits({
       ok: false,
       error: `Unknown split(s): ${unknown.join(
         ", "
-      )}. Use list_splits to see existing splits, or the ui.dataset.split.create operation to create one.`,
+      )}. Read the existing splits via a GraphQL query with the bash tool, or create one with the ui.dataset.split.create operation.`,
     };
   }
 

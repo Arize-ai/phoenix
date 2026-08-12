@@ -11,10 +11,10 @@ import { defineUiOperation } from "../types";
  * Catalog entries replacing the standalone dataset label write tools
  * (`create_dataset_label`, `set_dataset_labels`, `delete_dataset_labels`).
  * Approval operations staged in the shared dataset-approval card, registered
- * at the app root; the label read tools (`list_dataset_labels`,
- * `list_labels`) remain standalone. Input schemas are reused from the
- * existing tool module; descriptions are ported from the Python
- * `DESCRIPTION`s with tool names rewritten to operation names.
+ * at the app root; label reads go through the bash tool's GraphQL. Input
+ * schemas are reused from the existing tool module; descriptions are ported
+ * from the Python `DESCRIPTION`s with tool names rewritten to operation
+ * names.
  */
 
 const APPROVAL_UI_BEHAVIOR = {
@@ -40,8 +40,8 @@ export const setDatasetLabelsOperation = defineUiOperation({
   description:
     "Set the labels on the dataset the user is viewing, by label name. This SETS the dataset's " +
     "labels to exactly the named labels — it replaces whatever labels were on it. The labels " +
-    "must already exist; to create a new label use dataset.label.create. Get label names from " +
-    "the list_dataset_labels tool.",
+    "must already exist; to create a new label use dataset.label.create. Get label names via " +
+    "a GraphQL query with the bash tool.",
   inputSchema: setDatasetLabelsInputSchema,
   kind: "approval",
   requireSession: true,
@@ -54,7 +54,7 @@ export const deleteDatasetLabelsOperation = defineUiOperation({
     "Delete dataset labels, identified by name. This removes each label entirely (across the " +
     "instance), detaching it from every dataset it was on; the datasets themselves are not " +
     "deleted. This cannot be undone. To remove a label from this dataset without deleting the " +
-    "label, use dataset.label.set. Get label names from the list_dataset_labels tool.",
+    "label, use dataset.label.set. Get label names via a GraphQL query with the bash tool.",
   inputSchema: deleteDatasetLabelsInputSchema,
   kind: "approval",
   requireSession: true,

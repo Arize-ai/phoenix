@@ -70,16 +70,6 @@ STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     }
 )
 
-# Dynamic capabilities that self-include when a dataset context is advertised,
-# so they are present under the dataset deps these tests construct.
-DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
-    {
-        _DEFAULT_PROMPTS.list_dataset_examples_tool.render(),
-        _DEFAULT_PROMPTS.list_dataset_splits_tool.render(),
-        _DEFAULT_PROMPTS.list_dataset_labels_tool.render(),
-    }
-)
-
 
 @dataclass
 class CapturedRequest:
@@ -325,40 +315,16 @@ class TestSystemBlockCacheBoundary:
         for static_prompt in STATIC_TOOL_INSTRUCTIONS:
             assert static_prompt in cached_text
 
-    async def test_dynamic_tool_instructions_are_outside_cache_boundary(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground"),
-                project=ProjectContext(
-                    type="project",
-                    project_node_id="UHJvamVjdDox",
-                    span_filter="",
-                ),
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        _, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        uncached_text = _get_concatenated_text(uncached_blocks)
-        for dynamic_prompt in DYNAMIC_TOOL_INSTRUCTIONS:
-            assert dynamic_prompt in uncached_text
-
     async def test_cache_breakpoint_separates_static_from_dynamic_content(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        """Everything before the cache marker must be static; everything
-        after must be dynamic. Static content includes the base instructions
-        and every static tool capability's text; dynamic content includes
-        every dynamic tool's text and the GraphQL mutations policy."""
+        """Everything before the cache marker must be static: the base
+        instructions and every static tool capability's text, none of which
+        may leak past the breakpoint into the dynamic tail. (Placement of the
+        dynamic per-context content is covered by TestUIContextInstructions.)
+        """
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
@@ -384,34 +350,6 @@ class TestSystemBlockCacheBoundary:
         for static_prompt in STATIC_TOOL_INSTRUCTIONS:
             assert static_prompt in cached_text
             assert static_prompt not in uncached_text
-        for dynamic_prompt in DYNAMIC_TOOL_INSTRUCTIONS:
-            assert dynamic_prompt in uncached_text
-            assert dynamic_prompt not in cached_text
-
-    async def test_no_cache_breakpoint_is_marked_on_dynamic_system_blocks(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground"),
-                project=ProjectContext(
-                    type="project",
-                    project_node_id="UHJvamVjdDox",
-                    span_filter="",
-                ),
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        cached_text = _get_concatenated_text(cached_blocks)
-        for dynamic_prompt in DYNAMIC_TOOL_INSTRUCTIONS:
-            assert dynamic_prompt not in cached_text
 
 
 class TestUIContextInstructions:
@@ -539,156 +477,6 @@ class TestRouteInfoTool:
         joined_system = "\n".join(_get_system_texts(captured_request.body))
         assert '<tool name="get_route_info">' in joined_system
         assert "do not render its `path` as a markdown link" in joined_system
-
-
-class TestListDatasetSplitsTool:
-    async def test_advertised_with_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "list_dataset_splits" in _get_tool_names(captured_request.body)
-
-    async def test_absent_without_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        assert "list_dataset_splits" not in _get_tool_names(captured_request.body)
-
-
-class TestDatasetLabelTools:
-    async def test_advertised_with_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "list_dataset_labels" in _get_tool_names(captured_request.body)
-
-    async def test_available_to_viewer(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-            is_viewer=True,
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "list_dataset_labels" in _get_tool_names(captured_request.body)
-
-    async def test_absent_without_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        assert "list_dataset_labels" not in _get_tool_names(captured_request.body)
-
-
-class TestListDatasetsTool:
-    async def test_advertised_everywhere_including_for_viewers(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        # No context and a viewer: list_datasets, list_labels, and list_splits
-        # are read-only, so they stay available everywhere.
-        deps = AgentDependencies(contexts=ResolvedContexts(), is_viewer=True)
-
-        await agent.run("hello", deps=deps)
-
-        tool_names = _get_tool_names(captured_request.body)
-        assert "list_datasets" in tool_names
-        assert "list_labels" in tool_names
-        assert "list_splits" in tool_names
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="list_datasets">' in joined_system
-        assert '<tool name="list_labels">' in joined_system
-        assert '<tool name="list_splits">' in joined_system
-
-
-class TestListDatasetExamplesTool:
-    async def test_advertised_with_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "list_dataset_examples" in _get_tool_names(captured_request.body)
-        joined_system = "\n".join(_get_system_texts(captured_request.body))
-        assert '<tool name="list_dataset_examples">' in joined_system
-
-    async def test_absent_without_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        assert "list_dataset_examples" not in _get_tool_names(captured_request.body)
-
-    async def test_available_to_viewer(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-            is_viewer=True,
-        )
-
-        await agent.run("hello", deps=deps)
-
-        # Reads stay available to viewers.
-        assert "list_dataset_examples" in _get_tool_names(captured_request.body)
 
 
 class TestDocsMCPToolset:

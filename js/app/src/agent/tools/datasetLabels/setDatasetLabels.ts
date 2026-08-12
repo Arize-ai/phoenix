@@ -45,7 +45,7 @@ export async function commitSetDatasetLabels({
       ok: false,
       error: `Unknown label(s): ${unknown.join(
         ", "
-      )}. Use list_labels to see existing labels, or the ui.dataset.label.create operation to create one.`,
+      )}. Read the existing labels via a GraphQL query with the bash tool, or create one with the ui.dataset.label.create operation.`,
     };
   }
 

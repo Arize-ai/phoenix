@@ -40,7 +40,7 @@ export const createDatasetOperation = defineUiOperation({
     "Create a new dataset, optionally seeded with starting rows. Each starting example has an " +
     "input object and optional output and metadata objects. Dataset names are unique; if the " +
     "name is already taken the call fails and you should pick a different name (check existing " +
-    "names with the list_datasets tool). To add rows to a dataset that already exists, use " +
+    "names with a datasets GraphQL query via the bash tool). To add rows to a dataset that already exists, use " +
     "dataset.examples.add instead. If the dataset is meant to run a specific prompt in the " +
     "playground, name each example's input keys to match that prompt's template variables.",
   inputSchema: createDatasetInputSchema,
@@ -94,9 +94,9 @@ export const patchDatasetExamplesOperation = defineUiOperation({
   description:
     "Edit existing rows of the dataset the user is viewing. Each patch targets a row by id " +
     "and updates its input, output, and/or metadata; omitted fields on a patch are left " +
-    "unchanged. This creates a new dataset version. Get row ids from the " +
-    "list_dataset_examples tool. To add rows use dataset.examples.add; to remove rows use " +
-    "dataset.examples.delete.",
+    "unchanged. This creates a new dataset version. Get row ids from the dataset's examples " +
+    "via a GraphQL query with the bash tool. To add rows use dataset.examples.add; to remove " +
+    "rows use dataset.examples.delete.",
   inputSchema: patchDatasetExamplesInputSchema,
   kind: "approval",
   requireSession: true,
@@ -107,8 +107,8 @@ export const deleteDatasetExamplesOperation = defineUiOperation({
   name: "dataset.examples.delete",
   description:
     "Remove rows from the dataset the user is viewing, by row id. This creates a new dataset " +
-    "version that no longer contains those rows. Get row ids from the list_dataset_examples " +
-    "tool.",
+    "version that no longer contains those rows. Get row ids from the dataset's examples via " +
+    "a GraphQL query with the bash tool.",
   inputSchema: deleteDatasetExamplesInputSchema,
   kind: "approval",
   requireSession: true,
@@ -120,9 +120,9 @@ export const addSpansToDatasetOperation = defineUiOperation({
   description:
     "Add the span the user is viewing (or specific spans by id) to a dataset, identified by " +
     "dataset name. Each span becomes a new dataset row built from the span's input, output, " +
-    "and metadata. The dataset must already exist; resolve it by name with the list_datasets " +
-    "tool, or create it with dataset.create first. By default the span in view is added; pass " +
-    "spanIds to add other spans.",
+    "and metadata. The dataset must already exist; resolve it by name with a datasets GraphQL " +
+    "query via the bash tool, or create it with dataset.create first. By default the span in " +
+    "view is added; pass spanIds to add other spans.",
   inputSchema: addSpansToDatasetInputSchema,
   kind: "approval",
   requireSession: true,
