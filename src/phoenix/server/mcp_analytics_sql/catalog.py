@@ -80,18 +80,15 @@ ORDER BY tbl_name, name
 
 # Everything up to the parenthesised body: the name and table are already known
 # from the row, and repeating them triples the size of each entry.
-# The table name is matched as an identifier rather than as `\S+`, which is
-# greedy enough to swallow the body when no space precedes it. SQLite stores
-# index DDL exactly as typed, and `ON spans(a, b)` is ordinary hand-written
-# form: `\S+` consumed `spans(a,` and left `b)`, which was then published as
-# `CREATE INDEX ix ON spans b);` -- invalid SQL, under a heading telling the
-# reader to reproduce the spelling exactly. A hand-written expression index
-# lost its whole body and was dropped, taking its JSON path with it, so the
-# canonicaliser never learned a path that was in fact indexed.
+# Each identifier may be quoted, and may be schema-qualified. A single quoted
+# token for the table would take `"Phoenix"` from `"Phoenix".spans` and leave
+# `.spans USING btree ...` as the published body.
+_SQL_IDENT = r"""(?:"[^"]+"|`[^`]+`|\[[^\]]+\]|[\w$]+)"""
+_SQL_NAME = rf"""{_SQL_IDENT}(?:\.{_SQL_IDENT})?"""
 _DDL_PREAMBLE = re.compile(
-    r"""^\s*CREATE\s+(UNIQUE\s+)?INDEX\s+(IF\s+NOT\s+EXISTS\s+)?
-        (?:"[^"]+"|`[^`]+`|\[[^\]]+\]|[\w.$]+)\s+ON\s+
-        (?:"[^"]+"|`[^`]+`|\[[^\]]+\]|[\w.$]+)\s*(USING\s+\w+\s*)?""",
+    rf"""^\s*CREATE\s+(UNIQUE\s+)?INDEX\s+(IF\s+NOT\s+EXISTS\s+)?
+        {_SQL_NAME}\s+ON\s+
+        {_SQL_NAME}\s*(USING\s+\w+\s*)?""",
     re.IGNORECASE | re.VERBOSE,
 )
 
@@ -411,6 +408,11 @@ async def resolve_pg_schema(db: DbSessionFactory) -> str:
     for every later one.
     """
     resolved = get_env_database_schema()
+    if resolved:
+        # Unquoted CREATE SCHEMA folds the name. nspname and EXPLAIN Schema
+        # are that folded form; keeping the env spelling would omit indexes
+        # and fail the plan gate on every allowlisted table.
+        resolved = resolved.casefold()
     if not resolved:
         try:
             async with db.read() as session:

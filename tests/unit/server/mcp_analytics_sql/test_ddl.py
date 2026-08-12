@@ -513,6 +513,15 @@ def test_the_array_cast_workaround_only_touches_json_operands() -> None:
         assert "::text[]" in _body(kept), f"a load-bearing cast was stripped from {kept}"
 
 
+def test_quoted_schema_qualification_is_not_the_index_body() -> None:
+    """A quoted schema is one identifier, not the whole table name."""
+    from phoenix.server.mcp_analytics_sql.catalog import _body
+
+    assert _body('CREATE INDEX ix ON "Phoenix".spans USING btree (start_time)') == "(start_time)"
+    assert _body('CREATE INDEX ix ON "Phoenix"."spans" USING btree (start_time)') == "(start_time)"
+    assert _body("CREATE INDEX i ON spans(a, b)") == "(a, b)"
+
+
 def test_no_allowlisted_table_reuses_a_timestamp_column_name_for_another_type() -> None:
     """The timestamp check matches by name, which is only sound while names agree.
 

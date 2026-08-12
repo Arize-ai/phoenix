@@ -25,6 +25,7 @@ from phoenix.server.mcp_analytics_sql.execute import (
     _success_envelope,
     execute_analytics_sql,
     resolve_sqlite_db_path,
+    verify_postgres_plan,
 )
 from phoenix.server.mcp_analytics_sql.normalize import (
     LOSSY_CONVERSION_NOTES,
@@ -389,6 +390,9 @@ async def test_the_schema_is_resolved_not_assumed(
     monkeypatch.setattr(catalog, "get_env_database_schema", lambda: "configured_elsewhere")
     assert await catalog.resolve_pg_schema(db) == "configured_elsewhere"
 
+    monkeypatch.setattr(catalog, "get_env_database_schema", lambda: "Phoenix")
+    assert await catalog.resolve_pg_schema(db) == "phoenix"
+
     # Unset, it must ask the connection rather than assume.
     monkeypatch.setattr(catalog, "get_env_database_schema", lambda: None)
     resolved = await catalog.resolve_pg_schema(db)
@@ -648,6 +652,21 @@ class TestRewriteAttribution:
         assert error is not None
         assert error.identifiers == ("latency_ms",)
 
+    def test_a_quoted_qualifier_is_still_attributed(self) -> None:
+        ctx = RewriteContext(
+            allowlist=load_allowlist("sqlite"), dialect="postgresql", row_limit=500
+        )
+        rewrite(
+            cast(
+                exp.Expression,
+                parse_one('SELECT "S".latency_ms FROM spans AS "S"', read="postgres"),
+            ),
+            ctx,
+        )
+        error = _rewrite_attribution(Exception("no such column: S.start_time"), ctx)
+        assert error is not None
+        assert error.identifiers == ("latency_ms",)
+
     def test_a_callers_own_typo_is_not_blamed_on_the_rewrite(self) -> None:
         """`id` is what the node-id pass writes and also an ordinary column name.
         Matching on the name alone answered a caller's mistyped `q.id` with
@@ -689,6 +708,12 @@ class TestRewriteAttribution:
         )
 
         assert result.envelope.rows is not None
+
+
+def test_plan_gate_folds_unquoted_schema_names() -> None:
+    """EXPLAIN Schema is nspname; an unquoted CREATE SCHEMA stores it folded."""
+    plan = [{"Plan": {"Node Type": "Seq Scan", "Relation Name": "spans", "Schema": "phoenix"}}]
+    verify_postgres_plan(plan, allowlist=load_allowlist("postgresql"), schema="Phoenix")
 
 
 class TestDeclaredRelationsShadowingPhoenixTables:

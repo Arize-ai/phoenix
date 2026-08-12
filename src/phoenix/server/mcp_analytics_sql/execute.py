@@ -320,7 +320,12 @@ def verify_postgres_plan(
     for node in _walk_plan(root):
         rel = node.get("Relation Name")
         if rel is not None:
-            if rel not in allowlist.tables or node.get("Schema") != schema:
+            plan_schema = node.get("Schema")
+            if (
+                rel not in allowlist.tables
+                or plan_schema is None
+                or str(plan_schema).casefold() != schema.casefold()
+            ):
                 raise _plan_verification_failed(
                     f"Plan references disallowed relation {rel!r}.", identifiers=(rel,)
                 )
@@ -991,6 +996,16 @@ def _rewrite_attribution(exc: BaseException, ctx: RewriteContext) -> Optional[An
     # whenever the node-id pass had fired anywhere in the statement.
     written = f"{qualifier}.{column}" if qualifier else column
     rewrite_name = ctx.substituted_columns.get(written)
+    if rewrite_name is None:
+        # Substitution keys keep the generator's quoting; engine errors do not.
+        rewrite_name = next(
+            (
+                name
+                for key, name in ctx.substituted_columns.items()
+                if key.replace('"', "") == written
+            ),
+            None,
+        )
     if rewrite_name is not None:
         relation = f"`{qualifier}`" if qualifier else "the relation it was selected from"
         return AnalyticsSqlError(
