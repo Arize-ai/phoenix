@@ -923,6 +923,16 @@ class TestTimestampLiterals:
         assert "+00:00" in result.detail
 
     @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_a_naive_time_of_day_through_a_passthrough_is_refused(self, backend: str) -> None:
+        result = try_parse_and_admit(
+            "SELECT id FROM (SELECT start_time, id FROM spans) t "
+            "WHERE start_time >= '2026-07-01 14:30:00'",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "+00:00" in result.detail
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
     def test_a_bare_date_is_admitted(self, backend: str) -> None:
         result = try_parse_and_admit(
             "SELECT count(*) FROM spans WHERE start_time >= '2026-07-01'",
@@ -1104,6 +1114,14 @@ class TestOneSharedResolver:
         )
 
         assert "'2026-01-01T00:00:00Z'" in rendered
+
+    def test_a_passthrough_timestamp_column_still_normalises_the_literal(self) -> None:
+        rendered = self._rewritten(
+            "SELECT id FROM (SELECT start_time, id FROM spans) t "
+            "WHERE start_time > '2026-01-01T00:00:00Z'"
+        )
+
+        assert "2026-01-01 00:00:00" in rendered
 
     def test_a_real_timestamp_literal_is_still_normalised(self) -> None:
         rendered = self._rewritten("SELECT id FROM spans WHERE start_time > '2026-01-01T00:00:00Z'")

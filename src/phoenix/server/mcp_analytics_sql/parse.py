@@ -243,13 +243,14 @@ def _check_double_quoted_timestamp_operands(
     if not columns:
         return None
     local = query_local_columns(root, allowlist=allowlist, dialect=dialect)
+    passthrough = _timestamp_passthrough_references(root, columns)
 
     def offender(
         column: Optional[exp.Expression], operand: Optional[exp.Expression]
     ) -> Optional[str]:
         if not isinstance(column, exp.Column) or (column.name or "").casefold() not in columns:
             return None
-        if local.is_local(column):
+        if local.is_local(column) and id(column) not in passthrough:
             return None
         if not isinstance(operand, exp.Column) or operand.table:
             return None
@@ -877,6 +878,104 @@ def query_local_columns(
     return ColumnLocality(local)
 
 
+def _select_output_names(select: exp.Select) -> list[str]:
+    """Names a SELECT exposes, preferring an alias column list when present."""
+    parent = select.parent
+    if isinstance(parent, (exp.CTE, exp.Subquery)):
+        alias = parent.args.get("alias")
+        if isinstance(alias, exp.TableAlias):
+            listed = [
+                identifier.name
+                for identifier in alias.args.get("columns") or []
+                if isinstance(identifier, exp.Identifier) and identifier.name
+            ]
+            if listed and len(listed) == len(select.expressions):
+                return listed
+    return list(select.named_selects)
+
+
+def _source_by_name(sources: dict[str, Any], qualifier: str) -> Any:
+    if qualifier in sources:
+        return sources[qualifier]
+    folded = qualifier.casefold()
+    matches = [source for name, source in sources.items() if name.casefold() == folded]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _timestamp_passthrough_names(
+    scope: Any, columns: frozenset[str], visiting: set[int]
+) -> set[str]:
+    """Output names this derived scope projects from a stored timestamp column."""
+    scope_id = id(scope)
+    if scope_id in visiting:
+        return set()
+    visiting.add(scope_id)
+    select = getattr(scope, "expression", None)
+    if not isinstance(select, exp.Select):
+        return set()
+    inner_sources = getattr(scope, "sources", {})
+    found: set[str] = set()
+    for item, output_name in zip(select.expressions, _select_output_names(select)):
+        expression = item.this if isinstance(item, exp.Alias) else item
+        if _is_stored_timestamp_column(expression, inner_sources, columns, visiting):
+            found.add(output_name.casefold())
+    return found
+
+
+def _is_stored_timestamp_column(
+    expression: exp.Expression,
+    sources: dict[str, Any],
+    columns: frozenset[str],
+    visiting: set[int],
+) -> bool:
+    """Whether this expression is a column that still holds a stored timestamp."""
+    if not isinstance(expression, exp.Column):
+        return False
+    name = (expression.name or "").casefold()
+    if name not in columns:
+        return False
+    qualifier = expression.table or ""
+    if qualifier:
+        source = _source_by_name(sources, qualifier)
+        if source is None:
+            return False
+        if isinstance(source, exp.Table):
+            return True
+        return name in _timestamp_passthrough_names(source, columns, visiting)
+    if any(isinstance(source, exp.Table) for source in sources.values()):
+        return True
+    return any(
+        name in _timestamp_passthrough_names(source, columns, visiting)
+        for source in sources.values()
+        if not isinstance(source, exp.Table)
+    )
+
+
+def _timestamp_passthrough_references(root: exp.Expression, columns: frozenset[str]) -> set[int]:
+    """Column nodes that are query-local yet still hold a stored timestamp.
+
+    A derived relation that projects a stored timestamp column still holds that
+    timestamp. A derived relation that invents the name does not.
+    """
+    scope_root = build_scope(root)
+    if scope_root is None:
+        return set()
+    ids: set[int] = set()
+    for scope in scope_root.traverse():
+        visiting: set[int] = set()
+        passthrough_names: set[str] = set()
+        for source in scope.sources.values():
+            if isinstance(source, exp.Table):
+                continue
+            passthrough_names.update(_timestamp_passthrough_names(source, columns, visiting))
+        if not passthrough_names:
+            continue
+        for column in scope.columns:
+            if (column.name or "").casefold() in passthrough_names:
+                ids.add(id(column))
+    return ids
+
+
 def _timestamp_literals(
     root: exp.Expression,
     columns: frozenset[str],
@@ -886,12 +985,13 @@ def _timestamp_literals(
 ) -> list[exp.Literal]:
     """Every string literal compared against a column that holds a timestamp.
 
-    Columns that resolve to a query-local relation are skipped: a derived
-    relation exposing a column called ``start_time`` holds whatever it projected,
-    and rewriting the literal beside it to storage format changes a comparison
-    the caller wrote against their own data.
+    Columns that resolve to a query-local relation are skipped unless that
+    relation merely projected a stored timestamp column: rewriting a literal
+    beside caller-invented data of the same name changes a comparison they
+    wrote against their own values.
     """
     local = query_local_columns(root, allowlist=allowlist, dialect=dialect)
+    passthrough = _timestamp_passthrough_references(root, columns)
     found: list[exp.Literal] = []
 
     def collect(left: Optional[exp.Expression], right: Optional[exp.Expression]) -> None:
@@ -899,7 +999,7 @@ def _timestamp_literals(
             if (
                 isinstance(column, exp.Column)
                 and (column.name or "").casefold() in columns
-                and not local.is_local(column)
+                and (not local.is_local(column) or id(column) in passthrough)
                 and isinstance(literal, exp.Literal)
                 and literal.is_string
             ):
