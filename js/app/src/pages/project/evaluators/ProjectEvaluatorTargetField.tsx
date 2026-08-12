@@ -12,9 +12,11 @@ import {
 export const ProjectEvaluatorTargetField = ({
   value,
   onChange,
+  isDisabled = false,
 }: {
   value: ProjectEvaluatorTarget;
   onChange: (target: ProjectEvaluatorTarget) => void;
+  isDisabled?: boolean;
 }) => {
   return (
     <Flex direction="column" gap="size-50" flex="none">
@@ -31,7 +33,7 @@ export const ProjectEvaluatorTargetField = ({
           }
         }}
       >
-        <ToggleButton id="span" aria-label="Span">
+        <ToggleButton id="span" aria-label="Span" isDisabled={isDisabled}>
           Span
         </ToggleButton>
         <ToggleButton id="session" aria-label="Session" isDisabled>

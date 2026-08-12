@@ -54,6 +54,7 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.eval_work import live_eval_work_index_predicate
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -810,6 +811,14 @@ class ProjectSession(HasId):
     last_span_ingested_at: Mapped[Optional[datetime]] = mapped_column(
         UtcTimeStamp,
         nullable=True,
+    )
+    # Deliberately one-way: once content is destroyed, nothing sets this back to true.
+    # Re-admitting a trimmed session would need a design for what its earlier
+    # evaluations mean, which does not exist yet.
+    content_complete: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
     )
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
@@ -3562,8 +3571,11 @@ class AgentSessionSnapshot(HasId):
 
 
 class ProjectEvaluatorCriteria(HasId):
-    """Attaches an evaluator to a project for online evaluation: which spans to
-    match, how they are sampled, and the annotation name results are written under."""
+    """Attaches an evaluator to a project for online evaluation: which spans or
+    sessions to match, how they are sampled, and the annotation name results are
+    written under. evaluation_target picks which of the two this row governs, and
+    the fields that apply differ with it — sampling and filter_condition shape span
+    selection, evaluation_delay_seconds shapes session selection."""
 
     __tablename__ = "project_evaluator_criteria"
     project_id: Mapped[int] = mapped_column(
@@ -3584,6 +3596,15 @@ class ProjectEvaluatorCriteria(HasId):
             name="valid_evaluation_target",
         ),
         nullable=False,
+    )
+    evaluation_delay_seconds: Mapped[int] = mapped_column(
+        Integer,
+        CheckConstraint(
+            "evaluation_delay_seconds >= 10",
+            name="valid_evaluation_delay_seconds",
+        ),
+        nullable=False,
+        server_default="300",
     )
     input_mapping: Mapped[Optional[InputMapping]] = mapped_column(
         _OptionalInputMapping, nullable=True
@@ -3612,10 +3633,33 @@ class ProjectEvaluatorCriteria(HasId):
     __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
+class EvalWorkLease(HasId):
+    """A named single-holder lease for a materializer that has no position to keep.
+
+    The session sweeper decides what to materialize from session state rather than from
+    the span arrival log, so it needs mutual exclusion and nothing else. A lease is
+    held while heartbeat_at stays fresh; once it goes stale another holder may take it.
+    """
+
+    __tablename__ = "eval_work_leases"
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    holder: Mapped[Optional[str]] = mapped_column(String)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("name"),)
+
+
 class EvalWorkCursor(HasId):
-    """Producer lease and position in the span arrival log, one row per
-    (evaluation_target, consumer_group). For each target, produced_through_id is a Span.id
-    position in the shared arrival log rather than a target-specific entity id."""
+    """SPAN producer lease and position in the span arrival log, one row per
+    (evaluation_target, consumer_group). produced_through_id, observed_high_water_id and
+    observed_at are Span.id positions in that log, so only targets materialized by
+    scanning it keep a row here — targets that materialize from entity state take a
+    plain EvalWorkLease instead."""
 
     __tablename__ = "eval_work_cursors"
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(
@@ -3704,6 +3748,78 @@ class EvalWorkUnit(HasId):
         ),
         Index(
             "ix_eval_work_units_error_attempts",
+            "attempts",
+            postgresql_where=text("status = 'ERROR'"),
+            sqlite_where=text("status = 'ERROR'"),
+        ),
+    )
+
+
+class EvalSessionWorkUnit(HasId):
+    __tablename__ = "eval_session_work_units"
+    project_session_rowid: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    criteria_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
+    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(
+            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
+            name="valid_eval_work_status",
+        ),
+        default="PENDING",
+        server_default="PENDING",
+    )
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error: Mapped[Optional[str]] = mapped_column(String)
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship("ProjectEvaluatorCriteria")
+
+    __table_args__ = (
+        Index(
+            "uq_eval_session_work_units_live_key",
+            "project_session_rowid",
+            "evaluator_id",
+            "config_fingerprint",
+            unique=True,
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
+        ),
+        Index(
+            "ix_eval_session_work_units_claimable",
+            "status",
+            "id",
+            postgresql_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_session_work_units_terminal",
+            "updated_at",
+            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_session_work_units_error_attempts",
             "attempts",
             postgresql_where=text("status = 'ERROR'"),
             sqlite_where=text("status = 'ERROR'"),

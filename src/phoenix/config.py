@@ -334,6 +334,12 @@ ENV_PHOENIX_ONLINE_EVAL_ENABLED = "PHOENIX_ONLINE_EVAL_ENABLED"
 """
 Whether to run the online-eval producer and consumer daemons. Defaults to false.
 """
+ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED = "PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED"
+"""
+Whether to also run the session evaluation sweeper, which requires the online-eval
+daemons. Nothing executes the session work it creates yet, so enabling it only fills
+the outstanding-work budget. Defaults to false.
+"""
 ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS = "PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS"
 """
 How long an observed span high-water id must age before the online-eval producer scans up
@@ -383,6 +389,11 @@ Defaults to 604800 (7 days).
 ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 """
 The outstanding work-unit count above which the online-eval producer stops materializing
+new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING"
+"""
+The outstanding session work-unit count above which the session sweeper stops materializing
 new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
@@ -3518,6 +3529,13 @@ def get_env_online_eval_enabled() -> bool:
     return _bool_val(ENV_PHOENIX_ONLINE_EVAL_ENABLED, False)
 
 
+def get_env_online_eval_session_sweep_enabled() -> bool:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED, False)
+
+
 def get_env_online_eval_frontier_lag_seconds() -> float:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS environment variable.
@@ -3622,6 +3640,22 @@ def get_env_online_eval_max_outstanding() -> int:
     if max_outstanding <= 0:
         raise ValueError(
             f"Invalid value for environment variable {ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING}: "
+            f"{max_outstanding}. Value must be a positive integer."
+        )
+    return max_outstanding
+
+
+def get_env_online_eval_max_session_outstanding() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING environment variable.
+
+    Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
+    """
+    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING, 10_000)
+    if max_outstanding <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING}: "
             f"{max_outstanding}. Value must be a positive integer."
         )
     return max_outstanding
