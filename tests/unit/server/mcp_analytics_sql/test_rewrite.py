@@ -1167,6 +1167,21 @@ class TestOneSharedResolver:
 
         assert "2026-01-01 00:00:00" in rendered
 
+    def test_passthrough_timestamp_subtraction_is_elapsed_seconds(self) -> None:
+        rendered = self._rewritten(
+            "SELECT end_time - start_time AS d FROM (SELECT start_time, end_time FROM spans) t"
+        )
+
+        assert "UNIXEPOCH" in rendered.upper()
+
+    def test_invented_timestamp_names_are_not_subtracted_as_storage(self) -> None:
+        rendered = self._rewritten(
+            "WITH q AS (SELECT 'hello' AS start_time, 'world' AS end_time) "
+            "SELECT end_time - start_time AS d FROM q"
+        )
+
+        assert "UNIXEPOCH" not in rendered.upper()
+
     def test_a_real_timestamp_literal_is_still_normalised(self) -> None:
         rendered = self._rewritten("SELECT id FROM spans WHERE start_time > '2026-01-01T00:00:00Z'")
 

@@ -28,6 +28,7 @@ from phoenix.server.mcp_analytics_sql.parse import (
     _identifier_key,
     _scope_columns,
     _timestamp_literals,
+    _timestamp_passthrough_references,
     query_local_columns,
 )
 
@@ -794,6 +795,7 @@ def _rewrite_sqlite_timestamp_subtraction(
         return root
     timestamp_columns = timestamp_column_names(ctx.allowlist.tables)
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
+    passthrough = _timestamp_passthrough_references(root, timestamp_columns)
     changed = False
     for node in list(root.find_all(exp.Sub)):
         left, right = node.this, node.expression
@@ -802,9 +804,14 @@ def _rewrite_sqlite_timestamp_subtraction(
             and isinstance(right, exp.Column)
             and (left.name or "").casefold() in timestamp_columns
             and (right.name or "").casefold() in timestamp_columns
-            and not query_local.is_local(left)
-            and not query_local.is_local(right)
         ):
+            continue
+        # A derived relation that merely projects stored timestamps still holds
+        # them. Skipping every query-local name leaves that subtraction as text
+        # arithmetic, which is 0 on SQLite.
+        if query_local.is_local(left) and id(left) not in passthrough:
+            continue
+        if query_local.is_local(right) and id(right) not in passthrough:
             continue
         node.replace(
             exp.paren(
