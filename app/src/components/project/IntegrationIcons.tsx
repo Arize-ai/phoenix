@@ -1620,6 +1620,24 @@ export const VSCodeSVG = () => (
  * Registry of all integration icons keyed by component name.
  * Used by stories and anywhere a complete list is needed.
  */
+
+export const DaoXESVG = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 32 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>DaoXE</title>
+    <rect width="32" height="32" rx="8" fill="currentColor" fillOpacity="0.12" />
+    <path
+      d="M8 22V10h5.2c3.1 0 5.1 1.8 5.1 4.55 0 2.75-2 4.55-5.1 4.55H11.1V22H8zm3.1-5.15h1.85c1.45 0 2.3-.75 2.3-1.95s-.85-1.95-2.3-1.95H11.1v3.9zM20.4 22l3.35-12h3.35L30.45 22h-3.2l-.55-2.15h-3.55L22.6 22h-2.2zm4.15-4.55h2.3l-1.15-4.35-1.15 4.35z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 export const INTEGRATION_ICONS: Record<string, () => React.JSX.Element> = {
   AgnoSVG,
   AntigravitySVG,
@@ -1652,6 +1670,7 @@ export const INTEGRATION_ICONS: Record<string, () => React.JSX.Element> = {
   OpenAISVG,
   OpenCodeSVG,
   OpenRouterSVG,
+  DaoXESVG,
   PortkeySVG,
   PydanticAISVG,
   RubyLLMSVG,
