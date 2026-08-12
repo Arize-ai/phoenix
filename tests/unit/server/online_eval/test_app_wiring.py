@@ -12,12 +12,16 @@ import pytest
 from asgi_lifespan import LifespanManager
 from sqlalchemy import select, update
 
-from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_ENABLED
+from phoenix.config import (
+    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
+    ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED,
+)
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import create_app
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import (
     TestBulkInserter,
@@ -43,22 +47,39 @@ async def test_online_eval_daemons_absent_by_default(db: DbSessionFactory) -> No
     app = _create_app(db)
     assert app.state.online_eval_producer is None
     assert app.state.online_eval_consumer is None
+    assert app.state.online_eval_session_sweeper is None
 
 
 async def test_online_eval_daemons_absent_in_read_only_mode(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED, "true")
 
     app = _create_app(db, read_only=True)
     assert app.state.online_eval_producer is None
     assert app.state.online_eval_consumer is None
+    assert app.state.online_eval_session_sweeper is None
+
+
+async def test_session_sweeper_needs_its_own_flag(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Nothing executes session work units yet, so the sweeper stays off until it is
+    asked for explicitly — otherwise it fills the outstanding-work budget and wedges.
+    """
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+
+    app = _create_app(db)
+    assert isinstance(app.state.online_eval_producer, OnlineEvalProducer)
+    assert app.state.online_eval_session_sweeper is None
 
 
 async def test_enabled_app_runs_seeded_criteria_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_SWEEP_ENABLED, "true")
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
@@ -67,9 +88,13 @@ async def test_enabled_app_runs_seeded_criteria_end_to_end(
         app = _create_app(db)
         producer = app.state.online_eval_producer
         consumer = app.state.online_eval_consumer
+        session_sweeper = app.state.online_eval_session_sweeper
         assert isinstance(producer, OnlineEvalProducer)
         assert isinstance(consumer, OnlineEvalConsumer)
+        assert isinstance(session_sweeper, SessionEvalSweeper)
         await stack.enter_async_context(LifespanManager(app))
+        await producer.stop()
+        await session_sweeper.stop()
 
         async with db() as session:
             project = await _add_project(session)
