@@ -60,6 +60,10 @@ class ReferenceSpan:
     parent: Optional[str] = None
 
     @property
+    def parent_id(self) -> Optional[str]:
+        return self.parent
+
+    @property
     def llm_token_count_total(self) -> int:
         return (self.llm_token_count_prompt or 0) + (self.llm_token_count_completion or 0)
 
@@ -218,6 +222,7 @@ _ELEMENT_FIELDS: Mapping[str, frozenset[str]] = {
     "spans": frozenset(
         {
             "name",
+            "parent_id",
             "span_kind",
             "status_code",
             "start_time",
@@ -812,8 +817,12 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'max(s.start_time for s in spans if "finalize" in s.name)',
     'min(s.end_time for s in spans if s.name == "absent") is None',
     'any(s.name == "search" and s.parent.name == "finalize" for s in spans)',
+    "any(s.parent_id is None for s in spans)",
+    'any(s.span_kind == "TOOL" and s.parent.parent_id is None for s in spans)',
     'any(any(c.status_code == "ERROR" for c in s.children) for s in spans)',
+    "any(any(c.parent_id is not None for c in s.children) for s in spans)",
     'any(any(x.name == "lookup-peer" for x in s.siblings) for s in spans)',
+    "any(any(x.parent_id == s.parent_id for x in s.siblings) for s in spans)",
     'any(any(a.label == "correct" for a in s.annotations) for s in spans)',
     'any(any(d.token_type == "output" for d in s.cost_details) for s in spans)',
     'any(s.name == "search" and any(x.name == s.name and x.start_time > s.start_time '

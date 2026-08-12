@@ -206,7 +206,8 @@ def test_trace_iterable_correlation_keys_are_non_nullable() -> None:
 def test_trace_parent_fields_share_one_left_self_join() -> None:
     compiled = str(
         TraceFilter(
-            'any(s.parent.name == "finalize" and s.parent.status_code == "OK" for s in spans)'
+            'any(s.parent.name == "finalize" and s.parent.status_code == "OK" '
+            "and s.parent.parent_id is None for s in spans)"
         )(select(models.Trace.id)).compile(dialect=_POSTGRESQL_DIALECT)
     ).lower()
 

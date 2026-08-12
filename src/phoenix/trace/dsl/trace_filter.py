@@ -105,6 +105,7 @@ class _IterableSpec(typing.NamedTuple):
 _SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
     {
         "name": _ElementField("name", "string"),
+        "parent_id": _ElementField("parent_id", "string"),
         "span_kind": _ElementField("span_kind", "string"),
         "status_code": _ElementField("status_code", "string"),
         "start_time": _ElementField("start_time", "datetime"),
@@ -310,6 +311,7 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "span_annotations": "Every annotation attached to a span in the trace.",
         "span_cost_details": "Every per-token-type cost row for spans in the trace.",
         "spans.name": "Span name.",
+        "spans.parent_id": ("OpenTelemetry span ID of the parent span; absent on the trace root."),
         "spans.span_kind": "Span kind, e.g. LLM, TOOL, or RETRIEVER; casing is ignored.",
         "spans.status_code": "Span status: OK, ERROR, or UNSET; casing is ignored.",
         "spans.start_time": "Span start timestamp. Compare against an ISO 8601 string.",
@@ -335,6 +337,10 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.annotations": "Annotations attached to this span.",
         "spans.cost_details": "Per-token-type cost rows attached to this span.",
         "spans.parent.name": "Direct parent span name; missing when no parent row is stored.",
+        "spans.parent.parent_id": (
+            "OpenTelemetry span ID of the direct parent's parent span; absent when the direct "
+            "parent is the trace root or no parent row is stored."
+        ),
         "spans.parent.span_kind": (
             "Direct parent span kind; missing when no parent row is stored."
         ),
