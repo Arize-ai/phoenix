@@ -65,7 +65,7 @@ def search_claim_path(
         return None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class AssertionFile:
     """The client assertion's location, and how it may be named in messages.
 
@@ -87,6 +87,11 @@ class AssertionFile:
 
     def __str__(self) -> str:
         return f"named by {self.variable}" if self.variable else str(self.path)
+
+    def __repr__(self) -> str:
+        # The generated repr would print the path regardless of __str__, and repr is what
+        # tracebacks, debuggers and structured loggers reach for.
+        return f"{type(self).__name__}({self})"
 
 
 class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]

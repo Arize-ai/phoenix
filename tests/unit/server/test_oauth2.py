@@ -1583,6 +1583,16 @@ class TestClientAssertionJWT:
         assert "named by SOME_VARIABLE" in str(exc_info.value)
         assert str(secret_shaped_path) not in str(exc_info.value)
 
+    def test_indirect_path_is_withheld_from_repr(self, tmp_path: Path) -> None:
+        # repr is what tracebacks, debuggers and structured loggers reach for, so the
+        # dataclass-generated one would defeat the redaction that __str__ provides.
+        secret_shaped_path = tmp_path / "s3cr3t-value"
+        assertion_file = AssertionFile(secret_shaped_path, variable="SOME_VARIABLE")
+
+        assert str(secret_shaped_path) not in repr(assertion_file)
+        assert str(secret_shaped_path) not in repr([assertion_file])
+        assert "SOME_VARIABLE" in repr(assertion_file)
+
     def test_direct_path_is_shown(self, tmp_path: Path) -> None:
         # Written into the config verbatim, so repeating it discloses nothing.
         missing = tmp_path / "azure-identity-token"
