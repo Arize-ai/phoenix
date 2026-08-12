@@ -1,0 +1,89 @@
+name: Build Phoenix image for one platform
+description: >-
+  Build a single-platform Phoenix image, push it to Docker Hub by digest, and
+  upload that digest as an artifact. A downstream job collects the digests for
+  every platform of a variant and assembles them into one manifest list, so
+  each platform builds on a native runner instead of under QEMU emulation.
+
+inputs:
+  variant:
+    description: Image variant — root, nonroot, or debug. Selects the distroless base image.
+    required: true
+  platform:
+    description: Target platform in Docker form, e.g. linux/amd64.
+    required: true
+  registry:
+    description: Docker Hub namespace.
+    required: true
+  image-name:
+    description: Repository name within the namespace.
+    required: true
+  dockerhub-username:
+    required: true
+  dockerhub-password:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve base image and artifact suffix
+      id: resolve
+      shell: bash
+      env:
+        VARIANT: ${{ inputs.variant }}
+        PLATFORM: ${{ inputs.platform }}
+      run: |
+        case "$VARIANT" in
+          root)    base=gcr.io/distroless/python3-debian13 ;;
+          nonroot) base=gcr.io/distroless/python3-debian13:nonroot ;;
+          debug)   base=gcr.io/distroless/python3-debian13:debug ;;
+          *) echo "unknown variant: $VARIANT" >&2; exit 1 ;;
+        esac
+        echo "base-image=$base" >> "$GITHUB_OUTPUT"
+        echo "platform-slug=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      with:
+        username: ${{ inputs.dockerhub-username }}
+        password: ${{ inputs.dockerhub-password }}
+
+    - name: Extract image labels
+      id: meta
+      uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+      with:
+        images: ${{ inputs.registry }}/${{ inputs.image-name }}
+
+    - name: Build and push by digest
+      id: build
+      uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+      with:
+        platforms: ${{ inputs.platform }}
+        context: .
+        file: ./Dockerfile
+        sbom: true
+        provenance: mode=max
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          BASE_IMAGE=${{ steps.resolve.outputs.base-image }}
+        outputs: >-
+          type=image,name=${{ inputs.registry }}/${{ inputs.image-name }},push-by-digest=true,name-canonical=true,push=true
+
+    - name: Export digest
+      shell: bash
+      env:
+        DIGEST: ${{ steps.build.outputs.digest }}
+      run: |
+        mkdir -p "${RUNNER_TEMP}/digests"
+        touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+
+    - name: Upload digest
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: digests-${{ inputs.variant }}-${{ steps.resolve.outputs.platform-slug }}
+        path: ${{ runner.temp }}/digests/*
+        if-no-files-found: error
+        retention-days: 1
