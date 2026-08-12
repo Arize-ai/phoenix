@@ -137,10 +137,17 @@ def test_denial_distinguishes_a_bypass_from_a_layering_defect(
     [
         ("SELECT (SELECT count(*) FROM users)", False),
         ("SELECT (SELECT count(*) FROM sqlite_master)", False),
+        ("SELECT (SELECT count(*) FROM sqlite_schema)", False),
         ("SELECT count(*) FROM projects", True),
         ("WITH t AS (SELECT id FROM projects GROUP BY id) SELECT count(*) FROM t", True),
     ],
-    ids=["count-forbidden-table", "count-catalog", "count-allowed-table", "count-materialised-cte"],
+    ids=[
+        "count-forbidden-table",
+        "count-catalog",
+        "count-catalog-alias",
+        "count-allowed-table",
+        "count-materialised-cte",
+    ],
 )
 def test_table_level_reads_are_judged_before_the_transient_accept(sql: str, allowed: bool) -> None:
     """`count(*)` names no column, so its read presents with no database attached.
@@ -176,6 +183,18 @@ def test_table_level_reads_are_judged_before_the_transient_accept(sql: str, allo
     finally:
         conn.close()
     assert permitted is allowed
+
+
+def test_catalog_aliases_are_denied_on_table_level_reads() -> None:
+    """A table-level read presents with no database name, matching a CTE.
+
+    sqlite_schema and sqlite_stat1 are not sqlite_master and are not Phoenix
+    tables, so they used to fall through to the transient accept.
+    """
+    authorizer = _sqlite_authorizer(frozenset({"spans"}), frozenset({"count"}))
+    for table in ("sqlite_master", "sqlite_schema", "sqlite_temp_master", "sqlite_stat1"):
+        assert authorizer(sqlite3.SQLITE_READ, table, "", None, None) == sqlite3.SQLITE_DENY
+        assert authorizer(sqlite3.SQLITE_READ, table, "sql", "main", None) == sqlite3.SQLITE_DENY
 
 
 class TestProvenance:

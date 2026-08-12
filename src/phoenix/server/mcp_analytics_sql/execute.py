@@ -121,6 +121,24 @@ _SQLITE_STATE_CHANGING_ACTIONS = frozenset(
 )
 
 
+# Catalog relations SQLite will read without a database name on a table-level
+# `count(*)`. sqlite_master is the historical name; sqlite_schema is its
+# documented alias. ANALYZE populates sqlite_stat*. None of these are
+# allowlisted, and a missing database name must not be treated as a CTE.
+_SQLITE_CATALOG_TABLES = frozenset(
+    {
+        "sqlite_master",
+        "sqlite_schema",
+        "sqlite_temp_master",
+        "sqlite_temp_schema",
+        "sqlite_stat1",
+        "sqlite_stat2",
+        "sqlite_stat3",
+        "sqlite_stat4",
+    }
+)
+
+
 @dataclass
 class ExecutionSemaphore:
     _width_by_dialect: dict[SupportedSQLDialectName, int] = field(
@@ -466,10 +484,10 @@ def _sqlite_authorizer(
             # already verify every physical table reference; accepting names
             # declared by the statement preserves that decision instead of
             # refusing an otherwise valid CTE.
-            if table == "sqlite_master":
+            if table.casefold() in _SQLITE_CATALOG_TABLES:
                 return deny(
                     ErrorCode.RELATION_NOT_ALLOWED,
-                    "sqlite_master",
+                    table,
                     "reading the database catalog is not permitted; "
                     "use describeSqlSchema to discover tables and columns",
                 )
