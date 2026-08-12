@@ -85,6 +85,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.project_session import advance_project_session_liveness
 from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadataUsage,
     AssistantMessageMetadataUsageCacheTokenDetails,
@@ -120,7 +121,6 @@ from phoenix.db.types.data_stream_protocol import (
     UIMessagePart,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.db.insertion.project_session import advance_project_session_liveness
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
