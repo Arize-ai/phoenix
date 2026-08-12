@@ -2543,7 +2543,6 @@ class TestClientAssertionJWTFromEnv:
             "https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration"
         ),
         "PHOENIX_OAUTH2_ENTRA_TOKEN_ENDPOINT_AUTH_METHOD": "client_assertion_jwt",
-        "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE": "/explicit/path/token",
     }
 
     @pytest.fixture(autouse=True)
@@ -2552,38 +2551,65 @@ class TestClientAssertionJWTFromEnv:
             monkeypatch.setenv(k, v)
         monkeypatch.delenv("AZURE_FEDERATED_TOKEN_FILE", raising=False)
 
-    def test_no_client_secret_required(self) -> None:
-        assert OAuth2ClientConfig.from_env("entra").client_secret is None
-
-    def test_token_endpoint_auth_method_stored(self) -> None:
+    def test_explicit_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "/explicit/token")
         config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == "/explicit/token"
+        assert config.client_secret is None
         assert config.token_endpoint_auth_method == "client_assertion_jwt"
 
-    def test_unset_assertion_file_is_rejected_without_an_azure_signal(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        # No hardcoded Azure default: with nothing indicating the platform, an unset path is
-        # a configuration error rather than a guess.
-        monkeypatch.delenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE")
+    def test_path_resolved_from_named_variable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/token")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == "/webhook/token"
+
+    def test_named_variable_is_not_read_implicitly(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The variable is set but this provider never named it, so it must not be picked up.
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/token")
         with pytest.raises(ValueError, match="client_assertion_file is required"):
             OAuth2ClientConfig.from_env("entra")
 
-    def test_azure_webhook_env_var_supplies_the_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # The webhook exports this alongside the token it projects, so labelled AKS pods
-        # need no explicit path.
-        monkeypatch.delenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE")
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/path/token")
-        config = OAuth2ClientConfig.from_env("entra")
-        assert config.client_assertion_file == "/webhook/path/token"
+    def test_one_provider_naming_the_variable_does_not_bind_another(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The crossover this design exists to prevent: a global variable reaching a provider
+        # that never asked for it.
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/azure-token")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_OKTA_CLIENT_ID", "okta-client")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_OKTA_OIDC_CONFIG_URL",
+            "https://acme.okta.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_OKTA_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt")
 
-    def test_explicit_setting_takes_precedence(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/path/token")
-        config = OAuth2ClientConfig.from_env("entra")
-        assert config.client_assertion_file == "/explicit/path/token"
+        assert OAuth2ClientConfig.from_env("entra").client_assertion_file == "/webhook/azure-token"
+        with pytest.raises(ValueError, match="client_assertion_file is required"):
+            OAuth2ClientConfig.from_env("okta")
+
+    def test_both_settings_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", "/webhook/token")
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "/explicit/token")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_named_variable_unset_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        with pytest.raises(ValueError, match="unset or empty"):
+            OAuth2ClientConfig.from_env("entra")
 
     def test_any_idp_name_is_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # IDP names are operator-chosen, so the mechanism cannot be gated on one.
-        monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ASSERTION_FILE", "/spiffe/jwt-svid")
         monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ID", "some-id")
         monkeypatch.setenv(
             "PHOENIX_OAUTH2_COMPANY_SSO_OIDC_CONFIG_URL",
@@ -2592,6 +2618,7 @@ class TestClientAssertionJWTFromEnv:
         monkeypatch.setenv(
             "PHOENIX_OAUTH2_COMPANY_SSO_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt"
         )
+        monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ASSERTION_FILE", "/spiffe/jwt-svid")
         config = OAuth2ClientConfig.from_env("company_sso")
         assert config.client_assertion_file == "/spiffe/jwt-svid"
 
@@ -2604,23 +2631,3 @@ class TestClientAssertionJWTFromEnv:
         )
         config = OAuth2ClientConfig.from_env("google")
         assert config.client_assertion_file is None
-
-    def test_config_rejects_client_assertion_jwt_without_assertion_file(self) -> None:
-        with pytest.raises(ValueError, match="client_assertion_file is required"):
-            OAuth2ClientConfig(
-                idp_name="entra",
-                idp_display_name="Entra",
-                client_id="entra-client-id",
-                client_secret=None,
-                oidc_config_url="https://login.microsoftonline.com/t/v2.0/.well-known/openid-configuration",
-                allow_sign_up=True,
-                auto_login=False,
-                use_pkce=False,
-                token_endpoint_auth_method="client_assertion_jwt",
-                scopes="openid email profile",
-                groups_attribute_path=None,
-                allowed_groups=[],
-                role_attribute_path=None,
-                role_mapping={},
-                role_attribute_strict=False,
-            )

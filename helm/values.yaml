@@ -613,9 +613,10 @@ auth:
       #   token_endpoint_auth_method: "client_assertion_jwt"
       #   scopes: "offline_access User.Read"
       #   email_attribute_path: "preferred_username"
-      #   # Only needed off AKS: the webhook exports the path as AZURE_FEDERATED_TOKEN_FILE,
-      #   # which Phoenix picks up when this is unset.
-      #   client_assertion_file: "/var/run/secrets/azure/tokens/azure-identity-token"
+      #   # The webhook owns the token path and has moved it between releases, so name the
+      #   # variable it exports rather than the path itself. Off AKS, set client_assertion_file
+      #   # to an explicit path instead. Exactly one of the two is required.
+      #   client_assertion_file_env: "AZURE_FEDERATED_TOKEN_FILE"
 
       # Example Keycloak with nested group path:
       # keycloak:

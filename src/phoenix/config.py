@@ -1707,13 +1707,12 @@ _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
 )
 """Allowed OAuth2 token endpoint authentication methods (OIDC Core §9 unless noted)."""
 
-_AZURE_FEDERATED_TOKEN_FILE_ENV = "AZURE_FEDERATED_TOKEN_FILE"
-"""Injected by the Azure Workload Identity webhook alongside the token it projects.
+"""No assertion path is defaulted or discovered here.
 
-Read as an opportunistic fallback for CLIENT_ASSERTION_FILE: present exactly when Azure
-workload identity is active, absent on every other platform. Deliberately not defaulted to
-the webhook's mount path — with no signal that Azure is in play, an unset path is a
-configuration error and should be reported as one.
+Platforms that mint the assertion own where they put it and may move it between releases,
+so the path must not be hardcoded; but the variable exporting it is platform-specific and
+process-global, so reading one implicitly would bind it to every provider at once. The
+operator names the variable per provider instead, via CLIENT_ASSERTION_FILE_ENV.
 """
 
 
@@ -1784,10 +1783,11 @@ class OAuth2ClientConfig:
             raise ValueError(
                 f"client_assertion_file is required when token_endpoint_auth_method is "
                 f"'{CLIENT_ASSERTION_JWT_AUTH_METHOD}' (IDP: {self.idp_name}). Set "
-                f"PHOENIX_OAUTH2_{self.idp_name.upper()}_CLIENT_ASSERTION_FILE to the path "
-                f"the platform projects the token to. On AKS this is supplied automatically "
-                f"via {_AZURE_FEDERATED_TOKEN_FILE_ENV} once the pod carries the label "
-                f"azure.workload.identity/use=true."
+                f"PHOENIX_OAUTH2_{self.idp_name.upper()}_CLIENT_ASSERTION_FILE to the path, "
+                f"or _CLIENT_ASSERTION_FILE_ENV to the name of the variable holding it. On "
+                f"AKS the Azure Workload Identity webhook exports the path as "
+                f"AZURE_FEDERATED_TOKEN_FILE and owns its value, so name the variable rather "
+                f"than the path"
             )
 
     @classmethod
@@ -1866,18 +1866,27 @@ class OAuth2ClientConfig:
             # accepts the assertion; IDP names are operator-chosen and cannot gate this.
             client_secret = None
             client_assertion_file = _get_optional("CLIENT_ASSERTION_FILE")
-            if not client_assertion_file and (
-                client_assertion_file := os.getenv(_AZURE_FEDERATED_TOKEN_FILE_ENV)
-            ):
-                # This variable is also read by azure-identity for unrelated Azure
-                # credentials, so log which file the login flow actually picked up.
+            if assertion_file_env := _get_optional("CLIENT_ASSERTION_FILE_ENV"):
+                if client_assertion_file:
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE and "
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV are mutually exclusive; "
+                        f"set the path directly or name the variable holding it, not both"
+                    )
+                if not (client_assertion_file := os.getenv(assertion_file_env, "").strip()):
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV names {assertion_file_env}, "
+                        f"but that environment variable is unset or empty. On AKS it is "
+                        f"exported by the Azure Workload Identity webhook, which requires the "
+                        f"pod label azure.workload.identity/use=true"
+                    )
+                # The named variable is process-global and may be read by other libraries
+                # for unrelated credentials, so record what this provider resolved it to.
                 logger.info(
-                    "OAuth2 IDP %s: using %s (%s) as the client assertion; set "
-                    "PHOENIX_OAUTH2_%s_CLIENT_ASSERTION_FILE to override.",
+                    "OAuth2 IDP %s: client assertion path %s resolved from %s",
                     idp_name,
-                    _AZURE_FEDERATED_TOKEN_FILE_ENV,
                     client_assertion_file,
-                    idp_name.upper(),
+                    assertion_file_env,
                 )
         elif token_endpoint_auth_method == "none":
             # Public client - no client authentication required
@@ -2638,6 +2647,7 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "USE_PKCE",  # Enable PKCE for authorization code protection (RFC 7636, default: false)
     "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint (OIDC Core §9)
     "CLIENT_ASSERTION_FILE",  # Path to the JWT sent as client_assertion (RFC 7523 §2.2)
+    "CLIENT_ASSERTION_FILE_ENV",  # Name of the variable holding that path
     # Additional OAuth2 scopes beyond "openid email profile" (RFC 6749 §3.3: space-delimited)
     "SCOPES",
     "EMAIL_ATTRIBUTE_PATH",  # JMESPath expression to extract email from ID token
@@ -2715,10 +2725,17 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
               workload's identity.
 
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE: Path to the file holding the JWT used
-          when TOKEN_ENDPOINT_AUTH_METHOD is "client_assertion_jwt"; required for that method and
-          ignored for the others. On AKS the Azure Workload Identity webhook both projects the
-          token and exports its path as AZURE_FEDERATED_TOKEN_FILE, which is used when this
-          setting is unset, so labelled pods need no explicit path. Other platforms must set it.
+          when TOKEN_ENDPOINT_AUTH_METHOD is "client_assertion_jwt". Ignored for other methods.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE_ENV: Name of an environment variable
+          holding that path, for platforms that mint the assertion and own where they put it.
+          On AKS set this to AZURE_FEDERATED_TOKEN_FILE, which the Azure Workload Identity
+          webhook exports alongside the token it projects; naming the variable rather than the
+          path keeps the deployment working when the webhook moves it.
+
+          Exactly one of the two is required for "client_assertion_jwt". They are named per IDP
+          on purpose: the variable is process-global, so resolving one implicitly would send the
+          same assertion to every configured provider.
 
           Most providers work with the default behavior. Set this explicitly only if your provider requires
           a specific method or if you're configuring a public client.
