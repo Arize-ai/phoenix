@@ -49,6 +49,7 @@ from phoenix.server.api.helpers.playground_clients import (
     OpenAIResponsesAPIStreamingClient,
     OpenAIStreamingClient,
     _get_builtin_provider_client,
+    _get_custom_provider_client,
     _resolve_provider_api_key,
     get_openai_client_class,
 )
@@ -961,6 +962,48 @@ class TestReasoningChatCompletionsMessages:
         message = create_playground_message(ChatCompletionMessageRole.SYSTEM, "be terse")
         param = OpenAIStreamingClient._to_openai_chat_completion_message_param(None, message)  # type: ignore[arg-type]
         assert param == {"content": "be terse", "role": "system"}
+
+
+class TestCustomProviderClientSelection:
+    """Custom providers resolve through ``get_openai_client_class`` like builtins."""
+
+    @pytest.mark.parametrize(
+        "openai_api_type,model_name,expected_class",
+        [
+            ("responses", "gpt-4o", OpenAIResponsesAPIStreamingClient),
+            ("responses", "gpt-5.6-luna", OpenAIResponsesAPIStreamingClient),
+            ("chat_completions", "gpt-4o", OpenAIStreamingClient),
+            ("chat_completions", "gpt-5.6-luna", OpenAIReasoningChatCompletionsClient),
+        ],
+    )
+    async def test_openai_custom_provider_honors_api_type_and_model(
+        self,
+        openai_api_type: str,
+        model_name: str,
+        expected_class: type[OpenAIBaseStreamingClient],
+    ) -> None:
+        import phoenix.db.types.model_provider as mp
+
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.OpenAICustomProviderConfig(
+                openai_authentication_method=mp.AuthenticationMethodApiKey(api_key="sk-test"),
+                openai_api_type=openai_api_type,
+            )
+        )
+        provider_record = models.GenerativeModelCustomProvider(
+            name="proxy",
+            provider="openai",
+            sdk="openai",
+            config=config.model_dump_json().encode(),
+        )
+
+        client = await _get_custom_provider_client(
+            provider_record=provider_record,
+            model_name=model_name,
+            extra_headers=None,
+            decrypt=_identity_decrypt,
+        )
+        assert type(client) is expected_class
 
 
 def _identity_decrypt(value: bytes) -> bytes:
