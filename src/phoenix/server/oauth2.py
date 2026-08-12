@@ -3,6 +3,7 @@ from collections.abc import Iterable, Mapping
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Iterator, Optional, get_args
+from urllib.parse import parse_qs
 
 import jmespath
 from authlib.common.urls import add_params_to_qs
@@ -65,9 +66,10 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
     `assertion_file` (Azure Workload Identity webhook, SPIFFE, and similar all project a
     Kubernetes service account token this way) and Phoenix relays it verbatim.
 
-    Registered as the `token_endpoint_auth_method` instance, so authlib applies it to every
-    token endpoint request — fetch, refresh, revoke, introspect — without any call site
-    needing to know the mechanism exists.
+    Registered as the auth method instance rather than applied per call site, so authlib
+    attaches the assertion to token endpoint requests — fetch, refresh, introspect — on its
+    own. Revocation is selected by a separate `revocation_endpoint_auth_method`, which
+    add_client sets to the same instance.
     """
 
     name = CLIENT_ASSERTION_JWT_AUTH_METHOD
@@ -81,9 +83,10 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
         # projected volume by swapping the symlink the path resolves through.
         try:
             assertion = self._assertion_file.read_text().strip()
-        except OSError as e:
+        except (OSError, UnicodeDecodeError) as e:
             # OAuthError is the only failure the login route translates into a redirect;
-            # anything else surfaces as a 500.
+            # anything else surfaces as a 500. UnicodeDecodeError is a ValueError, not an
+            # OSError, and is what a wrong path pointing at a binary produces.
             raise OAuthError(description=f"cannot read client assertion file: {e}") from e
         if not assertion:
             # An empty value would be sent as `client_assertion=`, which IDPs reject as a
@@ -98,9 +101,12 @@ class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
         # RFC 7523 §3 lets the server identify the client from the assertion's `sub`, which
         # holds for private_key_jwt but not here: the platform sets `sub` to the workload
         # identity (e.g. system:serviceaccount:<ns>:<sa>), so client_id must be explicit.
-        body = add_params_to_qs(body, [("client_id", auth.client_id)])
-        if "Content-Length" in headers:
-            headers["Content-Length"] = str(len(body))
+        # Only when absent — appending unconditionally would emit it twice for any caller
+        # that already supplied one, which strict endpoints reject as invalid_request.
+        if "client_id" not in parse_qs(body or "", keep_blank_values=True):
+            body = add_params_to_qs(body or "", [("client_id", auth.client_id)])
+            if "Content-Length" in headers:
+                headers["Content-Length"] = str(len(body))
         return uri, headers, body
 
 
@@ -512,7 +518,11 @@ class OAuth2Clients:
                     config.idp_name,
                     assertion_file,
                 )
-            client_kwargs["token_endpoint_auth_method"] = ClientAssertionJWT(assertion_file)
+            auth_method = ClientAssertionJWT(assertion_file)
+            client_kwargs["token_endpoint_auth_method"] = auth_method
+            # Revocation is selected separately and would otherwise fall back to "none",
+            # since there is no client secret to imply a method.
+            client_kwargs["revocation_endpoint_auth_method"] = auth_method
         elif config.token_endpoint_auth_method:
             # OIDC Core §9: Client authentication method at token endpoint
             client_kwargs["token_endpoint_auth_method"] = config.token_endpoint_auth_method

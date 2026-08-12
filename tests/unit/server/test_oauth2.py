@@ -1455,6 +1455,49 @@ class TestClientAssertionJWT:
         with pytest.raises(OAuthError):
             self._prepare(tmp_path / "does-not-exist")
 
+    def test_undecodable_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # UnicodeDecodeError is a ValueError, not an OSError, so a path pointing at a binary
+        # would otherwise escape the route's handler as a 500.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_bytes(b"\xff\xfe\x00\x01")
+
+        with pytest.raises(OAuthError, match="cannot read"):
+            self._prepare(assertion_file)
+
+    def test_client_id_is_not_duplicated_when_already_present(self, tmp_path: Path) -> None:
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(assertion_file),
+        )
+
+        _, _, body = auth.prepare(
+            "POST", "https://idp/token", {}, "grant_type=authorization_code&client_id=caller"
+        )
+
+        assert parse_qs(body)["client_id"] == ["caller"]
+
+    def test_revocation_uses_the_same_auth_method(self, tmp_path: Path) -> None:
+        # authlib selects revocation auth separately; without this it falls back to "none".
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS,
+            client_assertion_file=str(assertion_file),
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        client = clients.get_client("entra")
+        assert client is not None
+        assert (
+            client.client_kwargs["revocation_endpoint_auth_method"]
+            is client.client_kwargs["token_endpoint_auth_method"]
+        )
+
     def test_add_client_registers_the_auth_method(self, tmp_path: Path) -> None:
         assertion_file = tmp_path / "azure-identity-token"
         assertion_file.write_text("header.payload.sig")

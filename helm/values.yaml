@@ -591,8 +591,12 @@ auth:
 
       # Example Microsoft Entra ID with workload identity (no client_secret).
       # The pod's projected service account token is sent as a JWT bearer assertion
-      # (RFC 7523) in place of a client secret. Any provider accepting client assertions
-      # can use this method; the provider key below is a name of your choosing.
+      # (RFC 7523) in place of a client secret. The provider key below is a name of your
+      # choosing. Note the token is minted by the cluster, not by the client: its `sub` is
+      # the service account, so the provider must map an external issuer onto the client
+      # (Entra ID calls this a federated credential). Providers that only implement plain
+      # RFC 7523, where the assertion is signed with the client's own registered key, will
+      # reject it — for those, point client_assertion_file at a client-signed assertion.
       # Prerequisites:
       #   1. Install the Azure Workload Identity webhook:
       #      https://azure.github.io/azure-workload-identity/docs/installation.html
