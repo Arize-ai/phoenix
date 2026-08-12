@@ -366,6 +366,29 @@ def test_star_over_an_aliased_table_uses_the_alias() -> None:
     assert "s.span_id" in out and "spans.span_id" not in out
 
 
+def test_quoted_alias_star_keeps_the_callers_quoting() -> None:
+    """PostgreSQL folds unquoted S to s, so the expanded columns must stay quoted.
+
+    ``FROM spans AS "S" SELECT "S".*`` was rewritten to ``SELECT S.id ... FROM
+    spans AS "S"``, which cannot resolve. Unquoted aliases are unaffected.
+    """
+    _, rendered = _rewritten('SELECT "S".* FROM spans AS "S"', dialect="postgresql")
+    assert '"S".id' in rendered
+    assert 'AS "S"' in rendered
+    assert " S.id" not in rendered.replace('"S".id', "")
+
+
+def test_quoted_alias_virtual_columns_keep_the_callers_quoting() -> None:
+    """The same quoting drop happened in latency_ms and graphql_node_id."""
+    _, latency = _rewritten('SELECT "S".latency_ms FROM spans AS "S"', dialect="postgresql")
+    assert '"S".end_time' in latency and '"S".start_time' in latency
+    assert 'AS "S"' in latency
+
+    _, node_id = _rewritten('SELECT "S".graphql_node_id FROM spans AS "S"', dialect="postgresql")
+    assert '"S".id' in node_id
+    assert 'AS "S"' in node_id
+
+
 def test_star_over_a_query_local_relation_is_a_normal_refusal() -> None:
     """The columns of a CTE are whatever its SELECT produced, which the manifest cannot know.
 

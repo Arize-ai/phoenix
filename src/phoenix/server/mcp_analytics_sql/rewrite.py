@@ -424,28 +424,59 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     return root
 
 
-def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str]]:
-    """Every relation a bare ``*`` in this SELECT draws from, as (table, alias).
+def _relation_qualifier(expression: exp.Expression) -> exp.Identifier:
+    """The identifier rewritten columns should use to name this relation.
+
+    Copies the caller's quoting. ``exp.to_identifier("S")`` emits unquoted S,
+    which PostgreSQL folds to s, so ``FROM spans AS "S" SELECT "S".*`` became
+    ``SELECT S.id ... FROM spans AS "S"`` and failed to resolve.
+    """
+    alias = expression.args.get("alias")
+    if isinstance(alias, exp.TableAlias) and isinstance(alias.this, exp.Identifier):
+        return alias.this.copy()
+    table_ident = expression.this if isinstance(expression, exp.Table) else None
+    if isinstance(table_ident, exp.Identifier):
+        return table_ident.copy()
+    return exp.to_identifier(expression.alias_or_name or "")
+
+
+def _copied_table_identifier(column: exp.Column) -> Optional[exp.Identifier]:
+    """The table qualifier on this column, with its quoting intact."""
+    table = column.args.get("table")
+    if isinstance(table, exp.Identifier):
+        return table.copy()
+    name = column.table or ""
+    return exp.to_identifier(name) if name else None
+
+
+def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str, exp.Identifier]]:
+    """Every relation a bare ``*`` in this SELECT draws from.
+
+    Each entry is (physical table name, alias string, qualifier identifier).
+    The identifier carries the caller's quoting so expanded columns still
+    resolve on PostgreSQL.
 
     A star means "every column of everything in the FROM clause", so the joins
     count as much as the leading table. Reading only the first source expands to
     one table's columns and silently drops the rest, which returns a plausible
     row that is missing exactly the data the caller joined for.
     """
-    sources: list[tuple[str, str]] = []
+    sources: list[tuple[str, str, exp.Identifier]] = []
 
     def add(expression: Optional[exp.Expression]) -> None:
         if expression is None:
             return
+        qualifier = _relation_qualifier(expression)
+        alias = expression.alias_or_name if expression else ""
         if isinstance(expression, exp.Table) and expression.name:
             source = scope.sources.get(expression.alias_or_name) if scope is not None else None
             if isinstance(source, exp.Table):
-                sources.append((source.name, expression.alias_or_name))
+                sources.append((source.name, alias, qualifier))
             else:
                 # A CTE parses as a Table too, but resolves to a nested scope.
                 # Its projection is query-local rather than part of the
                 # manifest, so it follows the same refusal path as a subquery.
-                sources.append(("", expression.alias_or_name))
+                sources.append(("", alias, qualifier))
         else:
             # A derived table, a table-valued function, or anything else whose
             # columns come from the query rather than the manifest. Recorded
@@ -453,7 +484,7 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
             # rather than skipping it: dropping such a source silently returns
             # the other sources' columns and none of these, which is a
             # well-formed answer missing exactly what was joined for.
-            sources.append(("", expression.alias_or_name if expression else ""))
+            sources.append(("", alias, qualifier))
 
     from_expr = node.args.get("from_") or node.args.get("from")
     if isinstance(from_expr, exp.From):
@@ -512,12 +543,14 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
 
             if explicit:
                 targets = [
-                    (name, alias)
-                    for name, alias in _star_sources(node, scope_by_expression.get(id(node)))
+                    (name, alias, qualifier)
+                    for name, alias, qualifier in _star_sources(
+                        node, scope_by_expression.get(id(node))
+                    )
                     if _matches_star_source(
                         explicit, explicit_identifier, (name, alias), ctx.dialect
                     )
-                ] or [("", explicit)]
+                ] or [("", explicit, exp.to_identifier(explicit))]
             else:
                 targets = _star_sources(node, scope_by_expression.get(id(node)))
 
@@ -530,7 +563,7 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                     ),
                 )
 
-            for table_name, alias in targets:
+            for table_name, alias, qualifier in targets:
                 spec = ctx.allowlist.table_specs.get(table_name) if table_name else None
                 if spec is None:
                     table_name = table_name or alias or "a query-local relation"
@@ -557,11 +590,11 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                 for name in emitted:
                     # Qualified by the alias the caller used, not by the table
                     # name: after `FROM spans AS s` the name `spans` no longer
-                    # resolves.
+                    # resolves. Copy the identifier so a quoted alias stays quoted.
                     new_exprs.append(
                         exp.Column(
                             this=exp.to_identifier(name, quoted=name in spec.quoted_columns),
-                            table=exp.to_identifier(alias or table_name),
+                            table=qualifier.copy(),
                         )
                     )
             local_changed = True
@@ -664,9 +697,11 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                     continue
             elif duration_sources != 1:
                 continue
-            table_name = node.table or ""
-            start = exp.column("start_time", table=table_name or None)
-            end = exp.column("end_time", table=table_name or None)
+            table_ident = _copied_table_identifier(node)
+            start = exp.column("start_time", table=table_ident)
+            end = exp.column(
+                "end_time", table=table_ident.copy() if table_ident is not None else None
+            )
             for written in (start, end):
                 ctx.substituted_columns[written.sql()] = "latency_ms"
             changed = True
@@ -958,7 +993,7 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                 row_id = _decode_node_id(literal.name, type_name)
                 if row_id is None:
                     continue
-                cmp_node.set("this", exp.column("id", table=column.table or None))
+                cmp_node.set("this", exp.column("id", table=_copied_table_identifier(column)))
                 cmp_node.set("expression", exp.Literal.number(row_id))
                 changed = True
                 break
@@ -983,7 +1018,7 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                     ),
                 )
             continue
-        written = exp.column("id", table=column.table or None)
+        written = exp.column("id", table=_copied_table_identifier(column))
         ctx.substituted_columns[written.sql()] = "graphql_node_id"
         payload = exp.Concat(
             expressions=[
