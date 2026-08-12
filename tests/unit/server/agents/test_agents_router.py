@@ -59,7 +59,10 @@ from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
+    _APPROVAL_DECISION_ATTRIBUTE,
+    _APPROVAL_SOURCE_ATTRIBUTE,
     AgentSessionConflict,
+    _approval_attributes,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -84,6 +87,50 @@ _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
 
 
 _DEFAULT_USER_MESSAGE_ID = _message_uuid("msg-user-1")
+
+
+class TestApprovalAttributes:
+    def test_extracts_marker_from_mapping_result(self) -> None:
+        for source in ("user", "auto"):
+            assert _approval_attributes(
+                {
+                    "status": "accepted",
+                    "acceptedBy": source,
+                    "approval": {"decision": "accepted", "source": source},
+                }
+            ) == {
+                _APPROVAL_DECISION_ATTRIBUTE: "accepted",
+                _APPROVAL_SOURCE_ATTRIBUTE: source,
+            }
+
+    def test_extracts_marker_from_json_string_result(self) -> None:
+        assert _approval_attributes(
+            json.dumps(
+                {
+                    "status": "rejected",
+                    "approval": {"decision": "rejected", "source": "user"},
+                }
+            )
+        ) == {
+            _APPROVAL_DECISION_ATTRIBUTE: "rejected",
+            _APPROVAL_SOURCE_ATTRIBUTE: "user",
+        }
+
+    def test_ignores_missing_or_malformed_markers(self) -> None:
+        results: list[object] = [
+            {"status": "loaded"},
+            {"approval": {"decision": "maybe", "source": "user"}},
+            {"approval": {"decision": "accepted", "source": "system"}},
+            {"approval": {"decision": [], "source": "user"}},
+            {"approval": {"decision": "accepted", "source": {}}},
+            {"approval": "accepted"},
+            "not json {",
+            42,
+            None,
+            [1, 2],
+        ]
+        for result in results:
+            assert _approval_attributes(result) == {}
 
 
 def _user_message(text: str, *, message_id: str = _DEFAULT_USER_MESSAGE_ID) -> dict[str, Any]:
