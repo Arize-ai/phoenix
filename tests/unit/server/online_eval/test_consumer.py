@@ -961,6 +961,17 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         )
         await _add_span(
             session,
+            later_trace,
+            span_kind="CHAIN",
+            start_time=start_time + timedelta(seconds=21),
+            attributes={
+                "input": {"value": "duplicate root question"},
+                "output": {"value": "duplicate root answer"},
+                "metadata": {"turn": 99},
+            },
+        )
+        await _add_span(
+            session,
             parent_span=later_root,
             span_kind="LLM",
             llm_token_count_prompt=5,
@@ -1035,7 +1046,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert annotation.source == "API"
     assert annotation.identifier == annotation_identifier(fingerprint)
     policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
-    assert policy["ordering"] == "root_span_start_time_then_span_id"
+    assert policy["ordering"] == "trace_start_time_then_trace_id_with_earliest_root_span"
     assert policy["total_eligible_root_count"] == 3
     assert policy["loaded_turn_count"] == 2
     assert policy["retained_turn_count"] == 2
@@ -1081,7 +1092,7 @@ async def test_session_publication_stamps_the_evaluated_transcript_watermark(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    newest_root_time = start_time + timedelta(seconds=30)
+    duplicate_root_time = start_time + timedelta(seconds=30)
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project, start_time=start_time)
@@ -1089,7 +1100,7 @@ async def test_session_publication_stamps_the_evaluated_transcript_watermark(
         project_session.last_span_ingested_at = start_time + timedelta(seconds=5)
         trace = await _add_trace(session, project, project_session, start_time=start_time)
         await _add_span(session, trace, span_kind="CHAIN", start_time=start_time)
-        await _add_span(session, trace, span_kind="CHAIN", start_time=newest_root_time)
+        await _add_span(session, trace, span_kind="CHAIN", start_time=duplicate_root_time)
     evaluator_id, criteria_id = await _seed_llm_criteria(
         db,
         project.id,
@@ -1108,7 +1119,7 @@ async def test_session_publication_stamps_the_evaluated_transcript_watermark(
 
     unit = await _get_session_unit(db, unit_id)
     assert unit.status == "DONE"
-    assert unit.evaluated_through == newest_root_time
+    assert unit.evaluated_through == start_time
 
 
 async def test_marker_only_session_transcript_is_terminal_without_counting_attempt(

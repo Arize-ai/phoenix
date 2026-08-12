@@ -230,7 +230,7 @@ def session_eval_context(
     output = turns[-1]["output"] if turns and turns[-1]["output"] is not None else ""
     applied_policy = {
         "version": policy.version,
-        "ordering": "root_span_start_time_then_span_id",
+        "ordering": "trace_start_time_then_trace_id_with_earliest_root_span",
         "max_turns": policy.max_turns,
         "max_bytes": max_transcript_bytes,
         "total_eligible_root_count": total_root_count,
@@ -573,7 +573,7 @@ class OnlineEvalExecutor:
         )
         total_eligible_root_count = (
             await session.scalar(
-                select(func.count())
+                select(func.count(func.distinct(models.Trace.id)))
                 .select_from(models.Span)
                 .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
                 .where(*root_filters)
@@ -582,20 +582,39 @@ class OnlineEvalExecutor:
         )
         if total_eligible_root_count == 0:
             return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+        ranked_roots = (
+            select(
+                models.Span.input_value,
+                models.Span.output_value,
+                models.Span.metadata_,
+                models.Span.start_time.label("event_time"),
+                models.Span.span_id,
+                models.Trace.start_time.label("trace_start_time"),
+                models.Trace.id.label("trace_id"),
+                func.row_number()
+                .over(
+                    partition_by=models.Trace.id,
+                    order_by=(models.Span.start_time.asc(), models.Span.span_id.asc()),
+                )
+                .label("root_rank"),
+            )
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(*root_filters)
+            .subquery()
+        )
         root_rows = (
             await session.execute(
                 select(
-                    models.Span.input_value,
-                    models.Span.output_value,
-                    models.Span.metadata_,
-                    models.Span.start_time.label("event_time"),
-                    models.Span.span_id,
+                    ranked_roots.c.input_value,
+                    ranked_roots.c.output_value,
+                    ranked_roots.c.metadata_,
+                    ranked_roots.c.event_time,
+                    ranked_roots.c.span_id,
                 )
-                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                .where(*root_filters)
+                .where(ranked_roots.c.root_rank == 1)
                 .order_by(
-                    models.Span.start_time.desc(),
-                    models.Span.span_id.desc(),
+                    ranked_roots.c.trace_start_time.desc(),
+                    ranked_roots.c.trace_id.desc(),
                 )
                 .limit(self._session_transcript_policy.max_turns)
             )
