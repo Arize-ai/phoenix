@@ -5377,6 +5377,57 @@
       ]
     },
     {
+      "name": "minimax/MiniMax-M2.7",
+      "name_pattern": "MiniMax-M2\\.7",
+      "source": "manual",
+      "provider": "minimax",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "minimax/MiniMax-M3",
+      "name_pattern": "MiniMax-M3",
+      "source": "manual",
+      "provider": "minimax",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
       "name": "moonshot/kimi-k2-0711-preview",
       "name_pattern": "kimi-k2-0711-preview",
       "source": "litellm",

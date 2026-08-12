@@ -75,3 +75,47 @@ def test_flagship_models_carry_threshold_based_tier_rates(
     assert customization["key"] == "llm.token_count.prompt"
     assert customization["threshold"] == pytest.approx(threshold, rel=1e-9)
     assert customization["new_rate"] == pytest.approx(elevated_rate, rel=1e-9)
+
+
+@pytest.mark.parametrize(
+    "model_name, name_pattern, expected_prices",
+    [
+        (
+            "minimax/MiniMax-M3",
+            r"MiniMax-M3",
+            {
+                ("input", True): 6e-7,
+                ("output", False): 2.4e-6,
+                ("cache_read", True): 1.2e-7,
+            },
+        ),
+        (
+            "minimax/MiniMax-M2.7",
+            r"MiniMax-M2\.7",
+            {
+                ("input", True): 3e-7,
+                ("output", False): 1.2e-6,
+                ("cache_read", True): 6e-8,
+                ("cache_write", True): 3.75e-7,
+            },
+        ),
+    ],
+)
+def test_minimax_models_have_current_token_prices(
+    models_by_name: dict[str, dict[str, Any]],
+    model_name: str,
+    name_pattern: str,
+    expected_prices: dict[tuple[str, bool], float],
+) -> None:
+    model = models_by_name[model_name]
+    assert model["name_pattern"] == name_pattern
+    assert model["source"] == "manual"
+    assert model["provider"] == "minimax"
+
+    actual_prices = {
+        (price["token_type"], price["is_prompt"]): price["base_rate"]
+        for price in model["token_prices"]
+    }
+    assert actual_prices.keys() == expected_prices.keys()
+    for key, expected_rate in expected_prices.items():
+        assert actual_prices[key] == pytest.approx(expected_rate, rel=1e-9)
