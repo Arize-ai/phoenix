@@ -1,8 +1,8 @@
 import {
   Flex,
+  SegmentedControl,
+  SegmentedControlItem,
   Text,
-  ToggleButton,
-  ToggleButtonGroup,
 } from "@phoenix/components";
 import {
   isProjectEvaluatorTarget,
@@ -23,23 +23,22 @@ export const ProjectEvaluatorTargetField = ({
       <Text size="XS" weight="heavy" color="text-700">
         Target
       </Text>
-      <ToggleButtonGroup
+      <SegmentedControl
         aria-label="Evaluator target"
-        selectedKeys={[value]}
-        onSelectionChange={(keys) => {
-          const target = keys.keys().next().value;
-          if (typeof target === "string" && isProjectEvaluatorTarget(target)) {
-            onChange(target);
+        selectedKey={value}
+        onSelectionChange={(key) => {
+          if (typeof key === "string" && isProjectEvaluatorTarget(key)) {
+            onChange(key);
           }
         }}
       >
-        <ToggleButton id="span" aria-label="Span" isDisabled={isDisabled}>
+        <SegmentedControlItem id="span" isDisabled={isDisabled}>
           Span
-        </ToggleButton>
-        <ToggleButton id="session" aria-label="Session" isDisabled>
+        </SegmentedControlItem>
+        <SegmentedControlItem id="session" isDisabled>
           Session
-        </ToggleButton>
-      </ToggleButtonGroup>
+        </SegmentedControlItem>
+      </SegmentedControl>
     </Flex>
   );
 };
