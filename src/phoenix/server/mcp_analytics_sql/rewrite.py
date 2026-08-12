@@ -612,19 +612,33 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     # duration this pass computes.
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
     scope_root = build_scope(root)
+    # Per-column: how many duration tables this scope has, and the folded names
+    # a qualifier may use to name one. A CTE named `spans` is not a duration
+    # table -- scope.sources resolves it to a nested scope, not a Table -- so
+    # substituting here would rewrite `latency_ms` onto `start_time`/`end_time`
+    # that the CTE does not provide.
+    duration_scope: dict[int, tuple[int, frozenset[str]]] = {}
     if scope_root is not None:
         for scope in scope_root.traverse():
-            duration_sources = sum(
-                isinstance(source, exp.Table)
-                and (
-                    table_name := _allowlisted_table_name(
-                        source, allowlist=ctx.allowlist, dialect=ctx.dialect
-                    )
+            aliases: set[str] = set()
+            duration_sources = 0
+            for alias, source in scope.sources.items():
+                if not isinstance(source, exp.Table):
+                    continue
+                table_name = _allowlisted_table_name(
+                    source, allowlist=ctx.allowlist, dialect=ctx.dialect
                 )
-                is not None
-                and "latency_ms" in ctx.allowlist.table_specs[table_name].virtual_columns
-                for source in scope.sources.values()
-            )
+                if (
+                    table_name is None
+                    or "latency_ms" not in ctx.allowlist.table_specs[table_name].virtual_columns
+                ):
+                    continue
+                duration_sources += 1
+                aliases.add(alias.casefold())
+                aliases.add((source.name or "").casefold())
+            names = frozenset(aliases)
+            for column in (*scope.columns, *_scope_columns(scope.expression)):
+                duration_scope[id(column)] = (duration_sources, names)
             if duration_sources < 2:
                 continue
             for column in _scope_columns(scope.expression):
@@ -643,6 +657,13 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
 
     for node in list(root.find_all(exp.Column)):
         if (node.name or "").lower() == "latency_ms" and not query_local.is_local(node):
+            duration_sources, aliases = duration_scope.get(id(node), (0, frozenset()))
+            qualifier = (node.table or "").casefold()
+            if qualifier:
+                if qualifier not in aliases:
+                    continue
+            elif duration_sources != 1:
+                continue
             table_name = node.table or ""
             start = exp.column("start_time", table=table_name or None)
             end = exp.column("end_time", table=table_name or None)
@@ -886,24 +907,29 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     alone: it will match nothing, which is the truthful answer, rather than being
     rewritten into a comparison the caller did not ask for.
     """
-    # Resolved per reference, not once per statement. Requiring a single table
-    # meant the column worked alone and failed in a join -- including the join
-    # the schema's own "to area root" hint teaches -- while `latency_ms`, listed
-    # beside it and described in the same preamble sentence, worked in both. A
-    # qualified reference names its table, so a join is only ambiguous for a
-    # bare `graphql_node_id`, which is refused instead of reaching the database
-    # as a nonexistent physical column.
-    by_alias = _graphql_types_in_scope(root)
-    fallback = TABLE_GRAPHQL_TYPES.get(_single_table_name(root) or "")
-    if not by_alias and fallback is None:
+    # Resolved per reference against the physical tables in that reference's
+    # scope, not against every Table node in the statement. A CTE named
+    # `projects` parses as a Table, so a statement-wide walk treated
+    # `WITH projects AS (SELECT 99 AS id) SELECT graphql_node_id FROM projects`
+    # as a read of the projects table and encoded 99 as a Project node id -- a
+    # wrong row, reported as success. Scope sources distinguish the two: a CTE
+    # resolves to a nested scope, not a Table, matching schema qualification.
+    query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
+    scope_root = build_scope(root)
+    # column id -> (alias/table -> type, fallback type, physical graphql sources)
+    resolution: dict[int, tuple[dict[str, str], Optional[str], int]] = {}
+    if scope_root is not None:
+        for scope in scope_root.traverse():
+            by_alias, n_sources = _physical_graphql_types(
+                scope, allowlist=ctx.allowlist, dialect=ctx.dialect
+            )
+            fallback = next(iter(set(by_alias.values()))) if n_sources == 1 else None
+            for column in (*scope.columns, *_scope_columns(scope.expression)):
+                resolution[id(column)] = (by_alias, fallback, n_sources)
+    if not any(n_sources for _, _, n_sources in resolution.values()):
         return root
 
     changed = False
-
-    # The same resolution `latency_ms` uses. Without it a derived relation
-    # projecting this column has its outer reference rewritten into an expression
-    # over an `id` that relation does not provide.
-    query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
 
     def is_node_id(node: exp.Expression) -> bool:
         return (
@@ -913,8 +939,12 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
         )
 
     def type_for(node: exp.Column) -> Optional[str]:
+        by_alias, fallback, _ = resolution.get(id(node), ({}, None, 0))
         qualifier = (node.table or "").lower()
         return by_alias.get(qualifier) if qualifier else fallback
+
+    def graphql_source_count(node: exp.Column) -> int:
+        return resolution.get(id(node), ({}, None, 0))[2]
 
     # Predicate position first: rewriting the whole comparison removes the column
     # before the projection pass can see it.
@@ -939,7 +969,12 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
             continue
         type_name = type_for(column)
         if type_name is None:
-            if not column.table:
+            # Raise only when this scope has several GraphQL tables, so a bare
+            # name cannot be attributed. Zero tables means the name is not ours
+            # to rewrite -- a CTE that does not project it -- and leaving it
+            # lets the engine say the column does not exist rather than
+            # reporting a join-ambiguity the statement does not have.
+            if not column.table and graphql_source_count(column) > 1:
                 raise AnalyticsSqlError(
                     code=ErrorCode.UNSUPPORTED_SYNTAX,
                     message=(
@@ -982,16 +1017,23 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     return root
 
 
-def _graphql_types_in_scope(root: exp.Expression) -> dict[str, str]:
-    """Every alias and table name in the statement that has a GraphQL type.
+def _physical_graphql_types(
+    scope: Any, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
+) -> tuple[dict[str, str], int]:
+    """Alias and table name -> GraphQL type for physical tables in this scope.
 
-    Keyed by both, lower-cased, because `FROM traces t` lets the caller write
-    either `t.graphql_node_id` or `traces.graphql_node_id`. A name that resolves
-    to two different types is dropped rather than guessed at -- a self-join has
-    one type per side and picking either would attribute a row id to the wrong
-    one, which is the failure the single-table rule was protecting against.
+    Keyed by both, lower-cased, because ``FROM traces t`` lets the caller write
+    either ``t.graphql_node_id`` or ``traces.graphql_node_id``. A name that
+    resolves to two different types is dropped rather than guessed at -- a
+    self-join has one type per side and picking either would attribute a row id
+    to the wrong one.
+
+    Only ``scope.sources`` that resolve to a Table count. A CTE of the same
+    name is a nested scope, and recording it here would encode its ``id`` as a
+    node id for a table it is not.
     """
     found: dict[str, Optional[str]] = {}
+    n_sources = 0
 
     def record(key: str, type_name: str) -> None:
         lowered = key.lower()
@@ -1000,27 +1042,18 @@ def _graphql_types_in_scope(root: exp.Expression) -> dict[str, str]:
         else:
             found.setdefault(lowered, type_name)
 
-    for table in root.find_all(exp.Table):
-        type_name = TABLE_GRAPHQL_TYPES.get(table.name or "")
+    for alias, source in scope.sources.items():
+        if not isinstance(source, exp.Table):
+            continue
+        table_name = _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+        if table_name is None:
+            continue
+        type_name = TABLE_GRAPHQL_TYPES.get(table_name)
         if type_name is None:
             continue
-        record(table.name, type_name)
-        if table.alias:
-            record(table.alias, type_name)
-    return {key: value for key, value in found.items() if value is not None}
-
-
-def _single_table_name(root: exp.Expression) -> Optional[str]:
-    """The one real table this statement reads, or None if it reads several.
-
-    A node id encodes its own type, so translating one requires knowing which
-    table the column belongs to. With a single table that is unambiguous. With a
-    join it is not, and guessing would silently attribute a row id to the wrong
-    type -- so the column is left alone and the caller gets an unresolved-column
-    error rather than a wrong row.
-    """
-    names = {t.name for t in root.find_all(exp.Table) if t.name and t.name in TABLE_GRAPHQL_TYPES}
-    others = {t.name for t in root.find_all(exp.Table) if t.name}
-    if len(others) != 1 or len(names) != 1:
-        return None
-    return next(iter(names))
+        n_sources += 1
+        record(alias, type_name)
+        record(source.name, type_name)
+        if source.alias:
+            record(source.alias, type_name)
+    return {key: value for key, value in found.items() if value is not None}, n_sources

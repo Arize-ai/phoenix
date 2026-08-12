@@ -688,6 +688,49 @@ def test_graphql_node_id_resolves_through_a_qualifier(dialect: str) -> None:
     assert "Qualify it with a table alias" in exc.value.message
 
 
+def test_graphql_node_id_is_not_invented_for_a_cte_of_the_same_name() -> None:
+    """A CTE named after a GraphQL table is not that table.
+
+    Schema qualification already learned this: ``WITH spans AS (...) SELECT
+    count(*) FROM spans`` must not become a count of ``public.spans``. The node
+    id pass walked every Table node instead, so
+    ``WITH projects AS (SELECT 99 AS id) SELECT graphql_node_id FROM projects``
+    encoded 99 as a Project node id and reported success.
+    """
+    ctx, rendered = _rewritten(
+        "WITH projects AS (SELECT 99 AS id) SELECT graphql_node_id FROM projects",
+        dialect="postgresql",
+    )
+    assert "ENCODE" not in rendered.upper()
+    assert "graphql_node_id" in rendered.lower()
+    assert "graphql_node_id" not in ctx.applied
+
+
+def test_graphql_node_id_through_a_cte_alias_is_not_called_ambiguous() -> None:
+    """Zero GraphQL tables in the outer scope is not a join.
+
+    ``WITH p AS (SELECT id FROM projects) SELECT graphql_node_id FROM p`` used
+    to raise the multi-table qualification error because the inner ``projects``
+    table made the statement-wide fallback None. Leave the column alone.
+    """
+    ctx, rendered = _rewritten(
+        "WITH p AS (SELECT id FROM projects) SELECT graphql_node_id FROM p",
+        dialect="postgresql",
+    )
+    assert "ENCODE" not in rendered.upper()
+    assert "graphql_node_id" not in ctx.applied
+
+
+def test_latency_ms_is_not_invented_for_a_cte_of_the_same_name() -> None:
+    """Same shape as the node-id CTE: the name is not the table."""
+    _, rendered = _rewritten(
+        "WITH spans AS (SELECT 1 AS id) SELECT latency_ms FROM spans",
+        dialect="sqlite",
+    )
+    assert "UNIXEPOCH" not in rendered.upper()
+    assert "latency_ms" in rendered.lower()
+
+
 @pytest.mark.parametrize("dialect", ["sqlite", "postgres"])
 def test_bare_latency_ms_in_multiple_duration_sources_requires_qualification(dialect: str) -> None:
     """An unqualified virtual duration must not become ambiguous timestamp SQL."""
