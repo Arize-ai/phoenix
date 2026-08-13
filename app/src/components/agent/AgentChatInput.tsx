@@ -144,7 +144,7 @@ export function AgentChatInput({
           <AgentContextPills />
           <PromptInputBody>
             <SkillPromptInputBoundary
-              placeholder="Send a message..."
+              placeholder="Try / for commands..."
               commands={PROMPT_COMMANDS}
               onSkillsChange={setAvailableSkills}
               textareaRef={textareaRef}
