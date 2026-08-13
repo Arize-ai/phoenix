@@ -174,7 +174,18 @@ def test_experiment_run_annotations_grain_warns_about_join_fanout() -> None:
     brief = render_schema_ddl(
         tables=["experiment_run_annotations"], detail="brief", dialect="sqlite"
     )
+    detailed = render_schema_ddl(
+        tables=["experiment_run_annotations"], detail="detailed", dialect="sqlite"
+    )
     assert "COUNT(DISTINCT experiment_runs.id)" in brief
+    assert "COUNT(DISTINCT experiment_runs.id)" in detailed
+
+
+def test_span_annotations_grain_warns_about_join_fanout() -> None:
+    brief = render_schema_ddl(tables=["span_annotations"], detail="brief", dialect="sqlite")
+    detailed = render_schema_ddl(tables=["span_annotations"], detail="detailed", dialect="sqlite")
+    assert "COUNT(DISTINCT spans.id)" in brief
+    assert "COUNT(DISTINCT spans.id)" in detailed
 
 
 @pytest.mark.parametrize("backend", DIALECTS)
@@ -424,7 +435,12 @@ def test_an_empty_selection_says_which_filter_matched_nothing() -> None:
     """Silence cannot distinguish a typo from an empty deployment."""
     from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
 
-    for kwargs in ({"tables": ["users"]}, {"search": "zzzz"}, {"area": "nope"}):
+    for kwargs in (
+        {"tables": ["users"]},
+        {"tables": []},
+        {"search": "zzzz"},
+        {"area": "nope"},
+    ):
         text = describe_sql_schema(dialect="sqlite", **kwargs)
         assert "No allowlisted table matched" in text
         assert str(list(kwargs.values())[0]) in text

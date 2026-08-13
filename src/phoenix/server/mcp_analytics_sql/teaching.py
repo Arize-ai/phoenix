@@ -35,7 +35,7 @@ def describe_sql_schema(
         "analytics sql: describeSqlSchema detail=%s area=%s tables=%s -> %d bytes",
         detail,
         area or "all",
-        ",".join(tables) if tables else "all",
+        ",".join(tables) if tables is not None else "all",
         len(text.encode("utf-8")),
     )
     return text
@@ -68,7 +68,7 @@ def _describe_sql_schema(
     if not schema_ddl.strip():
         asked = [
             f"area={area!r}" if area else "",
-            f"tables={tables!r}" if tables else "",
+            f"tables={tables!r}" if tables is not None else "",
             f"search={search!r}" if search else "",
         ]
         filters = ", ".join(a for a in asked if a) or "this request"

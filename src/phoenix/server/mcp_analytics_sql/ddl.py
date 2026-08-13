@@ -110,6 +110,8 @@ def _render_curation(spec: TableSpec) -> list[str]:
     """Render non-relational curation comments for one table."""
 
     lines: list[str] = []
+    if spec.grain:
+        lines.append(f"-- {spec.name}: {spec.grain}")
     for column in sorted(spec.virtual_columns):
         lines.append(f"-- query-only virtual column: {column}")
     if spec.time_column:
@@ -141,7 +143,8 @@ def render_schema_ddl(
             continue
         area_tables = curation.areas[area_name].tables
         rendered: list[str] = []
-        for table_name in tables or list(area_tables):
+        requested_tables = list(area_tables) if tables is None else tables
+        for table_name in requested_tables:
             if table_name not in area_tables:
                 continue
             spec = allowlist.table_specs.get(table_name)

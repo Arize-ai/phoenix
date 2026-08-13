@@ -87,7 +87,12 @@ MANIFEST = AnalyticsSqlManifest(
                                 "unless the JSON is consulted for non-LLM kinds."
                             ),
                         ),
-                        "span_annotations": TableCuration(),
+                        "span_annotations": TableCuration(
+                            grain=(
+                                "One annotation on a span; joining to spans multiplies "
+                                "row count. Use COUNT(DISTINCT spans.id) to count spans"
+                            )
+                        ),
                         "span_costs": TableCuration(
                             column_notes=MappingProxyType(
                                 {
@@ -99,7 +104,11 @@ MANIFEST = AnalyticsSqlManifest(
                             )
                         ),
                         "span_cost_details": TableCuration(
-                            grain="One token-cost category within a span cost",
+                            grain=(
+                                "One token-cost category within a span cost; joining to "
+                                "span_costs multiplies row count. Use "
+                                "COUNT(DISTINCT span_costs.id) to count costs"
+                            ),
                             column_notes=MappingProxyType(
                                 {"is_prompt": "true for input tokens, false for output"}
                             ),

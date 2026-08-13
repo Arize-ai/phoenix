@@ -241,7 +241,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
             # deployment, so a telemetry request came back carrying experiment
             # indexes -- noise about tables the same response never described.
             requested = allowlist.areas.get(area, frozenset()) if area else allowlist.tables
-            if tables:
+            if tables is not None:
                 requested &= frozenset(tables)
             # The schema resolved against the connection, not the manifest's
             # hardcoded default, so this publishes indexes from the same

@@ -616,4 +616,66 @@ CASES: tuple[AdmissionCase, ...] = (
         expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
         note="a clock time with no date is not an instant; PostgreSQL rejects it as invalid timestamptz input, so admission must refuse rather than wait for EXECUTION_ERROR",
     ),
+    AdmissionCase(
+        sql="SELECT s.span_id, t.trace_id FROM spans s JOIN traces t USING (latency_ms)",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="latency_ms is a query-only overlay; USING names an identifier the rewrite never substitutes, so Postgres then reports a missing physical column",
+    ),
+    AdmissionCase(
+        sql="SELECT s.span_id, t.trace_id FROM spans s JOIN traces t USING (graphql_node_id)",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="graphql_node_id is the same overlay shape as latency_ms and fails the same way as a USING key",
+    ),
+    AdmissionCase(
+        sql="SELECT count(*) FROM spans WHERE start_time >= 1719792000",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="an unquoted integer is not an instant; PostgreSQL has no timestamptz >= integer operator",
+    ),
+    AdmissionCase(
+        sql=(
+            "SELECT count(*) AS n FROM (SELECT start_time AS ts FROM spans) t "
+            "WHERE ts >= '2026-07-02 12:00:00'"
+        ),
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="aliasing a stored timestamp must not bypass the naive-literal offset rule",
+    ),
+    AdmissionCase(
+        sql="SELECT json_type('{\"a\":1}')",
+        expect=AdmissionOutcome.FUNCTION_NOT_ALLOWED,
+        note="json_type is SQLite; PostgreSQL spells the same question jsonb_typeof",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT json_type('{\"a\":1}')",
+        expect=AdmissionOutcome.ADMIT,
+        note="json_type is native SQLite json1 and must remain admitted there",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT attributes @@ 'exists($.session.id)' AS v FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="PostgreSQL jsonb @@ jsonpath parses as MatchAgainst; refusing it as match_against names a MySQL function the caller never wrote",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT attributes #> ARRAY['session', 'id'] FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="#> ARRAY['a','b'] is equivalent to #> '{a,b}' and must not be refused as Bracket",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT events -> 0 FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="integer jsonb accessor events -> 0 is valid PostgreSQL; JSONPathSubscript is the parser's model of that subscript",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql=(
+            "SELECT status_code, span_kind, COUNT(*) FROM spans "
+            "GROUP BY GROUPING SETS ((status_code), (span_kind), ()) LIMIT 20"
+        ),
+        expect=AdmissionOutcome.PARSE_ERROR,
+        note="SQLGlot cannot parse GROUPING SETS with LIMIT; the refusal must stay a parse_error rather than silently dropping the limit",
+        dialect="postgresql",
+    ),
 )

@@ -81,7 +81,11 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
     try:
         statements = parse(sql, read=sqlglot_read_dialect(dialect))
     except ParseError as exc:
-        raise admission_error_from_outcome("parse_error", str(exc)) from exc
+        raise admission_error_from_outcome(
+            "parse_error",
+            str(exc),
+            message=_grouping_limit_parse_message(sql) or "",
+        ) from exc
     except RecursionError as exc:
         # The parser descends recursively, so nesting deep enough exhausts the
         # stack instead of failing to parse -- about a hundred parentheses, which
@@ -116,7 +120,62 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
                 "Simplify the statement, or split it into CTEs."
             ),
         )
-    return _fold_unquoted_identifiers(root, dialect=dialect)
+    return _fold_unquoted_identifiers(_repair_jsonb_extract_array_bracket(root), dialect=dialect)
+
+
+def _grouping_limit_parse_message(sql: str) -> Optional[str]:
+    """Actionable copy when SQLGlot cannot parse GROUPING SETS/ROLLUP/CUBE with LIMIT.
+
+    PostgreSQL accepts ``GROUP BY GROUPING SETS (...) LIMIT n``. SQLGlot's
+    postgres parser does not; ``FETCH FIRST n ROWS ONLY`` and wrapping the
+    aggregation in a subquery both parse. The generic parse error names a
+    token the caller cannot act on.
+    """
+    folded = sql.casefold()
+    if "limit" not in folded and "offset" not in folded:
+        return None
+    if "grouping sets" not in folded and "rollup (" not in folded and "cube (" not in folded:
+        return None
+    return (
+        "GROUP BY GROUPING SETS, ROLLUP, or CUBE cannot be combined with LIMIT or "
+        "OFFSET in this parser. Wrap the aggregation in a subquery and LIMIT the "
+        "outer SELECT, or write FETCH FIRST n ROWS ONLY."
+    )
+
+
+def _is_bare_array_name(expression: Optional[exp.Expression]) -> bool:
+    """Whether this is the unquoted identifier SQLGlot leaves when it misparses ARRAY[...]."""
+    if not isinstance(expression, exp.Column) or expression.table:
+        return False
+    identifier = expression.this
+    if isinstance(identifier, exp.Identifier) and identifier.args.get("quoted"):
+        return False
+    return (expression.name or "").casefold() == "array"
+
+
+def _repair_jsonb_extract_array_bracket(root: exp.Expression) -> exp.Expression:
+    """Rebuild ``doc #> ARRAY['a','b']`` from SQLGlot's Bracket misparse.
+
+    SQLGlot parses that spelling as subscripting ``JSONB_EXTRACT(doc, ARRAY)``
+    with the array elements as keys, so admission saw a Bracket (not in the
+    grammar) while ``doc #> '{a,b}'`` and ``doc #- ARRAY['a','b']`` both
+    admitted. Postgres treats the two path spellings as equivalent.
+    """
+    for bracket in list(root.find_all(exp.Bracket)):
+        extract = bracket.this
+        if not isinstance(extract, (exp.JSONBExtract, exp.JSONBExtractScalar)):
+            continue
+        if not _is_bare_array_name(extract.expression):
+            continue
+        elements = bracket.expressions
+        if not elements:
+            continue
+        rebuilt = type(extract)(
+            this=extract.this.copy(),
+            expression=exp.Array(expressions=[item.copy() for item in elements]),
+        )
+        bracket.replace(rebuilt)
+    return root
 
 
 #: How deep a statement may nest. Every stage after parsing walks the tree
@@ -398,7 +457,8 @@ _ALLOWED_STRUCTURAL_CLASSES: frozenset[str] = frozenset(
     Add Alias All Any Between Block Boolean CTE Column Copy Credentials Cube
     DPipe DataType Distinct Div Dot Drop EQ Escape Except Fetch Filter From GT
     GTE Glob Group GroupingSets Having Identifier In Interval Intersect Into Is
-    ILike JSONKeyValue JSONPath JSONPathKey JSONPathRoot Join LT LTE Lateral Like Limit
+    ILike JSONKeyValue JSONPath JSONPathKey JSONPathRoot JSONPathSubscript
+    Join LT LTE Lateral Like Limit
     LimitOptions Literal Lock Mod Mul NEQ Neg Not Null NullSafeEQ NullSafeNEQ
     ObjectIdentifier Offset Order Ordered Paren Rollup Select Star Sub Subquery
     SimilarTo Table TableAlias Tuple Union Values Var Where Window WindowSpec With
@@ -1057,27 +1117,41 @@ def _timestamp_literals(
     *,
     allowlist: Allowlist,
     dialect: SupportedSQLDialectName,
+    numeric: bool = False,
 ) -> list[exp.Literal]:
-    """Every string literal compared against a column that holds a timestamp.
+    """Every literal compared against a column that holds a timestamp.
+
+    String literals are the usual case. ``numeric=True`` collects unquoted
+    numbers instead: ``start_time >= 1719792000`` is not an instant, and
+    PostgreSQL has no such operator.
 
     Columns that resolve to a query-local relation are skipped unless that
     relation merely projected a stored timestamp column: rewriting a literal
     beside caller-invented data of the same name changes a comparison they
-    wrote against their own values.
+    wrote against their own values. An alias of a stored timestamp
+    (``start_time AS ts``) is still a timestamp, even though the output name
+    is no longer in ``columns``.
     """
     local = query_local_columns(root, allowlist=allowlist, dialect=dialect)
     passthrough = _timestamp_passthrough_references(root, columns)
     found: list[exp.Literal] = []
 
+    def is_timestamp_column(column: exp.Column) -> bool:
+        if id(column) in passthrough:
+            return True
+        if (column.name or "").casefold() not in columns:
+            return False
+        return not local.is_local(column)
+
     def collect(left: Optional[exp.Expression], right: Optional[exp.Expression]) -> None:
         for column, literal in ((left, right), (right, left)):
-            if (
-                isinstance(column, exp.Column)
-                and (column.name or "").casefold() in columns
-                and (not local.is_local(column) or id(column) in passthrough)
-                and isinstance(literal, exp.Literal)
-                and literal.is_string
-            ):
+            if not isinstance(column, exp.Column) or not is_timestamp_column(column):
+                continue
+            if not isinstance(literal, exp.Literal):
+                continue
+            if numeric and literal.is_number:
+                found.append(literal)
+            elif not numeric and literal.is_string:
                 found.append(literal)
 
     for node in root.walk():
@@ -1133,27 +1207,42 @@ def _check_timestamp_literals(
             f"`{literal.this}+00:00` for UTC. A bare date such as `2026-07-01` needs "
             "none and is read as UTC.",
         )
+    for literal in _timestamp_literals(
+        root, columns, allowlist=allowlist, dialect=dialect, numeric=True
+    ):
+        return AdmissionResult(
+            AdmissionOutcome.UNSUPPORTED_SYNTAX,
+            f"`{literal.this}` is a number, not an instant. Write an ISO-8601 instant "
+            "with an offset, for example `2026-07-01T00:00:00+00:00`.",
+        )
     return None
+
+
+# SQLGlot's first sql_names() entry is sometimes an internal alias, not the
+# spelling the caller typed or the engine documents.
+_SQLGLOT_FUNCTION_SPELLING = {
+    "explode": "unnest",
+}
 
 
 def _reported_function_name(sql_names: list[str]) -> str:
     """The spelling a caller wrote, not SQLGlot's internal class alias.
 
     ``generate_series`` is modelled as ``ExplodingGenerateSeries``, whose only
-    ``sql_names`` entry is ``EXPLODING_GENERATE_SERIES``. Reporting that sends
-    the caller looking for a function that does not exist. Strip the prefix
-    SQLGlot uses for the exploding (set-returning) variant; any other name is
-    already the SQL spelling.
+    ``sql_names`` entry is ``EXPLODING_GENERATE_SERIES``. ``unnest`` is
+    modelled as ``Explode``. Reporting those internal names sends the caller
+    looking for a function that does not exist. Strip the prefix SQLGlot uses
+    for the exploding (set-returning) variant, then map any remaining alias.
     """
     lowered = [name.lower() for name in sql_names]
     for name in lowered:
         if name.startswith("exploding_"):
             stripped = name[len("exploding_") :]
             if stripped:
-                return stripped
+                return _SQLGLOT_FUNCTION_SPELLING.get(stripped, stripped)
             continue
-        return name
-    return lowered[0]
+        return _SQLGLOT_FUNCTION_SPELLING.get(name, name)
+    return _SQLGLOT_FUNCTION_SPELLING.get(lowered[0], lowered[0])
 
 
 def _check_functions(
@@ -1730,6 +1819,77 @@ def _offers_column(
     return any(name.casefold() == column and column == column.lower() for column in offered)
 
 
+def _join_using_identifiers(join: exp.Join) -> list[exp.Identifier]:
+    using = join.args.get("using")
+    if not using:
+        return []
+    items = using if isinstance(using, list) else [using]
+    found: list[exp.Identifier] = []
+    for item in items:
+        ident = item if isinstance(item, exp.Identifier) else getattr(item, "this", None)
+        if isinstance(ident, exp.Identifier):
+            found.append(ident)
+    return found
+
+
+def _virtual_column_on_source(
+    expression: Optional[exp.Expression],
+    column_name: str,
+    *,
+    quoted: bool,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> bool:
+    if not isinstance(expression, exp.Table):
+        return False
+    table_name = _allowlisted_table_name(expression, allowlist=allowlist, dialect=dialect)
+    if table_name is None:
+        return False
+    spec = allowlist.table_specs.get(table_name)
+    if spec is None:
+        return False
+    want = _identifier_key(column_name, quoted=quoted, dialect=dialect)
+    return any(
+        _identifier_key(virtual, quoted=False, dialect=dialect) == want
+        for virtual in spec.virtual_columns
+    )
+
+
+def _check_using_virtual_columns(
+    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
+) -> Optional[AdmissionResult]:
+    """Refuse USING keys that name a query-only overlay.
+
+    Substitution walks ``exp.Column``, and a USING key is an identifier, so
+    ``JOIN traces USING (latency_ms)`` was admitted and then failed in
+    Postgres as a missing physical column. The overlay is still available as
+    an ON comparison, which the rewrite can see.
+    """
+    for select in root.find_all(exp.Select):
+        from_expr = select.args.get("from_") or select.args.get("from")
+        left = from_expr.this if isinstance(from_expr, exp.From) else None
+        for join in select.args.get("joins") or []:
+            for ident in _join_using_identifiers(join):
+                name = ident.this or ""
+                quoted = bool(ident.args.get("quoted"))
+                if _virtual_column_on_source(
+                    left, name, quoted=quoted, allowlist=allowlist, dialect=dialect
+                ) or _virtual_column_on_source(
+                    join.this, name, quoted=quoted, allowlist=allowlist, dialect=dialect
+                ):
+                    return AdmissionResult(
+                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                        name,
+                        message=(
+                            f"`{name}` is a query-only column and cannot be a USING join "
+                            f"key. Write an ON comparison instead, for example "
+                            f"`ON s.{name} = t.{name}`."
+                        ),
+                    )
+            left = join.this
+    return None
+
+
 def admit(
     root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> exp.Expression:
@@ -1771,6 +1931,7 @@ def admit(
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist, dialect=dialect)
         or _check_column_references(root, allowlist=allowlist, dialect=dialect)
+        or _check_using_virtual_columns(root, allowlist=allowlist, dialect=dialect)
         or _check_timestamp_literals(root, allowlist=allowlist, dialect=dialect)
     )
     if failure is not None:

@@ -53,6 +53,10 @@ _EQUIVALENT: dict[str, str] = {
     # node class would pass a statement one backend cannot run.
     "left": "substring(x, 1, n)",
     "right": "substring(x, length(x) - n + 1, n)",
+    # SQLite json_type; PostgreSQL names the same question jsonb_typeof.
+    # The returned strings differ ('text' vs 'string'), so this is a
+    # capability spelling, not a claim that the two engines agree.
+    "json_type": "jsonb_typeof(x)",
 }
 
 

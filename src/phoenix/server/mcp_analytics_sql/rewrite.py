@@ -504,6 +504,24 @@ def _copied_table_identifier(column: exp.Column) -> Optional[exp.Identifier]:
     return exp.to_identifier(name) if name else None
 
 
+def _exposed_table_identifier(
+    column: exp.Column,
+    exposed_by_key: dict[str, exp.Identifier],
+    *,
+    dialect: SupportedSQLDialectName,
+) -> Optional[exp.Identifier]:
+    """The FROM alias this column's table is exposed as, quoting included.
+
+    Admission accepts both the alias and the table name. PostgreSQL hides the
+    table name once it is aliased, so copying the caller's qualifier into a
+    rewrite produces ``traces.id`` after ``FROM traces t``.
+    """
+    if not column.table:
+        return _copied_table_identifier(column)
+    ident = exposed_by_key.get(_column_qualifier_key(column, dialect=dialect))
+    return ident.copy() if ident is not None else _copied_table_identifier(column)
+
+
 def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str, exp.Identifier]]:
     """Every relation a bare ``*`` in this SELECT draws from.
 
@@ -634,7 +652,13 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                         node, scope_by_expression.get(id(node))
                     )
                     if _matches_star_source(explicit, explicit_identifier, qualifier, ctx.dialect)
-                ] or [("", explicit, exp.to_identifier(explicit))]
+                ]
+                if not targets:
+                    raise AnalyticsSqlError(
+                        code=ErrorCode.UNSUPPORTED_SYNTAX,
+                        message=f"`{explicit}` does not name a relation in this query.",
+                        identifiers=(explicit,),
+                    )
             else:
                 targets = _star_sources(node, scope_by_expression.get(id(node)))
 
@@ -753,10 +777,11 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     # Per-column: duration-table count in this scope, and dialect keys a
     # qualifier may use. Only Table sources count; a CTE of the same name is a
     # nested scope.
-    duration_scope: dict[int, tuple[int, frozenset[str]]] = {}
+    duration_scope: dict[int, tuple[int, frozenset[str], dict[str, exp.Identifier]]] = {}
     if scope_root is not None:
         for scope in scope_root.traverse():
             aliases: set[str] = set()
+            exposed_by_key: dict[str, exp.Identifier] = {}
             duration_sources = 0
             for source in scope.sources.values():
                 if not isinstance(source, exp.Table):
@@ -770,10 +795,13 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                 ):
                     continue
                 duration_sources += 1
-                aliases.update(_relation_identifier_keys(source, dialect=ctx.dialect))
+                exposed = _relation_qualifier(source)
+                for key in _relation_identifier_keys(source, dialect=ctx.dialect):
+                    aliases.add(key)
+                    exposed_by_key[key] = exposed
             names = frozenset(aliases)
             for column in (*scope.columns, *_scope_columns(scope.expression)):
-                duration_scope[id(column)] = (duration_sources, names)
+                duration_scope[id(column)] = (duration_sources, names, exposed_by_key)
             if duration_sources < 2:
                 continue
             for column in _scope_columns(scope.expression):
@@ -792,13 +820,15 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
 
     for node in list(root.find_all(exp.Column)):
         if (node.name or "").lower() == "latency_ms" and not query_local.is_local(node):
-            duration_sources, scope_aliases = duration_scope.get(id(node), (0, frozenset()))
+            duration_sources, scope_aliases, exposed_by_key = duration_scope.get(
+                id(node), (0, frozenset(), {})
+            )
             if node.table:
                 if _column_qualifier_key(node, dialect=ctx.dialect) not in scope_aliases:
                     continue
             elif duration_sources != 1:
                 continue
-            table_ident = _copied_table_identifier(node)
+            table_ident = _exposed_table_identifier(node, exposed_by_key, dialect=ctx.dialect)
             start = exp.column("start_time", table=table_ident)
             end = exp.column(
                 "end_time", table=table_ident.copy() if table_ident is not None else None
@@ -1141,17 +1171,18 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     # nested scope, not a Table.
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
     scope_root = build_scope(root)
-    # column id -> (alias/table -> type, fallback type, physical graphql sources)
-    resolution: dict[int, tuple[dict[str, str], Optional[str], int]] = {}
+    # column id -> (alias/table -> type, fallback type, physical graphql sources,
+    # qualifier -> exposed FROM identifier)
+    resolution: dict[int, tuple[dict[str, str], Optional[str], int, dict[str, exp.Identifier]]] = {}
     if scope_root is not None:
         for scope in scope_root.traverse():
-            by_alias, n_sources = _physical_graphql_types(
+            by_alias, exposed_by_key, n_sources = _physical_graphql_types(
                 scope, allowlist=ctx.allowlist, dialect=ctx.dialect
             )
             fallback = next(iter(set(by_alias.values()))) if n_sources == 1 else None
             for column in (*scope.columns, *_scope_columns(scope.expression)):
-                resolution[id(column)] = (by_alias, fallback, n_sources)
-    if not any(n_sources for _, _, n_sources in resolution.values()):
+                resolution[id(column)] = (by_alias, fallback, n_sources, exposed_by_key)
+    if not any(n_sources for _, _, n_sources, _ in resolution.values()):
         return root
 
     changed = False
@@ -1164,19 +1195,22 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
         )
 
     def type_for(node: exp.Column) -> Optional[str]:
-        by_alias, fallback, _ = resolution.get(id(node), ({}, None, 0))
+        by_alias, fallback, _, _ = resolution.get(id(node), ({}, None, 0, {}))
         qualifier = node.table or ""
         if not qualifier:
             return fallback
         return by_alias.get(_column_qualifier_key(node, dialect=ctx.dialect))
 
     def graphql_source_count(node: exp.Column) -> int:
-        return resolution.get(id(node), ({}, None, 0))[2]
+        return resolution.get(id(node), ({}, None, 0, {}))[2]
 
     # Predicate position first: rewriting the whole comparison removes the column
     # before the projection pass can see it.
     def physical_id(column: exp.Column) -> exp.Column:
-        return exp.column("id", table=_copied_table_identifier(column))
+        exposed_by_key = resolution.get(id(column), ({}, None, 0, {}))[3]
+        return exp.column(
+            "id", table=_exposed_table_identifier(column, exposed_by_key, dialect=ctx.dialect)
+        )
 
     for cmp_node in list(root.find_all(exp.EQ, exp.NEQ, exp.NullSafeEQ, exp.NullSafeNEQ)):
         left, right = cmp_node.this, cmp_node.expression
@@ -1248,7 +1282,12 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                     ),
                 )
             continue
-        written = exp.column("id", table=_copied_table_identifier(column))
+        written = exp.column(
+            "id",
+            table=_exposed_table_identifier(
+                column, resolution.get(id(column), ({}, None, 0, {}))[3], dialect=ctx.dialect
+            ),
+        )
         ctx.substituted_columns[written.sql()] = "graphql_node_id"
         payload = exp.Concat(
             expressions=[
@@ -1284,19 +1323,23 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
 
 def _physical_graphql_types(
     scope: Any, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
-) -> tuple[dict[str, str], int]:
+) -> tuple[dict[str, str], dict[str, exp.Identifier], int]:
     """Alias and table name -> GraphQL type for physical tables in this scope.
 
     Keyed by both under dialect identifier rules, because ``FROM traces t``
     lets the caller write either ``t.graphql_node_id`` or
-    ``traces.graphql_node_id``. A name that resolves to two different types is
-    dropped rather than guessed at -- a self-join has one type per side and
-    picking either would attribute a row id to the wrong one.
+    ``traces.graphql_node_id``. The rewrite then uses the exposed FROM
+    qualifier, because PostgreSQL hides the table name once it is aliased.
+
+    A name that resolves to two different types is dropped rather than guessed
+    at -- a self-join has one type per side and picking either would attribute
+    a row id to the wrong one.
 
     Only ``scope.sources`` that resolve to a Table. A CTE of the same name is a
     nested scope.
     """
     found: dict[str, Optional[str]] = {}
+    exposed_by_key: dict[str, exp.Identifier] = {}
     n_sources = 0
 
     for source in scope.sources.values():
@@ -1309,9 +1352,15 @@ def _physical_graphql_types(
         if type_name is None:
             continue
         n_sources += 1
+        exposed = _relation_qualifier(source)
         for key in _relation_identifier_keys(source, dialect=dialect):
             if key in found and found[key] != type_name:
                 found[key] = None
             else:
                 found.setdefault(key, type_name)
-    return {key: value for key, value in found.items() if value is not None}, n_sources
+            exposed_by_key[key] = exposed
+    return (
+        {key: value for key, value in found.items() if value is not None},
+        exposed_by_key,
+        n_sources,
+    )

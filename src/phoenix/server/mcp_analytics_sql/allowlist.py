@@ -45,11 +45,6 @@ ALLOWED_FUNC_CLASSES: frozenset[type[exp.Func]] = frozenset(
         exp.Ntile,
         exp.JSONExtract,
         exp.JSONExtractScalar,
-        # Type introspection over JSON. Pure, read-only, and the natural next
-        # question once a caller has found a key but does not know whether the
-        # value is a scalar, an object or an array -- which is the position every
-        # caller is in, because the key space is not declared anywhere.
-        exp.JSONType,
         # Pure scalar transforms, bounded by the size of their own input. None
         # can amplify: substring only ever shortens, lower preserves length, abs
         # is arithmetic on one value.
@@ -157,6 +152,11 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # and admitted on the same terms -- the per-cell byte limit rejects an
             # oversized result and the statement deadline bounds the work.
             exp.JSONBObjectAgg,
+            # SQLGlot models PostgreSQL `jsonb @@ jsonpath` as MatchAgainst
+            # (MySQL MATCH ... AGAINST). The generator still emits `@@`. The
+            # function form `jsonb_path_match` is already on the anon list;
+            # admitting the class is what lets the operator spelling through.
+            exp.MatchAgainst,
         }
     ),
     "sqlite": ALLOWED_FUNC_CLASSES
@@ -189,6 +189,12 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # counterparts of jsonb_set and jsonb_insert above.
             exp.JSONSet,
             exp.JSONRemove,
+            # Type introspection over JSON. SQLite's spelling; PostgreSQL has
+            # jsonb_typeof / json_typeof instead, and json_type is refused
+            # there with that equivalent. Pure, read-only, and the natural next
+            # question once a caller has found a key but does not know whether
+            # the value is a scalar, an object or an array.
+            exp.JSONType,
         }
     ),
 }
@@ -419,10 +425,9 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
             "jsonb_each",
             "jsonb_each_text",
             # Reading the *type* of a JSON value, which is the Postgres spelling
-            # of the json_type already admitted through its own parser class.
-            # It is what makes an undeclared key space explorable at all: a
-            # caller who has found a key still cannot tell whether it holds a
-            # scalar, an object or an array without asking.
+            # of SQLite's json_type. It is what makes an undeclared key space
+            # explorable at all: a caller who has found a key still cannot tell
+            # whether it holds a scalar, an object or an array without asking.
             "jsonb_typeof",
             "json_typeof",
             # The rest of the JSON reading surface. Each is pure and bounded by
@@ -588,7 +593,6 @@ PLAN_GATE_ALLOWED_FUNCTIONS: frozenset[str] = (
             "json_extract",
             "jsonb_extract_path",
             "jsonb_extract_path_text",
-            "json_type",
             "date_trunc",
             "extract",
             "to_char",

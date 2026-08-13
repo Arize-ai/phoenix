@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 82
+    assert len(CASES) >= 92
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -918,7 +918,13 @@ class TestTimestampComparisonCoverage:
         The deepest statement in the corpus and the liveness suite is nine
         levels; the generator fails somewhere above 258.
         """
-        deepest = max(_depth_of(case.sql, case.dialect) for case in CASES)
+        deepest = 0
+        for case in CASES:
+            try:
+                deepest = max(deepest, _depth_of(case.sql, case.dialect))
+            except Exception:
+                # Corpus entries that are parse_error never build a tree.
+                continue
 
         assert deepest * 5 < MAX_TREE_DEPTH, f"corpus reached depth {deepest}"
         assert MAX_TREE_DEPTH < 258, "must stay below what the generator survives"
@@ -1163,6 +1169,7 @@ class TestStructuralPolicyIsDefaultDeny:
             "JSONPath",
             "JSONPathKey",
             "JSONPathRoot",
+            "JSONPathSubscript",
             "Join",
             "Lateral",
             "Like",
@@ -1602,6 +1609,53 @@ def test_generate_series_refusal_names_the_sql_spelling() -> None:
     assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
     assert caught.value.admission_detail == "generate_series"
     assert "exploding_generate_series" not in caught.value.message
+
+
+def test_unnest_refusal_names_the_sql_spelling() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT unnest(ARRAY[1,2,3])",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
+    assert caught.value.admission_detail == "unnest"
+    assert "explode" not in caught.value.message.lower()
+
+
+def test_json_type_on_postgres_names_jsonb_typeof() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT json_type('{\"a\":1}')",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
+    assert "jsonb_typeof" in caught.value.message
+
+
+def test_grouping_sets_with_limit_names_the_workaround() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        parse_sql(
+            "SELECT status_code, COUNT(*) FROM spans "
+            "GROUP BY GROUPING SETS ((status_code)) LIMIT 20",
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.PARSE_ERROR
+    assert "FETCH FIRST" in caught.value.message
+    assert "subquery" in caught.value.message
+
+
+def test_integer_epoch_against_a_timestamp_is_refused() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT count(*) FROM spans WHERE start_time >= 1719792000",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "1719792000" in caught.value.message
+    assert "+00:00" in caught.value.message or "ISO-8601" in caught.value.message
 
 
 def test_for_update_refusal_names_the_clause() -> None:

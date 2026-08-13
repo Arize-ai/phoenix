@@ -437,6 +437,35 @@ def test_quoted_alias_virtual_columns_keep_the_callers_quoting() -> None:
     assert 'AS "S"' in node_id
 
 
+def test_table_name_qualifier_after_an_alias_uses_the_exposed_alias() -> None:
+    """PostgreSQL hides the table name once it is aliased.
+
+    Admission accepts ``traces.graphql_node_id`` after ``FROM traces t`` because
+    both names resolve. Copying that qualifier into the rewrite produced
+    ``traces.id`` and a missing-FROM error. The exposed alias is what the
+    engine can still see.
+    """
+    _, node_id = _rewritten("SELECT traces.graphql_node_id FROM traces t", dialect="postgresql")
+    assert "t.id" in node_id
+    assert "traces.id" not in node_id.replace("AS traces", "")
+
+    _, latency = _rewritten("SELECT spans.latency_ms FROM spans AS s", dialect="postgresql")
+    assert "s.start_time" in latency and "s.end_time" in latency
+    assert "spans.start_time" not in latency
+
+
+def test_qualified_star_on_a_missing_alias_names_the_missing_relation() -> None:
+    root = parse_sql("SELECT t.* FROM spans s", dialect="postgresql")
+    with pytest.raises(AnalyticsSqlError) as caught:
+        rewrite(
+            admit(root, allowlist=load_allowlist("postgresql"), dialect="postgresql"),
+            _ctx("postgresql"),
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "`t` does not name a relation" in caught.value.message
+    assert "query-local relation" not in caught.value.message
+
+
 def test_latency_ms_does_not_fold_a_quoted_alias_onto_an_unquoted_qualifier() -> None:
     """Quoted and unquoted spellings are different names on PostgreSQL."""
     tree = sqlglot.parse_one('SELECT s.latency_ms FROM spans AS "S"', dialect="postgres")
@@ -1174,6 +1203,18 @@ class TestTimestampLiterals:
         result = try_parse_and_admit(
             "SELECT id FROM (SELECT start_time, id FROM spans) t "
             "WHERE start_time >= '2026-07-01 14:30:00'",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "+00:00" in result.detail
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_a_naive_time_of_day_through_an_aliased_passthrough_is_refused(
+        self, backend: str
+    ) -> None:
+        result = try_parse_and_admit(
+            "SELECT id FROM (SELECT start_time AS ts, id FROM spans) t "
+            "WHERE ts >= '2026-07-01 14:30:00'",
             dialect=cast(SupportedSQLDialectName, backend),
         )
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
