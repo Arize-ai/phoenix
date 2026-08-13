@@ -678,4 +678,28 @@ CASES: tuple[AdmissionCase, ...] = (
         note="SQLGlot cannot parse GROUPING SETS with LIMIT attached; peel the clause, parse, and put it back so the engine still sees the caller's limit",
         dialect="postgresql",
     ),
+    AdmissionCase(
+        sql="WITH v(x) AS (VALUES (1), (2)) SELECT x FROM v",
+        expect=AdmissionOutcome.ADMIT,
+        note="SQLGlot rewrites CTE VALUES into SELECT * FROM (VALUES) AS _values; admission must not treat that invented star as a reason to refuse",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT id, name FROM projects UNION CORRESPONDING SELECT id, name FROM projects",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLGlot renders CORRESPONDING as UNION BY NAME, which PostgreSQL cannot parse; refuse at admission rather than generating invalid SQL",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT jsonb_typeof(attributes -> 'llm') AS v FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="arrow inside a function call parses as a lambda; rebuild it as a parenthesised JSON accessor so jsonb_typeof receives jsonb",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="PostgreSQL accepts an empty select list; SQLAlchemy cannot stream a zero-column cursor, so refuse rather than admit-then-fail",
+        dialect="postgresql",
+    ),
 )

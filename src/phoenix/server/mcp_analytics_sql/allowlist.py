@@ -443,8 +443,11 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
             "jsonb_strip_nulls",
             # SQL/JSON path, which reaches a nested value by path expression
             # rather than by chaining accessors. `jsonb_path_query` is
-            # set-returning and is declared in UNNEST_FUNCTIONS below; the rest
-            # return one value or a boolean.
+            # set-returning and is declared in UNNEST_FUNCTIONS below.
+            # `jsonb_path_query_array` and `_first` return one jsonb value, but
+            # a FROM-clause call still plans as Function Scan, so they are in
+            # UNNEST_FUNCTIONS as well -- otherwise admission allowed a name
+            # the plan gate then refused.
             "jsonb_path_query",
             "jsonb_path_query_first",
             "jsonb_path_query_array",
@@ -546,6 +549,8 @@ UNNEST_FUNCTIONS: frozenset[str] = frozenset(
         "jsonb_object_keys",
         "json_object_keys",
         "jsonb_path_query",
+        "jsonb_path_query_array",
+        "jsonb_path_query_first",
     }
 )
 

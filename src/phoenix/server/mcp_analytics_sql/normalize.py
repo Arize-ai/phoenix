@@ -106,6 +106,11 @@ def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
         return {key: _normalize_value(item, applied) for key, item in value.items()}
     if isinstance(value, list):
         return [_normalize_value(item, applied) for item in value]
+    if isinstance(value, tuple):
+        # PostgreSQL composites (`jsonb_each` without `.*`) arrive as tuples.
+        # Walking dict/list but not tuple let a permitted SRF crash the success
+        # envelope with a Pydantic JSON-value error instead of returning rows.
+        return [_normalize_value(item, applied) for item in value]
     if isinstance(value, bytes):
         decoded = value.decode("utf-8", errors="replace")
         if decoded.encode("utf-8", errors="replace") != value:
@@ -232,8 +237,12 @@ def timestamp_column_names(tables: frozenset[str]) -> frozenset[str]:
     from phoenix.db.models import Base
 
     names: set[str] = set()
-    for table_name, table in Base.metadata.tables.items():
-        if table_name not in tables:
+    for table in Base.metadata.tables.values():
+        # Metadata keys are schema-qualified when the process has a Postgres
+        # schema configured (`analytics_sql.spans`). The allowlist names the
+        # table only. Matching the key made every timestamp check a no-op on
+        # the live Postgres deployment.
+        if table.name not in tables:
             continue
         for column in table.columns:
             if "TIMESTAMP" in str(column.type).upper():

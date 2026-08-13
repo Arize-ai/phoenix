@@ -131,6 +131,9 @@ GOVERNED_BY_CHECK: dict[str, str] = {
     # JSONBExtract(doc, Column(ARRAY)). parse_sql rebuilds the Array path;
     # any other Bracket still fails the structural allowlist.
     "Bracket": "parse._repair_jsonb_extract_array_bracket",
+    # `col -> 'k'` inside a call parses as Lambda. parse_sql rebuilds JSON
+    # accessors; a remaining Lambda is refused by `_REFUSED_NODE_CLASSES`.
+    "Lambda": "parse._repair_lambda_json_accessor",
 }
 
 

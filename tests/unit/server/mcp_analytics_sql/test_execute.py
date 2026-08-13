@@ -647,7 +647,7 @@ class TestRewriteAttribution:
     def test_an_unqualified_substitution_is_attributed(self) -> None:
         ctx = self._ctx_after("SELECT latency_ms FROM spans")
 
-        error = _rewrite_attribution(Exception("no such column: start_time"), ctx)
+        error = _rewrite_attribution(Exception("no such column: spans.start_time"), ctx)
 
         assert error is not None
         assert error.identifiers == ("latency_ms",)
@@ -889,6 +889,11 @@ class TestLossyNormalisationIsReported:
         applied: set[str] = set()
 
         assert normalize_row_values([b"hello"], applied) == ["hello"]
+
+    def test_a_composite_tuple_becomes_a_json_array(self) -> None:
+        applied: set[str] = set()
+        assert normalize_row_values([("llm", {"a": 1})], applied) == [["llm", {"a": 1}]]
+        assert applied == set()
         assert applied == set()
 
     async def test_the_note_reaches_the_envelope(

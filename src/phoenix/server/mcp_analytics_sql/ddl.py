@@ -40,7 +40,7 @@ from phoenix.server.mcp_analytics_sql.allowlist import (
 )
 from phoenix.server.mcp_analytics_sql.manifest import manifest
 
-__all__ = ["DetailLevel", "render_schema_ddl", "validate_ddl"]
+__all__ = ["DetailLevel", "render_schema_ddl", "resolve_table_filter", "validate_ddl"]
 
 _SQLGLOT_DIALECT = {"postgresql": "postgres", "sqlite": "sqlite"}
 DetailLevel = Literal["brief", "detailed", "full"]
@@ -143,7 +143,8 @@ def render_schema_ddl(
             continue
         area_tables = curation.areas[area_name].tables
         rendered: list[str] = []
-        requested_tables = list(area_tables) if tables is None else tables
+        filtered = resolve_table_filter(tables, allowlist.tables)
+        requested_tables = list(area_tables) if filtered is None else list(filtered)
         for table_name in requested_tables:
             if table_name not in area_tables:
                 continue
@@ -163,6 +164,26 @@ def render_schema_ddl(
             separator = "\n" if detail == "brief" else "\n\n"
             chunks.append(f"-- area: {area_name}\n" + separator.join(rendered))
     return "\n\n".join(chunks)
+
+
+def resolve_table_filter(
+    requested: Optional[list[str]], allowlisted: frozenset[str]
+) -> Optional[frozenset[str]]:
+    """Map a describeSqlSchema ``tables=`` list onto allowlisted names.
+
+    Unquoted SQL folds to lower case. This filter is a JSON string, so callers
+    write ``SPANS`` the same way they write ``FROM SPANS``. Matching only the
+    exact spelling made the schema tool miss tables executeSql accepted.
+    """
+    if requested is None:
+        return None
+    matched: set[str] = set()
+    for name in requested:
+        if name in allowlisted:
+            matched.add(name)
+        elif name.lower() in allowlisted:
+            matched.add(name.lower())
+    return frozenset(matched)
 
 
 def _matches(spec: TableSpec, search: str) -> bool:

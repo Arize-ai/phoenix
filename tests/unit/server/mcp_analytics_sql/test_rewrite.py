@@ -99,7 +99,9 @@ def test_latency_ms_predicate_postgres() -> None:
     # EXTRACT names the field first and the source second. Reversed, it renders
     # as EXTRACT(end_time - start_time FROM EPOCH): a different request that
     # looks close enough to pass a substring check for the column names.
-    assert "EXTRACT(EPOCH FROM (end_time - start_time))" in out
+    assert "EXTRACT(EPOCH FROM (" in out
+    assert "end_time - " in out
+    assert "FROM EPOCH" not in out
 
 
 # Durations chosen so that ordering by elapsed time disagrees with ordering by
@@ -716,28 +718,20 @@ def test_postgres_literal_json_key_keeps_the_arrow_operator() -> None:
 @pytest.mark.parametrize(
     ("sql", "admitted"),
     [
-        ("SELECT MIN(attributes -> 'total') AS v FROM spans", False),
-        ("SELECT MAX(attributes -> 'total') AS v FROM spans", False),
+        ("SELECT MIN(attributes -> 'total') AS v FROM spans", True),
+        ("SELECT MAX(attributes -> 'total') AS v FROM spans", True),
         ("SELECT MIN(attributes ->> 'total') AS v FROM spans", True),
         ("SELECT MIN(json_extract(attributes, '$.total')) AS v FROM spans", True),
         ("SELECT attributes -> 'total' AS v FROM spans", True),
     ],
     ids=["min-arrow", "max-arrow", "min-arrow2", "min-json-extract", "bare-projection"],
 )
-def test_json_arrow_inside_a_call_is_refused(sql: str, admitted: bool) -> None:
-    """`->` in an argument list parses as a lambda arrow, not a JSON accessor.
+def test_json_arrow_inside_a_call_is_rewritten_not_refused(sql: str, admitted: bool) -> None:
+    """`->` in an argument list parses as a lambda, not a JSON accessor.
 
-    No JSONExtract node is produced, so the canonicalisation pass finds nothing
-    to convert and a raw `->` reaches SQLite, where it yields JSON *text*. MIN
-    and MAX then compare lexicographically and return the wrong row, while SUM
-    and AVG coerce and stay correct — so spot-checking the aggregates finds
-    nothing wrong. Measured before the fix: MIN returned 1017066 and MAX
-    returned 900 over values whose true extremes are the reverse.
-
-    The node escapes the function policy entirely because `exp.Lambda` is not an
-    `exp.Func`, so the enumeration that covers every function class never sees
-    it. The two spellings that work are admitted, so this refuses a broken
-    spelling rather than a capability.
+    Rebuilding the accessor admits the JSON form. A real lambda is still refused.
+    On SQLite the rebuild uses the function form so MIN/MAX compare values,
+    not JSON text.
     """
     root = parse_sql(sql, dialect="sqlite")
     if admitted:
@@ -745,6 +739,42 @@ def test_json_arrow_inside_a_call_is_refused(sql: str, admitted: bool) -> None:
     else:
         with pytest.raises(AnalyticsSqlError):
             admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite")
+
+
+def test_a_real_lambda_is_still_refused() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit(
+            parse_sql("SELECT filter(ARRAY[1, 2], x -> x > 0) FROM spans", dialect="postgresql"),
+            allowlist=load_allowlist("postgresql"),
+            dialect="postgresql",
+        )
+    assert "lambda" in caught.value.message.lower() or "anonymous" in caught.value.message.lower()
+
+
+def test_postgres_jsonb_typeof_of_an_arrow_keeps_the_operator() -> None:
+    allowlist = load_allowlist("postgresql")
+    root = admit(
+        parse_sql("SELECT jsonb_typeof(attributes -> 'llm') AS v FROM spans", dialect="postgresql"),
+        allowlist=allowlist,
+        dialect="postgresql",
+    )
+    ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="postgresql")
+    assert "->" in out
+    assert "jsonb_typeof" in out.lower()
+
+
+def test_sqlite_min_of_an_arrow_canonicalises_to_json_extract() -> None:
+    allowlist = load_allowlist("sqlite")
+    root = admit(
+        parse_sql("SELECT MIN(attributes -> 'total') AS v FROM spans", dialect="sqlite"),
+        allowlist=allowlist,
+        dialect="sqlite",
+    )
+    ctx = RewriteContext(allowlist=allowlist, dialect="sqlite", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="sqlite")
+    assert "json_extract" in out.lower()
+    assert "->" not in out
 
 
 def test_json_path_with_an_embedded_quote_is_left_alone() -> None:
@@ -1086,6 +1116,26 @@ def test_bare_latency_ms_in_multiple_duration_sources_requires_qualification(dia
     with pytest.raises(AnalyticsSqlError) as exc:
         _substitute_latency_ms(cast(exp.Expression, tree), ctx)
     assert "Qualify it with a table alias" in exc.value.message
+
+
+def test_unqualified_latency_ms_qualifies_the_sole_duration_table() -> None:
+    """A join partner can share start_time/end_time without advertising latency_ms."""
+    _, rendered = _rewritten(
+        "SELECT latency_ms FROM experiment_runs er "
+        "JOIN experiment_run_annotations era ON era.experiment_run_id = er.id",
+        dialect="postgresql",
+    )
+    assert "er.start_time" in rendered
+    assert "er.end_time" in rendered
+
+
+def test_values_in_a_cte_is_not_refused_as_a_star_over_values() -> None:
+    ctx, rendered = _rewritten(
+        "WITH v(x) AS (VALUES (1), (2)) SELECT x FROM v",
+        dialect="postgresql",
+    )
+    assert "values" in rendered.lower()
+    assert ctx.applied  # limit injection at least; star must not raise
 
 
 def _rewrite_context(

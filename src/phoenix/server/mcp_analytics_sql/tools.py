@@ -14,7 +14,7 @@ from phoenix.server.mcp_analytics_sql.catalog import (
     reflect_indexes,
     resolve_pg_schema,
 )
-from phoenix.server.mcp_analytics_sql.ddl import DetailLevel
+from phoenix.server.mcp_analytics_sql.ddl import DetailLevel, resolve_table_filter
 from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
 from phoenix.server.mcp_analytics_sql.execute import (
     BYTE_LIMIT,
@@ -242,7 +242,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
             # indexes -- noise about tables the same response never described.
             requested = allowlist.areas.get(area, frozenset()) if area else allowlist.tables
             if tables is not None:
-                requested &= frozenset(tables)
+                requested &= resolve_table_filter(tables, allowlist.tables) or frozenset()
             # The schema resolved against the connection, not the manifest's
             # hardcoded default, so this publishes indexes from the same
             # configured schema the executor reads.

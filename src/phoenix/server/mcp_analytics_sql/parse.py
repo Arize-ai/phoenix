@@ -131,7 +131,10 @@ def _finish_parse(
                 "Simplify the statement, or split it into CTEs."
             ),
         )
-    return _fold_unquoted_identifiers(_repair_jsonb_extract_array_bracket(root), dialect=dialect)
+    return _fold_unquoted_identifiers(
+        _repair_lambda_json_accessor(_repair_jsonb_extract_array_bracket(root), dialect=dialect),
+        dialect=dialect,
+    )
 
 
 def _grouping_limit_parse_message(sql: str) -> Optional[str]:
@@ -247,6 +250,53 @@ def _repair_jsonb_extract_array_bracket(root: exp.Expression) -> exp.Expression:
     return root
 
 
+def _repair_lambda_json_accessor(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """Rebuild ``col -> 'k'`` inside a call, which SQLGlot parses as a lambda.
+
+    ``jsonb_typeof(attributes -> 'llm')`` is a JSON accessor the engines
+    execute once parenthesised. The parser reads the arrow as ``x -> body``
+    instead, so admission used to refuse it and name ``->>`` / ``json_extract``,
+    neither of which is valid input to ``jsonb_typeof``. Reconstructing the
+    accessor is the same request the caller wrote.
+
+    On SQLite the reconstructed node is the function form, not the operator,
+    so the later canonicaliser emits ``json_extract`` and MIN/MAX compare
+    values rather than JSON text. On PostgreSQL it is the operator, which
+    returns jsonb.
+    """
+    for node in list(root.find_all(exp.Lambda)):
+        parameters = node.expressions
+        body = node.this
+        if len(parameters) != 1 or not isinstance(body, exp.Literal):
+            continue
+        parameter = parameters[0]
+        if isinstance(parameter, exp.Column):
+            document: exp.Expression = parameter.copy()
+        elif isinstance(parameter, exp.Identifier):
+            document = exp.Column(this=parameter.copy())
+        else:
+            continue
+        if body.is_string:
+            path_part: exp.Expression = exp.JSONPathKey(this=body.this)
+        else:
+            try:
+                index = int(body.this)
+            except (TypeError, ValueError):
+                continue
+            path_part = exp.JSONPathSubscript(this=index)
+        path = exp.JSONPath(expressions=[exp.JSONPathRoot(), path_part])
+        if dialect == "postgresql":
+            extracted: exp.Expression = exp.JSONExtract(
+                this=document, expression=path, only_json_types=True
+            )
+        else:
+            extracted = exp.JSONExtract(this=document, expression=path)
+        node.replace(exp.paren(extracted))
+    return root
+
+
 #: How deep a statement may nest. Every stage after parsing walks the tree
 #: recursively -- admission, the rewrites, and the generator -- so a tree the
 #: parser accepts can still exhaust the stack in one of them, where the error is
@@ -289,14 +339,10 @@ def _tree_depth(root: exp.Expression) -> int:
 
 
 # Node classes that are callable-shaped but are not exp.Func, so the function
-# policy's walk never sees them. Lambda is the one that matters: several dialects
-# spell an anonymous function `x -> body`, so inside an argument list the parser
-# reads the JSON accessor `attributes -> 'k'` as a lambda instead. No JSONExtract
-# node is produced, the canonicalisation pass finds nothing to fix, and a raw `->`
-# reaches SQLite -- where it returns JSON *text*, so MIN and MAX compare
-# lexicographically and answer with the wrong row while SUM and AVG, which
-# coerce, stay right. Nothing errors. Refusing here is what turns that silent
-# inversion into a message naming a spelling that works.
+# policy's walk never sees them. Lambda is the one that matters for a real
+# anonymous function (`x -> x > 0`). A JSON accessor written in the same
+# place (`attributes -> 'k'`) is rebuilt in `_repair_lambda_json_accessor`
+# before this check runs; what remains here is an actual lambda.
 # Keyed on Expr rather than Expression because walk() yields Expr, and
 # type[Expr] is not a subtype of type[Expression] under mypy's typing of type[].
 _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
@@ -331,9 +377,9 @@ _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
         "surface takes no parameters."
     ),
     exp.Lambda: (
-        "`->` is read as a lambda arrow inside a function call, not as a JSON "
-        "accessor, so it cannot be used there. Use `->>` or json_extract(...) "
-        "to read a JSON value."
+        "Anonymous functions (`x -> ...`) are not supported. A JSON accessor "
+        "inside a call must be parenthesised, for example "
+        "`jsonb_typeof((attributes -> 'k'))`."
     ),
     exp.AtTimeZone: (
         "AT TIME ZONE is not supported. Timestamp columns are stored in UTC; "
@@ -440,6 +486,25 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
                 "`PERCENT` is not supported: it is dropped when the statement is "
                 "prepared, which silently turns a fraction of the rows into that "
                 "many rows. Write an explicit row count instead.",
+            )
+    for select in root.find_all(exp.Select):
+        # PostgreSQL accepts an empty select list. SQLAlchemy will not stream
+        # a zero-column cursor, so execution used to fail with "does not
+        # return rows" after EXPLAIN had already succeeded.
+        if not select.expressions:
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "An empty SELECT list is not supported. Name the columns you want.",
+            )
+    for set_operation in root.find_all(exp.Union, exp.Intersect, exp.Except):
+        # DuckDB/Spark spelling. SQLGlot stores it as `by_name` and renders
+        # `UNION BY NAME` / `INNER UNION BY NAME`, which PostgreSQL and SQLite
+        # reject at a token the caller never wrote.
+        if set_operation.args.get("by_name"):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "`UNION BY NAME` and `CORRESPONDING` are not supported. Put "
+                "matching columns in the same order on both sides.",
             )
     for literal in root.find_all(exp.HexString):
         # The parse is lossy: `0x1f` and `x'1f'` are both valid SQLite, mean an
@@ -1538,7 +1603,8 @@ def _check_base_tables(
             if source.db or source.catalog:
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                    "Schema-qualified tables are not allowed",
+                    "Schema-qualified tables are not allowed. Write the table "
+                    "name only, for example `spans` rather than `analytics_sql.spans`.",
                 )
             name = source.name or ""
             if not name:

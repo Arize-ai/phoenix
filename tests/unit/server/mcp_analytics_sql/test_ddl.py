@@ -446,6 +446,38 @@ def test_an_empty_selection_says_which_filter_matched_nothing() -> None:
         assert str(list(kwargs.values())[0]) in text
 
 
+def test_unquoted_table_filter_folds_like_sql() -> None:
+    """executeSql folds FROM SPANS; describeSqlSchema must find the same table."""
+    from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
+
+    folded = describe_sql_schema(tables=["SPANS"], detail="brief", dialect="sqlite")
+    exact = describe_sql_schema(tables=["spans"], detail="brief", dialect="sqlite")
+    assert "spans" in folded.lower()
+    assert "No allowlisted table matched" not in folded
+    assert folded == exact
+
+
+def test_timestamp_column_names_match_unqualified_table_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Live Postgres keys metadata as schema.table; the allowlist names the table."""
+    from sqlalchemy import TIMESTAMP, Column, MetaData, Table
+
+    from phoenix.db.models import Base
+    from phoenix.server.mcp_analytics_sql.normalize import timestamp_column_names
+
+    fake = MetaData()
+    Table(
+        "spans",
+        fake,
+        Column("start_time", TIMESTAMP(timezone=True)),
+        schema="analytics_sql",
+    )
+    monkeypatch.setattr(Base, "metadata", fake)
+    names = timestamp_column_names(frozenset({"spans"}))
+    assert "start_time" in names
+
+
 @pytest.mark.parametrize("backend", DIALECTS)
 def test_star_expansion_matches_physical_ddl_and_virtual_columns(
     backend: SupportedSQLDialectName,
@@ -571,9 +603,9 @@ def test_no_allowlisted_table_reuses_a_timestamp_column_name_for_another_type() 
     names = timestamp_column_names(tables)
     assert names, "no timestamp columns found; the check would be vacuous"
     offenders = [
-        f"{table_name}.{column.name}"
-        for table_name, table in Base.metadata.tables.items()
-        if table_name in tables
+        f"{table.name}.{column.name}"
+        for table in Base.metadata.tables.values()
+        if table.name in tables
         for column in table.columns
         if column.name in names and "TIMESTAMP" not in str(column.type).upper()
     ]

@@ -647,6 +647,19 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
     return sources
 
 
+def _select_from_is_values(select: exp.Select) -> bool:
+    """Whether this SELECT's FROM is a VALUES list, possibly wrapped by the parser."""
+    from_expr = select.args.get("from_") or select.args.get("from")
+    if not isinstance(from_expr, exp.From):
+        return False
+    source: Optional[exp.Expression] = from_expr.this
+    while isinstance(source, (exp.Subquery, exp.Paren, exp.Alias)):
+        if isinstance(source, exp.Values):
+            return True
+        source = source.this
+    return isinstance(source, exp.Values)
+
+
 def _using_join_keys(node: exp.Select, dialect: SupportedSQLDialectName) -> frozenset[str]:
     """Join keys named by USING, compared the way this dialect compares identifiers.
 
@@ -761,6 +774,14 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             for table_name, alias, qualifier in targets:
                 spec = ctx.allowlist.table_specs.get(table_name) if table_name else None
                 if spec is None:
+                    if _select_from_is_values(node):
+                        # SQLGlot rewrites `WITH v(x) AS (VALUES …)` into
+                        # `SELECT * FROM (VALUES …) AS _values`. The caller never
+                        # wrote that star; leaving it lets the engine name the
+                        # columns. Expanding it as a query-local relation refused
+                        # a statement both backends execute.
+                        new_exprs.append(expression)
+                        continue
                     # A CTE, derived table, or unaliased set-returning function.
                     # Its columns are whatever its own SELECT produced, which the
                     # manifest cannot know, so the caller has to name them.
@@ -910,6 +931,11 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
             elif duration_sources != 1:
                 continue
             table_ident = _exposed_table_identifier(node, exposed_by_key, dialect=ctx.dialect)
+            if table_ident is None and duration_sources == 1 and exposed_by_key:
+                # Unqualified `latency_ms` still has to name its table: a join
+                # partner may share `start_time`/`end_time` without advertising
+                # the overlay, and unqualified substitution is then ambiguous.
+                table_ident = next(iter(exposed_by_key.values())).copy()
             start = exp.column("start_time", table=table_ident)
             end = exp.column(
                 "end_time", table=table_ident.copy() if table_ident is not None else None

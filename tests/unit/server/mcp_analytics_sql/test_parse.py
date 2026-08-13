@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 92
+    assert len(CASES) >= 96
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -1679,6 +1679,28 @@ def test_a_time_only_literal_against_a_timestamp_is_refused() -> None:
     assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
     assert "14:30:00" in caught.value.message
     assert "2026-07-01T14:30:00+00:00" in caught.value.message
+
+
+def test_schema_qualified_tables_name_the_unqualified_spelling() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT id FROM analytics_sql.spans",
+            allowlist=load_allowlist("postgresql"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "spans" in caught.value.message
+    assert "analytics_sql.spans" in caught.value.message
+
+
+def test_jsonb_typeof_of_an_arrow_accessor_is_admitted() -> None:
+    _root, rendered = admit_sql(
+        "SELECT jsonb_typeof(attributes -> 'llm') AS v FROM spans",
+        allowlist=load_allowlist("postgresql"),
+        dialect="postgresql",
+    )
+    assert "->" in rendered
+    assert "jsonb_typeof" in rendered.lower()
 
 
 def test_a_render_refusal_returns_an_outcome_rather_than_raising() -> None:
