@@ -155,7 +155,10 @@ def representative_root_span_by_trace(
             root_predicate,
             ~select(1)
             .select_from(parent_spans)
-            .where(models.Span.parent_id == parent_spans.c.span_id)
+            .where(
+                models.Span.parent_id == parent_spans.c.span_id,
+                models.Span.trace_rowid == parent_spans.c.trace_rowid,
+            )
             .exists(),
         )
     ranked = select(

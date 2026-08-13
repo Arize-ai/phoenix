@@ -292,6 +292,39 @@ async def test_root_bindings_use_displayed_representative(
 
 
 @pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_root_bindings_treat_foreign_parent_match_as_orphan(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+) -> None:
+    start_time = FIXTURE_TRACES[0].start_time
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project, start_time=start_time)
+        foreign_trace = await _add_trace(session, project, start_time=start_time)
+        foreign_parent = await _add_span(session, foreign_trace, start_time=start_time)
+        candidate = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "orphan"}},
+            start_time=start_time,
+        )
+        candidate.parent_id = foreign_parent.span_id
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "strict"}},
+            start_time=start_time + timedelta(seconds=1),
+        )
+
+        assert await _matched_rowids(
+            session,
+            TraceFilter('input == "orphan"'),
+            project,
+            lowering,
+        ) == {trace.id}
+
+
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
 async def test_span_relationships_do_not_cross_trace_or_treat_orphans_as_siblings(
     db: DbSessionFactory,
     lowering: FilterLowering,

@@ -47,6 +47,7 @@ The representative is chosen from the trace's orphan-aware root candidates:
 1. a span whose `parent_id` is null, or
 2. a span whose `parent_id` has no matching span in the same trace.
 
+An ID match in another trace does not make a candidate non-orphan.
 Candidates are ranked by `start_time ASC, id DESC`, and the first is displayed and bound.
 The `id` tie-break makes malformed traces with several candidates deterministic. A trace with
 no candidate has no displayed-root values.

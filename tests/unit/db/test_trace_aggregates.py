@@ -7,6 +7,7 @@ from phoenix.db.trace_aggregates import (
     cost_summary_by_trace,
     error_count_by_trace,
     num_spans_by_trace,
+    representative_root_span_by_trace,
     span_kind_count_by_trace,
     token_counts_by_trace,
 )
@@ -82,3 +83,24 @@ async def test_trace_aggregate_builders(db: DbSessionFactory) -> None:
         )
         assert tool_count == [(rowid, 1)]
         assert llm_count == [(rowid, 1)]
+
+
+async def test_representative_root_treats_foreign_parent_match_as_orphan(
+    db: DbSessionFactory,
+) -> None:
+    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project, start_time=start_time)
+        foreign_trace = await _add_trace(session, project, start_time=start_time)
+        foreign_parent = await _add_span(session, foreign_trace, start_time=start_time)
+        candidate = await _add_span(session, trace, start_time=start_time)
+        candidate.parent_id = foreign_parent.span_id
+        await _add_span(session, trace, start_time=start_time.replace(second=1))
+        await session.flush()
+
+        representative = (
+            await session.execute(representative_root_span_by_trace(keys=[trace.id]))
+        ).one()
+
+        assert tuple(representative) == (trace.id, candidate.id)
