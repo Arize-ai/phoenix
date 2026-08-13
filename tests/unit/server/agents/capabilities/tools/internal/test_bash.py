@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Protocol
+from typing import Any, Awaitable, Literal, Protocol
 from unittest.mock import Mock
 
 import pytest
@@ -15,6 +15,8 @@ from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashToolResult,
     BashToolset,
 )
+from phoenix.server.agents.context import ResolvedContexts
+from phoenix.server.agents.types import AgentDependencies
 from phoenix.server.api.context import Context
 
 
@@ -331,12 +333,8 @@ async def test_web_commands_cannot_reach_loopback(run_bash: RunBash, command: st
     assert "network access not configured" in result["stdout"] + result["stderr"]
 
 
-class _EditPermissionDeps:
-    """Minimal stand-in for AgentDependencies: the bash tool only reads
-    edit_permission off its deps."""
-
-    def __init__(self, edit_permission: str) -> None:
-        self.edit_permission = edit_permission
+def _deps(edit_permission: Literal["manual", "bypass"]) -> AgentDependencies:
+    return AgentDependencies(contexts=ResolvedContexts(), edit_permission=edit_permission)
 
 
 class RunBashWithContext(Protocol):
@@ -371,7 +369,7 @@ def _manual_mode_context(
     tool_call_metadata: "dict[str, Any] | None" = None,
 ) -> RunContext[Any]:
     return RunContext(
-        deps=_EditPermissionDeps("manual"),
+        deps=_deps("manual"),
         model=TestModel(),
         usage=RunUsage(),
         tool_call_approved=tool_call_approved,
@@ -455,9 +453,7 @@ async def test_manual_mode_queries_run_without_approval() -> None:
 
 async def test_bypass_mode_mutations_run_without_approval() -> None:
     run_bash = _build_run_bash_with_context()
-    ctx: RunContext[Any] = RunContext(
-        deps=_EditPermissionDeps("bypass"), model=TestModel(), usage=RunUsage()
-    )
+    ctx: RunContext[Any] = RunContext(deps=_deps("bypass"), model=TestModel(), usage=RunUsage())
     result = await run_bash("phoenix-gql 'mutation { deleteEverything }' --data-only", ctx)
     assert result["exitCode"] == 0
     assert json.loads(result["stdout"]) == {"deleteEverything": "deleted"}
