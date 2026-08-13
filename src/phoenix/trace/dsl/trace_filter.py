@@ -105,6 +105,22 @@ class _IterableSpec(typing.NamedTuple):
     nested: typing.Mapping[str, _NestedIterable] = MappingProxyType({})
 
 
+def _correlate_siblings(element: typing.Any, parent: typing.Any) -> typing.Any:
+    stored_parent = aliased(models.Span)
+    return and_(
+        element.trace_rowid == parent.trace_rowid,
+        element.parent_id == parent.parent_id,
+        element.id != parent.id,
+        select(literal(1))
+        .select_from(stored_parent)
+        .where(
+            stored_parent.trace_rowid == parent.trace_rowid,
+            stored_parent.span_id == parent.parent_id,
+        )
+        .exists(),
+    )
+
+
 _SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
     {
         "name": _ElementField("name", "string"),
@@ -157,15 +173,13 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
             nested=MappingProxyType(
                 {
                     "children": _NestedIterable(
-                        "spans", lambda element, parent: element.parent_id == parent.span_id
-                    ),
-                    "siblings": _NestedIterable(
                         "spans",
                         lambda element, parent: and_(
-                            element.parent_id == parent.parent_id,
-                            element.id != parent.id,
+                            element.trace_rowid == parent.trace_rowid,
+                            element.parent_id == parent.span_id,
                         ),
                     ),
+                    "siblings": _NestedIterable("spans", _correlate_siblings),
                     "annotations": _NestedIterable(
                         "span_annotations",
                         lambda element, parent: element.span_rowid == parent.id,
@@ -241,7 +255,7 @@ _TRACE_ITERABLES: typing.Mapping[str, _IterableGrammar] = MappingProxyType(
                 {attribute: nested.iterable for attribute, nested in spec.nested.items()}
             ),
             related=MappingProxyType(
-                {"parent": _element_bindings(spec)} if name == "spans" else {}
+                {"parent_span": _element_bindings(spec)} if name == "spans" else {}
             ),
         )
         for name, spec in _ITERABLE_SPECS.items()
@@ -339,49 +353,52 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.siblings": "Other spans with the same non-null parent edge as this span.",
         "spans.annotations": "Annotations attached to this span.",
         "spans.cost_details": "Per-token-type cost rows attached to this span.",
-        "spans.parent.name": "Direct parent span name; missing when no parent row is stored.",
-        "spans.parent.parent_id": (
+        "spans.parent_span": "Direct parent span; null when no parent row is stored.",
+        "spans.parent_span.name": (
+            "Direct parent span name; missing when no parent row is stored."
+        ),
+        "spans.parent_span.parent_id": (
             "OpenTelemetry span ID of the direct parent's parent span; absent when the direct "
             "parent is the trace root or no parent row is stored."
         ),
-        "spans.parent.span_kind": (
+        "spans.parent_span.span_kind": (
             "Direct parent span kind; missing when no parent row is stored."
         ),
-        "spans.parent.status_code": (
+        "spans.parent_span.status_code": (
             "Direct parent span status; missing when no parent row is stored."
         ),
-        "spans.parent.start_time": (
+        "spans.parent_span.start_time": (
             "Direct parent span start timestamp; missing when no parent row is stored."
         ),
-        "spans.parent.end_time": (
+        "spans.parent_span.end_time": (
             "Direct parent span end timestamp; missing when no parent row is stored."
         ),
-        "spans.parent.latency_ms": (
+        "spans.parent_span.latency_ms": (
             "Direct parent span duration in milliseconds; missing when no parent row is stored."
         ),
-        "spans.parent.cumulative_error_count": (
+        "spans.parent_span.cumulative_error_count": (
             "ERROR spans at or under the direct parent, including the parent; missing when no "
             "parent row is stored."
         ),
-        "spans.parent.cumulative_llm_token_count_prompt": (
+        "spans.parent_span.cumulative_llm_token_count_prompt": (
             "Prompt tokens at or under the direct parent, including the parent; missing when no "
             "parent row is stored."
         ),
-        "spans.parent.cumulative_llm_token_count_completion": (
+        "spans.parent_span.cumulative_llm_token_count_completion": (
             "Completion tokens at or under the direct parent, including the parent; missing when "
             "no parent row is stored."
         ),
-        "spans.parent.cumulative_llm_token_count_total": (
+        "spans.parent_span.cumulative_llm_token_count_total": (
             "Total tokens at or under the direct parent, including the parent; missing when no "
             "parent row is stored."
         ),
-        "spans.parent.llm_token_count_prompt": (
+        "spans.parent_span.llm_token_count_prompt": (
             "Prompt tokens recorded on the direct parent; missing when no parent row is stored."
         ),
-        "spans.parent.llm_token_count_completion": (
+        "spans.parent_span.llm_token_count_completion": (
             "Completion tokens recorded on the direct parent; missing when no parent row is stored."
         ),
-        "spans.parent.llm_token_count_total": (
+        "spans.parent_span.llm_token_count_total": (
             "Total tokens recorded on the direct parent; missing when no parent row is stored."
         ),
         "trace_annotations.name": "Annotation name.",
@@ -422,10 +439,10 @@ def _comprehension_bindings(
 
     def needs_parent(spec: ComprehensionSpec) -> bool:
         return any(
-            reference.path[0] == "parent" and reference.scope_depth == 0
+            reference.path[0] == "parent_span" and reference.scope_depth == 0
             for reference in spec.element_references.values()
         ) or any(
-            reference.path[0] == "parent" and reference.scope_depth == 1
+            reference.path[0] == "parent_span" and reference.scope_depth == 1
             for child in spec.children
             for reference in child.element_references.values()
         )
@@ -437,9 +454,11 @@ def _comprehension_bindings(
     ) -> typing.Any:
         scope = current if reference.scope_depth == 0 else ancestors[-reference.scope_depth]
         source = scope.element
-        if len(reference.path) == 2:
-            assert reference.path[0] == "parent" and scope.parent is not None
+        if reference.path[0] == "parent_span":
+            assert scope.parent is not None
             source = scope.parent
+            if len(reference.path) == 1:
+                return source.id
         return _element_column(
             source,
             reference.path[-1],
@@ -490,7 +509,10 @@ def _comprehension_bindings(
         if scope.parent is not None:
             element_stmt = element_stmt.outerjoin(
                 scope.parent,
-                scope.parent.span_id == scope.element.parent_id,
+                and_(
+                    scope.parent.trace_rowid == scope.element.trace_rowid,
+                    scope.parent.span_id == scope.element.parent_id,
+                ),
             )
         return element_stmt
 

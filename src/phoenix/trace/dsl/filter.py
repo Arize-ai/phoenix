@@ -749,19 +749,27 @@ class _ComprehensionExtractor(ast.NodeTransformer):
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
         root, steps = _element_access_path(node)
         if root is not None and (scope_index := _scope_index(root, self._scopes)) is not None:
-            if scope_index == len(self._scopes) - 1 and len(steps) == 1:
+            scope = self._scopes[scope_index]
+            if (
+                scope_index == len(self._scopes) - 1
+                and len(steps) == 1
+                and steps[0] not in scope.grammar.related
+            ):
                 return ast.Name(id=typing.cast(str, steps[0]), ctx=ast.Load())
             if (
                 scope_index != len(self._scopes) - 1
                 and not self._bindings.allow_outer_element_references
             ):
                 raise SyntaxError(f"`{root}` is outside the current comprehension")
-            scope = self._scopes[scope_index]
             field_bindings = scope.grammar.element_bindings
             if len(steps) == 1:
                 attribute = typing.cast(str, steps[0])
-                kind = _binding_kind(attribute, field_bindings)
-                uppercase = attribute in field_bindings.uppercase_names
+                if attribute in scope.grammar.related:
+                    kind = "boolean"
+                    uppercase = False
+                else:
+                    kind = _binding_kind(attribute, field_bindings)
+                    uppercase = attribute in field_bindings.uppercase_names
             elif len(steps) == 2:
                 relationship = typing.cast(str, steps[0])
                 attribute = typing.cast(str, steps[1])
@@ -2863,7 +2871,10 @@ class _SemanticPolicy:
             if scope_index != len(scopes) - 1 and not self._bindings.allow_outer_element_references:
                 raise SyntaxError(f"`{root}` is outside the current comprehension")
             if len(steps) == 1:
-                return self._binding(typing.cast(str, steps[0]), scope.grammar.element_bindings)
+                attribute = typing.cast(str, steps[0])
+                if attribute in scope.grammar.related:
+                    return "boolean"
+                return self._binding(attribute, scope.grammar.element_bindings)
             if (
                 len(steps) == 2
                 and (related := scope.grammar.related.get(typing.cast(str, steps[0]))) is not None

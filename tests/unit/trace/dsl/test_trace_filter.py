@@ -291,6 +291,44 @@ async def test_root_bindings_use_displayed_representative(
         )
 
 
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_span_relationships_do_not_cross_trace_or_treat_orphans_as_siblings(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        target_trace = await _add_trace(session, project)
+        target_root = await _add_span(session, target_trace)
+        foreign_trace = await _add_trace(session, project)
+        foreign_span = await _add_span(session, foreign_trace)
+        foreign_span.name = "foreign"
+        foreign_span.parent_id = target_root.span_id
+
+        foreign_parent = await _add_span(session, foreign_trace)
+        foreign_parent.name = "foreign-parent"
+        target_orphan = await _add_span(session, target_trace)
+        target_orphan.parent_id = foreign_parent.span_id
+
+        first_orphan = await _add_span(session, target_trace)
+        second_orphan = await _add_span(session, target_trace)
+        first_orphan.parent_id = second_orphan.parent_id = "dangling-parent"
+        await session.flush()
+
+        for condition in (
+            'any(any(c.name == "foreign" for c in s.children) for s in spans)',
+            'any(s.parent_span.name == "foreign-parent" for s in spans)',
+            'any(any(sibling.parent_id == "dangling-parent" for sibling in s.siblings) '
+            "for s in spans)",
+        ):
+            assert not await _matched_rowids(
+                session,
+                TraceFilter(condition),
+                project,
+                lowering,
+            ), condition
+
+
 def test_trace_iterable_correlation_keys_are_non_nullable() -> None:
     assert set(_ITERABLE_SPECS) == {
         "spans",
@@ -339,8 +377,8 @@ def test_trace_page_filter_uses_probe_lowering() -> None:
 def test_trace_parent_fields_share_one_left_self_join() -> None:
     compiled = str(
         TraceFilter(
-            'any(s.parent.name == "finalize" and s.parent.status_code == "OK" '
-            "and s.parent.parent_id is None for s in spans)"
+            'any(s.parent_span.name == "finalize" and s.parent_span.status_code == "OK" '
+            "and s.parent_span.parent_id is None for s in spans)"
         )(select(models.Trace.id)).compile(dialect=_POSTGRESQL_DIALECT)
     ).lower()
 
@@ -352,7 +390,7 @@ def test_trace_parent_fields_share_one_left_self_join() -> None:
     [
         "first(s.start_time for s in spans) is None",
         "any(any(x.name == s.name for x in s.before) for s in spans)",
-        'any(s.parent.parent.name == "x" for s in spans)',
+        'any(s.parent_span.parent_span.name == "x" for s in spans)',
         "any(any(any(y.name == c.name for y in c.children) for c in s.children) for s in spans)",
     ],
 )

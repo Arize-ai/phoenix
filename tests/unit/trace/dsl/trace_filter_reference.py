@@ -381,7 +381,10 @@ class _Evaluator:
         if root is None or root not in scope:
             raise SyntaxError(f"unsupported attribute access: {ast.unparse(node)}")
         iterable, element = scope[root]
-        if len(path) == 2 and path[0] == "parent" and iterable == "spans":
+        if path == ("parent_span",) and iterable == "spans":
+            parent_span = self._trace.parent_span(element)
+            return MISSING if parent_span is None else parent_span
+        if len(path) == 2 and path[0] == "parent_span" and iterable == "spans":
             element = self._trace.parent_span(element)
             if element is None:
                 return MISSING
@@ -475,12 +478,10 @@ class _Evaluator:
 
     def _name_kind(self, node: ast.expr, scope: _Scope) -> Optional[str]:
         name: Optional[str] = None
-        if (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.value, ast.Name)
-            and node.value.id in scope
-        ):
-            name = node.attr
+        if isinstance(node, ast.Attribute):
+            root, path = _element_path(node)
+            if root in scope and len(path) in (1, 2):
+                name = path[-1]
         elif isinstance(node, ast.Name) and node.id not in scope:
             name = node.id
         elif (
@@ -699,6 +700,12 @@ _BASE_TIME = datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc)
 FIXTURE_TRACES: tuple[ReferenceTrace, ...] = (
     ReferenceTrace("empty", _BASE_TIME, _BASE_TIME),
     ReferenceTrace(
+        "lone-tool-root",
+        _BASE_TIME + timedelta(seconds=30),
+        _BASE_TIME + timedelta(seconds=31),
+        spans=(ReferenceSpan("standalone-tool", span_kind="TOOL"),),
+    ),
+    ReferenceTrace(
         "clean-chat",
         _BASE_TIME,
         _BASE_TIME + timedelta(milliseconds=1000.04),
@@ -841,9 +848,15 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'max(s.start_time for s in spans if s.status_code == "ERROR") > '
     'max(s.start_time for s in spans if "finalize" in s.name)',
     'min(s.end_time for s in spans if s.name == "absent") is None',
-    'any(s.name == "search" and s.parent.name == "finalize" for s in spans)',
+    'any(s.name == "search" and s.parent_span.name == "finalize" for s in spans)',
     "any(s.parent_id is None for s in spans)",
-    'any(s.span_kind == "TOOL" and s.parent.parent_id is None for s in spans)',
+    "any(s.parent_span is None for s in spans)",
+    "any(s.parent_span is not None and s.parent_span.parent_id is None for s in spans)",
+    'any(s.span_kind == "TOOL" and s.parent_span.parent_id is None for s in spans)',
+    'any(s.parent_span.span_kind == "llm" for s in spans)',
+    'any(s.parent_span.status_code == "ok" for s in spans)',
+    'any(s.parent_span.start_time >= "2026-07-01T12:00:00Z" for s in spans)',
+    'any(s.parent_span.end_time < "2026-07-01T12:01:03+00:00" for s in spans)',
     'any(any(c.status_code == "ERROR" for c in s.children) for s in spans)',
     "any(any(c.parent_id is not None for c in s.children) for s in spans)",
     'any(any(x.name == "lookup-peer" for x in s.siblings) for s in spans)',
