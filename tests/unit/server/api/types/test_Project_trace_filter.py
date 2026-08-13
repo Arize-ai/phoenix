@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 
 import pytest
+import sqlalchemy
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -45,6 +46,8 @@ async def test_project_spans_trace_filter_condition_composes_with_span_filter(
         non_matching_trace = await _add_trace(session, project)
         non_matching_span = await _add_span(session, non_matching_trace)
         non_matching_span.name = "kept"
+        blocked_span = await _add_span(session, non_matching_trace)
+        blocked_span.name = "blocked"
 
     query = """
         query($id: ID!, $spanCondition: String, $traceCondition: String) {
@@ -61,20 +64,44 @@ async def test_project_spans_trace_filter_condition_composes_with_span_filter(
           }
         }
     """
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "id": _project_id(project),
-            "spanCondition": "name == 'kept'",
-            "traceCondition": "num_spans == 2",
-        },
-    )
+    statements: list[str] = []
+
+    def capture_sql(
+        conn: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        statements.append(statement)
+
+    sqlalchemy.event.listen(sqlalchemy.engine.Engine, "before_cursor_execute", capture_sql)
+    try:
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": _project_id(project),
+                "spanCondition": "name == 'kept'",
+                "traceCondition": 'all(span.name != "blocked" for span in spans)',
+            },
+        )
+    finally:
+        sqlalchemy.event.remove(sqlalchemy.engine.Engine, "before_cursor_execute", capture_sql)
 
     assert not response.errors
     assert response.data is not None
     assert response.data["node"]["spans"]["edges"] == [
         {"node": {"id": str(GlobalID("Span", str(matching_span.id)))}}
     ]
+    listing_sql = next(
+        " ".join(statement.lower().split())
+        for statement in statements
+        if "from spans join traces" in " ".join(statement.lower().split())
+        and "spans.name" in statement.lower()
+    )
+    assert "not (exists (select" in listing_sql
+    assert "not in (select" not in listing_sql
 
 
 @pytest.mark.parametrize("broken_tree", ["two_roots", "root_and_orphan"])

@@ -645,7 +645,7 @@ class Project(Node):
                 project_rowids=[self.id],
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
-                lowering="scan",
+                lowering="probe",
             )
             stmt = stmt.where(models.Span.trace_rowid.in_(filtered_trace_rowids))
         filter_root_scope: Optional[RootSpanScope] = None

@@ -60,8 +60,9 @@ def get_filtered_trace_rowids_subquery(
 ) -> ScalarSelect[int]:
     """Compile a trace filter expression into a subquery of matching trace rowids.
 
-    Whole-scan callers use the default scan lowering. Page queries should use
-    ``apply_trace_filter_to_page`` so probe lowering can stop after satisfying the limit.
+    The default scan lowering is reserved for whole-scan analytical callers. Paginated
+    listings should select probe lowering so correlated predicates can stop after satisfying
+    the limit.
     """
     trace_filter = compile_trace_filter(trace_filter_condition)
     with trace_filter_errors():
