@@ -13,13 +13,16 @@ from sqlalchemy.sql.expression import Select
 from sqlalchemy.sql.selectable import ScalarSelect
 
 from phoenix.db import models
+from phoenix.db.models import SafeJsonBoolean, SafeJsonFloat
 from phoenix.db.trace_aggregates import (
+    SPAN_ROWID,
     TRACE_ROWID,
     VALUE,
     TraceAggregate,
     cost_summary_by_trace,
     error_count_by_trace,
     num_spans_by_trace,
+    representative_root_span_by_trace,
     span_kind_count_by_trace,
     token_counts_by_trace,
 )
@@ -288,20 +291,20 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "tool_span_count": "Number of TOOL spans in the trace; 0 when absent, never null.",
         "llm_span_count": "Number of LLM spans in the trace; 0 when absent, never null.",
         "input": (
-            "The strict root span's input.value string. `in` ignores case; `==` is exact. "
-            "Missing when the trace has no strict root or input value."
+            "The displayed root span's input.value string. `in` ignores case; `==` is exact. "
+            "Missing when the trace has no displayed root or input value."
         ),
         "output": (
-            "The strict root span's output.value string. `in` ignores case; `==` is exact. "
-            "Missing when the trace has no strict root or output value."
+            "The displayed root span's output.value string. `in` ignores case; `==` is exact. "
+            "Missing when the trace has no displayed root or output value."
         ),
         "attributes[...]": (
-            "Strict-root attribute access by OpenTelemetry wire key. String subscripts are "
+            "Displayed-root attribute access by OpenTelemetry wire key. String subscripts are "
             "joined with dots; values are string-cast unless explicitly cast."
         ),
-        "user.id": 'Accepted proxy for attributes["user.id"] on the strict root span.',
+        "user.id": 'Accepted proxy for attributes["user.id"] on the displayed root span.',
         'metadata["key"]': (
-            'Accepted proxy for attributes["metadata.key"] on the strict root span.'
+            'Accepted proxy for attributes["metadata.key"] on the displayed root span.'
         ),
         "spans": (
             "Every span in the trace. Iterate with any/all/len/max/min/sum, e.g. "
@@ -659,12 +662,18 @@ class TraceFilter:
             **self._literal_bindings,
             **aggregate_bindings,
             **comprehension_bindings,
+            "SafeJsonFloat": _safe_json_float,
+            "SafeJsonBoolean": _safe_json_boolean,
         }
         if self._referenced_root_span_io_names or self._references_root_span:
             stmt, root_span_bindings = _join_root_span(
                 stmt,
                 self._referenced_root_span_io_names,
                 self._references_root_span,
+                candidate_trace_rowids=candidate_trace_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
             )
             extra_bindings.update(root_span_bindings)
         stmt = _join_annotations(stmt, TRACE_BINDINGS, self._aliased_annotation_relations)
@@ -791,23 +800,43 @@ class _RootSpanAttributes:
         return _RootSpanAttributeValue(self._column, keys)
 
 
+def _safe_json_float(value: typing.Any) -> typing.Any:
+    if isinstance(value, _RootSpanAttributeValue):
+        return value._cast(SafeJsonFloat)
+    return SafeJsonFloat(value)
+
+
+def _safe_json_boolean(value: typing.Any) -> typing.Any:
+    if isinstance(value, _RootSpanAttributeValue):
+        return value._cast(SafeJsonBoolean)
+    return SafeJsonBoolean(value)
+
+
 def _join_root_span(
     stmt: Select[typing.Any],
     referenced_io_names: typing.Iterable[str],
     references_attributes: bool,
+    candidate_trace_rowids: typing.Optional[typing.Collection[int]],
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
-    root_span = aliased(models.Span)
+    representative_root_spans = representative_root_span_by_trace(
+        keys=candidate_trace_rowids,
+        project_rowids=project_rowids,
+        start_time=start_time,
+        end_time=end_time,
+    ).subquery()
+    root_span = aliased(models.Span, name="trace_root_span")
     stmt = stmt.outerjoin(
-        root_span,
-        and_(
-            root_span.trace_rowid == models.Trace.id,
-            root_span.parent_id.is_(None),
-        ),
+        representative_root_spans,
+        representative_root_spans.c[TRACE_ROWID] == models.Trace.id,
     )
+    stmt = stmt.outerjoin(root_span, root_span.id == representative_root_spans.c[SPAN_ROWID])
     bindings_map: dict[str, typing.Any] = {}
     for name in referenced_io_names:
         path = _ROOT_SPAN_INPUT_VALUE if name == "input" else _ROOT_SPAN_OUTPUT_VALUE
-        bindings_map[name] = root_span.attributes[list(path)].as_string()
+        bindings_map[name] = _RootSpanAttributeValue(root_span.attributes, path).as_string()
     if references_attributes:
         bindings_map[_ROOT_SPAN_ATTRIBUTES] = _RootSpanAttributes(root_span.attributes)
     return stmt, bindings_map

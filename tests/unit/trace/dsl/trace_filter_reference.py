@@ -83,7 +83,15 @@ class ReferenceTrace:
 
     @property
     def root_span(self) -> Optional[ReferenceSpan]:
-        return next((span for span in self.spans if span.parent is None), None)
+        span_names = {span.name for span in self.spans}
+        return next(
+            (
+                span
+                for span in self.spans
+                if span.parent is None or (span.parent != "root" and span.parent not in span_names)
+            ),
+            None,
+        )
 
     @property
     def root_span_attributes(self) -> Mapping[str, Any]:
@@ -92,11 +100,18 @@ class ReferenceTrace:
 
     @property
     def input(self) -> Any:
-        return _traverse(self.root_span_attributes, ("input", "value"))
+        return self._root_span_value(("input", "value"))
 
     @property
     def output(self) -> Any:
-        return _traverse(self.root_span_attributes, ("output", "value"))
+        return self._root_span_value(("output", "value"))
+
+    def _root_span_value(self, path: tuple[str, ...]) -> Any:
+        for candidate_path in _wire_key_candidate_paths(path):
+            value = _traverse(self.root_span_attributes, candidate_path)
+            if value is not MISSING:
+                return value
+        return MISSING
 
     @property
     def num_spans(self) -> int:
@@ -667,6 +682,16 @@ def _parse_datetime_literal(value: str) -> datetime:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _wire_key_candidate_paths(keys: Sequence[str]) -> tuple[tuple[str, ...], ...]:
+    segments = ".".join(keys).split(".")
+    paths = [tuple(segments)]
+    for index in range(len(segments) - 1, -1, -1):
+        candidate = (*segments[:index], ".".join(segments[index:]))
+        if candidate != paths[0]:
+            paths.append(candidate)
+    return tuple(paths)
 
 
 _BASE_TIME = datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc)

@@ -270,7 +270,7 @@ async def test_trace_filter_vocabulary_is_compiler_derived_and_project_scoped(
             start_time=start + timedelta(hours=1),
             end_time=start + timedelta(hours=1, minutes=1),
         )
-        orphan = await _add_span(session, orphan_trace, attributes={"orphan_only": "excluded"})
+        orphan = await _add_span(session, orphan_trace, attributes={"orphan_only": "included"})
         orphan.parent_id = "missing-parent"
 
         at_end = await _add_trace(session, project, start_time=end, end_time=end)
@@ -331,12 +331,12 @@ async def test_trace_filter_vocabulary_is_compiler_derived_and_project_scoped(
         assert observed_fields == expected_fields
 
     assert terms_by_name['attributes["included.leaf"]']["type"] == "string"
+    assert terms_by_name['attributes["orphan_only"]']["type"] == "string"
     assert terms_by_name['annotations["quality"].score']["type"] == "number"
     assert terms_by_name['annotations["quality"].label']["type"] == "string"
     excluded = {
         'attributes["before"]',
         'attributes["child_only"]',
-        'attributes["orphan_only"]',
         'attributes["at_end"]',
         'attributes["other_project"]',
         'annotations["before_annotation"].score',

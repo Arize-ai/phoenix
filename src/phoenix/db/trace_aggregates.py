@@ -4,7 +4,7 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.sql.elements import KeyedColumnElement
 from sqlalchemy.sql.expression import ColumnElement, Select
 from sqlalchemy.sql.selectable import ScalarSelect
@@ -12,14 +12,18 @@ from sqlalchemy.sql.selectable import ScalarSelect
 from phoenix.db import models
 
 TRACE_ROWID = "trace_rowid"
+SPAN_ROWID = "span_rowid"
 VALUE = "value"
+_ROOT_SPAN_RANK = "rank"
 
 __all__ = [
     "TRACE_ROWID",
+    "SPAN_ROWID",
     "TraceAggregate",
     "cost_summary_by_trace",
     "error_count_by_trace",
     "num_spans_by_trace",
+    "representative_root_span_by_trace",
     "span_kind_count_by_trace",
     "token_counts_by_trace",
 ]
@@ -134,6 +138,44 @@ def span_kind_count_by_trace(span_kind: str) -> TraceAggregate:
         source=models.Span,
         where=(func.upper(models.Span.span_kind) == span_kind.upper(),),
     )
+
+
+def representative_root_span_by_trace(
+    keys: Optional[Any] = None,
+    project_rowids: Optional[Collection[int]] = None,
+    start_time: Optional[Any] = None,
+    end_time: Optional[Any] = None,
+    orphan_span_as_root_span: bool = True,
+) -> Select[Any]:
+    """Select the displayed representative root span for each trace."""
+    parent_spans = models.Span.__table__.alias("parent_spans")
+    root_predicate = models.Span.parent_id.is_(None)
+    if orphan_span_as_root_span:
+        root_predicate = or_(
+            root_predicate,
+            ~select(1)
+            .select_from(parent_spans)
+            .where(models.Span.parent_id == parent_spans.c.span_id)
+            .exists(),
+        )
+    ranked = select(
+        models.Span.trace_rowid.label(TRACE_ROWID),
+        models.Span.id.label(SPAN_ROWID),
+        func.row_number()
+        .over(
+            partition_by=models.Span.trace_rowid,
+            order_by=(models.Span.start_time.asc(), models.Span.id.desc()),
+        )
+        .label(_ROOT_SPAN_RANK),
+    ).where(root_predicate)
+    if keys is not None:
+        ranked = ranked.where(models.Span.trace_rowid.in_(keys))
+    ranked = _apply_scope(ranked, models.Span.trace_rowid, project_rowids, start_time, end_time)
+    ranked_subquery = ranked.subquery()
+    return select(
+        ranked_subquery.c[TRACE_ROWID],
+        ranked_subquery.c[SPAN_ROWID],
+    ).where(ranked_subquery.c[_ROOT_SPAN_RANK] == 1)
 
 
 def _apply_scope(

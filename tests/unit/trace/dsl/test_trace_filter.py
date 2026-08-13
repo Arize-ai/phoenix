@@ -192,6 +192,105 @@ async def test_error_count_agrees_with_errored_span_comprehension(
         assert by_count == by_members
 
 
+@pytest.mark.parametrize(
+    "condition",
+    [
+        'float(attributes["numeric"]) > 5',
+        'attributes["boolean"] == True',
+    ],
+)
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_root_attribute_casts_execute(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+    condition: str,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        matching_trace = await _add_trace(session, project)
+        await _add_span(
+            session,
+            matching_trace,
+            attributes={"numeric": 7, "boolean": True},
+        )
+        non_matching_trace = await _add_trace(session, project)
+        await _add_span(
+            session,
+            non_matching_trace,
+            attributes={"numeric": 1, "boolean": False},
+        )
+
+        assert await _matched_rowids(
+            session,
+            TraceFilter(condition),
+            project,
+            lowering,
+        ) == {matching_trace.id}
+
+
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_root_io_uses_wire_key_candidate_paths(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(
+            session,
+            trace,
+            attributes={
+                "input": "prefix",
+                "input.value": "valid-input",
+                "output": "prefix",
+                "output.value": "valid-output",
+            },
+        )
+
+        assert await _matched_rowids(
+            session,
+            TraceFilter('input == "valid-input" and output == "valid-output"'),
+            project,
+            lowering,
+        ) == {trace.id}
+
+
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_root_bindings_use_displayed_representative(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+) -> None:
+    start_time = FIXTURE_TRACES[0].start_time
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project, start_time=start_time)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "displayed"}},
+            start_time=start_time,
+        )
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "other"}},
+            start_time=start_time + timedelta(seconds=1),
+        )
+
+        assert await _matched_rowids(
+            session,
+            TraceFilter('input == "displayed"'),
+            project,
+            lowering,
+        ) == {trace.id}
+        assert not await _matched_rowids(
+            session,
+            TraceFilter('input == "other"'),
+            project,
+            lowering,
+        )
+
+
 def test_trace_iterable_correlation_keys_are_non_nullable() -> None:
     assert set(_ITERABLE_SPECS) == {
         "spans",

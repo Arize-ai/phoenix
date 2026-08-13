@@ -11,7 +11,7 @@ import strawberry
 from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
-from sqlalchemy import Select, and_, case, desc, distinct, exists, func, or_, select
+from sqlalchemy import Select, case, desc, distinct, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
@@ -25,6 +25,13 @@ from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, righ
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.db.session_aggregates import SESSION_ROWID, SPAN_ROWID, earliest_root_span_by_session
+from phoenix.db.trace_aggregates import (
+    SPAN_ROWID as TRACE_SPAN_ROWID,
+)
+from phoenix.db.trace_aggregates import (
+    TRACE_ROWID,
+    representative_root_span_by_trace,
+)
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
@@ -1492,8 +1499,9 @@ class Project(Node):
     @strawberry.field(
         description="The bindable terms of the trace filter expression language for this "
         "project. Static terms derive from the compiler's bindings; observed trace annotation "
-        "names and strict-root attribute paths come from the 1000 most recently started traces "
-        "within the optional time range."
+        "names and displayed-root attribute paths come from the 1000 most recently started "
+        "traces within the optional time range. Root attributes are sampled newest-first "
+        "within that window up to a 2 MiB scan budget."
     )  # type: ignore
     async def trace_filter_vocabulary(
         self,
@@ -1526,22 +1534,36 @@ class Project(Node):
                     .limit(_VOCABULARY_ANNOTATION_SCAN_LIMIT)
                 )
             )
-            root_span_attributes_stmt = (
-                select(models.Span.attributes)
-                .select_from(models.Span)
-                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                .where(models.Trace.project_rowid == self.id)
-                .where(models.Trace.id.in_(recent_trace_rowids))
-                .where(models.Span.parent_id.is_(None))
-            )
             scanned_bytes = 0
-            async for attributes in await session.stream_scalars(root_span_attributes_stmt):
-                if not isinstance(attributes, Mapping):
-                    continue
-                root_span_attribute_paths.extend(_attribute_leaf_paths(attributes))
-                scanned_bytes += _attributes_size(attributes)
-                if scanned_bytes >= _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT:
-                    break
+            chunk_start = 0
+            chunk_size = 10
+            while (
+                chunk_start < len(recent_trace_rowids)
+                and scanned_bytes < _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT
+            ):
+                trace_rowids = recent_trace_rowids[chunk_start : chunk_start + chunk_size]
+                root_spans = representative_root_span_by_trace(
+                    keys=trace_rowids,
+                    project_rowids=[self.id],
+                    start_time=time_range.start if time_range else None,
+                    end_time=time_range.end if time_range else None,
+                ).subquery()
+                root_span_attributes_stmt = (
+                    select(models.Span.attributes)
+                    .select_from(models.Span)
+                    .join(root_spans, models.Span.id == root_spans.c[TRACE_SPAN_ROWID])
+                    .join(models.Trace, models.Trace.id == root_spans.c[TRACE_ROWID])
+                    .order_by(models.Trace.start_time.desc(), models.Trace.id.desc())
+                )
+                async for attributes in await session.stream_scalars(root_span_attributes_stmt):
+                    if not isinstance(attributes, Mapping):
+                        continue
+                    root_span_attribute_paths.extend(_attribute_leaf_paths(attributes))
+                    scanned_bytes += _attributes_size(attributes)
+                    if scanned_bytes >= _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT:
+                        break
+                chunk_start += chunk_size
+                chunk_size *= 2
         return trace_filter_vocabulary_terms(annotation_names, root_span_attribute_paths)
 
     @strawberry.field
@@ -2955,33 +2977,18 @@ async def _paginate_span_by_trace_start_time(
     )
     traces_cte = traces.cte()
 
-    # Define join condition for root spans
-    if orphan_span_as_root_span:
-        # Include both NULL parent_id and orphaned spans
-        parent_spans = select(models.Span.span_id).alias("parent_spans")
-        onclause = and_(
-            models.Span.trace_rowid == traces_cte.c.id,
-            or_(
-                models.Span.parent_id.is_(None),
-                ~exists().where(models.Span.parent_id == parent_spans.c.span_id),
-            ),
-        )
-    else:
-        # Only spans with no parent (parent_id is NULL, excludes orphaned spans)
-        onclause = and_(
-            models.Span.trace_rowid == traces_cte.c.id,
-            models.Span.parent_id.is_(None),
-        )
-
-    # Join traces with root spans (left join allows traces without spans)
+    representative_root_spans = representative_root_span_by_trace(
+        keys=select(traces_cte.c.id),
+        orphan_span_as_root_span=bool(orphan_span_as_root_span),
+    ).subquery()
     stmt = select(
         traces_cte.c.id,
         traces_cte.c.start_time,
-        models.Span.id,
+        representative_root_spans.c[TRACE_SPAN_ROWID],
     ).join_from(
         traces_cte,
-        models.Span,
-        onclause=onclause,
+        representative_root_spans,
+        onclause=representative_root_spans.c[TRACE_ROWID] == traces_cte.c.id,
         isouter=True,
     )
 
@@ -2990,25 +2997,12 @@ async def _paginate_span_by_trace_start_time(
         stmt = stmt.order_by(
             traces_cte.c.start_time.desc(),
             traces_cte.c.id.desc(),
-            models.Span.start_time.asc(),  # earliest span
-            models.Span.id.desc(),
         )
     else:
         stmt = stmt.order_by(
             traces_cte.c.start_time.asc(),
             traces_cte.c.id.asc(),
-            models.Span.start_time.asc(),  # earliest span
-            models.Span.id.desc(),
         )
-
-    # Use DISTINCT for PostgreSQL, manual grouping for SQLite
-    if db.dialect is SupportedSQLDialect.POSTGRESQL:
-        stmt = stmt.distinct(traces_cte.c.start_time, traces_cte.c.id)
-    elif db.dialect is SupportedSQLDialect.SQLITE:
-        # too complicated for SQLite, so we rely on groupby() below
-        pass
-    else:
-        assert_never(db.dialect)
 
     # Process results and build edges
     edges: list[Edge[Span]] = []
