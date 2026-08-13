@@ -62,6 +62,12 @@ jobs:
   merge:
     name: Publish ${{ matrix.variant }} manifest
     needs: [version, build]
+    # A matrix job reports failure if any cell fails, so plain `needs` would let
+    # one variant's failed leg withhold every other variant — including ones
+    # whose digests are already on Docker Hub. Publish per variant instead and
+    # let the digest count refuse the variant that is actually incomplete. The
+    # version job is a real prerequisite: without it the tags are empty.
+    if: ${{ !cancelled() && needs.version.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
