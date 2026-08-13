@@ -149,16 +149,12 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
                 "Simplify the statement, or split it into CTEs."
             ),
         )
-    return _fold_unquoted_identifiers(
-        _repair_row_constructor(
-            _promote_lateral_table_references(
-                _repair_lambda_json_accessor(
-                    _repair_jsonb_extract_array_bracket(root), dialect=dialect
-                )
-            )
-        ),
-        dialect=dialect,
-    )
+    repaired = _repair_jsonb_extract_array_bracket(root)
+    repaired = _repair_lambda_json_accessor(repaired, dialect=dialect)
+    repaired = _promote_lateral_table_references(repaired)
+    repaired = _repair_row_constructor(repaired, dialect=dialect)
+    repaired = _repair_jsonb_typeof_text_extract(repaired, dialect=dialect)
+    return _fold_unquoted_identifiers(repaired, dialect=dialect)
 
 
 def _grouping_limit_parse_message(sql: str) -> Optional[str]:
@@ -371,28 +367,33 @@ def _repair_lambda_json_accessor(
 
 
 def _promote_lateral_table_references(root: exp.Expression) -> exp.Expression:
-    """Turn ``LATERAL traces t`` into a real table reference.
+    """Turn ``LATERAL traces t`` into a plain table join.
 
-    SQLGlot stores the relation as an Identifier inside Lateral, so schema
-    qualification never sees a Table and emits ``LATERAL traces AS t``, which
-    PostgreSQL rejects. Promoting the identifier to Table lets every later
-    pass treat it as the allowlisted relation it is. LATERAL subqueries are
-    left alone.
+    SQLGlot stores the relation as an Identifier inside Lateral and emits
+    ``LATERAL traces AS t`` or ``LATERAL schema.traces AS t``. PostgreSQL
+    rejects that ``AS``: LATERAL is for subqueries and set-returning
+    functions, not base tables. A LATERAL table join is the same request as
+    an ordinary join, which schema qualification already knows how to emit.
+    LATERAL subqueries and SRFs are left alone.
     """
-    for lateral in root.find_all(exp.Lateral):
+    for lateral in list(root.find_all(exp.Lateral)):
         inner = lateral.this
-        if not isinstance(inner, exp.Identifier):
+        if isinstance(inner, exp.Identifier):
+            table = exp.Table(this=inner.copy())
+        elif isinstance(inner, exp.Table):
+            table = inner.copy()
+        else:
             continue
-        table = exp.Table(this=inner.copy())
         alias = lateral.args.get("alias")
-        if isinstance(alias, exp.TableAlias):
+        if isinstance(alias, exp.TableAlias) and table.args.get("alias") is None:
             table.set("alias", alias.copy())
-            lateral.set("alias", None)
-        lateral.set("this", table)
+        lateral.replace(table)
     return root
 
 
-def _repair_row_constructor(root: exp.Expression) -> exp.Expression:
+def _repair_row_constructor(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
     """Rebuild ``ROW(a, b)`` as a tuple, which ``(a, b)`` already is.
 
     PostgreSQL treats the two spellings as the same constructor. The parser
@@ -408,6 +409,48 @@ def _repair_row_constructor(root: exp.Expression) -> exp.Expression:
         if len(items) == 1:
             continue
         node.replace(exp.Tuple(expressions=items))
+    if dialect != "postgresql":
+        return root
+    # `(1,)` is a one-field row. A one-element Tuple renders as `(1)`, a
+    # scalar. ROW(1) is the spelling PostgreSQL still treats as a record.
+    # VALUES (1) is a one-column row, not a record constructor — leave it.
+    for tuple_node in list(root.find_all(exp.Tuple)):
+        items = list(tuple_node.expressions)
+        if len(items) != 1:
+            continue
+        if tuple_node.find_ancestor(exp.Values) is not None:
+            continue
+        if isinstance(tuple_node.parent, (exp.GroupingSets, exp.Cube, exp.Rollup, exp.Group)):
+            continue
+        tuple_node.replace(exp.Anonymous(this="row", expressions=[items[0].copy()]))
+    return root
+
+
+def _repair_jsonb_typeof_text_extract(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """Ask ``jsonb_typeof`` about jsonb, not about the text ``->>`` returns.
+
+    ``jsonb_typeof(attributes ->> 'k')`` is the type of a JSON value, written
+    with the text extractor. PostgreSQL has no ``jsonb_typeof(text)``. The
+    jsonb extractor ``->`` is the same key and the function's real input.
+    """
+    if dialect != "postgresql":
+        return root
+    for node in root.find_all(exp.Anonymous):
+        if (node.name or "").casefold() not in {"jsonb_typeof", "json_typeof"}:
+            continue
+        if len(node.expressions) != 1:
+            continue
+        operand = _strip_parens(node.expressions[0])
+        if not isinstance(operand, exp.JSONExtractScalar):
+            continue
+        rebuilt = exp.JSONExtract(
+            this=operand.this.copy(),
+            expression=operand.expression.copy(),
+        )
+        rebuilt.set("only_json_types", True)
+        node.set("expressions", [exp.paren(rebuilt)])
     return root
 
 
@@ -1008,11 +1051,26 @@ def _cast_type_name(target: exp.Expression) -> str:
         if isinstance(kind, exp.Dot):
             leaf = kind.expression
             if isinstance(leaf, exp.Identifier) and leaf.name:
-                return leaf.name.upper()
+                return _canonical_cast_type_name(leaf.name.upper())
         if isinstance(kind, exp.Identifier) and kind.name:
-            return kind.name.upper()
+            return _canonical_cast_type_name(kind.name.upper())
     name = target.this.name if hasattr(target.this, "name") else str(target.this)
-    return name.upper().split("(")[0].strip()
+    return _canonical_cast_type_name(name.upper().split("(")[0].strip())
+
+
+_CAST_TYPE_ALIASES = {
+    "INT2": "SMALLINT",
+    "INT4": "INT",
+    "INT8": "BIGINT",
+    "FLOAT4": "REAL",
+    "FLOAT8": "DOUBLE",
+    "BOOL": "BOOLEAN",
+}
+
+
+def _canonical_cast_type_name(name: str) -> str:
+    """Map catalog aliases (int4, float8) to the allowlisted spelling."""
+    return _CAST_TYPE_ALIASES.get(name, name)
 
 
 def _refused_cast_target(target: exp.Expression) -> Optional[str]:

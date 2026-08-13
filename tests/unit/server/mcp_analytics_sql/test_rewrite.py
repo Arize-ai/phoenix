@@ -1710,14 +1710,15 @@ def test_postgres_json_extract_rewrites_to_jsonb_extract_path() -> None:
     assert "jsonb_extract_path" in ctx.applied
 
 
-def test_lateral_base_table_is_schema_qualified() -> None:
+def test_lateral_base_table_becomes_a_plain_join() -> None:
     ctx, rendered = _rewritten(
         "SELECT spans.id FROM spans JOIN LATERAL traces t ON t.id = spans.trace_rowid",
         dialect="postgresql",
     )
-    assert "LATERAL" in rendered.upper()
+    assert "LATERAL" not in rendered.upper()
     assert ".traces" in rendered.casefold()
     assert "schema_qualification" in ctx.applied
+    assert " AS t" in rendered or " traces t" in rendered.casefold()
 
 
 def test_setop_operand_with_limit_is_parenthesised() -> None:
@@ -1753,3 +1754,36 @@ def test_pg_catalog_varchar_renders_as_varchar() -> None:
 def test_row_of_one_keeps_the_keyword_form() -> None:
     _, rendered = _rewritten("SELECT ROW(1) AS r", dialect="postgresql")
     assert "ROW(1)" in rendered.upper().replace(" ", "")
+
+
+def test_one_element_tuple_is_rebuilt_as_row() -> None:
+    _, rendered = _rewritten("SELECT (1,) AS r", dialect="postgresql")
+    assert "ROW(1)" in rendered.upper().replace(" ", "")
+
+
+def test_jsonb_typeof_of_text_extract_uses_the_jsonb_accessor() -> None:
+    _, rendered = _rewritten(
+        "SELECT jsonb_typeof(attributes ->> 'llm') FROM spans",
+        dialect="postgresql",
+    )
+    assert "->>" not in rendered
+    assert "->" in rendered
+    assert "jsonb_typeof" in rendered.casefold()
+
+
+def test_pg_catalog_int4_is_admitted_as_int() -> None:
+    _, rendered = _rewritten(
+        "SELECT CAST(id AS pg_catalog.int4) FROM projects",
+        dialect="postgresql",
+    )
+    assert "USERDEFINED" not in rendered.upper()
+
+
+def test_comma_lateral_base_table_is_a_plain_join() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT spans.id FROM spans, LATERAL traces t",
+        dialect="postgresql",
+    )
+    assert "LATERAL" not in rendered.upper()
+    assert ".traces" in rendered.casefold()
+    assert "schema_qualification" in ctx.applied

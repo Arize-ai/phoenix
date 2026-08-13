@@ -849,7 +849,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT spans.id FROM spans JOIN LATERAL traces t ON t.id = spans.trace_rowid",
         expect=AdmissionOutcome.ADMIT,
-        note="LATERAL base table is an Identifier in the AST; promote to Table so schema qualification can see it",
+        note="LATERAL on a base table is a regular join; PostgreSQL rejects LATERAL schema.traces AS t",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -898,6 +898,30 @@ CASES: tuple[AdmissionCase, ...] = (
         sql="SELECT latency_ms FROM spans JOIN traces USING (latency_ms)",
         expect=AdmissionOutcome.ADMIT,
         note="USING coalesces the overlay; unqualified latency_ms is that coalesced column, not an ambiguity",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT (1,) AS r",
+        expect=AdmissionOutcome.ADMIT,
+        note="a one-element tuple renders as (1), a scalar; rebuild as ROW(1) so it stays a record",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT CAST(id AS pg_catalog.int4) FROM projects",
+        expect=AdmissionOutcome.ADMIT,
+        note="pg_catalog.int4 is INT; refusing USERDEFINED/INT4 rejected a type PostgreSQL accepts as int",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT jsonb_typeof(attributes ->> 'llm') FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="jsonb_typeof(text) does not exist; the text extractor is the same key as ->",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT spans.id FROM spans, LATERAL traces t",
+        expect=AdmissionOutcome.ADMIT,
+        note="comma LATERAL on a base table is a cross join; PostgreSQL rejects LATERAL schema.traces AS t",
         dialect="postgresql",
     ),
 )
