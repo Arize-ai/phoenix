@@ -74,8 +74,9 @@ describe("flushToolOutputs", () => {
     expect(body.toolOutputs[0].toolCallId).toBe("call-1");
   });
 
-  it("re-posts every resolved output on each call; the endpoint dedupes", async () => {
+  it("skips outputs marked synced and marks flushed outputs in place", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse());
+    const syncedToolOutputIds = new Set<string>();
 
     flushToolOutputs({
       message: assistantMessage([
@@ -84,6 +85,7 @@ describe("flushToolOutputs", () => {
       ]),
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
+      syncedToolOutputIds,
     });
     flushToolOutputs({
       message: assistantMessage([
@@ -93,6 +95,7 @@ describe("flushToolOutputs", () => {
       ]),
       flushUrl: FLUSH_URL,
       fetch: fetchMock,
+      syncedToolOutputIds,
     });
     await settle();
 
@@ -102,7 +105,76 @@ describe("flushToolOutputs", () => {
       secondBody.toolOutputs.map(
         (toolOutput: { toolCallId: string }) => toolOutput.toolCallId
       )
-    ).toEqual(["call-1", "call-2"]);
+    ).toEqual(["call-2"]);
+    expect(syncedToolOutputIds).toEqual(new Set(["call-1", "call-2"]));
+  });
+
+  it("does not post at all when every resolved output is already synced", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse());
+
+    flushToolOutputs({
+      message: assistantMessage([
+        resolvedToolPart("call-1"),
+        pendingToolPart("call-2"),
+      ]),
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+      syncedToolOutputIds: new Set(["call-1"]),
+    });
+    await settle();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("unmarks flushed outputs when the post fails so a retry can re-flush", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(okResponse());
+    const syncedToolOutputIds = new Set<string>();
+    const message = assistantMessage([
+      resolvedToolPart("call-1"),
+      pendingToolPart("call-2"),
+    ]);
+
+    flushToolOutputs({
+      message,
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+      syncedToolOutputIds,
+    });
+    await settle();
+    expect(syncedToolOutputIds.size).toBe(0);
+
+    flushToolOutputs({
+      message,
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+      syncedToolOutputIds,
+    });
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(syncedToolOutputIds).toEqual(new Set(["call-1"]));
+  });
+
+  it("unmarks flushed outputs on a non-2xx response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false } as Response);
+    const syncedToolOutputIds = new Set<string>();
+
+    flushToolOutputs({
+      message: assistantMessage([
+        resolvedToolPart("call-1"),
+        pendingToolPart("call-2"),
+      ]),
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+      syncedToolOutputIds,
+    });
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(syncedToolOutputIds.size).toBe(0);
   });
 
   it("does not flush when every tool call has resolved", async () => {
