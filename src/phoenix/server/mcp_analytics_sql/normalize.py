@@ -37,6 +37,27 @@ LOSSY_CONVERSION_NOTES: dict[str, str] = {
 }
 
 
+def unix_epoch_to_utc(value: str) -> Optional[tuple[datetime, str]]:
+    """Read an unquoted number as seconds or milliseconds since the Unix epoch.
+
+    Values with magnitude >= 1e12 cannot be calendar seconds in this century,
+    so they are read as milliseconds. Quoted integers are not timestamps and
+    must not go through this path -- ``parse_timestamp_literal`` already
+    declines them.
+    """
+    try:
+        number = float(value) if "." in value else int(value)
+    except ValueError:
+        return None
+    unit = "milliseconds" if abs(number) >= 1e12 else "seconds"
+    seconds = number / 1000.0 if unit == "milliseconds" else float(number)
+    try:
+        instant = datetime.fromtimestamp(seconds, tz=timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return None
+    return instant, unit
+
+
 def normalize_row_values(values: list[Any], applied: Optional[set[str]] = None) -> list[Any]:
     """Convert driver values to JSON-representable ones, recording what that cost.
 

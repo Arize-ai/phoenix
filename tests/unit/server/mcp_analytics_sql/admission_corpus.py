@@ -618,18 +618,18 @@ CASES: tuple[AdmissionCase, ...] = (
     ),
     AdmissionCase(
         sql="SELECT s.span_id, t.trace_id FROM spans s JOIN traces t USING (latency_ms)",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="latency_ms is a query-only overlay; USING names an identifier the rewrite never substitutes, so Postgres then reports a missing physical column",
+        expect=AdmissionOutcome.ADMIT,
+        note="latency_ms is a query-only overlay; USING is rewritten to an ON comparison so the overlay substitution can see it",
     ),
     AdmissionCase(
         sql="SELECT s.span_id, t.trace_id FROM spans s JOIN traces t USING (graphql_node_id)",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="graphql_node_id is the same overlay shape as latency_ms and fails the same way as a USING key",
+        expect=AdmissionOutcome.ADMIT,
+        note="graphql_node_id USING is the same overlay shape and is rewritten to ON rather than refused",
     ),
     AdmissionCase(
         sql="SELECT count(*) FROM spans WHERE start_time >= 1719792000",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="an unquoted integer is not an instant; PostgreSQL has no timestamptz >= integer operator",
+        expect=AdmissionOutcome.ADMIT,
+        note="an unquoted integer compared to a timestamp is a unix epoch; rewrite it to a UTC instant rather than failing as timestamptz >= integer",
     ),
     AdmissionCase(
         sql=(
@@ -674,8 +674,8 @@ CASES: tuple[AdmissionCase, ...] = (
             "SELECT status_code, span_kind, COUNT(*) FROM spans "
             "GROUP BY GROUPING SETS ((status_code), (span_kind), ()) LIMIT 20"
         ),
-        expect=AdmissionOutcome.PARSE_ERROR,
-        note="SQLGlot cannot parse GROUPING SETS with LIMIT; the refusal must stay a parse_error rather than silently dropping the limit",
+        expect=AdmissionOutcome.ADMIT,
+        note="SQLGlot cannot parse GROUPING SETS with LIMIT attached; peel the clause, parse, and put it back so the engine still sees the caller's limit",
         dialect="postgresql",
     ),
 )

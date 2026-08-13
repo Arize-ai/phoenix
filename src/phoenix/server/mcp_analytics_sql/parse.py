@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from difflib import get_close_matches
@@ -81,11 +82,15 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
     try:
         statements = parse(sql, read=sqlglot_read_dialect(dialect))
     except ParseError as exc:
-        raise admission_error_from_outcome(
-            "parse_error",
-            str(exc),
-            message=_grouping_limit_parse_message(sql) or "",
-        ) from exc
+        recovered = _recover_grouping_limit_parse(sql, dialect=dialect)
+        if recovered is None:
+            raise admission_error_from_outcome(
+                "parse_error",
+                str(exc),
+                message=_grouping_limit_parse_message(sql) or "",
+            ) from exc
+        root = recovered
+        return _finish_parse(root, dialect=dialect)
     except RecursionError as exc:
         # The parser descends recursively, so nesting deep enough exhausts the
         # stack instead of failing to parse -- about a hundred parentheses, which
@@ -107,6 +112,12 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
             message=f"Only one SQL statement is supported ({len(statements)} found).",
         )
     root = statements[0]
+    return _finish_parse(root, dialect=dialect)
+
+
+def _finish_parse(
+    root: Optional[exp.Expression], *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
     if root is None or not isinstance(root, ALLOWED_ROOTS):
         raise AnalyticsSqlError(
             code=ErrorCode.UNSUPPORTED_SYNTAX,
@@ -141,6 +152,64 @@ def _grouping_limit_parse_message(sql: str) -> Optional[str]:
         "OFFSET in this parser. Wrap the aggregation in a subquery and LIMIT the "
         "outer SELECT, or write FETCH FIRST n ROWS ONLY."
     )
+
+
+_TRAILING_LIMIT_OFFSET = re.compile(
+    r"^(?P<head>.*?)(?:\s+LIMIT\s+(?P<limit>\d+)(?:\s+OFFSET\s+(?P<offset>\d+))?"
+    r"|\s+OFFSET\s+(?P<offset_only>\d+))\s*;?\s*$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _split_trailing_limit_offset(sql: str) -> Optional[tuple[str, Optional[int], Optional[int]]]:
+    """Peel a trailing LIMIT/OFFSET the postgres parser cannot attach to GROUPING SETS."""
+    match = _TRAILING_LIMIT_OFFSET.match(sql.strip())
+    if match is None:
+        return None
+    head = match.group("head").strip()
+    if not head:
+        return None
+    if match.group("offset_only") is not None:
+        return head, None, int(match.group("offset_only"))
+    offset = match.group("offset")
+    return head, int(match.group("limit")), int(offset) if offset is not None else None
+
+
+def _recover_grouping_limit_parse(
+    sql: str, *, dialect: SupportedSQLDialectName
+) -> Optional[exp.Expression]:
+    """Reattach LIMIT/OFFSET that SQLGlot rejects after GROUPING SETS/ROLLUP/CUBE.
+
+    PostgreSQL accepts the combination. The parser does not. Peeling the
+    trailing clause, parsing the rest, and putting Limit/Offset back preserves
+    the statement the caller wrote rather than refusing a query the engine
+    would run.
+    """
+    if _grouping_limit_parse_message(sql) is None:
+        return None
+    split = _split_trailing_limit_offset(sql)
+    if split is None:
+        return None
+    head, limit, offset = split
+    try:
+        statements = parse(head, read=sqlglot_read_dialect(dialect))
+    except ParseError:
+        return None
+    statements = [
+        statement
+        for statement in statements
+        if statement is not None and not isinstance(statement, exp.Semicolon)
+    ]
+    if len(statements) != 1:
+        return None
+    root = statements[0]
+    if root is None or not isinstance(root, ALLOWED_ROOTS):
+        return None
+    if limit is not None:
+        root.set("limit", exp.Limit(expression=exp.Literal.number(limit)))
+    if offset is not None:
+        root.set("offset", exp.Offset(expression=exp.Literal.number(offset)))
+    return root
 
 
 def _is_bare_array_name(expression: Optional[exp.Expression]) -> bool:
@@ -1122,8 +1191,8 @@ def _timestamp_literals(
     """Every literal compared against a column that holds a timestamp.
 
     String literals are the usual case. ``numeric=True`` collects unquoted
-    numbers instead: ``start_time >= 1719792000`` is not an instant, and
-    PostgreSQL has no such operator.
+    numbers instead, so a unix-epoch comparison can be rewritten to an instant
+    rather than failing in PostgreSQL as ``timestamptz >= integer``.
 
     Columns that resolve to a query-local relation are skipped unless that
     relation merely projected a stored timestamp column: rewriting a literal
@@ -1206,14 +1275,6 @@ def _check_timestamp_literals(
             "will not choose one for you. Add an offset -- "
             f"`{literal.this}+00:00` for UTC. A bare date such as `2026-07-01` needs "
             "none and is read as UTC.",
-        )
-    for literal in _timestamp_literals(
-        root, columns, allowlist=allowlist, dialect=dialect, numeric=True
-    ):
-        return AdmissionResult(
-            AdmissionOutcome.UNSUPPORTED_SYNTAX,
-            f"`{literal.this}` is a number, not an instant. Write an ISO-8601 instant "
-            "with an offset, for example `2026-07-01T00:00:00+00:00`.",
         )
     return None
 
@@ -1855,41 +1916,6 @@ def _virtual_column_on_source(
     )
 
 
-def _check_using_virtual_columns(
-    root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
-) -> Optional[AdmissionResult]:
-    """Refuse USING keys that name a query-only overlay.
-
-    Substitution walks ``exp.Column``, and a USING key is an identifier, so
-    ``JOIN traces USING (latency_ms)`` was admitted and then failed in
-    Postgres as a missing physical column. The overlay is still available as
-    an ON comparison, which the rewrite can see.
-    """
-    for select in root.find_all(exp.Select):
-        from_expr = select.args.get("from_") or select.args.get("from")
-        left = from_expr.this if isinstance(from_expr, exp.From) else None
-        for join in select.args.get("joins") or []:
-            for ident in _join_using_identifiers(join):
-                name = ident.this or ""
-                quoted = bool(ident.args.get("quoted"))
-                if _virtual_column_on_source(
-                    left, name, quoted=quoted, allowlist=allowlist, dialect=dialect
-                ) or _virtual_column_on_source(
-                    join.this, name, quoted=quoted, allowlist=allowlist, dialect=dialect
-                ):
-                    return AdmissionResult(
-                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                        name,
-                        message=(
-                            f"`{name}` is a query-only column and cannot be a USING join "
-                            f"key. Write an ON comparison instead, for example "
-                            f"`ON s.{name} = t.{name}`."
-                        ),
-                    )
-            left = join.this
-    return None
-
-
 def admit(
     root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> exp.Expression:
@@ -1931,7 +1957,6 @@ def admit(
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist, dialect=dialect)
         or _check_column_references(root, allowlist=allowlist, dialect=dialect)
-        or _check_using_virtual_columns(root, allowlist=allowlist, dialect=dialect)
         or _check_timestamp_literals(root, allowlist=allowlist, dialect=dialect)
     )
     if failure is not None:

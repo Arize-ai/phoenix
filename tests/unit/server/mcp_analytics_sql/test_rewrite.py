@@ -454,6 +454,26 @@ def test_table_name_qualifier_after_an_alias_uses_the_exposed_alias() -> None:
     assert "spans.start_time" not in latency
 
 
+def test_virtual_using_join_is_rewritten_to_on() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT s.span_id, t.trace_id FROM spans s JOIN traces t USING (latency_ms)",
+        dialect="postgresql",
+    )
+    assert "USING" not in rendered.upper()
+    assert "virtual_using" in ctx.applied
+    assert "s.start_time" in rendered and "t.start_time" in rendered
+
+
+def test_integer_epoch_against_a_timestamp_is_rewritten_to_utc() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT count(*) FROM spans WHERE start_time >= 1719792000",
+        dialect="postgresql",
+    )
+    assert "1719792000" not in rendered
+    assert "2024-07-01T00:00:00+00:00" in rendered
+    assert any("Unix epoch" in note for note in ctx.notes)
+
+
 def test_qualified_star_on_a_missing_alias_names_the_missing_relation() -> None:
     root = parse_sql("SELECT t.* FROM spans s", dialect="postgresql")
     with pytest.raises(AnalyticsSqlError) as caught:

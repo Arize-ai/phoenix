@@ -1634,28 +1634,14 @@ def test_json_type_on_postgres_names_jsonb_typeof() -> None:
     assert "jsonb_typeof" in caught.value.message
 
 
-def test_grouping_sets_with_limit_names_the_workaround() -> None:
-    with pytest.raises(AnalyticsSqlError) as caught:
-        parse_sql(
-            "SELECT status_code, COUNT(*) FROM spans "
-            "GROUP BY GROUPING SETS ((status_code)) LIMIT 20",
-            dialect="postgresql",
-        )
-    assert caught.value.code is ErrorCode.PARSE_ERROR
-    assert "FETCH FIRST" in caught.value.message
-    assert "subquery" in caught.value.message
-
-
-def test_integer_epoch_against_a_timestamp_is_refused() -> None:
-    with pytest.raises(AnalyticsSqlError) as caught:
-        admit_sql(
-            "SELECT count(*) FROM spans WHERE start_time >= 1719792000",
-            allowlist=load_allowlist("sqlite"),
-            dialect="postgresql",
-        )
-    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
-    assert "1719792000" in caught.value.message
-    assert "+00:00" in caught.value.message or "ISO-8601" in caught.value.message
+def test_grouping_sets_with_limit_keeps_the_limit() -> None:
+    _, rendered = admit_sql(
+        "SELECT status_code, COUNT(*) FROM spans GROUP BY GROUPING SETS ((status_code)) LIMIT 20",
+        allowlist=load_allowlist("sqlite"),
+        dialect="postgresql",
+    )
+    assert "LIMIT 20" in rendered.upper()
+    assert "GROUPING SETS" in rendered.upper()
 
 
 def test_for_update_refusal_names_the_clause() -> None:

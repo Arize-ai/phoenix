@@ -22,6 +22,7 @@ from phoenix.server.mcp_analytics_sql.normalize import (
     format_timestamp_for_sqlite,
     parse_timestamp_literal,
     timestamp_column_names,
+    unix_epoch_to_utc,
 )
 from phoenix.server.mcp_analytics_sql.parse import (
     _allowlisted_table_name,
@@ -29,12 +30,14 @@ from phoenix.server.mcp_analytics_sql.parse import (
     _identifier_key,
     _is_all_quantifier,
     _is_quantifier,
+    _join_using_identifiers,
     _quantifier_list_container,
     _relation_identifier_keys,
     _scope_columns,
     _strip_parens,
     _timestamp_literals,
     _timestamp_passthrough_references,
+    _virtual_column_on_source,
     query_local_columns,
 )
 
@@ -151,6 +154,7 @@ def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> Non
 
 
 def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    root = _rewrite_virtual_using_joins(root, ctx)
     root = _expand_stars(root, ctx)
     root = _substitute_latency_ms(root, ctx)
     root = _substitute_graphql_node_id(root, ctx)
@@ -301,8 +305,10 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
     """Re-emit timestamp literals in the form the backend compares correctly.
 
     Admission has already refused a literal that names a time of day without an
-    offset, so every literal reaching here is either aware or a bare date, and
-    the instant is known. What remains is spelling.
+    offset, so every string literal reaching here is either aware or a bare date,
+    and the instant is known. What remains is spelling -- and unquoted numbers,
+    which PostgreSQL cannot compare to timestamptz and which are read as Unix
+    epoch instants in UTC.
 
     PostgreSQL parses the literal, so the spelling carries nothing and only the
     note is recorded. SQLite does not: storage is text written by `UtcTimeStamp`
@@ -328,6 +334,23 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
         if rendered != literal.this:
             literal.set("this", rendered)
             changed = True
+    for literal in _timestamp_literals(
+        root, columns, allowlist=ctx.allowlist, dialect=ctx.dialect, numeric=True
+    ):
+        converted = unix_epoch_to_utc(literal.this)
+        if converted is None:
+            continue
+        instant, unit = converted
+        original = literal.this
+        if ctx.dialect == "sqlite":
+            rendered = format_timestamp_for_sqlite(instant)
+        else:
+            rendered = instant.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        literal.replace(exp.Literal.string(rendered))
+        note = f"Integer {original} was read as {unit} since the Unix epoch (UTC)."
+        if note not in ctx.notes:
+            ctx.notes.append(note)
+        changed = True
     if saw_bare_date and _UTC_DATE_NOTE not in ctx.notes:
         ctx.notes.append(_UTC_DATE_NOTE)
     if changed:
@@ -478,6 +501,64 @@ def _canonicalize_postgres_dynamic_json_extract(
         changed = True
     if changed:
         ctx.applied.append("jsonb_extract_path")
+    return root
+
+
+def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    """Turn USING keys that name query-only overlays into ON comparisons.
+
+    Substitution walks ``exp.Column``. A USING key is an identifier, so
+    ``JOIN traces USING (latency_ms)`` never reached the overlay rewrite and
+    failed in Postgres as a missing physical column. The same join written
+    with ON is a comparison the rewrite can see, so that is what we emit.
+    Physical USING keys stay as USING.
+    """
+    changed = False
+    for select in root.find_all(exp.Select):
+        from_expr = select.args.get("from_") or select.args.get("from")
+        left = from_expr.this if isinstance(from_expr, exp.From) else None
+        for join in select.args.get("joins") or []:
+            if left is None:
+                left = join.this
+                continue
+            virtual_keys: list[exp.Identifier] = []
+            physical_keys: list[exp.Identifier] = []
+            for ident in _join_using_identifiers(join):
+                name = ident.this or ""
+                quoted = bool(ident.args.get("quoted"))
+                if _virtual_column_on_source(
+                    left, name, quoted=quoted, allowlist=ctx.allowlist, dialect=ctx.dialect
+                ) or _virtual_column_on_source(
+                    join.this, name, quoted=quoted, allowlist=ctx.allowlist, dialect=ctx.dialect
+                ):
+                    virtual_keys.append(ident)
+                else:
+                    physical_keys.append(ident)
+            if virtual_keys:
+                left_qual = _relation_qualifier(left)
+                right_qual = _relation_qualifier(join.this)
+                equalities: list[exp.Expression] = [
+                    exp.EQ(
+                        this=exp.Column(this=ident.copy(), table=left_qual.copy()),
+                        expression=exp.Column(this=ident.copy(), table=right_qual.copy()),
+                    )
+                    for ident in virtual_keys
+                ]
+                on_expr: exp.Expression = equalities[0]
+                for extra in equalities[1:]:
+                    on_expr = exp.And(this=on_expr, expression=extra)
+                existing = join.args.get("on")
+                if existing is not None:
+                    on_expr = exp.And(this=existing, expression=on_expr)
+                join.set("on", on_expr)
+                if physical_keys:
+                    join.set("using", physical_keys)
+                else:
+                    join.set("using", None)
+                changed = True
+            left = join.this
+    if changed:
+        ctx.applied.append("virtual_using")
     return root
 
 
@@ -1228,6 +1309,13 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                 cmp_node.set("expression", exp.Literal.number(row_id))
                 changed = True
                 break
+            if isinstance(other, exp.Column) and is_node_id(other):
+                other_type = type_for(other)
+                if other_type == type_name:
+                    cmp_node.set("this", physical_id(column))
+                    cmp_node.set("expression", physical_id(other))
+                    changed = True
+                    break
             if _is_quantifier(other):
                 container = _quantifier_list_container(other)
                 literals = (
