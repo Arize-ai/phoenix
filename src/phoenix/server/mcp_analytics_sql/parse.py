@@ -110,8 +110,7 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
                 str(exc),
                 message=_grouping_limit_parse_message(sql) or "",
             ) from exc
-        root = recovered
-        return _finish_parse(root, dialect=dialect)
+        return _finish_parse(recovered, dialect=dialect)
     except RecursionError as exc:
         # The parser descends recursively, so nesting deep enough exhausts the
         # stack instead of failing to parse -- about a hundred parentheses, which
@@ -136,9 +135,7 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
     return _finish_parse(root, dialect=dialect)
 
 
-def _finish_parse(
-    root: Optional[exp.Expression], *, dialect: SupportedSQLDialectName
-) -> exp.Expression:
+def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName) -> exp.Expression:
     if root is None or not isinstance(root, ALLOWED_ROOTS):
         raise AnalyticsSqlError(
             code=ErrorCode.UNSUPPORTED_SYNTAX,
@@ -1629,6 +1626,8 @@ def _timestamp_literals(
         for column, operand in ((left, right), (right, left)):
             if not isinstance(column, exp.Column) or not is_timestamp_column(column):
                 continue
+            if operand is None:
+                continue
             if numeric:
                 if _unix_epoch_text(operand) is not None:
                     found.append(operand)
@@ -1985,7 +1984,7 @@ def _derived_alias_identifiers(scope: Any) -> list[exp.Identifier]:
     return found
 
 
-def _table_from_scope_source(source: exp.Expression) -> Optional[exp.Table]:
+def _table_from_scope_source(source: Any) -> Optional[exp.Table]:
     """The base table a scope source names, including ``LATERAL traces t``.
 
     SQLGlot stores that join as Lateral wrapping a Table, so a check that
@@ -2110,17 +2109,18 @@ def _check_base_tables(
     # which is whether *this* scope resolved the table it names.
     declared = {cte.alias for cte in root.find_all(exp.CTE) if cte.alias}
     for scope in scope_root.traverse():
-        resolved = {
-            _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
-            for source in scope.sources.values()
-            if (table := _table_from_scope_source(source)) is not None
-            and _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
-        }
-        resolved.update(
-            name
-            for table in _lateral_tables_in_scope(scope)
-            if (name := _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect))
-        )
+        resolved: set[str] = set()
+        for source in scope.sources.values():
+            table = _table_from_scope_source(source)
+            if table is None:
+                continue
+            allowlisted = _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
+            if allowlisted is not None:
+                resolved.add(allowlisted)
+        for table in _lateral_tables_in_scope(scope):
+            allowlisted = _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
+            if allowlisted is not None:
+                resolved.add(allowlisted)
         for table in scope.tables:
             name = table.name or ""
             table_name = _allowlisted_table_name(

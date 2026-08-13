@@ -1,6 +1,6 @@
 import re
 import sqlite3
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import pytest
 import sqlglot
@@ -435,12 +435,13 @@ def test_an_empty_selection_says_which_filter_matched_nothing() -> None:
     """Silence cannot distinguish a typo from an empty deployment."""
     from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
 
-    for kwargs in (
+    filters: tuple[dict[str, Any], ...] = (
         {"tables": ["users"]},
         {"tables": []},
         {"search": "zzzz"},
         {"area": "nope"},
-    ):
+    )
+    for kwargs in filters:
         text = describe_sql_schema(dialect="sqlite", **kwargs)
         assert "No allowlisted table matched" in text
         assert str(list(kwargs.values())[0]) in text
