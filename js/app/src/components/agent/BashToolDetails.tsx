@@ -44,9 +44,7 @@ const bashMutationApprovalCSS = css`
 
 /**
  * Approval card for a bash command whose `phoenix-gql` invocation contains
- * GraphQL mutations. Shows the model-provided `mutation_intent` alongside the
- * resolved mutation documents captured at execution time (after file/stdin
- * indirection), so the user reviews exactly what will execute.
+ * GraphQL mutations.
  */
 function BashMutationApproval({ part }: { part: ToolInvocationPart }) {
   // Live streams deliver the resolved mutations via the
