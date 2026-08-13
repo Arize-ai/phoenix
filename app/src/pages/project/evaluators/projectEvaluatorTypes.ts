@@ -1,5 +1,4 @@
 import type { EvaluatorInputMapping } from "@phoenix/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 /** A span evaluation context has no counterpart to a dataset `reference`. */
@@ -17,7 +16,7 @@ export function dropReferencePathMappings(
 /**
  * The artifact types a project evaluator can run against.
  */
-export const PROJECT_EVALUATOR_TARGETS = ["span", "trace", "session"] as const;
+export const PROJECT_EVALUATOR_TARGETS = ["SPAN", "TRACE", "SESSION"] as const;
 
 export type ProjectEvaluatorTarget = (typeof PROJECT_EVALUATOR_TARGETS)[number];
 
@@ -34,34 +33,19 @@ export const isProjectEvaluatorTarget = (
 ): value is ProjectEvaluatorTarget =>
   PROJECT_EVALUATOR_TARGETS.includes(value as ProjectEvaluatorTarget);
 
+// The domain values now match the GraphQL enum, so both directions are
+// identity; the functions remain as the typed seam between store scope and
+// GraphQL input.
 export function toProjectEvaluatorGraphQLTarget(
   target: ProjectEvaluatorTarget
 ): ProjectEvaluatorGraphQLTarget {
-  switch (target) {
-    case "span":
-      return "SPAN";
-    case "trace":
-      return "TRACE";
-    case "session":
-      return "SESSION";
-    default:
-      return assertUnreachable(target);
-  }
+  return target;
 }
 
 export function fromProjectEvaluatorGraphQLTarget(
   target: ProjectEvaluatorGraphQLTarget
 ): ProjectEvaluatorTarget {
-  switch (target) {
-    case "SPAN":
-      return "span";
-    case "TRACE":
-      return "trace";
-    case "SESSION":
-      return "session";
-    default:
-      return assertUnreachable(target);
-  }
+  return target;
 }
 
 export function toProjectEvaluatorSamplingFraction(percent: number): number {

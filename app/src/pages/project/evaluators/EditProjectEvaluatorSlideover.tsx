@@ -444,16 +444,21 @@ function EditLlmProjectEvaluatorContent({
             error={error}
             evaluatorNodeId={evaluator.id}
             formLeftPanel={
-              <ProjectEvaluatorFormSections definitionKind="llm" />
+              <ProjectEvaluatorFormSections
+                definitionKind="llm"
+                projectId={evaluator.project.id}
+                scope={scope}
+                onScopeChange={setScope}
+                onFilterValidityChange={setIsFilterValid}
+                isTargetDisabled
+              />
             }
             formRightPanel={
               <ProjectEvaluatorScopePanel
                 projectId={evaluator.project.id}
                 scope={scope}
                 onScopeChange={setScope}
-                onFilterValidityChange={setIsFilterValid}
-                showAnnotationTemplate
-                isTargetDisabled
+                showScopeFields={false}
               />
             }
           />

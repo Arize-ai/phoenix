@@ -32,7 +32,6 @@ export function ExperimentAnnotationButton({
       <button
         className="button--reset"
         css={css`
-          container-type: inline-size;
           cursor: pointer;
           padding: var(--global-dimension-size-50)
             var(--global-dimension-size-100);

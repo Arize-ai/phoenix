@@ -147,7 +147,7 @@ const CreateProjectEvaluatorDialog = ({
 }) => {
   const notifySuccess = useNotifySuccess();
   const [scope, setScope] = useState<ProjectEvaluatorScope>({
-    targetType: "span",
+    targetType: "SPAN",
     filterCondition: "",
     samplingRate: 1,
   });
@@ -525,14 +525,21 @@ const ScratchLlmDialogContent = ({
       submitHint={submitHint}
       mode="create"
       error={error}
-      formLeftPanel={<ProjectEvaluatorFormSections definitionKind="llm" />}
+      formLeftPanel={
+        <ProjectEvaluatorFormSections
+          definitionKind="llm"
+          projectId={projectId}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          onFilterValidityChange={onFilterValidityChange}
+        />
+      }
       formRightPanel={
         <ProjectEvaluatorScopePanel
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          onFilterValidityChange={onFilterValidityChange}
-          showAnnotationTemplate
+          showScopeFields={false}
         />
       }
     />
