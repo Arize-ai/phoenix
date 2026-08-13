@@ -1,13 +1,15 @@
+import { css } from "@emotion/react";
+
 import {
   getBashToolCommandDisplayResult,
   getBashToolInput,
+  getBashToolPendingMutations,
   getBashToolSummary,
 } from "@phoenix/agent/tools/bash";
-import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
+import { ToolApprovalRequest } from "./ToolApprovalRequest";
 import {
-  ToolPartApprovalActions,
   ToolPartCodeBlock,
   ToolPartExpandableSection,
   ToolPartLabel,
@@ -28,50 +30,69 @@ export function getBashToolPreview(part: ToolInvocationPart): string {
   return command ? command.split("\n")[0] : "";
 }
 
+const bashMutationApprovalCSS = css`
+  .bash-mutation-approval__intent {
+    margin: 0;
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-250)
+      var(--global-dimension-size-125);
+    font-family: var(--global-font-family-sans);
+    color: var(--global-text-color-900);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+`;
+
 /**
- * Approval card for a bash command whose `phoenix-gql` invocation contains a
- * GraphQL mutation. Shows the model-provided `mutation_intent` (when present)
- * with Accept/Reject actions that resume the deferred tool call.
+ * Approval card for a bash command whose `phoenix-gql` invocation contains
+ * GraphQL mutations. Shows the model-provided `mutation_intent` alongside the
+ * resolved mutation documents captured at execution time (after file/stdin
+ * indirection), so the user reviews exactly what will execute.
  */
 function BashMutationApproval({ part }: { part: ToolInvocationPart }) {
-  const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const chatRuntime = useAgentChatRuntime();
-  if (part.state !== "approval-requested") {
-    return null;
-  }
+  // Live streams deliver the resolved mutations via the
+  // `data-bash-mutation-approval` chunk into the store; reloaded transcripts
+  // carry the same payload on the part's call provider metadata.
+  const streamedMutations = useAgentContext(
+    (state) => state.pendingBashMutationsByToolCallId[part.toolCallId] ?? null
+  );
+  const pendingMutations =
+    streamedMutations ?? getBashToolPendingMutations(part) ?? [];
   const mutationIntent = getBashToolInput(part.input)?.mutation_intent;
-  const approvalId = part.approval.id;
-  const respondToApproval = (approved: boolean) => {
-    if (!activeSessionId) {
-      return;
-    }
-    const chat = chatRuntime.getChat(activeSessionId);
-    if (!chat) {
-      return;
-    }
-    void chat.addToolApprovalResponse({
-      id: approvalId,
-      approved,
-      ...(approved
-        ? null
-        : { reason: "The user rejected the GraphQL mutation." }),
-    });
-  };
   return (
-    <>
-      <ToolPartLabel variant="warning">
-        Mutation approval required
-      </ToolPartLabel>
-      {mutationIntent ? (
-        <ToolPartCodeBlock allowCopy={false}>
-          {mutationIntent}
-        </ToolPartCodeBlock>
-      ) : null}
-      <ToolPartApprovalActions
-        onAccept={() => respondToApproval(true)}
-        onReject={() => respondToApproval(false)}
-      />
-    </>
+    <div css={bashMutationApprovalCSS}>
+      <ToolApprovalRequest
+        part={part}
+        label="Mutation approval required"
+        denialReason="The user rejected the GraphQL mutation."
+      >
+        {mutationIntent ? (
+          <p className="bash-mutation-approval__intent">{mutationIntent}</p>
+        ) : null}
+        {pendingMutations.map((mutation, index) => (
+          <div key={mutation.digest}>
+            <ToolPartLabel>
+              {pendingMutations.length > 1
+                ? `Mutation ${index + 1}`
+                : "Mutation"}
+            </ToolPartLabel>
+            <ToolPartExpandableSection>
+              <ToolPartCodeBlock>{mutation.query}</ToolPartCodeBlock>
+            </ToolPartExpandableSection>
+            {mutation.variables &&
+            Object.keys(mutation.variables).length > 0 ? (
+              <>
+                <ToolPartLabel>Variables</ToolPartLabel>
+                <ToolPartExpandableSection>
+                  <ToolPartCodeBlock>
+                    {JSON.stringify(mutation.variables, null, 2)}
+                  </ToolPartCodeBlock>
+                </ToolPartExpandableSection>
+              </>
+            ) : null}
+          </div>
+        ))}
+      </ToolApprovalRequest>
+    </div>
   );
 }
 
