@@ -23,8 +23,7 @@ class PendingGraphQLMutationMetadata(CamelBaseModel):
     """The resolved GraphQL variables, if any."""
 
     digest: str
-    """Hash binding the approval to this exact document and variables; the
-    builtin re-verifies it before executing an approved mutation."""
+    """Hash binding the approval to this exact document and variables."""
 
 
 class PhoenixToolCallProviderMetadata(CamelBaseModel):
@@ -40,8 +39,7 @@ class PhoenixToolCallProviderMetadata(CamelBaseModel):
     """RFC3339 server timestamp for a client tool-call chunk."""
 
     pending_mutations: list[PendingGraphQLMutationMetadata] | None = None
-    """GraphQL mutations awaiting user approval on a deferred bash tool call,
-    stamped when the turn persists so the approval card survives a reload."""
+    """GraphQL mutations awaiting user approval."""
 
 
 class PhoenixToolCallCallbackProviderMetadata(PhoenixToolCallProviderMetadata):
