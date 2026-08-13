@@ -43,7 +43,11 @@ import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundOutputMoveButton } from "./PlaygroundOutputMoveButton";
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
 import { PlaygroundToolCall } from "./PlaygroundToolCall";
-import { getChatCompletionInput, isChatMessages } from "./playgroundUtils";
+import {
+  getChatCompletionInput,
+  isChatMessages,
+  validateChatCompletionInput,
+} from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import type { PlaygroundInstanceProps } from "./types";
@@ -306,6 +310,26 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       return undefined;
     }
     setApiError(null);
+    const validationError = validateChatCompletionInput({
+      playgroundStore,
+      instanceId,
+    });
+    if (validationError != null) {
+      const repetitionNumbers = Object.keys(
+        playgroundStore
+          .getState()
+          .instances.find((instance) => instance.id === instanceId)
+          ?.repetitions ?? {}
+      );
+      markPlaygroundInstanceComplete(props.playgroundInstanceId);
+      for (const repetitionNumber of repetitionNumbers) {
+        setRepetitionError(instanceId, parseInt(repetitionNumber), {
+          title: "Invalid message order",
+          message: validationError,
+        });
+      }
+      return undefined;
+    }
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
@@ -361,6 +385,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     playgroundStore,
     props.playgroundInstanceId,
     setRepetitionStatus,
+    setRepetitionError,
   ]);
 
   return (

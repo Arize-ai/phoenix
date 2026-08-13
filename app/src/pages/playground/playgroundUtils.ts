@@ -2093,6 +2093,66 @@ export function buildPromptVersionInput({
 }
 
 /**
+ * Anthropic models that reject assistant message prefill (a conversation whose
+ * final message is not a user or tool message). The Anthropic Messages API
+ * returns a 400 for these models when the last message has role "ai".
+ * Keep in sync with the Anthropic model lists in
+ * `src/phoenix/server/api/helpers/playground_clients.py`: this set is
+ * `ANTHROPIC_ADAPTIVE_THINKING_MODELS` plus `claude-opus-4-6` and
+ * `claude-sonnet-4-6`. It intentionally excludes models that still support
+ * assistant prefill (e.g. `claude-haiku-4-5`).
+ */
+export const ANTHROPIC_ASSISTANT_PREFILL_UNSUPPORTED_MODELS: readonly string[] = [
+  "claude-opus-4-6",
+  "claude-sonnet-4-6",
+  "claude-opus-4-7",
+  "claude-opus-4-8",
+  "claude-opus-5",
+  "claude-sonnet-5",
+  "claude-fable-5",
+];
+
+export function validateChatCompletionInput({
+  playgroundStore,
+  instanceId,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId: number;
+}): string | null {
+  const { instances, allInstanceMessages } = playgroundStore.getState();
+  const instance = instances.find((i) => i.id === instanceId);
+  if (
+    instance == null ||
+    instance.template.__type !== "chat" ||
+    instance.model.provider !== "ANTHROPIC"
+  ) {
+    return null;
+  }
+  const modelName = instance.model.modelName;
+  if (
+    modelName == null ||
+    !ANTHROPIC_ASSISTANT_PREFILL_UNSUPPORTED_MODELS.includes(modelName)
+  ) {
+    return null;
+  }
+  const nonSystemMessages = instance.template.messageIds
+    .map((messageId) => allInstanceMessages[messageId])
+    .filter((message) => message != null && message.role !== "system");
+  const lastMessage = nonSystemMessages[nonSystemMessages.length - 1];
+  if (
+    lastMessage == null ||
+    lastMessage.role === "user" ||
+    lastMessage.role === "tool"
+  ) {
+    return null;
+  }
+  const conversationLabel = String.fromCharCode(
+    65 + instances.findIndex((i) => i.id === instanceId)
+  );
+  return `The model "${modelName}" used by conversation ${conversationLabel} does not support assistant message prefill. The final prompt message must have role "user" (or "tool").`;
+}
+
+/**
  * Gets chat completion input for running over variables.
  *
  * Builds the hub-and-spoke ChatCompletionInput shape where prompt content

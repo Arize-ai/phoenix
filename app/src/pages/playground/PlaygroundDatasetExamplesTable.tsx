@@ -121,6 +121,7 @@ import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import {
   extractRootVariable,
   getChatCompletionOverDatasetInput,
+  validateChatCompletionInput,
 } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
@@ -1097,6 +1098,16 @@ export function PlaygroundDatasetExamplesTable({
       const { activeRunId } = instance;
       setInstanceExperiment(instance.id, null);
       if (activeRunId === null) {
+        continue;
+      }
+
+      const validationError = validateChatCompletionInput({
+        playgroundStore,
+        instanceId: instance.id,
+      });
+      if (validationError != null) {
+        markPlaygroundInstanceComplete(instance.id);
+        setApiError(validationError);
         continue;
       }
 
