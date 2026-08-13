@@ -63,7 +63,8 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
     if dialect == "sqlite":
         lines.append(
             "-- Continuous percentiles: use `percentile(x, p)`, where p is 0–100 "
-            "(e.g. `percentile(latency_ms, 50)`); `median` and `percentile_cont` are unavailable."
+            "(e.g. `percentile(latency_ms, 50)`), or `median(x)`. `percentile_cont` "
+            "is PostgreSQL-only."
         )
     else:
         lines.append(
@@ -72,7 +73,7 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         )
     dialect_functions = (
         "JSON json_extract, json_type, json_each; "
-        "time date, datetime, unixepoch, julianday, strftime"
+        "time date, datetime, unixepoch, julianday, strftime; typeof, median"
         if dialect == "sqlite"
         else "JSON jsonb_agg, jsonb_each, jsonb_object_keys, jsonb_path_exists, jsonb_set, "
         "jsonb_typeof; time date_trunc, extract, to_char"

@@ -135,6 +135,8 @@ PERMITTED = [
     pytest.param("SELECT json_extract(attributes, '$.a.b') AS v FROM spans", id="json_extract"),
     pytest.param("SELECT key AS v FROM spans, json_each(attributes)", id="json_each"),
     pytest.param("SELECT percentile(cumulative_error_count, 50) AS v FROM spans", id="percentile"),
+    pytest.param("SELECT typeof(id) AS v FROM spans", id="typeof"),
+    pytest.param("SELECT median(cumulative_error_count) AS v FROM spans", id="median"),
     # Operators SQLite reports to the authorizer as function calls. Admission
     # treats these as predicates and never consults the function policy, so the
     # two layers disagree about what kind of thing they are.

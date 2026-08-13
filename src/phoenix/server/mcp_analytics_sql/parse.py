@@ -7,7 +7,7 @@ from difflib import get_close_matches
 from enum import Enum
 from typing import Any, Optional
 
-from sqlglot import exp, parse
+from sqlglot import exp, parse, parse_one
 from sqlglot.errors import ErrorLevel, ParseError, SqlglotError, UnsupportedError
 from sqlglot.optimizer.scope import build_scope
 
@@ -151,7 +151,7 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
         )
     repaired = _repair_jsonb_extract_array_bracket(root)
     repaired = _repair_lambda_json_accessor(repaired, dialect=dialect)
-    repaired = _promote_lateral_table_references(repaired)
+    repaired = _promote_lateral_table_references(repaired, dialect=dialect)
     repaired = _repair_row_constructor(repaired, dialect=dialect)
     repaired = _repair_jsonb_typeof_text_extract(repaired, dialect=dialect)
     return _fold_unquoted_identifiers(repaired, dialect=dialect)
@@ -280,9 +280,12 @@ def _json_extract_node(
     *,
     dialect: SupportedSQLDialectName,
 ) -> exp.Expression:
-    if dialect == "postgresql":
-        return exp.JSONExtract(this=document, expression=expression, only_json_types=True)
-    return exp.JSONExtract(this=document, expression=expression)
+    # `only_json_types` is how the generator distinguishes `->` from
+    # `json_extract`. Omitting it on SQLite made the later canonicaliser
+    # rewrite an in-call arrow to `json_extract`, which is a different
+    # accessor (SQL value vs JSON text) and quoted a path literal as one key.
+    _ = dialect
+    return exp.JSONExtract(this=document, expression=expression, only_json_types=True)
 
 
 def _lambda_parameter_document(parameter: exp.Expression) -> Optional[exp.Expression]:
@@ -291,6 +294,25 @@ def _lambda_parameter_document(parameter: exp.Expression) -> Optional[exp.Expres
     if isinstance(parameter, exp.Identifier):
         return exp.Column(this=parameter.copy())
     return None
+
+
+def _json_path_from_string(text: str) -> exp.JSONPath:
+    """A JSON path for a ``->`` key or a ``$.a.b`` path literal.
+
+    A lambda body is a bare string, so ``'$.a.b'`` used to become one key
+    named ``$.a.b``. SQLite then looks up that name and answers NULL.
+    Asking the parser how it reads the same literal as a bare accessor
+    reuses the split it already gets right outside a call.
+    """
+    try:
+        probe = parse_one(f"SELECT _ -> {exp.Literal.string(text).sql()}", read="sqlite")
+    except SqlglotError:
+        probe = None
+    extract = next(iter(probe.find_all(exp.JSONExtract)), None) if probe is not None else None
+    path = extract.expression if extract is not None else None
+    if isinstance(path, exp.JSONPath) and path.expressions:
+        return path.copy()
+    return exp.JSONPath(expressions=[exp.JSONPathRoot(), exp.JSONPathKey(this=text)])
 
 
 def _rebuild_lambda_json_body(
@@ -305,14 +327,13 @@ def _rebuild_lambda_json_body(
         return _rebuild_lambda_json_body(document, body.this, dialect=dialect)
     if isinstance(body, exp.Literal):
         if body.is_string:
-            path_part: exp.Expression = exp.JSONPathKey(this=body.this)
+            path: exp.Expression = _json_path_from_string(body.this)
         else:
             try:
                 index = int(body.this)
             except (TypeError, ValueError):
                 return None
-            path_part = exp.JSONPathSubscript(this=index)
-        path = exp.JSONPath(expressions=[exp.JSONPathRoot(), path_part])
+            path = exp.JSONPath(expressions=[exp.JSONPathRoot(), exp.JSONPathSubscript(this=index)])
         return _json_extract_node(document, path, dialect=dialect)
     if isinstance(body, (exp.Column, exp.Identifier)):
         key = body.copy() if isinstance(body, exp.Column) else exp.Column(this=body.copy())
@@ -323,7 +344,7 @@ def _rebuild_lambda_json_body(
     if isinstance(inner, exp.Literal) and inner.is_string:
         first = _json_extract_node(
             document,
-            exp.JSONPath(expressions=[exp.JSONPathRoot(), exp.JSONPathKey(this=inner.this)]),
+            _json_path_from_string(inner.this),
             dialect=dialect,
         )
         return _json_extract_node(first, body.expression.copy(), dialect=dialect)
@@ -346,10 +367,10 @@ def _repair_lambda_json_accessor(
     neither of which is valid input to ``jsonb_typeof``. Reconstructing the
     accessor is the same request the caller wrote.
 
-    On SQLite the reconstructed node is the function form, not the operator,
-    so the later canonicaliser emits ``json_extract`` and MIN/MAX compare
-    values rather than JSON text. On PostgreSQL it is the operator, which
-    returns jsonb.
+    The reconstructed node is the operator on both backends, matching a bare
+    ``->`` outside a call. SQLite's ``->`` returns JSON text; ``json_extract``
+    and ``->>`` return the SQL value. Rebuilding as the function used to
+    change that answer inside MIN/MAX.
     """
     # Innermost first: a three-hop chain nests JSONExtract inside JSONExtract.
     for node in reversed(list(root.find_all(exp.Lambda))):
@@ -366,7 +387,15 @@ def _repair_lambda_json_accessor(
     return root
 
 
-def _promote_lateral_table_references(root: exp.Expression) -> exp.Expression:
+def _is_json_each_call(node: exp.Expression) -> bool:
+    """Whether this node is ``json_each(...)``, possibly wrapped in a Table."""
+    target = node.this if isinstance(node, exp.Table) else node
+    return isinstance(target, exp.Anonymous) and (target.name or "").casefold() == "json_each"
+
+
+def _promote_lateral_table_references(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
     """Turn ``LATERAL traces t`` into a plain table join.
 
     SQLGlot stores the relation as an Identifier inside Lateral and emits
@@ -374,7 +403,11 @@ def _promote_lateral_table_references(root: exp.Expression) -> exp.Expression:
     rejects that ``AS``: LATERAL is for subqueries and set-returning
     functions, not base tables. A LATERAL table join is the same request as
     an ordinary join, which schema qualification already knows how to emit.
-    LATERAL subqueries and SRFs are left alone.
+
+    SQLite has no LATERAL. ``json_each`` does not need it -- a table-valued
+    function there may refer to earlier FROM items -- so ``LATERAL json_each``
+    is the same request as a plain ``json_each``. Remaining LATERAL nodes
+    (subqueries, other SRFs) are refused at admission.
     """
     for lateral in list(root.find_all(exp.Lateral)):
         inner = lateral.this
@@ -382,6 +415,8 @@ def _promote_lateral_table_references(root: exp.Expression) -> exp.Expression:
             table = exp.Table(this=inner.copy())
         elif isinstance(inner, exp.Table):
             table = inner.copy()
+        elif dialect == "sqlite" and _is_json_each_call(inner):
+            table = inner.copy() if isinstance(inner, exp.Table) else exp.Table(this=inner.copy())
         else:
             continue
         alias = lateral.args.get("alias")
@@ -921,6 +956,19 @@ def _check_dialect_specific_syntax(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 f"{(node.name or node.key).upper()} is not supported by SQLite. "
                 "Use IN (...) or a join.",
+            )
+        if isinstance(node, exp.Lateral):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "LATERAL is not supported by SQLite. Write a comma join, or "
+                "correlate json_each in FROM without LATERAL.",
+            )
+        if isinstance(node, exp.Cast) and _cast_type_name(node.to) == "INTERVAL":
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "CAST to INTERVAL is not supported by SQLite. SQLite has no "
+                "interval type, and the cast silently becomes a number. "
+                "Subtract timestamps with unixepoch, or compare them as text.",
             )
     return None
 
@@ -1746,7 +1794,12 @@ def _check_timestamp_literals(
                     "on DateStyle. Write an ISO date such as `2026-08-12`, or an "
                     "instant with an offset.",
                 )
-            continue
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                f"`{literal.this}` is not a timestamp. Write an ISO-8601 instant "
+                "with an offset, for example `2026-07-01T00:00:00+00:00`, or a "
+                "bare date such as `2026-07-01`.",
+            )
         if parsed.is_aware or not parsed.has_time:
             continue
         return AdmissionResult(
@@ -1791,12 +1844,26 @@ def _ambiguous_calendar_literal(text: str) -> bool:
 # spelling the caller typed or the engine documents.
 _SQLGLOT_FUNCTION_SPELLING = {
     "explode": "unnest",
-    "current_version": "version",
     "unix_to_time": "to_timestamp",
 }
 
+# First sql_names() entry by dialect when the portable alias would send the
+# caller looking for a function this backend does not have.
+_SQLGLOT_FUNCTION_SPELLING_BY_DIALECT: dict[SupportedSQLDialectName, dict[str, str]] = {
+    "sqlite": {
+        "str_position": "instr",
+        "sha": "sha1",
+        "current_version": "sqlite_version",
+        "chr": "char",
+        "rand": "random",
+    },
+    "postgresql": {
+        "current_version": "version",
+    },
+}
 
-def _reported_function_name(sql_names: list[str]) -> str:
+
+def _reported_function_name(sql_names: list[str], *, dialect: SupportedSQLDialectName) -> str:
     """The spelling a caller wrote, not SQLGlot's internal class alias.
 
     ``generate_series`` is modelled as ``ExplodingGenerateSeries``, whose only
@@ -1805,15 +1872,20 @@ def _reported_function_name(sql_names: list[str]) -> str:
     looking for a function that does not exist. Strip the prefix SQLGlot uses
     for the exploding (set-returning) variant, then map any remaining alias.
     """
+    dialect_aliases = _SQLGLOT_FUNCTION_SPELLING_BY_DIALECT.get(dialect, {})
+
+    def resolve(name: str) -> str:
+        return dialect_aliases.get(name, _SQLGLOT_FUNCTION_SPELLING.get(name, name))
+
     lowered = [name.lower() for name in sql_names]
     for name in lowered:
         if name.startswith("exploding_"):
             stripped = name[len("exploding_") :]
             if stripped:
-                return _SQLGLOT_FUNCTION_SPELLING.get(stripped, stripped)
+                return resolve(stripped)
             continue
-        return _SQLGLOT_FUNCTION_SPELLING.get(name, name)
-    return _SQLGLOT_FUNCTION_SPELLING.get(lowered[0], lowered[0])
+        return resolve(name)
+    return resolve(lowered[0])
 
 
 def _check_functions(
@@ -1841,7 +1913,7 @@ def _check_functions(
             names = type(node).sql_names()
             return AdmissionResult(
                 AdmissionOutcome.FUNCTION_NOT_ALLOWED,
-                _reported_function_name(names) if names else type(node).__name__,
+                _reported_function_name(names, dialect=dialect) if names else type(node).__name__,
             )
     return None
 
@@ -2053,6 +2125,47 @@ def _table_from_scope_source(source: Any) -> Optional[exp.Table]:
     if isinstance(source, exp.Lateral) and isinstance(source.this, exp.Table):
         return source.this
     return None
+
+
+_JSON_EACH_COLUMNS = (
+    "key",
+    "value",
+    "type",
+    "atom",
+    "id",
+    "parent",
+    "fullkey",
+    "path",
+)
+
+
+def _json_each_columns_for_relation(relation: exp.Expression) -> Optional[frozenset[str]]:
+    """Columns ``json_each`` projects, or None if this is not that function."""
+    if not _is_json_each_call(relation):
+        return None
+    return frozenset(_JSON_EACH_COLUMNS)
+
+
+def _json_each_bindings(scope: Any) -> dict[str, frozenset[str]]:
+    """Alias (lowercased; empty if unaliased) to ``json_each`` columns in this scope."""
+    expression = getattr(scope, "expression", None)
+    if not isinstance(expression, exp.Select):
+        return {}
+    relations: list[Optional[exp.Expression]] = []
+    from_expr = expression.args.get("from_") or expression.args.get("from")
+    if isinstance(from_expr, exp.From):
+        relations.append(from_expr.this)
+    relations.extend(join.this for join in (expression.args.get("joins") or []))
+    found: dict[str, frozenset[str]] = {}
+    for relation in relations:
+        if relation is None:
+            continue
+        columns = _json_each_columns_for_relation(relation)
+        if columns is None:
+            continue
+        alias = (relation.alias or "").casefold()
+        found[alias] = columns
+    return found
 
 
 def _lateral_tables_in_scope(scope: Any) -> list[exp.Table]:
@@ -2353,11 +2466,26 @@ def _check_column_references(
         # manifest has never heard of, and an unqualified reference could have
         # come from it. `json_each(attributes)` projecting `key` is the shape
         # that matters, and it is one the schema teaches.
+        json_each_by_alias = _json_each_bindings(scope)
+        json_each_names = (
+            frozenset().union(*json_each_by_alias.values()) if json_each_by_alias else frozenset()
+        )
         foreign_source = any(
             not (
                 isinstance(source, exp.Table)
                 and _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
                 is not None
+            )
+            for source in scope.sources.values()
+        )
+        has_opaque_foreign = any(
+            not (
+                isinstance(source, exp.Table)
+                and (
+                    _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+                    is not None
+                    or _json_each_columns_for_relation(source) is not None
+                )
             )
             for source in scope.sources.values()
         )
@@ -2395,8 +2523,6 @@ def _check_column_references(
                         candidates = [outer_table]
             else:
                 candidates = list(dict.fromkeys(by_reference.values()))
-            if not candidates:
-                continue
             # A base-table reference must name a physical DDL column or a virtual
             # overlay. Unqualified references are checked against every
             # allowlisted table in scope and admitted if any one offers the name.
@@ -2407,6 +2533,33 @@ def _check_column_references(
             if any(
                 _offers_column(allowlist, table_name, column, dialect) for table_name in candidates
             ):
+                continue
+            json_each_columns = (
+                json_each_by_alias.get(qualifier.casefold()) if qualifier else json_each_names
+            )
+            if json_each_columns is not None and name.casefold() in json_each_columns:
+                continue
+            # SQLite treats a quoted unknown identifier as a string, so
+            # `"nope"` from json_each is a silent wrong answer rather than
+            # "no such column". Name the columns json_each actually projects.
+            if (
+                dialect == "sqlite"
+                and json_each_by_alias
+                and (qualifier.casefold() in json_each_by_alias or not qualifier)
+                and not (not qualifier and has_opaque_foreign)
+            ):
+                offered = ", ".join(_JSON_EACH_COLUMNS)
+                subject = (
+                    f"Column {qualifier}.{name} is not projected by json_each."
+                    if qualifier
+                    else f"Column {name} is not projected by json_each."
+                )
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    subject,
+                    message=f"{subject} json_each columns are {offered}.",
+                )
+            if not candidates:
                 continue
             # Unknown to the manifest. That is a refusal when the allowlisted
             # tables are the only thing in scope, and not when something else

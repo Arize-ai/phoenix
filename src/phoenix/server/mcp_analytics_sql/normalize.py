@@ -138,6 +138,13 @@ def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
 # date-shaped that resolves to an instant is accepted, and the value is re-emitted
 # in the form the target needs.
 _DATE_SHAPED = re.compile(r"^\d{4}-\d{2}-\d{2}")
+_COMPACT_DATE_PREFIX = re.compile(r"^\d{8}(?:T|$)")
+_COMPACT_ISO = re.compile(
+    r"^(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})"
+    r"(?:T(?P<hour>\d{2})(?P<minute>\d{2})(?P<second>\d{2})(?:\.(?P<fraction>\d+))?)?"
+    r"(?P<zone>Z|[+-]\d{2}(?::?\d{2})?)?$",
+    re.IGNORECASE,
+)
 _TIME_SHAPED = re.compile(
     r"^\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?$", re.IGNORECASE
 )
@@ -161,6 +168,18 @@ class TimestampLiteral:
         return self.value.tzinfo is not None
 
 
+def _expand_compact_iso(match: re.Match[str]) -> str:
+    """Turn ``YYYYMMDD`` / ``YYYYMMDDTHHMMSSZ`` into a dashed ISO spelling."""
+    expanded = f"{match['year']}-{match['month']}-{match['day']}"
+    if match["hour"] is not None:
+        expanded += f"T{match['hour']}:{match['minute']}:{match['second']}"
+        if match["fraction"]:
+            expanded += f".{match['fraction']}"
+    if match["zone"]:
+        expanded += match["zone"]
+    return expanded
+
+
 def parse_timestamp_literal(text: str) -> Optional[TimestampLiteral]:
     """Read a caller's timestamp literal, or None if it is not one.
 
@@ -169,11 +188,16 @@ def parse_timestamp_literal(text: str) -> Optional[TimestampLiteral]:
     `datetime.fromisoformat` rejects on this Python and that callers write
     anyway, so they are rewritten before parsing rather than refused.
 
-    The date-shaped guard is what keeps this from engaging on strings that
-    merely look numeric. A quoted integer is a plausible thing to compare a
-    column against and must not be read as a unix epoch.
+    Compact ISO-8601 basic form (``YYYYMMDD`` / ``YYYYMMDDTHHMMSSZ``) is
+    expanded to the dashed spelling first. The date-shaped guard is what
+    keeps this from engaging on strings that merely look numeric. A quoted
+    integer is a plausible thing to compare a column against and must not be
+    read as a unix epoch.
     """
     raw = text.strip()
+    compact = _COMPACT_ISO.fullmatch(raw)
+    if compact is not None:
+        raw = _expand_compact_iso(compact)
     if not _DATE_SHAPED.match(raw):
         return None
     # Index 10 is the date/time separator. Python also accepts ``+`` and ``-``
@@ -198,7 +222,8 @@ def parse_timestamp_literal(text: str) -> Optional[TimestampLiteral]:
 
 def is_date_shaped(text: str) -> bool:
     """Whether this string starts with a calendar date, so it is ours to read or refuse."""
-    return bool(_DATE_SHAPED.match(text.strip()))
+    raw = text.strip()
+    return bool(_DATE_SHAPED.match(raw) or _COMPACT_DATE_PREFIX.match(raw))
 
 
 def is_time_shaped(text: str) -> bool:

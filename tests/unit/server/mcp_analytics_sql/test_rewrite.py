@@ -822,8 +822,7 @@ def test_json_arrow_inside_a_call_is_rewritten_not_refused(sql: str, admitted: b
     """`->` in an argument list parses as a lambda, not a JSON accessor.
 
     Rebuilding the accessor admits the JSON form. A real lambda is still refused.
-    On SQLite the rebuild uses the function form so MIN/MAX compare values,
-    not JSON text.
+    The rebuild keeps the operator, matching a bare `->` outside a call.
     """
     root = parse_sql(sql, dialect="sqlite")
     if admitted:
@@ -856,7 +855,7 @@ def test_postgres_jsonb_typeof_of_an_arrow_keeps_the_operator() -> None:
     assert "jsonb_typeof" in out.lower()
 
 
-def test_sqlite_min_of_an_arrow_canonicalises_to_json_extract() -> None:
+def test_sqlite_min_of_an_arrow_keeps_the_operator() -> None:
     allowlist = load_allowlist("sqlite")
     root = admit(
         parse_sql("SELECT MIN(attributes -> 'total') AS v FROM spans", dialect="sqlite"),
@@ -865,8 +864,22 @@ def test_sqlite_min_of_an_arrow_canonicalises_to_json_extract() -> None:
     )
     ctx = RewriteContext(allowlist=allowlist, dialect="sqlite", row_limit=500)
     out = render(rewrite(root, ctx), dialect="sqlite")
-    assert "json_extract" in out.lower()
-    assert "->" not in out
+    assert "->" in out
+    assert "json_extract" not in out.lower()
+
+
+def test_sqlite_min_of_a_path_literal_does_not_quote_the_dollar() -> None:
+    """`-> '$.a.b'` is a path, not a key named `$.a.b`."""
+    ctx, rendered = _rewritten(
+        "SELECT MIN(attributes -> '$.llm.token_count.total') AS v FROM spans",
+        dialect="sqlite",
+    )
+    folded = rendered.lower()
+    assert "$.llm.token_count.total" in folded or (
+        "-> '$.llm'" in folded or "-> '$.\"llm\"'" in folded or "-> 'llm'" in folded
+    )
+    assert '$."$.llm' not in folded
+    assert '$["$.llm' not in folded
 
 
 def test_json_path_with_an_embedded_quote_is_left_alone() -> None:
@@ -1410,6 +1423,14 @@ class TestTimestampLiterals:
         )
         assert "'2026-07-01 00:00:00.000000'" in rendered, rendered
 
+    def test_sqlite_rewrites_compact_iso_to_the_stored_layout(self) -> None:
+        _, rendered = _rewritten(
+            "SELECT count(*) FROM spans WHERE start_time >= '20260723T000000Z'",
+            dialect="sqlite",
+        )
+        assert "2026-07-23" in rendered, rendered
+        assert "20260723" not in rendered
+
     def test_postgres_leaves_the_spelling_alone(self) -> None:
         """PostgreSQL parses the literal, so rewriting it would be churn."""
         _, rendered = _rewritten(
@@ -1730,6 +1751,84 @@ def test_setop_operand_with_limit_is_parenthesised() -> None:
     assert "(SELECT" in rendered.upper().replace(" ", "") or "( SELECT" in rendered.upper()
     folded = " ".join(rendered.split()).upper()
     assert "LIMIT 1)" in folded or "LIMIT 1 )" in folded
+
+
+def test_sqlite_setop_with_limit_lifts_the_member_into_from() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT id FROM spans ORDER BY id LIMIT 1 UNION SELECT id FROM traces",
+        dialect="sqlite",
+    )
+    assert "setop_operand_subquery" in ctx.applied
+    assert "LATERAL" not in rendered.upper()
+    compact = "".join(rendered.split()).upper()
+    assert "SELECT*FROM(SELECT" in compact
+    assert not compact.startswith("(SELECT")
+
+
+def test_sqlite_parenthesised_union_becomes_from_subqueries() -> None:
+    ctx, rendered = _rewritten(
+        "(SELECT id FROM spans LIMIT 1) UNION ALL (SELECT id FROM traces LIMIT 1)",
+        dialect="sqlite",
+    )
+    assert "setop_operand_subquery" in ctx.applied
+    assert rendered.upper().count("SELECT * FROM") >= 2
+    assert "NEAR" not in rendered.upper()
+
+
+def test_sqlite_cast_json_becomes_json_constructor() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT CAST('{\"a\":1}' AS JSON) AS v FROM spans",
+        dialect="sqlite",
+    )
+    assert "sqlite_casts" in ctx.applied
+    assert "JSON('" in rendered.upper() or "JSON (" in rendered.upper()
+    assert "CAST(" not in rendered.upper() or "AS JSON" not in rendered.upper()
+
+
+def test_sqlite_cast_numeric_keeps_numeric_affinity() -> None:
+    _, rendered = _rewritten("SELECT CAST(1 AS NUMERIC) AS v FROM spans", dialect="sqlite")
+    assert "AS NUMERIC" in rendered.upper()
+    assert "AS REAL" not in rendered.upper()
+
+
+def test_sqlite_cast_datetime_becomes_datetime_function() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT CAST('2020-01-01' AS DATETIME) AS v FROM spans",
+        dialect="sqlite",
+    )
+    assert "sqlite_casts" in ctx.applied
+    assert "DATETIME(" in rendered.upper()
+    assert "AS DATETIME" not in rendered.upper()
+
+
+def test_sqlite_timestamp_vs_unixepoch_wraps_the_column() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT COUNT(*) FROM spans WHERE start_time < unixepoch('now')",
+        dialect="sqlite",
+    )
+    assert "sqlite_timestamp_epoch_compare" in ctx.applied
+    folded = rendered.lower()
+    assert "unixepoch(start_time)" in folded.replace(" ", "")
+    assert folded.count("unixepoch") >= 2
+
+
+def test_sqlite_lateral_json_each_drops_lateral() -> None:
+    _, rendered = _rewritten(
+        "SELECT key FROM spans, LATERAL json_each(attributes)",
+        dialect="sqlite",
+    )
+    assert "LATERAL" not in rendered.upper()
+    assert "JSON_EACH" in rendered.upper()
+
+
+def test_sqlite_median_stays_median() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT median(cumulative_error_count) AS v FROM spans",
+        dialect="sqlite",
+    )
+    assert "sqlite_median" in ctx.applied
+    assert "MEDIAN(" in rendered.upper()
+    assert "PERCENTILE_CONT" not in rendered.upper()
 
 
 def test_coalesced_using_latency_ms_is_not_ambiguous() -> None:

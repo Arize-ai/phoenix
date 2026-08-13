@@ -207,6 +207,14 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # question once a caller has found a key but does not know whether
             # the value is a scalar, an object or an array.
             exp.JSONType,
+            # SQLite's type-of-a-value probe. The authorizer already permitted
+            # it; only admission did not, so a caller was refused a function
+            # the engine was willing to run.
+            exp.Typeof,
+            # sqlean stats. The schema used to say this was unavailable; the
+            # authorizer already permitted it. `percentile(x, 50)` is the same
+            # question with an explicit percentile.
+            exp.Median,
         }
     ),
 }

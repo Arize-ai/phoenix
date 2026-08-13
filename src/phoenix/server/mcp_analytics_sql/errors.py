@@ -48,6 +48,7 @@ _EQUIVALENT: dict[str, str] = {
     # in test_percentile_parity.py, which is what makes this safe to suggest.
     "percentile_cont": "percentile(x, p)",
     "percentile": "percentile_cont(p) WITHIN GROUP (ORDER BY x)",
+    "median": "percentile_cont(0.5) WITHIN GROUP (ORDER BY x)",
     # Same length-bounded slice as substring, which is already admitted.
     # LEFT and RIGHT themselves are not: SQLite has neither, and admitting the
     # node class would pass a statement one backend cannot run.

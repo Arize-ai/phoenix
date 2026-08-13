@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 159
+    assert len(CASES) >= 172
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -1673,6 +1673,36 @@ def test_json_type_on_postgres_names_jsonb_typeof() -> None:
         )
     assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
     assert "jsonb_typeof" in caught.value.message
+
+
+@pytest.mark.parametrize(
+    ("sql", "detail"),
+    [
+        ("SELECT instr(name, 'a') FROM spans", "instr"),
+        ("SELECT sha1(name) FROM spans", "sha1"),
+        ("SELECT sqlite_version() FROM spans", "sqlite_version"),
+        ("SELECT char(65) FROM spans", "char"),
+        ("SELECT random() FROM spans", "random"),
+    ],
+)
+def test_sqlite_function_refusal_names_the_engine_spelling(sql: str, detail: str) -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
+    assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
+    assert caught.value.admission_detail == detail
+    assert detail in caught.value.message.lower()
+
+
+def test_a_quoted_year_against_a_timestamp_is_refused() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT COUNT(*) FROM spans WHERE start_time >= '2027'",
+            allowlist=load_allowlist("sqlite"),
+            dialect="sqlite",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "2027" in caught.value.message
+    assert "ISO-8601" in caught.value.message
 
 
 def test_grouping_sets_with_limit_keeps_the_limit() -> None:

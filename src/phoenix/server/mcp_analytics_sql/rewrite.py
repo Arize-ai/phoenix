@@ -25,7 +25,9 @@ from phoenix.server.mcp_analytics_sql.normalize import (
     unix_epoch_to_utc,
 )
 from phoenix.server.mcp_analytics_sql.parse import (
+    _TIMESTAMP_COMPARISONS,
     _allowlisted_table_name,
+    _cast_type_name,
     _column_qualifier_key,
     _identifier_key,
     _is_all_quantifier,
@@ -97,10 +99,11 @@ _JSON_TEXT_ORDERING_NOTES: dict[str, str] = {
         "`CAST(attributes #>> '{a,b}' AS numeric)`."
     ),
     "sqlite": (
-        "A JSON value was ordered or compared without a cast. On SQLite the "
-        "extraction returns whatever type the document holds, so a numeric path "
-        "orders correctly and a path holding a quoted number orders as text. "
-        "Cast the extraction if the path may hold either, as in "
+        "A JSON value was ordered or compared without a cast. On SQLite "
+        "`->>` and `json_extract` return whatever type the document holds, so "
+        "a numeric path orders correctly and a path holding a quoted number "
+        "orders as text. `->` always returns JSON text. Cast the extraction "
+        "if the path may hold either, as in "
         "`CAST(attributes ->> '$.n' AS REAL)`."
     ),
 }
@@ -163,7 +166,10 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _substitute_latency_ms(root, ctx)
     root = _substitute_graphql_node_id(root, ctx)
     root = _rewrite_sqlite_timestamp_subtraction(root, ctx)
+    root = _rewrite_sqlite_timestamp_vs_epoch_function(root, ctx)
     root = _normalize_timestamp_literals(root, ctx)
+    root = _rewrite_sqlite_casts(root, ctx)
+    root = _rewrite_sqlite_median(root, ctx)
     root = _canonicalize_json_extract(root, ctx)
     root = _canonicalize_postgres_dynamic_json_extract(root, ctx)
     root = _qualify_schema(root, ctx)
@@ -1192,6 +1198,129 @@ def _rewrite_sqlite_timestamp_subtraction(
     return root
 
 
+_SQLITE_EPOCH_FUNCTIONS = frozenset({"unixepoch", "julianday"})
+_SQLITE_JSON_CASTS = frozenset({"JSON", "JSONB"})
+_SQLITE_DATETIME_CASTS = frozenset({"DATETIME", "TIMESTAMP", "TIMESTAMPTZ"})
+_SQLITE_TEXT_CASTS = frozenset({"TIME", "UUID"})
+_SQLITE_NUMERIC_CASTS = frozenset({"NUMERIC", "DECIMAL"})
+
+
+def _epoch_function_call(node: Optional[exp.Expression]) -> Optional[exp.Anonymous]:
+    """``unixepoch(...)`` or ``julianday(...)``, or None if this is not one."""
+    unwrapped = _strip_parens(node)
+    if isinstance(unwrapped, exp.Anonymous) and (
+        (unwrapped.name or "").casefold() in _SQLITE_EPOCH_FUNCTIONS
+    ):
+        return unwrapped
+    return None
+
+
+def _rewrite_sqlite_timestamp_vs_epoch_function(
+    root: exp.Expression, ctx: RewriteContext
+) -> exp.Expression:
+    """Compare stored timestamps to unixepoch/julianday in the same unit.
+
+    SQLite timestamps are text. ``start_time < unixepoch('now')`` compares a
+    datetime string to an integer and matches nothing. Wrapping the column in
+    the same function is the comparison the caller wrote.
+    """
+    if ctx.dialect != "sqlite":
+        return root
+    timestamp_columns = timestamp_column_names(ctx.allowlist.tables)
+    if not timestamp_columns:
+        return root
+    query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
+    passthrough = _timestamp_passthrough_references(root, timestamp_columns)
+    changed = False
+    for node in list(root.find_all(*_TIMESTAMP_COMPARISONS)):
+        sides = (node.this, node.expression)
+        column: Optional[exp.Column] = None
+        call: Optional[exp.Anonymous] = None
+        for side in sides:
+            unwrapped = _strip_parens(side)
+            if (
+                isinstance(unwrapped, exp.Column)
+                and (
+                    (unwrapped.name or "").casefold() in timestamp_columns
+                    or id(unwrapped) in passthrough
+                )
+                and not (query_local.is_local(unwrapped) and id(unwrapped) not in passthrough)
+            ):
+                column = unwrapped
+            epoch = _epoch_function_call(side)
+            if epoch is not None:
+                call = epoch
+        if column is None or call is None:
+            continue
+        wrapped = exp.Anonymous(this=(call.name or "").casefold(), expressions=[column.copy()])
+        column.replace(wrapped)
+        changed = True
+    if changed:
+        ctx.applied.append("sqlite_timestamp_epoch_compare")
+    return root
+
+
+def _rewrite_sqlite_casts(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    """Stop SQLite CASTs that the affinity rules silently turn into numbers.
+
+    ``CAST(x AS JSON)`` has NUMERIC affinity, so a JSON object becomes ``0``.
+    ``CAST(x AS DATETIME)`` parses a leading year as an integer. ``json()`` and
+    ``datetime()`` are the constructors that keep the value. ``NUMERIC`` is
+    remapped to ``REAL`` by the generator; emit the affinity the caller named.
+    """
+    if ctx.dialect != "sqlite":
+        return root
+    changed = False
+    for node in list(root.find_all(exp.Cast)):
+        target = _cast_type_name(node.to)
+        if target in _SQLITE_JSON_CASTS:
+            node.replace(exp.Anonymous(this="json", expressions=[node.this.copy()]))
+            changed = True
+            continue
+        if target in _SQLITE_DATETIME_CASTS:
+            node.replace(exp.Anonymous(this="datetime", expressions=[node.this.copy()]))
+            changed = True
+            continue
+        if target in _SQLITE_TEXT_CASTS:
+            node.set("to", exp.DataType.build("TEXT"))
+            changed = True
+            continue
+        if target in _SQLITE_NUMERIC_CASTS:
+            node.set(
+                "to",
+                exp.DataType(
+                    this=exp.DataType.Type.USERDEFINED,
+                    kind=exp.Identifier(this="NUMERIC"),
+                ),
+            )
+            changed = True
+    if changed:
+        ctx.applied.append("sqlite_casts")
+    return root
+
+
+def _rewrite_sqlite_median(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    """Keep ``median(x)`` as the sqlean function, not ``percentile_cont``.
+
+    SQLGlot models ``median`` as the ordered-set aggregate and the SQLite
+    generator emits ``PERCENTILE_CONT``, which this engine does not have.
+    sqlean stats registers ``median``; rewriting to a generic call is the
+    spelling that actually runs.
+    """
+    if ctx.dialect != "sqlite":
+        return root
+    changed = False
+    for node in list(root.find_all(exp.Median)):
+        argument = node.this
+        if argument is None:
+            continue
+        node.replace(exp.Anonymous(this="median", expressions=[argument.copy()]))
+        changed = True
+    if changed:
+        ctx.applied.append("sqlite_median")
+    return root
+
+
 def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     """Point unqualified table references at the schema the tables live in.
 
@@ -1250,13 +1379,55 @@ def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression
     return root
 
 
-def _parenthesize_setop_operands(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
-    """Wrap set-op operands that carry ORDER BY / LIMIT so PostgreSQL accepts them.
+def _select_star_from_subquery(subquery: exp.Expression) -> exp.Select:
+    """``SELECT * FROM (subquery)`` -- a compound member SQLite will accept."""
+    return exp.Select(expressions=[exp.Star()]).from_(subquery, copy=False)
 
-    ``SELECT ... LIMIT 1 UNION SELECT ...`` is valid in SQLite and a syntax
-    error in PostgreSQL unless the limited select is parenthesised. SQLGlot
-    does not emit those parentheses.
+
+def _rewrite_sqlite_setop_operands(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    """Lift parenthesised or limited compound members into FROM subqueries.
+
+    SQLite rejects parentheses around UNION/EXCEPT/INTERSECT members, and also
+    rejects ORDER BY / LIMIT on a member. ``SELECT * FROM (SELECT ... LIMIT 1)``
+    is valid and keeps the limit on that side.
     """
+    changed = False
+    for node in root.find_all(exp.Union, exp.Intersect, exp.Except):
+        for side in ("this", "expression"):
+            operand = node.args.get(side)
+            if isinstance(operand, exp.Subquery):
+                node.set(side, _select_star_from_subquery(operand.copy()))
+                changed = True
+                continue
+            if not isinstance(operand, exp.Select):
+                continue
+            if not (
+                operand.args.get("order")
+                or operand.args.get("limit")
+                or operand.args.get("offset")
+                or operand.args.get("fetch")
+            ):
+                continue
+            node.set(
+                side,
+                _select_star_from_subquery(exp.Subquery(this=operand.copy())),
+            )
+            changed = True
+    if changed:
+        ctx.applied.append("setop_operand_subquery")
+    return root
+
+
+def _parenthesize_setop_operands(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    """Make set-op operands that carry ORDER BY / LIMIT executable on this backend.
+
+    ``SELECT ... LIMIT 1 UNION SELECT ...`` is a syntax error in PostgreSQL
+    unless the limited select is parenthesised, and SQLGlot does not emit those
+    parentheses. SQLite rejects the parentheses and the LIMIT-on-a-member
+    spelling; those members are lifted into FROM subqueries instead.
+    """
+    if ctx.dialect == "sqlite":
+        return _rewrite_sqlite_setop_operands(root, ctx)
     changed = False
     for node in root.find_all(exp.Union, exp.Intersect, exp.Except):
         for side in ("this", "expression"):
