@@ -875,12 +875,13 @@ async def _execute_postgres(
             logger.debug("analytics sql: postgres plan resolution failed - %s", exc)
             if "statement timeout" in str(exc).lower() or "canceling statement" in str(exc).lower():
                 raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.") from exc
+            # PostgreSQL's own text is the right hint: a missing function is not
+            # a missing column, and appending a schema reminder taught callers
+            # to look in the wrong place after a rewrite emitted SQL they did
+            # not write.
             raise AnalyticsSqlError(
                 code=ErrorCode.EXECUTION_ERROR,
-                message=(
-                    f"The database could not resolve the statement: {detail} "
-                    "describeSqlSchema lists the columns each table exposes."
-                ),
+                message=f"The database could not resolve the statement: {detail}",
             ) from exc
         plan_raw = explain.scalar()
         if isinstance(plan_raw, list):
