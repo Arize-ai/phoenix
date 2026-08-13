@@ -385,11 +385,7 @@ class BashMutationApprovalData(_CamelBaseModel):
 
 @register_openapi_schema
 class BashMutationApprovalChunk(DataChunk):
-    """Transient ``data-bash-mutation-approval`` stream chunk: the resolved
-    GraphQL mutations awaiting user approval on a deferred bash tool call,
-    emitted alongside the tool's ``tool-approval-request`` chunk so the
-    approval card can show exactly what will execute. The same payload is
-    stamped into the persisted part's ``callProviderMetadata`` for reloads."""
+    """Transient ``data-bash-mutation-approval`` stream chunk."""
 
     type: Literal["data-bash-mutation-approval"] = "data-bash-mutation-approval"
     data: BashMutationApprovalData
