@@ -55,6 +55,7 @@ export function AnnotationSummaryTokens({
   return (
     <>
       {summaries.map((summary) => {
+        // Explanation-only entries belong in details but cannot represent a token.
         const latestAnnotation =
           annotationsByName[summary.name]?.find(hasAnnotationValue);
         const meanScore = summary?.meanScore;

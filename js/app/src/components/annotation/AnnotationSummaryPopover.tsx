@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
-import { useInteractOutside } from "react-aria";
 import { Button as AriaButton } from "react-aria-components";
 
 import { Popover, PopoverArrow, PreviewTrigger } from "@phoenix/components";
@@ -51,39 +50,26 @@ export function AnnotationSummaryPopover({
   ) => ReactNode;
 }) {
   const prototypicalAnnotation = annotations[0];
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const shouldKeepPreviewOpenRef = useRef(false);
+  // The portaled filter menu is outside the preview's hover safe area, so keep
+  // the preview open while the menu is open.
+  const isFilterMenuOpenRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const onPreviewOpenChange = (isNextOpen: boolean) => {
-    if (!isNextOpen && shouldKeepPreviewOpenRef.current) {
+  const onOpenChange = (isNextOpen: boolean) => {
+    // Ignore hover-close requests while the nested menu pins the preview open.
+    if (!isNextOpen && isFilterMenuOpenRef.current) {
       return;
     }
     setIsOpen(isNextOpen);
   };
 
   const onFilterMenuOpenChange = (isNextOpen: boolean) => {
-    shouldKeepPreviewOpenRef.current = isNextOpen;
+    isFilterMenuOpenRef.current = isNextOpen;
     if (isNextOpen) {
+      // Opening the child pins the parent; closing it only releases that pin.
       setIsOpen(true);
     }
   };
-
-  const closePreview = () => {
-    shouldKeepPreviewOpenRef.current = false;
-    setIsOpen(false);
-  };
-
-  useInteractOutside({
-    ref: popoverRef,
-    isDisabled: !isOpen,
-    onInteractOutside: () => {
-      if (shouldKeepPreviewOpenRef.current) {
-        return;
-      }
-      closePreview();
-    },
-  });
 
   if (!prototypicalAnnotation) {
     return null;
@@ -91,7 +77,7 @@ export function AnnotationSummaryPopover({
 
   return (
     <StopPropagation>
-      <PreviewTrigger isOpen={isOpen} onOpenChange={onPreviewOpenChange}>
+      <PreviewTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
         <AriaButton
           css={annotationSummaryTriggerCSS}
           aria-label={`View ${prototypicalAnnotation.name} annotation details`}
@@ -99,7 +85,6 @@ export function AnnotationSummaryPopover({
           {children}
         </AriaButton>
         <Popover
-          ref={popoverRef}
           css={annotationSummaryPopoverCSS}
           placement="right top"
           aria-label={`${prototypicalAnnotation.name} annotation details`}

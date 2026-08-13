@@ -46,6 +46,7 @@ type AnnotationTooltipFilterActionsProps = {
 };
 
 const filterActionsCSS = css`
+  /* Reserve the collapsed icon width; the label expands left without reflowing the row. */
   position: relative;
   display: inline-flex;
   justify-content: flex-end;
@@ -93,6 +94,8 @@ function getFilterPresentation(filter: AnnotationFilterDefinition) {
     case "equals":
     case "match":
       return { label: "Exactly", operator: "=" };
+    case "exclude":
+      return { label: "Not", operator: "≠" };
   }
   return assertUnreachable(filter.filterName);
 }

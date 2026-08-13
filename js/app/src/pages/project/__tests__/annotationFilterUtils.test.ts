@@ -25,7 +25,7 @@ describe("getAnnotationTooltipFilters", () => {
     ]);
   });
 
-  it("escapes labels in exact-match filters", () => {
+  it("escapes labels and includes missing annotations in exclude filters", () => {
     expect(
       getAnnotationTooltipFilters({ name: "quality", label: 'say "yes"\\' })
     ).toEqual([
@@ -33,6 +33,11 @@ describe("getAnnotationTooltipFilters", () => {
         filterName: "match",
         filterCondition:
           'annotations[\'quality\'].label == "say \\"yes\\"\\\\"',
+      },
+      {
+        filterName: "exclude",
+        filterCondition:
+          "(annotations['quality'].label != \"say \\\"yes\\\"\\\\\" or annotations['quality'].label is None)",
       },
     ]);
   });

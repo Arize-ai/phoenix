@@ -80,10 +80,12 @@ export function AnnotationDetailsList({
       </View>
       <ul css={annotationListCSS} aria-label={`${annotationName} annotations`}>
         {annotations.map((annotation, index) => {
+          // Detail rows color their own score rather than the group's mean.
           const positiveOptimization = getPositiveOptimizationFromConfig({
             config: annotationConfig,
             score: annotation.score,
           });
+          // Keep the modified time available without adding another visible row.
           const modifiedTitle = annotation.updatedAt
             ? `Modified: ${new Date(annotation.updatedAt).toLocaleString()}`
             : undefined;
