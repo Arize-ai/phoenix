@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
+import type { ComponentProps } from "react";
 import {
   Suspense,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -68,7 +70,9 @@ import type {
   EvaluatorMappingSource,
 } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 export type ProjectEvaluatorInlineCode = {
@@ -162,6 +166,22 @@ export const ProjectEvaluatorScopePanel = (
   const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
     props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
+  // The run list below the Suspense boundary owns the spans and the run
+  // machinery; it hands the header's Test All button the latest run-all
+  // closure through this ref and reports readiness through the state.
+  const runAllSpansRef = useRef<() => void>(() => {});
+  const [canRunAllSpans, setCanRunAllSpans] = useState(false);
+  const testAllButton = (
+    <Button
+      size="S"
+      variant="primary"
+      leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+      isDisabled={!canRunAllSpans}
+      onPress={() => runAllSpansRef.current()}
+    >
+      Test All
+    </Button>
+  );
   return (
     <div css={panelCSS}>
       <div css={panelScrollCSS}>
@@ -170,7 +190,7 @@ export const ProjectEvaluatorScopePanel = (
             <Flex direction="column" gap="size-25">
               <Heading level={2}>Scope</Heading>
               <Text color="text-500" size="S">
-                Select which spans this evaluator runs on and how often.
+                Choose what gets evaluated and how much of it.
               </Text>
             </Flex>
             <ScopeEditorCard
@@ -186,7 +206,15 @@ export const ProjectEvaluatorScopePanel = (
         ) : null}
         <Flex direction="column" gap="size-25">
           {props.showScopeFields !== false ? (
-            <Heading level={2}>Matching spans</Heading>
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              gap="size-200"
+            >
+              <Heading level={2}>Matching spans</Heading>
+              {testAllButton}
+            </Flex>
           ) : (
             <>
               <Flex
@@ -198,10 +226,14 @@ export const ProjectEvaluatorScopePanel = (
                 <Heading level={2} weight="heavy">
                   Test with a Span
                 </Heading>
-                <TimeWindowSegmentedControl
-                  value={timeWindow.presetId}
-                  onChange={setTimeWindow}
-                />
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <TimeWindowSegmentedControl
+                    size="S"
+                    value={timeWindow.presetId}
+                    onChange={setTimeWindow}
+                  />
+                  {testAllButton}
+                </Flex>
               </Flex>
               <Text color="text-500">
                 Test your evaluator on recent spans that match your scope.
@@ -231,6 +263,8 @@ export const ProjectEvaluatorScopePanel = (
               codeEvaluatorId={codeEvaluatorId}
               inlineCode={inlineCode}
               requiredVariables={requiredVariables}
+              runAllSpansRef={runAllSpansRef}
+              onCanRunAllChange={setCanRunAllSpans}
             />
           ) : (
             <LlmSpanRunList
@@ -238,6 +272,8 @@ export const ProjectEvaluatorScopePanel = (
               filterCondition={scope.filterCondition}
               timeWindow={timeWindow}
               requiredVariables={requiredVariables}
+              runAllSpansRef={runAllSpansRef}
+              onCanRunAllChange={setCanRunAllSpans}
             />
           )}
         </Suspense>
@@ -308,13 +344,16 @@ function useMatchedSpanCount({
 function TimeWindowSegmentedControl({
   value,
   onChange,
+  size,
 }: {
   value: TimeWindowPresetId;
   onChange: (timeWindow: TimeWindow) => void;
+  size?: ComponentProps<typeof SegmentedControl>["size"];
 }) {
   return (
     <SegmentedControl
       aria-label="Preview window"
+      size={size}
       selectedKey={value}
       onSelectionChange={(key) => {
         if (typeof key === "string" && isTimeWindowPresetId(key)) {
@@ -392,7 +431,7 @@ function MatchedSpanCountLine({
   });
   const hasMatches = matchedCount > 0;
   return (
-    <Text size="S" color={hasMatches ? "success" : "text-500"}>
+    <Text size="S" color="text-500">
       {hasMatches
         ? `${matchedCount.toLocaleString()} span${matchedCount === 1 ? "" : "s"} matched ${prose}. The most recent are shown below.`
         : `No spans matched this scope ${prose}.`}
@@ -452,6 +491,8 @@ function SpanRunList({
   inlineCode,
   playgroundStore,
   requiredVariables,
+  runAllSpansRef,
+  onCanRunAllChange,
 }: {
   projectId: string;
   filterCondition: string;
@@ -460,6 +501,9 @@ function SpanRunList({
   inlineCode?: ProjectEvaluatorInlineCode;
   playgroundStore?: ReturnType<typeof usePlaygroundStore>;
   requiredVariables?: string[];
+  /** Receives the latest run-every-loaded-span closure for the header button. */
+  runAllSpansRef?: { current: () => void };
+  onCanRunAllChange?: (canRunAll: boolean) => void;
 }) {
   const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
   // A transition keeps the current rows visible instead of collapsing the list
@@ -560,6 +604,22 @@ function SpanRunList({
     inlineCode,
     playgroundStore,
   });
+  // No dependency array: rows and runOnSpan are rebuilt every render, so the
+  // ref is refreshed each render to keep the header's Test All button current.
+  useEffect(() => {
+    if (runAllSpansRef) {
+      runAllSpansRef.current = () => {
+        for (const row of rows) {
+          runOnSpan(row.key, row.context);
+        }
+      };
+    }
+  });
+  const canRunAllSpans = isRunnable && rows.length > 0;
+  useEffect(() => {
+    onCanRunAllChange?.(canRunAllSpans);
+    return () => onCanRunAllChange?.(false);
+  }, [canRunAllSpans, onCanRunAllChange]);
   return (
     <div css={runListCSS}>
       {rows[0]?.isSample ? (
@@ -728,7 +788,10 @@ function SpanRunResultChip({ run }: { run: SpanRun | undefined }) {
   if (annotated?.annotation) {
     return (
       <div css={resultAnnotationCSS}>
-        <AnnotationPreviewPopoverButton annotation={annotated.annotation} />
+        <AnnotationPreviewPopoverButton
+          annotation={annotated.annotation}
+          compact
+        />
       </div>
     );
   }
@@ -747,8 +810,8 @@ function SpanRunResultChip({ run }: { run: SpanRun | undefined }) {
  */
 const resultAnnotationCSS = css`
   flex: 0 1 auto;
-  width: 280px;
   min-width: 0;
+  max-width: 280px;
 `;
 
 /**
@@ -1013,26 +1076,46 @@ const bindingRowCSS = css`
   }
 `;
 
+/**
+ * The collapsed-card excerpt for a span: the span's input, falling back to its
+ * output. An LLM span's input often arrives as a serialized chat payload, so
+ * surface the latest message's text rather than the raw JSON envelope.
+ */
 function getContextSnippet(context: unknown): string {
   if (!isStringKeyedObject(context)) {
     return "";
   }
-  const input = context.input;
-  const text =
-    typeof input === "string"
-      ? input
-      : input != null
-        ? JSON.stringify(input)
-        : "";
-  return text.replace(/\s+/g, " ").trim().slice(0, 140);
+  return (
+    toContentPreview(getLatestMessageText(context.input) ?? context.input) ??
+    toContentPreview(getLatestMessageText(context.output) ?? context.output) ??
+    ""
+  );
+}
+
+/** The text of the last non-empty message in a chat payload, if it is one. */
+function getLatestMessageText(value: unknown): string | null {
+  const payload =
+    typeof value === "string" && value.trimStart().startsWith("{")
+      ? safelyParseJSON(value).json
+      : value;
+  if (!isStringKeyedObject(payload) || !Array.isArray(payload.messages)) {
+    return null;
+  }
+  for (let index = payload.messages.length - 1; index >= 0; index--) {
+    const message: unknown = payload.messages[index];
+    const content = isStringKeyedObject(message) ? message.content : null;
+    if (typeof content === "string" && content.trim()) {
+      return content;
+    }
+  }
+  return null;
 }
 
 function getBoundValueSnippet(value: unknown): string {
   if (value === undefined) {
     return "";
   }
-  const text = typeof value === "string" ? value : JSON.stringify(value);
-  return (text ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  return toContentPreview(value, { maxLength: 120 }) ?? "";
 }
 
 function isSpanEvaluatorMappingSource(

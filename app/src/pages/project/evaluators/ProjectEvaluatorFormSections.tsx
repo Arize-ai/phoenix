@@ -33,14 +33,24 @@ export const ProjectLlmEvaluatorFormSections = ({
     <>
       <EvaluatorNameAndDescriptionFields />
       <View marginBottom="size-200" flex="none">
-        <ProjectEvaluatorScopeFieldGroup
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={onFilterValidityChange}
-          isTargetDisabled={isTargetDisabled}
-          fillSampling
-        />
+        <Flex direction="column" gap="size-200">
+          <Flex direction="column" gap="size-25">
+            <Heading level={2} weight="heavy">
+              Evaluator Scope
+            </Heading>
+            <Text color="text-500" size="S">
+              Choose what gets evaluated and how much of it.
+            </Text>
+          </Flex>
+          <ProjectEvaluatorScopeFieldGroup
+            projectId={projectId}
+            scope={scope}
+            onScopeChange={onScopeChange}
+            onFilterValidityChange={onFilterValidityChange}
+            isTargetDisabled={isTargetDisabled}
+            fillSampling
+          />
+        </Flex>
       </View>
       <LLMEvaluatorForm showInputMapping={false} />
     </>

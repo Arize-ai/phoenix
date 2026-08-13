@@ -11,6 +11,7 @@ import {
   Alert,
   Button,
   Card,
+  Dialog,
   DialogTrigger,
   Flex,
   Heading,
@@ -306,8 +307,10 @@ export const EvaluatorOutputPreview = () => {
  */
 export function AnnotationPreviewPopoverButton(props: {
   annotation: Annotation;
+  /** Hug the annotation content; see {@link ExperimentAnnotationButton}. */
+  compact?: boolean;
 }) {
-  const { annotation } = props;
+  const { annotation, compact } = props;
   const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
   const evaluatorName = useEvaluatorStore(
     (state) => state.evaluator.name || state.evaluator.globalName
@@ -316,6 +319,7 @@ export function AnnotationPreviewPopoverButton(props: {
     <DialogTrigger>
       <ExperimentAnnotationButton
         annotation={annotation}
+        compact={compact}
         positiveOptimization={
           computePositiveOptimization({
             annotationName: annotation.name,
@@ -326,9 +330,11 @@ export function AnnotationPreviewPopoverButton(props: {
         }
       />
       <Popover>
-        <View padding="size-200">
-          <AnnotationDetailsContent annotation={annotation} />
-        </View>
+        <Dialog style={{ width: 400 }}>
+          <View padding="size-200">
+            <AnnotationDetailsContent annotation={annotation} />
+          </View>
+        </Dialog>
       </Popover>
     </DialogTrigger>
   );
