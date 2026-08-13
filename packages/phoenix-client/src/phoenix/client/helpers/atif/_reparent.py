@@ -8,22 +8,9 @@ hangs.
 
 from __future__ import annotations
 
-from typing import Dict, List, Sequence
+from typing import List, Sequence
 
 from phoenix.client.__generated__ import v1
-
-from ._convert import _sha256_span_id
-
-
-def _rederive_span_id(span_id: str, trace_id: str) -> str:
-    """Return a span ID scoped to ``trace_id``.
-
-    Phoenix requires span IDs to be globally unique, not unique per trace.
-    Span IDs derived from trajectory content repeat whenever the same content
-    is converted again, so mixing the destination trace ID into the seed keeps
-    them deterministic per parent while making them distinct across parents.
-    """
-    return _sha256_span_id(f"{trace_id}:{span_id}")
 
 
 def _reparent_span(
@@ -62,30 +49,30 @@ def _reparent_spans_under_common_parent(
     Attaching those to the common parent keeps the result a single connected
     tree instead of leaving subtrees dangling off a nonexistent span.
 
-    Span IDs are rederived against ``trace_id`` so that converting the same
-    spans under different parents cannot collide. ``parent_id`` refers to a
-    span the caller already created and is used as given.
+    Span IDs are preserved. Callers must give separate logical span trees
+    distinct IDs before reparenting them. Duplicate input span IDs are rejected
+    because they make parent remapping ambiguous and Phoenix cannot reliably
+    ingest them. ``parent_id`` refers to a span the caller already created and
+    must not collide with a span in this batch.
     """
-    id_map: Dict[str, str] = {
-        span["context"]["span_id"]: _rederive_span_id(span["context"]["span_id"], trace_id)
-        for span in spans
-    }
+    span_ids: set[str] = set()
+    duplicate_span_ids: set[str] = set()
+    for span in spans:
+        span_id = span["context"]["span_id"]
+        if span_id in span_ids:
+            duplicate_span_ids.add(span_id)
+        span_ids.add(span_id)
+    if duplicate_span_ids:
+        duplicates = ", ".join(sorted(duplicate_span_ids))
+        raise ValueError(f"Cannot reparent spans with duplicate span IDs: {duplicates}")
+    if parent_id in span_ids:
+        raise ValueError(f"Common parent span ID collides with an input span ID: {parent_id}")
+
     reparented: List[v1.Span] = []
     for span in spans:
         existing_parent_id = span.get("parent_id")
         # Fall back to the common parent when the referenced parent is absent,
         # so an unresolvable link cannot orphan a subtree.
-        new_parent_id = (
-            id_map.get(existing_parent_id, parent_id) if existing_parent_id else parent_id
-        )
-        span_with_new_id: v1.Span = {
-            **span,
-            "context": {
-                **span["context"],
-                "span_id": id_map[span["context"]["span_id"]],
-            },
-        }
-        reparented.append(
-            _reparent_span(span_with_new_id, parent_id=new_parent_id, trace_id=trace_id)
-        )
+        new_parent_id = existing_parent_id if existing_parent_id in span_ids else parent_id
+        reparented.append(_reparent_span(span, parent_id=new_parent_id, trace_id=trace_id))
     return reparented

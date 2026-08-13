@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, cast
 
+import pytest
+
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.atif._reparent import (
     _reparent_span,
@@ -105,14 +107,13 @@ class TestReparentSpansUnderCommonParent:
         roots = [s["name"] for s in result if s["parent_id"] == PARENT_SPAN_ID]
         assert sorted(roots) == ["root", "second-root"]
 
-    def test_span_ids_are_rederived(self) -> None:
+    def test_span_ids_are_preserved(self) -> None:
         result = self.reparent(a_tree())
-        original_ids = {s["context"]["span_id"] for s in a_tree()}
-        new_ids = {s["context"]["span_id"] for s in result}
-        assert original_ids.isdisjoint(new_ids)
-        assert len(new_ids) == len(original_ids)
+        assert [s["context"]["span_id"] for s in result] == [
+            s["context"]["span_id"] for s in a_tree()
+        ]
 
-    def test_different_parents_produce_disjoint_ids(self) -> None:
+    def test_different_parents_do_not_change_span_ids(self) -> None:
         first = _reparent_spans_under_common_parent(
             a_tree(),
             parent_id="1" * 16,
@@ -121,11 +122,24 @@ class TestReparentSpansUnderCommonParent:
         second = _reparent_spans_under_common_parent(
             a_tree(),
             parent_id="2" * 16,
-            trace_id="2" * 32,
+            trace_id="1" * 32,
         )
-        assert {s["context"]["span_id"] for s in first}.isdisjoint(
-            s["context"]["span_id"] for s in second
-        )
+        assert [s["context"]["span_id"] for s in first] == [s["context"]["span_id"] for s in second]
+
+    def test_duplicate_span_ids_are_rejected(self) -> None:
+        spans = [
+            span("first", "aaaaaaaaaaaaaaaa"),
+            span("second", "aaaaaaaaaaaaaaaa"),
+        ]
+
+        with pytest.raises(ValueError, match="duplicate span IDs: aaaaaaaaaaaaaaaa"):
+            self.reparent(spans)
+
+    def test_common_parent_id_collision_is_rejected(self) -> None:
+        spans = [span("root", PARENT_SPAN_ID)]
+
+        with pytest.raises(ValueError, match="Common parent span ID collides"):
+            self.reparent(spans)
 
     def test_same_parent_is_deterministic(self) -> None:
         assert [s["context"] for s in self.reparent(a_tree())] == [

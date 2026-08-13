@@ -152,20 +152,23 @@ class TestConvertThenReparent:
         assert child_root["parent_id"] == parent_tool["context"]["span_id"]
         assert child_root["context"]["trace_id"] == PARENT_TRACE_ID
 
-    def test_same_trajectory_under_different_parents_does_not_collide(
+    def test_reparenting_preserves_converter_span_ids(
         self, simple_trajectory: Dict[str, Any]
     ) -> None:
-        # Phoenix requires globally unique span IDs, so the same trajectory
-        # under two enclosing operations must not reuse span IDs.
-        first = group([simple_trajectory], trace_id="1" * 32, span_id="1" * 16)
-        second = group([simple_trajectory], trace_id="2" * 32, span_id="2" * 16)
-        assert {s["context"]["span_id"] for s in first}.isdisjoint(
-            s["context"]["span_id"] for s in second
+        converted = _convert_atif_trajectories_to_spans([simple_trajectory])
+        grouped = _reparent_spans_under_common_parent(
+            converted,
+            parent_id=PARENT_SPAN_ID,
+            trace_id=PARENT_TRACE_ID,
         )
 
+        assert [s["context"]["span_id"] for s in grouped] == [
+            s["context"]["span_id"] for s in converted
+        ]
+
     def test_reparenting_preserves_tree_shape(self, v17_embedded_subagents: Dict[str, Any]) -> None:
-        # Rederiving span IDs must remap internal parent links too, or the
-        # tree would flatten against unresolvable parent IDs.
+        # Moving the spans into a caller-owned trace must preserve the
+        # converter's internal parent links.
         grouped = group([v17_embedded_subagents])
         ungrouped = _convert_atif_trajectories_to_spans([v17_embedded_subagents])
 

@@ -17,7 +17,6 @@ from secrets import token_hex
 from typing import Any, Dict, Iterator, List
 
 import pytest
-
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.atif import (  # pyright: ignore[reportPrivateUsage]
@@ -120,23 +119,30 @@ class TestAtifTrajectoryUpload:
             "terminus-2-summarization-summary",
         }
 
-    async def test_separate_trials_do_not_collide(
+    async def test_separate_trials_with_distinct_trajectory_ids_do_not_collide(
         self,
         _app: _AppInfo,
         _project: str,
         _trial_trajectories: List[Dict[str, Any]],
     ) -> None:
-        """The same trajectories re-scored under a second trial must upload cleanly.
+        """Caller-supplied trial identity keeps separate uploads disjoint.
 
-        Phoenix enforces globally unique span IDs, so reparenting rederives them
-        against the destination trace. Without that, the second upload silently
-        drops spans.
+        Phoenix enforces globally unique span IDs. The Harbor integration gives
+        every trajectory a stable ID derived from its logical trial before
+        conversion; reparenting deliberately preserves those IDs.
         """
         client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
-        converted = _convert_atif_trajectories_to_spans(_trial_trajectories)
 
         expected = 0
-        for _ in range(2):
+        for trial_index in range(2):
+            identified_trajectories = [
+                {
+                    **trajectory,
+                    "trajectory_id": f"trial-{trial_index}:trajectory-{trajectory_index}",
+                }
+                for trajectory_index, trajectory in enumerate(_trial_trajectories)
+            ]
+            converted = _convert_atif_trajectories_to_spans(identified_trajectories)
             trace_id, parent_span_id = token_hex(16), token_hex(8)
             batch: List[v1.Span] = [
                 _trial_span(trace_id, parent_span_id),

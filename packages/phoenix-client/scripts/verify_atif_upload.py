@@ -27,8 +27,10 @@ from phoenix.client.helpers.atif._convert import _base_session_id, _sha256_trace
 from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
 
 PHOENIX_URL = os.environ.get("PHOENIX_URL", "http://localhost:6006")
-# Append a timestamp suffix so re-runs don't hit duplicate span errors
-# from deterministic IDs. Override with ATIF_PROJECT_SUFFIX env var.
+# Append a timestamp suffix to keep each UI verification run in its own
+# project. Span IDs are globally unique across projects, so the plain uploader
+# sections can still report duplicates when this script is rerun against the
+# same database. Override with ATIF_PROJECT_SUFFIX env var.
 _SUFFIX = os.environ.get("ATIF_PROJECT_SUFFIX", str(int(time.time())))
 PROJECT_NAME = f"atif-verify-{_SUFFIX}"
 
@@ -331,8 +333,15 @@ def _upload_under_common_parent(
         "status_code": "OK",
         "attributes": {"input": {"value": label}},
     }
+    # The Harbor plugin supplies globally unique, replay-stable trajectory IDs
+    # before conversion. Give this manual run equivalent identities so its two
+    # trial uploads exercise the real contract without colliding.
+    identified_trajectories = [
+        {**trajectory, "trajectory_id": f"{_SUFFIX}:{label}:{index}"}
+        for index, trajectory in enumerate(trajectories)
+    ]
     grouped = _reparent_spans_under_common_parent(
-        _convert_atif_trajectories_to_spans(trajectories),
+        _convert_atif_trajectories_to_spans(identified_trajectories),
         parent_id=parent_span_id,
         trace_id=trace_id,
     )
@@ -351,6 +360,15 @@ def _upload_under_common_parent(
     if dangling:
         problems.append(f"dangling parents: {dangling}")
 
+    if problems:
+        print(
+            f"  ✗ {label:<45} | trajs={len(trajectories)} spans={len(batch):>3} "
+            f"| roots under trial={len(roots)}"
+        )
+        for problem in problems:
+            print(f"      ! {problem}")
+        return 0
+
     try:
         result = client.spans.log_spans(project_identifier=project, spans=batch)
         queued = result["total_queued"]
@@ -360,13 +378,10 @@ def _upload_under_common_parent(
         print(f"  ✗ {label}: {e}")
         return 0
 
-    mark = "✓" if not problems else "✗"
     print(
-        f"  {mark} {label:<45} | trajs={len(trajectories)} spans={len(batch):>3} "
+        f"  ✓ {label:<45} | trajs={len(trajectories)} spans={len(batch):>3} "
         f"| roots under trial={len(roots)}"
     )
-    for problem in problems:
-        print(f"      ! {problem}")
     return len(batch)
 
 
@@ -445,7 +460,8 @@ def main() -> None:
             [harbor_parent] + harbor_children,
             "trial: terminus-2 + 3 subagents (real)",
         )
-        # The same trajectories re-scored under a second trial must not collide.
+        # The same source trajectories under a distinct logical trial identity
+        # must not collide.
         total_spans += _upload_under_common_parent(
             client,
             [harbor_parent] + harbor_children,

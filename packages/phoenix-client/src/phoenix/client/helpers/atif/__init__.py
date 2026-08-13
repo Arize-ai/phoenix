@@ -119,8 +119,8 @@ def _convert_atif_trajectories_to_spans(
     ``trajectory_id`` can generate colliding span IDs. Give each document a
     distinct ``trajectory_id`` when converting several such trajectories.
 
-    Reparenting rederives span IDs against the destination trace ID; see
-    ``_reparent_spans_under_common_parent``.
+    Reparenting preserves these span IDs and rejects duplicate IDs within the
+    input batch; see ``_reparent_spans_under_common_parent``.
 
     Span and trace IDs are deterministic. If steps omit timestamps, repeated
     conversions may produce different fallback timestamps while retaining
