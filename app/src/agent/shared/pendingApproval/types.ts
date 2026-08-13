@@ -1,9 +1,7 @@
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 
-import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-
-export type { ApprovalSource };
+export type ApprovalSource = "user" | "auto";
 
 export type ApprovalToolOutputSender = Chat<UIMessage>["addToolOutput"];
 
