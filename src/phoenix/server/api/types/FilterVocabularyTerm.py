@@ -216,6 +216,13 @@ def trace_filter_vocabulary_terms(
                 iterable_name=iterable_name,
             )
         for related_name, related_bindings in sorted(grammar.related.items()):
+            add(
+                related_name,
+                _BOOLEAN,
+                _ELEMENT,
+                description=TRACE_FILTER_DESCRIPTIONS[f"{iterable_name}.{related_name}"],
+                iterable_name=iterable_name,
+            )
             for field_name, field_type in sorted(
                 _element_field_types(_IterableGrammar(related_bindings)).items()
             ):
@@ -235,7 +242,7 @@ def trace_filter_vocabulary_terms(
             _STRING,
             _ATTRIBUTE,
             description=(
-                f"Observed strict-root attribute with OpenTelemetry key {subscript}; "
+                f"Observed displayed-root attribute with OpenTelemetry key {subscript}; "
                 "matches the key however ingestion nested it and is string-cast unless "
                 "explicitly cast."
             ),

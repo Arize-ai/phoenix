@@ -327,11 +327,17 @@ async def test_trace_filter_vocabulary_is_compiler_derived_and_project_scoped(
             for related_name, related_bindings in grammar.related.items()
             for field_name in related_bindings.binding_names
         )
+        expected_fields.update(grammar.related)
         observed_fields = {term["name"] for term in terms if term["iterableName"] == iterable_name}
         assert observed_fields == expected_fields
 
     assert terms_by_name['attributes["included.leaf"]']["type"] == "string"
     assert terms_by_name['attributes["orphan_only"]']["type"] == "string"
+    parent_span_term = next(
+        term for term in terms if term["iterableName"] == "spans" and term["name"] == "parent_span"
+    )
+    assert parent_span_term["type"] == "boolean"
+    assert "no parent row is stored" in parent_span_term["description"]
     assert terms_by_name['annotations["quality"].score']["type"] == "number"
     assert terms_by_name['annotations["quality"].label']["type"] == "string"
     excluded = {

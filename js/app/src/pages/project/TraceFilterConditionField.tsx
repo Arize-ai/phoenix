@@ -101,6 +101,11 @@ export const traceFilterSnippets: DSLFilterSnippet[] = [
       'any(any(child.status_code == "ERROR" for child in span.children) for span in spans)',
   },
   {
+    label: "direct child of the trace root",
+    snippet:
+      "any(span.parent_span is not None and span.parent_span.parent_id is None for span in spans)",
+  },
+  {
     label: "combine trace and span conditions",
     snippet:
       'num_spans >= ${5} and any(span.status_code == "ERROR" for span in spans)',

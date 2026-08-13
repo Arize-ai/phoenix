@@ -13,4 +13,13 @@ describe("trace filter snippets", () => {
     expect(search?.snippet).toContain("output");
     expect(search?.boost).toBeGreaterThan(0);
   });
+
+  it("expresses direct children through the stored parent relationship", () => {
+    const directChild = traceFilterSnippets.find(
+      ({ label }) => label === "direct child of the trace root"
+    );
+
+    expect(directChild?.snippet).toContain("parent_span is not None");
+    expect(directChild?.snippet).toContain("parent_span.parent_id is None");
+  });
 });

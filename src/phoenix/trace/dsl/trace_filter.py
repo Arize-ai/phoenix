@@ -289,8 +289,14 @@ TRACE_BINDINGS = _FilterBindings(
 TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
     {
         "trace_id": "OpenTelemetry trace identifier. `in` ignores case; `==` is exact.",
-        "start_time": "Trace start timestamp. Compare against an ISO 8601 string.",
-        "end_time": "Trace end timestamp. Compare against an ISO 8601 string.",
+        "start_time": (
+            "Trace start timestamp. Compare against an ISO 8601 string with an explicit offset, "
+            "e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
+        ),
+        "end_time": (
+            "Trace end timestamp. Compare against an ISO 8601 string with an explicit offset, "
+            "e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
+        ),
         "latency_ms": "Trace duration in milliseconds, rounded to one decimal place.",
         "num_spans": "Number of spans in the trace; 0 when absent, never null.",
         "error_count": "Number of spans whose status is ERROR; 0 when absent, never null.",
@@ -331,8 +337,14 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.parent_id": ("OpenTelemetry span ID of the parent span; absent on the trace root."),
         "spans.span_kind": "Span kind, e.g. LLM, TOOL, or RETRIEVER; casing is ignored.",
         "spans.status_code": "Span status: OK, ERROR, or UNSET; casing is ignored.",
-        "spans.start_time": "Span start timestamp. Compare against an ISO 8601 string.",
-        "spans.end_time": "Span end timestamp. Compare against an ISO 8601 string.",
+        "spans.start_time": (
+            "Span start timestamp. Compare against an ISO 8601 string with an explicit offset, "
+            "e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
+        ),
+        "spans.end_time": (
+            "Span end timestamp. Compare against an ISO 8601 string with an explicit offset, "
+            "e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
+        ),
         "spans.latency_ms": "Span duration in milliseconds.",
         "spans.cumulative_error_count": (
             "Number of ERROR spans at or under this span, including this span."
@@ -368,10 +380,12 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "Direct parent span status; missing when no parent row is stored."
         ),
         "spans.parent_span.start_time": (
-            "Direct parent span start timestamp; missing when no parent row is stored."
+            "Direct parent span start timestamp; missing when no parent row is stored. Compare "
+            "against an ISO 8601 string with an explicit offset, e.g. `2026-07-01T00:00:00Z`."
         ),
         "spans.parent_span.end_time": (
-            "Direct parent span end timestamp; missing when no parent row is stored."
+            "Direct parent span end timestamp; missing when no parent row is stored. Compare "
+            "against an ISO 8601 string with an explicit offset, e.g. `2026-07-01T00:00:00Z`."
         ),
         "spans.parent_span.latency_ms": (
             "Direct parent span duration in milliseconds; missing when no parent row is stored."
