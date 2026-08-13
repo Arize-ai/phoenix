@@ -69,18 +69,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Compute tag suffix and commit hash
-        env:
-          VARIANT: ${{ matrix.variant }}
-        run: |
-          set -euo pipefail
-          if [ "$VARIANT" = "root" ]; then
-            echo "TAG_SUFFIX=" >> "$GITHUB_ENV"
-          else
-            echo "TAG_SUFFIX=-${VARIANT}" >> "$GITHUB_ENV"
-          fi
-          echo "COMMIT_HASH=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-
+      # This workflow's matrix is debug only, so the suffix is unconditional and
+      # the commit tag the other two workflows carry — gated on the root variant
+      # — could never fire here.
       - name: Compute tags
         id: meta
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
@@ -88,8 +79,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: latest=false
           tags: |
-            type=raw,value=dangerously-experimental${{ env.TAG_SUFFIX }}
-            type=raw,value=dangerously-experimental-commit-${{ env.COMMIT_HASH }},enable=${{ matrix.variant == 'root' }}
+            type=raw,value=dangerously-experimental-${{ matrix.variant }}
 
       - name: Merge platform digests and push tags
         uses: ./.github/actions/docker-merge-manifest
