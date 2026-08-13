@@ -391,6 +391,7 @@ def test_trace_parent_fields_share_one_left_self_join() -> None:
         "first(s.start_time for s in spans) is None",
         "any(any(x.name == s.name for x in s.before) for s in spans)",
         'any(s.parent_span.parent_span.name == "x" for s in spans)',
+        "any(s.parent_span == True for s in spans)",
         "any(any(any(y.name == c.name for y in c.children) for c in s.children) for s in spans)",
     ],
 )

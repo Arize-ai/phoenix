@@ -2653,7 +2653,9 @@ def _validate_literal(node: ast.Constant) -> None:
     raise SyntaxError(f"unsupported literal: {ast.unparse(node)}")
 
 
-_Kind: TypeAlias = typing.Literal["string", "float", "datetime", "boolean", "json", "none", "text"]
+_Kind: TypeAlias = typing.Literal[
+    "string", "float", "datetime", "boolean", "json", "none", "text", "relation"
+]
 """What a sub-expression denotes under the semantic policy.
 
 ``json`` is a root-span attribute read, whose stored type is not known until the row is read, so
@@ -2670,6 +2672,7 @@ _KIND_NOUNS: typing.Mapping[str, str] = MappingProxyType(
         "json": "an attribute value",
         "none": "None",
         "text": "a containment term",
+        "relation": "a related row",
     }
 )
 
@@ -2873,7 +2876,7 @@ class _SemanticPolicy:
             if len(steps) == 1:
                 attribute = typing.cast(str, steps[0])
                 if attribute in scope.grammar.related:
-                    return "boolean"
+                    return "relation"
                 return self._binding(attribute, scope.grammar.element_bindings)
             if (
                 len(steps) == 2
