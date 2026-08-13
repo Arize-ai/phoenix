@@ -29,4 +29,19 @@ describe("getBashToolInput", () => {
       summary: "Listing files",
     });
   });
+
+  it("passes through mutation_intent when it is a string", () => {
+    expect(
+      getBashToolInput({
+        command: "phoenix-gql 'mutation { deleteDataset }'",
+        mutation_intent: "Deletes the dataset.",
+      })
+    ).toEqual({
+      command: "phoenix-gql 'mutation { deleteDataset }'",
+      mutation_intent: "Deletes the dataset.",
+    });
+    expect(getBashToolInput({ command: "ls", mutation_intent: 42 })).toEqual({
+      command: "ls",
+    });
+  });
 });
