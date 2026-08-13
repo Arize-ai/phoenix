@@ -674,6 +674,7 @@ class TraceFilter:
         start_time: typing.Optional[typing.Any] = None,
         end_time: typing.Optional[typing.Any] = None,
         lowering: FilterLowering = "scan",
+        orphan_span_as_root_span: bool = True,
     ) -> Select[typing.Any]:
         """Apply the condition to a statement selecting from ``Trace``."""
         if not self.condition:
@@ -710,6 +711,7 @@ class TraceFilter:
                 project_rowids=project_rowids,
                 start_time=start_time,
                 end_time=end_time,
+                orphan_span_as_root_span=orphan_span_as_root_span,
             )
             extra_bindings.update(root_span_bindings)
         stmt = _join_annotations(stmt, TRACE_BINDINGS, self._aliased_annotation_relations)
@@ -731,6 +733,7 @@ class TraceFilter:
         end_time: typing.Optional[typing.Any] = None,
         candidate_trace_rowids: typing.Optional[typing.Collection[int]] = None,
         lowering: FilterLowering = "scan",
+        orphan_span_as_root_span: bool = True,
     ) -> ScalarSelect[int]:
         """Return matching trace row ids under optional project, time, and candidate scopes."""
         stmt: Select[typing.Any] = select(distinct(models.Trace.id))
@@ -749,6 +752,7 @@ class TraceFilter:
             start_time=start_time,
             end_time=end_time,
             lowering=lowering,
+            orphan_span_as_root_span=orphan_span_as_root_span,
         ).scalar_subquery()
 
 
@@ -856,12 +860,14 @@ def _join_root_span(
     project_rowids: typing.Optional[typing.Sequence[int]],
     start_time: typing.Optional[typing.Any],
     end_time: typing.Optional[typing.Any],
+    orphan_span_as_root_span: bool,
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
     representative_root_spans = representative_root_span_by_trace(
         keys=candidate_trace_rowids,
         project_rowids=project_rowids,
         start_time=start_time,
         end_time=end_time,
+        orphan_span_as_root_span=orphan_span_as_root_span,
     ).subquery()
     root_span = aliased(models.Span, name="trace_root_span")
     stmt = stmt.outerjoin(

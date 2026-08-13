@@ -38,16 +38,18 @@ Datetime comparands are ISO 8601 strings with an explicit offset, for example
 ## Displayed Root Contract
 
 Top-level `input`, `output`, `user.id`, `metadata[...]`, and `attributes[...]` all read from
-the same representative span shown in the traces table. The vocabulary scan inspects that
-same span. This is the "search what you see" rule: suggestions and predicates must not bind
-to a different root definition than the displayed row.
+the same representative span shown in the traces table under the selected root policy. This
+is the "search what you see" rule: predicates must not bind to a different root definition
+than the displayed row. The vocabulary has no root-policy argument and reflects the default
+orphan-aware policy.
 
-The representative is chosen from the trace's orphan-aware root candidates:
+By default, the representative is chosen from the trace's orphan-aware root candidates:
 
 1. a span whose `parent_id` is null, or
 2. a span whose `parent_id` has no matching span in the same trace.
 
 An ID match in another trace does not make a candidate non-orphan.
+When `orphanSpanAsRootSpan` is false, only candidates with a null `parent_id` are considered.
 Candidates are ranked by `start_time ASC, id DESC`, and the first is displayed and bound.
 The `id` tie-break makes malformed traces with several candidates deterministic. A trace with
 no candidate has no displayed-root values.

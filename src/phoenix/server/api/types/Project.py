@@ -2957,6 +2957,7 @@ async def _paginate_span_by_trace_start_time(
             start_time=time_range.start if time_range else None,
             end_time=time_range.end if time_range else None,
             lowering="probe",
+            orphan_span_as_root_span=bool(orphan_span_as_root_span),
         )
 
     # Apply cursor pagination

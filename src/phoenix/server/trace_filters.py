@@ -77,6 +77,7 @@ def apply_trace_filter_to_page(
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     lowering: FilterLowering = "probe",
+    orphan_span_as_root_span: bool = True,
 ) -> Select[Any]:
     """Apply a trace filter to a statement selecting a page of ``Trace`` rows."""
     trace_filter = compile_trace_filter(trace_filter_condition)
@@ -89,6 +90,7 @@ def apply_trace_filter_to_page(
                         start_time=start_time,
                         end_time=end_time,
                         lowering=lowering,
+                        orphan_span_as_root_span=orphan_span_as_root_span,
                     )
                 )
             )
@@ -98,4 +100,5 @@ def apply_trace_filter_to_page(
             start_time=start_time,
             end_time=end_time,
             lowering=lowering,
+            orphan_span_as_root_span=orphan_span_as_root_span,
         )
