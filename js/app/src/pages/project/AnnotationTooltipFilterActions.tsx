@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { Ref } from "react";
 
 import {
   Button,
@@ -12,8 +13,11 @@ import {
   MenuItem,
   MenuTrigger,
   Text,
+  Truncate,
+  View,
 } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -38,6 +42,7 @@ type AnnotationTooltipFilterActionsProps = {
     score?: number | null;
   }) => AnnotationFilterDefinition[];
   onOpenChange?: (isOpen: boolean) => void;
+  popoverRef?: Ref<HTMLDivElement>;
   positiveOptimization?: boolean | null;
   targetKind?: "session" | "span" | "trace";
 };
@@ -81,14 +86,6 @@ const annotationFilterMenuCSS = css`
   --menu-min-width: var(--global-dimension-size-2500);
 `;
 
-const truncatedAnnotationValueCSS = css`
-  display: block;
-  max-width: var(--global-dimension-size-3000);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
 function getFilterPresentation(filter: AnnotationFilterDefinition) {
   switch (filter.filterName) {
     case "greater than":
@@ -98,10 +95,8 @@ function getFilterPresentation(filter: AnnotationFilterDefinition) {
     case "equals":
     case "match":
       return { label: "Exactly", operator: "=" };
-    case "exclude":
-      return { label: "Not", operator: "≠" };
   }
-  return { label: filter.filterName, operator: "" };
+  return assertUnreachable(filter.filterName);
 }
 
 export function AnnotationTooltipFilterActions(
@@ -143,7 +138,9 @@ export function AnnotationTooltipFilterActions(
         </Button>
         <MenuContainer
           placement="right top"
+          shouldFlip
           isNonModal
+          ref={props.popoverRef}
           minHeight={0}
           aria-label={`Filter ${targetLabel}`}
         >
@@ -169,10 +166,10 @@ export function AnnotationTooltipFilterActions(
                   }
                 >
                   <Flex
-                    elementType="span"
                     alignItems="center"
                     gap="size-100"
                     minWidth={0}
+                    flex={1}
                   >
                     <Text>{presentation.label}</Text>
                     {typeof annotation.score === "number" ? (
@@ -181,17 +178,14 @@ export function AnnotationTooltipFilterActions(
                         fontFamily="mono"
                         positiveOptimization={positiveOptimization}
                       >
-                        <span css={truncatedAnnotationValueCSS}>
-                          {annotationValue}
-                        </span>
+                        {annotationValue}
                       </AnnotationScoreText>
                     ) : annotation.label != null ? (
-                      <Text
-                        css={truncatedAnnotationValueCSS}
-                        title={annotation.label}
-                      >
-                        {annotation.label}
-                      </Text>
+                      <View minWidth={0} flex={1}>
+                        <Truncate maxWidth="100%" title={annotation.label}>
+                          <Text>{annotation.label}</Text>
+                        </Truncate>
+                      </View>
                     ) : null}
                   </Flex>
                 </MenuItem>

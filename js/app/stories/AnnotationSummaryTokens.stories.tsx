@@ -79,7 +79,7 @@ const meta = {
       ],
     ]),
     showFilterActions: true,
-    renderFilterActions: (annotation) => (
+    renderFilterActions: ({ annotation }) => (
       <button type="button">Filter {annotation.label}</button>
     ),
   },

@@ -7,7 +7,7 @@ export type AnnotationFilterInput = {
 };
 
 export type AnnotationFilterDefinition = {
-  filterName: string;
+  filterName: "greater than" | "less than" | "equals" | "match";
   filterCondition: string;
 };
 
@@ -38,10 +38,6 @@ export function getAnnotationTooltipFilters(
     filters.push({
       filterName: "match",
       filterCondition: `${annotationLabel} == ${labelLiteral}`,
-    });
-    filters.push({
-      filterName: "exclude",
-      filterCondition: `(${annotationLabel} != ${labelLiteral} or ${annotationLabel} is None)`,
     });
   }
   return filters;

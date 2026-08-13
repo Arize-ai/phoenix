@@ -1,30 +1,20 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Flex, Text } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { isAnnotatorKind } from "@phoenix/constants";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import { hasAnnotationValue } from "./annotationUtils";
 import {
   getPositiveOptimizationFromConfig,
   type AnnotationOptimizationConfig,
 } from "./optimizationUtils";
 import type { Annotation } from "./types";
-
-const annotationDetailsHeaderCSS = css`
-  min-width: 0;
-  padding: var(--global-dimension-size-200);
-  border-bottom: 1px solid var(--global-border-color-default);
-`;
-
-const annotationNameCSS = css`
-  display: block;
-  min-width: 0;
-  width: 100%;
-`;
 
 const annotationListCSS = css`
   list-style: none;
@@ -35,9 +25,6 @@ const annotationListCSS = css`
   padding: 0;
 
   > li {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
     padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
   }
 
@@ -46,47 +33,19 @@ const annotationListCSS = css`
   }
 `;
 
-const annotationValueCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  min-width: 0;
-  flex: 1 1 auto;
-`;
-
-const annotationLabelValueCSS = css`
-  min-width: 0;
-  flex: 1 1 auto;
-`;
-
 const annotationAuthorCSS = css`
-  min-width: 0;
   overflow: hidden;
-  flex: 0 1 auto;
 `;
 
-const annotationAuthorAndActionsCSS = css`
+const annotationValueCSS = css`
   min-width: 0;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
 `;
 
-const annotationUsernameCSS = css`
-  min-width: 0;
-  flex: 0 1 auto;
-`;
-
-const annotationKindCSS = css`
-  flex: none;
-`;
-
-const explanationCSS = css`
-  display: -webkit-box;
-  width: 100%;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-`;
+type AnnotationDetailsFilterActionsRenderProps = {
+  annotation: Annotation;
+  positiveOptimization: boolean | null | undefined;
+};
 
 export function AnnotationDetailsList({
   annotations,
@@ -96,8 +55,7 @@ export function AnnotationDetailsList({
   annotations: readonly Annotation[];
   annotationConfig?: AnnotationOptimizationConfig;
   renderFilterActions?: (
-    annotation: Annotation,
-    positiveOptimization: boolean | null | undefined
+    props: AnnotationDetailsFilterActionsRenderProps
   ) => ReactNode;
 }) {
   const annotationName = annotations[0]?.name;
@@ -107,20 +65,19 @@ export function AnnotationDetailsList({
 
   return (
     <div>
-      <header css={annotationDetailsHeaderCSS}>
-        <Text
-          css={annotationNameCSS}
-          weight="heavy"
-          color="inherit"
-          size="L"
-          elementType="h3"
-          title={annotationName}
-        >
-          <Truncate maxWidth="100%" title={annotationName}>
+      <View
+        elementType="header"
+        minWidth={0}
+        padding="size-200"
+        borderBottomWidth="thin"
+        borderBottomColor="default"
+      >
+        <Truncate maxWidth="100%" title={annotationName}>
+          <Text weight="heavy" color="inherit" size="L" elementType="h3">
             {annotationName}
-          </Truncate>
-        </Text>
-      </header>
+          </Text>
+        </Truncate>
+      </View>
       <ul css={annotationListCSS} aria-label={`${annotationName} annotations`}>
         {annotations.map((annotation, index) => {
           const positiveOptimization = getPositiveOptimizationFromConfig({
@@ -131,86 +88,101 @@ export function AnnotationDetailsList({
             ? `Modified: ${new Date(annotation.updatedAt).toLocaleString()}`
             : undefined;
           const username = annotation.user?.username ?? "system";
-          const hasValue = annotation.score != null || annotation.label != null;
           const annotatorKind = annotation.annotatorKind;
-          const isKnownAnnotatorKind =
-            annotatorKind === "HUMAN" ||
-            annotatorKind === "LLM" ||
-            annotatorKind === "CODE";
           return (
-            <li key={annotation.id ?? `${annotation.createdAt}-${index}`}>
+            <Flex
+              elementType="li"
+              direction="column"
+              gap="size-100"
+              key={annotation.id ?? `${annotation.createdAt}-${index}`}
+            >
               <Flex
                 direction="row"
                 alignItems="center"
                 justifyContent="space-between"
                 gap="size-100"
               >
-                <div css={annotationValueCSS} title={modifiedTitle}>
-                  {annotation.score != null ? (
-                    <AnnotationScoreText
-                      elementType="span"
-                      fontFamily="mono"
-                      positiveOptimization={positiveOptimization}
-                    >
-                      {floatFormatter(annotation.score)}
-                    </AnnotationScoreText>
-                  ) : null}
-                  {annotation.label != null ? (
-                    <Text
-                      css={annotationLabelValueCSS}
-                      title={annotation.label}
-                    >
-                      <Truncate maxWidth="100%">{annotation.label}</Truncate>
-                    </Text>
-                  ) : null}
-                  {!hasValue ? <Text color="text-500">--</Text> : null}
+                <div title={modifiedTitle} css={annotationValueCSS}>
+                  <Flex
+                    direction="row"
+                    alignItems="center"
+                    gap="size-100"
+                    minWidth={0}
+                    flex="1 1 auto"
+                  >
+                    {annotation.score != null ? (
+                      <AnnotationScoreText
+                        elementType="span"
+                        fontFamily="mono"
+                        positiveOptimization={positiveOptimization}
+                      >
+                        {floatFormatter(annotation.score)}
+                      </AnnotationScoreText>
+                    ) : null}
+                    {annotation.label != null ? (
+                      <View minWidth={0} flex="1 1 auto">
+                        <Truncate maxWidth="100%" title={annotation.label}>
+                          <Text>{annotation.label}</Text>
+                        </Truncate>
+                      </View>
+                    ) : null}
+                    {!hasAnnotationValue(annotation) ? (
+                      <Text color="text-500">--</Text>
+                    ) : null}
+                  </Flex>
                 </div>
                 <Flex
-                  css={annotationAuthorAndActionsCSS}
                   direction="row"
                   alignItems="center"
                   justifyContent="end"
                   gap="size-100"
+                  minWidth={0}
+                  flex="0 1 auto"
                 >
                   <Flex
                     css={annotationAuthorCSS}
                     direction="row"
                     alignItems="center"
                     gap="size-100"
+                    minWidth={0}
+                    flex="0 1 auto"
                   >
                     <UserPicture
                       name={annotation.user?.username}
                       profilePictureUrl={annotation.user?.profilePictureUrl}
                       size={16}
                     />
-                    <Text css={annotationUsernameCSS} color="text-500">
-                      <Truncate maxWidth="160px">{username}</Truncate>
-                    </Text>
-                    {isKnownAnnotatorKind ? (
-                      <span css={annotationKindCSS}>
+                    <View minWidth={0} maxWidth="160px" flex="0 1 auto">
+                      <Truncate maxWidth="100%" title={username}>
+                        <Text color="text-500">{username}</Text>
+                      </Truncate>
+                    </View>
+                    {isAnnotatorKind(annotatorKind) ? (
+                      <View flex="none">
                         <AnnotatorKindToken kind={annotatorKind} />
-                      </span>
+                      </View>
                     ) : annotatorKind ? (
-                      <Text css={annotationKindCSS} color="text-500" size="XS">
-                        {annotatorKind}
-                      </Text>
+                      <View flex="none">
+                        <Text color="text-500" size="XS">
+                          {annotatorKind}
+                        </Text>
+                      </View>
                     ) : null}
                   </Flex>
                   {renderFilterActions
-                    ? renderFilterActions(annotation, positiveOptimization)
+                    ? renderFilterActions({
+                        annotation,
+                        positiveOptimization,
+                      })
                     : null}
                 </Flex>
               </Flex>
               {annotation.explanation ? (
-                <Text
-                  css={explanationCSS}
-                  color="text-500"
-                  title={annotation.explanation}
-                >
-                  {annotation.explanation}
-                </Text>
+                <Truncate maxLines={3} title={annotation.explanation}>
+                  <Text color="text-500">{annotation.explanation}</Text>
+                </Truncate>
               ) : null}
-            </li>
+            </Flex>
           );
         })}
       </ul>

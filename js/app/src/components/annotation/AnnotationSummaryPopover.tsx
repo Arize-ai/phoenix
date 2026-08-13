@@ -1,14 +1,10 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { useRef, useState } from "react";
+import { useInteractOutside } from "react-aria";
 import { Button as AriaButton } from "react-aria-components";
 
-import {
-  Dialog,
-  Popover,
-  PopoverArrow,
-  PreviewTrigger,
-} from "@phoenix/components";
+import { Popover, PopoverArrow, PreviewTrigger } from "@phoenix/components";
 import { AnnotationDetailsList } from "@phoenix/components/annotation/AnnotationDetailsList";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { SpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
@@ -51,18 +47,14 @@ export function AnnotationSummaryPopover({
   annotationConfig?: AnnotationOptimizationConfig;
   showFilterActions?: boolean;
   renderFilterActions?: (
-    annotation: Annotation,
-    positiveOptimization: boolean | null | undefined,
-    onOpenChange: (isOpen: boolean) => void
+    props: AnnotationSummaryFilterActionsRenderProps
   ) => ReactNode;
 }) {
   const prototypicalAnnotation = annotations[0];
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
   const shouldKeepPreviewOpenRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
-
-  if (!prototypicalAnnotation) {
-    return null;
-  }
 
   const onPreviewOpenChange = (isNextOpen: boolean) => {
     if (!isNextOpen && shouldKeepPreviewOpenRef.current) {
@@ -73,8 +65,33 @@ export function AnnotationSummaryPopover({
 
   const onFilterMenuOpenChange = (isNextOpen: boolean) => {
     shouldKeepPreviewOpenRef.current = isNextOpen;
-    setIsOpen(isNextOpen);
+    if (isNextOpen) {
+      setIsOpen(true);
+    }
   };
+
+  const closePreview = () => {
+    shouldKeepPreviewOpenRef.current = false;
+    setIsOpen(false);
+  };
+
+  useInteractOutside({
+    ref: popoverRef,
+    isDisabled: !isOpen,
+    onInteractOutside: (event) => {
+      if (
+        event.target instanceof Node &&
+        filterPopoverRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      closePreview();
+    },
+  });
+
+  if (!prototypicalAnnotation) {
+    return null;
+  }
 
   return (
     <StopPropagation>
@@ -86,41 +103,46 @@ export function AnnotationSummaryPopover({
           {children}
         </AriaButton>
         <Popover
+          ref={popoverRef}
           css={annotationSummaryPopoverCSS}
-          offset={8}
           placement="right top"
-          isNonModal
+          aria-label={`${prototypicalAnnotation.name} annotation details`}
         >
           <PopoverArrow />
-          <Dialog
-            aria-label={`${prototypicalAnnotation.name} annotation details`}
-          >
-            <AnnotationDetailsList
-              annotations={annotations}
-              annotationConfig={annotationConfig}
-              renderFilterActions={
-                showFilterActions
-                  ? (annotation, positiveOptimization) =>
-                      renderFilterActions ? (
-                        renderFilterActions(
-                          annotation,
-                          positiveOptimization,
-                          onFilterMenuOpenChange
-                        )
-                      ) : (
-                        <SpanAnnotationTooltipFilterActions
-                          annotation={annotation}
-                          positiveOptimization={positiveOptimization}
-                          targetKind="span"
-                          onOpenChange={onFilterMenuOpenChange}
-                        />
-                      )
-                  : undefined
-              }
-            />
-          </Dialog>
+          <AnnotationDetailsList
+            annotations={annotations}
+            annotationConfig={annotationConfig}
+            renderFilterActions={
+              showFilterActions
+                ? ({ annotation, positiveOptimization }) =>
+                    renderFilterActions ? (
+                      renderFilterActions({
+                        annotation,
+                        positiveOptimization,
+                        onOpenChange: onFilterMenuOpenChange,
+                        popoverRef: filterPopoverRef,
+                      })
+                    ) : (
+                      <SpanAnnotationTooltipFilterActions
+                        annotation={annotation}
+                        positiveOptimization={positiveOptimization}
+                        targetKind="span"
+                        onOpenChange={onFilterMenuOpenChange}
+                        popoverRef={filterPopoverRef}
+                      />
+                    )
+                : undefined
+            }
+          />
         </Popover>
       </PreviewTrigger>
     </StopPropagation>
   );
 }
+
+type AnnotationSummaryFilterActionsRenderProps = {
+  annotation: Annotation;
+  positiveOptimization: boolean | null | undefined;
+  onOpenChange: (isOpen: boolean) => void;
+  popoverRef: Ref<HTMLDivElement>;
+};

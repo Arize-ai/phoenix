@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type Ref } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
@@ -90,6 +90,7 @@ type SessionAnnotationSummaryGroupProps = {
 function SessionAnnotationTooltipFilterActions({
   annotation,
   onOpenChange,
+  popoverRef,
   positiveOptimization,
 }: {
   annotation: {
@@ -98,6 +99,7 @@ function SessionAnnotationTooltipFilterActions({
     score?: number | null;
   };
   onOpenChange?: (isOpen: boolean) => void;
+  popoverRef?: Ref<HTMLDivElement>;
   positiveOptimization?: boolean | null;
 }) {
   const { appendFilterCondition } = useSessionFilters();
@@ -106,6 +108,7 @@ function SessionAnnotationTooltipFilterActions({
       annotation={annotation}
       onAppendFilterCondition={appendFilterCondition}
       onOpenChange={onOpenChange}
+      popoverRef={popoverRef}
       positiveOptimization={positiveOptimization}
       targetKind="session"
     />
@@ -136,10 +139,16 @@ export const SessionAnnotationSummaryGroupTokens = ({
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={(annotation, positiveOptimization, onOpenChange) => (
+      renderFilterActions={({
+        annotation,
+        positiveOptimization,
+        onOpenChange,
+        popoverRef,
+      }) => (
         <SessionAnnotationTooltipFilterActions
           annotation={annotation}
           onOpenChange={onOpenChange}
+          popoverRef={popoverRef}
           positiveOptimization={positiveOptimization}
         />
       )}
