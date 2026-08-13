@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { Ref } from "react";
 
 import {
   Button,
@@ -42,7 +41,6 @@ type AnnotationTooltipFilterActionsProps = {
     score?: number | null;
   }) => AnnotationFilterDefinition[];
   onOpenChange?: (isOpen: boolean) => void;
-  popoverRef?: Ref<HTMLDivElement>;
   positiveOptimization?: boolean | null;
   targetKind?: "session" | "span" | "trace";
 };
@@ -139,8 +137,6 @@ export function AnnotationTooltipFilterActions(
         <MenuContainer
           placement="right top"
           shouldFlip
-          isNonModal
-          ref={props.popoverRef}
           minHeight={0}
           aria-label={`Filter ${targetLabel}`}
         >

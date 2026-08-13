@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode, Ref } from "react";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { useInteractOutside } from "react-aria";
 import { Button as AriaButton } from "react-aria-components";
@@ -52,7 +52,6 @@ export function AnnotationSummaryPopover({
 }) {
   const prototypicalAnnotation = annotations[0];
   const popoverRef = useRef<HTMLDivElement>(null);
-  const filterPopoverRef = useRef<HTMLDivElement>(null);
   const shouldKeepPreviewOpenRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -78,11 +77,8 @@ export function AnnotationSummaryPopover({
   useInteractOutside({
     ref: popoverRef,
     isDisabled: !isOpen,
-    onInteractOutside: (event) => {
-      if (
-        event.target instanceof Node &&
-        filterPopoverRef.current?.contains(event.target)
-      ) {
+    onInteractOutside: () => {
+      if (shouldKeepPreviewOpenRef.current) {
         return;
       }
       closePreview();
@@ -120,7 +116,6 @@ export function AnnotationSummaryPopover({
                         annotation,
                         positiveOptimization,
                         onOpenChange: onFilterMenuOpenChange,
-                        popoverRef: filterPopoverRef,
                       })
                     ) : (
                       <SpanAnnotationTooltipFilterActions
@@ -128,7 +123,6 @@ export function AnnotationSummaryPopover({
                         positiveOptimization={positiveOptimization}
                         targetKind="span"
                         onOpenChange={onFilterMenuOpenChange}
-                        popoverRef={filterPopoverRef}
                       />
                     )
                 : undefined
@@ -144,5 +138,4 @@ type AnnotationSummaryFilterActionsRenderProps = {
   annotation: Annotation;
   positiveOptimization: boolean | null | undefined;
   onOpenChange: (isOpen: boolean) => void;
-  popoverRef: Ref<HTMLDivElement>;
 };

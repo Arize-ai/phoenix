@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode, Ref } from "react";
+import type { ReactNode } from "react";
 
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
@@ -50,7 +50,6 @@ export function AnnotationSummaryTokens({
     annotation: Annotation;
     positiveOptimization: boolean | null | undefined;
     onOpenChange: (isOpen: boolean) => void;
-    popoverRef: Ref<HTMLDivElement>;
   }) => ReactNode;
 }) {
   return (
