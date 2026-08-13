@@ -550,10 +550,6 @@ export interface AgentState extends AgentProps {
   // `phoenix.outcome`, the durable form.
   locallyInterruptedToolCallIds: Partial<Record<string, true>>;
   markToolCallInterrupted: (toolCallId: string) => void;
-  // Resolved GraphQL mutations awaiting approval on a deferred bash tool
-  // call, delivered by the transient `data-bash-mutation-approval` stream
-  // chunk for live rendering. After a reload the same payload is read from
-  // the persisted part's `callProviderMetadata` instead.
   pendingBashMutationsByToolCallId: Partial<
     Record<string, PendingGraphQLMutation[]>
   >;
