@@ -55,8 +55,16 @@ def _reparent_spans_under_common_parent(
 
     Every span joins ``trace_id``. Spans that are already children keep their
     existing parent, so relationships established during conversion — subagent
-    handoffs, continuations, turn nesting — are preserved; only root spans
-    (those with no parent) are attached to ``parent_id``.
+    handoffs, continuations, turn nesting — are preserved.
+
+    A span is treated as a root, and attached to ``parent_id``, when it has no
+    parent *within this batch*. That covers both spans with no ``parent_id`` at
+    all and spans whose ``parent_id`` refers to a span that is not present.
+    The latter happens with real ATIF data: a step can declare
+    ``subagent_trajectory_ref`` while carrying no tool call, in which case
+    conversion points the subagent at a tool span that is never emitted.
+    Attaching those to the common parent keeps the result a single connected
+    tree instead of leaving subtrees dangling off a nonexistent span.
 
     Span IDs are rederived against ``trace_id`` so that converting the same
     spans under different parents cannot collide. ``parent_id`` refers to a
@@ -69,8 +77,10 @@ def _reparent_spans_under_common_parent(
     reparented: List[v1.Span] = []
     for span in spans:
         existing_parent_id = span.get("parent_id")
+        # Fall back to the common parent when the referenced parent is absent,
+        # so an unresolvable link cannot orphan a subtree.
         new_parent_id = (
-            id_map.get(existing_parent_id, existing_parent_id) if existing_parent_id else parent_id
+            id_map.get(existing_parent_id, parent_id) if existing_parent_id else parent_id
         )
         span_with_new_id: v1.Span = {
             **span,

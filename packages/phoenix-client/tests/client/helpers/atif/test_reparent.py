@@ -134,3 +134,25 @@ class TestReparentSpansUnderCommonParent:
 
     def test_empty_input(self) -> None:
         assert self.reparent([]) == []
+
+    def test_span_pointing_at_a_missing_parent_is_adopted(self) -> None:
+        # Real ATIF data produces these: a step declaring subagent refs but no
+        # tool call makes conversion point the subagent at a tool span that is
+        # never emitted. Such a span has no parent in the batch, so it is a
+        # root and must attach to the common parent rather than dangle.
+        spans = a_tree() + [span("orphan", "eeeeeeeeeeeeeeee", parent_id="0000000000000000")]
+        result = self.reparent(spans)
+
+        by_name = {s["name"]: s for s in result}
+        assert by_name["orphan"]["parent_id"] == PARENT_SPAN_ID
+
+        known = {s["context"]["span_id"] for s in result} | {PARENT_SPAN_ID}
+        assert all(s["parent_id"] in known for s in result)
+
+    def test_adoption_does_not_disturb_resolvable_parents(self) -> None:
+        spans = a_tree() + [span("orphan", "eeeeeeeeeeeeeeee", parent_id="0000000000000000")]
+        result = self.reparent(spans)
+
+        by_name = {s["name"]: s for s in result}
+        assert by_name["child"]["parent_id"] == by_name["root"]["context"]["span_id"]
+        assert by_name["grandchild"]["parent_id"] == by_name["child"]["context"]["span_id"]
