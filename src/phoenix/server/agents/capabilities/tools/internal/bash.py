@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import logging
 import posixpath
 import time
 from dataclasses import dataclass, field
@@ -28,8 +27,6 @@ from typing_extensions import TypedDict
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 from phoenix.server.api.context import Context
-
-logger = logging.getLogger(__name__)
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
@@ -98,6 +95,10 @@ Args:
     summary: Short, user-facing description of what this command does. Shown as the
         collapsed preview in the UI.
     command: The shell command to execute.
+    mutation_intent: Provide only when the command invokes a GraphQL mutation via \
+phoenix-gql: a concise, user-facing, one-sentence description of the change the \
+mutation will make, starting with "This command will ...". Shown next to the \
+approval prompt when the user is asked to approve the mutation.
 
 Returns a dict with the command's `stdout`, `stderr`, and `exitCode`.
 """,
@@ -462,15 +463,12 @@ def _build_shell(
 ) -> Bash:
     """Build the virtual shell, restoring prior session state when available."""
     if initial_snapshot is not None:
-        try:
-            return _restore_shell(
-                initial_snapshot,
-                schema=schema,
-                build_graphql_context=build_graphql_context,
-                mutation_policy=mutation_policy,
-            )
-        except Exception:
-            logger.warning("Failed to restore bash snapshot; starting a fresh shell")
+        return _restore_shell(
+            initial_snapshot,
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            mutation_policy=mutation_policy,
+        )
     shell = Bash(
         python=False,
         network=None,  # network is disabled so curl/wget/http cannot reach the internet
@@ -546,7 +544,12 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         # clobber another call's shell state on rollback.
         execution_lock = asyncio.Lock()
 
-        async def bash(ctx: RunContext[AgentDepsT], summary: str, command: str) -> BashToolResult:
+        async def bash(
+            ctx: RunContext[AgentDepsT],
+            summary: str,
+            command: str,
+            mutation_intent: Optional[str] = None,
+        ) -> BashToolResult:
             nonlocal shell
             async with execution_lock:
                 deps = ctx.deps if isinstance(ctx.deps, AgentDependencies) else None
@@ -572,18 +575,12 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                     # survive the dry run: on approval the whole command
                     # re-executes exactly once against this restored state.
                     assert pre_execution_snapshot is not None
-                    try:
-                        shell = _restore_shell(
-                            pre_execution_snapshot,
-                            schema=schema,
-                            build_graphql_context=build_graphql_context,
-                            mutation_policy=mutation_policy,
-                        )
-                    except Exception:
-                        logger.exception(
-                            "Failed to roll back the shell after a pending mutation; "
-                            "an approved re-run may repeat the command's side effects"
-                        )
+                    shell = _restore_shell(
+                        pre_execution_snapshot,
+                        schema=schema,
+                        build_graphql_context=build_graphql_context,
+                        mutation_policy=mutation_policy,
+                    )
                     if on_snapshot is not None:
                         on_snapshot(pre_execution_snapshot)
                     raise ApprovalRequired(

@@ -387,7 +387,7 @@ class BashMutationApprovalData(_CamelBaseModel):
 class BashMutationApprovalChunk(DataChunk):
     """Transient ``data-bash-mutation-approval`` stream chunk."""
 
-    type: Literal["data-bash-mutation-approval"] = "data-bash-mutation-approval"
+    type: Literal["data-bash-mutation-approval"]
     data: BashMutationApprovalData
     transient: Literal[True] = True
 
@@ -3407,10 +3407,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             continue
                         pending_mutations_by_tool_call_id[tool_call_id] = pending_mutations
                         yield BashMutationApprovalChunk(
+                            type="data-bash-mutation-approval",
                             data=BashMutationApprovalData(
                                 tool_call_id=tool_call_id,
                                 pending_mutations=pending_mutations,
-                            )
+                            ),
                         )
                 yield _build_message_metadata_chunk(
                     turn_trace_context=resolved_turn_trace_context,
