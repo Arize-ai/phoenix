@@ -26,6 +26,7 @@ import {
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
+import { useNotify } from "@phoenix/contexts/NotificationContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
@@ -95,6 +96,7 @@ export function ProjectPage() {
 }
 
 const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
+const LEGACY_TRACE_FILTER_CONDITION_PARAM = "filterCondition";
 
 /**
  * Type guard for the tab path in the URL
@@ -155,6 +157,40 @@ function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
     ) ?? fallback
   );
   return seed.requiresServerValidation ? null : seed;
+}
+
+export function LegacyTraceFilterParamNotice({
+  isActive,
+}: {
+  isActive: boolean;
+}) {
+  const notify = useNotify();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const hasNotified = useRef(false);
+
+  useEffect(() => {
+    if (!isActive || !searchParams.has(LEGACY_TRACE_FILTER_CONDITION_PARAM)) {
+      return;
+    }
+    if (!hasNotified.current) {
+      hasNotified.current = true;
+      notify({
+        title: "Span filter not applied",
+        message:
+          "This link's span filter no longer applies to the Traces tab. Showing all traces.",
+      });
+    }
+    setSearchParams(
+      (previousParams) => {
+        const nextParams = new URLSearchParams(previousParams);
+        nextParams.delete(LEGACY_TRACE_FILTER_CONDITION_PARAM);
+        return nextParams;
+      },
+      { replace: true }
+    );
+  }, [isActive, notify, searchParams, setSearchParams]);
+
+  return null;
 }
 
 function ProjectPageContentBody({
@@ -340,6 +376,9 @@ function ProjectPageContentBody({
 
   return (
     <main css={mainCSS}>
+      <LegacyTraceFilterParamNotice
+        isActive={tabIndex === TAB_INDEX_MAP.traces}
+      />
       <TopNavActions order={1}>
         <ProjectTimeRangeControls project={data.project} />
       </TopNavActions>
