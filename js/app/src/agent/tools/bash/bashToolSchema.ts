@@ -1,6 +1,11 @@
 export interface BashToolInput {
   command: string;
   summary?: string;
+  /**
+   * User-facing, one-sentence description of the change a `phoenix-gql`
+   * mutation in the command will make. Shown alongside the mutation approval.
+   */
+  mutation_intent?: string;
 }
 
 export function getBashToolInput(input: unknown): BashToolInput | null {
@@ -8,7 +13,7 @@ export function getBashToolInput(input: unknown): BashToolInput | null {
     return null;
   }
 
-  const { command, summary } = input as Partial<BashToolInput>;
+  const { command, summary, mutation_intent } = input as Partial<BashToolInput>;
 
   if (typeof command !== "string") {
     return null;
@@ -17,6 +22,7 @@ export function getBashToolInput(input: unknown): BashToolInput | null {
   return {
     command,
     ...(typeof summary === "string" ? { summary } : {}),
+    ...(typeof mutation_intent === "string" ? { mutation_intent } : {}),
   };
 }
 
