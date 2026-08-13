@@ -4,6 +4,7 @@ import { graphql, useFragment } from "react-relay";
 import { Flex } from "@phoenix/components";
 import type { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
 import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import type { Annotation } from "@phoenix/components/annotation/types";
 import { Divider } from "@phoenix/components/core/layout";
 import {
   Summary,
@@ -121,6 +122,7 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
 type AnnotationSummaryGroupProps = {
   span: AnnotationSummaryGroup$key;
   showFilterActions?: boolean;
+  renderFilterActions?: (annotation: Annotation) => React.ReactNode;
   renderEmptyState?: () => React.ReactNode;
 };
 
@@ -148,6 +150,7 @@ export const AnnotationSummaryGroupStacksRow = ({
 export const AnnotationSummaryGroupTokens = ({
   span,
   showFilterActions = false,
+  renderFilterActions,
   renderEmptyState,
 }: AnnotationSummaryGroupProps) => {
   const {
@@ -172,6 +175,7 @@ export const AnnotationSummaryGroupTokens = ({
       annotationsByName={annotationsByName}
       categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
       showFilterActions={showFilterActions}
+      renderFilterActions={renderFilterActions}
     />
   );
 };

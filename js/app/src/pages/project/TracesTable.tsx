@@ -76,6 +76,7 @@ import { createSpanTree } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
@@ -640,7 +641,15 @@ export function TracesTable(props: TracesTableProps) {
             row.original.documentRetrievalMetrics.length === 0;
           return (
             <OverflowRow isExpanded={areRowsExpanded}>
-              <AnnotationSummaryGroupTokens span={row.original} />
+              <AnnotationSummaryGroupTokens
+                span={row.original}
+                showFilterActions
+                renderFilterActions={(annotation) => (
+                  <TraceSpanAnnotationTooltipFilterActions
+                    annotation={annotation}
+                  />
+                )}
+              />
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
                   <Fragment key="doc-evals">

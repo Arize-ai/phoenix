@@ -46,3 +46,46 @@ export function getAnnotationTooltipFilters(
   }
   return filters;
 }
+
+function getTraceSpanAnnotationCondition({
+  nameLiteral,
+  valueCondition,
+}: {
+  nameLiteral: string;
+  valueCondition: string;
+}): string {
+  return `any(any(annotation.name == ${nameLiteral} and ${valueCondition} for annotation in span.annotations) for span in spans)`;
+}
+
+export function getTraceSpanAnnotationTooltipFilters(
+  annotation: AnnotationFilterInput
+): AnnotationFilterDefinition[] {
+  const { name, label, score } = annotation;
+  const nameLiteral = getDslStringLiteral({ value: name, quote: "'" });
+
+  if (typeof score === "number") {
+    return [
+      ["greater than", `annotation.score > ${score}`],
+      ["less than", `annotation.score < ${score}`],
+      ["equals", `annotation.score == ${score}`],
+    ].map(([filterName, valueCondition]) => ({
+      filterName,
+      filterCondition: getTraceSpanAnnotationCondition({
+        nameLiteral,
+        valueCondition,
+      }),
+    }));
+  }
+  if (label != null) {
+    const labelLiteral = getDslStringLiteral({ value: label, quote: '"' });
+    const matchingCondition = getTraceSpanAnnotationCondition({
+      nameLiteral,
+      valueCondition: `annotation.label == ${labelLiteral}`,
+    });
+    return [
+      { filterName: "match", filterCondition: matchingCondition },
+      { filterName: "exclude", filterCondition: `not ${matchingCondition}` },
+    ];
+  }
+  return [];
+}

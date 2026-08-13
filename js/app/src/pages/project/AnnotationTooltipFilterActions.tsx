@@ -2,8 +2,13 @@ import { css } from "@emotion/react";
 
 import { Token } from "@phoenix/components";
 
-import { getAnnotationTooltipFilters } from "./annotationFilterUtils";
+import {
+  type AnnotationFilterDefinition,
+  getAnnotationTooltipFilters,
+  getTraceSpanAnnotationTooltipFilters,
+} from "./annotationFilterUtils";
 import { useSpanFilterActions } from "./SpanFiltersContext";
+import { useTraceFilters } from "./TraceFiltersContext";
 
 type AnnotationTooltipFilterActionsProps = {
   className?: string;
@@ -13,13 +18,23 @@ type AnnotationTooltipFilterActionsProps = {
     score?: number | null;
   };
   onAppendFilterCondition: (condition: string) => void;
+  getFilters?: (annotation: {
+    name: string;
+    label?: string | null;
+    score?: number | null;
+  }) => AnnotationFilterDefinition[];
 };
 
 export function AnnotationTooltipFilterActions(
   props: AnnotationTooltipFilterActionsProps
 ) {
-  const { annotation, className, onAppendFilterCondition } = props;
-  const filters = getAnnotationTooltipFilters(annotation);
+  const {
+    annotation,
+    className,
+    onAppendFilterCondition,
+    getFilters = getAnnotationTooltipFilters,
+  } = props;
+  const filters = getFilters(annotation);
 
   if (filters.length === 0) {
     return null;
@@ -59,6 +74,22 @@ export function SpanAnnotationTooltipFilterActions(
   return (
     <AnnotationTooltipFilterActions
       {...props}
+      onAppendFilterCondition={appendFilterCondition}
+    />
+  );
+}
+
+export function TraceSpanAnnotationTooltipFilterActions(
+  props: Omit<
+    AnnotationTooltipFilterActionsProps,
+    "getFilters" | "onAppendFilterCondition"
+  >
+) {
+  const { appendFilterCondition } = useTraceFilters();
+  return (
+    <AnnotationTooltipFilterActions
+      {...props}
+      getFilters={getTraceSpanAnnotationTooltipFilters}
       onAppendFilterCondition={appendFilterCondition}
     />
   );
