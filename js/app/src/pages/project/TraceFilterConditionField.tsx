@@ -9,6 +9,7 @@ import {
   type DSLFilterSnippet,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
+  detectDSLFilterEnclosingComprehensionScopeForClauseTarget,
   detectDSLFilterForClauseTarget,
   findDSLFilterComprehensionRange,
   useDSLFilterConditionHistory,
@@ -67,17 +68,6 @@ const traceFilterLoopVariables: Partial<Record<string, string>> = {
   trace_annotations: "annotation",
   span_annotations: "annotation",
   span_cost_details: "cost_detail",
-  children: "child",
-  siblings: "sibling",
-  annotations: "annotation",
-  cost_details: "cost_detail",
-};
-
-const traceFilterNestedIterableSources: Record<string, string> = {
-  children: "spans",
-  siblings: "spans",
-  annotations: "span_annotations",
-  cost_details: "span_cost_details",
 };
 
 function getTraceFilterLoopVariable(iterableName: string): string {
@@ -259,6 +249,20 @@ function getIterableNameCompletion(
   };
 }
 
+/** A nested collection qualified by the enclosing comprehension variable. */
+function getNestedIterableNameCompletion(
+  term: TraceFilterVocabularyTerm,
+  enclosingLoopVariable: string
+): Completion {
+  return {
+    label: `${enclosingLoopVariable}.${term.name}`,
+    type: "variable",
+    detail: "collection",
+    info: term.description,
+    section: vocabularyCategorySections.iterable,
+  };
+}
+
 /**
  * An element field is only ever written qualified by the comprehension's loop
  * variable, so it is offered that way — completing `s.latency_ms`, never a
@@ -294,6 +298,120 @@ type TraceFilterConditionFieldProps = {
   placeholder?: string;
 };
 
+type TraceFilterCompletionModel = {
+  completions: Completion[];
+  elementTermsByIterable: Map<string, TraceFilterVocabularyTerm[]>;
+  iterableTerms: TraceFilterVocabularyTerm[];
+  iterableNames: Set<string>;
+  nestedIterableTermsByIterable: Map<string, TraceFilterVocabularyTerm[]>;
+};
+
+export function buildTraceFilterCompletionModel(
+  vocabulary: readonly TraceFilterVocabularyTerm[]
+): TraceFilterCompletionModel {
+  const topLevelCompletions: Completion[] = [];
+  const elementTerms = new Map<string, TraceFilterVocabularyTerm[]>();
+  const collectionTerms: TraceFilterVocabularyTerm[] = [];
+  const collectionNames = new Set<string>();
+  const nestedCollectionTerms = new Map<string, TraceFilterVocabularyTerm[]>();
+
+  for (const term of vocabulary) {
+    if (term.type === "iterable") {
+      collectionNames.add(term.name);
+      if (term.iterableName) {
+        const terms = nestedCollectionTerms.get(term.iterableName) ?? [];
+        terms.push(term);
+        nestedCollectionTerms.set(term.iterableName, terms);
+        continue;
+      }
+    }
+    if (term.iterableName) {
+      const terms = elementTerms.get(term.iterableName) ?? [];
+      terms.push(term);
+      elementTerms.set(term.iterableName, terms);
+    } else if (term.category === "iterable") {
+      collectionTerms.push(term);
+      topLevelCompletions.push(getIterableScaffoldCompletion(term));
+    } else {
+      topLevelCompletions.push(getCompletionOption(term));
+    }
+  }
+
+  for (const [enclosingIterableName, nestedTerms] of nestedCollectionTerms) {
+    const enclosingLoopVariable = getTraceFilterLoopVariable(
+      enclosingIterableName
+    );
+    for (const term of nestedTerms) {
+      const flattenedIterableName = `${enclosingLoopVariable}_${term.name}`;
+      const sourceIterableName = collectionNames.has(flattenedIterableName)
+        ? flattenedIterableName
+        : enclosingIterableName;
+      const sourceTerms = elementTerms.get(sourceIterableName);
+      if (sourceTerms) {
+        elementTerms.set(term.name, sourceTerms);
+      }
+    }
+  }
+
+  return {
+    completions: topLevelCompletions.sort(compareBySectionRank),
+    elementTermsByIterable: elementTerms,
+    iterableTerms: collectionTerms,
+    iterableNames: collectionNames,
+    nestedIterableTermsByIterable: nestedCollectionTerms,
+  };
+}
+
+export function getTraceFilterContextualCompletions({
+  request,
+  completionModel,
+}: {
+  request: DSLFilterCompletionRequest;
+  completionModel: TraceFilterCompletionModel;
+}): Completion[] | null {
+  const {
+    elementTermsByIterable,
+    iterableTerms,
+    iterableNames,
+    nestedIterableTermsByIterable,
+  } = completionModel;
+  const { textBeforeCursor, textAfterCursor } = request;
+  if (detectDSLFilterForClauseTarget({ textBeforeCursor })) {
+    const enclosingScope =
+      detectDSLFilterEnclosingComprehensionScopeForClauseTarget({
+        textBeforeCursor,
+        textAfterCursor,
+        isIterableName: (name) => iterableNames.has(name),
+      });
+    const nestedTerms = enclosingScope
+      ? nestedIterableTermsByIterable.get(enclosingScope.iterableName)
+      : undefined;
+    return nestedTerms && enclosingScope
+      ? nestedTerms.map((term) =>
+          getNestedIterableNameCompletion(term, enclosingScope.loopVariable)
+        )
+      : iterableTerms.map(getIterableNameCompletion);
+  }
+  const scope = detectDSLFilterComprehensionScope({
+    textBeforeCursor,
+    textAfterCursor,
+    isIterableName: (name) => iterableNames.has(name),
+  });
+  if (scope) {
+    const terms = elementTermsByIterable.get(scope.iterableName);
+    return terms
+      ? terms.map((term) =>
+          getElementCompletionOption(term, scope.loopVariable)
+        )
+      : null;
+  }
+  const call = detectDSLFilterComprehensionCall({ textBeforeCursor });
+  if (call) {
+    return iterableTerms.map((term) => getIterableBodyCompletion(term, call));
+  }
+  return null;
+}
+
 export function TraceFilterConditionField(
   props: TraceFilterConditionFieldProps
 ) {
@@ -308,46 +426,11 @@ export function TraceFilterConditionField(
   // Element fields are split out of the top-level vocabulary: offering
   // `latency_ms` bare would complete a condition the compiler rejects, since
   // it only binds inside a comprehension over the collection that exposes it.
-  const { completions, elementTermsByIterable, iterableTerms, iterableNames } =
-    useMemo(() => {
-      const topLevelCompletions: Completion[] = [];
-      const elementTerms = new Map<string, TraceFilterVocabularyTerm[]>();
-      const collectionTerms: TraceFilterVocabularyTerm[] = [];
-      const collectionNames = new Set<string>();
-
-      for (const term of vocabulary) {
-        if (term.type === "iterable") {
-          collectionNames.add(term.name);
-        }
-        if (term.iterableName) {
-          const terms = elementTerms.get(term.iterableName) ?? [];
-          terms.push(term);
-          elementTerms.set(term.iterableName, terms);
-        } else if (term.category === "iterable") {
-          collectionTerms.push(term);
-          topLevelCompletions.push(getIterableScaffoldCompletion(term));
-        } else {
-          topLevelCompletions.push(getCompletionOption(term));
-        }
-      }
-      for (const [nestedName, sourceName] of Object.entries(
-        traceFilterNestedIterableSources
-      )) {
-        const sourceTerms = elementTerms.get(sourceName);
-        if (sourceTerms) {
-          elementTerms.set(nestedName, sourceTerms);
-        }
-      }
-
-      return {
-        // Section-rank order: the field caps the browse view, so the core
-        // vocabulary has to come before observed names
-        completions: topLevelCompletions.sort(compareBySectionRank),
-        elementTermsByIterable: elementTerms,
-        iterableTerms: collectionTerms,
-        iterableNames: collectionNames,
-      };
-    }, [vocabulary]);
+  const completionModel = useMemo(
+    () => buildTraceFilterCompletionModel(vocabulary),
+    [vocabulary]
+  );
+  const { completions } = completionModel;
 
   // Comprehension positions replace the dropdown rather than joining it, most
   // to least specific: the iterable slot of a `for` clause takes collection
@@ -356,32 +439,9 @@ export function TraceFilterConditionField(
   // comprehension bodies. An unclassifiable cursor returns null and completion
   // behaves as it always has.
   const getContextualCompletions = useCallback(
-    ({ textBeforeCursor, textAfterCursor }: DSLFilterCompletionRequest) => {
-      if (detectDSLFilterForClauseTarget({ textBeforeCursor })) {
-        return iterableTerms.map(getIterableNameCompletion);
-      }
-      const scope = detectDSLFilterComprehensionScope({
-        textBeforeCursor,
-        textAfterCursor,
-        isIterableName: (name) => iterableNames.has(name),
-      });
-      if (scope) {
-        const terms = elementTermsByIterable.get(scope.iterableName);
-        return terms
-          ? terms.map((term) =>
-              getElementCompletionOption(term, scope.loopVariable)
-            )
-          : null;
-      }
-      const call = detectDSLFilterComprehensionCall({ textBeforeCursor });
-      if (call) {
-        return iterableTerms.map((term) =>
-          getIterableBodyCompletion(term, call)
-        );
-      }
-      return null;
-    },
-    [iterableTerms, iterableNames, elementTermsByIterable]
+    (request: DSLFilterCompletionRequest) =>
+      getTraceFilterContextualCompletions({ request, completionModel }),
+    [completionModel]
   );
 
   // Stable identity: the field's validation effect keys on `validateCondition`
