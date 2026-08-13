@@ -6,6 +6,7 @@ export {
   getBashToolCommandDisplayResult,
   isBashToolCommandResult,
 } from "./bashToolTypes";
+export { getBashToolPendingMutations } from "./pendingMutations";
 export type {
   BashToolCommandDisplayResult,
   BashToolCommandResult,

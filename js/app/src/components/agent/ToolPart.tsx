@@ -142,6 +142,7 @@ import {
   SavePromptToolDetails,
 } from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
+import { ToolApprovalRequest } from "./ToolApprovalRequest";
 import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import { getToolIconKey } from "./toolIconConfig";
 import {
@@ -864,6 +865,10 @@ function GenericToolDetails({ part }: { part: ToolInvocationPart }) {
       <ToolPartExpandableSection>
         <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
       </ToolPartExpandableSection>
+      {/* Fallback approval affordance: any deferred server tool call that
+          requests approval gets Accept/Reject here even without a bespoke
+          detail renderer, matching the auto-open in shouldAutoOpenToolPart. */}
+      <ToolApprovalRequest part={part} />
       {part.state === "output-available" ? (
         <>
           <ToolPartLabel>Output</ToolPartLabel>

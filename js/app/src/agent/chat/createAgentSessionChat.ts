@@ -11,7 +11,6 @@ import {
   createClientToolTimingRecorder,
   type ClientToolTimingRecorder,
 } from "@phoenix/agent/chat/clientToolTimings";
-import { isResolvedClientToolOutputPart } from "@phoenix/agent/chat/chatUtils";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import {
   partitionPendingClientToolCalls,
@@ -112,23 +111,7 @@ export function createAgentSessionChat({
   // racing its own in-flight change.
   let lastAssertedModelSelection: AgentModelSelection | null = null;
   const transcriptPersistence = createTranscriptPersistenceCoordinator();
-  // Tool-call IDs whose outputs the server already holds, so the eager flush
-  // in sendAutomaticallyWhen never re-posts them: a redundant POST claims the
-  // session turn lock and can 409 a chat continuation racing it (e.g. the one
-  // carrying a mutation approval), knocking the client into busy-elsewhere
-  // polling that reverts the optimistic approval state.
-  const syncedToolOutputIds = new Set<string>();
-  const markPersistedToolOutputs = (message: AgentUIMessage | undefined) => {
-    if (message?.role !== "assistant") {
-      return;
-    }
-    for (const part of message.parts) {
-      if (isResolvedClientToolOutputPart(part)) {
-        syncedToolOutputIds.add(part.toolCallId);
-      }
-    }
-  };
-  seedMessages.forEach(markPersistedToolOutputs);
+  seedMessages.forEach(transcriptPersistence.markToolOutputsPersisted);
   const turnCompletionGate = createTurnCompletionGate({
     getShouldSendAutomatically: (messages) =>
       shouldSendAutomaticallyAfterToolOutput({
@@ -256,9 +239,7 @@ export function createAgentSessionChat({
         });
       } else if (dataPart.type === "data-transcript-persisted") {
         transcriptPersistence.acknowledge(dataPart.data);
-        // Everything resolved on the acknowledged message is now part of the
-        // persisted transcript; outputs resolved after this ack still flush.
-        markPersistedToolOutputs(
+        transcriptPersistence.markToolOutputsPersisted(
           chat.messages.find(
             (message) => message.id === dataPart.data.messageId
           )
@@ -285,7 +266,7 @@ export function createAgentSessionChat({
             toolTimings,
             locallyInterruptedToolCallIds:
               store.getState().locallyInterruptedToolCallIds,
-            syncedToolOutputIds,
+            syncedToolOutputIds: transcriptPersistence.syncedToolOutputIds,
           });
         }
         return false;

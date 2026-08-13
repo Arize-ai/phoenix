@@ -1,4 +1,9 @@
-import { isToolUIPart, type UIMessage } from "ai";
+import {
+  isToolUIPart,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+  lastAssistantMessageIsCompleteWithToolCalls,
+  type UIMessage,
+} from "ai";
 
 import { isRecord } from "@phoenix/utils/typeUtils";
 
@@ -23,42 +28,13 @@ export function shouldSendAutomaticallyAfterToolOutput({
   if (hasInterruptedToolCall({ messages, locallyInterruptedToolCallIds })) {
     return false;
   }
-  return lastAssistantMessageIsCompleteWithToolCallsAndApprovals({ messages });
-}
-
-/**
- * The AI SDK's `lastAssistantMessageIsCompleteWithToolCalls`, extended for the
- * approval flow: a responded approval is ready to send back to the server (the
- * approved call re-executes there), while a requested one is still waiting on
- * the user, so the turn must stay open.
- */
-function lastAssistantMessageIsCompleteWithToolCallsAndApprovals({
-  messages,
-}: {
-  messages: UIMessage[];
-}): boolean {
-  const message = messages[messages.length - 1];
-  if (!message || message.role !== "assistant") {
-    return false;
-  }
-  const lastStepStartIndex = message.parts.reduce(
-    (lastIndex, part, index) =>
-      part.type === "step-start" ? index : lastIndex,
-    -1
-  );
-  const lastStepToolInvocations = message.parts
-    .slice(lastStepStartIndex + 1)
-    .filter(isToolUIPart)
-    .filter((part) => !part.providerExecuted);
+  // A turn is ready to continue when the last step's tool calls all have
+  // outputs, or when the user has answered every requested approval (the
+  // approved calls re-execute server-side). A still-requested approval keeps
+  // the turn open, waiting on the user.
   return (
-    lastStepToolInvocations.length > 0 &&
-    lastStepToolInvocations.every(
-      (part) =>
-        part.state === "output-available" ||
-        part.state === "output-error" ||
-        part.state === "output-denied" ||
-        part.state === "approval-responded"
-    )
+    lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
+    lastAssistantMessageIsCompleteWithApprovalResponses({ messages })
   );
 }
 
