@@ -1890,8 +1890,8 @@ def test_approval_decision_is_promoted_to_span_attributes() -> None:
                         },
                         "callProviderMetadata": {
                             "phoenix": {
-                                "tool_execution_environment": "client",
-                                "tool_input_emitted_at": (now + timedelta(seconds=1)).isoformat(),
+                                "toolExecutionEnvironment": "client",
+                                "toolInputEmittedAt": (now + timedelta(seconds=1)).isoformat(),
                             }
                         },
                     },
@@ -1903,8 +1903,8 @@ def test_approval_decision_is_promoted_to_span_attributes() -> None:
                         "output": {"revision": 3},
                         "callProviderMetadata": {
                             "phoenix": {
-                                "tool_execution_environment": "client",
-                                "tool_input_emitted_at": (now + timedelta(seconds=2)).isoformat(),
+                                "toolExecutionEnvironment": "client",
+                                "toolInputEmittedAt": (now + timedelta(seconds=2)).isoformat(),
                             }
                         },
                     },
