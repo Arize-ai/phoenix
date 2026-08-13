@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome
+from phoenix.server.mcp.sql.parse import AdmissionOutcome
 
 
 @dataclass(frozen=True)
@@ -264,7 +264,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT name NOT ILIKE '%root%' FROM spans",
         expect=AdmissionOutcome.ADMIT,
-        note="NOT ILIKE is the same rewrite under a NOT",
+        note="NOT ILIKE must keep the negation: lower(name) NOT LIKE lower(...)",
         dialect="sqlite",
     ),
     AdmissionCase(
@@ -1072,6 +1072,42 @@ CASES: tuple[AdmissionCase, ...] = (
         sql="SELECT k FROM spans, json_each(attributes) AS t(k, v)",
         expect=AdmissionOutcome.ADMIT,
         note="SQLite cannot render json_each AS t(k, v); push the names onto the json_each columns",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT json_each(attributes) FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="json_each is table-valued; in the SELECT list SQLite has no such function",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT key FROM spans, json_each(attributes, 'session')",
+        expect=AdmissionOutcome.ADMIT,
+        note="json_each path without $ is a SQLite error; arrows already get $.session",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="WITH x(a) AS (SELECT id, name FROM projects) SELECT * FROM x",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite rejects a CTE column list shorter than the query; PostgreSQL keeps extra columns",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT * FROM (VALUES (1, 2)) AS t(a)",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a too-short VALUES alias list used to drop the extra cells",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT attributes #>> '{a,b}' FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="#>> must not admit then fail as function jsonb_extract_scalar",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT id FROM projects /* comment",
+        expect=AdmissionOutcome.PARSE_ERROR,
+        note="an unterminated comment used to crash the tool instead of a parse error",
         dialect="sqlite",
     ),
 )

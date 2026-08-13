@@ -7,7 +7,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, JsonValue
 
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
 
 
 class AppliedSql(BaseModel):

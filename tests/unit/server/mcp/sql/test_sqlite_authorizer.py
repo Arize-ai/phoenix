@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 import sqlean
 
-from phoenix.server.mcp_analytics_sql.execute import _Denial, _sqlite_authorizer
+from phoenix.server.mcp.sql.execute import _Denial, _sqlite_authorizer
 
 
 def test_sqlite_authorizer_denies_table_and_function(tmp_path: Path) -> None:

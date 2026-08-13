@@ -26,9 +26,9 @@ import pytest
 from sqlglot import exp, parse, parse_one
 
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.parse import (
+from phoenix.server.mcp.sql.allowlist import load_allowlist
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.parse import (
     _ALLOWED_STRUCTURAL_CLASSES,
     MAX_TREE_DEPTH,
     AdmissionOutcome,
@@ -41,9 +41,9 @@ from phoenix.server.mcp_analytics_sql.parse import (
     render,
     try_parse_and_admit,
 )
-from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
-from tests.unit.server.mcp_analytics_sql.admission_corpus import CASES, AdmissionCase
-from tests.unit.server.mcp_analytics_sql.admission_fixtures import minimal_admission_allowlist
+from phoenix.server.mcp.sql.rewrite import RewriteContext, rewrite
+from tests.unit.server.mcp.sql.admission_corpus import CASES, AdmissionCase
+from tests.unit.server.mcp.sql.admission_fixtures import minimal_admission_allowlist
 
 DIALECT: SupportedSQLDialectName = "postgresql"
 
@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 184
+    assert len(CASES) >= 190
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -649,9 +649,13 @@ def test_composite_access_is_refused_at_any_paren_depth(sql: str) -> None:
         (
             "sqlite",
             "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY id) FROM spans",
-            "percentile(x, p)",
+            "percentile(x, p), where p is 0–100",
         ),
-        ("postgresql", "SELECT percentile(id, 50) FROM spans", "WITHIN GROUP"),
+        (
+            "postgresql",
+            "SELECT percentile(id, 50) FROM spans",
+            "where p is 0–1",
+        ),
     ],
 )
 def test_a_refusal_names_the_spelling_that_works(
@@ -1840,6 +1844,15 @@ def test_sqlite_ilike_rewrites_to_lower_like_lower() -> None:
     assert "ilike" not in folded
     assert "lower(" in folded
     assert "like" in folded
+
+
+def test_sqlite_not_ilike_keeps_the_negation() -> None:
+    result = try_parse_and_admit("SELECT name NOT ILIKE '%root%' FROM spans", dialect="sqlite")
+
+    assert result.outcome is AdmissionOutcome.ADMIT
+    folded = (result.rendered_sql or "").lower().replace(" ", "")
+    assert "notlike" in folded
+    assert "ilike" not in folded
 
 
 def test_unaliased_json_each_qualifier_is_the_function_name() -> None:

@@ -21,7 +21,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
 from phoenix.db.helpers import SupportedSQLDialect, SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.allowlist import (
+from phoenix.server.mcp.sql.allowlist import (
     PLAN_GATE_ALLOWED_FUNCTIONS,
     SQLITE_TABLE_VALUED_FUNCTIONS,
     SRF_NODE_TYPES,
@@ -30,21 +30,21 @@ from phoenix.server.mcp_analytics_sql.allowlist import (
     load_allowlist,
     sqlite_authorizer_functions,
 )
-from phoenix.server.mcp_analytics_sql.catalog import (
+from phoenix.server.mcp.sql.catalog import (
     cached_indexed_json_accessors,
     resolve_pg_schema,
 )
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.normalize import (
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.normalize import (
     LOSSY_CONVERSION_NOTES,
     normalize_row_values,
 )
-from phoenix.server.mcp_analytics_sql.output import (
+from phoenix.server.mcp.sql.output import (
     AppliedSql,
     ExecuteSqlSuccessEnvelope,
 )
-from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
-from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
+from phoenix.server.mcp.sql.parse import admit, parse_sql, render
+from phoenix.server.mcp.sql.rewrite import RewriteContext, rewrite
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)

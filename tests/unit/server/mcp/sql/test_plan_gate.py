@@ -25,9 +25,9 @@ from typing import Any, cast
 import pytest
 from sqlalchemy import text
 
-from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.execute import (
+from phoenix.server.mcp.sql.allowlist import load_allowlist
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.execute import (
     ExecuteParams,
     _function_identifiers,
     _walk_plan,

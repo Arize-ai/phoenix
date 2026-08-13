@@ -2,13 +2,13 @@ import pytest
 from fastmcp import FastMCP
 from mcp.types import TextContent
 
-from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.execute import _success_envelope
-from phoenix.server.mcp_analytics_sql.output import ExecuteSqlErrorEnvelope
-from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome, try_parse_and_admit
-from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext
-from phoenix.server.mcp_analytics_sql.tools import (
+from phoenix.server.mcp.sql.allowlist import load_allowlist
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.execute import _success_envelope
+from phoenix.server.mcp.sql.output import ExecuteSqlErrorEnvelope
+from phoenix.server.mcp.sql.parse import AdmissionOutcome, try_parse_and_admit
+from phoenix.server.mcp.sql.rewrite import RewriteContext
+from phoenix.server.mcp.sql.tools import (
     _EXECUTE_SQL_OUTPUT_SCHEMA,
     _preamble,
     register_analytics_sql_tools,

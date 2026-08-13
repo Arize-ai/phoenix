@@ -12,19 +12,19 @@ from sqlglot.errors import ErrorLevel, ParseError, SqlglotError, UnsupportedErro
 from sqlglot.optimizer.scope import build_scope
 
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.allowlist import (
+from phoenix.server.mcp.sql.allowlist import (
     ALLOWED_CAST_TYPES,
     EXCLUDED_FUNC_CLASSES,
     Allowlist,
     allowed_func_classes,
     sqlglot_read_dialect,
 )
-from phoenix.server.mcp_analytics_sql.errors import (
+from phoenix.server.mcp.sql.errors import (
     AnalyticsSqlError,
     ErrorCode,
     admission_error_from_outcome,
 )
-from phoenix.server.mcp_analytics_sql.normalize import (
+from phoenix.server.mcp.sql.normalize import (
     is_date_shaped,
     is_time_shaped,
     parse_timestamp_literal,
@@ -111,6 +111,14 @@ def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
                 message=_grouping_limit_parse_message(sql) or "",
             ) from exc
         return _finish_parse(recovered, dialect=dialect)
+    except SqlglotError as exc:
+        # TokenError (unterminated comment, etc.) is not a ParseError. Left
+        # uncaught it escapes the error envelope as a tool crash.
+        raise admission_error_from_outcome(
+            "parse_error",
+            str(exc),
+            message="SQL could not be parsed. Check quotes, comments, and punctuation.",
+        ) from exc
     except RecursionError as exc:
         # The parser descends recursively, so nesting deep enough exhausts the
         # stack instead of failing to parse -- about a hundred parentheses, which
@@ -155,6 +163,7 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
     repaired = _repair_row_constructor(repaired, dialect=dialect)
     repaired = _repair_jsonb_typeof_text_extract(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_named_from_aliases(repaired, dialect=dialect)
+    repaired = _rewrite_sqlite_json_each_paths(repaired, dialect=dialect)
     repaired = _strip_sqlite_index_hints(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_interval_arithmetic(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_ilike(repaired, dialect=dialect)
@@ -454,13 +463,16 @@ def _select_has_star(select: exp.Select) -> bool:
 
 
 def _apply_select_output_names(select: exp.Select, names: list[str]) -> bool:
-    """Rename the leading projections. False when a star makes the width unknown."""
+    """Rename the projections. False when the list does not match the width."""
     if _select_has_star(select) or not select.expressions:
         return False
     expressions = list(select.expressions)
+    if len(names) > len(expressions):
+        return False
+    folded = [name.casefold() for name in names]
+    if len(folded) != len(set(folded)):
+        return False
     for index, name in enumerate(names):
-        if index >= len(expressions):
-            break
         expressions[index] = exp.alias_(expressions[index], name)
     select.set("expressions", expressions)
     return True
@@ -474,9 +486,9 @@ def _values_as_named_select(values: exp.Values, names: list[str]) -> Optional[ex
     selects: list[exp.Select] = []
     for row_index, row in enumerate(rows):
         cells = list(row.expressions) if isinstance(row, exp.Tuple) else [row]
-        if len(cells) < len(names):
+        if len(cells) != len(names):
             return None
-        projections: list[exp.Expression] = []
+        projections: list[exp.Expr] = []
         for column_index, name in enumerate(names):
             cell = cells[column_index].copy()
             if row_index == 0:
@@ -564,6 +576,7 @@ def _rewrite_sqlite_named_from_aliases(
                 relation_keys=relation_keys,
                 dialect=dialect,
             )
+        table.args["phoenix_tvf_aliases"] = names
         _clear_table_alias_columns(alias)
     return root
 
@@ -607,6 +620,28 @@ def _rename_json_each_alias_columns(
         changed = True
     if changed:
         select.set("expressions", expressions)
+
+
+def _rewrite_sqlite_json_each_paths(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """``json_each(doc, 'session')`` is a bad path; arrows already get ``$.session``."""
+    if dialect != "sqlite":
+        return root
+    for node in root.find_all(exp.Anonymous):
+        if (node.name or "").casefold() != "json_each":
+            continue
+        arguments = list(node.expressions)
+        if len(arguments) < 2:
+            continue
+        path = arguments[1]
+        if not isinstance(path, exp.Literal) or not path.is_string:
+            continue
+        text = str(path.this)
+        if not text or text.startswith("$"):
+            continue
+        path.set("this", "$." + text)
+    return root
 
 
 def _strip_sqlite_index_hints(
@@ -718,6 +753,8 @@ def _rewrite_sqlite_ilike(
         escape = node.args.get("escape")
         if escape is not None:
             like.set("escape", escape.copy())
+        if node.args.get("negate"):
+            like.set("negate", True)
         node.replace(like)
     return root
 
@@ -1010,7 +1047,10 @@ def set_operation_width_mismatch(root: exp.Expression) -> Optional[str]:
 
 
 def _too_many_alias_columns(
-    alias: Optional[exp.Expression], available: Optional[int]
+    alias: Optional[exp.Expression],
+    available: Optional[int],
+    *,
+    dialect: SupportedSQLDialectName,
 ) -> Optional[AdmissionResult]:
     declared = _alias_column_count(alias)
     if declared == 0:
@@ -1026,8 +1066,16 @@ def _too_many_alias_columns(
             AdmissionOutcome.UNSUPPORTED_SYNTAX,
             "Duplicate names in a column list are not supported. Give each column its own name.",
         )
-    if available is None or declared <= available:
+    if available is None or declared == available:
         return None
+    if declared < available:
+        if dialect != "sqlite":
+            return None
+        return AdmissionResult(
+            AdmissionOutcome.UNSUPPORTED_SYNTAX,
+            f"The alias names {declared} columns but the query produces {available}. "
+            "Name every column, or drop the list.",
+        )
     return AdmissionResult(
         AdmissionOutcome.UNSUPPORTED_SYNTAX,
         f"The alias names {declared} columns but the query produces {available}. "
@@ -1035,30 +1083,39 @@ def _too_many_alias_columns(
     )
 
 
-def _check_alias_column_list_arity(root: exp.Expression) -> Optional[AdmissionResult]:
-    """Refuse a column list longer than the relation it names.
+def _check_alias_column_list_arity(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> Optional[AdmissionResult]:
+    """Refuse a column list that does not match the relation it names.
 
-    Too few names is engine-authored (PostgreSQL keeps the extra columns).
-    Too many admits then fails: `WITH v(x, y) AS (SELECT id FROM projects)`.
+    Too many admits then fails. Too few is engine-authored on PostgreSQL
+    (extra columns keep their names) and a SQLite error (`table x has 2
+    values for 1 columns`), so SQLite requires an exact match.
     """
     for cte in root.find_all(exp.CTE):
-        refused = _too_many_alias_columns(cte.args.get("alias"), _relation_width(cte.this))
+        refused = _too_many_alias_columns(
+            cte.args.get("alias"), _relation_width(cte.this), dialect=dialect
+        )
         if refused is not None:
             return refused
     for subquery in root.find_all(exp.Subquery):
         refused = _too_many_alias_columns(
-            subquery.args.get("alias"), _relation_width(subquery.this)
+            subquery.args.get("alias"), _relation_width(subquery.this), dialect=dialect
         )
         if refused is not None:
             return refused
     for values in root.find_all(exp.Values):
-        refused = _too_many_alias_columns(values.args.get("alias"), _values_width(values))
+        refused = _too_many_alias_columns(
+            values.args.get("alias"), _values_width(values), dialect=dialect
+        )
         if refused is not None:
             return refused
     return None
 
 
-def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
+def _check_lossy_shapes(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> Optional[AdmissionResult]:
     """Refuse shapes that survive admission and lose meaning before execution.
 
     Each of these renders without complaint into something that means less than
@@ -1199,7 +1256,7 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 "An empty ROW() is not supported. Write at least one column.",
             )
-    arity = _check_alias_column_list_arity(root)
+    arity = _check_alias_column_list_arity(root, dialect=dialect)
     if arity is not None:
         return arity
     for set_operation in root.find_all(exp.Union, exp.Intersect, exp.Except):
@@ -1281,6 +1338,22 @@ def _check_dialect_specific_syntax(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 "LATERAL is not supported by SQLite. Write a comma join, or "
                 "correlate json_each in FROM without LATERAL.",
+            )
+        if isinstance(node, (exp.JSONBExtract, exp.JSONBExtractScalar)):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "`#>` and `#>>` are PostgreSQL JSONB operators. On SQLite write "
+                "json_extract(doc, '$.a.b') or attributes ->> '$.a'.",
+            )
+        if (
+            isinstance(node, exp.Anonymous)
+            and (node.name or "").casefold() == "json_each"
+            and not isinstance(node.parent, exp.Table)
+        ):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "json_each is a table-valued function. Put it in FROM, for example "
+                "`FROM spans, json_each(attributes)`.",
             )
         if isinstance(node, exp.Cast) and _cast_type_name(node.to) == "INTERVAL":
             return AdmissionResult(
@@ -3073,7 +3146,7 @@ def admit(
         # its generic message. A caller told `HexString` is not in the grammar
         # learns nothing; the lossy-shape refusals name the hazard and the
         # spelling that works.
-        or _check_lossy_shapes(root)
+        or _check_lossy_shapes(root, dialect=dialect)
         or _check_dialect_specific_syntax(root, dialect=dialect)
         or _check_structural_policy(root)
         or _check_double_quoted_timestamp_operands(root, allowlist=allowlist, dialect=dialect)
@@ -3138,7 +3211,7 @@ def try_parse_and_admit(
 ) -> AdmissionResult:
     """Parse and admit SQL, returning a structured outcome instead of raising."""
     if allowlist is None:
-        from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
+        from phoenix.server.mcp.sql.allowlist import load_allowlist
 
         allowlist = load_allowlist(dialect)
     try:

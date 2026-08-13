@@ -752,6 +752,6 @@ Ordered by how much they would change the design.
 
 ## References
 
-- Implementation: `src/phoenix/server/mcp_analytics_sql/`
-- Tests: `tests/unit/server/mcp_analytics_sql/`
+- Implementation: `src/phoenix/server/mcp/sql/`
+- Tests: `tests/unit/server/mcp/sql/`
 - Related: [Read replica routing](./pg-read-replica-routing.md)

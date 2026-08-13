@@ -11,23 +11,23 @@ from sqlglot import exp
 # silently disabling extensions other tests depend on for the rest of the session.
 import phoenix.db.engines  # noqa: F401  (imported for its extension setup)
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-from phoenix.server.mcp_analytics_sql.catalog import (
+from phoenix.server.mcp.sql.allowlist import load_allowlist
+from phoenix.server.mcp.sql.catalog import (
     ReflectedIndex,
     _classify,
     _sqlite_shape,
     indexed_json_accessors,
 )
-from phoenix.server.mcp_analytics_sql.catalog import _body as _index_body
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.parse import (
+from phoenix.server.mcp.sql.catalog import _body as _index_body
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.parse import (
     AdmissionOutcome,
     admit,
     parse_sql,
     render,
     try_parse_and_admit,
 )
-from phoenix.server.mcp_analytics_sql.rewrite import (
+from phoenix.server.mcp.sql.rewrite import (
     RewriteContext,
     _decode_node_id,
     _substitute_graphql_node_id,
@@ -673,7 +673,15 @@ def test_star_expands_sources_whose_columns_are_known(sql: str, must_contain: st
     assert must_contain.lower() in rendered.lower()
 
 
-def test_star_over_an_unnamed_projection_is_still_refused() -> None:
+def test_star_over_json_each_column_aliases_keeps_the_names() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT t.* FROM spans, json_each(attributes) AS t(k, v)", dialect="sqlite"
+    )
+    assert "star_expansion" in ctx.applied
+    folded = rendered.lower().replace(" ", "")
+    assert "ask" in folded or "as k" in rendered.lower()
+    assert "t.type" not in folded
+    assert "t.atom" not in folded
     """A projection with no name still cannot be expanded; skip would drop the source."""
     root = parse_sql("SELECT * FROM (SELECT count(*) FROM spans) t", dialect="sqlite")
     with pytest.raises(AnalyticsSqlError) as caught:
@@ -893,7 +901,7 @@ def test_json_path_with_an_embedded_quote_is_left_alone() -> None:
     `$."he said "."hi"` reads as two keys, and SQLite returns NULL rather than
     erroring, so the caller concludes the key is absent.
     """
-    from phoenix.server.mcp_analytics_sql.rewrite import _quoted_json_path
+    from phoenix.server.mcp.sql.rewrite import _quoted_json_path
 
     path = parse_sql("SELECT json_extract(attributes, '$.a') FROM spans", dialect="sqlite")
     node = next(iter(path.find_all(__import__("sqlglot").exp.JSONExtract)))
@@ -1253,9 +1261,9 @@ def test_values_in_a_cte_is_not_refused_as_a_star_over_values() -> None:
 def _rewrite_context(
     sql: str, *, dialect: SupportedSQLDialectName = "postgresql"
 ) -> tuple[RewriteContext, str]:
-    from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-    from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
-    from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
+    from phoenix.server.mcp.sql.allowlist import load_allowlist
+    from phoenix.server.mcp.sql.parse import admit, parse_sql, render
+    from phoenix.server.mcp.sql.rewrite import RewriteContext, rewrite
 
     allowlist = load_allowlist("sqlite")
     root = admit(parse_sql(sql, dialect=dialect), allowlist=allowlist, dialect=dialect)

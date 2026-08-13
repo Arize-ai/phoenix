@@ -21,13 +21,13 @@ import pytest
 from sqlglot import exp
 
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.allowlist import (
+from phoenix.server.mcp.sql.allowlist import (
     ALLOWED_FUNC_CLASSES,
     EXCLUDED_FUNC_CLASSES,
     allowed_func_classes,
 )
-from phoenix.server.mcp_analytics_sql.parse import AdmissionOutcome, _check_functions
-from tests.unit.server.mcp_analytics_sql.admission_fixtures import minimal_admission_allowlist
+from phoenix.server.mcp.sql.parse import AdmissionOutcome, _check_functions
+from tests.unit.server.mcp.sql.admission_fixtures import minimal_admission_allowlist
 
 
 def _function_classes() -> list[type[exp.Func]]:

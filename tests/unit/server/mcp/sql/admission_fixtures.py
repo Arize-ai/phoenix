@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from phoenix.server.mcp_analytics_sql.allowlist import Allowlist, TableSpec, load_allowlist
+from phoenix.server.mcp.sql.allowlist import Allowlist, TableSpec, load_allowlist
 
 _TEST_TABLES = frozenset({"spans", "traces", "projects"})
 

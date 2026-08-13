@@ -34,11 +34,11 @@ import sqlglot
 
 from phoenix.db.ddl import load_dialect_schema
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.allowlist import (
+from phoenix.server.mcp.sql.allowlist import (
     TableSpec,
     load_allowlist,
 )
-from phoenix.server.mcp_analytics_sql.manifest import manifest
+from phoenix.server.mcp.sql.manifest import manifest
 
 __all__ = ["DetailLevel", "render_schema_ddl", "resolve_table_filter", "validate_ddl"]
 

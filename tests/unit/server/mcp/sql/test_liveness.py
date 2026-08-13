@@ -25,13 +25,13 @@ from typing import Any
 import pytest
 from sqlalchemy import text
 
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
-from phoenix.server.mcp_analytics_sql.execute import (
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError
+from phoenix.server.mcp.sql.execute import (
     ExecuteParams,
     ExecutionSemaphore,
     execute_analytics_sql,
 )
-from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
+from phoenix.server.mcp.sql.teaching import describe_sql_schema
 from phoenix.server.types import DbSessionFactory
 
 # Statements are shaped so that a policy failure is the only plausible cause of an
@@ -149,6 +149,15 @@ PERMITTED = [
         id="indexed-by-hint",
     ),
     pytest.param("SELECT name ILIKE '%a%' AS v FROM spans", id="ilike"),
+    pytest.param("SELECT name NOT ILIKE '%zzzz%' AS v FROM spans", id="not-ilike"),
+    pytest.param(
+        "SELECT key AS v FROM spans, json_each(attributes, 'session')",
+        id="json_each-short-path",
+    ),
+    pytest.param(
+        "SELECT t.k AS v FROM spans, json_each(attributes) AS t(k, v)",
+        id="json_each-star-aliases-select",
+    ),
     pytest.param(
         "WITH x AS (SELECT id FROM projects) SELECT * FROM x",
         id="star-over-cte",
@@ -426,7 +435,7 @@ async def test_queue_slot_is_returned_when_a_waiter_is_cancelled() -> None:
     """
     import asyncio
 
-    from phoenix.server.mcp_analytics_sql.execute import ExecutionSemaphore
+    from phoenix.server.mcp.sql.execute import ExecutionSemaphore
 
     semaphore = ExecutionSemaphore()
     await semaphore.acquire("sqlite")
@@ -454,7 +463,7 @@ async def test_queue_slot_is_returned_when_a_waiter_is_cancelled_twice() -> None
     """
     import asyncio
 
-    from phoenix.server.mcp_analytics_sql.execute import ExecutionSemaphore
+    from phoenix.server.mcp.sql.execute import ExecutionSemaphore
 
     semaphore = ExecutionSemaphore()
     await semaphore.acquire("sqlite")
@@ -485,7 +494,7 @@ async def test_row_limit_is_clamped(
     authorised caller asking for ten million rows should not be able to decide
     how much memory the server spends answering.
     """
-    from phoenix.server.mcp_analytics_sql.execute import MAX_ROW_LIMIT
+    from phoenix.server.mcp.sql.execute import MAX_ROW_LIMIT
 
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(
@@ -542,7 +551,7 @@ async def test_amplifying_neighbours_stay_denied(
     string function. Admitting the first group is only defensible while this
     group stays refused.
     """
-    from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
+    from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
 
     db, db_path = analytics_sqlite_db
     with pytest.raises(AnalyticsSqlError) as exc:
@@ -554,7 +563,7 @@ async def test_sqlite_refuses_postgres_extract_syntax_before_execution(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
     """SQLGlot parses EXTRACT for SQLite even though SQLite cannot execute it."""
-    from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
+    from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
 
     db, db_path = analytics_sqlite_db
     with pytest.raises(AnalyticsSqlError) as exc:
@@ -722,7 +731,7 @@ async def test_cancelling_a_query_stops_the_worker(
     the load-bearing assertion — raising it means the cancel reached a query
     that was genuinely still running.
     """
-    from phoenix.server.mcp_analytics_sql import execute as execute_module
+    from phoenix.server.mcp.sql import execute as execute_module
 
     db, db_path = analytics_sqlite_db
     semaphore = ExecutionSemaphore()

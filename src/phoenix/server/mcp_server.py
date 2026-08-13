@@ -497,7 +497,7 @@ def create_phoenix_mcp_app(
         mcp.add_transform(code_mode)
     else:
         _install_progressive_disclosure(mcp, openapi_spec)
-    from phoenix.server.mcp_analytics_sql.tools import register_analytics_sql_tools
+    from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
 
     register_analytics_sql_tools(mcp, db=db)
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then

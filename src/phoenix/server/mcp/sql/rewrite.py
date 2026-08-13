@@ -10,21 +10,21 @@ from sqlglot import exp
 from sqlglot.optimizer.scope import build_scope
 
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.allowlist import (
+from phoenix.server.mcp.sql.allowlist import (
     GRAPHQL_NODE_ID_COLUMN,
     TABLE_GRAPHQL_TYPES,
     Allowlist,
     sqlglot_read_dialect,
 )
-from phoenix.server.mcp_analytics_sql.catalog import IndexedJsonAccessor
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.normalize import (
+from phoenix.server.mcp.sql.catalog import IndexedJsonAccessor
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.normalize import (
     format_timestamp_for_sqlite,
     parse_timestamp_literal,
     timestamp_column_names,
     unix_epoch_to_utc,
 )
-from phoenix.server.mcp_analytics_sql.parse import (
+from phoenix.server.mcp.sql.parse import (
     _JSON_EACH_COLUMNS,
     _TIMESTAMP_COMPARISONS,
     _allowlisted_table_name,
@@ -859,6 +859,19 @@ def _tvf_output_names(expression: exp.Expression) -> Optional[list[str]]:
     return list(columns) if columns is not None else None
 
 
+def _tvf_star_projections(expression: exp.Expression) -> Optional[list[tuple[str, str]]]:
+    """Physical TVF column and the name the caller asked the star to use."""
+    physical = _tvf_output_names(expression)
+    if physical is None:
+        return None
+    aliases = (
+        expression.args.get("phoenix_tvf_aliases") if isinstance(expression, exp.Table) else None
+    )
+    if not aliases:
+        return [(column_name, column_name) for column_name in physical]
+    return [(physical[index], aliases[index]) for index in range(min(len(aliases), len(physical)))]
+
+
 def _cte_output_names(
     root: exp.Expression,
     table: exp.Table,
@@ -962,7 +975,7 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     # tries to read that projection.
     selects = [node for node in root.walk() if isinstance(node, exp.Select)]
     for node in reversed(selects):
-        new_exprs: list[exp.Expression] = []
+        new_exprs: list[exp.Expr] = []
         local_changed = False
         for expression in node.expressions:
             # Two different nodes mean "star". A bare `*` is exp.Star and carries
@@ -1025,6 +1038,23 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                         # columns. Expanding it as a query-local relation refused
                         # a statement both backends execute.
                         new_exprs.append(expression)
+                        continue
+                    tvf_projections = _tvf_star_projections(source)
+                    if tvf_projections:
+                        for physical_name, output_name in tvf_projections:
+                            key = _identifier_key(output_name, quoted=False, dialect=ctx.dialect)
+                            if key in using_keys:
+                                if key in emitted_using:
+                                    continue
+                                emitted_using.add(key)
+                            column = exp.Column(this=exp.to_identifier(physical_name))
+                            if qualifier.name:
+                                column.set("table", qualifier.copy())
+                            if output_name != physical_name:
+                                new_exprs.append(exp.alias_(column, output_name))
+                            else:
+                                new_exprs.append(column)
+                        local_changed = True
                         continue
                     local_names = _expression_output_names(
                         source, root, dialect=ctx.dialect, qualifier=qualifier

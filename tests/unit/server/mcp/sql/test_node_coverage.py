@@ -36,8 +36,8 @@ import inspect
 import pytest
 from sqlglot import exp, parse_one
 
-from phoenix.server.mcp_analytics_sql.parse import _REFUSED_NODE_CLASSES
-from tests.unit.server.mcp_analytics_sql.admission_corpus import CASES
+from phoenix.server.mcp.sql.parse import _REFUSED_NODE_CLASSES
+from tests.unit.server.mcp.sql.admission_corpus import CASES
 
 # Structural classes a SELECT legitimately contains: clauses, literals,
 # identifiers, operators and the set-operation forms. Reviewed as a set rather
@@ -219,7 +219,7 @@ def test_governed_classes_still_exist_and_are_still_governed(name: str, check: s
     """
     assert hasattr(exp, name), f"{name} no longer exists in the parser"
     module, attr = check.split(".")
-    import phoenix.server.mcp_analytics_sql.parse as parse_module
+    import phoenix.server.mcp.sql.parse as parse_module
 
     assert module == "parse"
     assert hasattr(parse_module, attr), f"{check} no longer exists, so {name} is ungoverned"

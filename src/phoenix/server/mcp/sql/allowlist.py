@@ -9,7 +9,7 @@ from sqlglot import exp
 
 from phoenix.db.ddl import load_dialect_schema
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.manifest import manifest
+from phoenix.server.mcp.sql.manifest import manifest
 
 
 def sqlglot_read_dialect(dialect: SupportedSQLDialectName) -> str:

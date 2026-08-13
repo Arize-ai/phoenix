@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from phoenix.server.mcp_analytics_sql.ddl import DetailLevel, render_schema_ddl, validate_ddl
+from phoenix.server.mcp.sql.ddl import DetailLevel, render_schema_ddl, validate_ddl
 
 logger = logging.getLogger(__name__)
 

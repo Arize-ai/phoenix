@@ -9,11 +9,11 @@ from sqlglot import exp
 from phoenix.db.ddl import load_dialect_schema
 from phoenix.db.ddl.loader import TableSchema
 from phoenix.db.helpers import SupportedSQLDialectName
-from phoenix.server.mcp_analytics_sql.allowlist import Allowlist, TableSpec, load_allowlist
-from phoenix.server.mcp_analytics_sql.ddl import DetailLevel, render_schema_ddl, validate_ddl
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.parse import admit, parse_sql, render
-from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
+from phoenix.server.mcp.sql.allowlist import Allowlist, TableSpec, load_allowlist
+from phoenix.server.mcp.sql.ddl import DetailLevel, render_schema_ddl, validate_ddl
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.parse import admit, parse_sql, render
+from phoenix.server.mcp.sql.rewrite import RewriteContext, rewrite
 
 # Named `backend` rather than `dialect` on purpose: the unit conftest skips any
 # test with a `dialect` parameter set to "postgresql" when running against SQLite,
@@ -47,7 +47,7 @@ def test_detailed_output_starts_with_the_raw_schema_asset(backend: SupportedSQLD
 
 def test_postgresql_unqualification_only_changes_table_syntax() -> None:
     """Comments and literals resembling qualified names are preserved."""
-    from phoenix.server.mcp_analytics_sql.ddl import _unqualify_postgresql_ddl
+    from phoenix.server.mcp.sql.ddl import _unqualify_postgresql_ddl
 
     raw = """CREATE TABLE public.widgets (
     parent_id INTEGER REFERENCES public.parents (id),
@@ -270,8 +270,8 @@ def test_allowlist_rejects_case_insensitive_physical_virtual_collisions(
     """SQLite has case-insensitive identifiers, so a virtual overlay cannot share one."""
     from types import MappingProxyType
 
-    from phoenix.server.mcp_analytics_sql import allowlist as allowlist_module
-    from phoenix.server.mcp_analytics_sql.manifest import (
+    from phoenix.server.mcp.sql import allowlist as allowlist_module
+    from phoenix.server.mcp.sql.manifest import (
         AnalyticsSqlManifest,
         Area,
         TableCuration,
@@ -321,8 +321,8 @@ def test_allowlist_rejects_curation_for_unexposed_columns(
     """DDL migrations must not leave incorrect column guidance behind."""
     from types import MappingProxyType
 
-    from phoenix.server.mcp_analytics_sql import allowlist as allowlist_module
-    from phoenix.server.mcp_analytics_sql.manifest import (
+    from phoenix.server.mcp.sql import allowlist as allowlist_module
+    from phoenix.server.mcp.sql.manifest import (
         AnalyticsSqlManifest,
         Area,
         TableCuration,
@@ -433,7 +433,7 @@ def test_misleading_columns_carry_a_note(backend: str) -> None:
 
 def test_an_empty_selection_says_which_filter_matched_nothing() -> None:
     """Silence cannot distinguish a typo from an empty deployment."""
-    from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
+    from phoenix.server.mcp.sql.teaching import describe_sql_schema
 
     filters: tuple[dict[str, Any], ...] = (
         {"tables": ["users"]},
@@ -449,7 +449,7 @@ def test_an_empty_selection_says_which_filter_matched_nothing() -> None:
 
 def test_unquoted_table_filter_folds_like_sql() -> None:
     """executeSql folds FROM SPANS; describeSqlSchema must find the same table."""
-    from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
+    from phoenix.server.mcp.sql.teaching import describe_sql_schema
 
     folded = describe_sql_schema(tables=["SPANS"], detail="brief", dialect="sqlite")
     exact = describe_sql_schema(tables=["spans"], detail="brief", dialect="sqlite")
@@ -465,7 +465,7 @@ def test_timestamp_column_names_match_unqualified_table_name(
     from sqlalchemy import TIMESTAMP, Column, MetaData, Table
 
     from phoenix.db.models import Base
-    from phoenix.server.mcp_analytics_sql.normalize import timestamp_column_names
+    from phoenix.server.mcp.sql.normalize import timestamp_column_names
 
     fake = MetaData()
     Table(
@@ -486,7 +486,7 @@ def test_star_expansion_matches_physical_ddl_and_virtual_columns(
     """Star expansion preserves DDL order and appends query-only overlays."""
     import sqlglot
 
-    from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, _expand_stars
+    from phoenix.server.mcp.sql.rewrite import RewriteContext, _expand_stars
 
     allowlist = load_allowlist(backend)
     sqlglot_dialect = "postgres" if backend == "postgresql" else "sqlite"
@@ -531,7 +531,7 @@ def test_published_index_spellings_survive_the_parser() -> None:
     round-trip assertion: published spellings must still parse.
     """
 
-    from phoenix.server.mcp_analytics_sql.catalog import _body
+    from phoenix.server.mcp.sql.catalog import _body
 
     published = _body(
         "CREATE INDEX ix ON spans USING btree "
@@ -565,7 +565,7 @@ def test_the_array_cast_workaround_only_touches_json_operands() -> None:
     over an array literal, which is exactly the population live reflection
     serves.
     """
-    from phoenix.server.mcp_analytics_sql.catalog import _body
+    from phoenix.server.mcp.sql.catalog import _body
 
     stripped = _body("CREATE INDEX i ON spans (((attributes #>> '{a,b}'::text[])))")
     assert "::text[]" not in stripped
@@ -579,7 +579,7 @@ def test_the_array_cast_workaround_only_touches_json_operands() -> None:
 
 def test_quoted_schema_qualification_is_not_the_index_body() -> None:
     """A quoted schema is one identifier, not the whole table name."""
-    from phoenix.server.mcp_analytics_sql.catalog import _body
+    from phoenix.server.mcp.sql.catalog import _body
 
     assert _body('CREATE INDEX ix ON "Phoenix".spans USING btree (start_time)') == "(start_time)"
     assert _body('CREATE INDEX ix ON "Phoenix"."spans" USING btree (start_time)') == "(start_time)"
@@ -597,8 +597,8 @@ def test_no_allowlisted_table_reuses_a_timestamp_column_name_for_another_type() 
     would make the refusal fire on the wrong column, so it fails here instead.
     """
     from phoenix.db.models import Base
-    from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-    from phoenix.server.mcp_analytics_sql.normalize import timestamp_column_names
+    from phoenix.server.mcp.sql.allowlist import load_allowlist
+    from phoenix.server.mcp.sql.normalize import timestamp_column_names
 
     tables = load_allowlist("sqlite").tables
     names = timestamp_column_names(tables)

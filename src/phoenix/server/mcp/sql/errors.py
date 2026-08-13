@@ -46,8 +46,8 @@ _EQUIVALENT: dict[str, str] = {
     # through a plain call from the bundled stats extension. Their agreement
     # across nulls, empty input, single rows and the range extremes is asserted
     # in test_percentile_parity.py, which is what makes this safe to suggest.
-    "percentile_cont": "percentile(x, p)",
-    "percentile": "percentile_cont(p) WITHIN GROUP (ORDER BY x)",
+    "percentile_cont": "percentile(x, p), where p is 0–100 (e.g. percentile(x, 50))",
+    "percentile": "percentile_cont(p) WITHIN GROUP (ORDER BY x), where p is 0–1",
     "median": "percentile_cont(0.5) WITHIN GROUP (ORDER BY x)",
     # Same length-bounded slice as substring, which is already admitted.
     # LEFT and RIGHT themselves are not: SQLite has neither, and admitting the

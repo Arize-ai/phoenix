@@ -6,17 +6,17 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import TypeAdapter
 
-from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-from phoenix.server.mcp_analytics_sql.catalog import (
+from phoenix.server.mcp.sql.allowlist import load_allowlist
+from phoenix.server.mcp.sql.catalog import (
     EngineInfo,
     ReflectedIndex,
     cached_engine_info,
     reflect_indexes,
     resolve_pg_schema,
 )
-from phoenix.server.mcp_analytics_sql.ddl import DetailLevel, resolve_table_filter
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
-from phoenix.server.mcp_analytics_sql.execute import (
+from phoenix.server.mcp.sql.ddl import DetailLevel, resolve_table_filter
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError
+from phoenix.server.mcp.sql.execute import (
     BYTE_LIMIT,
     DEFAULT_ROW_LIMIT,
     MAX_RESPONSE_BYTES,
@@ -24,11 +24,11 @@ from phoenix.server.mcp_analytics_sql.execute import (
     ExecuteParams,
     execute_analytics_sql,
 )
-from phoenix.server.mcp_analytics_sql.output import (
+from phoenix.server.mcp.sql.output import (
     ExecuteSqlErrorEnvelope,
     ExecuteSqlSuccessEnvelope,
 )
-from phoenix.server.mcp_analytics_sql.teaching import describe_sql_schema
+from phoenix.server.mcp.sql.teaching import describe_sql_schema
 from phoenix.server.mcp_server import _META_ANNOTATIONS, _META_TAG
 from phoenix.server.types import DbSessionFactory
 

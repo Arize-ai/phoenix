@@ -11,9 +11,9 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlglot import exp, parse_one
 
-from phoenix.server.mcp_analytics_sql.allowlist import load_allowlist
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp_analytics_sql.execute import (
+from phoenix.server.mcp.sql.allowlist import load_allowlist
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.execute import (
     MAX_RESPONSE_BYTES,
     ExecuteParams,
     _consume_stream,
@@ -27,11 +27,11 @@ from phoenix.server.mcp_analytics_sql.execute import (
     resolve_sqlite_db_path,
     verify_postgres_plan,
 )
-from phoenix.server.mcp_analytics_sql.normalize import (
+from phoenix.server.mcp.sql.normalize import (
     LOSSY_CONVERSION_NOTES,
     normalize_row_values,
 )
-from phoenix.server.mcp_analytics_sql.rewrite import RewriteContext, rewrite
+from phoenix.server.mcp.sql.rewrite import RewriteContext, rewrite
 from phoenix.server.types import DbSessionFactory
 
 
@@ -132,7 +132,7 @@ async def test_path_is_resolved_from_db_factory_when_caller_omits_it(
 
 async def test_sqlite_path_discovery_is_cached_per_factory() -> None:
     """Repeated analytics queries must not reopen a session for stable metadata."""
-    from phoenix.server.mcp_analytics_sql import execute as execute_module
+    from phoenix.server.mcp.sql import execute as execute_module
 
     calls = 0
 
@@ -162,7 +162,7 @@ async def test_missing_sqlite_path_is_refused_and_says_so_accurately(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The refusal must name the real cause, since it is the only clue a caller gets."""
-    from phoenix.server.mcp_analytics_sql import execute as execute_module
+    from phoenix.server.mcp.sql import execute as execute_module
 
     db, _ = analytics_sqlite_db
 
@@ -182,7 +182,7 @@ def test_sqlite_read_uri_escapes_filename_delimiters() -> None:
 
 
 async def test_sqlite_path_discovery_returns_an_analytics_error_when_it_cannot_connect() -> None:
-    from phoenix.server.mcp_analytics_sql import execute as execute_module
+    from phoenix.server.mcp.sql import execute as execute_module
 
     class FailingDb:
         @asynccontextmanager
@@ -385,7 +385,7 @@ async def test_the_schema_is_resolved_not_assumed(
     not `current_schema()`, which reports where a CREATE would land rather than
     where the table is.
     """
-    import phoenix.server.mcp_analytics_sql.catalog as catalog
+    import phoenix.server.mcp.sql.catalog as catalog
 
     monkeypatch.setattr(catalog, "get_env_database_schema", lambda: "configured_elsewhere")
     assert await catalog.resolve_pg_schema(db) == "configured_elsewhere"
@@ -410,7 +410,7 @@ async def test_the_schema_is_resolved_not_assumed(
 async def test_a_failed_schema_probe_does_not_cache_the_public_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phoenix.server.mcp_analytics_sql.catalog as catalog
+    import phoenix.server.mcp.sql.catalog as catalog
 
     class FailingDb:
         dialect = type("Dialect", (), {"value": "postgresql"})()
@@ -427,7 +427,7 @@ async def test_a_failed_schema_probe_does_not_cache_the_public_fallback(
 async def test_schema_resolution_does_not_cross_database_contexts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phoenix.server.mcp_analytics_sql.catalog as catalog
+    import phoenix.server.mcp.sql.catalog as catalog
 
     class Session:
         def __init__(self, schema: str) -> None:
@@ -460,7 +460,7 @@ async def test_schema_resolution_does_not_cross_database_contexts(
 async def test_a_failed_index_reflection_does_not_disable_future_index_rewrites(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phoenix.server.mcp_analytics_sql.catalog as catalog
+    import phoenix.server.mcp.sql.catalog as catalog
 
     class Db:
         dialect = SimpleNamespace(value="sqlite")
@@ -510,7 +510,7 @@ async def test_indexed_accessors_are_cached_per_factory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Different SQLite factories must not share catalog metadata."""
-    import phoenix.server.mcp_analytics_sql.catalog as catalog
+    import phoenix.server.mcp.sql.catalog as catalog
 
     class Db:
         dialect = SimpleNamespace(value="sqlite")
