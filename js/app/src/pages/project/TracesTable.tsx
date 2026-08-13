@@ -285,6 +285,7 @@ export function TracesTable(props: TracesTableProps) {
   const [searchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validTraceFilterCondition, setValidTraceFilterCondition] =
@@ -967,6 +968,12 @@ export function TracesTable(props: TracesTableProps) {
   );
 
   useEffect(() => {
+    // The parent query preloads these initial variables, so refetch only after
+    // sorting, filtering, streaming, or the live time window changes.
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     //if the sorting changes, we need to reset the pagination
     const sort = sorting[0];
     startTransition(() => {
