@@ -155,6 +155,7 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
     repaired = _repair_row_constructor(repaired, dialect=dialect)
     repaired = _repair_jsonb_typeof_text_extract(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_named_from_aliases(repaired, dialect=dialect)
+    repaired = _rewrite_sqlite_interval_arithmetic(repaired, dialect=dialect)
     return _fold_unquoted_identifiers(repaired, dialect=dialect)
 
 
@@ -529,6 +530,88 @@ def _rewrite_sqlite_named_from_aliases(
                 alias=exp.TableAlias(this=relation_name) if relation_name is not None else None,
             )
         )
+    return root
+
+
+_SQLITE_INTERVAL_UNITS = {
+    "second": "seconds",
+    "seconds": "seconds",
+    "minute": "minutes",
+    "minutes": "minutes",
+    "hour": "hours",
+    "hours": "hours",
+    "day": "days",
+    "days": "days",
+    "week": "days",
+    "weeks": "days",
+    "month": "months",
+    "months": "months",
+    "year": "years",
+    "years": "years",
+}
+
+
+def _sqlite_interval_modifier(interval: exp.Interval, *, negate: bool) -> Optional[str]:
+    """SQLite date-modifier spelling for an INTERVAL, or None if it cannot be mapped."""
+    unit = interval.args.get("unit")
+    unit_name = (unit.name if isinstance(unit, exp.Expression) else "") or ""
+    sqlite_unit = _SQLITE_INTERVAL_UNITS.get(unit_name.casefold())
+    if sqlite_unit is None:
+        return None
+    raw = interval.this
+    count_text = raw.this if isinstance(raw, exp.Literal) else None
+    if count_text is None:
+        return None
+    try:
+        count: float | int = float(count_text) if "." in str(count_text) else int(count_text)
+    except (TypeError, ValueError):
+        return None
+    if unit_name.casefold() in {"week", "weeks"}:
+        count = count * 7
+    if negate:
+        count = -count
+    sign = "+" if count >= 0 else ""
+    return f"{sign}{count} {sqlite_unit}"
+
+
+def _rewrite_sqlite_interval_arithmetic(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """``start_time + INTERVAL '1 day'`` as ``datetime(start_time, '+1 days')``.
+
+    SQLite has no interval type. The generator still emits ``INTERVAL '1' DAY``,
+    which is a syntax error at the engine after admission. The date-modifier
+    form is the same request.
+    """
+    if dialect != "sqlite":
+        return root
+    for node in list(root.find_all(exp.Add, exp.Sub)):
+        left, right = node.this, node.expression
+        if isinstance(right, exp.Interval) and not isinstance(left, exp.Interval):
+            modifier = _sqlite_interval_modifier(right, negate=isinstance(node, exp.Sub))
+            if modifier is None or left is None:
+                continue
+            node.replace(
+                exp.Anonymous(
+                    this="datetime",
+                    expressions=[left.copy(), exp.Literal.string(modifier)],
+                )
+            )
+        elif (
+            isinstance(left, exp.Interval)
+            and not isinstance(right, exp.Interval)
+            and isinstance(node, exp.Add)
+            and right is not None
+        ):
+            modifier = _sqlite_interval_modifier(left, negate=False)
+            if modifier is None:
+                continue
+            node.replace(
+                exp.Anonymous(
+                    this="datetime",
+                    expressions=[right.copy(), exp.Literal.string(modifier)],
+                )
+            )
     return root
 
 
@@ -1093,6 +1176,12 @@ def _check_dialect_specific_syntax(
                 "CAST to INTERVAL is not supported by SQLite. SQLite has no "
                 "interval type, and the cast silently becomes a number. "
                 "Subtract timestamps with unixepoch, or compare them as text.",
+            )
+        if isinstance(node, exp.Interval):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "INTERVAL arithmetic is not supported by SQLite in this form. "
+                "Use datetime(column, '+1 day'), or subtract unixepoch values.",
             )
         if isinstance(node, exp.Table) and "indexed" in node.args:
             return AdmissionResult(

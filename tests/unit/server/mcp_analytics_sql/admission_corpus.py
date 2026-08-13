@@ -1050,4 +1050,16 @@ CASES: tuple[AdmissionCase, ...] = (
         note="CAST AS TIME as TEXT returns the full datetime; time() is the time-of-day constructor",
         dialect="sqlite",
     ),
+    AdmissionCase(
+        sql="SELECT start_time + INTERVAL '1 day' AS v FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="SQLite has no INTERVAL; rewrite to datetime(start_time, '+1 days') rather than admit then fail near DAY",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT INTERVAL '1 day' AS v FROM spans",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a bare INTERVAL is not a SQLite value; the additive form is rewritten, this one is refused",
+        dialect="sqlite",
+    ),
 )

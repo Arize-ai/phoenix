@@ -129,6 +129,9 @@ GOVERNED_BY_CHECK: dict[str, str] = {
     # ANY(VALUES (...)) as a list of literals.
     "Any": "parse._check_dialect_specific_syntax",
     "All": "parse._check_dialect_specific_syntax",
+    # SQLite has no interval type. Additive `start_time + INTERVAL '1 day'` is
+    # rewritten to datetime(); a leftover Interval is refused. PostgreSQL runs it.
+    "Interval": "parse._rewrite_sqlite_interval_arithmetic",
     # SQLGlot misparses `jsonb #> ARRAY['a','b']` as Bracket around
     # JSONBExtract(doc, Column(ARRAY)). parse_sql rebuilds the Array path;
     # any other Bracket still fails the structural allowlist.

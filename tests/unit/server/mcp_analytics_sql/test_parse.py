@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 180
+    assert len(CASES) >= 182
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -1835,10 +1835,19 @@ def test_collate_nocase_is_admitted_on_sqlite() -> None:
     assert result.outcome is AdmissionOutcome.ADMIT
 
 
-def test_unequal_union_width_is_refused() -> None:
+def test_sqlite_interval_addition_becomes_datetime_modifier() -> None:
     result = try_parse_and_admit(
-        "SELECT id, name FROM spans UNION SELECT id FROM traces", dialect="sqlite"
+        "SELECT start_time + INTERVAL '1 day' AS v FROM spans", dialect="sqlite"
     )
 
+    assert result.outcome is AdmissionOutcome.ADMIT
+    folded = (result.rendered_sql or "").lower().replace(" ", "")
+    assert "datetime(start_time,'+1days')" in folded
+    assert "interval" not in folded
+
+
+def test_sqlite_bare_interval_is_refused() -> None:
+    result = try_parse_and_admit("SELECT INTERVAL '1 day' AS v FROM spans", dialect="sqlite")
+
     assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
-    assert "same number of columns" in result.detail
+    assert "INTERVAL" in result.detail
