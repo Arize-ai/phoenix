@@ -651,6 +651,35 @@ async def test_session_filter_any_io_returns_any_turn_matches(db: DbSessionFacto
         assert by_upper_needle == by_input
 
 
+async def test_session_filter_io_resolves_prefix_collisions(db: DbSessionFactory) -> None:
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project, start_time=start)
+        trace = await _add_trace(session, project, project_session, start_time=start)
+        await _add_span(
+            session,
+            trace,
+            attributes={
+                "input": "prefix",
+                "input.value": "valid-input",
+                "output": "prefix",
+                "output.value": "valid-output",
+            },
+            start_time=start,
+        )
+
+        for condition in (
+            "'valid-input' in any_input",
+            "first_input == 'valid-input'",
+            "'valid-output' in any_output",
+            "last_output == 'valid-output'",
+        ):
+            assert await _matched_rowids(session, SessionFilter(condition), project) == {
+                project_session.id
+            }
+
+
 async def test_session_filter_first_last_io_returns_window_turn_matches(
     db: DbSessionFactory,
 ) -> None:
