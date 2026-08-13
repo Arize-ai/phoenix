@@ -786,6 +786,27 @@ class TestATIFV17Conversion:
         )
         assert parent_trace_id == expected_trace_id
 
+    def test_same_embedded_subagent_in_two_traces_does_not_collide(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        # The same subagent document can be embedded under different parents.
+        # Phoenix requires globally unique span IDs, so the copies must not
+        # share IDs even though they are byte-identical documents. This is the
+        # behavior that mixing the trace ID into the span seed provides.
+        second_parent = {
+            **json.loads(json.dumps(v17_embedded_subagents)),
+            "trajectory_id": "other-parent-doc",
+            "session_id": "run-v17-002",
+        }
+        spans = _convert_atif_trajectories_to_spans([v17_embedded_subagents, second_parent])
+
+        span_ids = [span["context"]["span_id"] for span in spans]
+        assert len(set(span_ids)) == len(span_ids)
+        # Both traces really do contain the same child document.
+        child_roots = [s for s in spans if s["name"] == "researcher"]
+        assert len(child_roots) == 2
+        assert len({s["context"]["trace_id"] for s in child_roots}) == 2
+
     def test_deterministic_dispatch_skips_llm_span(
         self, v17_embedded_subagents: Dict[str, Any]
     ) -> None:
