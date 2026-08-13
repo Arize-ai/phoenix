@@ -170,6 +170,13 @@ def test_brief_is_a_catalogue_and_detailed_is_a_schema() -> None:
     assert len(brief) < len(detailed)
 
 
+def test_experiment_run_annotations_grain_warns_about_join_fanout() -> None:
+    brief = render_schema_ddl(
+        tables=["experiment_run_annotations"], detail="brief", dialect="sqlite"
+    )
+    assert "COUNT(DISTINCT experiment_runs.id)" in brief
+
+
 @pytest.mark.parametrize("backend", DIALECTS)
 def test_keys_and_uniqueness_are_rendered(backend: str) -> None:
     """Without these a caller cannot tell whether a join fans out.
@@ -469,6 +476,10 @@ def test_published_index_spellings_survive_the_parser() -> None:
     redundant cast is a workaround, not a policy: admission allows array casts,
     and the restriction it once fell foul of exists to block catalog types like
     regclass, not arrays.
+
+    WORKAROUND sqlglot<=30.15.0 -- the catalog strip in `_IMPLICIT_ARRAY_CAST`
+    can go when pin > 30.16.0 (tobymao/sqlglot#8063, closes #8035). Keep the
+    round-trip assertion: published spellings must still parse.
     """
 
     from phoenix.server.mcp_analytics_sql.catalog import _body
@@ -491,6 +502,10 @@ def test_published_index_spellings_survive_the_parser() -> None:
 
 def test_the_array_cast_workaround_only_touches_json_operands() -> None:
     """Stripping a cast that resolves a polymorphic argument breaks the index.
+
+    WORKAROUND sqlglot<=30.15.0 -- keep this guard after the catalog strip
+    is removed (pin > 30.16.0, #8063 / #8035): a future broader strip must
+    still not eat a load-bearing polymorphic cast.
 
     The workaround exists because SQLGlot mis-parses `a #>> b::text[]`. A
     blanket `(?<=')::text[]` also caught casts doing real work:

@@ -141,7 +141,13 @@ MANIFEST = AnalyticsSqlManifest(
                             time_column="start_time",
                             virtual_columns=frozenset({"latency_ms"}),
                         ),
-                        "experiment_run_annotations": TableCuration(),
+                        "experiment_run_annotations": TableCuration(
+                            grain=(
+                                "One annotation on an experiment run; joining to "
+                                "experiment_runs multiplies row count. Use "
+                                "COUNT(DISTINCT experiment_runs.id) to count runs"
+                            )
+                        ),
                     }
                 )
             ),
