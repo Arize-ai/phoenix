@@ -75,8 +75,9 @@ async function installAgentDefaults({ page }: { page: Page }) {
               exportRemoteTraces: false,
               hasAcknowledgedConsent: false,
             },
+            // `graphql.mutations` is deliberately absent: it is not persisted
+            // and any seeded value would be discarded on rehydration.
             capabilities: {
-              "graphql.mutations": false,
               "web.access": false,
             },
           },
