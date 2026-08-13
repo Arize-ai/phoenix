@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 106
+    assert len(CASES) >= 117
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -1714,6 +1714,7 @@ def test_qualify_refusal_names_the_subquery_spelling() -> None:
     assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
     assert "QUALIFY" in caught.value.message
     assert "ROW_NUMBER()" in caught.value.message
+    assert "SELECT *" not in caught.value.message
     assert "(Qualify)" not in caught.value.message
 
 

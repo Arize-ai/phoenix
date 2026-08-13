@@ -50,6 +50,7 @@ REVIEWED_STRUCTURAL: frozenset[str] = frozenset(
         "Add",
         "Alias",
         "Block",
+        "Boolean",
         "CTE",
         "Column",
         "Copy",
@@ -135,6 +136,8 @@ GOVERNED_BY_CHECK: dict[str, str] = {
     # `col -> 'k'` inside a call parses as Lambda. parse_sql rebuilds JSON
     # accessors; a remaining Lambda is refused by `_REFUSED_NODE_CLASSES`.
     "Lambda": "parse._repair_lambda_json_accessor",
+    # Ranking windows refuse FILTER; COUNT(*) FILTER OVER is admitted.
+    "Filter": "parse._check_lossy_shapes",
 }
 
 

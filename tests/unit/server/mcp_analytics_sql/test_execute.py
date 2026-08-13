@@ -894,6 +894,12 @@ class TestLossyNormalisationIsReported:
         applied: set[str] = set()
         assert normalize_row_values([("llm", {"a": 1})], applied) == [["llm", {"a": 1}]]
         assert applied == set()
+
+    def test_a_time_of_day_becomes_an_iso_string(self) -> None:
+        from datetime import time
+
+        applied: set[str] = set()
+        assert normalize_row_values([time(12, 0)], applied) == ["12:00:00"]
         assert applied == set()
 
     async def test_the_note_reaches_the_envelope(

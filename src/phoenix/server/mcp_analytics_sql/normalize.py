@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Optional
 from uuid import UUID
@@ -46,7 +46,7 @@ def unix_epoch_to_utc(value: str) -> Optional[tuple[datetime, str]]:
     declines them.
     """
     try:
-        number = float(value) if "." in value else int(value)
+        number = float(value) if "." in value or "e" in value.casefold() else int(value)
     except ValueError:
         return None
     unit = "milliseconds" if abs(number) >= 1e12 else "seconds"
@@ -96,6 +96,8 @@ def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
         if value.tzinfo is None:
             value = value.replace(tzinfo=timezone.utc)
         return value.astimezone(timezone.utc).isoformat()
+    if isinstance(value, time):
+        return value.isoformat()
     if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, timedelta):

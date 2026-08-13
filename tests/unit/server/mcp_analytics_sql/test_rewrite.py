@@ -531,6 +531,43 @@ def test_negative_epoch_is_rewritten() -> None:
     assert any("Unix epoch" in note for note in ctx.notes)
 
 
+def test_scientific_epoch_without_a_dot_is_rewritten() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT count(*) FROM spans WHERE start_time >= 1e9",
+        dialect="postgresql",
+    )
+    assert "1e9" not in rendered.casefold()
+    assert "2001-09-09" in rendered
+    assert any("Unix epoch" in note for note in ctx.notes)
+
+
+def test_epoch_inside_values_is_cast_to_timestamptz() -> None:
+    _, rendered = _rewritten(
+        "SELECT count(*) FROM spans WHERE start_time IN (VALUES (1719792000))",
+        dialect="postgresql",
+    )
+    assert "1719792000" not in rendered
+    assert "timestamptz" in rendered.casefold() or "timestamp with time zone" in rendered.casefold()
+
+
+def test_parenthesised_integer_json_arrow_stays_an_operator() -> None:
+    _, rendered = _rewritten(
+        "SELECT jsonb_build_array(10, 20, 30) -> (1) AS v",
+        dialect="postgresql",
+    )
+    assert "jsonb_extract_path" not in rendered.casefold()
+    assert "->" in rendered
+
+
+def test_unqualified_graphql_node_id_qualifies_the_sole_graphql_table() -> None:
+    _, rendered = _rewritten(
+        "SELECT graphql_node_id FROM spans JOIN span_costs ON span_costs.span_rowid = spans.id",
+        dialect="postgresql",
+    )
+    assert "CAST(spans.id AS TEXT)" in rendered or "CAST(spans.id AS text)" in rendered.lower()
+    assert "CAST(id AS TEXT)" not in rendered.replace("CAST(spans.id AS TEXT)", "")
+
+
 def test_qualified_star_on_a_missing_alias_names_the_missing_relation() -> None:
     root = parse_sql("SELECT t.* FROM spans s", dialect="postgresql")
     with pytest.raises(AnalyticsSqlError) as caught:
@@ -1039,7 +1076,7 @@ def test_graphql_node_id_membership_predicates_reach_the_primary_key() -> None:
         (
             f"SELECT name FROM projects WHERE graphql_node_id NOT IN ('{one}')",
             "postgresql",
-            "NOT id IN (1)",
+            "NOT projects.id IN (1)",
         ),
         (
             f"SELECT name FROM projects WHERE graphql_node_id IN (VALUES ('{one}'))",

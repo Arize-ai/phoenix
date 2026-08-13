@@ -313,11 +313,11 @@ def _is_timestamp_cast_target(target: Optional[exp.Expression]) -> bool:
     return name.upper().split("(")[0].strip() in _TIMESTAMP_CAST_TYPES
 
 
-def _enclosing_array(node: exp.Expression) -> Optional[exp.Array]:
+def _enclosing_array(node: exp.Expression) -> Optional[exp.Expression]:
     current = node.parent
-    while isinstance(current, (exp.Cast, exp.Paren)):
+    while isinstance(current, (exp.Cast, exp.Paren, exp.Tuple)):
         current = current.parent
-    return current if isinstance(current, exp.Array) else None
+    return current if isinstance(current, (exp.Array, exp.Values)) else None
 
 
 def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -381,8 +381,8 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
         replacement: exp.Expression = exp.Literal.string(rendered)
         # CAST(1719792000 AS bigint) compared to timestamptz: replacing only
         # the inner number leaves CAST('<instant>' AS bigint), which
-        # PostgreSQL rejects. Inside ARRAY[...], a bare string types the
-        # array as text[]; cast each element to timestamptz.
+        # PostgreSQL rejects. Inside ARRAY[...] or VALUES (...), a bare
+        # string types the list as text; cast each element to timestamptz.
         if ctx.dialect == "postgresql" and _enclosing_array(node) is not None:
             replacement = exp.Cast(
                 this=replacement,
@@ -532,6 +532,31 @@ def _canonicalize_postgres_dynamic_json_extract(
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         inner = _strip_parens(node.expression)
         if inner is None or isinstance(inner, exp.JSONPath):
+            continue
+        # Array subscripts (`-> 1`, `-> (0)`) are integers. jsonb_extract_path
+        # only accepts text keys, so rewriting them changes a working operator
+        # into a missing function. A parenthesised integer still has to become
+        # a JSONPath subscript: SQLGlot renders `-> (1)` as json_extract_path.
+        if isinstance(inner, exp.Literal) and inner.is_number:
+            if inner is not node.expression:
+                try:
+                    index = int(inner.this)
+                except (TypeError, ValueError):
+                    continue
+                # `only_json_types` is how the generator distinguishes `-> 1`
+                # from json_extract_path. Copying the path without it still
+                # emits the function, and `'1'` is an object key, not index 1.
+                node.set(
+                    "expression",
+                    exp.JSONPath(
+                        expressions=[
+                            exp.JSONPathRoot(),
+                            exp.JSONPathSubscript(this=index),
+                        ]
+                    ),
+                )
+                node.set("only_json_types", True)
+                changed = True
             continue
         name = (
             "jsonb_extract_path_text"
@@ -1377,10 +1402,14 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
     # Predicate position first: rewriting the whole comparison removes the column
     # before the projection pass can see it.
     def physical_id(column: exp.Column) -> exp.Column:
-        exposed_by_key = resolution.get(id(column), ({}, None, 0, {}))[3]
-        return exp.column(
-            "id", table=_exposed_table_identifier(column, exposed_by_key, dialect=ctx.dialect)
-        )
+        _, _, n_sources, exposed_by_key = resolution.get(id(column), ({}, None, 0, {}))
+        table_ident = _exposed_table_identifier(column, exposed_by_key, dialect=ctx.dialect)
+        if table_ident is None and n_sources == 1 and exposed_by_key:
+            # Unqualified `graphql_node_id` still has to name its table: a join
+            # partner may share `id` without advertising the overlay, and
+            # `CAST(id AS TEXT)` is then ambiguous.
+            table_ident = next(iter(exposed_by_key.values())).copy()
+        return exp.column("id", table=table_ident)
 
     for cmp_node in list(root.find_all(exp.EQ, exp.NEQ, exp.NullSafeEQ, exp.NullSafeNEQ)):
         left, right = cmp_node.this, cmp_node.expression
@@ -1459,12 +1488,7 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                     ),
                 )
             continue
-        written = exp.column(
-            "id",
-            table=_exposed_table_identifier(
-                column, resolution.get(id(column), ({}, None, 0, {}))[3], dialect=ctx.dialect
-            ),
-        )
+        written = physical_id(column)
         ctx.substituted_columns[written.sql()] = "graphql_node_id"
         payload = exp.Concat(
             expressions=[

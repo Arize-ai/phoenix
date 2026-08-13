@@ -151,7 +151,11 @@ def _grouping_limit_parse_message(sql: str) -> Optional[str]:
     folded = sql.casefold()
     if "limit" not in folded and "offset" not in folded:
         return None
-    if "grouping sets" not in folded and "rollup (" not in folded and "cube (" not in folded:
+    if (
+        "grouping sets" not in folded
+        and not re.search(r"rollup\s*\(", folded)
+        and not re.search(r"cube\s*\(", folded)
+    ):
         return None
     return (
         "GROUP BY GROUPING SETS, ROLLUP, or CUBE cannot be combined with LIMIT or "
@@ -280,6 +284,8 @@ def _rebuild_lambda_json_body(
     One hop parses as ``Lambda(Literal 'k', [doc])``. Two or more hops parse as
     ``Lambda(JSONExtract('k1', path_rest), [doc])``, nested for each extra key.
     """
+    if isinstance(body, exp.Paren):
+        return _rebuild_lambda_json_body(document, body.this, dialect=dialect)
     if isinstance(body, exp.Literal):
         if body.is_string:
             path_part: exp.Expression = exp.JSONPathKey(this=body.this)
@@ -291,6 +297,9 @@ def _rebuild_lambda_json_body(
             path_part = exp.JSONPathSubscript(this=index)
         path = exp.JSONPath(expressions=[exp.JSONPathRoot(), path_part])
         return _json_extract_node(document, path, dialect=dialect)
+    if isinstance(body, (exp.Column, exp.Identifier)):
+        key = body.copy() if isinstance(body, exp.Column) else exp.Column(this=body.copy())
+        return _json_extract_node(document, key, dialect=dialect)
     if not isinstance(body, exp.JSONExtract):
         return None
     inner = body.this
@@ -347,7 +356,7 @@ def _repair_row_constructor(root: exp.Expression) -> exp.Expression:
     models the keyword form as ``Anonymous``, so admission refused ``ROW``
     while admitting the parenthesised form and serialising it as a JSON array.
     """
-    for node in list(root.find_all(exp.Anonymous)):
+    for node in reversed(list(root.find_all(exp.Anonymous))):
         if (node.name or "").casefold() != "row":
             continue
         node.replace(exp.Tuple(expressions=[item.copy() for item in node.expressions]))
@@ -446,7 +455,7 @@ _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
     exp.Qualify: (
         "QUALIFY is not supported. PostgreSQL has no QUALIFY clause; filter a "
         "subquery that already computed the window, for example "
-        "`SELECT * FROM (SELECT ..., ROW_NUMBER() OVER (...) AS rn FROM ...) t "
+        "`SELECT id, rn FROM (SELECT id, ROW_NUMBER() OVER (...) AS rn FROM ...) t "
         "WHERE rn = 1`."
     ),
 }
@@ -567,7 +576,20 @@ def _too_many_alias_columns(
     alias: Optional[exp.Expression], available: Optional[int]
 ) -> Optional[AdmissionResult]:
     declared = _alias_column_count(alias)
-    if declared == 0 or available is None or declared <= available:
+    if declared == 0:
+        return None
+    names: list[str] = []
+    if isinstance(alias, exp.TableAlias):
+        for identifier in alias.args.get("columns") or []:
+            name = identifier.name if isinstance(identifier, exp.Identifier) else ""
+            if name:
+                names.append(name.casefold())
+    if len(names) != len(set(names)):
+        return AdmissionResult(
+            AdmissionOutcome.UNSUPPORTED_SYNTAX,
+            "Duplicate names in a column list are not supported. Give each column its own name.",
+        )
+    if available is None or declared <= available:
         return None
     return AdmissionResult(
         AdmissionOutcome.UNSUPPORTED_SYNTAX,
@@ -648,16 +670,56 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
         # COUNT(DISTINCT x) without OVER is fine; the same aggregate with a
         # window admits then fails.
         target = window.this
-        if target is not None and target.find(exp.Distinct) is not None:
+        core = target.this if isinstance(target, exp.Filter) else target
+        if core is not None and core.find(exp.Distinct) is not None:
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 "DISTINCT is not implemented for window functions. Compute the "
                 "distinct aggregate in a subquery, then apply the window to that "
                 "result.",
             )
+        if isinstance(target, exp.Filter) and isinstance(
+            core,
+            (
+                exp.RowNumber,
+                exp.Rank,
+                exp.DenseRank,
+                exp.PercentRank,
+                exp.CumeDist,
+                exp.Ntile,
+            ),
+        ):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "FILTER is not implemented for ranking window functions. Filter "
+                "in a subquery, or use CASE inside an aggregate.",
+            )
+        if isinstance(target, exp.WithinGroup) or (
+            core is not None and core.find(exp.WithinGroup) is not None
+        ):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "OVER is not supported for ordered-set aggregates. Omit the window "
+                "and write PERCENTILE_CONT(...) WITHIN GROUP (ORDER BY ...) as a "
+                "plain aggregate.",
+            )
+    for join in root.find_all(exp.Join):
+        # An empty USING list is dropped before it reaches the engine, which
+        # turns the join into a cartesian product. PostgreSQL would reject
+        # `USING ()` at a parenthesis.
+        if "using" in join.args and not _join_using_identifiers(join):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "`USING ()` is not a join. Name the join columns with USING or ON.",
+            )
     for table in root.find_all(exp.Table):
         alias = table.args.get("alias")
         if isinstance(alias, exp.TableAlias) and alias.args.get("columns"):
+            # Function scans (`jsonb_each(...) AS t(k, v)`) are the PostgreSQL
+            # spelling for naming SRF columns. Only a physical table's alias
+            # list is the broken form.
+            if isinstance(table.this, exp.Func):
+                continue
             # `FROM spans AS t(x)` does not rename physical columns. SELECT x
             # is then refused as spans.x; SELECT * / SELECT id fail as missing
             # t.id. The working spelling is a subquery column list.
@@ -666,6 +728,23 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
                 "A column list on a base-table alias (`FROM spans AS t(col, ...)`) "
                 "is not supported. Name the table's columns, or wrap it in a "
                 "subquery: `FROM (SELECT id FROM spans) AS t(id)`.",
+            )
+    for node in root.find_all(exp.Tuple, exp.Values):
+        if isinstance(node, exp.Values):
+            rows = node.expressions
+            if rows and all(isinstance(row, exp.Tuple) and not row.expressions for row in rows):
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    "An empty VALUES row is not supported. Write at least one column.",
+                )
+        elif not node.expressions:
+            # `GROUPING SETS ((), (col))` and `GROUP BY ()` are the grand-total
+            # grouping set. Empty ROW() in a projection is the broken form.
+            if isinstance(node.parent, (exp.GroupingSets, exp.Cube, exp.Rollup, exp.Group)):
+                continue
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "An empty ROW() is not supported. Write at least one column.",
             )
     arity = _check_alias_column_list_arity(root)
     if arity is not None:
@@ -1519,6 +1598,13 @@ def _check_timestamp_literals(
                     "Write an ISO-8601 instant with an offset, for example "
                     "`2026-07-01T14:30:00+00:00`, or a bare date such as `2026-07-01`.",
                 )
+            if _ambiguous_calendar_literal(literal.this):
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    f"`{literal.this}` is a calendar date whose day and month depend "
+                    "on DateStyle. Write an ISO date such as `2026-08-12`, or an "
+                    "instant with an offset.",
+                )
             continue
         if parsed.is_aware or not parsed.has_time:
             continue
@@ -1552,10 +1638,20 @@ def _time_literal_has_zone(text: str) -> bool:
     return bool(_TIME_HAS_ZONE.search(text.strip()))
 
 
+_AMBIGUOUS_CALENDAR = re.compile(r"^\d{1,4}[./]\d{1,2}[./]\d{2,4}$")
+
+
+def _ambiguous_calendar_literal(text: str) -> bool:
+    """Slash and dotted dates whose day/month order is DateStyle, not ISO."""
+    return bool(_AMBIGUOUS_CALENDAR.match(text.strip()))
+
+
 # SQLGlot's first sql_names() entry is sometimes an internal alias, not the
 # spelling the caller typed or the engine documents.
 _SQLGLOT_FUNCTION_SPELLING = {
     "explode": "unnest",
+    "current_version": "version",
+    "unix_to_time": "to_timestamp",
 }
 
 
