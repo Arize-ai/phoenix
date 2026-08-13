@@ -29,6 +29,7 @@ from phoenix.server.mcp_analytics_sql.normalize import (
     is_time_shaped,
     parse_timestamp_literal,
     timestamp_column_names,
+    unix_epoch_to_utc,
 )
 
 
@@ -132,7 +133,9 @@ def _finish_parse(
             ),
         )
     return _fold_unquoted_identifiers(
-        _repair_lambda_json_accessor(_repair_jsonb_extract_array_bracket(root), dialect=dialect),
+        _repair_row_constructor(
+            _repair_lambda_json_accessor(_repair_jsonb_extract_array_bracket(root), dialect=dialect)
+        ),
         dialect=dialect,
     )
 
@@ -250,6 +253,62 @@ def _repair_jsonb_extract_array_bracket(root: exp.Expression) -> exp.Expression:
     return root
 
 
+def _json_extract_node(
+    document: exp.Expression,
+    expression: exp.Expression,
+    *,
+    dialect: SupportedSQLDialectName,
+) -> exp.Expression:
+    if dialect == "postgresql":
+        return exp.JSONExtract(this=document, expression=expression, only_json_types=True)
+    return exp.JSONExtract(this=document, expression=expression)
+
+
+def _lambda_parameter_document(parameter: exp.Expression) -> Optional[exp.Expression]:
+    if isinstance(parameter, exp.Column):
+        return parameter.copy()
+    if isinstance(parameter, exp.Identifier):
+        return exp.Column(this=parameter.copy())
+    return None
+
+
+def _rebuild_lambda_json_body(
+    document: exp.Expression, body: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> Optional[exp.Expression]:
+    """Rebuild ``doc -> k1 -> k2`` from a Lambda whose body is a JSONExtract chain.
+
+    One hop parses as ``Lambda(Literal 'k', [doc])``. Two or more hops parse as
+    ``Lambda(JSONExtract('k1', path_rest), [doc])``, nested for each extra key.
+    """
+    if isinstance(body, exp.Literal):
+        if body.is_string:
+            path_part: exp.Expression = exp.JSONPathKey(this=body.this)
+        else:
+            try:
+                index = int(body.this)
+            except (TypeError, ValueError):
+                return None
+            path_part = exp.JSONPathSubscript(this=index)
+        path = exp.JSONPath(expressions=[exp.JSONPathRoot(), path_part])
+        return _json_extract_node(document, path, dialect=dialect)
+    if not isinstance(body, exp.JSONExtract):
+        return None
+    inner = body.this
+    if isinstance(inner, exp.Literal) and inner.is_string:
+        first = _json_extract_node(
+            document,
+            exp.JSONPath(expressions=[exp.JSONPathRoot(), exp.JSONPathKey(this=inner.this)]),
+            dialect=dialect,
+        )
+        return _json_extract_node(first, body.expression.copy(), dialect=dialect)
+    if isinstance(inner, exp.JSONExtract):
+        rebuilt_inner = _rebuild_lambda_json_body(document, inner, dialect=dialect)
+        if rebuilt_inner is None:
+            return None
+        return _json_extract_node(rebuilt_inner, body.expression.copy(), dialect=dialect)
+    return None
+
+
 def _repair_lambda_json_accessor(
     root: exp.Expression, *, dialect: SupportedSQLDialectName
 ) -> exp.Expression:
@@ -266,34 +325,32 @@ def _repair_lambda_json_accessor(
     values rather than JSON text. On PostgreSQL it is the operator, which
     returns jsonb.
     """
-    for node in list(root.find_all(exp.Lambda)):
+    # Innermost first: a three-hop chain nests JSONExtract inside JSONExtract.
+    for node in reversed(list(root.find_all(exp.Lambda))):
         parameters = node.expressions
-        body = node.this
-        if len(parameters) != 1 or not isinstance(body, exp.Literal):
+        if len(parameters) != 1:
             continue
-        parameter = parameters[0]
-        if isinstance(parameter, exp.Column):
-            document: exp.Expression = parameter.copy()
-        elif isinstance(parameter, exp.Identifier):
-            document = exp.Column(this=parameter.copy())
-        else:
+        document = _lambda_parameter_document(parameters[0])
+        if document is None:
             continue
-        if body.is_string:
-            path_part: exp.Expression = exp.JSONPathKey(this=body.this)
-        else:
-            try:
-                index = int(body.this)
-            except (TypeError, ValueError):
-                continue
-            path_part = exp.JSONPathSubscript(this=index)
-        path = exp.JSONPath(expressions=[exp.JSONPathRoot(), path_part])
-        if dialect == "postgresql":
-            extracted: exp.Expression = exp.JSONExtract(
-                this=document, expression=path, only_json_types=True
-            )
-        else:
-            extracted = exp.JSONExtract(this=document, expression=path)
-        node.replace(exp.paren(extracted))
+        rebuilt = _rebuild_lambda_json_body(document, node.this, dialect=dialect)
+        if rebuilt is None:
+            continue
+        node.replace(exp.paren(rebuilt))
+    return root
+
+
+def _repair_row_constructor(root: exp.Expression) -> exp.Expression:
+    """Rebuild ``ROW(a, b)`` as a tuple, which ``(a, b)`` already is.
+
+    PostgreSQL treats the two spellings as the same constructor. The parser
+    models the keyword form as ``Anonymous``, so admission refused ``ROW``
+    while admitting the parenthesised form and serialising it as a JSON array.
+    """
+    for node in list(root.find_all(exp.Anonymous)):
+        if (node.name or "").casefold() != "row":
+            continue
+        node.replace(exp.Tuple(expressions=[item.copy() for item in node.expressions]))
     return root
 
 
@@ -386,6 +443,12 @@ _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
         "compare them with an offset-bearing literal, for example "
         "`start_time >= '2026-07-01T14:30:00Z'`."
     ),
+    exp.Qualify: (
+        "QUALIFY is not supported. PostgreSQL has no QUALIFY clause; filter a "
+        "subquery that already computed the window, for example "
+        "`SELECT * FROM (SELECT ..., ROW_NUMBER() OVER (...) AS rn FROM ...) t "
+        "WHERE rn = 1`."
+    ),
 }
 
 
@@ -428,7 +491,9 @@ def _check_double_quoted_timestamp_operands(
     def offender(
         column: Optional[exp.Expression], operand: Optional[exp.Expression]
     ) -> Optional[str]:
-        if not isinstance(column, exp.Column) or (column.name or "").casefold() not in columns:
+        if not isinstance(column, exp.Column):
+            return None
+        if id(column) not in passthrough and (column.name or "").casefold() not in columns:
             return None
         if local.is_local(column) and id(column) not in passthrough:
             return None
@@ -449,6 +514,88 @@ def _check_double_quoted_timestamp_operands(
                     "because double quotes name identifiers. Use single quotes for the "
                     f"value: '{text}'.",
                 )
+    return None
+
+
+def _alias_column_count(alias: Optional[exp.Expression]) -> int:
+    if not isinstance(alias, exp.TableAlias):
+        return 0
+    return len(alias.args.get("columns") or [])
+
+
+def _values_width(values: exp.Values) -> int:
+    rows = values.expressions
+    if not rows:
+        return 0
+    first = rows[0]
+    if isinstance(first, exp.Tuple):
+        return len(first.expressions)
+    return 1
+
+
+def _select_width(select: exp.Select) -> Optional[int]:
+    """Known projection width, or None when a star makes it unknowable."""
+    expressions = select.expressions
+    if not expressions:
+        return 0
+    if any(
+        isinstance(item, exp.Star)
+        or (isinstance(item, exp.Column) and isinstance(item.this, exp.Star))
+        for item in expressions
+    ):
+        from_expr = select.args.get("from_") or select.args.get("from")
+        source = from_expr.this if isinstance(from_expr, exp.From) else None
+        if isinstance(source, exp.Values):
+            return _values_width(source)
+        if isinstance(source, exp.Subquery) and isinstance(source.this, exp.Values):
+            return _values_width(source.this)
+        return None
+    return len(expressions)
+
+
+def _relation_width(expression: Optional[exp.Expression]) -> Optional[int]:
+    if isinstance(expression, exp.Select):
+        return _select_width(expression)
+    if isinstance(expression, exp.Values):
+        return _values_width(expression)
+    if isinstance(expression, exp.Subquery):
+        return _relation_width(expression.this)
+    return None
+
+
+def _too_many_alias_columns(
+    alias: Optional[exp.Expression], available: Optional[int]
+) -> Optional[AdmissionResult]:
+    declared = _alias_column_count(alias)
+    if declared == 0 or available is None or declared <= available:
+        return None
+    return AdmissionResult(
+        AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        f"The alias names {declared} columns but the query produces {available}. "
+        "Remove the extra names, or project that many columns.",
+    )
+
+
+def _check_alias_column_list_arity(root: exp.Expression) -> Optional[AdmissionResult]:
+    """Refuse a column list longer than the relation it names.
+
+    Too few names is engine-authored (PostgreSQL keeps the extra columns).
+    Too many admits then fails: `WITH v(x, y) AS (SELECT id FROM projects)`.
+    """
+    for cte in root.find_all(exp.CTE):
+        refused = _too_many_alias_columns(cte.args.get("alias"), _relation_width(cte.this))
+        if refused is not None:
+            return refused
+    for subquery in root.find_all(exp.Subquery):
+        refused = _too_many_alias_columns(
+            subquery.args.get("alias"), _relation_width(subquery.this)
+        )
+        if refused is not None:
+            return refused
+    for values in root.find_all(exp.Values):
+        refused = _too_many_alias_columns(values.args.get("alias"), _values_width(values))
+        if refused is not None:
+            return refused
     return None
 
 
@@ -496,6 +643,33 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 "An empty SELECT list is not supported. Name the columns you want.",
             )
+    for window in root.find_all(exp.Window):
+        # PostgreSQL: "DISTINCT is not implemented for window functions".
+        # COUNT(DISTINCT x) without OVER is fine; the same aggregate with a
+        # window admits then fails.
+        target = window.this
+        if target is not None and target.find(exp.Distinct) is not None:
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "DISTINCT is not implemented for window functions. Compute the "
+                "distinct aggregate in a subquery, then apply the window to that "
+                "result.",
+            )
+    for table in root.find_all(exp.Table):
+        alias = table.args.get("alias")
+        if isinstance(alias, exp.TableAlias) and alias.args.get("columns"):
+            # `FROM spans AS t(x)` does not rename physical columns. SELECT x
+            # is then refused as spans.x; SELECT * / SELECT id fail as missing
+            # t.id. The working spelling is a subquery column list.
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "A column list on a base-table alias (`FROM spans AS t(col, ...)`) "
+                "is not supported. Name the table's columns, or wrap it in a "
+                "subquery: `FROM (SELECT id FROM spans) AS t(id)`.",
+            )
+    arity = _check_alias_column_list_arity(root)
+    if arity is not None:
+        return arity
     for set_operation in root.find_all(exp.Union, exp.Intersect, exp.Except):
         # DuckDB/Spark spelling. SQLGlot stores it as `by_name` and renders
         # `UNION BY NAME` / `INNER UNION BY NAME`, which PostgreSQL and SQLite
@@ -596,7 +770,7 @@ _ALLOWED_STRUCTURAL_CLASSES: frozenset[str] = frozenset(
     LimitOptions Literal Lock Mod Mul NEQ Neg Not Null NullSafeEQ NullSafeNEQ
     ObjectIdentifier Offset Order Ordered Paren Rollup Select Star Sub Subquery
     SimilarTo Table TableAlias Tuple Union Values Var Where Window WindowSpec With
-    WithinGroup
+    WithinGroup DataTypeParam
     """.split()
 )
 
@@ -1245,6 +1419,17 @@ def _timestamp_passthrough_references(root: exp.Expression, columns: frozenset[s
     return ids
 
 
+def _unix_epoch_text(node: exp.Expression) -> Optional[str]:
+    """The signed number a timestamp comparison holds, or None if it is not one."""
+    if isinstance(node, exp.Literal) and node.is_number:
+        return str(node.this)
+    if isinstance(node, exp.Neg):
+        inner = _strip_parens(node.this)
+        if isinstance(inner, exp.Literal) and inner.is_number:
+            return f"-{inner.this}"
+    return None
+
+
 def _timestamp_literals(
     root: exp.Expression,
     columns: frozenset[str],
@@ -1252,7 +1437,7 @@ def _timestamp_literals(
     allowlist: Allowlist,
     dialect: SupportedSQLDialectName,
     numeric: bool = False,
-) -> list[exp.Literal]:
+) -> list[exp.Expression]:
     """Every literal compared against a column that holds a timestamp.
 
     String literals are the usual case. ``numeric=True`` collects unquoted
@@ -1268,7 +1453,7 @@ def _timestamp_literals(
     """
     local = query_local_columns(root, allowlist=allowlist, dialect=dialect)
     passthrough = _timestamp_passthrough_references(root, columns)
-    found: list[exp.Literal] = []
+    found: list[exp.Expression] = []
 
     def is_timestamp_column(column: exp.Column) -> bool:
         if id(column) in passthrough:
@@ -1278,15 +1463,15 @@ def _timestamp_literals(
         return not local.is_local(column)
 
     def collect(left: Optional[exp.Expression], right: Optional[exp.Expression]) -> None:
-        for column, literal in ((left, right), (right, left)):
+        for column, operand in ((left, right), (right, left)):
             if not isinstance(column, exp.Column) or not is_timestamp_column(column):
                 continue
-            if not isinstance(literal, exp.Literal):
+            if numeric:
+                if _unix_epoch_text(operand) is not None:
+                    found.append(operand)
                 continue
-            if numeric and literal.is_number:
-                found.append(literal)
-            elif not numeric and literal.is_string:
-                found.append(literal)
+            if isinstance(operand, exp.Literal) and operand.is_string:
+                found.append(operand)
 
     for node in root.walk():
         for column, operand in _timestamp_comparison_pairs(node):
@@ -1315,6 +1500,8 @@ def _check_timestamp_literals(
     if not columns:
         return None
     for literal in _timestamp_literals(root, columns, allowlist=allowlist, dialect=dialect):
+        if not isinstance(literal, exp.Literal):
+            continue
         parsed = parse_timestamp_literal(literal.this)
         if parsed is None:
             if is_date_shaped(literal.this):
@@ -1325,9 +1512,10 @@ def _check_timestamp_literals(
                     "`2026-07-01T00:00:00+00:00`, or a bare date such as `2026-07-01`.",
                 )
             if is_time_shaped(literal.this):
+                zone = "no date" if _time_literal_has_zone(literal.this) else "no date or time zone"
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                    f"`{literal.this}` names a time of day but no date or time zone. "
+                    f"`{literal.this}` names a time of day but {zone}. "
                     "Write an ISO-8601 instant with an offset, for example "
                     "`2026-07-01T14:30:00+00:00`, or a bare date such as `2026-07-01`.",
                 )
@@ -1341,7 +1529,27 @@ def _check_timestamp_literals(
             f"`{literal.this}+00:00` for UTC. A bare date such as `2026-07-01` needs "
             "none and is read as UTC.",
         )
+    for node in _timestamp_literals(
+        root, columns, allowlist=allowlist, dialect=dialect, numeric=True
+    ):
+        original = _unix_epoch_text(node)
+        if original is None:
+            continue
+        if unix_epoch_to_utc(original) is None:
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                f"Integer {original} cannot be read as a Unix epoch instant. "
+                "Write an ISO-8601 timestamp with an offset, for example "
+                "`2026-07-01T00:00:00+00:00`.",
+            )
     return None
+
+
+_TIME_HAS_ZONE = re.compile(r"(?:Z|[+-]\d{2}(?::?\d{2})?)$", re.IGNORECASE)
+
+
+def _time_literal_has_zone(text: str) -> bool:
+    return bool(_TIME_HAS_ZONE.search(text.strip()))
 
 
 # SQLGlot's first sql_names() entry is sometimes an internal alias, not the

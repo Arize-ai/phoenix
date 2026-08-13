@@ -37,6 +37,7 @@ from phoenix.server.mcp_analytics_sql.parse import (
     _strip_parens,
     _timestamp_literals,
     _timestamp_passthrough_references,
+    _unix_epoch_text,
     _virtual_column_on_source,
     query_local_columns,
 )
@@ -75,6 +76,9 @@ class RewriteContext:
     # column *name* alone blames a rewrite for the caller's own typo, since
     # `id`, `start_time` and `end_time` are ordinary names a caller also writes.
     substituted_columns: dict[str, str] = field(default_factory=dict)
+    # USING keys rewritten to ON, keyed by Select identity. Star expansion
+    # coalesces each to one output column, matching USING's shape.
+    coalesced_using_by_select: dict[int, set[str]] = field(default_factory=dict)
 
 
 #: Deliberately dialect-specific: the hazard is not the same on both backends
@@ -299,6 +303,21 @@ def _quoted_json_path(path: exp.Expression) -> Optional[str]:
 
 
 _UTC_DATE_NOTE = "A bare date was read as UTC. Write an offset to name a different zone."
+_TIMESTAMP_CAST_TYPES = frozenset({"TIMESTAMP", "TIMESTAMPTZ", "DATETIME", "DATE"})
+
+
+def _is_timestamp_cast_target(target: Optional[exp.Expression]) -> bool:
+    if target is None:
+        return False
+    name = target.this.name if hasattr(target.this, "name") else str(target.this)
+    return name.upper().split("(")[0].strip() in _TIMESTAMP_CAST_TYPES
+
+
+def _enclosing_array(node: exp.Expression) -> Optional[exp.Array]:
+    current = node.parent
+    while isinstance(current, (exp.Cast, exp.Paren)):
+        current = current.parent
+    return current if isinstance(current, exp.Array) else None
 
 
 def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -323,6 +342,8 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
     changed = False
     saw_bare_date = False
     for literal in _timestamp_literals(root, columns, allowlist=ctx.allowlist, dialect=ctx.dialect):
+        if not isinstance(literal, exp.Literal):
+            continue
         parsed = parse_timestamp_literal(literal.this)
         if parsed is None:
             continue
@@ -334,19 +355,44 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
         if rendered != literal.this:
             literal.set("this", rendered)
             changed = True
-    for literal in _timestamp_literals(
+    for node in _timestamp_literals(
         root, columns, allowlist=ctx.allowlist, dialect=ctx.dialect, numeric=True
     ):
-        converted = unix_epoch_to_utc(literal.this)
-        if converted is None:
+        original = _unix_epoch_text(node)
+        if original is None:
             continue
+        converted = unix_epoch_to_utc(original)
+        if converted is None:
+            raise AnalyticsSqlError(
+                code=ErrorCode.UNSUPPORTED_SYNTAX,
+                message=(
+                    f"Integer {original} cannot be read as a Unix epoch instant. "
+                    "Write an ISO-8601 timestamp with an offset, for example "
+                    "`2026-07-01T00:00:00+00:00`."
+                ),
+            )
         instant, unit = converted
-        original = literal.this
         if ctx.dialect == "sqlite":
             rendered = format_timestamp_for_sqlite(instant)
         else:
-            rendered = instant.strftime("%Y-%m-%dT%H:%M:%S+00:00")
-        literal.replace(exp.Literal.string(rendered))
+            # isoformat keeps whole seconds as `...00+00:00` and retains
+            # subseconds that `%Y-%m-%dT%H:%M:%S+00:00` used to drop.
+            rendered = instant.isoformat()
+        replacement: exp.Expression = exp.Literal.string(rendered)
+        # CAST(1719792000 AS bigint) compared to timestamptz: replacing only
+        # the inner number leaves CAST('<instant>' AS bigint), which
+        # PostgreSQL rejects. Inside ARRAY[...], a bare string types the
+        # array as text[]; cast each element to timestamptz.
+        if ctx.dialect == "postgresql" and _enclosing_array(node) is not None:
+            replacement = exp.Cast(
+                this=replacement,
+                to=exp.DataType.build("TIMESTAMPTZ"),
+            )
+        parent = node.parent
+        if isinstance(parent, exp.Cast) and not _is_timestamp_cast_target(parent.to):
+            parent.replace(replacement)
+        else:
+            node.replace(replacement)
         note = f"Integer {original} was read as {unit} since the Unix epoch (UTC)."
         if note not in ctx.notes:
             ctx.notes.append(note)
@@ -511,7 +557,9 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
     ``JOIN traces USING (latency_ms)`` never reached the overlay rewrite and
     failed in Postgres as a missing physical column. The same join written
     with ON is a comparison the rewrite can see, so that is what we emit.
-    Physical USING keys stay as USING.
+    Physical USING keys stay as USING unless a virtual key is in the same
+    list: ``USING (id) ON (...)`` is not valid PostgreSQL, so every key
+    becomes an ON equality and star expansion coalesces them as USING would.
     """
     changed = False
     for select in root.find_all(exp.Select):
@@ -537,12 +585,17 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
             if virtual_keys:
                 left_qual = _relation_qualifier(left)
                 right_qual = _relation_qualifier(join.this)
+                # Physical keys have to become ON too. Leaving them as USING
+                # next to the new ON is not valid PostgreSQL (`USING (id) ON
+                # (...)`), and the engine then fails a statement admission
+                # already accepted.
+                on_keys = [*physical_keys, *virtual_keys]
                 equalities: list[exp.Expression] = [
                     exp.EQ(
                         this=exp.Column(this=ident.copy(), table=left_qual.copy()),
                         expression=exp.Column(this=ident.copy(), table=right_qual.copy()),
                     )
-                    for ident in virtual_keys
+                    for ident in on_keys
                 ]
                 on_expr: exp.Expression = equalities[0]
                 for extra in equalities[1:]:
@@ -551,10 +604,19 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
                 if existing is not None:
                     on_expr = exp.And(this=existing, expression=on_expr)
                 join.set("on", on_expr)
-                if physical_keys:
-                    join.set("using", physical_keys)
-                else:
-                    join.set("using", None)
+                join.set("using", None)
+                # USING coalesces each key to one output column. Star expansion
+                # runs after this pass, so it would otherwise emit both sides'
+                # copies of `latency_ms` and change the shape of `SELECT *`.
+                coalesced = ctx.coalesced_using_by_select.setdefault(id(select), set())
+                for ident in on_keys:
+                    coalesced.add(
+                        _identifier_key(
+                            ident.this or "",
+                            quoted=bool(ident.args.get("quoted")),
+                            dialect=ctx.dialect,
+                        )
+                    )
                 changed = True
             left = join.this
     if changed:
@@ -769,6 +831,7 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             # star names one relation's columns, so it keeps that relation's
             # copy of the key.
             using_keys = _using_join_keys(node, ctx.dialect) if not explicit else frozenset()
+            using_keys = frozenset(using_keys | ctx.coalesced_using_by_select.get(id(node), set()))
             emitted_using: set[str] = set()
 
             for table_name, alias, qualifier in targets:

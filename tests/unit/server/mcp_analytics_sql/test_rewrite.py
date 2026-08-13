@@ -476,6 +476,61 @@ def test_integer_epoch_against_a_timestamp_is_rewritten_to_utc() -> None:
     assert any("Unix epoch" in note for note in ctx.notes)
 
 
+def test_mixed_physical_and_virtual_using_becomes_on() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT s.span_id, t.trace_id FROM spans s JOIN traces t USING (id, latency_ms)",
+        dialect="postgresql",
+    )
+    assert "USING" not in rendered.upper()
+    assert "virtual_using" in ctx.applied
+    assert "s.id" in rendered and "t.id" in rendered
+
+
+def test_virtual_using_star_emits_the_join_key_once() -> None:
+    _, rendered = _rewritten(
+        "SELECT * FROM spans JOIN traces USING (latency_ms)",
+        dialect="postgresql",
+    )
+    assert rendered.casefold().count("as latency_ms") == 1
+
+
+def test_fractional_epoch_keeps_subseconds_on_postgres() -> None:
+    _, rendered = _rewritten(
+        "SELECT count(*) FROM spans WHERE start_time >= 1719792000.123",
+        dialect="postgresql",
+    )
+    assert "1719792000.123" not in rendered
+    assert "2024-07-01T00:00:00.123" in rendered
+
+
+def test_cast_epoch_as_bigint_replaces_the_whole_cast() -> None:
+    _, rendered = _rewritten(
+        "SELECT count(*) FROM spans WHERE start_time >= CAST(1719792000 AS bigint)",
+        dialect="postgresql",
+    )
+    assert "BIGINT" not in rendered.upper()
+    assert "2024-07-01T00:00:00+00:00" in rendered
+
+
+def test_epoch_inside_any_array_is_cast_to_timestamptz() -> None:
+    _, rendered = _rewritten(
+        "SELECT count(*) FROM spans WHERE start_time = ANY(ARRAY[1719792000])",
+        dialect="postgresql",
+    )
+    assert "1719792000" not in rendered
+    assert "timestamptz" in rendered.casefold() or "timestamp with time zone" in rendered.casefold()
+
+
+def test_negative_epoch_is_rewritten() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT count(*) FROM spans WHERE start_time >= -1",
+        dialect="postgresql",
+    )
+    assert "timestamp_literals" in ctx.applied
+    assert "1969-12-31" in rendered
+    assert any("Unix epoch" in note for note in ctx.notes)
+
+
 def test_qualified_star_on_a_missing_alias_names_the_missing_relation() -> None:
     root = parse_sql("SELECT t.* FROM spans s", dialect="postgresql")
     with pytest.raises(AnalyticsSqlError) as caught:

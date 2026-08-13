@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 96
+    assert len(CASES) >= 106
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -983,6 +983,15 @@ class TestTimestampComparisonCoverage:
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
         assert "double quotes name identifiers" in result.detail
 
+    def test_a_double_quoted_operand_against_an_aliased_timestamp_is_refused(self) -> None:
+        result = self._admit(
+            "SELECT id FROM (SELECT start_time AS ts, id FROM spans) t "
+            'WHERE ts > "2026-01-01T00:00:00Z"'
+        )
+
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "double quotes name identifiers" in result.detail
+
     @pytest.mark.parametrize(
         "sql",
         [
@@ -1147,6 +1156,7 @@ class TestStructuralPolicyIsDefaultDeny:
             "Cube",
             "DPipe",
             "DataType",
+            "DataTypeParam",
             "Distinct",
             "Div",
             "Dot",
@@ -1678,7 +1688,33 @@ def test_a_time_only_literal_against_a_timestamp_is_refused() -> None:
         )
     assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
     assert "14:30:00" in caught.value.message
+    assert "no date or time zone" in caught.value.message
     assert "2026-07-01T14:30:00+00:00" in caught.value.message
+
+
+def test_a_time_only_literal_with_an_offset_does_not_claim_there_is_no_zone() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT COUNT(*) FROM spans WHERE start_time >= '14:30:00Z'",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "no date" in caught.value.message
+    assert "no date or time zone" not in caught.value.message
+
+
+def test_qualify_refusal_names_the_subquery_spelling() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS rn FROM projects QUALIFY rn = 1",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "QUALIFY" in caught.value.message
+    assert "ROW_NUMBER()" in caught.value.message
+    assert "(Qualify)" not in caught.value.message
 
 
 def test_schema_qualified_tables_name_the_unqualified_spelling() -> None:

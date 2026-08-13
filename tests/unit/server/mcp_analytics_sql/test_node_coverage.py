@@ -55,6 +55,7 @@ REVIEWED_STRUCTURAL: frozenset[str] = frozenset(
         "Copy",
         "Credentials",
         "DataType",
+        "DataTypeParam",
         "Distinct",
         "Drop",
         "EQ",
