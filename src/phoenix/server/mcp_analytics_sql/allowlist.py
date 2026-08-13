@@ -135,6 +135,10 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # path existence. Each returns a boolean and reads one document, so
             # cost is bounded by that document's size. `@>` and `<@` also test
             # array containment, bounded the same way.
+            #
+            # JSONBContains is PostgreSQL `?` (key exists). SQLGlot also
+            # parses the function spelling jsonb_contains as this class, so
+            # the two cannot be told apart; `@>` containment is ArrayContainsAll.
             exp.JSONBContains,
             exp.JSONBContainsAnyTopKeys,
             exp.JSONBContainsAllTopKeys,
@@ -157,6 +161,9 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # function form `jsonb_path_match` is already on the anon list;
             # admitting the class is what lets the operator spelling through.
             exp.MatchAgainst,
+            # GROUPING() with GROUPING SETS / ROLLUP / CUBE. PostgreSQL-only;
+            # SQLite has no counterpart.
+            exp.Grouping,
         }
     ),
     "sqlite": ALLOWED_FUNC_CLASSES
@@ -485,6 +492,10 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
             "to_jsonb",
             "to_json",
             "row_to_json",
+            # ROW(1) must stay the keyword form: a one-element Tuple renders as
+            # `(1)`, which PostgreSQL treats as a scalar. Two-or-more-element
+            # ROW() is rebuilt as Tuple before this list is consulted.
+            "row",
         }
     ),
     "sqlite": ALLOWED_ANON_FUNCTIONS_COMMON

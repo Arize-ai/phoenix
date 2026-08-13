@@ -1184,12 +1184,14 @@ def test_latency_ms_from_a_subquery_column_list_is_not_substituted() -> None:
 
 def test_latency_ms_is_not_invented_for_a_cte_of_the_same_name() -> None:
     """A CTE named ``spans`` is not a duration table."""
-    _, rendered = _rewritten(
-        "WITH spans AS (SELECT 1 AS id) SELECT latency_ms FROM spans",
-        dialect="sqlite",
-    )
-    assert "UNIXEPOCH" not in rendered.upper()
-    assert "latency_ms" in rendered.lower()
+    with pytest.raises(AnalyticsSqlError) as caught:
+        _rewritten(
+            "WITH spans AS (SELECT 1 AS id) SELECT latency_ms FROM spans",
+            dialect="sqlite",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "overlay" in caught.value.message
+    assert "latency_ms" in caught.value.message
 
 
 @pytest.mark.parametrize("dialect", ["sqlite", "postgres"])
@@ -1696,3 +1698,58 @@ class TestUncastJsonOrderingNote:
 
         assert "JSON_EXTRACT" in rendered.upper()
         assert any("without a cast" in note for note in ctx.notes)
+
+
+def test_postgres_json_extract_rewrites_to_jsonb_extract_path() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT json_extract(attributes, '$.llm') FROM spans",
+        dialect="postgresql",
+    )
+    assert "jsonb_extract_path" in rendered.casefold()
+    assert "JSON_EXTRACT_PATH(" not in rendered.upper().replace("JSONB_EXTRACT_PATH(", "")
+    assert "jsonb_extract_path" in ctx.applied
+
+
+def test_lateral_base_table_is_schema_qualified() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT spans.id FROM spans JOIN LATERAL traces t ON t.id = spans.trace_rowid",
+        dialect="postgresql",
+    )
+    assert "LATERAL" in rendered.upper()
+    assert ".traces" in rendered.casefold()
+    assert "schema_qualification" in ctx.applied
+
+
+def test_setop_operand_with_limit_is_parenthesised() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT id FROM spans ORDER BY id LIMIT 1 UNION SELECT id FROM traces",
+        dialect="postgresql",
+    )
+    assert "setop_operand_parens" in ctx.applied
+    assert "(SELECT" in rendered.upper().replace(" ", "") or "( SELECT" in rendered.upper()
+    folded = " ".join(rendered.split()).upper()
+    assert "LIMIT 1)" in folded or "LIMIT 1 )" in folded
+
+
+def test_coalesced_using_latency_ms_is_not_ambiguous() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT latency_ms FROM spans JOIN traces USING (latency_ms)",
+        dialect="postgresql",
+    )
+    assert "latency_ms" in ctx.applied
+    assert "start_time" in rendered.casefold()
+    assert "end_time" in rendered.casefold()
+
+
+def test_pg_catalog_varchar_renders_as_varchar() -> None:
+    _, rendered = _rewritten(
+        "SELECT CAST(id AS pg_catalog.varchar) FROM projects",
+        dialect="postgresql",
+    )
+    assert "USERDEFINED" not in rendered.upper()
+    assert "VARCHAR" in rendered.upper() or "TEXT" in rendered.upper()
+
+
+def test_row_of_one_keeps_the_keyword_form() -> None:
+    _, rendered = _rewritten("SELECT ROW(1) AS r", dialect="postgresql")
+    assert "ROW(1)" in rendered.upper().replace(" ", "")

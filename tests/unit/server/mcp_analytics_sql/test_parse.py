@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 117
+    assert len(CASES) >= 155
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -1585,6 +1585,37 @@ def test_recursive_cte_refusal_names_the_self_join() -> None:
     assert caught.value.admission_detail == "recursive CTE"
     assert "self-join" in caught.value.message
     assert "parent_id" in caught.value.message
+
+
+def test_recursive_cte_without_the_keyword_names_the_self_join() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "WITH t AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM t) SELECT n FROM t",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert caught.value.admission_detail == "recursive CTE"
+    assert "self-join" in caught.value.message
+
+
+def test_quoted_char_cast_is_refused_as_lossy() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        parse_sql('SELECT CAST(65 AS "char")', dialect="postgresql")
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "bpchar" in caught.value.message
+    assert '"char"' in caught.value.message
+
+
+def test_group_by_all_is_refused() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT status_code, COUNT(*) FROM spans GROUP BY ALL",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "GROUP BY ALL" in caught.value.message
 
 
 def test_left_refusal_names_substring() -> None:

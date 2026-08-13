@@ -79,7 +79,27 @@ def _fold_unquoted_identifiers(
     return root
 
 
+_QUOTED_CHAR_TYPE = re.compile(r'(?:AS|::)\s*"char"', re.IGNORECASE)
+
+_RECURSIVE_CTE_MESSAGE = (
+    "Recursive CTEs are not supported. Walk a parent/child "
+    "relationship with a self-join instead (for spans, "
+    "`child.parent_id = parent.span_id`)."
+)
+
+
 def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
+    # SQLGlot folds quoted `"char"` to CHAR (bpchar). PostgreSQL's `"char"` is
+    # a 1-byte type; CAST(65 AS "char") is 'A' and CAST(65 AS CHAR) is '6'.
+    if dialect == "postgresql" and _QUOTED_CHAR_TYPE.search(sql):
+        raise AnalyticsSqlError(
+            code=ErrorCode.UNSUPPORTED_SYNTAX,
+            message=(
+                'CAST to quoted `"char"` is not supported: this parser folds it '
+                'to CHAR, which is bpchar, not PostgreSQL\'s 1-byte `"char"` '
+                "type. Cast to TEXT or CHAR if that is what you mean."
+            ),
+        )
     try:
         statements = parse(sql, read=sqlglot_read_dialect(dialect))
     except ParseError as exc:
@@ -134,7 +154,11 @@ def _finish_parse(
         )
     return _fold_unquoted_identifiers(
         _repair_row_constructor(
-            _repair_lambda_json_accessor(_repair_jsonb_extract_array_bracket(root), dialect=dialect)
+            _promote_lateral_table_references(
+                _repair_lambda_json_accessor(
+                    _repair_jsonb_extract_array_bracket(root), dialect=dialect
+                )
+            )
         ),
         dialect=dialect,
     )
@@ -349,6 +373,28 @@ def _repair_lambda_json_accessor(
     return root
 
 
+def _promote_lateral_table_references(root: exp.Expression) -> exp.Expression:
+    """Turn ``LATERAL traces t`` into a real table reference.
+
+    SQLGlot stores the relation as an Identifier inside Lateral, so schema
+    qualification never sees a Table and emits ``LATERAL traces AS t``, which
+    PostgreSQL rejects. Promoting the identifier to Table lets every later
+    pass treat it as the allowlisted relation it is. LATERAL subqueries are
+    left alone.
+    """
+    for lateral in root.find_all(exp.Lateral):
+        inner = lateral.this
+        if not isinstance(inner, exp.Identifier):
+            continue
+        table = exp.Table(this=inner.copy())
+        alias = lateral.args.get("alias")
+        if isinstance(alias, exp.TableAlias):
+            table.set("alias", alias.copy())
+            lateral.set("alias", None)
+        lateral.set("this", table)
+    return root
+
+
 def _repair_row_constructor(root: exp.Expression) -> exp.Expression:
     """Rebuild ``ROW(a, b)`` as a tuple, which ``(a, b)`` already is.
 
@@ -359,7 +405,12 @@ def _repair_row_constructor(root: exp.Expression) -> exp.Expression:
     for node in reversed(list(root.find_all(exp.Anonymous))):
         if (node.name or "").casefold() != "row":
             continue
-        node.replace(exp.Tuple(expressions=[item.copy() for item in node.expressions]))
+        items = [item.copy() for item in node.expressions]
+        # A one-element Tuple renders as `(1)`, which PostgreSQL treats as a
+        # scalar, not a row. Leave ROW(1) as the keyword form.
+        if len(items) == 1:
+            continue
+        node.replace(exp.Tuple(expressions=items))
     return root
 
 
@@ -665,6 +716,22 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 "An empty SELECT list is not supported. Name the columns you want.",
             )
+    for group in root.find_all(exp.Group):
+        # DuckDB/Spark spelling. PostgreSQL and SQLite reject ALL as a grouping
+        # token, and injecting LIMIT after it makes the syntax error worse.
+        if group.args.get("all") is True:
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "`GROUP BY ALL` is not supported. Name the grouping columns.",
+            )
+    for node in root.find_all(exp.Rollup, exp.Cube):
+        if not node.expressions:
+            kind = "ROLLUP" if isinstance(node, exp.Rollup) else "CUBE"
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                f"`{kind}()` with no grouping columns is not supported. Name "
+                "the columns, or write GROUPING SETS (()).",
+            )
     for window in root.find_all(exp.Window):
         # PostgreSQL: "DISTINCT is not implemented for window functions".
         # COUNT(DISTINCT x) without OVER is fine; the same aggregate with a
@@ -933,6 +1000,24 @@ def _is_ambiguous_path_cast(node: exp.Cast) -> bool:
     return isinstance(node.to, exp.DataType) and bool(node.to.this == exp.DataType.Type.ARRAY)
 
 
+def _cast_type_name(target: exp.Expression) -> str:
+    """The SQL type a CAST names, including schema-qualified USERDEFINED forms.
+
+    SQLGlot models `pg_catalog.varchar` as USERDEFINED wrapping a Dot. Reporting
+    USERDEFINED tells the caller nothing; the leaf identifier is the type.
+    """
+    if isinstance(target, exp.DataType) and target.this == exp.DataType.Type.USERDEFINED:
+        kind = target.args.get("kind")
+        if isinstance(kind, exp.Dot):
+            leaf = kind.expression
+            if isinstance(leaf, exp.Identifier) and leaf.name:
+                return leaf.name.upper()
+        if isinstance(kind, exp.Identifier) and kind.name:
+            return kind.name.upper()
+    name = target.this.name if hasattr(target.this, "name") else str(target.this)
+    return name.upper().split("(")[0].strip()
+
+
 def _refused_cast_target(target: exp.Expression) -> Optional[str]:
     """The first disallowed type in a cast target, or None if all are allowed.
 
@@ -949,8 +1034,7 @@ def _refused_cast_target(target: exp.Expression) -> Optional[str]:
     protective was lost -- `regclass[]` does not parse, and an array whose
     element type is disallowed is still caught by the recursion.
     """
-    name = target.this.name if hasattr(target.this, "name") else str(target.this)
-    name = name.upper().split("(")[0].strip()
+    name = _cast_type_name(target)
     if name == "ARRAY":
         for nested in target.args.get("expressions") or []:
             if (refused := _refused_cast_target(nested)) is not None:
@@ -1319,7 +1403,7 @@ def query_local_columns(
         derived_aliases: set[str] = set()
         derived_projections: set[str] = set()
         for alias, source in scope.sources.items():
-            if isinstance(source, exp.Table):
+            if _table_from_scope_source(source) is not None:
                 continue
             derived_aliases.add(
                 _identifier_key(alias, quoted=alias in quoted_derived_aliases, dialect=dialect)
@@ -1786,9 +1870,11 @@ def _scope_exposes_qualifier(
     want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
     for current in _ancestor_scopes(scope):
         for source in current.sources.values():
-            if isinstance(source, exp.Table) and want in _relation_identifier_keys(
-                source, dialect=dialect
-            ):
+            table = _table_from_scope_source(source)
+            if table is not None and want in _relation_identifier_keys(table, dialect=dialect):
+                return True
+        for table in _lateral_tables_in_scope(current):
+            if want in _relation_identifier_keys(table, dialect=dialect):
                 return True
         for ident in _derived_alias_identifiers(current):
             if (
@@ -1820,11 +1906,18 @@ def _allowlisted_table_for_qualifier(
     want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
     for current in _ancestor_scopes(scope):
         for source in current.sources.values():
-            if not isinstance(source, exp.Table):
+            table = _table_from_scope_source(source)
+            if table is None:
                 continue
-            if want not in _relation_identifier_keys(source, dialect=dialect):
+            if want not in _relation_identifier_keys(table, dialect=dialect):
                 continue
-            table_name = _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+            table_name = _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
+            if table_name is not None:
+                return table_name
+        for table in _lateral_tables_in_scope(current):
+            if want not in _relation_identifier_keys(table, dialect=dialect):
+                continue
+            table_name = _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
             if table_name is not None:
                 return table_name
     return None
@@ -1885,9 +1978,57 @@ def _derived_alias_identifiers(scope: Any) -> list[exp.Identifier]:
     found: list[exp.Identifier] = []
     for relation in relations:
         ident = _alias_identifier(relation)
+        if ident is None and isinstance(relation, exp.Lateral):
+            ident = _alias_identifier(relation.this)
         if ident is not None:
             found.append(ident)
     return found
+
+
+def _table_from_scope_source(source: exp.Expression) -> Optional[exp.Table]:
+    """The base table a scope source names, including ``LATERAL traces t``.
+
+    SQLGlot stores that join as Lateral wrapping a Table, so a check that
+    only matches Table sources never sees the relation.
+    """
+    if isinstance(source, exp.Table):
+        return source
+    if isinstance(source, exp.Lateral) and isinstance(source.this, exp.Table):
+        return source.this
+    return None
+
+
+def _lateral_tables_in_scope(scope: Any) -> list[exp.Table]:
+    """Tables that appear only as ``LATERAL <table>``, not as Scope sources.
+
+    SQLGlot puts ``JOIN LATERAL traces t`` in a nested scope whose ``sources``
+    map does not hold the table, while ``scope.tables`` still does.
+    """
+    found: list[exp.Table] = []
+    for table in getattr(scope, "tables", ()):
+        if isinstance(table.parent, exp.Lateral):
+            found.append(table)
+    return found
+
+
+def _table_is_nonrecursive_cte_self_reference(table: exp.Table) -> bool:
+    """True when a table names its enclosing CTE without WITH RECURSIVE.
+
+    SQLGlot treats that as a base table, so the relation check would say the
+    name is not allowlisted. The statement is recursive; name that instead.
+    """
+    table_name = (table.name or "").casefold()
+    if not table_name:
+        return False
+    cte = table.find_ancestor(exp.CTE)
+    if cte is None:
+        return False
+    if (cte.alias or "").casefold() != table_name:
+        return False
+    with_clause = cte.find_ancestor(exp.With)
+    if with_clause is None:
+        return False
+    return not with_clause.args.get("recursive")
 
 
 def _check_base_tables(
@@ -1902,18 +2043,43 @@ def _check_base_tables(
 
     for scope in scope_root.traverse():
         for source in scope.sources.values():
-            if not isinstance(source, exp.Table):
+            table = _table_from_scope_source(source)
+            if table is None:
                 continue
-            if source.db or source.catalog:
+            if table.db or table.catalog:
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
                     "Schema-qualified tables are not allowed. Write the table "
                     "name only, for example `spans` rather than `analytics_sql.spans`.",
                 )
-            name = source.name or ""
+            name = table.name or ""
             if not name:
                 continue
-            if _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect) is None:
+            if _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect) is None:
+                if _table_is_nonrecursive_cte_self_reference(table):
+                    return AdmissionResult(
+                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                        "recursive CTE",
+                        message=_RECURSIVE_CTE_MESSAGE,
+                    )
+                return AdmissionResult(AdmissionOutcome.RELATION_NOT_ALLOWED, repr(name))
+        for table in _lateral_tables_in_scope(scope):
+            if table.db or table.catalog:
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    "Schema-qualified tables are not allowed. Write the table "
+                    "name only, for example `spans` rather than `analytics_sql.spans`.",
+                )
+            name = table.name or ""
+            if not name:
+                continue
+            if _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect) is None:
+                if _table_is_nonrecursive_cte_self_reference(table):
+                    return AdmissionResult(
+                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                        "recursive CTE",
+                        message=_RECURSIVE_CTE_MESSAGE,
+                    )
                 return AdmissionResult(AdmissionOutcome.RELATION_NOT_ALLOWED, repr(name))
 
     # `Scope.sources` is keyed by reference name, so a table aliased to a CTE's
@@ -1945,11 +2111,16 @@ def _check_base_tables(
     declared = {cte.alias for cte in root.find_all(exp.CTE) if cte.alias}
     for scope in scope_root.traverse():
         resolved = {
-            _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+            _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
             for source in scope.sources.values()
-            if isinstance(source, exp.Table)
-            and _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+            if (table := _table_from_scope_source(source)) is not None
+            and _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
         }
+        resolved.update(
+            name
+            for table in _lateral_tables_in_scope(scope)
+            if (name := _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect))
+        )
         for table in scope.tables:
             name = table.name or ""
             table_name = _allowlisted_table_name(
@@ -2008,11 +2179,12 @@ def _check_column_references(
                 )
         by_reference: dict[str, str] = {}
         for reference, source in scope.sources.items():
-            if isinstance(source, exp.Table):
-                table_name = _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+            table = _table_from_scope_source(source)
+            if table is not None:
+                table_name = _allowlisted_table_name(table, allowlist=allowlist, dialect=dialect)
                 if table_name is not None:
                     by_reference[reference] = table_name
-                    by_reference[source.name] = table_name
+                    by_reference[table.name] = table_name
         # Scope-local table nodes as well, not only what `sources` kept. A
         # reference-name collision silently drops a table from that map, and a
         # check that reads it alone then skips the scope rather than failing
@@ -2083,6 +2255,10 @@ def _check_column_references(
             while isinstance(inner, exp.Paren):
                 inner = inner.this
             if isinstance(inner, (exp.Column, exp.Identifier)):
+                # `pg_catalog.varchar` is a schema-qualified type, not a row
+                # field. `_refused_cast_target` already decides those.
+                if isinstance(dot.parent, exp.DataType):
+                    continue
                 return AdmissionResult(
                     AdmissionOutcome.UNSUPPORTED_SYNTAX,
                     f"Composite field access ({dot.sql()}) is not supported. "
@@ -2307,11 +2483,7 @@ def admit(
             raise admission_error_from_outcome(
                 "unsupported_syntax",
                 "recursive CTE",
-                message=(
-                    "Recursive CTEs are not supported. Walk a parent/child "
-                    "relationship with a self-join instead (for spans, "
-                    "`child.parent_id = parent.span_id`)."
-                ),
+                message=_RECURSIVE_CTE_MESSAGE,
             )
 
     failure = (

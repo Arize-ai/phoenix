@@ -167,6 +167,7 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _canonicalize_json_extract(root, ctx)
     root = _canonicalize_postgres_dynamic_json_extract(root, ctx)
     root = _qualify_schema(root, ctx)
+    root = _parenthesize_setop_operands(root, ctx)
     root = _inject_limit(root, ctx)
     # After canonicalisation, so it sees the accessors that will actually run.
     _note_uncast_json_ordering(root, ctx)
@@ -264,6 +265,29 @@ def _json_path_keys(path: exp.Expression) -> Optional[tuple[str, ...]]:
         else:
             return None
     return tuple(keys) or None
+
+
+def _json_path_extract_args(path: exp.Expression) -> Optional[list[exp.Expression]]:
+    """Path segments as string literals for ``jsonb_extract_path``.
+
+    PostgreSQL takes keys and array indexes as text. JSONPathKey becomes the
+    key string; JSONPathSubscript becomes the index digits. Unlike
+    ``_json_path_keys``, subscripts are kept: they are valid path elements
+    here, and dropping them would rewrite a different extraction.
+    """
+    if not isinstance(path, exp.JSONPath):
+        return None
+    args: list[exp.Expression] = []
+    for part in path.expressions:
+        if isinstance(part, exp.JSONPathRoot):
+            continue
+        if isinstance(part, exp.JSONPathKey) and isinstance(part.this, str):
+            args.append(exp.Literal.string(part.this))
+        elif isinstance(part, exp.JSONPathSubscript):
+            args.append(exp.Literal.string(str(part.this)))
+        else:
+            return None
+    return args or None
 
 
 def _quoted_json_path(path: exp.Expression) -> Optional[str]:
@@ -531,7 +555,29 @@ def _canonicalize_postgres_dynamic_json_extract(
     changed = False
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         inner = _strip_parens(node.expression)
-        if inner is None or isinstance(inner, exp.JSONPath):
+        if inner is None:
+            continue
+        if isinstance(inner, exp.JSONPath):
+            # Operator form (`->` / `->>`) already renders correctly. The
+            # function form `json_extract` is emitted as json_extract_path,
+            # which takes json not jsonb and fails on the stored column.
+            if node.args.get("only_json_types") is not None:
+                continue
+            path_args = _json_path_extract_args(inner)
+            if path_args is None:
+                continue
+            name = (
+                "jsonb_extract_path_text"
+                if isinstance(node, exp.JSONExtractScalar)
+                else "jsonb_extract_path"
+            )
+            node.replace(
+                exp.Anonymous(
+                    this=name,
+                    expressions=[node.this, *path_args],
+                )
+            )
+            changed = True
             continue
         # Array subscripts (`-> 1`, `-> (0)`) are integers. jsonb_extract_path
         # only accepts text keys, so rewriting them changes a working operator
@@ -927,6 +973,15 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     return root
 
 
+def _latency_ms_is_coalesced_using(column: exp.Column, ctx: RewriteContext) -> bool:
+    """True when USING already collapsed this overlay to one output column."""
+    select = column.find_ancestor(exp.Select)
+    if select is None:
+        return False
+    coalesced = ctx.coalesced_using_by_select.get(id(select), set())
+    return _identifier_key("latency_ms", quoted=False, dialect=ctx.dialect) in coalesced
+
+
 def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     """Replace the advertised ``latency_ms`` column with elapsed milliseconds.
 
@@ -974,10 +1029,11 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
             exposed_by_key: dict[str, exp.Identifier] = {}
             duration_sources = 0
             for source in scope.sources.values():
-                if not isinstance(source, exp.Table):
+                table = source.this if isinstance(source, exp.Lateral) else source
+                if not isinstance(table, exp.Table):
                     continue
                 table_name = _allowlisted_table_name(
-                    source, allowlist=ctx.allowlist, dialect=ctx.dialect
+                    table, allowlist=ctx.allowlist, dialect=ctx.dialect
                 )
                 if (
                     table_name is None
@@ -985,8 +1041,8 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                 ):
                     continue
                 duration_sources += 1
-                exposed = _relation_qualifier(source)
-                for key in _relation_identifier_keys(source, dialect=ctx.dialect):
+                exposed = _relation_qualifier(table)
+                for key in _relation_identifier_keys(table, dialect=ctx.dialect):
                     aliases.add(key)
                     exposed_by_key[key] = exposed
             names = frozenset(aliases)
@@ -999,6 +1055,7 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                     (column.name or "").casefold() == "latency_ms"
                     and not column.table
                     and not query_local.is_local(column)
+                    and not _latency_ms_is_coalesced_using(column, ctx)
                 ):
                     raise AnalyticsSqlError(
                         code=ErrorCode.UNSUPPORTED_SYNTAX,
@@ -1016,13 +1073,29 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
             if node.table:
                 if _column_qualifier_key(node, dialect=ctx.dialect) not in scope_aliases:
                     continue
-            elif duration_sources != 1:
+            elif duration_sources == 0:
+                raise AnalyticsSqlError(
+                    code=ErrorCode.UNSUPPORTED_SYNTAX,
+                    message=(
+                        "`latency_ms` is a query-only overlay on stored duration "
+                        "tables, and this statement does not read one that "
+                        "exposes it. Project `latency_ms` from `spans` or "
+                        "`traces` (or a CTE that selects it)."
+                    ),
+                )
+            elif duration_sources != 1 and not _latency_ms_is_coalesced_using(node, ctx):
                 continue
             table_ident = _exposed_table_identifier(node, exposed_by_key, dialect=ctx.dialect)
-            if table_ident is None and duration_sources == 1 and exposed_by_key:
+            if (
+                table_ident is None
+                and exposed_by_key
+                and (duration_sources == 1 or _latency_ms_is_coalesced_using(node, ctx))
+            ):
                 # Unqualified `latency_ms` still has to name its table: a join
                 # partner may share `start_time`/`end_time` without advertising
                 # the overlay, and unqualified substitution is then ambiguous.
+                # USING coalesces the overlay to one column, so either side is
+                # the same value.
                 table_ident = next(iter(exposed_by_key.values())).copy()
             start = exp.column("start_time", table=table_ident)
             end = exp.column(
@@ -1160,8 +1233,47 @@ def _qualify_schema(root: exp.Expression, ctx: RewriteContext) -> exp.Expression
             ):
                 source.set("db", exp.to_identifier(ctx.allowlist.pg_schema))
                 changed = True
+    # LATERAL traces t is a Table nested inside Lateral, so it is not a
+    # Scope source of class Table. Qualify it the same way.
+    for lateral in root.find_all(exp.Lateral):
+        inner = lateral.this
+        if not isinstance(inner, exp.Table):
+            continue
+        if (
+            _allowlisted_table_name(inner, allowlist=ctx.allowlist, dialect=ctx.dialect) is not None
+            and not inner.db
+        ):
+            inner.set("db", exp.to_identifier(ctx.allowlist.pg_schema))
+            changed = True
     if changed:
         ctx.applied.append("schema_qualification")
+    return root
+
+
+def _parenthesize_setop_operands(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    """Wrap set-op operands that carry ORDER BY / LIMIT so PostgreSQL accepts them.
+
+    ``SELECT ... LIMIT 1 UNION SELECT ...`` is valid in SQLite and a syntax
+    error in PostgreSQL unless the limited select is parenthesised. SQLGlot
+    does not emit those parentheses.
+    """
+    changed = False
+    for node in root.find_all(exp.Union, exp.Intersect, exp.Except):
+        for side in ("this", "expression"):
+            operand = node.args.get(side)
+            if not isinstance(operand, exp.Select):
+                continue
+            if not (
+                operand.args.get("order")
+                or operand.args.get("limit")
+                or operand.args.get("offset")
+                or operand.args.get("fetch")
+            ):
+                continue
+            node.set(side, exp.Subquery(this=operand.copy()))
+            changed = True
+    if changed:
+        ctx.applied.append("setop_operand_parens")
     return root
 
 
