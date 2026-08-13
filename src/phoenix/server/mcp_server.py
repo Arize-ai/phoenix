@@ -59,6 +59,7 @@ from phoenix.server.bearer_auth import (
 from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.utils import prepend_root_path
+from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -469,6 +470,9 @@ def create_phoenix_mcp_app(
         openapi_spec=openapi_spec,
         client=client,
         name="Arize Phoenix",
+        # Without this the handshake advertises the FastMCP library version, which
+        # tells a client nothing about the Phoenix it is talking to.
+        version=phoenix_version,
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not

@@ -32,6 +32,7 @@ from phoenix.server.types import (
     RefreshTokenId,
     UserId,
 )
+from phoenix.version import __version__ as phoenix_version
 from tests.unit.conftest import (
     TestBulkInserter,
     patch_batched_caller,
@@ -67,6 +68,44 @@ async def test_base_mcp_app_does_not_require_a_monty_runtime(
     assert sandbox is None
     async with LifespanManager(mcp_app):
         pass
+
+
+async def test_mcp_server_advertises_the_phoenix_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The handshake identifies the Phoenix build, not the FastMCP library.
+
+    FastMCP defaults an unset version to its own, which tells a client nothing
+    about the server it reached.
+    """
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    mcp_app, _ = create_phoenix_mcp_app(FastAPI(), db=_unused_db())
+
+    def _factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+        # fastmcp passes this beyond the McpHttpClientFactory protocol.
+        follow_redirects: bool = True,
+    ) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=mcp_app),
+            base_url="http://testserver",
+            headers=headers,
+            follow_redirects=follow_redirects,
+        )
+
+    # The app is built with ``http_app(path="/")``, so it answers at its own root.
+    transport = StreamableHttpTransport(
+        url="http://testserver/",
+        httpx_client_factory=_factory,
+    )
+    async with LifespanManager(mcp_app), Client(transport) as client:
+        assert client.initialize_result is not None
+        assert client.initialize_result.serverInfo.version == phoenix_version
 
 
 def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
