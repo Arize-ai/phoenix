@@ -1,10 +1,6 @@
 export interface BashToolInput {
   command: string;
   summary?: string;
-  /**
-   * User-facing, one-sentence description of the change a `phoenix-gql`
-   * mutation in the command will make. Shown alongside the mutation approval.
-   */
   mutation_intent?: string;
 }
 
