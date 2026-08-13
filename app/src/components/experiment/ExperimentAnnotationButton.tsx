@@ -32,6 +32,11 @@ export function ExperimentAnnotationButton({
       <button
         className="button--reset"
         css={css`
+          /* Zero out the intrinsic inline size so a long nowrap annotation
+             name can never widen an ancestor that sizes to content (e.g. the
+             experiment compare table's auto-layout cells). Wrappers that
+             shrink-wrap must give this button a definite width. */
+          container-type: inline-size;
           cursor: pointer;
           padding: var(--global-dimension-size-50)
             var(--global-dimension-size-100);

@@ -26,14 +26,11 @@ import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pa
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
-import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
-import {
-  toProjectEvaluatorGraphQLTarget,
-  type ProjectEvaluatorScope,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import {
   useEvaluatorFormDirtyCheck,
@@ -362,9 +359,7 @@ function AttachCodeProjectEvaluatorDialog({
               evaluatorId: creationMode.evaluatorId,
               name: creationMode.name,
               samplingRate: scope.samplingRate,
-              evaluationTarget: toProjectEvaluatorGraphQLTarget(
-                scope.targetType
-              ),
+              evaluationTarget: scope.targetType,
               filterCondition: scope.filterCondition,
               enabled: true,
               inputMapping: null,
@@ -454,7 +449,7 @@ function CreateLlmProjectEvaluatorDialog({
           ...llmInput,
           inputMapping: state.evaluator.inputMapping,
           projectId,
-          evaluationTarget: toProjectEvaluatorGraphQLTarget(scope.targetType),
+          evaluationTarget: scope.targetType,
           samplingRate: scope.samplingRate,
           filterCondition: scope.filterCondition,
           enabled: true,
@@ -526,8 +521,7 @@ const ScratchLlmDialogContent = ({
       mode="create"
       error={error}
       formLeftPanel={
-        <ProjectEvaluatorFormSections
-          definitionKind="llm"
+        <ProjectLlmEvaluatorFormSections
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
@@ -538,7 +532,6 @@ const ScratchLlmDialogContent = ({
         <ProjectEvaluatorScopePanel
           projectId={projectId}
           scope={scope}
-          onScopeChange={onScopeChange}
           showScopeFields={false}
         />
       }

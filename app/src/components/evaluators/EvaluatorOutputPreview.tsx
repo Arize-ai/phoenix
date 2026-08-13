@@ -334,10 +334,11 @@ export function AnnotationPreviewPopoverButton(props: {
   );
 }
 
-/** The "Evaluator Annotation Preview" card shown while a test is in flight. */
-export function AnnotationPreviewSkeletonCard() {
+/** The annotation preview card shown while a test is in flight. */
+export function AnnotationPreviewSkeletonCard(props: { title?: string }) {
+  const { title = "Evaluator Annotation Preview" } = props;
   return (
-    <Card title="Evaluator Annotation Preview">
+    <Card title={title}>
       <View padding="size-100">
         <Flex direction="column" gap="size-100">
           <Skeleton height={144} borderRadius={8} animation="wave" />
@@ -348,14 +349,15 @@ export function AnnotationPreviewSkeletonCard() {
   );
 }
 
-/** The "Evaluator Annotation Preview" card for a finished test run. */
+/** The annotation preview card for a finished test run. */
 export function AnnotationPreviewCard(props: {
   annotation: Annotation;
   extra?: ReactNode;
+  title?: string;
 }) {
-  const { annotation, extra } = props;
+  const { annotation, extra, title = "Evaluator Annotation Preview" } = props;
   return (
-    <Card title="Evaluator Annotation Preview" width="100%" extra={extra}>
+    <Card title={title} width="100%" extra={extra}>
       <AnnotationPreviewJSONBlock annotation={annotation} />
       <View padding="size-100">
         <AnnotationPreviewPopoverButton annotation={annotation} />
@@ -364,7 +366,7 @@ export function AnnotationPreviewCard(props: {
   );
 }
 
-export function AnnotationPreviewJSONBlock(props: { annotation: Annotation }) {
+function AnnotationPreviewJSONBlock(props: { annotation: Annotation }) {
   const { name, label, score, explanation } = props.annotation;
   const jsonString = useMemo(() => {
     return JSON.stringify({ name, label, score, explanation }, null, 2);

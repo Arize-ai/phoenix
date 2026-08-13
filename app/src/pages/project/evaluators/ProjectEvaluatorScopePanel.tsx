@@ -133,37 +133,39 @@ function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
   };
 }
 
+type ProjectEvaluatorScopePanelScopeFieldsProps =
+  | {
+      /** Target, sampling, and the span filter render in this panel. */
+      showScopeFields?: true;
+      onScopeChange: (scope: ProjectEvaluatorScope) => void;
+      onFilterValidityChange?: (isValid: boolean) => void;
+      isTargetDisabled?: boolean;
+    }
+  | {
+      /**
+       * The scope fields render in the definition panel instead; the panel
+       * starts at the matching-span preview and edits no scope.
+       */
+      showScopeFields: false;
+    };
+
 /** Scope is committed by the form's create/save action, not by this panel. */
-export const ProjectEvaluatorScopePanel = ({
-  projectId,
-  scope,
-  onScopeChange,
-  onFilterValidityChange,
-  codeEvaluatorId,
-  inlineCode,
-  requiredVariables,
-  showScopeFields = true,
-  isTargetDisabled = false,
-}: {
-  projectId: string;
-  scope: ProjectEvaluatorScope;
-  onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  onFilterValidityChange?: (isValid: boolean) => void;
-  codeEvaluatorId?: string;
-  inlineCode?: ProjectEvaluatorInlineCode;
-  requiredVariables?: string[];
-  /**
-   * Off when target, sampling, and the span filter render in the definition
-   * panel instead; the panel then starts at the matching-span preview.
-   */
-  showScopeFields?: boolean;
-  isTargetDisabled?: boolean;
-}) => {
+export const ProjectEvaluatorScopePanel = (
+  props: {
+    projectId: string;
+    scope: ProjectEvaluatorScope;
+    codeEvaluatorId?: string;
+    inlineCode?: ProjectEvaluatorInlineCode;
+    requiredVariables?: string[];
+  } & ProjectEvaluatorScopePanelScopeFieldsProps
+) => {
+  const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
+    props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
   return (
     <div css={panelCSS}>
       <div css={panelScrollCSS}>
-        {showScopeFields ? (
+        {props.showScopeFields !== false ? (
           <>
             <Flex direction="column" gap="size-25">
               <Heading level={2}>Scope</Heading>
@@ -174,16 +176,16 @@ export const ProjectEvaluatorScopePanel = ({
             <ScopeEditorCard
               projectId={projectId}
               scope={scope}
-              onScopeChange={onScopeChange}
-              onFilterValidityChange={onFilterValidityChange}
+              onScopeChange={props.onScopeChange}
+              onFilterValidityChange={props.onFilterValidityChange}
               timeWindow={timeWindow}
               onTimeWindowChange={setTimeWindow}
-              isTargetDisabled={isTargetDisabled}
+              isTargetDisabled={props.isTargetDisabled ?? false}
             />
           </>
         ) : null}
         <Flex direction="column" gap="size-25">
-          {showScopeFields ? (
+          {props.showScopeFields !== false ? (
             <Heading level={2}>Matching spans</Heading>
           ) : (
             <>
@@ -198,9 +200,7 @@ export const ProjectEvaluatorScopePanel = ({
                 </Heading>
                 <TimeWindowSegmentedControl
                   value={timeWindow.presetId}
-                  onChange={(presetId) =>
-                    setTimeWindow(makeTimeWindow(presetId))
-                  }
+                  onChange={setTimeWindow}
                 />
               </Flex>
               <Text color="text-500">
@@ -310,7 +310,7 @@ function TimeWindowSegmentedControl({
   onChange,
 }: {
   value: TimeWindowPresetId;
-  onChange: (presetId: TimeWindowPresetId) => void;
+  onChange: (timeWindow: TimeWindow) => void;
 }) {
   return (
     <SegmentedControl
@@ -318,7 +318,7 @@ function TimeWindowSegmentedControl({
       selectedKey={value}
       onSelectionChange={(key) => {
         if (typeof key === "string" && isTimeWindowPresetId(key)) {
-          onChange(key);
+          onChange(makeTimeWindow(key));
         }
       }}
     >
@@ -367,9 +367,7 @@ function ScopeEditorCard({
           </Text>
           <TimeWindowSegmentedControl
             value={timeWindow.presetId}
-            onChange={(presetId) =>
-              onTimeWindowChange(makeTimeWindow(presetId))
-            }
+            onChange={onTimeWindowChange}
           />
         </Flex>
       </ProjectEvaluatorScopeFieldGroup>
@@ -660,7 +658,13 @@ function SpanRunRow({
             <Button
               size="S"
               variant="primary"
-              aria-label={`Test evaluator on ${row.name}`}
+              aria-label={
+                // Recent spans commonly share a name; suffix the span id so
+                // each row's button has a distinct accessible name.
+                row.isSample
+                  ? `Test evaluator on ${row.name}`
+                  : `Test evaluator on ${row.name}, span ${row.key.slice(-8)}`
+              }
               leadingVisual={
                 <Icon
                   svg={isRunning ? <Icons.Loading /> : <Icons.PlayCircle />}
@@ -737,10 +741,14 @@ function SpanRunResultChip({ run }: { run: SpanRun | undefined }) {
   ) : null;
 }
 
+/**
+ * ExperimentAnnotationButton is inline-size contained (intrinsic width 0), so
+ * a shrink-wrapping flex item would collapse it; give it a definite width.
+ */
 const resultAnnotationCSS = css`
-  flex: none;
+  flex: 0 1 auto;
+  width: 280px;
   min-width: 0;
-  max-width: 280px;
 `;
 
 /**

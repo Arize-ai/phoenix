@@ -30,15 +30,11 @@ import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/p
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
 import { CodeAuthoringFields } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
-import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
-import {
-  fromProjectEvaluatorGraphQLTarget,
-  toProjectEvaluatorGraphQLTarget,
-  type ProjectEvaluatorScope,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
@@ -270,7 +266,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
 
 function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
   return {
-    targetType: fromProjectEvaluatorGraphQLTarget(evaluator.evaluationTarget),
+    targetType: evaluator.evaluationTarget,
     filterCondition: evaluator.filterCondition,
     samplingRate: evaluator.samplingRate,
   };
@@ -405,7 +401,7 @@ function EditLlmProjectEvaluatorContent({
             projectEvaluatorId: evaluator.id,
             inputMapping: state.evaluator.inputMapping,
             samplingRate: scope.samplingRate,
-            evaluationTarget: toProjectEvaluatorGraphQLTarget(scope.targetType),
+            evaluationTarget: scope.targetType,
             filterCondition: scope.filterCondition,
           },
         },
@@ -444,8 +440,7 @@ function EditLlmProjectEvaluatorContent({
             error={error}
             evaluatorNodeId={evaluator.id}
             formLeftPanel={
-              <ProjectEvaluatorFormSections
-                definitionKind="llm"
+              <ProjectLlmEvaluatorFormSections
                 projectId={evaluator.project.id}
                 scope={scope}
                 onScopeChange={setScope}
@@ -457,7 +452,6 @@ function EditLlmProjectEvaluatorContent({
               <ProjectEvaluatorScopePanel
                 projectId={evaluator.project.id}
                 scope={scope}
-                onScopeChange={setScope}
                 showScopeFields={false}
               />
             }
@@ -641,9 +635,7 @@ function EditCodeProjectEvaluator({
                       ? { inputMapping: state.evaluator.inputMapping }
                       : {}),
                     samplingRate: scope.samplingRate,
-                    evaluationTarget: toProjectEvaluatorGraphQLTarget(
-                      scope.targetType
-                    ),
+                    evaluationTarget: scope.targetType,
                     filterCondition: scope.filterCondition,
                   },
                 },
