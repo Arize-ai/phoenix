@@ -7,7 +7,7 @@ const pendingMutationSchema = z.object({
   query: z.string(),
   variables: z.record(z.string(), z.unknown()).nullish(),
   digest: z.string(),
-});
+}) satisfies z.ZodType<PendingGraphQLMutation, PendingGraphQLMutation>;
 
 /**
  * Reads the resolved GraphQL mutations awaiting user approval from a bash tool
