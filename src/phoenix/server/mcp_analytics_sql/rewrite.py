@@ -25,6 +25,7 @@ from phoenix.server.mcp_analytics_sql.normalize import (
     unix_epoch_to_utc,
 )
 from phoenix.server.mcp_analytics_sql.parse import (
+    _JSON_EACH_COLUMNS,
     _TIMESTAMP_COMPARISONS,
     _allowlisted_table_name,
     _cast_type_name,
@@ -37,9 +38,11 @@ from phoenix.server.mcp_analytics_sql.parse import (
     _relation_identifier_keys,
     _scope_columns,
     _strip_parens,
+    _table_alias_column_names,
     _timestamp_literals,
     _timestamp_passthrough_references,
     _unix_epoch_text,
+    _values_width,
     _virtual_column_on_source,
     query_local_columns,
     set_operation_width_mismatch,
@@ -746,18 +749,20 @@ def _exposed_table_identifier(
     return ident.copy() if ident is not None else _copied_table_identifier(column)
 
 
-def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str, exp.Identifier]]:
+def _star_sources(
+    node: exp.Select, scope: Optional[Any]
+) -> list[tuple[str, str, exp.Identifier, exp.Expression]]:
     """Every relation a bare ``*`` in this SELECT draws from.
 
-    Each entry is (physical table name, alias string, qualifier identifier).
-    The identifier keeps the caller's quoting.
+    Each entry is (physical table name, alias string, qualifier identifier,
+    source expression). The identifier keeps the caller's quoting.
 
     A star means "every column of everything in the FROM clause", so the joins
     count as much as the leading table. Reading only the first source expands to
     one table's columns and silently drops the rest, which returns a plausible
     row that is missing exactly the data the caller joined for.
     """
-    sources: list[tuple[str, str, exp.Identifier]] = []
+    sources: list[tuple[str, str, exp.Identifier, exp.Expression]] = []
 
     def add(expression: Optional[exp.Expression]) -> None:
         if expression is None:
@@ -767,20 +772,12 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
         if isinstance(expression, exp.Table) and expression.name:
             source = scope.sources.get(expression.alias_or_name) if scope is not None else None
             if isinstance(source, exp.Table):
-                sources.append((source.name, alias, qualifier))
+                sources.append((source.name, alias, qualifier, expression))
             else:
                 # A CTE parses as a Table too, but resolves to a nested scope.
-                # Its projection is query-local rather than part of the
-                # manifest, so it follows the same refusal path as a subquery.
-                sources.append(("", alias, qualifier))
+                sources.append(("", alias, qualifier, expression))
         else:
-            # A derived table, a table-valued function, or anything else whose
-            # columns come from the query rather than the manifest. Recorded
-            # with an empty table name so the caller of this function refuses
-            # rather than skipping it: dropping such a source silently returns
-            # the other sources' columns and none of these, which is a
-            # well-formed answer missing exactly what was joined for.
-            sources.append(("", alias, qualifier))
+            sources.append(("", alias, qualifier, expression))
 
     from_expr = node.args.get("from_") or node.args.get("from")
     if isinstance(from_expr, exp.From):
@@ -788,6 +785,101 @@ def _star_sources(node: exp.Select, scope: Optional[Any]) -> list[tuple[str, str
     for join in node.args.get("joins") or []:
         add(join.this)
     return sources
+
+
+_TVF_STAR_COLUMNS: dict[str, tuple[str, ...]] = {
+    "json_each": _JSON_EACH_COLUMNS,
+    "jsonb_each": ("key", "value"),
+    "jsonb_each_text": ("key", "value"),
+}
+
+
+def _select_output_names(select: exp.Select) -> Optional[list[str]]:
+    """Output names of a SELECT whose projection is fully named, or None."""
+    names: list[str] = []
+    for item in select.expressions:
+        if isinstance(item, exp.Star) or (
+            isinstance(item, exp.Column) and isinstance(item.this, exp.Star)
+        ):
+            return None
+        name = item.alias_or_name or ""
+        if not name or name == "*":
+            return None
+        names.append(name)
+    return names or None
+
+
+def _expression_output_names(
+    expression: Optional[exp.Expression],
+    root: exp.Expression,
+    *,
+    dialect: SupportedSQLDialectName,
+    qualifier: exp.Identifier,
+) -> Optional[list[str]]:
+    """Columns a query-local relation projects, when that list is known."""
+    if expression is None:
+        return None
+    tvf = _tvf_output_names(expression)
+    if tvf is not None:
+        return tvf
+    if isinstance(expression, exp.Subquery):
+        return _expression_output_names(expression.this, root, dialect=dialect, qualifier=qualifier)
+    if isinstance(expression, (exp.Union, exp.Intersect, exp.Except)):
+        return _expression_output_names(expression.this, root, dialect=dialect, qualifier=qualifier)
+    if isinstance(expression, exp.Select):
+        return _select_output_names(expression)
+    if isinstance(expression, exp.Values):
+        names = _table_alias_column_names(expression.args.get("alias"))
+        if names:
+            return names
+        width = _values_width(expression)
+        if width <= 0:
+            return None
+        return [f"column{index}" for index in range(1, width + 1)]
+    if isinstance(expression, exp.Table):
+        return _cte_output_names(root, expression, dialect=dialect, qualifier=qualifier)
+    return None
+
+
+def _tvf_output_names(expression: exp.Expression) -> Optional[list[str]]:
+    target = expression.this if isinstance(expression, exp.Table) else expression
+    name = ""
+    if isinstance(target, exp.Anonymous):
+        name = target.name or ""
+    elif isinstance(target, exp.Func):
+        name = target.sql_name() or target.key or ""
+    columns = _TVF_STAR_COLUMNS.get(name.casefold())
+    return list(columns) if columns is not None else None
+
+
+def _cte_output_names(
+    root: exp.Expression,
+    table: exp.Table,
+    *,
+    dialect: SupportedSQLDialectName,
+    qualifier: exp.Identifier,
+) -> Optional[list[str]]:
+    alias = table.alias_or_name or table.name or ""
+    if not alias:
+        return None
+    quoted = bool(qualifier.args.get("quoted"))
+    want = _identifier_key(alias, quoted=quoted, dialect=dialect)
+    for cte in root.find_all(exp.CTE):
+        cte_ident = cte.args.get("alias")
+        cte_quoted = False
+        cte_alias = cte.alias or ""
+        if isinstance(cte_ident, exp.TableAlias) and isinstance(cte_ident.this, exp.Identifier):
+            cte_quoted = bool(cte_ident.this.args.get("quoted"))
+            cte_alias = cte_ident.this.name or cte_alias
+        if _identifier_key(cte_alias, quoted=cte_quoted, dialect=dialect) != want:
+            continue
+        names = _table_alias_column_names(
+            cte_ident if isinstance(cte_ident, exp.TableAlias) else None
+        )
+        if names:
+            return names
+        return _expression_output_names(cte.this, root, dialect=dialect, qualifier=qualifier)
+    return None
 
 
 def _select_from_is_values(select: exp.Select) -> bool:
@@ -859,9 +951,10 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
         else {}
     )
 
-    for node in list(root.walk()):
-        if not isinstance(node, exp.Select):
-            continue
+    # Innermost first so a derived table's star is named before an outer star
+    # tries to read that projection.
+    selects = [node for node in root.walk() if isinstance(node, exp.Select)]
+    for node in reversed(selects):
         new_exprs: list[exp.Expression] = []
         local_changed = False
         for expression in node.expressions:
@@ -884,8 +977,8 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
 
             if explicit:
                 targets = [
-                    (name, alias, qualifier)
-                    for name, alias, qualifier in _star_sources(
+                    (name, alias, qualifier, source)
+                    for name, alias, qualifier, source in _star_sources(
                         node, scope_by_expression.get(id(node))
                     )
                     if _matches_star_source(explicit, explicit_identifier, qualifier, ctx.dialect)
@@ -915,7 +1008,7 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             using_keys = frozenset(using_keys | ctx.coalesced_using_by_select.get(id(node), set()))
             emitted_using: set[str] = set()
 
-            for table_name, alias, qualifier in targets:
+            for table_name, alias, qualifier, source in targets:
                 spec = ctx.allowlist.table_specs.get(table_name) if table_name else None
                 if spec is None:
                     if _select_from_is_values(node):
@@ -926,13 +1019,24 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                         # a statement both backends execute.
                         new_exprs.append(expression)
                         continue
-                    # A CTE, derived table, or unaliased set-returning function.
-                    # Its columns are whatever its own SELECT produced, which the
-                    # manifest cannot know, so the caller has to name them.
-                    # Refusing as an ordinary admission error matters: raising
-                    # ValueError here escaped the error envelope entirely and
-                    # reached the caller as an internal failure for perfectly
-                    # ordinary SQL.
+                    local_names = _expression_output_names(
+                        source, root, dialect=ctx.dialect, qualifier=qualifier
+                    )
+                    if local_names:
+                        for name in local_names:
+                            key = _identifier_key(name, quoted=False, dialect=ctx.dialect)
+                            if key in using_keys:
+                                if key in emitted_using:
+                                    continue
+                                emitted_using.add(key)
+                            column = exp.Column(this=exp.to_identifier(name))
+                            if qualifier.name:
+                                column.set("table", qualifier.copy())
+                            new_exprs.append(column)
+                        local_changed = True
+                        continue
+                    # A source whose columns we still cannot name. Skipping it
+                    # would return the other sources' columns and none of these.
                     relation = table_name or alias
                     if relation:
                         message = (

@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 182
+    assert len(CASES) >= 184
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -1810,13 +1810,34 @@ def test_named_values_alias_is_rewritten_for_sqlite() -> None:
     assert "AS t(x)" not in result.rendered_sql.lower().replace(" ", "")
 
 
-def test_indexed_by_names_the_hint() -> None:
+def test_indexed_by_is_dropped_rather_than_refused() -> None:
     result = try_parse_and_admit(
-        "SELECT * FROM spans INDEXED BY spans_start_time", dialect="sqlite"
+        "SELECT id FROM spans INDEXED BY spans_start_time", dialect="sqlite"
     )
 
-    assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
-    assert "INDEXED BY" in result.detail
+    assert result.outcome is AdmissionOutcome.ADMIT
+    assert result.rendered_sql is not None
+    assert "INDEXED" not in result.rendered_sql.upper()
+
+
+def test_json_each_column_alias_list_is_rewritten() -> None:
+    result = try_parse_and_admit(
+        "SELECT k FROM spans, json_each(attributes) AS t(k, v)", dialect="sqlite"
+    )
+
+    assert result.outcome is AdmissionOutcome.ADMIT
+    folded = (result.rendered_sql or "").lower()
+    assert " as k" in folded or "as k" in folded.replace(" ", "")
+
+
+def test_sqlite_ilike_rewrites_to_lower_like_lower() -> None:
+    result = try_parse_and_admit("SELECT name ILIKE '%root%' FROM spans", dialect="sqlite")
+
+    assert result.outcome is AdmissionOutcome.ADMIT
+    folded = (result.rendered_sql or "").lower().replace(" ", "")
+    assert "ilike" not in folded
+    assert "lower(" in folded
+    assert "like" in folded
 
 
 def test_unaliased_json_each_qualifier_is_the_function_name() -> None:

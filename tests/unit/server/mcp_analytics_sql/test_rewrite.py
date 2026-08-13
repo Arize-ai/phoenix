@@ -594,48 +594,48 @@ def test_latency_ms_does_not_fold_a_quoted_alias_onto_an_unquoted_qualifier() ->
     assert "latency_ms" in rendered.lower()
 
 
-def test_star_over_a_query_local_relation_is_a_normal_refusal() -> None:
-    """The columns of a CTE are whatever its SELECT produced, which the manifest cannot know.
+def test_star_over_a_cte_expands_the_cte_projection() -> None:
+    """The CTE's SELECT is known; expanding it is the query the caller wrote."""
+    ctx, rendered = _rewritten(
+        "WITH x AS (SELECT id FROM projects) SELECT * FROM x", dialect="sqlite"
+    )
+    assert "star_expansion" in ctx.applied
+    folded = rendered.lower().replace(" ", "")
+    assert "x.id" in folded or folded.startswith("selectid") or "selectx.id" in folded
+    assert "name" not in folded
 
-    Refusing is right; refusing with a bare ValueError is not, because it escapes
-    the error envelope and reaches the caller as an internal failure for
-    ordinary SQL.
-    """
-    root = parse_sql("WITH x AS (SELECT id FROM projects) SELECT * FROM x", dialect="sqlite")
-    with pytest.raises(AnalyticsSqlError):
-        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite"))
 
-
-def test_star_over_an_unaliased_set_returning_function_does_not_invent_a_name() -> None:
-    """An unaliased jsonb_each is not a relation named 'a query-local relation'."""
+def test_star_over_an_unaliased_set_returning_function_expands_known_columns() -> None:
     root = parse_sql(
         "SELECT * FROM jsonb_each((SELECT attributes FROM spans LIMIT 1))",
         dialect="postgresql",
     )
-    with pytest.raises(AnalyticsSqlError) as caught:
-        rewrite(
-            admit(root, allowlist=load_allowlist("postgresql"), dialect="postgresql"),
-            RewriteContext(
-                allowlist=load_allowlist("postgresql"), dialect="postgresql", row_limit=500
-            ),
-        )
-    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
-    assert "a query-local relation" not in caught.value.message
-    assert "set-returning function" in caught.value.message
+    ctx = RewriteContext(
+        allowlist=load_allowlist("postgresql"), dialect="postgresql", row_limit=500
+    )
+    rendered = render(
+        rewrite(admit(root, allowlist=ctx.allowlist, dialect="postgresql"), ctx),
+        dialect="postgresql",
+    )
+    assert "star_expansion" in ctx.applied
+    folded = rendered.lower()
+    assert "key" in folded
+    assert "value" in folded
 
 
 @pytest.mark.parametrize("backend", ["sqlite", "postgresql"])
-def test_star_over_a_cte_shadowing_an_allowlisted_table_is_a_normal_refusal(
+def test_star_over_a_cte_shadowing_an_allowlisted_table_uses_the_cte(
     backend: SupportedSQLDialectName,
 ) -> None:
     """A CTE name must not make star expansion read the physical table's schema."""
-    root = parse_sql(
+    ctx, rendered = _rewritten(
         "WITH projects AS (SELECT 1 AS n) SELECT * FROM projects",
         dialect=backend,
     )
-    with pytest.raises(AnalyticsSqlError) as exc:
-        rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect=backend), _ctx(backend))
-    assert "query-local relation" in exc.value.message
+    assert "star_expansion" in ctx.applied
+    folded = rendered.lower().replace(" ", "")
+    assert "n" in folded
+    assert "gradient_start_color" not in folded
 
 
 def test_latency_ms_keeps_its_name_in_the_select_list() -> None:
@@ -656,24 +656,29 @@ def test_experiment_runs_latency_ms_is_substituted() -> None:
 
 
 @pytest.mark.parametrize(
-    "sql",
+    "sql,must_contain",
     [
-        "SELECT * FROM (SELECT id FROM projects) p JOIN traces t ON t.project_rowid = p.id",
-        "SELECT * FROM spans, json_each(attributes)",
+        (
+            "SELECT * FROM (SELECT id FROM projects) p JOIN traces t ON t.project_rowid = p.id",
+            "p.id",
+        ),
+        ("SELECT * FROM spans, json_each(attributes)", "key"),
+        ("SELECT * FROM (VALUES (1, 2), (3, 4)) AS v(a, b)", "v.a"),
     ],
-    ids=["derived-table-joined", "table-valued-function"],
+    ids=["derived-table-joined", "table-valued-function", "named-values"],
 )
-def test_star_refuses_sources_the_manifest_cannot_describe(sql: str) -> None:
-    """A source whose columns come from the query, not the manifest, must refuse.
+def test_star_expands_sources_whose_columns_are_known(sql: str, must_contain: str) -> None:
+    ctx, rendered = _rewritten(sql, dialect="sqlite")
+    assert "star_expansion" in ctx.applied
+    assert must_contain.lower() in rendered.lower()
 
-    Skipping it returns the other sources' columns and none of these, which is a
-    well-formed answer missing exactly what the caller joined or unnested for.
-    The CTE spelling of the same query already refused, so silently dropping
-    these gave one query shape two different outcomes.
-    """
-    root = parse_sql(sql, dialect="sqlite")
-    with pytest.raises(AnalyticsSqlError):
+
+def test_star_over_an_unnamed_projection_is_still_refused() -> None:
+    """A projection with no name still cannot be expanded; skip would drop the source."""
+    root = parse_sql("SELECT * FROM (SELECT count(*) FROM spans) t", dialect="sqlite")
+    with pytest.raises(AnalyticsSqlError) as caught:
         rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite"))
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
 
 
 def test_qualified_star_expands_to_manifest_columns() -> None:

@@ -155,7 +155,9 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
     repaired = _repair_row_constructor(repaired, dialect=dialect)
     repaired = _repair_jsonb_typeof_text_extract(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_named_from_aliases(repaired, dialect=dialect)
+    repaired = _strip_sqlite_index_hints(repaired, dialect=dialect)
     repaired = _rewrite_sqlite_interval_arithmetic(repaired, dialect=dialect)
+    repaired = _rewrite_sqlite_ilike(repaired, dialect=dialect)
     return _fold_unquoted_identifiers(repaired, dialect=dialect)
 
 
@@ -530,6 +532,46 @@ def _rewrite_sqlite_named_from_aliases(
                 alias=exp.TableAlias(this=relation_name) if relation_name is not None else None,
             )
         )
+    for table in list(root.find_all(exp.Table)):
+        if not _is_json_each_call(table):
+            continue
+        alias = table.args.get("alias")
+        names = _table_alias_column_names(alias)
+        if not names:
+            continue
+        offered = list(_JSON_EACH_COLUMNS)
+        if len(names) > len(offered):
+            continue
+        inner = table.copy()
+        inner.set("alias", None)
+        projections: list[exp.Expression] = []
+        for index, column_name in enumerate(offered):
+            column = exp.column(column_name)
+            if index < len(names):
+                projections.append(exp.alias_(column, names[index]))
+            else:
+                projections.append(column)
+        relation_name = (
+            alias.this.copy() if isinstance(alias, exp.TableAlias) and alias.this else None
+        )
+        table.replace(
+            exp.Subquery(
+                this=exp.Select().select(*projections).from_(inner),
+                alias=exp.TableAlias(this=relation_name) if relation_name is not None else None,
+            )
+        )
+    return root
+
+
+def _strip_sqlite_index_hints(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """Drop INDEXED BY / NOT INDEXED. They are hints, not part of the question."""
+    if dialect != "sqlite":
+        return root
+    for table in root.find_all(exp.Table):
+        if "indexed" in table.args:
+            table.args.pop("indexed", None)
     return root
 
 
@@ -612,6 +654,25 @@ def _rewrite_sqlite_interval_arithmetic(
                     expressions=[right.copy(), exp.Literal.string(modifier)],
                 )
             )
+    return root
+
+
+def _rewrite_sqlite_ilike(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """SQLite has no ILIKE. ``lower(x) LIKE lower(y)`` is the same request."""
+    if dialect != "sqlite":
+        return root
+    for node in list(root.find_all(exp.ILike)):
+        left = node.this
+        right = node.expression
+        if left is None or right is None:
+            continue
+        like = exp.Like(this=exp.Lower(this=left.copy()), expression=exp.Lower(this=right.copy()))
+        escape = node.args.get("escape")
+        if escape is not None:
+            like.set("escape", escape.copy())
+        node.replace(like)
     return root
 
 
@@ -1145,10 +1206,15 @@ def _check_dialect_specific_syntax(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 f"{node.key.upper()} is not supported by SQLite. Use ordinary GROUP BY.",
             )
-        if isinstance(node, (exp.ILike, exp.SimilarTo)):
+        if isinstance(node, exp.ILike):
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                f"{node.key.upper()} is not supported by SQLite. Use LIKE, or lower(...) LIKE "
+                "ILIKE could not be rewritten for SQLite. Write lower(...) LIKE lower(...).",
+            )
+        if isinstance(node, exp.SimilarTo):
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "SIMILAR TO is not supported by SQLite. Use LIKE, or lower(...) LIKE "
                 "lower(...) for case-insensitive matching.",
             )
         if isinstance(node, exp.Distinct) and node.args.get("on"):
@@ -1182,12 +1248,6 @@ def _check_dialect_specific_syntax(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
                 "INTERVAL arithmetic is not supported by SQLite in this form. "
                 "Use datetime(column, '+1 day'), or subtract unixepoch values.",
-            )
-        if isinstance(node, exp.Table) and "indexed" in node.args:
-            return AdmissionResult(
-                AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                "INDEXED BY / NOT INDEXED is not supported. Omit the index hint; "
-                "the engine chooses the index.",
             )
         if isinstance(node, exp.TableAlias) and node.args.get("columns"):
             if isinstance(node.parent, exp.CTE):

@@ -257,8 +257,14 @@ CASES: tuple[AdmissionCase, ...] = (
     ),
     AdmissionCase(
         sql="SELECT name ILIKE '%root%' FROM spans",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="SQLite has no ILIKE grammar, so admit neither spelling of its case-insensitive match",
+        expect=AdmissionOutcome.ADMIT,
+        note="SQLite has no ILIKE; rewrite to lower(name) LIKE lower('%root%') rather than refuse",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT name NOT ILIKE '%root%' FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="NOT ILIKE is the same rewrite under a NOT",
         dialect="sqlite",
     ),
     AdmissionCase(
@@ -1022,8 +1028,8 @@ CASES: tuple[AdmissionCase, ...] = (
     ),
     AdmissionCase(
         sql="SELECT * FROM spans INDEXED BY spans_start_time",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="INDEXED BY used to be reported as the index name being shadowed by another relation",
+        expect=AdmissionOutcome.ADMIT,
+        note="INDEXED BY is a hint, not the question; drop it rather than refuse",
         dialect="sqlite",
     ),
     AdmissionCase(
@@ -1060,6 +1066,12 @@ CASES: tuple[AdmissionCase, ...] = (
         sql="SELECT INTERVAL '1 day' AS v FROM spans",
         expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
         note="a bare INTERVAL is not a SQLite value; the additive form is rewritten, this one is refused",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT k FROM spans, json_each(attributes) AS t(k, v)",
+        expect=AdmissionOutcome.ADMIT,
+        note="SQLite cannot render json_each AS t(k, v); push the names onto the json_each columns",
         dialect="sqlite",
     ),
 )

@@ -123,7 +123,7 @@ GOVERNED_BY_CHECK: dict[str, str] = {
     "Cube": "parse._check_dialect_specific_syntax",
     "GroupingSets": "parse._check_dialect_specific_syntax",
     "Rollup": "parse._check_dialect_specific_syntax",
-    "ILike": "parse._check_dialect_specific_syntax",
+    "ILike": "parse._rewrite_sqlite_ilike",
     "SimilarTo": "parse._check_dialect_specific_syntax",
     # SQLite cannot execute it; PostgreSQL can. Timestamp policy also unwraps
     # ANY(VALUES (...)) as a list of literals.
