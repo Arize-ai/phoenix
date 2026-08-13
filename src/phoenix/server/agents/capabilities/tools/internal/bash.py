@@ -8,7 +8,7 @@ import posixpath
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Generic, Optional
+from typing import Any, Awaitable, Callable, Generic, Literal, Optional
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
@@ -17,6 +17,7 @@ from graphql import OperationType as GraphQLOperationType
 from graphql import parse as parse_graphql
 from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
+from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_ai import RunContext, Tool
 from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.tools import AgentDepsT
@@ -25,6 +26,7 @@ from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.types import AgentDependencies
 from phoenix.server.api.context import Context
 
 logger = logging.getLogger(__name__)
@@ -65,15 +67,6 @@ def _mutation_digest(query: str, variables: Optional[dict[str, Any]]) -> str:
 class GraphQLMutationPolicy:
     """Mutable mutation-execution policy shared between the ``bash`` tool and the
     ``phoenix-gql`` builtin.
-
-    The builtin runs inside the virtual shell where exceptions cannot propagate
-    out, so it reports mutations awaiting approval by appending to ``pending``;
-    the bash tool drains the list after each shell execution. The object lives
-    outside the sandbox, so shell code cannot forge or clear it.
-
-    ``require_approval`` and ``approved_digests`` are set by the bash tool
-    before each execution from the run's edit permission and any user-granted
-    approval, respectively.
     """
 
     allow_mutations: bool
@@ -362,14 +355,11 @@ def create_phoenix_gql_builtin(
                         "the user responds."
                     )
 
-            # Strawberry re-checks the operation type at execution, so a mutation
-            # that evaded the AST classifier above is still rejected here.
             allowed_operation_types = (
                 {OperationType.QUERY, OperationType.MUTATION}
                 if is_mutation
                 else {OperationType.QUERY}
             )
-
             result = await schema.execute(
                 query,
                 variable_values=variables,
@@ -427,52 +417,106 @@ class BashToolResult(TypedDict):
     stderrTruncated: bool
 
 
+def _make_custom_builtins(
+    *,
+    schema: strawberry.Schema,
+    build_graphql_context: Callable[[], Context],
+    mutation_policy: GraphQLMutationPolicy,
+) -> dict[str, Callable[[BuiltinContext], Awaitable[BuiltinResult]]]:
+    """Build the custom shell commands installed into every shell instance."""
+    return {
+        "phoenix-gql": create_phoenix_gql_builtin(
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            mutation_policy=mutation_policy,
+        ),
+    }
+
+
+def _restore_shell(
+    snapshot: bytes,
+    *,
+    schema: strawberry.Schema,
+    build_graphql_context: Callable[[], Context],
+    mutation_policy: GraphQLMutationPolicy,
+) -> Bash:
+    """Restore a shell from snapshot bytes."""
+    return Bash.from_snapshot(
+        snapshot,
+        python=False,
+        network=None,
+        custom_builtins=_make_custom_builtins(
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            mutation_policy=mutation_policy,
+        ),
+    )
+
+
 def _build_shell(
     *,
-    custom_builtins: dict[str, Callable[[BuiltinContext], Awaitable[BuiltinResult]]],
+    schema: strawberry.Schema,
+    build_graphql_context: Callable[[], Context],
+    mutation_policy: GraphQLMutationPolicy,
     initial_snapshot: Optional[bytes],
 ) -> Bash:
     """Build the virtual shell, restoring prior session state when available."""
     if initial_snapshot is not None:
         try:
-            return Bash.from_snapshot(
+            return _restore_shell(
                 initial_snapshot,
-                python=False,
-                network=None,
-                custom_builtins=custom_builtins,
+                schema=schema,
+                build_graphql_context=build_graphql_context,
+                mutation_policy=mutation_policy,
             )
         except Exception:
             logger.warning("Failed to restore bash snapshot; starting a fresh shell")
     shell = Bash(
         python=False,
         network=None,  # network is disabled so curl/wget/http cannot reach the internet
-        custom_builtins=custom_builtins,
+        custom_builtins=_make_custom_builtins(
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            mutation_policy=mutation_policy,
+        ),
     )
     shell.execute_sync_or_throw(f"mkdir -p {WORKSPACE_ROOT} {TMP_ROOT} && cd {WORKSPACE_ROOT}")
     return shell
 
 
-def _resolve_edit_permission(deps: Any) -> Optional[str]:
+def _resolve_edit_permission(
+    deps: Optional[AgentDependencies],
+) -> Optional[Literal["manual", "bypass"]]:
     """Read the run's edit permission off the agent dependencies, if it has one.
 
     The browser agent's ``AgentDependencies`` carries ``edit_permission``; the
     headless/subagent variants run with ``deps=None`` and get no approval flow.
     """
-    return getattr(deps, "edit_permission", None)
+    return deps.edit_permission if deps is not None else None
+
+
+class _ApprovedMutationEntry(BaseModel):
+    """The slice of a pending-mutation metadata entry needed for approval matching."""
+
+    digest: str
+
+
+_approved_mutations_adapter: TypeAdapter[list[_ApprovedMutationEntry]] = TypeAdapter(
+    list[_ApprovedMutationEntry]
+)
 
 
 def _approved_digests_from_metadata(tool_call_metadata: Optional[dict[str, Any]]) -> frozenset[str]:
     """Extract the approved mutation digests from a deferred tool call's metadata."""
     if not tool_call_metadata:
         return frozenset()
-    pending = tool_call_metadata.get(PENDING_MUTATIONS_METADATA_KEY)
-    if not isinstance(pending, list):
+    try:
+        entries = _approved_mutations_adapter.validate_python(
+            tool_call_metadata.get(PENDING_MUTATIONS_METADATA_KEY)
+        )
+    except ValidationError:
         return frozenset()
-    return frozenset(
-        digest
-        for entry in pending
-        if isinstance(entry, dict) and isinstance(digest := entry.get("digest"), str)
-    )
+    return frozenset(entry.digest for entry in entries)
 
 
 class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
@@ -488,27 +532,26 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         on_snapshot: Optional[Callable[[bytes], None]] = None,
     ) -> None:
         mutation_policy = GraphQLMutationPolicy(allow_mutations=allow_mutations)
-        custom_builtins = {
-            "phoenix-gql": create_phoenix_gql_builtin(
-                schema=schema,
-                build_graphql_context=build_graphql_context,
-                mutation_policy=mutation_policy,
-            ),
-        }
         shell = _build_shell(
-            custom_builtins=custom_builtins,
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            mutation_policy=mutation_policy,
             initial_snapshot=initial_snapshot,
         )
-        # The shell and mutation policy are shared mutable state; parallel tool
-        # calls would race on both.
+        # Parallel tool calls share the shell and the mutation policy. Each
+        # call stamps its own approval context onto the policy, snapshots the
+        # shell, executes, then drains pending mutations and may roll the
+        # shell back — interleaving would leak one call's approved digests
+        # into another's execution, misattribute pending mutations, and
+        # clobber another call's shell state on rollback.
         execution_lock = asyncio.Lock()
 
         async def bash(ctx: RunContext[AgentDepsT], summary: str, command: str) -> BashToolResult:
             nonlocal shell
             async with execution_lock:
+                deps = ctx.deps if isinstance(ctx.deps, AgentDependencies) else None
                 mutation_policy.require_approval = (
-                    mutation_policy.allow_mutations
-                    and _resolve_edit_permission(ctx.deps) == "manual"
+                    mutation_policy.allow_mutations and _resolve_edit_permission(deps) == "manual"
                 )
                 mutation_policy.approved_digests = (
                     _approved_digests_from_metadata(ctx.tool_call_metadata)
@@ -530,11 +573,11 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                     # re-executes exactly once against this restored state.
                     assert pre_execution_snapshot is not None
                     try:
-                        shell = Bash.from_snapshot(
+                        shell = _restore_shell(
                             pre_execution_snapshot,
-                            python=False,
-                            network=None,
-                            custom_builtins=custom_builtins,
+                            schema=schema,
+                            build_graphql_context=build_graphql_context,
+                            mutation_policy=mutation_policy,
                         )
                     except Exception:
                         logger.exception(
