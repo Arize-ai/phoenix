@@ -476,37 +476,21 @@ describe("agentStore", () => {
       });
     });
 
-    it("discards a stale persisted graphql.mutations value on rehydration", () => {
-      // Blobs written while the capability defaulted to `false` persisted that
-      // value for every user; it must not override the current default.
-      const persistedCapabilities: Partial<AgentCapabilities> = {
-        "graphql.mutations": false,
-      };
+    it("ignores unknown persisted capability keys on rehydration", () => {
+      // e.g. a blob written before a capability was retired.
       localStorage.setItem(
         resolveAssistantStorageKey(),
         JSON.stringify({
-          state: { capabilities: persistedCapabilities },
+          state: { capabilities: { "graphql.mutations": false } },
           version: 0,
         })
       );
 
       const store = createAgentStore();
 
-      expect(store.getState().capabilities["graphql.mutations"]).toBe(true);
-    });
-
-    it("omits graphql.mutations from the persisted blob", () => {
-      const store = createAgentStore();
-      store.getState().setCapability({ key: "web.access", enabled: true });
-
-      const persisted = JSON.parse(
-        localStorage.getItem(resolveAssistantStorageKey()) ?? "{}"
-      ) as { state?: { capabilities?: Partial<AgentCapabilities> } };
-
-      expect(persisted.state?.capabilities).toEqual({
-        "subagents.enabled": false,
-        "web.access": true,
-      });
+      expect(store.getState().capabilities).toEqual(
+        createDefaultAgentCapabilities()
+      );
     });
   });
 

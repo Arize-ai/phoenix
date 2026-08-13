@@ -3,15 +3,13 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import type { PendingGraphQLMutation } from "@phoenix/agent/chat/types";
 import {
   agentContextKey,
   type AgentContext,
 } from "@phoenix/agent/context/agentContextTypes";
-import type { PendingGraphQLMutation } from "@phoenix/agent/chat/types";
 import {
   createDefaultAgentCapabilities,
-  isPersistedAgentCapabilityKey,
-  pickPersistedAgentCapabilities,
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
@@ -577,8 +575,7 @@ function normalizeAgentCapabilities({
       const persistedValue = persistedCapabilities[key];
       return [
         key,
-        typeof persistedValue === "boolean" &&
-        isPersistedAgentCapabilityKey(key)
+        typeof persistedValue === "boolean"
           ? persistedValue
           : defaultCapabilities[key],
       ];
@@ -1291,7 +1288,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
         permissions: state.permissions,
-        capabilities: pickPersistedAgentCapabilities(state.capabilities),
+        capabilities: state.capabilities,
       }),
       merge: mergeAgentPersistedState,
     })

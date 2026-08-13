@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createTranscriptPersistenceCoordinator } from "../transcriptPersistence";
+import type { AgentUIMessage } from "../types";
 
 describe("createTranscriptPersistenceCoordinator", () => {
   it("waits for the matching assistant message to be persisted", async () => {
@@ -65,5 +66,60 @@ describe("createTranscriptPersistenceCoordinator", () => {
     await expect(
       coordinator.waitForMessage({ messageId: "assistant-1" })
     ).resolves.toBe(true);
+  });
+
+  it("tracks resolved client tool outputs on persisted assistant messages", () => {
+    const coordinator = createTranscriptPersistenceCoordinator();
+    const message = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-edit_prompt",
+          toolCallId: "tool-call-resolved",
+          state: "output-available",
+          input: {},
+          output: { applied: true },
+          callProviderMetadata: {
+            phoenix: { toolExecutionEnvironment: "client" },
+          },
+        },
+        {
+          type: "tool-edit_prompt",
+          toolCallId: "tool-call-pending",
+          state: "input-available",
+          input: {},
+          callProviderMetadata: {
+            phoenix: { toolExecutionEnvironment: "client" },
+          },
+        },
+        {
+          type: "tool-bash",
+          toolCallId: "tool-call-server",
+          state: "output-available",
+          input: {},
+          output: "done",
+        },
+      ],
+    } as AgentUIMessage;
+
+    coordinator.markToolOutputsPersisted(message);
+
+    expect(coordinator.syncedToolOutputIds).toEqual(
+      new Set(["tool-call-resolved"])
+    );
+  });
+
+  it("ignores non-assistant and missing messages when marking outputs", () => {
+    const coordinator = createTranscriptPersistenceCoordinator();
+
+    coordinator.markToolOutputsPersisted(undefined);
+    coordinator.markToolOutputsPersisted({
+      id: "user-1",
+      role: "user",
+      parts: [{ type: "text", text: "hello" }],
+    } as AgentUIMessage);
+
+    expect(coordinator.syncedToolOutputIds.size).toBe(0);
   });
 });
