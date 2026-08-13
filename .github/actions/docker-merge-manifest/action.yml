@@ -28,10 +28,12 @@ inputs:
 runs:
   using: composite
   steps:
+    # One artifact per platform, each holding a directory per variant it built.
+    # Merged, they form <variant>/<digest> across every platform.
     - name: Download digests
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
       with:
-        pattern: digests-${{ inputs.variant }}-*
+        pattern: digests-*
         merge-multiple: true
         path: ${{ runner.temp }}/digests
 
@@ -51,14 +53,18 @@ runs:
         IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}
         TAGS: ${{ inputs.tags }}
         EXPECTED_DIGESTS: ${{ inputs.expected-digests }}
+        VARIANT: ${{ inputs.variant }}
       run: |
         set -euo pipefail
+        # nullglob so a variant that failed on every platform — and therefore
+        # has no directory at all — reports found 0 rather than erroring out.
+        shopt -s nullglob
         cd "${RUNNER_TEMP}/digests"
 
         sources=()
-        for digest in *; do
-          [ -e "$digest" ] || continue
-          sources+=("${IMAGE}@sha256:${digest}")
+        for digest in "${VARIANT}"/*; do
+          [ -f "$digest" ] || continue
+          sources+=("${IMAGE}@sha256:$(basename "$digest")")
         done
         if [ "${#sources[@]}" -ne "$EXPECTED_DIGESTS" ]; then
           echo "expected $EXPECTED_DIGESTS platform digests, found ${#sources[@]}" >&2

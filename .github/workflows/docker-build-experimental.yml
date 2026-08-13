@@ -14,17 +14,19 @@ concurrency:
 
 jobs:
   build:
-    name: Build ${{ matrix.variant }} (${{ matrix.platform }})
+    name: Build ${{ matrix.platform }}
     # linux/arm64 builds on a native ARM runner rather than under QEMU
     # emulation on x86, which is both far slower and a source of flakes.
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
-      # Each leg pushes by digest and nothing is tagged until the merge job, so
-      # a failed leg cannot publish a partial image. Letting the others finish
-      # means a rerun has fewer legs left to redo.
+      # One job per platform, not per variant/platform pair: the variants share
+      # every stage but the final FROM, so building them together reuses the
+      # frontend, backend and WASM stages from the local builder instead of
+      # repeating them on a cold one. Each pushes by digest and nothing is
+      # tagged until the merge job, so a failed build cannot publish a partial
+      # image; letting the other platform finish means a rerun has less to redo.
       fail-fast: false
       matrix:
-        variant: [debug]
         platform: [linux/amd64, linux/arm64]
     env:
       REGISTRY: arizephoenix
@@ -35,10 +37,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Build and push by digest
+      - name: Build and push every variant by digest
         uses: ./.github/actions/docker-build-image
         with:
-          variant: ${{ matrix.variant }}
+          variants: debug
           platform: ${{ matrix.platform }}
           registry: ${{ env.REGISTRY }}
           image-name: ${{ env.IMAGE_NAME }}
