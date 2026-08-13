@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from strawberry.relay import GlobalID
@@ -74,6 +74,98 @@ async def test_project_spans_trace_filter_condition_composes_with_span_filter(
     assert response.data is not None
     assert response.data["node"]["spans"]["edges"] == [
         {"node": {"id": str(GlobalID("Span", str(matching_span.id)))}}
+    ]
+
+
+@pytest.mark.parametrize("broken_tree", ["two_roots", "root_and_orphan"])
+async def test_project_trace_filter_keeps_one_representative_root_per_trace(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    broken_tree: Literal["two_roots", "root_and_orphan"],
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        first_root = await _add_span(session, trace)
+        first_root.name = "first-root"
+        second_root = await _add_span(session, trace)
+        second_root.name = "second-root"
+        if broken_tree == "root_and_orphan":
+            second_root.parent_id = "missing-parent"
+
+    response = await gql_client.execute(
+        query="""
+          query($id: ID!) {
+            node(id: $id) {
+              ... on Project {
+                spans(
+                  first: 100
+                  rootSpansOnly: true
+                  orphanSpanAsRootSpan: true
+                  sort: {col: startTime, dir: desc}
+                  traceFilterCondition: "num_spans > 0"
+                ) { edges { node { name } } }
+              }
+            }
+          }
+        """,
+        variables={"id": _project_id(project)},
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert len(response.data["node"]["spans"]["edges"]) == 1
+
+
+async def test_project_trace_filter_preserves_trace_start_time_window(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    window_start = datetime.fromisoformat("2026-07-01T00:00:00+00:00")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(
+            session,
+            project,
+            start_time=window_start,
+            end_time=window_start + timedelta(hours=3),
+        )
+        root = await _add_span(
+            session,
+            trace,
+            start_time=window_start + timedelta(hours=2),
+            end_time=window_start + timedelta(hours=3),
+        )
+
+    response = await gql_client.execute(
+        query="""
+          query($id: ID!, $timeRange: TimeRange!) {
+            node(id: $id) {
+              ... on Project {
+                spans(
+                  first: 100
+                  rootSpansOnly: true
+                  sort: {col: startTime, dir: desc}
+                  timeRange: $timeRange
+                  traceFilterCondition: "num_spans > 0"
+                ) { edges { node { id } } }
+              }
+            }
+          }
+        """,
+        variables={
+            "id": _project_id(project),
+            "timeRange": {
+                "start": window_start.isoformat(),
+                "end": (window_start + timedelta(hours=1)).isoformat(),
+            },
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["spans"]["edges"] == [
+        {"node": {"id": str(GlobalID("Span", str(root.id)))}}
     ]
 
 

@@ -76,6 +76,7 @@ from phoenix.server.session_filters import (
 )
 from phoenix.server.trace_filters import (
     TraceFilterConditionError,
+    apply_trace_filter_to_page,
     compile_trace_filter,
     get_filtered_trace_rowids_subquery,
     trace_filter_errors,
@@ -609,13 +610,7 @@ class Project(Node):
         trace_filter_condition: Optional[str] = UNSET,
         orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
-        if (
-            root_spans_only
-            and not filter_condition
-            and not trace_filter_condition
-            and sort
-            and sort.col is SpanColumn.startTime
-        ):
+        if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
             return await _paginate_span_by_trace_start_time(
                 db=info.context.db,
                 project_rowid=self.id,
@@ -624,6 +619,7 @@ class Project(Node):
                 after=after,
                 sort=sort,
                 orphan_span_as_root_span=orphan_span_as_root_span,
+                trace_filter_condition=trace_filter_condition,
             )
         stmt = (
             select(models.Span.id)
@@ -2871,6 +2867,7 @@ async def _paginate_span_by_trace_start_time(
     after: Optional[CursorString] = None,
     sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
     orphan_span_as_root_span: Optional[bool] = True,
+    trace_filter_condition: Optional[str] = None,
     retries: int = 3,
 ) -> Connection[Span]:
     """Return one representative root span per trace, ordered by trace start time.
@@ -2892,6 +2889,7 @@ async def _paginate_span_by_trace_start_time(
         orphan_span_as_root_span: Whether to include orphan spans as root spans.
             True: spans with parent_id=NULL OR pointing to non-existent spans.
             False: only spans with parent_id=NULL.
+        trace_filter_condition: Optional trace-grain expression applied before pagination.
         retries: Maximum number of retry attempts when insufficient edges are found.
             When traces exist but lack root spans, the function retries pagination
             to find traces with spans. Set to 0 to disable retries.
@@ -2928,6 +2926,16 @@ async def _paginate_span_by_trace_start_time(
             traces = traces.where(time_range.start <= models.Trace.start_time)
         if time_range.end:
             traces = traces.where(models.Trace.start_time < time_range.end)
+
+    if trace_filter_condition:
+        traces = apply_trace_filter_to_page(
+            traces,
+            trace_filter_condition=trace_filter_condition,
+            project_rowids=[project_rowid],
+            start_time=time_range.start if time_range else None,
+            end_time=time_range.end if time_range else None,
+            lowering="probe",
+        )
 
     # Apply cursor pagination
     if after:
@@ -3042,6 +3050,7 @@ async def _paginate_span_by_trace_start_time(
                 after=end_cursor,
                 sort=sort,
                 orphan_span_as_root_span=orphan_span_as_root_span,
+                trace_filter_condition=trace_filter_condition,
                 retries=0,
             )
             edges.extend(more.edges[:num_needed])

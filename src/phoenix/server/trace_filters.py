@@ -1,10 +1,12 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
+from sqlalchemy.sql.expression import Select
 from sqlalchemy.sql.selectable import ScalarSelect
 
+from phoenix.db import models
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.trace.dsl.trace_filter import FilterLowering, TraceFilter
 
@@ -64,5 +66,36 @@ def get_filtered_trace_rowids_subquery(
             start_time=start_time,
             end_time=end_time,
             candidate_trace_rowids=candidate_trace_rowids,
+            lowering=lowering,
+        )
+
+
+def apply_trace_filter_to_page(
+    stmt: Select[Any],
+    trace_filter_condition: str,
+    project_rowids: Sequence[int],
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    lowering: FilterLowering = "probe",
+) -> Select[Any]:
+    """Apply a trace filter to a statement selecting a page of ``Trace`` rows."""
+    trace_filter = compile_trace_filter(trace_filter_condition)
+    with trace_filter_errors():
+        if trace_filter.can_duplicate_traces:
+            return stmt.where(
+                models.Trace.id.in_(
+                    trace_filter.as_trace_rowids_subquery(
+                        project_rowids=list(project_rowids),
+                        start_time=start_time,
+                        end_time=end_time,
+                        lowering=lowering,
+                    )
+                )
+            )
+        return trace_filter(
+            stmt,
+            project_rowids=list(project_rowids),
+            start_time=start_time,
+            end_time=end_time,
             lowering=lowering,
         )

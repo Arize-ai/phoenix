@@ -8,6 +8,7 @@ from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
+from phoenix.server.trace_filters import apply_trace_filter_to_page
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.trace_filter import (
     _ITERABLE_SPECS,
@@ -201,6 +202,39 @@ def test_trace_iterable_correlation_keys_are_non_nullable() -> None:
     for spec in _ITERABLE_SPECS.values():
         column = spec.trace_key(spec.model).property.columns[0]
         assert column.nullable is False, column
+
+
+def test_scan_aggregate_subquery_is_scoped_to_candidates_project_and_time() -> None:
+    start_time = FIXTURE_TRACES[0].start_time
+    sql = str(
+        TraceFilter("num_spans >= 5")(
+            select(models.Trace.id),
+            candidate_trace_rowids=[11, 12],
+            project_rowids=[7],
+            start_time=start_time,
+            end_time=start_time + timedelta(hours=1),
+            lowering="scan",
+        ).compile(dialect=_POSTGRESQL_DIALECT)
+    ).lower()
+
+    assert "spans.trace_rowid in" in sql
+    assert "join traces as trace_scope on trace_scope.id = spans.trace_rowid" in sql
+    assert "trace_scope.project_rowid in" in sql
+    assert "trace_scope.start_time >=" in sql
+    assert "trace_scope.start_time <" in sql
+
+
+def test_trace_page_filter_uses_probe_lowering() -> None:
+    sql = str(
+        apply_trace_filter_to_page(
+            select(models.Trace.id),
+            'all(s.span_kind == "LLM" for s in spans)',
+            project_rowids=[7],
+        ).compile(dialect=_POSTGRESQL_DIALECT)
+    ).lower()
+
+    assert "not (exists (select" in sql
+    assert "not in (select" not in sql
 
 
 def test_trace_parent_fields_share_one_left_self_join() -> None:

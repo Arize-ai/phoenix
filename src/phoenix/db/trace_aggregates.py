@@ -46,6 +46,9 @@ class TraceAggregate:
     def as_grouped_subquery(
         self,
         keys: Optional[Collection[int]] = None,
+        project_rowids: Optional[Collection[int]] = None,
+        start_time: Optional[Any] = None,
+        end_time: Optional[Any] = None,
         values: Optional[Collection[str]] = None,
     ) -> Select[Any]:
         """Return one aggregate row per trace, keyed by ``trace_rowid``."""
@@ -53,16 +56,22 @@ class TraceAggregate:
         stmt = self._base((self.group_key.label(TRACE_ROWID), *projected))
         if keys is not None:
             stmt = stmt.where(self.group_key.in_(keys))
+        stmt = _apply_scope(stmt, self.group_key, project_rowids, start_time, end_time)
         return stmt.group_by(self.group_key)
 
     def as_correlated_scalar(
         self,
         trace_col: Any,
         value: Optional[str] = None,
+        project_rowids: Optional[Collection[int]] = None,
+        start_time: Optional[Any] = None,
+        end_time: Optional[Any] = None,
     ) -> ScalarSelect[Any]:
         """Return one aggregate value correlated to ``trace_col``."""
         column = self.values[0] if value is None else self._value(value)
-        return self._base((column,)).where(self.group_key == trace_col).scalar_subquery()
+        stmt = self._base((column,)).where(self.group_key == trace_col)
+        stmt = _apply_scope(stmt, self.group_key, project_rowids, start_time, end_time)
+        return stmt.scalar_subquery()
 
     def _value(self, name: str) -> KeyedColumnElement[Any]:
         for column in self.values:
@@ -86,7 +95,7 @@ def error_count_by_trace() -> TraceAggregate:
         group_key=models.Span.trace_rowid,
         values=(func.count(models.Span.id).label("error_count"),),
         source=models.Span,
-        where=(func.upper(models.Span.status_code) == "ERROR",),
+        where=(models.Span.status_code == "ERROR",),
     )
 
 
@@ -125,3 +134,23 @@ def span_kind_count_by_trace(span_kind: str) -> TraceAggregate:
         source=models.Span,
         where=(func.upper(models.Span.span_kind) == span_kind.upper(),),
     )
+
+
+def _apply_scope(
+    stmt: Select[Any],
+    trace_key: Any,
+    project_rowids: Optional[Collection[int]],
+    start_time: Optional[Any],
+    end_time: Optional[Any],
+) -> Select[Any]:
+    if project_rowids is None and start_time is None and end_time is None:
+        return stmt
+    trace_scope = models.Trace.__table__.alias("trace_scope")
+    stmt = stmt.join(trace_scope, trace_scope.c.id == trace_key)
+    if project_rowids is not None:
+        stmt = stmt.where(trace_scope.c.project_rowid.in_(project_rowids))
+    if start_time is not None:
+        stmt = stmt.where(trace_scope.c.start_time >= start_time)
+    if end_time is not None:
+        stmt = stmt.where(trace_scope.c.start_time < end_time)
+    return stmt

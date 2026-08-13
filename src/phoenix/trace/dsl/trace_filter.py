@@ -630,6 +630,10 @@ class TraceFilter:
         self,
         stmt: Select[typing.Any],
         *,
+        candidate_trace_rowids: typing.Optional[typing.Collection[int]] = None,
+        project_rowids: typing.Optional[typing.Sequence[int]] = None,
+        start_time: typing.Optional[typing.Any] = None,
+        end_time: typing.Optional[typing.Any] = None,
         lowering: FilterLowering = "scan",
     ) -> Select[typing.Any]:
         """Apply the condition to a statement selecting from ``Trace``."""
@@ -640,7 +644,11 @@ class TraceFilter:
         stmt, aggregate_bindings = _join_aggregates(
             stmt,
             self._referenced_aggregates,
-            lowering,
+            candidate_trace_rowids=candidate_trace_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+            lowering=lowering,
         )
         stmt, comprehension_bindings = _comprehension_bindings(
             stmt,
@@ -689,12 +697,23 @@ class TraceFilter:
             stmt = stmt.where(models.Trace.start_time >= start_time)
         if end_time is not None:
             stmt = stmt.where(models.Trace.start_time < end_time)
-        return self(stmt, lowering=lowering).scalar_subquery()
+        return self(
+            stmt,
+            candidate_trace_rowids=candidate_trace_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+            lowering=lowering,
+        ).scalar_subquery()
 
 
 def _join_aggregates(
     stmt: Select[typing.Any],
     referenced_aggregates: typing.Iterable[str],
+    candidate_trace_rowids: typing.Optional[typing.Collection[int]],
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
     lowering: FilterLowering,
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
     grouped: dict[str, tuple[typing.Callable[[], TraceAggregate], list[tuple[str, str]]]] = {}
@@ -707,14 +726,25 @@ def _join_aggregates(
     for builder, names in grouped.values():
         aggregate = builder()
         if lowering == "scan":
-            subquery = aggregate.as_grouped_subquery().subquery()
+            subquery = aggregate.as_grouped_subquery(
+                keys=candidate_trace_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            ).subquery()
             stmt = stmt.outerjoin(subquery, models.Trace.id == subquery.c[TRACE_ROWID])
             for name, value_column in names:
                 bindings_map[name] = func.coalesce(subquery.c[value_column], 0)
         elif lowering == "probe":
             for name, value_column in names:
                 bindings_map[name] = func.coalesce(
-                    aggregate.as_correlated_scalar(models.Trace.id, value=value_column),
+                    aggregate.as_correlated_scalar(
+                        models.Trace.id,
+                        value=value_column,
+                        project_rowids=project_rowids,
+                        start_time=start_time,
+                        end_time=end_time,
+                    ),
                     0,
                 )
         else:
