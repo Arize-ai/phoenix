@@ -662,7 +662,7 @@ def test_experiment_runs_latency_ms_is_substituted() -> None:
             "SELECT * FROM (SELECT id FROM projects) p JOIN traces t ON t.project_rowid = p.id",
             "p.id",
         ),
-        ("SELECT * FROM spans, json_each(attributes)", "key"),
+        ("SELECT * FROM spans, json_each(attributes)", "json_each.key"),
         ("SELECT * FROM (VALUES (1, 2), (3, 4)) AS v(a, b)", "v.a"),
     ],
     ids=["derived-table-joined", "table-valued-function", "named-values"],

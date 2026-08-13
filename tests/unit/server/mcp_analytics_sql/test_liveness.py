@@ -139,6 +139,24 @@ PERMITTED = [
     # a table-valued function reads a pseudo-table rather than calling a function.
     pytest.param("SELECT json_extract(attributes, '$.a.b') AS v FROM spans", id="json_extract"),
     pytest.param("SELECT key AS v FROM spans, json_each(attributes)", id="json_each"),
+    pytest.param(
+        "SELECT k AS v FROM spans, json_each(attributes) AS t(k, v)",
+        id="json_each-named-columns",
+    ),
+    pytest.param("SELECT * FROM spans, json_each(attributes)", id="star-json_each"),
+    pytest.param(
+        "SELECT id FROM spans INDEXED BY spans_start_time",
+        id="indexed-by-hint",
+    ),
+    pytest.param("SELECT name ILIKE '%a%' AS v FROM spans", id="ilike"),
+    pytest.param(
+        "WITH x AS (SELECT id FROM projects) SELECT * FROM x",
+        id="star-over-cte",
+    ),
+    pytest.param(
+        "SELECT * FROM (VALUES (1, 2), (3, 4)) AS v(a, b)",
+        id="star-over-named-values",
+    ),
     pytest.param("SELECT percentile(cumulative_error_count, 50) AS v FROM spans", id="percentile"),
     pytest.param("SELECT typeof(id) AS v FROM spans", id="typeof"),
     pytest.param("SELECT median(cumulative_error_count) AS v FROM spans", id="median"),

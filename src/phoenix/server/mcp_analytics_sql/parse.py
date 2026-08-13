@@ -542,25 +542,71 @@ def _rewrite_sqlite_named_from_aliases(
         offered = list(_JSON_EACH_COLUMNS)
         if len(names) > len(offered):
             continue
-        inner = table.copy()
-        inner.set("alias", None)
-        projections: list[exp.Expression] = []
-        for index, column_name in enumerate(offered):
-            column = exp.column(column_name)
-            if index < len(names):
-                projections.append(exp.alias_(column, names[index]))
-            else:
-                projections.append(column)
-        relation_name = (
-            alias.this.copy() if isinstance(alias, exp.TableAlias) and alias.this else None
-        )
-        table.replace(
-            exp.Subquery(
-                this=exp.Select().select(*projections).from_(inner),
-                alias=exp.TableAlias(this=relation_name) if relation_name is not None else None,
+        # Keep json_each in the same FROM as the tables it reads. Wrapping it
+        # in a subquery would drop correlation (`json_each(attributes)` can
+        # no longer see `spans.attributes`). SQLite cannot render the column
+        # list, so map t.k → t.key and drop the list.
+        rename = {
+            _identifier_key(names[index], quoted=False, dialect=dialect): offered[index]
+            for index in range(len(names))
+        }
+        original_names = {
+            _identifier_key(names[index], quoted=False, dialect=dialect): names[index]
+            for index in range(len(names))
+        }
+        relation_keys = _relation_identifier_keys(table, dialect=dialect)
+        select = table.find_ancestor(exp.Select)
+        if select is not None:
+            _rename_json_each_alias_columns(
+                select,
+                rename=rename,
+                original_names=original_names,
+                relation_keys=relation_keys,
+                dialect=dialect,
             )
-        )
+        _clear_table_alias_columns(alias)
     return root
+
+
+def _rename_json_each_alias_columns(
+    select: exp.Select,
+    *,
+    rename: dict[str, str],
+    original_names: dict[str, str],
+    relation_keys: frozenset[str],
+    dialect: SupportedSQLDialectName,
+) -> None:
+    """Rewrite ``k`` / ``t.k`` from ``json_each(...) AS t(k, v)`` to ``key`` / ``t.key``."""
+    rewritten: dict[int, str] = {}
+    for column in list(select.find_all(exp.Column)):
+        owner = column.find_ancestor(exp.Select)
+        if owner is not select:
+            continue
+        quoted = isinstance(column.this, exp.Identifier) and bool(column.this.args.get("quoted"))
+        column_key = _identifier_key(column.name or "", quoted=quoted, dialect=dialect)
+        physical = rename.get(column_key)
+        if physical is None:
+            continue
+        if column.table:
+            qualifier_key = _column_qualifier_key(column, dialect=dialect)
+            if qualifier_key not in relation_keys:
+                continue
+        column.set("this", exp.to_identifier(physical))
+        rewritten[id(column)] = original_names[column_key]
+    if not rewritten:
+        return
+    expressions = list(select.expressions)
+    changed = False
+    for index, item in enumerate(expressions):
+        if isinstance(item, exp.Alias) or id(item) not in rewritten:
+            continue
+        output_name = rewritten[id(item)]
+        if output_name == (item.name or ""):
+            continue
+        expressions[index] = exp.alias_(item, output_name)
+        changed = True
+    if changed:
+        select.set("expressions", expressions)
 
 
 def _strip_sqlite_index_hints(

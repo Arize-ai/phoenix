@@ -719,6 +719,13 @@ def _relation_qualifier(expression: exp.Expression) -> exp.Identifier:
     table_ident = expression.this if isinstance(expression, exp.Table) else None
     if isinstance(table_ident, exp.Identifier):
         return table_ident.copy()
+    # SQLite names an unaliased table-valued function after the function.
+    # Star expansion must qualify with that name: `json_each.id` is not
+    # `spans.id`, and an unqualified `id` is ambiguous once both are in FROM.
+    if isinstance(table_ident, exp.Func):
+        func_name = table_ident.name or table_ident.sql_name() or ""
+        if func_name:
+            return exp.to_identifier(func_name)
     return exp.to_identifier(expression.alias_or_name or "")
 
 

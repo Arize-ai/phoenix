@@ -1826,8 +1826,10 @@ def test_json_each_column_alias_list_is_rewritten() -> None:
     )
 
     assert result.outcome is AdmissionOutcome.ADMIT
-    folded = (result.rendered_sql or "").lower()
-    assert " as k" in folded or "as k" in folded.replace(" ", "")
+    folded = (result.rendered_sql or "").lower().replace(" ", "")
+    assert "key" in folded
+    assert "json_each(" in folded
+    assert "from(select" not in folded
 
 
 def test_sqlite_ilike_rewrites_to_lower_like_lower() -> None:
