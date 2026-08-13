@@ -352,6 +352,7 @@ SQLITE_AUTHORIZER_FUNCTIONS: frozenset[str] = frozenset(
         "julianday",
         "date",
         "datetime",
+        "time",
         "strftime",
         # Percentiles, from the bundled stats extension.
         "percentile",
@@ -424,6 +425,11 @@ EXCLUDED_FUNC_CLASSES: frozenset[type[exp.Func]] = frozenset(
         # "function exists is not allowed" -- naming something the caller wrote
         # but not as the thing they wrote it as.
         exp.Exists,
+        # COLLATE is a clause on an expression, not a callable. Judging it as a
+        # function reports "function collate is not allowed" for `name COLLATE
+        # NOCASE`, which is ordinary SQLite and PostgreSQL. A dedicated check
+        # admits the collations each engine actually has.
+        exp.Collate,
     }
 )
 
@@ -516,6 +522,9 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
         {
             "unixepoch",
             "datetime",
+            # time() is the time-of-day constructor. CAST AS TIME used to become
+            # CAST AS TEXT, which returns the full datetime string.
+            "time",
             # The older spelling of the same idea, and the one a model is more
             # likely to reach for: julianday has been in SQLite for decades
             # while unixepoch arrived in 3.38, so published SQLite that a model

@@ -51,7 +51,7 @@ DIALECTS: list[SupportedSQLDialectName] = ["postgresql", "sqlite"]
 # JSON access, date bucketing and percentiles in grammar the other cannot run:
 # 18 more on Postgres, 10 on SQLite.
 EXPECTED_ALLOWED_BY_DIALECT: dict[SupportedSQLDialectName, int] = {"postgresql": 52, "sqlite": 44}
-EXPECTED_EXCLUDED = 6
+EXPECTED_EXCLUDED = 7
 
 
 def test_parser_still_defines_every_classified_function() -> None:

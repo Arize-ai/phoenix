@@ -42,6 +42,7 @@ from phoenix.server.mcp_analytics_sql.parse import (
     _unix_epoch_text,
     _virtual_column_on_source,
     query_local_columns,
+    set_operation_width_mismatch,
 )
 
 logger = logging.getLogger(__name__)
@@ -163,6 +164,9 @@ def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> Non
 def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _rewrite_virtual_using_joins(root, ctx)
     root = _expand_stars(root, ctx)
+    mismatch = set_operation_width_mismatch(root)
+    if mismatch is not None:
+        raise AnalyticsSqlError(code=ErrorCode.UNSUPPORTED_SYNTAX, message=mismatch)
     root = _substitute_latency_ms(root, ctx)
     root = _substitute_graphql_node_id(root, ctx)
     root = _rewrite_sqlite_timestamp_subtraction(root, ctx)
@@ -1198,31 +1202,39 @@ def _rewrite_sqlite_timestamp_subtraction(
     return root
 
 
-_SQLITE_EPOCH_FUNCTIONS = frozenset({"unixepoch", "julianday"})
+_SQLITE_TIMESTAMP_UNIT_FUNCTIONS = frozenset({"unixepoch", "julianday", "datetime", "time", "date"})
 _SQLITE_JSON_CASTS = frozenset({"JSON", "JSONB"})
 _SQLITE_DATETIME_CASTS = frozenset({"DATETIME", "TIMESTAMP", "TIMESTAMPTZ"})
-_SQLITE_TEXT_CASTS = frozenset({"TIME", "UUID"})
+_SQLITE_TIME_CASTS = frozenset({"TIME"})
+_SQLITE_TEXT_CASTS = frozenset({"UUID"})
 _SQLITE_NUMERIC_CASTS = frozenset({"NUMERIC", "DECIMAL"})
 
 
-def _epoch_function_call(node: Optional[exp.Expression]) -> Optional[exp.Anonymous]:
-    """``unixepoch(...)`` or ``julianday(...)``, or None if this is not one."""
+def _timestamp_unit_function_call(
+    node: Optional[exp.Expression],
+) -> Optional[tuple[str, exp.Expression]]:
+    """``unixepoch`` / ``julianday`` / ``datetime`` / ``time`` / ``date``, or None."""
     unwrapped = _strip_parens(node)
-    if isinstance(unwrapped, exp.Anonymous) and (
-        (unwrapped.name or "").casefold() in _SQLITE_EPOCH_FUNCTIONS
-    ):
-        return unwrapped
+    if isinstance(unwrapped, exp.Anonymous):
+        name = (unwrapped.name or "").casefold()
+        if name in _SQLITE_TIMESTAMP_UNIT_FUNCTIONS:
+            return name, unwrapped
+    if isinstance(unwrapped, exp.Date):
+        return "date", unwrapped
     return None
 
 
 def _rewrite_sqlite_timestamp_vs_epoch_function(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
-    """Compare stored timestamps to unixepoch/julianday in the same unit.
+    """Compare stored timestamps to unixepoch/julianday/datetime in the same unit.
 
     SQLite timestamps are text. ``start_time < unixepoch('now')`` compares a
-    datetime string to an integer and matches nothing. Wrapping the column in
-    the same function is the comparison the caller wrote.
+    datetime string to an integer and matches nothing. ``start_time <
+    datetime('now')`` compares full ``YYYY-MM-DD HH:MM:SS.ffffff`` storage to
+    ``datetime()``'s second-resolution string, so rows in the same second can
+    sort the wrong way. Wrapping the column in the same function is the
+    comparison the caller wrote.
     """
     if ctx.dialect != "sqlite":
         return root
@@ -1235,7 +1247,7 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
     for node in list(root.find_all(*_TIMESTAMP_COMPARISONS)):
         sides = (node.this, node.expression)
         column: Optional[exp.Column] = None
-        call: Optional[exp.Anonymous] = None
+        unit_name: Optional[str] = None
         for side in sides:
             unwrapped = _strip_parens(side)
             if (
@@ -1247,12 +1259,15 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
                 and not (query_local.is_local(unwrapped) and id(unwrapped) not in passthrough)
             ):
                 column = unwrapped
-            epoch = _epoch_function_call(side)
-            if epoch is not None:
-                call = epoch
-        if column is None or call is None:
+            unit = _timestamp_unit_function_call(side)
+            if unit is not None:
+                unit_name = unit[0]
+        if column is None or unit_name is None:
             continue
-        wrapped = exp.Anonymous(this=(call.name or "").casefold(), expressions=[column.copy()])
+        if unit_name == "date":
+            wrapped: exp.Expression = exp.Date(this=column.copy())
+        else:
+            wrapped = exp.Anonymous(this=unit_name, expressions=[column.copy()])
         column.replace(wrapped)
         changed = True
     if changed:
@@ -1265,8 +1280,10 @@ def _rewrite_sqlite_casts(root: exp.Expression, ctx: RewriteContext) -> exp.Expr
 
     ``CAST(x AS JSON)`` has NUMERIC affinity, so a JSON object becomes ``0``.
     ``CAST(x AS DATETIME)`` parses a leading year as an integer. ``json()`` and
-    ``datetime()`` are the constructors that keep the value. ``NUMERIC`` is
-    remapped to ``REAL`` by the generator; emit the affinity the caller named.
+    ``datetime()`` are the constructors that keep the value. ``CAST(x AS TIME)``
+    as TEXT would return the full datetime string; ``time()`` is the time-of-day
+    constructor. ``NUMERIC`` is remapped to ``REAL`` by the generator; emit the
+    affinity the caller named.
     """
     if ctx.dialect != "sqlite":
         return root
@@ -1279,6 +1296,10 @@ def _rewrite_sqlite_casts(root: exp.Expression, ctx: RewriteContext) -> exp.Expr
             continue
         if target in _SQLITE_DATETIME_CASTS:
             node.replace(exp.Anonymous(this="datetime", expressions=[node.this.copy()]))
+            changed = True
+            continue
+        if target in _SQLITE_TIME_CASTS:
+            node.replace(exp.Anonymous(this="time", expressions=[node.this.copy()]))
             changed = True
             continue
         if target in _SQLITE_TEXT_CASTS:

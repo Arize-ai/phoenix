@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 172
+    assert len(CASES) >= 180
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -1801,10 +1801,44 @@ def test_jsonb_typeof_of_an_arrow_accessor_is_admitted() -> None:
     assert "jsonb_typeof" in rendered.lower()
 
 
-def test_a_render_refusal_returns_an_outcome_rather_than_raising() -> None:
-    """`try_parse_and_admit` promises an outcome instead of an exception, and
-    rendering can now refuse -- a statement can pass every admission check and
-    still name a construct the target cannot express."""
+def test_named_values_alias_is_rewritten_for_sqlite() -> None:
+    """SQLite cannot render `AS t(x)` on VALUES; the names are pushed inward."""
     result = try_parse_and_admit("SELECT * FROM (VALUES (1), (2)) AS t(x)", dialect="sqlite")
 
+    assert result.outcome is AdmissionOutcome.ADMIT
+    assert result.rendered_sql is not None
+    assert "AS t(x)" not in result.rendered_sql.lower().replace(" ", "")
+
+
+def test_indexed_by_names_the_hint() -> None:
+    result = try_parse_and_admit(
+        "SELECT * FROM spans INDEXED BY spans_start_time", dialect="sqlite"
+    )
+
     assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+    assert "INDEXED BY" in result.detail
+
+
+def test_unaliased_json_each_qualifier_is_the_function_name() -> None:
+    result = try_parse_and_admit(
+        "SELECT json_each.value FROM spans, json_each(attributes)", dialect="sqlite"
+    )
+
+    assert result.outcome is AdmissionOutcome.ADMIT
+
+
+def test_collate_nocase_is_admitted_on_sqlite() -> None:
+    result = try_parse_and_admit(
+        "SELECT COUNT(*) FROM spans WHERE name COLLATE NOCASE = 'old'", dialect="sqlite"
+    )
+
+    assert result.outcome is AdmissionOutcome.ADMIT
+
+
+def test_unequal_union_width_is_refused() -> None:
+    result = try_parse_and_admit(
+        "SELECT id, name FROM spans UNION SELECT id FROM traces", dialect="sqlite"
+    )
+
+    assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+    assert "same number of columns" in result.detail

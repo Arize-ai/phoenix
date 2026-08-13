@@ -1812,6 +1812,38 @@ def test_sqlite_timestamp_vs_unixepoch_wraps_the_column() -> None:
     assert folded.count("unixepoch") >= 2
 
 
+def test_sqlite_timestamp_vs_datetime_wraps_the_column() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT COUNT(*) FROM spans WHERE start_time < datetime('now')",
+        dialect="sqlite",
+    )
+    assert "sqlite_timestamp_epoch_compare" in ctx.applied
+    folded = rendered.lower().replace(" ", "")
+    assert "datetime(start_time)" in folded
+    assert folded.count("datetime") >= 2
+
+
+def test_sqlite_cast_time_becomes_time_function() -> None:
+    ctx, rendered = _rewritten(
+        "SELECT CAST(start_time AS TIME) AS v FROM spans",
+        dialect="sqlite",
+    )
+    assert "sqlite_casts" in ctx.applied
+    assert "TIME(" in rendered.upper()
+    assert "AS TIME" not in rendered.upper()
+    assert "AS TEXT" not in rendered.upper()
+
+
+def test_star_union_width_mismatch_is_refused_after_expansion() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        _rewritten(
+            "SELECT * FROM spans UNION ALL SELECT * FROM traces",
+            dialect="sqlite",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "same number of columns" in caught.value.message
+
+
 def test_sqlite_lateral_json_each_drops_lateral() -> None:
     _, rendered = _rewritten(
         "SELECT key FROM spans, LATERAL json_each(attributes)",

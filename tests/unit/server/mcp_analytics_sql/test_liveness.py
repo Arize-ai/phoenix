@@ -71,6 +71,11 @@ PERMITTED = [
     ),
     pytest.param("SELECT date(start_time) AS v FROM spans GROUP BY v", id="date-day-bucket"),
     pytest.param("SELECT datetime(start_time) AS v FROM spans", id="datetime"),
+    pytest.param("SELECT time(start_time) AS v FROM spans", id="time"),
+    pytest.param(
+        "SELECT COUNT(*) AS v FROM spans WHERE name COLLATE NOCASE = name",
+        id="collate-nocase",
+    ),
     # SQLite materialises a CTE when it carries GROUP BY, ORDER BY, DISTINCT or
     # LIMIT, and reports reads of the materialised result as reads of a table
     # named after the alias. Admission sees a CTE and permits it; the authorizer

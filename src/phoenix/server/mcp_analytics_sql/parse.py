@@ -154,6 +154,7 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
     repaired = _promote_lateral_table_references(repaired, dialect=dialect)
     repaired = _repair_row_constructor(repaired, dialect=dialect)
     repaired = _repair_jsonb_typeof_text_extract(repaired, dialect=dialect)
+    repaired = _rewrite_sqlite_named_from_aliases(repaired, dialect=dialect)
     return _fold_unquoted_identifiers(repaired, dialect=dialect)
 
 
@@ -423,6 +424,111 @@ def _promote_lateral_table_references(
         if isinstance(alias, exp.TableAlias) and table.args.get("alias") is None:
             table.set("alias", alias.copy())
         lateral.replace(table)
+    return root
+
+
+def _table_alias_column_names(alias: Optional[exp.Expression]) -> list[str]:
+    if not isinstance(alias, exp.TableAlias):
+        return []
+    names: list[str] = []
+    for identifier in alias.args.get("columns") or []:
+        if isinstance(identifier, exp.Identifier) and identifier.name:
+            names.append(identifier.name)
+    return names
+
+
+def _clear_table_alias_columns(alias: Optional[exp.Expression]) -> None:
+    if isinstance(alias, exp.TableAlias) and alias.args.get("columns"):
+        alias.set("columns", None)
+
+
+def _select_has_star(select: exp.Select) -> bool:
+    return any(
+        isinstance(item, exp.Star)
+        or (isinstance(item, exp.Column) and isinstance(item.this, exp.Star))
+        for item in select.expressions
+    )
+
+
+def _apply_select_output_names(select: exp.Select, names: list[str]) -> bool:
+    """Rename the leading projections. False when a star makes the width unknown."""
+    if _select_has_star(select) or not select.expressions:
+        return False
+    expressions = list(select.expressions)
+    for index, name in enumerate(names):
+        if index >= len(expressions):
+            break
+        expressions[index] = exp.alias_(expressions[index], name)
+    select.set("expressions", expressions)
+    return True
+
+
+def _values_as_named_select(values: exp.Values, names: list[str]) -> Optional[exp.Expression]:
+    """``VALUES (1, 2) AS v(a, b)`` as ``SELECT 1 AS a, 2 AS b``, or None if it cannot."""
+    rows = values.expressions
+    if not rows or not names:
+        return None
+    selects: list[exp.Select] = []
+    for row_index, row in enumerate(rows):
+        cells = list(row.expressions) if isinstance(row, exp.Tuple) else [row]
+        if len(cells) < len(names):
+            return None
+        projections: list[exp.Expression] = []
+        for column_index, name in enumerate(names):
+            cell = cells[column_index].copy()
+            if row_index == 0:
+                projections.append(exp.alias_(cell, name))
+            else:
+                projections.append(cell)
+        selects.append(exp.Select().select(*projections))
+    combined: exp.Expression = selects[0]
+    for extra in selects[1:]:
+        combined = exp.Union(this=combined, expression=extra, distinct=False)
+    return combined
+
+
+def _rewrite_sqlite_named_from_aliases(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> exp.Expression:
+    """Lift ``AS t(a, b)`` onto the inner projection so SQLite can render it.
+
+    The SQLite generator refuses named columns on a table alias. PostgreSQL
+    accepts the spelling, and the names are what the caller asked to select.
+    Pushing them into the inner SELECT (or rewriting VALUES as one) keeps the
+    query rather than admitting it and failing at render.
+    """
+    if dialect != "sqlite":
+        return root
+    for subquery in list(root.find_all(exp.Subquery)):
+        alias = subquery.args.get("alias")
+        names = _table_alias_column_names(alias)
+        if not names:
+            continue
+        inner = subquery.this
+        if isinstance(inner, exp.Select) and _apply_select_output_names(inner, names):
+            _clear_table_alias_columns(alias)
+        elif isinstance(inner, exp.Values):
+            replacement = _values_as_named_select(inner, names)
+            if replacement is not None:
+                subquery.set("this", replacement)
+                _clear_table_alias_columns(alias)
+    for values in list(root.find_all(exp.Values)):
+        alias = values.args.get("alias")
+        names = _table_alias_column_names(alias)
+        if not names:
+            continue
+        replacement = _values_as_named_select(values, names)
+        if replacement is None:
+            continue
+        relation_name = (
+            alias.this.copy() if isinstance(alias, exp.TableAlias) and alias.this else None
+        )
+        values.replace(
+            exp.Subquery(
+                this=replacement,
+                alias=exp.TableAlias(this=relation_name) if relation_name is not None else None,
+            )
+        )
     return root
 
 
@@ -698,6 +804,21 @@ def _relation_width(expression: Optional[exp.Expression]) -> Optional[int]:
     return None
 
 
+def set_operation_width_mismatch(root: exp.Expression) -> Optional[str]:
+    """Message when UNION/EXCEPT/INTERSECT sides have known, unequal widths."""
+    for set_operation in root.find_all(exp.Union, exp.Intersect, exp.Except):
+        left_width = _relation_width(set_operation.this)
+        right_width = _relation_width(set_operation.expression)
+        if left_width is None or right_width is None or left_width == right_width:
+            continue
+        kind = type(set_operation).__name__.upper()
+        return (
+            f"{kind} needs the same number of columns on both sides "
+            f"({left_width} and {right_width}). Put matching columns in the same order."
+        )
+    return None
+
+
 def _too_many_alias_columns(
     alias: Optional[exp.Expression], available: Optional[int]
 ) -> Optional[AdmissionResult]:
@@ -901,6 +1022,9 @@ def _check_lossy_shapes(root: exp.Expression) -> Optional[AdmissionResult]:
                 "`UNION BY NAME` and `CORRESPONDING` are not supported. Put "
                 "matching columns in the same order on both sides.",
             )
+    mismatch = set_operation_width_mismatch(root)
+    if mismatch is not None:
+        return AdmissionResult(AdmissionOutcome.UNSUPPORTED_SYNTAX, mismatch)
     for literal in root.find_all(exp.HexString):
         # The parse is lossy: `0x1f` and `x'1f'` are both valid SQLite, mean an
         # integer and a blob respectively, and produce one identical node. So
@@ -969,6 +1093,46 @@ def _check_dialect_specific_syntax(
                 "CAST to INTERVAL is not supported by SQLite. SQLite has no "
                 "interval type, and the cast silently becomes a number. "
                 "Subtract timestamps with unixepoch, or compare them as text.",
+            )
+        if isinstance(node, exp.Table) and "indexed" in node.args:
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "INDEXED BY / NOT INDEXED is not supported. Omit the index hint; "
+                "the engine chooses the index.",
+            )
+        if isinstance(node, exp.TableAlias) and node.args.get("columns"):
+            if isinstance(node.parent, exp.CTE):
+                continue
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                "A column list on a FROM alias is not supported on SQLite. "
+                "Alias the columns in the inner SELECT, or for VALUES write "
+                "`SELECT 1 AS a, 2 AS b UNION ALL ...`.",
+            )
+    return None
+
+
+_SQLITE_COLLATIONS = frozenset({"binary", "nocase", "rtrim"})
+
+
+def _collation_name(node: exp.Collate) -> str:
+    collation = node.expression
+    if collation is None:
+        return ""
+    return collation.name or ""
+
+
+def _check_collate(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> Optional[AdmissionResult]:
+    """COLLATE is a clause, not a function. Admit the collations this engine has."""
+    for node in root.find_all(exp.Collate):
+        name = _collation_name(node)
+        if dialect == "sqlite" and name.casefold() not in _SQLITE_COLLATIONS:
+            spelling = name or "this collation"
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                f"COLLATE {spelling} is not a SQLite collation. Use BINARY, NOCASE, or RTRIM.",
             )
     return None
 
@@ -2086,7 +2250,12 @@ def _relation_identifier_keys(
                 dialect=dialect,
             )
         )
-    elif source.name:
+    elif ident is None and isinstance(table_identifier, exp.Func):
+        # SQLite names an unaliased table-valued function after the function.
+        func_name = table_identifier.name or ""
+        if func_name:
+            keys.add(_identifier_key(func_name, quoted=False, dialect=dialect))
+    elif ident is None and source.name:
         keys.add(_identifier_key(source.name, quoted=False, dialect=dialect))
     return frozenset(keys)
 
@@ -2165,6 +2334,9 @@ def _json_each_bindings(scope: Any) -> dict[str, frozenset[str]]:
             continue
         alias = (relation.alias or "").casefold()
         found[alias] = columns
+        if not alias:
+            # SQLite's default table name for the TVF is the function name.
+            found["json_each"] = columns
     return found
 
 
@@ -2293,6 +2465,9 @@ def _check_base_tables(
             if allowlisted is not None:
                 resolved.add(allowlisted)
         for table in scope.tables:
+            parent = table.parent
+            if isinstance(parent, exp.Table) and parent.args.get("indexed") is table:
+                continue
             name = table.name or ""
             table_name = _allowlisted_table_name(
                 table, allowlist=allowlist, dialect=dialect
@@ -2707,6 +2882,7 @@ def admit(
         or _check_dialect_specific_syntax(root, dialect=dialect)
         or _check_structural_policy(root)
         or _check_double_quoted_timestamp_operands(root, allowlist=allowlist, dialect=dialect)
+        or _check_collate(root, dialect=dialect)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist, dialect=dialect)
         or _check_column_references(root, allowlist=allowlist, dialect=dialect)
@@ -2785,11 +2961,10 @@ def try_parse_and_admit(
 
     # Rendering can refuse too, now that it raises rather than degrading: a
     # statement can pass every admission check and still name a construct the
-    # target cannot express. `SELECT * FROM (VALUES (1)) AS t(x)` on SQLite is
-    # one -- the column-alias list has no rendering there. Left uncaught it
-    # escaped this function, whose whole contract is to return an outcome
-    # instead of raising, so a corpus entry for such a shape would error out of
-    # the harness rather than record a verdict.
+    # target cannot express. Left uncaught it escaped this function, whose
+    # whole contract is to return an outcome instead of raising, so a corpus
+    # entry for such a shape would error out of the harness rather than record
+    # a verdict.
     try:
         rendered = render(root, dialect=dialect)
     except AnalyticsSqlError as exc:

@@ -1002,4 +1002,52 @@ CASES: tuple[AdmissionCase, ...] = (
         note="compare unixepoch(start_time) to unixepoch('now'); text < integer matches nothing",
         dialect="sqlite",
     ),
+    AdmissionCase(
+        sql="SELECT json_each.value FROM spans, json_each(attributes)",
+        expect=AdmissionOutcome.ADMIT,
+        note="SQLite names an unaliased json_each after the function; json_each.value used to be refused as an unknown relation",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT COUNT(*) FROM spans WHERE name COLLATE NOCASE = 'old'",
+        expect=AdmissionOutcome.ADMIT,
+        note="COLLATE is a clause, not a function; it used to be refused as function collate",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT COUNT(*) FROM spans WHERE name COLLATE latin1 = 'old'",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite collations are BINARY, NOCASE, and RTRIM; a name it does not have is a refusal, not a function denial",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT * FROM spans INDEXED BY spans_start_time",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="INDEXED BY used to be reported as the index name being shadowed by another relation",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT a FROM (VALUES (1, 2), (3, 4)) AS v(a, b)",
+        expect=AdmissionOutcome.ADMIT,
+        note="SQLite cannot render named columns on a table alias; rewrite VALUES to a SELECT so the names survive",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT COUNT(*) FROM spans WHERE start_time < datetime('now')",
+        expect=AdmissionOutcome.ADMIT,
+        note="datetime() is second-resolution; wrap start_time the same way or text compare is wrong on the same second",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT id, name FROM spans UNION SELECT id FROM traces",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="unequal UNION widths used to admit then fail at the engine",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT CAST(start_time AS TIME) AS v FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="CAST AS TIME as TEXT returns the full datetime; time() is the time-of-day constructor",
+        dialect="sqlite",
+    ),
 )
