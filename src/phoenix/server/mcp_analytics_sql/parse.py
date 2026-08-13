@@ -25,6 +25,7 @@ from phoenix.server.mcp_analytics_sql.errors import (
 )
 from phoenix.server.mcp_analytics_sql.normalize import (
     is_date_shaped,
+    is_time_shaped,
     parse_timestamp_literal,
     timestamp_column_names,
 )
@@ -205,6 +206,11 @@ _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
         "`->` is read as a lambda arrow inside a function call, not as a JSON "
         "accessor, so it cannot be used there. Use `->>` or json_extract(...) "
         "to read a JSON value."
+    ),
+    exp.AtTimeZone: (
+        "AT TIME ZONE is not supported. Timestamp columns are stored in UTC; "
+        "compare them with an offset-bearing literal, for example "
+        "`start_time >= '2026-07-01T14:30:00Z'`."
     ),
 }
 
@@ -1110,6 +1116,13 @@ def _check_timestamp_literals(
                     "Write an ISO-8601 instant with an offset, for example "
                     "`2026-07-01T00:00:00+00:00`, or a bare date such as `2026-07-01`.",
                 )
+            if is_time_shaped(literal.this):
+                return AdmissionResult(
+                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                    f"`{literal.this}` names a time of day but no date or time zone. "
+                    "Write an ISO-8601 instant with an offset, for example "
+                    "`2026-07-01T14:30:00+00:00`, or a bare date such as `2026-07-01`.",
+                )
             continue
         if parsed.is_aware or not parsed.has_time:
             continue
@@ -1121,6 +1134,26 @@ def _check_timestamp_literals(
             "none and is read as UTC.",
         )
     return None
+
+
+def _reported_function_name(sql_names: list[str]) -> str:
+    """The spelling a caller wrote, not SQLGlot's internal class alias.
+
+    ``generate_series`` is modelled as ``ExplodingGenerateSeries``, whose only
+    ``sql_names`` entry is ``EXPLODING_GENERATE_SERIES``. Reporting that sends
+    the caller looking for a function that does not exist. Strip the prefix
+    SQLGlot uses for the exploding (set-returning) variant; any other name is
+    already the SQL spelling.
+    """
+    lowered = [name.lower() for name in sql_names]
+    for name in lowered:
+        if name.startswith("exploding_"):
+            stripped = name[len("exploding_") :]
+            if stripped:
+                return stripped
+            continue
+        return name
+    return lowered[0]
 
 
 def _check_functions(
@@ -1148,7 +1181,7 @@ def _check_functions(
             names = type(node).sql_names()
             return AdmissionResult(
                 AdmissionOutcome.FUNCTION_NOT_ALLOWED,
-                names[0].lower() if names else type(node).__name__,
+                _reported_function_name(names) if names else type(node).__name__,
             )
     return None
 
@@ -1706,7 +1739,14 @@ def admit(
         if isinstance(node, exp.Into):
             raise admission_error_from_outcome("not_read_only", "Into")
         if isinstance(node, exp.Lock):
-            raise admission_error_from_outcome("unsupported_syntax", "Lock")
+            raise admission_error_from_outcome(
+                "unsupported_syntax",
+                "Lock",
+                message=(
+                    "FOR UPDATE and FOR SHARE are not supported. This surface "
+                    "is read-only; omit the lock clause."
+                ),
+            )
         if isinstance(node, exp.With) and node.args.get("recursive"):
             raise admission_error_from_outcome(
                 "unsupported_syntax",

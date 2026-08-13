@@ -656,21 +656,31 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             for table_name, alias, qualifier in targets:
                 spec = ctx.allowlist.table_specs.get(table_name) if table_name else None
                 if spec is None:
-                    table_name = table_name or alias or "a query-local relation"
-                    # A CTE or derived table. Its columns are whatever its own
-                    # SELECT produced, which the manifest cannot know, so the
-                    # caller has to name them. Refusing as an ordinary admission
-                    # error matters: raising ValueError here escaped the error
-                    # envelope entirely and reached the caller as an internal
-                    # failure for perfectly ordinary SQL.
-                    raise AnalyticsSqlError(
-                        code=ErrorCode.UNSUPPORTED_SYNTAX,
-                        message=(
-                            f"SELECT * cannot be expanded over {table_name!r}, which is a "
+                    # A CTE, derived table, or unaliased set-returning function.
+                    # Its columns are whatever its own SELECT produced, which the
+                    # manifest cannot know, so the caller has to name them.
+                    # Refusing as an ordinary admission error matters: raising
+                    # ValueError here escaped the error envelope entirely and
+                    # reached the caller as an internal failure for perfectly
+                    # ordinary SQL.
+                    relation = table_name or alias
+                    if relation:
+                        message = (
+                            f"SELECT * cannot be expanded over {relation!r}, which is a "
                             "query-local relation rather than an allowlisted table. "
                             "Name the columns you want."
-                        ),
-                        identifiers=(table_name,),
+                        )
+                        identifiers: tuple[str, ...] = (relation,)
+                    else:
+                        message = (
+                            "SELECT * cannot be expanded over a subquery or "
+                            "set-returning function. Name the columns you want."
+                        )
+                        identifiers = ()
+                    raise AnalyticsSqlError(
+                        code=ErrorCode.UNSUPPORTED_SYNTAX,
+                        message=message,
+                        identifiers=identifiers,
                     )
                 # Every physical DDL column, then query-only virtual overlays.
                 # Star expansion runs before virtual-column substitution, so

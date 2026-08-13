@@ -19,7 +19,7 @@ from phoenix.server.mcp_analytics_sql.catalog import (
     indexed_json_accessors,
 )
 from phoenix.server.mcp_analytics_sql.catalog import _body as _index_body
-from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError
+from phoenix.server.mcp_analytics_sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp_analytics_sql.parse import (
     AdmissionOutcome,
     admit,
@@ -461,6 +461,24 @@ def test_star_over_a_query_local_relation_is_a_normal_refusal() -> None:
     root = parse_sql("WITH x AS (SELECT id FROM projects) SELECT * FROM x", dialect="sqlite")
     with pytest.raises(AnalyticsSqlError):
         rewrite(admit(root, allowlist=load_allowlist("sqlite"), dialect="sqlite"), _ctx("sqlite"))
+
+
+def test_star_over_an_unaliased_set_returning_function_does_not_invent_a_name() -> None:
+    """An unaliased jsonb_each is not a relation named 'a query-local relation'."""
+    root = parse_sql(
+        "SELECT * FROM jsonb_each((SELECT attributes FROM spans LIMIT 1))",
+        dialect="postgresql",
+    )
+    with pytest.raises(AnalyticsSqlError) as caught:
+        rewrite(
+            admit(root, allowlist=load_allowlist("postgresql"), dialect="postgresql"),
+            RewriteContext(
+                allowlist=load_allowlist("postgresql"), dialect="postgresql", row_limit=500
+            ),
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "a query-local relation" not in caught.value.message
+    assert "set-returning function" in caught.value.message
 
 
 @pytest.mark.parametrize("backend", ["sqlite", "postgresql"])
@@ -1140,6 +1158,16 @@ class TestTimestampLiterals:
         )
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
         assert "+00:00" in result.detail
+
+    @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
+    def test_a_time_only_literal_is_refused_with_the_fix_named(self, backend: str) -> None:
+        result = try_parse_and_admit(
+            "SELECT count(*) FROM spans WHERE start_time >= '14:30:00'",
+            dialect=cast(SupportedSQLDialectName, backend),
+        )
+        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
+        assert "14:30:00" in result.detail
+        assert "2026-07-01T14:30:00+00:00" in result.detail
 
     @pytest.mark.parametrize("backend", ["postgresql", "sqlite"])
     def test_a_naive_time_of_day_through_a_passthrough_is_refused(self, backend: str) -> None:

@@ -611,4 +611,9 @@ CASES: tuple[AdmissionCase, ...] = (
         note="the text-returning counterpart; SQLGlot renders jsonb ->> expr as json_extract_path_text, which takes json not jsonb",
         dialect="postgresql",
     ),
+    AdmissionCase(
+        sql="SELECT COUNT(*) FROM spans WHERE start_time >= '14:30:00'",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a clock time with no date is not an instant; PostgreSQL rejects it as invalid timestamptz input, so admission must refuse rather than wait for EXECUTION_ERROR",
+    ),
 )

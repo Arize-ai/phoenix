@@ -49,9 +49,10 @@ _EQUIVALENT: dict[str, str] = {
     "percentile_cont": "percentile(x, p)",
     "percentile": "percentile_cont(p) WITHIN GROUP (ORDER BY x)",
     # Same length-bounded slice as substring, which is already admitted.
-    # LEFT itself is not: SQLite has no LEFT(), and admitting the node class
-    # would pass a statement one backend cannot run.
+    # LEFT and RIGHT themselves are not: SQLite has neither, and admitting the
+    # node class would pass a statement one backend cannot run.
     "left": "substring(x, 1, n)",
+    "right": "substring(x, length(x) - n + 1, n)",
 }
 
 

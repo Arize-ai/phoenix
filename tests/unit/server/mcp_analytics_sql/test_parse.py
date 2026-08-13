@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 81
+    assert len(CASES) >= 82
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -1084,12 +1084,11 @@ class TestStructuralPolicyIsDefaultDeny:
     @pytest.mark.parametrize(
         "sql,construct",
         [
-            ("SELECT start_time AT TIME ZONE 'UTC' FROM spans", "AtTimeZone"),
             ("SELECT (ARRAY[1,2])[1] FROM spans", "Bracket"),
         ],
     )
     def test_an_unconsidered_construct_is_refused(self, sql: str, construct: str) -> None:
-        """Both were admitted before, decided by nothing."""
+        """Admitted before, decided by nothing."""
         result = self._admit(sql)
 
         assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
@@ -1580,6 +1579,66 @@ def test_left_refusal_names_substring() -> None:
         )
     assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
     assert "substring(x, 1, n)" in caught.value.message
+
+
+def test_right_refusal_names_substring() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT RIGHT(name, 3) FROM spans",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
+    assert "substring(x, length(x) - n + 1, n)" in caught.value.message
+
+
+def test_generate_series_refusal_names_the_sql_spelling() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT generate_series(1, 3)",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
+    assert caught.value.admission_detail == "generate_series"
+    assert "exploding_generate_series" not in caught.value.message
+
+
+def test_for_update_refusal_names_the_clause() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT 1 FROM spans FOR UPDATE",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "FOR UPDATE" in caught.value.message
+    assert caught.value.message != "Lock"
+
+
+def test_at_time_zone_refusal_names_an_offset_literal() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT start_time AT TIME ZONE 'UTC' FROM spans",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "AT TIME ZONE" in caught.value.message
+    assert "AtTimeZone" not in caught.value.message
+    assert "+00:00" in caught.value.message or "Z" in caught.value.message
+
+
+def test_a_time_only_literal_against_a_timestamp_is_refused() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT COUNT(*) FROM spans WHERE start_time >= '14:30:00'",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "14:30:00" in caught.value.message
+    assert "2026-07-01T14:30:00+00:00" in caught.value.message
 
 
 def test_a_render_refusal_returns_an_outcome_rather_than_raising() -> None:

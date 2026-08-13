@@ -60,6 +60,7 @@ REVIEWED_STRUCTURAL: frozenset[str] = frozenset(
         "EQ",
         "From",
         "GT",
+        "GTE",
         "Group",
         "Identifier",
         "In",

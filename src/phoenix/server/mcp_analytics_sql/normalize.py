@@ -110,6 +110,9 @@ def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
 # date-shaped that resolves to an instant is accepted, and the value is re-emitted
 # in the form the target needs.
 _DATE_SHAPED = re.compile(r"^\d{4}-\d{2}-\d{2}")
+_TIME_SHAPED = re.compile(
+    r"^\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?$", re.IGNORECASE
+)
 _COMPACT_OFFSET = re.compile(r"([+-]\d{2})(\d{2})$")
 _BARE_OFFSET = re.compile(r"([+-]\d{2})$")
 _NAMED_UTC = re.compile(r"\s+(?:UTC|GMT)$", re.IGNORECASE)
@@ -168,6 +171,18 @@ def parse_timestamp_literal(text: str) -> Optional[TimestampLiteral]:
 def is_date_shaped(text: str) -> bool:
     """Whether this string starts with a calendar date, so it is ours to read or refuse."""
     return bool(_DATE_SHAPED.match(text.strip()))
+
+
+def is_time_shaped(text: str) -> bool:
+    """Whether this string is a clock time with no date.
+
+    Compared against a timestamp column it is not an instant: PostgreSQL
+    rejects it as invalid input, and SQLite compares it as text against a
+    stored datetime. Either way the caller named a time of day and nothing
+    else, which is the same unfinished statement a naive ``YYYY-MM-DD HH:MM``
+    is, minus the date.
+    """
+    return bool(_TIME_SHAPED.match(text.strip()))
 
 
 def format_timestamp_for_sqlite(value: datetime) -> str:
