@@ -10,6 +10,8 @@ import {
 import type { PendingGraphQLMutation } from "@phoenix/agent/chat/types";
 import {
   createDefaultAgentCapabilities,
+  isPersistedAgentCapabilityKey,
+  pickPersistedAgentCapabilities,
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
@@ -579,7 +581,8 @@ function normalizeAgentCapabilities({
       const persistedValue = persistedCapabilities[key];
       return [
         key,
-        typeof persistedValue === "boolean"
+        typeof persistedValue === "boolean" &&
+        isPersistedAgentCapabilityKey(key)
           ? persistedValue
           : defaultCapabilities[key],
       ];
@@ -1292,7 +1295,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
         permissions: state.permissions,
-        capabilities: state.capabilities,
+        capabilities: pickPersistedAgentCapabilities(state.capabilities),
       }),
       merge: mergeAgentPersistedState,
     })

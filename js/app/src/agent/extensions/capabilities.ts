@@ -19,6 +19,12 @@ export type AgentCapabilityDefinition = {
   defaultValue: boolean;
   scope: "global" | "session";
   controlSurface?: "experimental-settings";
+  /**
+   * When false, the capability is excluded from the persisted localStorage
+   * blob and any previously persisted value is discarded on rehydration, so
+   * every load starts from `defaultValue`.
+   */
+  persisted?: false;
 };
 
 /** Boolean runtime snapshot keyed by capability name. */
@@ -41,7 +47,10 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
       "in bypass mode mutations run without approval.",
     defaultValue: true,
     scope: "global",
-    controlSurface: "experimental-settings",
+    // Not persisted: blobs written while the default was `false` persisted
+    // that value for every user, and honoring it would pin mutations off in
+    // any browser that ran the agent before the default flipped to `true`.
+    persisted: false,
   },
   {
     key: "subagents.enabled",
@@ -91,6 +100,24 @@ export function getAgentCapabilityDefinition(
   key: AgentCapabilityKey
 ): AgentCapabilityDefinition {
   return AGENT_CAPABILITY_DEFINITIONS_BY_KEY[key];
+}
+
+/** Whether a capability's value may be read from / written to localStorage. */
+export function isPersistedAgentCapabilityKey(
+  key: AgentCapabilityKey
+): boolean {
+  return AGENT_CAPABILITY_DEFINITIONS_BY_KEY[key].persisted !== false;
+}
+
+/** Strips non-persisted capabilities before the snapshot is written to localStorage. */
+export function pickPersistedAgentCapabilities(
+  capabilities: AgentCapabilities
+): Partial<AgentCapabilities> {
+  return Object.fromEntries(
+    Object.entries(capabilities).filter(([key]) =>
+      isPersistedAgentCapabilityKey(key as AgentCapabilityKey)
+    )
+  );
 }
 
 /** Filters the capability catalog down to one UI control surface. */
