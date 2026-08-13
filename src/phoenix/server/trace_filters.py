@@ -58,7 +58,11 @@ def get_filtered_trace_rowids_subquery(
     candidate_trace_rowids: Optional[Sequence[int]] = None,
     lowering: FilterLowering = "scan",
 ) -> ScalarSelect[int]:
-    """Compile a trace filter expression into a subquery of matching trace rowids."""
+    """Compile a trace filter expression into a subquery of matching trace rowids.
+
+    Whole-scan callers use the default scan lowering. Page queries should use
+    ``apply_trace_filter_to_page`` so probe lowering can stop after satisfying the limit.
+    """
     trace_filter = compile_trace_filter(trace_filter_condition)
     with trace_filter_errors():
         return trace_filter.as_trace_rowids_subquery(
