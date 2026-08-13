@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Verify common-parent ATIF grouping against a local Phoenix instance.
 
-Exercises the path the Harbor plugin will use: a caller creates one span for
-an enclosing operation (a trial), converts every trajectory produced by that
-trial beneath it, and uploads the whole batch as a single trace.
+A caller creates one span for an enclosing operation (a trial), converts every
+trajectory produced by that trial beneath it, and uploads the batch as a single
+trace.
 
 Uses real Harbor terminus-2 trajectories: one main run plus the three
 sub-trajectories its summarization step produced. Normally these convert to
@@ -27,6 +27,7 @@ from typing import Any, Dict, List
 
 from phoenix.client import Client
 from phoenix.client.helpers.atif import _convert_atif_trajectories_to_spans
+from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
 
 PHOENIX_URL = os.environ.get("PHOENIX_URL", "http://localhost:6006")
 _SUFFIX = os.environ.get("ATIF_PROJECT_SUFFIX", str(int(time.time())))
@@ -80,9 +81,10 @@ def main() -> int:
     ungrouped_traces = {s["context"]["trace_id"] for s in ungrouped}
 
     # Grouped: everything under the trial span.
-    grouped = _convert_atif_trajectories_to_spans(
-        trajectories,
-        common_parent_span_context={"trace_id": trace_id, "span_id": parent_span_id},
+    grouped = _reparent_spans_under_common_parent(
+        ungrouped,
+        parent_id=parent_span_id,
+        trace_id=trace_id,
     )
 
     print(f"\nWithout common parent: {len(ungrouped)} spans across {len(ungrouped_traces)} traces")

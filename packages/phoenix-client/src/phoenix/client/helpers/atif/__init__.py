@@ -4,13 +4,14 @@
 Public API:
     upload_atif_trajectories_as_spans(client, trajectories, *, project_name)
 
-Conversion and reparenting are internal for now; the user-facing surface
-will be the Harbor integration rather than these helpers directly.
+Conversion and reparenting are separate steps: ``_convert.py`` decides each
+trajectory's span tree, ``_reparent.py`` decides where a batch of trees hangs.
+Callers that need both compose them.
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional, Sequence, TypedDict
+from typing import Any, Mapping, Optional, Sequence
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.client import Client
@@ -21,7 +22,6 @@ from ._convert import (
     _flatten_atif_trajectories,
     _get_parent_span_context,
 )
-from ._reparent import _reparent_spans_under_common_parent
 from ._validate import _validate_atif_trajectory
 
 __all__ = ["upload_atif_trajectories_as_spans"]
@@ -29,36 +29,17 @@ __all__ = ["upload_atif_trajectories_as_spans"]
 DEFAULT_TIMEOUT_IN_SECONDS = 30
 
 
-class _AtifParentSpanContext(TypedDict):
-    """A caller-owned parent span for converted ATIF trajectories."""
-
-    trace_id: str  # 32 lowercase hex characters
-    span_id: str  # 16 lowercase hex characters
-
-
 def _convert_atif_trajectories_to_spans(
     trajectories: Sequence[Mapping[str, Any]],
-    *,
-    common_parent_span_context: Optional[_AtifParentSpanContext] = None,
 ) -> list[v1.Span]:
     """Validate and convert ATIF trajectories to Phoenix spans without uploading.
 
     Supports ATIF schema versions v1.0 through v1.7.
 
-    **Trajectory grouping**
-
-    When ``common_parent_span_context`` is omitted, trajectories retain
-    their normal ATIF grouping behavior: unrelated trajectories produce
-    separate traces, while subagents and continuations detected within the
-    collection are joined to their related trajectories.
-
-    When ``common_parent_span_context`` is provided, the collection is
-    treated as one logical trajectory group. Every otherwise-top-level
-    trajectory root becomes a child of the common parent and adopts its
-    trace ID. Pass only trajectories belonging to the same enclosing
-    operation, such as one agent-evaluation trial. ATIF-internal subagent
-    relationships still take precedence: a subagent remains a child of its
-    parent's tool span, while participating in the common parent's trace.
+    Unrelated trajectories produce separate traces; subagents and
+    continuations detected within the collection are joined to their related
+    trajectories. To place a whole collection beneath a caller-owned span,
+    compose this with ``_reparent_spans_under_common_parent``.
 
     **Trace structure**
 
@@ -138,11 +119,8 @@ def _convert_atif_trajectories_to_spans(
     ``trajectory_id`` can generate colliding span IDs. Give each document a
     distinct ``trajectory_id`` when converting several such trajectories.
 
-    When ``common_parent_span_context`` is supplied, span IDs are rederived
-    against the parent's trace ID. Phoenix requires globally unique span IDs,
-    so this keeps the same trajectory converted under two different parents
-    from colliding. IDs stay deterministic per parent: re-converting a group
-    under the same parent reproduces them exactly.
+    Reparenting rederives span IDs against the destination trace ID; see
+    ``_reparent_spans_under_common_parent``.
 
     Span and trace IDs are deterministic. If steps omit timestamps, repeated
     conversions may produce different fallback timestamps while retaining
@@ -157,9 +135,6 @@ def _convert_atif_trajectories_to_spans(
     Args:
         trajectories: A sequence of ATIF trajectory dicts conforming to the
             ATIF schema (v1.0-v1.7).
-        common_parent_span_context: An optional parent shared by every
-            otherwise-top-level trajectory. Use it only when all supplied
-            trajectories belong to the same enclosing operation.
 
     Returns:
         The converted Phoenix spans, without uploading them.
@@ -172,13 +147,11 @@ def _convert_atif_trajectories_to_spans(
         # Normal ATIF grouping: unrelated trajectories remain separate.
         spans = _convert_atif_trajectories_to_spans(trajectories)
 
-        # One logical group: all top-level trajectories belong to this trial.
-        spans = _convert_atif_trajectories_to_spans(
-            trial_trajectories,
-            common_parent_span_context={
-                "trace_id": trial_trace_id,
-                "span_id": trial_root_span_id,
-            },
+        # One logical group, composed explicitly by the caller.
+        spans = _reparent_spans_under_common_parent(
+            _convert_atif_trajectories_to_spans(trial_trajectories),
+            parent_id=trial_root_span_id,
+            trace_id=trial_trace_id,
         )
     """
     for trajectory in trajectories:
@@ -194,13 +167,7 @@ def _convert_atif_trajectories_to_spans(
             _convert_atif_trajectory_to_spans(trajectory, parent_span_context=parent_ctx)
         )
 
-    if common_parent_span_context is None:
-        return all_spans
-    return _reparent_spans_under_common_parent(
-        all_spans,
-        parent_id=common_parent_span_context["span_id"],
-        trace_id=common_parent_span_context["trace_id"],
-    )
+    return all_spans
 
 
 def upload_atif_trajectories_as_spans(

@@ -1,11 +1,9 @@
 # pyright: reportPrivateUsage=false
-"""Reparent converted spans beneath a caller-owned parent span.
+"""Reparent spans beneath a caller-owned parent span.
 
-This module operates purely on ``v1.Span`` values and knows nothing about
-ATIF. Conversion decides a span tree's internal shape; reparenting decides
-where that tree hangs. Keeping the two separate means the grouping logic is
-a small, independently testable transform rather than a special case
-threaded through the converter.
+Operates purely on ``v1.Span`` values and knows nothing about ATIF. Conversion
+decides a span tree's internal shape; reparenting decides where that tree
+hangs.
 """
 
 from __future__ import annotations
@@ -21,11 +19,9 @@ def _rederive_span_id(span_id: str, trace_id: str) -> str:
     """Return a span ID scoped to ``trace_id``.
 
     Phoenix requires span IDs to be globally unique, not unique per trace.
-    Converted spans get IDs derived from the trajectory document, so the same
-    trajectory placed under two different parents would otherwise emit
-    colliding IDs and the second upload would conflict. Mixing the
-    destination trace ID into the seed keeps IDs deterministic per parent
-    while making them distinct across parents.
+    Span IDs derived from trajectory content repeat whenever the same content
+    is converted again, so mixing the destination trace ID into the seed keeps
+    them deterministic per parent while making them distinct across parents.
     """
     return _sha256_span_id(f"{trace_id}:{span_id}")
 
