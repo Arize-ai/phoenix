@@ -281,6 +281,70 @@ describe("AgentFabPositioner", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it("suppresses activation while moving out of a closing modal", () => {
+    vi.useFakeTimers();
+    const onActivate = vi.fn();
+    const onClick = vi.fn();
+    renderPositioner({ onActivate, onClick });
+
+    act(() => {
+      root.render(
+        <AgentFabPositioner
+          layer="modal"
+          placement="bottom-end"
+          size={{ width: 58, height: 36 }}
+          onActivate={onActivate}
+          onPlacementChange={vi.fn()}
+        >
+          <button type="button" onClick={onClick}>
+            PXI
+          </button>
+        </AgentFabPositioner>
+      );
+    });
+
+    act(() => {
+      root.render(
+        <AgentFabPositioner
+          layer="content"
+          placement="bottom-end"
+          size={{ width: 58, height: 36 }}
+          onActivate={onActivate}
+          onPlacementChange={vi.fn()}
+        >
+          <button type="button" onClick={onClick}>
+            PXI
+          </button>
+        </AgentFabPositioner>
+      );
+    });
+
+    const positioner = container.querySelector(".agent-chat-widget-positioner");
+    const button = container.querySelector("button");
+    expect(positioner?.getAttribute("data-activation-suppressed")).toBe("true");
+
+    act(() => {
+      dispatchPointerEvent(button!, "pointerdown", {
+        clientX: 1135,
+        clientY: 958,
+      });
+      dispatchPointerEvent(button!, "pointerup", {
+        clientX: 1135,
+        clientY: 958,
+      });
+      button!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onActivate).not.toHaveBeenCalled();
+    expect(onClick).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+    expect(positioner?.getAttribute("data-activation-suppressed")).toBeNull();
+    vi.useRealTimers();
+  });
+
   it("captures the pointer while a drag is pending without blocking normal click", () => {
     const onClick = vi.fn();
     const { button, positioner } = renderPositioner({ onClick });
