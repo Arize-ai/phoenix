@@ -136,9 +136,14 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # cost is bounded by that document's size. `@>` and `<@` also test
             # array containment, bounded the same way.
             #
-            # JSONBContains is PostgreSQL `?` (key exists). SQLGlot also
-            # parses the function spelling jsonb_contains as this class, so
-            # the two cannot be told apart; `@>` containment is ArrayContainsAll.
+            # SQLGlot models PostgreSQL `?` (key exists) as JSONBContains, whose
+            # sql name is jsonb_contains. That is a name collision: PostgreSQL's
+            # jsonb_contains is the `@>` support function; `?` is jsonb_exists.
+            # After parse, `jsonb_contains(x, y)` and `x ? y` are the same node,
+            # so we emit `?`. Do not rewrite this class to `@>` — that would
+            # change real `?` queries. `@>` is ArrayContainsAll.
+            # Write-up:
+            # .scratch/pending_issues/sglglot/ISSUE-postgres-jsonb-contains-emits-key-exists.md
             exp.JSONBContains,
             exp.JSONBContainsAnyTopKeys,
             exp.JSONBContainsAllTopKeys,
