@@ -121,6 +121,7 @@ def _is_json_extraction(node: exp.Expression) -> bool:
         return True
     return isinstance(node, exp.Anonymous) and str(node.this).lower() in {
         "json_extract",
+        "jsonb_extract_path",
         "jsonb_extract_path_text",
     }
 
@@ -156,6 +157,7 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _rewrite_sqlite_timestamp_subtraction(root, ctx)
     root = _normalize_timestamp_literals(root, ctx)
     root = _canonicalize_json_extract(root, ctx)
+    root = _canonicalize_postgres_dynamic_json_extract(root, ctx)
     root = _qualify_schema(root, ctx)
     root = _inject_limit(root, ctx)
     # After canonicalisation, so it sees the accessors that will actually run.
@@ -429,6 +431,53 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
         changed = True
     if changed:
         ctx.applied.append("json_extract_canonical")
+    return root
+
+
+def _canonicalize_postgres_dynamic_json_extract(
+    root: exp.Expression, ctx: RewriteContext
+) -> exp.Expression:
+    """Stop SQLGlot rendering ``jsonb -> expr`` as ``json_extract_path``.
+
+    WORKAROUND sqlglot<=30.15.0 -- remove when pin > 30.16.0.
+    Upstream: tobymao/sqlglot#8063 (closes #8035).
+
+    PostgreSQL's ``json_extract_path`` takes ``json``, not ``jsonb``. A caller
+    who writes ``attributes -> k.key`` -- a dynamic key from ``jsonb_each`` --
+    is parsed as ``JSONExtract`` whose expression is a column, and the generator
+    emits ``JSON_EXTRACT_PATH(attributes, k.key)``, which the engine refuses.
+    Literal keys (``attributes -> 'llm'``) already render as ``->`` and are
+    left alone.
+
+    The replacement is ``jsonb_extract_path`` / ``jsonb_extract_path_text``,
+    which are the functions PostgreSQL defines for jsonb. Callers may also
+    write those names directly; they are in the anon allowlist for that reason.
+
+    30.16.0 renders a single non-literal segment as ``->`` / ``->>`` instead of
+    ``json_extract_path``. The allowlisted function names stay: they are real
+    PostgreSQL, not part of the workaround.
+    """
+    if ctx.dialect != "postgresql":
+        return root
+    changed = False
+    for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
+        inner = _strip_parens(node.expression)
+        if inner is None or isinstance(inner, exp.JSONPath):
+            continue
+        name = (
+            "jsonb_extract_path_text"
+            if isinstance(node, exp.JSONExtractScalar)
+            else "jsonb_extract_path"
+        )
+        node.replace(
+            exp.Anonymous(
+                this=name,
+                expressions=[node.this, inner],
+            )
+        )
+        changed = True
+    if changed:
+        ctx.applied.append("jsonb_extract_path")
     return root
 
 

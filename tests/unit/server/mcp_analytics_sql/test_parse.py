@@ -85,7 +85,7 @@ def test_corpus_is_not_shrinking() -> None:
     The count is asserted rather than derived so that deleting a case is a
     deliberate edit to this line, not a silent side effect of editing the data.
     """
-    assert len(CASES) >= 76
+    assert len(CASES) >= 81
     keys = [(case.sql, case.dialect) for case in CASES]
     assert len(set(keys)) == len(keys), "duplicate statement/dialect pair in corpus"
 
@@ -517,7 +517,10 @@ class TestPathCastAmbiguityIsRefused:
     the caller answers a question somebody did not ask. Refusing costs a round
     trip and names two spellings that cannot be misread.
 
-    Upstream: https://github.com/tobymao/sqlglot/issues/8035
+    WORKAROUND sqlglot<=30.15.0 -- delete or invert when pin > 30.16.0.
+    Upstream: tobymao/sqlglot#8063 (closes #8035). After that bump, `a #>>
+    b::text[]` binds the cast to the path and should admit; the deliberate
+    `CAST(a #>> b AS text[])` remains a real operation.
     """
 
     @pytest.mark.parametrize(
@@ -1506,6 +1509,77 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
         ).sql(dialect="sqlite")
 
         assert "ORDER BY latency_ms" in rendered
+
+
+class TestCorrelatedAndLateralQualifiers:
+    """A qualifier may name a relation an enclosing scope exposes.
+
+    The original check inspected only the current SQLGlot scope. That refused
+    correlated subqueries and a later LATERAL that read an earlier LATERAL's
+    alias -- both legal SQL -- while a genuinely missing qualifier must stay
+    refused.
+    """
+
+    def test_a_correlated_subquery_may_name_an_outer_alias(self) -> None:
+        admit_sql(
+            "SELECT (SELECT COUNT(*) FROM spans s WHERE s.trace_rowid = t.id) FROM traces t",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+
+    def test_a_later_lateral_may_read_an_earlier_lateral_alias(self) -> None:
+        admit_sql(
+            "SELECT top.key, nested.key FROM spans s "
+            "CROSS JOIN LATERAL jsonb_each(s.attributes) AS top "
+            "CROSS JOIN LATERAL jsonb_each(top.value) AS nested",
+            allowlist=load_allowlist("postgresql"),
+            dialect="postgresql",
+        )
+
+    def test_a_qualifier_that_names_no_alias_is_still_refused(self) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                "SELECT t.start_time FROM traces tr",
+                allowlist=load_allowlist("sqlite"),
+                dialect="postgresql",
+            )
+        assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+        assert "`t` does not name a relation" in caught.value.message
+
+    def test_a_correlated_unknown_column_is_still_refused(self) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(
+                "SELECT (SELECT COUNT(*) FROM spans s WHERE s.trace_rowid = t.no_such) "
+                "FROM traces t",
+                allowlist=load_allowlist("sqlite"),
+                dialect="postgresql",
+            )
+        assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
+
+
+def test_recursive_cte_refusal_names_the_self_join() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "WITH RECURSIVE spans(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM spans WHERE n<5) "
+            "SELECT * FROM spans",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert caught.value.admission_detail == "recursive CTE"
+    assert "self-join" in caught.value.message
+    assert "parent_id" in caught.value.message
+
+
+def test_left_refusal_names_substring() -> None:
+    with pytest.raises(AnalyticsSqlError) as caught:
+        admit_sql(
+            "SELECT LEFT(name, 3) FROM spans",
+            allowlist=load_allowlist("sqlite"),
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.FUNCTION_NOT_ALLOWED
+    assert "substring(x, 1, n)" in caught.value.message
 
 
 def test_a_render_refusal_returns_an_outcome_rather_than_raising() -> None:

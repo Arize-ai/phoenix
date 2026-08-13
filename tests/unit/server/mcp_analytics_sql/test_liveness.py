@@ -919,6 +919,13 @@ POSTGRES_JSON_SURFACE = [
     pytest.param("SELECT jsonb_set(attributes, '{a}', '1') AS v FROM spans", id="set"),
     pytest.param("SELECT jsonb_insert(attributes, '{a}', '1') AS v FROM spans", id="insert"),
     pytest.param("SELECT attributes #- '{a}' AS v FROM spans", id="delete_at_path"),
+    pytest.param(
+        "SELECT jsonb_extract_path(attributes, 'session') AS v FROM spans", id="extract_path"
+    ),
+    pytest.param(
+        "SELECT jsonb_extract_path_text(attributes, 'session') AS v FROM spans",
+        id="extract_path_text",
+    ),
 ]
 
 

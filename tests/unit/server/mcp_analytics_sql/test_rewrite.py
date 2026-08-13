@@ -597,6 +597,55 @@ def test_schema_qualification_still_qualifies_tables_and_joins() -> None:
     assert "public.spans" in out and "public.traces" in out
 
 
+def test_postgres_dynamic_json_key_renders_as_jsonb_extract_path() -> None:
+    """`attributes -> k.key` must not reach PostgreSQL as `json_extract_path`.
+
+    That function takes `json`, not `jsonb`. The rewrite emits the jsonb
+    spelling so a dynamic key from jsonb_each actually runs.
+
+    WORKAROUND sqlglot<=30.15.0 -- delete this assertion when pin > 30.16.0:
+    #8063 already keeps `->`. Invert to assert the operator survives.
+    """
+    allowlist = load_allowlist("postgresql")
+    sql = (
+        "SELECT s.attributes -> k.key AS v FROM spans s "
+        "CROSS JOIN LATERAL jsonb_each(s.attributes) AS k"
+    )
+    root = admit(parse_sql(sql, dialect="postgresql"), allowlist=allowlist, dialect="postgresql")
+    ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="postgresql")
+    assert "JSONB_EXTRACT_PATH" in out.upper()
+    assert "JSON_EXTRACT_PATH(" not in out.upper().replace("JSONB_EXTRACT_PATH(", "")
+    assert "jsonb_extract_path" in ctx.applied
+
+
+def test_postgres_dynamic_json_key_scalar_renders_as_jsonb_extract_path_text() -> None:
+    allowlist = load_allowlist("postgresql")
+    sql = (
+        "SELECT s.attributes ->> k.key AS v FROM spans s "
+        "CROSS JOIN LATERAL jsonb_each(s.attributes) AS k"
+    )
+    root = admit(parse_sql(sql, dialect="postgresql"), allowlist=allowlist, dialect="postgresql")
+    ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="postgresql")
+    assert "JSONB_EXTRACT_PATH_TEXT" in out.upper()
+    assert "JSON_EXTRACT_PATH_TEXT" not in out.upper().replace("JSONB_EXTRACT_PATH_TEXT", "")
+
+
+def test_postgres_literal_json_key_keeps_the_arrow_operator() -> None:
+    allowlist = load_allowlist("postgresql")
+    root = admit(
+        parse_sql("SELECT attributes -> 'llm' AS v FROM spans", dialect="postgresql"),
+        allowlist=allowlist,
+        dialect="postgresql",
+    )
+    ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="postgresql")
+    assert "->" in out
+    assert "EXTRACT_PATH" not in out.upper()
+    assert "jsonb_extract_path" not in ctx.applied
+
+
 @pytest.mark.parametrize(
     ("sql", "admitted"),
     [

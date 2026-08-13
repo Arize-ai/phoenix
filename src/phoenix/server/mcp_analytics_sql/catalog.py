@@ -114,9 +114,12 @@ class EngineInfo:
     extensions: tuple[str, ...] = ()
 
 
-# WORKAROUND, remove when SQLGlot binds a cast to the operand of a JSON operator
-# rather than to the whole extraction.
-# Upstream: https://github.com/tobymao/sqlglot/issues/8035
+# WORKAROUND sqlglot<=30.15.0 -- remove when pin > 30.16.0
+# Upstream: tobymao/sqlglot#8063 (closes #8035)
+# https://github.com/tobymao/sqlglot/issues/8035
+#
+# Remove when SQLGlot binds a cast to the operand of a JSON operator
+# rather than to the whole extraction. 30.16.0 does.
 #
 # `pg_get_indexdef` renders the operand of `#>>` as `'{a,b}'::text[]`, spelling
 # out a cast PostgreSQL applies implicitly. Publishing it verbatim would be

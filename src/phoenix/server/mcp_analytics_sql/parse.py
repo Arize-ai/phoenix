@@ -449,22 +449,27 @@ def _check_node_classes(root: exp.Expression) -> Optional[AdmissionResult]:
     return None
 
 
+# WORKAROUND sqlglot<=30.15.0 -- remove when pin > 30.16.0
+# Upstream: tobymao/sqlglot#8063 (closes #8035)
+# https://github.com/tobymao/sqlglot/issues/8035
+#
 # `#>` and `#>>` take a `text[]` path, so a cast on their right operand is
 # meaningful; `pg_get_indexdef` emits exactly that form for an expression index
 # over a JSON path.
 #
-# SQLGlot binds such a cast to the whole extraction, so `a #>> b::text[]` parses
-# as `CAST(a #>> b AS TEXT[])`. A deliberate `CAST(a #>> b AS text[])` produces
-# the identical tree and means something else: it parses the extracted string as
-# an array literal, so `('{"tags":"{a,b}"}'::jsonb #>> '{tags}')::text[]` yields
-# a two-element array.
+# Through 30.15.0 SQLGlot binds such a cast to the whole extraction, so
+# `a #>> b::text[]` parses as `CAST(a #>> b AS TEXT[])`. A deliberate
+# `CAST(a #>> b AS text[])` produces the identical tree and means something
+# else: it parses the extracted string as an array literal, so
+# `('{"tags":"{a,b}"}'::jsonb #>> '{tags}')::text[]` yields a two-element array.
 #
 # Nothing in the tree separates the two, so neither reading can be chosen on the
 # caller's behalf, and the shape is refused with both unambiguous spellings
 # named. A parenthesised operand is unambiguous and never reaches this test: it
 # arrives under a `Paren` node.
 #
-# Upstream: https://github.com/tobymao/sqlglot/issues/8035
+# 30.16.0 binds the cast to the path. The two readings become distinct trees,
+# and this refusal is then only hitting the deliberate CAST-of-extraction form.
 _JSON_PATH_EXTRACTIONS = (exp.JSONBExtract, exp.JSONBExtractScalar)
 
 
@@ -1199,6 +1204,25 @@ def _column_qualifier_key(column: exp.Column, *, dialect: SupportedSQLDialectNam
     return _identifier_key(column.table or "", quoted=quoted, dialect=dialect)
 
 
+def _ancestor_scopes(scope: Any) -> Iterable[Any]:
+    """This scope, then each enclosing one. Cycle-guarded.
+
+    SQLGlot builds a scope per SELECT and per LATERAL. A correlated subquery
+    names a relation the inner FROM does not introduce, and a later LATERAL
+    reads an earlier LATERAL's alias; both live on a parent scope. Walking
+    inward-out matches how the engines resolve those names.
+    """
+    seen: set[int] = set()
+    current = scope
+    while current is not None:
+        scope_id = id(current)
+        if scope_id in seen:
+            break
+        seen.add(scope_id)
+        yield current
+        current = getattr(current, "parent", None)
+
+
 def _scope_exposes_qualifier(
     scope: Any,
     qualifier: str,
@@ -1206,24 +1230,52 @@ def _scope_exposes_qualifier(
     quoted: bool,
     dialect: SupportedSQLDialectName,
 ) -> bool:
-    """Whether `qualifier` names a relation this scope exposes."""
+    """Whether `qualifier` names a relation this scope or an enclosing one exposes."""
     want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
-    for source in scope.sources.values():
-        if isinstance(source, exp.Table) and want in _relation_identifier_keys(
-            source, dialect=dialect
-        ):
-            return True
-    for ident in _derived_alias_identifiers(scope):
-        if (
-            _identifier_key(
-                ident.this or "",
-                quoted=bool(ident.args.get("quoted")),
-                dialect=dialect,
-            )
-            == want
-        ):
-            return True
+    for current in _ancestor_scopes(scope):
+        for source in current.sources.values():
+            if isinstance(source, exp.Table) and want in _relation_identifier_keys(
+                source, dialect=dialect
+            ):
+                return True
+        for ident in _derived_alias_identifiers(current):
+            if (
+                _identifier_key(
+                    ident.this or "",
+                    quoted=bool(ident.args.get("quoted")),
+                    dialect=dialect,
+                )
+                == want
+            ):
+                return True
     return False
+
+
+def _allowlisted_table_for_qualifier(
+    scope: Any,
+    qualifier: str,
+    *,
+    quoted: bool,
+    dialect: SupportedSQLDialectName,
+    allowlist: Allowlist,
+) -> Optional[str]:
+    """Allowlisted table this qualifier names, including outer scopes.
+
+    `_scope_exposes_qualifier` accepts a correlated name; this is the matching
+    lookup so a misspelled column on the outer table is still refused rather
+    than skipped because the inner FROM does not mention that table.
+    """
+    want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
+    for current in _ancestor_scopes(scope):
+        for source in current.sources.values():
+            if not isinstance(source, exp.Table):
+                continue
+            if want not in _relation_identifier_keys(source, dialect=dialect):
+                continue
+            table_name = _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+            if table_name is not None:
+                return table_name
+    return None
 
 
 def _alias_identifier(expression: Optional[exp.Expression]) -> Optional[exp.Identifier]:
@@ -1541,6 +1593,19 @@ def _check_column_references(
                         if reference.casefold() == qualifier.casefold()
                     }
                     candidates = list(folded) if len(folded) == 1 else []
+                if not candidates:
+                    quoted = isinstance(qualifier_identifier, exp.Identifier) and bool(
+                        qualifier_identifier.args.get("quoted")
+                    )
+                    outer_table = _allowlisted_table_for_qualifier(
+                        scope,
+                        qualifier,
+                        quoted=quoted,
+                        dialect=dialect,
+                        allowlist=allowlist,
+                    )
+                    if outer_table is not None:
+                        candidates = [outer_table]
             else:
                 candidates = list(dict.fromkeys(by_reference.values()))
             if not candidates:
@@ -1643,7 +1708,15 @@ def admit(
         if isinstance(node, exp.Lock):
             raise admission_error_from_outcome("unsupported_syntax", "Lock")
         if isinstance(node, exp.With) and node.args.get("recursive"):
-            raise admission_error_from_outcome("unsupported_syntax", "recursive CTE")
+            raise admission_error_from_outcome(
+                "unsupported_syntax",
+                "recursive CTE",
+                message=(
+                    "Recursive CTEs are not supported. Walk a parent/child "
+                    "relationship with a self-join instead (for spans, "
+                    "`child.parent_id = parent.span_id`)."
+                ),
+            )
 
     failure = (
         _check_node_classes(root)

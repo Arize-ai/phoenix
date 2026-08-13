@@ -215,7 +215,7 @@ refused so the policy continues to reason over explicit columns.
 
 ### Stage 3 — rewrite
 
-Eight passes, in this order. The order is load-bearing, not incidental:
+Nine passes, in this order. The order is load-bearing, not incidental:
 
 1. **Star expansion** — `*` becomes the ordered physical DDL columns followed
    by the applicable virtual overlays. First, because it *emits* `latency_ms`
@@ -235,9 +235,16 @@ Eight passes, in this order. The order is load-bearing, not incidental:
    date is recorded in `notes` as having been read as UTC.
 6. **JSON canonicalisation** (SQLite only) — accessors are rewritten to the
    spelling the deployment's expression indexes use.
-7. **Schema qualification** — allowlisted relations are qualified with the
+7. **PostgreSQL dynamic JSON extract** — WORKAROUND sqlglot<=30.15.0. SQLGlot
+   renders `jsonb -> expr` as `json_extract_path` when the key is not a literal
+   path, and PostgreSQL's `json_extract_path` takes `json`, not `jsonb`. Those
+   nodes become `jsonb_extract_path` / `jsonb_extract_path_text`. Literal keys
+   (`attributes -> 'llm'`) still render as `->`. This does not re-associate
+   chained `a -> b.c -> d` (see [open question 3](#open-questions)). Drop this
+   pass when the sqlglot pin moves past 30.16.0 (tobymao/sqlglot#8063).
+8. **Schema qualification** — allowlisted relations are qualified with the
    resolved PostgreSQL schema.
-8. **Limit injection** — `row_limit + 1`, so truncation is detectable rather
+9. **Limit injection** — `row_limit + 1`, so truncation is detectable rather
    than assumed.
 
 ### Stage 4 — post-rewrite check
@@ -721,23 +728,24 @@ Ordered by how much they would change the design.
    `a -> b.c -> d` renders as a `JSON_EXTRACT_PATH` call with the associativity
    already fixed the wrong way, and returns a wrong value with nothing reported.
 
-   Re-associating it was investigated and rejected. The shape is ambiguous in
-   the same way row one's is: `json_extract_path(a, json_extract_path(b, c))`
-   parses to the identical nesting, and that is a statement someone may mean.
-   The two can be told apart only by undocumented parser internals — a node
-   built from operator syntax carries different args from one built from a
-   function call — and a meaning-changing rewrite resting on those is a bad
-   trade. If the marker silently stops matching we are back to today's
-   behaviour, which is survivable; if it silently starts over-matching we
-   corrupt correct SQL, which is not. The asymmetry decides it, so row three
-   stays a documented hazard that the preamble tells callers how to avoid.
+   Re-associating row three in Phoenix was investigated and rejected while the
+   pin was 30.14.0/30.15.0. The shape is ambiguous in the same way row one's
+   is: `json_extract_path(a, json_extract_path(b, c))` parses to the identical
+   nesting, and that is a statement someone may mean. The two can be told apart
+   only by undocumented parser internals — a node built from operator syntax
+   carries different args from one built from a function call — and a
+   meaning-changing rewrite resting on those is a bad trade.
 
-   Filed upstream as <https://github.com/tobymao/sqlglot/issues/8035>, with a
-   patch drafted for the first three rows. The fourth needs the operators moved
-   to another precedence tier, which that patch does not do. Both the
-   `catalog.py` workaround and the admission refusal become removable when the
-   pin on `sqlglot==30.14.0` moves past the fix, the refusal because a corrected
-   parser distinguishes the two readings it exists to separate.
+   Filed upstream as <https://github.com/tobymao/sqlglot/issues/8035>. The fix
+   landed in sqlglot 30.16.0 via [#8063](https://github.com/tobymao/sqlglot/pull/8063),
+   which moved the JSON operators onto Postgres's binary-operator precedence
+   tier. On that release every row above, and `col -> k`, round-trips as infix.
+   The Phoenix pin is `sqlglot==30.15.0` (three-day wait), so the mitigations
+   stay. Grep `WORKAROUND sqlglot<=30.15.0` for the sites; they come out when
+   the pin moves past 30.16.0. The admission refusal of `a #>> b::text[]`
+   becomes removable because a corrected parser distinguishes the two readings
+   it exists to separate. `jsonb_extract_path` on the allowlist is not a
+   workaround — callers write it.
 
 4. **The plan gate and the SQLite authorizer are not equivalent backstops**
    (see [Stage 6](#stage-6--engine-backstops)).

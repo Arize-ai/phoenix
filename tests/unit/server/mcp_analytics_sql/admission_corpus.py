@@ -575,4 +575,40 @@ CASES: tuple[AdmissionCase, ...] = (
         note="quoting the advertised spelling is still that column",
         dialect="postgresql",
     ),
+    AdmissionCase(
+        sql="SELECT (SELECT COUNT(*) FROM spans s WHERE s.trace_rowid = t.id) FROM traces t",
+        expect=AdmissionOutcome.ADMIT,
+        note="a correlated subquery names an outer alias; refusing it as a missing qualifier made a legal statement look like a typo",
+    ),
+    AdmissionCase(
+        sql=(
+            "SELECT s.name, top.key AS k1, nested.key AS k2, COUNT(*) AS n "
+            "FROM spans s "
+            "CROSS JOIN LATERAL jsonb_each(s.attributes) AS top "
+            "CROSS JOIN LATERAL jsonb_each("
+            "CASE WHEN jsonb_typeof(top.value) = 'object' THEN top.value ELSE '{}'::jsonb END"
+            ") AS nested "
+            "GROUP BY s.name, top.key, nested.key"
+        ),
+        expect=AdmissionOutcome.ADMIT,
+        note="a later LATERAL reads an earlier LATERAL's alias; that name lives on the parent SELECT scope as a Scope, not a Table",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT t.start_time FROM traces tr",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a qualifier that names a different alias than the one in scope is still missing after correlated names are accepted",
+    ),
+    AdmissionCase(
+        sql="SELECT jsonb_extract_path(attributes, 'session') AS v FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="the jsonb spelling of a dynamic-key extract, and the form the rewrite emits when -> has a non-literal key",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT jsonb_extract_path_text(attributes, 'session') AS v FROM spans",
+        expect=AdmissionOutcome.ADMIT,
+        note="the text-returning counterpart; SQLGlot renders jsonb ->> expr as json_extract_path_text, which takes json not jsonb",
+        dialect="postgresql",
+    ),
 )
