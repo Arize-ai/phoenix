@@ -32,6 +32,8 @@ from typing_extensions import assert_never
 from phoenix.config import PLAYGROUND_PROJECT_NAME, get_env_database_schema
 from phoenix.db import models
 
+SupportedSQLDialectName = Literal["postgresql", "sqlite"]
+
 
 class SupportedSQLDialect(Enum):
     SQLITE = "sqlite"

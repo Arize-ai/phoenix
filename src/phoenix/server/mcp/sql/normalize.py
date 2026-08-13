@@ -1,0 +1,277 @@
+from __future__ import annotations
+
+import math
+import re
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta, timezone
+from decimal import Decimal
+from typing import Any, Optional
+from uuid import UUID
+
+from pydantic_core import to_jsonable_python
+
+#: What each lossy conversion costs, keyed by the name recorded for it. Stated
+#: because the conversion is invisible in the result: an exact decimal and the
+#: binary float nearest to it are both just numbers in JSON, and replaced bytes
+#: are just a string.
+LOSSY_CONVERSION_NOTES: dict[str, str] = {
+    # Says only what is true. An earlier wording claimed cost and token columns
+    # are "stored exactly", which they are not -- `span_costs.total_cost` and
+    # its siblings are `Float`, so they are binary floating point in the
+    # database, and this conversion cannot be what makes them inexact. What
+    # reaches here as a `Decimal` is an exact value computed by the engine, a
+    # NUMERIC aggregate on PostgreSQL being the usual source.
+    "decimal_to_float": (
+        "An exact decimal value was returned as a binary floating-point number, "
+        "which cannot represent every decimal. Compare and aggregate in SQL "
+        "rather than on the returned value if the exact figure matters."
+    ),
+    "non_finite_to_null": (
+        "A non-finite number (infinity or NaN) was returned as null, because JSON "
+        "has no way to write one."
+    ),
+    "undecodable_bytes": (
+        "A value held bytes that are not valid UTF-8. The invalid sequences were "
+        "replaced, so that column's text is not what is stored."
+    ),
+}
+
+
+def unix_epoch_to_utc(value: str) -> Optional[tuple[datetime, str]]:
+    """Read an unquoted number as seconds or milliseconds since the Unix epoch.
+
+    Values with magnitude >= 1e12 cannot be calendar seconds in this century,
+    so they are read as milliseconds. Quoted integers are not timestamps and
+    must not go through this path -- ``parse_timestamp_literal`` already
+    declines them.
+    """
+    try:
+        number = float(value) if "." in value or "e" in value.casefold() else int(value)
+    except ValueError:
+        return None
+    unit = "milliseconds" if abs(number) >= 1e12 else "seconds"
+    seconds = number / 1000.0 if unit == "milliseconds" else float(number)
+    try:
+        instant = datetime.fromtimestamp(seconds, tz=timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return None
+    return instant, unit
+
+
+def normalize_row_values(values: list[Any], applied: Optional[set[str]] = None) -> list[Any]:
+    """Convert driver values to JSON-representable ones, recording what that cost.
+
+    Every conversion below is a narrowing, and each produces a value that looks
+    ordinary in the result -- so without `applied` the caller cannot tell a
+    replaced byte sequence from text that really contains a replacement
+    character, or an exact decimal from the float nearest it.
+    """
+    return [_normalize_value(value, applied) for value in values]
+
+
+def _normalize_value(value: Any, applied: Optional[set[str]] = None) -> Any:
+    def record(name: str) -> None:
+        if applied is not None:
+            applied.add(name)
+
+    if value is None:
+        return None
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            record("non_finite_to_null")
+            return None
+        return value
+    if isinstance(value, Decimal):
+        f = float(value)
+        if not math.isfinite(f):
+            record("non_finite_to_null")
+            return None
+        # Only when it actually lost something. Most decimals a caller sees are
+        # exactly representable, and a note on every one of those trains the
+        # reader to skip the field.
+        if Decimal(repr(f)) != value:
+            record("decimal_to_float")
+        return f
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).isoformat()
+    if isinstance(value, time):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, timedelta):
+        return to_jsonable_python(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: _normalize_value(item, applied) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalize_value(item, applied) for item in value]
+    if isinstance(value, tuple):
+        # PostgreSQL composites (`jsonb_each` without `.*`) arrive as tuples.
+        # Walking dict/list but not tuple let a permitted SRF crash the success
+        # envelope with a Pydantic JSON-value error instead of returning rows.
+        return [_normalize_value(item, applied) for item in value]
+    if isinstance(value, bytes):
+        decoded = value.decode("utf-8", errors="replace")
+        if decoded.encode("utf-8", errors="replace") != value:
+            record("undecodable_bytes")
+        return decoded
+    return value
+
+
+# Timestamp literals in caller SQL.
+#
+# A timestamp column is `TIMESTAMP WITH TIME ZONE` on PostgreSQL and text on
+# SQLite, written by `UtcTimeStamp` as UTC in `YYYY-MM-DD HH:MM:SS.ffffff` with
+# the offset dropped. Two consequences follow for a literal compared against one.
+#
+# The offset is not optional information. A naive literal means "ask the
+# environment", and three different environments answer: `normalize_datetime`
+# localises a naive value to the writing process's zone, PostgreSQL reads a
+# naive literal in the session `TimeZone`, and SQLite compares text against
+# whatever those produced. None of them is the caller's stated intent.
+#
+# The spelling is not information at all. Once an instant is known, the layout
+# it was written in carries nothing, which is why parsing is lenient: anything
+# date-shaped that resolves to an instant is accepted, and the value is re-emitted
+# in the form the target needs.
+_DATE_SHAPED = re.compile(r"^\d{4}-\d{2}-\d{2}")
+_COMPACT_DATE_PREFIX = re.compile(r"^\d{8}(?:T|$)")
+_COMPACT_ISO = re.compile(
+    r"^(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})"
+    r"(?:T(?P<hour>\d{2})(?P<minute>\d{2})(?P<second>\d{2})(?:\.(?P<fraction>\d+))?)?"
+    r"(?P<zone>Z|[+-]\d{2}(?::?\d{2})?)?$",
+    re.IGNORECASE,
+)
+_TIME_SHAPED = re.compile(
+    r"^\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?$", re.IGNORECASE
+)
+_COMPACT_OFFSET = re.compile(r"([+-]\d{2})(\d{2})$")
+_BARE_OFFSET = re.compile(r"([+-]\d{2})$")
+_NAMED_UTC = re.compile(r"\s+(?:UTC|GMT)$", re.IGNORECASE)
+_EXTRA_FRACTION = re.compile(r"(\.\d{6})\d+")
+
+
+@dataclass(frozen=True)
+class TimestampLiteral:
+    value: datetime
+    # Whether the caller wrote a time of day. A bare date names a day rather than
+    # an instant, so it is treated differently from a naive time: `2026-07-01`
+    # is a whole-day boundary that UTC resolves without guessing, while
+    # `2026-07-01 14:30:00` names an instant the caller did not finish stating.
+    has_time: bool
+
+    @property
+    def is_aware(self) -> bool:
+        return self.value.tzinfo is not None
+
+
+def _expand_compact_iso(match: re.Match[str]) -> str:
+    """Turn ``YYYYMMDD`` / ``YYYYMMDDTHHMMSSZ`` into a dashed ISO spelling."""
+    expanded = f"{match['year']}-{match['month']}-{match['day']}"
+    if match["hour"] is not None:
+        expanded += f"T{match['hour']}:{match['minute']}:{match['second']}"
+        if match["fraction"]:
+            expanded += f".{match['fraction']}"
+    if match["zone"]:
+        expanded += match["zone"]
+    return expanded
+
+
+def parse_timestamp_literal(text: str) -> Optional[TimestampLiteral]:
+    """Read a caller's timestamp literal, or None if it is not one.
+
+    Deliberately lenient about form and strict about nothing except being
+    date-shaped. `Z`, a bare `+00` and a compact `+0000` are all spellings
+    `datetime.fromisoformat` rejects on this Python and that callers write
+    anyway, so they are rewritten before parsing rather than refused.
+
+    Compact ISO-8601 basic form (``YYYYMMDD`` / ``YYYYMMDDTHHMMSSZ``) is
+    expanded to the dashed spelling first. The date-shaped guard is what
+    keeps this from engaging on strings that merely look numeric. A quoted
+    integer is a plausible thing to compare a column against and must not be
+    read as a unix epoch.
+    """
+    raw = text.strip()
+    compact = _COMPACT_ISO.fullmatch(raw)
+    if compact is not None:
+        raw = _expand_compact_iso(compact)
+    if not _DATE_SHAPED.match(raw):
+        return None
+    # Index 10 is the date/time separator. Python also accepts ``+`` and ``-``
+    # there, so ``2026-01-01+05:30`` is 05:30, not a bare date.
+    has_time = len(raw) > 10 and raw[10] in " Tt+-"
+    candidate = raw
+    # Only once a time is present, because a bare date ends in `-DD`, which the
+    # offset patterns would otherwise read as an offset and corrupt.
+    if has_time:
+        candidate = _NAMED_UTC.sub("+00:00", candidate)
+        if candidate[-1] in "Zz":
+            candidate = candidate[:-1] + "+00:00"
+        candidate = _EXTRA_FRACTION.sub(r"\1", candidate)
+        candidate = _COMPACT_OFFSET.sub(r"\1:\2", candidate)
+        candidate = _BARE_OFFSET.sub(r"\1:00", candidate)
+    try:
+        value = datetime.fromisoformat(candidate)
+    except ValueError:
+        return None
+    return TimestampLiteral(value=value, has_time=has_time)
+
+
+def is_date_shaped(text: str) -> bool:
+    """Whether this string starts with a calendar date, so it is ours to read or refuse."""
+    raw = text.strip()
+    return bool(_DATE_SHAPED.match(raw) or _COMPACT_DATE_PREFIX.match(raw))
+
+
+def is_time_shaped(text: str) -> bool:
+    """Whether this string is a clock time with no date.
+
+    Compared against a timestamp column it is not an instant: PostgreSQL
+    rejects it as invalid input, and SQLite compares it as text against a
+    stored datetime. Either way the caller named a time of day and nothing
+    else, which is the same unfinished statement a naive ``YYYY-MM-DD HH:MM``
+    is, minus the date.
+    """
+    return bool(_TIME_SHAPED.match(text.strip()))
+
+
+def format_timestamp_for_sqlite(value: datetime) -> str:
+    """The layout `UtcTimeStamp` writes, which is the only one SQLite compares correctly.
+
+    Storage is text and comparison is character by character, so a literal has
+    to match the stored layout or the comparison is decided by the wrong
+    characters. An ISO `T` differs from the stored space at index 10, and since
+    `' ' < 'T'`, every row sharing the boundary's date sorts before an ISO-spelled
+    boundary regardless of its clock time -- dropping a whole day from the low
+    end of a window and admitting one at the high end.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+
+
+def timestamp_column_names(tables: frozenset[str]) -> frozenset[str]:
+    """Names that hold a timestamp on the given tables.
+
+    Matched by name rather than by resolving each reference back to its table.
+    Sound here only because no
+    allowlisted table gives one of these names to a column of another type,
+    which a test pins so that a future migration cannot quietly break it.
+    """
+    from phoenix.db.models import Base
+
+    names: set[str] = set()
+    for table in Base.metadata.tables.values():
+        # Metadata keys are schema-qualified when the process has a Postgres
+        # schema configured (`analytics_sql.spans`). The allowlist names the
+        # table only. Matching the key made every timestamp check a no-op on
+        # the live Postgres deployment.
+        if table.name not in tables:
+            continue
+        for column in table.columns:
+            if "TIMESTAMP" in str(column.type).upper():
+                names.add(column.name)
+    return frozenset(names)
