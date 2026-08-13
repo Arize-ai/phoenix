@@ -33,6 +33,7 @@ runs:
         VARIANT: ${{ inputs.variant }}
         PLATFORM: ${{ inputs.platform }}
       run: |
+        set -euo pipefail
         case "$VARIANT" in
           root)    base=gcr.io/distroless/python3-debian13 ;;
           nonroot) base=gcr.io/distroless/python3-debian13:nonroot ;;
@@ -57,6 +58,30 @@ runs:
       with:
         images: ${{ inputs.registry }}/${{ inputs.image-name }}
 
+    # The WASM fetch is the only download here with no registry-protocol
+    # retry beneath it, and the release asset drops connections. Building
+    # that stage alone parks its layer in the Actions cache so the real
+    # build restores it instead of refetching. Scoped by platform because
+    # the stage never reads the variant. ~78MB per scope; exporting the
+    # builder stages too would be ~1.3GB per leg and would not fit the
+    # repository's shared 10GB budget.
+    - name: Warm the WASM layer cache
+      uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+      with:
+        platforms: ${{ inputs.platform }}
+        context: .
+        file: ./Dockerfile
+        target: wasm-runtime
+        provenance: false
+        sbom: false
+        outputs: type=cacheonly
+        cache-from: type=gha,scope=wasm-${{ steps.resolve.outputs.platform-slug }}
+        # ignore-error: the three variant legs on a platform share a scope and
+        # export concurrently. A rejected export must not fail the step — the
+        # layer is already in the local builder cache, which is what the build
+        # below consumes; the export only serves the next run.
+        cache-to: type=gha,scope=wasm-${{ steps.resolve.outputs.platform-slug }},mode=max,ignore-error=true
+
     - name: Build and push by digest
       id: build
       uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
@@ -71,6 +96,8 @@ runs:
           BASE_IMAGE=${{ steps.resolve.outputs.base-image }}
         outputs: >-
           type=image,name=${{ inputs.registry }}/${{ inputs.image-name }},push-by-digest=true,name-canonical=true,push=true
+        # Read-only: restores the layer warmed above, exports nothing.
+        cache-from: type=gha,scope=wasm-${{ steps.resolve.outputs.platform-slug }}
 
     - name: Export digest
       shell: bash
