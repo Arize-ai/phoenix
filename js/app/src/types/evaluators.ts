@@ -178,11 +178,27 @@ export type SpanEvaluatorMappingSource = {
   metadata: Record<string, unknown>;
 };
 
-export type EvaluatorMappingSourceGrain = "dataset" | "span";
+/**
+ * As produced by the server: `input` is the session transcript, `output` is the
+ * last response in the session, and `metadata` holds the ordered turns and the
+ * transcript policy that assembled them.
+ *
+ * Structurally identical to a span source, but semantically distinct: the two
+ * grains name different records and offer different mapping vocabulary, so the
+ * grain a source belongs to can never be inferred from its shape.
+ */
+export type SessionEvaluatorMappingSource = {
+  input: unknown;
+  output: unknown;
+  metadata: Record<string, unknown>;
+};
+
+export type EvaluatorMappingSourceGrain = "dataset" | "span" | "session";
 
 export type EvaluatorMappingSourceByGrain = {
   dataset: DatasetEvaluatorMappingSource;
   span: SpanEvaluatorMappingSource;
+  session: SessionEvaluatorMappingSource;
 };
 
 export type EvaluatorMappingSource<
