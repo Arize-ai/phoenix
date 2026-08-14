@@ -1313,7 +1313,15 @@ CREATE TABLE eval_session_work_units (
     transcript_covered_through TIMESTAMP,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
-        CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')),
+CHECK (status IN (
+            'PENDING',
+            'RUNNING',
+            'DONE',
+            'ERROR',
+            'EXPIRED',
+            'FILTERED_OUT',
+            'SAMPLED_OUT'
+        )),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     attempts INTEGER DEFAULT '0' NOT NULL,
@@ -1338,7 +1346,7 @@ CREATE TABLE eval_session_work_units (
 
 CREATE INDEX ix_eval_session_work_units_claimable ON eval_session_work_units
     (status, id)
-    WHERE status NOT IN ('DONE', 'EXPIRED');
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_session_work_units_criteria_id ON eval_session_work_units
     (criteria_id);
 CREATE INDEX ix_eval_session_work_units_error_attempts ON eval_session_work_units
@@ -1352,7 +1360,7 @@ CREATE INDEX ix_eval_session_work_units_terminal_watermark ON eval_session_work_
     (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units
     (project_session_rowid, evaluator_id, config_fingerprint)
-    WHERE status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3;
+    WHERE status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3 OR status IN ('FILTERED_OUT', 'SAMPLED_OUT');
 
 
 -- Table: eval_work_units
