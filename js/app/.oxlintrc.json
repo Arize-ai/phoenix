@@ -7,7 +7,7 @@
     "typeAware": true
   },
 
-  "plugins": ["react", "typescript"],
+  "plugins": ["react", "typescript", "import"],
 
   "jsPlugins": [
     {
@@ -39,6 +39,7 @@
         ]
       }
     ],
+    "import/no-cycle": "error",
     "react/exhaustive-deps": "error",
     "react/rules-of-hooks": "error",
     "react-hooks-js/set-state-in-effect": "error",

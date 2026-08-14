@@ -3,8 +3,7 @@ import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import type { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
 import type { PlaygroundInput, PlaygroundInstance } from "@phoenix/store";
 import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
-import type { CanonicalToolDefinition } from "@phoenix/store/playground";
-import type { Tool } from "@phoenix/store/playground";
+import type { CanonicalToolDefinition, Tool } from "@phoenix/store/playground";
 
 import {
   INPUT_MESSAGES_PARSING_ERROR,

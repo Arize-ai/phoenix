@@ -7,8 +7,8 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { throttle } from "lodash";
-import type { SetStateAction } from "react";
 import {
+  type SetStateAction,
   memo,
   type ReactNode,
   type RefObject,
@@ -103,12 +103,10 @@ import {
   InstanceVariablesProvider,
   useInstanceVariables,
 } from "./InstanceVariablesContext";
-import type {
-  ExperimentRunAnnotation,
-  ExperimentRunCost,
-  ExampleRunData,
-} from "./PlaygroundDatasetExamplesTableContext";
 import {
+  type ExperimentRunAnnotation,
+  type ExperimentRunCost,
+  type ExampleRunData,
   makeExpandedCellKey,
   type Span,
   usePlaygroundDatasetExamplesTableContext,

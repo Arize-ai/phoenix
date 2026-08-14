@@ -7,8 +7,8 @@ import {
   getDefaultInvocationConfig,
   parseInvocationConfig,
 } from "@phoenix/pages/playground/providerAdapters";
-import type { InitialPlaygroundState } from "@phoenix/store";
 import {
+  type InitialPlaygroundState,
   DEFAULT_INSTANCE_PARAMS,
   generateInstanceId,
   generateMessageId,

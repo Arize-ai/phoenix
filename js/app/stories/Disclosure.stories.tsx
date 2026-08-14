@@ -1,10 +1,8 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
-import type {
-  DisclosureProps,
-  DisclosureTriggerProps,
-} from "@phoenix/components";
 import {
+  type DisclosureProps,
+  type DisclosureTriggerProps,
   Card,
   Disclosure,
   DisclosureGroup,

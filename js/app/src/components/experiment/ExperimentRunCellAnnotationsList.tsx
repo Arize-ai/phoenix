@@ -21,8 +21,8 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import type { Annotation } from "@phoenix/components/annotation";
 import {
+  type Annotation,
   type AnnotationConfig,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";

@@ -6,7 +6,6 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 // import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
-import circleDependency from "vite-plugin-circular-dependency";
 import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
 
@@ -34,7 +33,6 @@ export default defineConfig(() => {
     }),
     relay,
     lezer(),
-    circleDependency({ circleImportThrowErr: true }),
   ];
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());

@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
 
 import { ExternalLink, Flex, Heading, Text, View } from "@phoenix/components";
-import { IsAuthenticated } from "@phoenix/components/auth";
-import { GenerateAPIKeyButton } from "@phoenix/components/auth";
+import {
+  IsAuthenticated,
+  GenerateAPIKeyButton,
+} from "@phoenix/components/auth";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageManagerCommandBlock";
