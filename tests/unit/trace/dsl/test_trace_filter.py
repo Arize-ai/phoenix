@@ -370,7 +370,7 @@ def test_trace_iterable_correlation_keys_are_non_nullable() -> None:
         "span_cost_details",
     }
     for spec in _ITERABLE_SPECS.values():
-        column = spec.trace_key(spec.model).property.columns[0]
+        column = spec.trace_key_model.trace_rowid.property.columns[0]
         assert column.nullable is False, column
 
 

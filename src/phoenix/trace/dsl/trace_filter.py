@@ -93,19 +93,22 @@ class _ElementField(typing.NamedTuple):
 
 class _NestedIterable(typing.NamedTuple):
     iterable: str
-    correlate: typing.Callable[[typing.Any, typing.Any], typing.Any]
+    correlate: typing.Callable[[typing.Mapping[typing.Any, typing.Any], typing.Any], typing.Any]
 
 
 class _IterableSpec(typing.NamedTuple):
     model: typing.Any
     fields: typing.Mapping[str, _ElementField]
     joins: tuple[typing.Any, ...]
-    trace_key: typing.Callable[[typing.Any], typing.Any]
+    trace_key_model: typing.Any
     uppercase_fields: frozenset[str] = frozenset()
     nested: typing.Mapping[str, _NestedIterable] = MappingProxyType({})
 
 
-def _correlate_siblings(element: typing.Any, parent: typing.Any) -> typing.Any:
+def _correlate_siblings(
+    sources: typing.Mapping[typing.Any, typing.Any], parent: typing.Any
+) -> typing.Any:
+    element = sources[models.Span]
     stored_parent = aliased(models.Span)
     return and_(
         element.trace_rowid == parent.trace_rowid,
@@ -168,25 +171,27 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
             model=models.Span,
             fields=_SPAN_ELEMENT_FIELDS,
             joins=(),
-            trace_key=lambda element: element.trace_rowid,
+            trace_key_model=models.Span,
             uppercase_fields=frozenset({"span_kind", "status_code"}),
             nested=MappingProxyType(
                 {
                     "children": _NestedIterable(
                         "spans",
-                        lambda element, parent: and_(
-                            element.trace_rowid == parent.trace_rowid,
-                            element.parent_id == parent.span_id,
+                        lambda sources, parent: and_(
+                            sources[models.Span].trace_rowid == parent.trace_rowid,
+                            sources[models.Span].parent_id == parent.span_id,
                         ),
                     ),
                     "siblings": _NestedIterable("spans", _correlate_siblings),
                     "annotations": _NestedIterable(
                         "span_annotations",
-                        lambda element, parent: element.span_rowid == parent.id,
+                        lambda sources, parent: (
+                            sources[models.SpanAnnotation].span_rowid == parent.id
+                        ),
                     ),
                     "cost_details": _NestedIterable(
                         "span_cost_details",
-                        lambda _element, parent: models.SpanCost.span_rowid == parent.id,
+                        lambda sources, parent: sources[models.SpanCost].span_rowid == parent.id,
                     ),
                 }
             ),
@@ -195,19 +200,19 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
             model=models.TraceAnnotation,
             fields=_ANNOTATION_ELEMENT_FIELDS,
             joins=(),
-            trace_key=lambda element: element.trace_rowid,
+            trace_key_model=models.TraceAnnotation,
         ),
         "span_annotations": _IterableSpec(
             model=models.SpanAnnotation,
             fields=_ANNOTATION_ELEMENT_FIELDS,
             joins=(models.Span,),
-            trace_key=lambda element: models.Span.trace_rowid,
+            trace_key_model=models.Span,
         ),
         "span_cost_details": _IterableSpec(
             model=models.SpanCostDetail,
             fields=_COST_DETAIL_ELEMENT_FIELDS,
             joins=(models.SpanCost,),
-            trace_key=lambda element: models.SpanCost.trace_rowid,
+            trace_key_model=models.SpanCost,
         ),
     }
 )
@@ -502,6 +507,7 @@ def _comprehension_bindings(
     class _Scope(typing.NamedTuple):
         spec: ComprehensionSpec
         element: typing.Any
+        sources: typing.Mapping[typing.Any, typing.Any]
         parent: typing.Optional[typing.Any]
 
     def needs_parent(spec: ComprehensionSpec) -> bool:
@@ -538,10 +544,20 @@ def _comprehension_bindings(
     ) -> tuple[_IterableSpec, _Scope, dict[str, typing.Any], typing.Any]:
         iterable = _ITERABLE_SPECS[spec.iterable]
         element = aliased(iterable.model, name=f"{spec.iterable}_{next(aliases)}")
+        sources = {
+            iterable.model: element,
+            **{
+                target: aliased(
+                    target,
+                    name=f"{spec.iterable}_{target.__tablename__}_{next(aliases)}",
+                )
+                for target in iterable.joins
+            },
+        }
         parent = (
             aliased(models.Span, name=f"parent_{next(aliases)}") if needs_parent(spec) else None
         )
-        current = _Scope(spec, element, parent)
+        current = _Scope(spec, element, sources, parent)
         columns = {name: _element_column(element, name, iterable) for name in iterable.fields}
         nested_bindings = {
             child.name: build(child, spec, element, (*ancestors, current))
@@ -572,7 +588,7 @@ def _comprehension_bindings(
         scope: _Scope,
     ) -> Select[typing.Any]:
         for target in iterable.joins:
-            element_stmt = element_stmt.join(target)
+            element_stmt = element_stmt.join(scope.sources[target])
         if scope.parent is not None:
             element_stmt = element_stmt.outerjoin(
                 scope.parent,
@@ -582,6 +598,9 @@ def _comprehension_bindings(
                 ),
             )
         return element_stmt
+
+    def trace_key(iterable: _IterableSpec, scope: _Scope) -> typing.Any:
+        return scope.sources[iterable.trace_key_model].trace_rowid
 
     def build(
         spec: ComprehensionSpec,
@@ -598,17 +617,18 @@ def _comprehension_bindings(
             element_stmt = select(_REDUCTION_FUNCTIONS[spec.kind](predicate))
         element_stmt = apply_joins(element_stmt.select_from(scope.element), iterable, scope)
         if parent_spec is None:
-            element_stmt = element_stmt.where(iterable.trace_key(scope.element) == models.Trace.id)
+            element_stmt = element_stmt.where(trace_key(iterable, scope) == models.Trace.id)
         elif spec.nested_attribute is None:
             assert parent_element is not None
+            parent_iterable = _ITERABLE_SPECS[parent_spec.iterable]
+            parent_scope = ancestors[-1]
             element_stmt = element_stmt.where(
-                iterable.trace_key(scope.element)
-                == _ITERABLE_SPECS[parent_spec.iterable].trace_key(parent_element)
+                trace_key(iterable, scope) == trace_key(parent_iterable, parent_scope)
             )
         else:
             assert parent_element is not None
             nested = _ITERABLE_SPECS[parent_spec.iterable].nested[spec.nested_attribute]
-            element_stmt = element_stmt.where(nested.correlate(scope.element, parent_element))
+            element_stmt = element_stmt.where(nested.correlate(scope.sources, parent_element))
         if spec.condition is not None:
             element_stmt = element_stmt.where(eval(spec.condition, element_globals))
         if spec.kind == "any":
@@ -621,7 +641,7 @@ def _comprehension_bindings(
 
     def build_scan(spec: ComprehensionSpec) -> typing.Any:
         iterable, scope, element_globals, predicate = element_scope(spec, ())
-        trace_key = iterable.trace_key(scope.element)
+        element_trace_key = trace_key(iterable, scope)
 
         def scan(*columns: typing.Any) -> Select[typing.Any]:
             element_stmt = apply_joins(select(*columns).select_from(scope.element), iterable, scope)
@@ -630,12 +650,14 @@ def _comprehension_bindings(
             return element_stmt
 
         if spec.kind == "any":
-            return models.Trace.id.in_(scan(trace_key).where(predicate))
+            return models.Trace.id.in_(scan(element_trace_key).where(predicate))
         if spec.kind == "all":
             # Every trace correlation key is non-null, so no nullable-key guard is needed.
-            return models.Trace.id.not_in(scan(trace_key).where(predicate.is_not(True)))
+            return models.Trace.id.not_in(scan(element_trace_key).where(predicate.is_not(True)))
         value = func.count() if spec.kind == "len" else _REDUCTION_FUNCTIONS[spec.kind](predicate)
-        return scan(trace_key.label(TRACE_ROWID), value.label(VALUE)).group_by(trace_key)
+        return scan(element_trace_key.label(TRACE_ROWID), value.label(VALUE)).group_by(
+            element_trace_key
+        )
 
     bindings_map: dict[str, typing.Any] = {}
     for spec in specs:

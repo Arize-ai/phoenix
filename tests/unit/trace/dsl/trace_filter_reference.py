@@ -685,16 +685,6 @@ def _parse_datetime_literal(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def _wire_key_candidate_paths(keys: Sequence[str]) -> tuple[tuple[str, ...], ...]:
-    segments = ".".join(keys).split(".")
-    paths = [tuple(segments)]
-    for index in range(len(segments) - 1, -1, -1):
-        candidate = (*segments[:index], ".".join(segments[index:]))
-        if candidate != paths[0]:
-            paths.append(candidate)
-    return tuple(paths)
-
-
 _BASE_TIME = datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc)
 
 FIXTURE_TRACES: tuple[ReferenceTrace, ...] = (
@@ -703,7 +693,17 @@ FIXTURE_TRACES: tuple[ReferenceTrace, ...] = (
         "lone-tool-root",
         _BASE_TIME + timedelta(seconds=30),
         _BASE_TIME + timedelta(seconds=31),
-        spans=(ReferenceSpan("standalone-tool", span_kind="TOOL"),),
+        spans=(
+            ReferenceSpan(
+                "standalone-tool",
+                span_kind="TOOL",
+                annotations=(ReferenceAnnotation("NeedsReview", score=0.1),),
+                cost=ReferenceSpanCost(
+                    prompt_cost=0.1,
+                    details=(ReferenceCostDetail("cache_read", True, 0.1, 10.0, 0.01),),
+                ),
+            ),
+        ),
     ),
     ReferenceTrace(
         "clean-chat",
@@ -865,4 +865,8 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'any(any(d.token_type == "output" for d in s.cost_details) for s in spans)',
     'any(s.name == "search" and any(x.name == s.name and x.start_time > s.start_time '
     "for x in spans) for s in spans)",
+    'any(a.name == "NeedsReview" and any(b.score > 0.8 for b in span_annotations) '
+    "for a in span_annotations)",
+    'any(d.token_type == "cache_read" and sum(e.cost for e in span_cost_details) > 0.5 '
+    "for d in span_cost_details)",
 )
