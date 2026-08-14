@@ -314,6 +314,9 @@ class TestProjectSession:
         assert policy["retained_turn_count"] == 2
         assert policy["turn_cap_omitted_count"] == 0
         assert policy["byte_cap_omitted_count"] == 0
+        # Decided per evaluator at hydration time and recorded on the
+        # annotation, so it is not part of the context an author previews.
+        assert "structured_turns_mapped" not in policy
 
     async def test_session_evaluation_context_is_null_when_transcript_exceeds_byte_cap(
         self,

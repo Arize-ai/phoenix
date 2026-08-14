@@ -251,7 +251,6 @@ def session_eval_context(
         "last_loaded_event_time": last_loaded,
         "first_retained_event_time": first_retained,
         "last_retained_event_time": last_retained,
-        "structured_turns_mapped": False,
     }
     return {
         "input": transcript,
@@ -528,6 +527,9 @@ class OnlineEvalExecutor:
 
         contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
         input_mappings: list[Optional[InputMapping]] = [None for _ in units]
+        # Recorded on the annotation, never in the evaluated context: it is
+        # decided per evaluator, after the context an author previews is built.
+        maps_structured_turns: list[bool] = [False for _ in units]
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
@@ -557,8 +559,7 @@ class OnlineEvalExecutor:
                 outcomes[index] = error
                 continue
             if unit.evaluation_target == "SESSION":
-                policy = hydrated_context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
-                policy["structured_turns_mapped"] = any(
+                maps_structured_turns[index] = any(
                     path_expression.removeprefix("$.").startswith("metadata.turns")
                     for path_expression in (resolved_input_mapping.path_mapping or {}).values()
                 )
@@ -617,11 +618,15 @@ class OnlineEvalExecutor:
                     "input_schema",
                     {},
                 )
-                policy["structured_turns_mapped"] = bool(
-                    policy["structured_turns_mapped"]
-                    or "metadata" in evaluator_input_schema.get("properties", {})
-                )
-                annotation_metadata = {_TRANSCRIPT_POLICY_METADATA_KEY: dict(policy)}
+                annotation_metadata = {
+                    _TRANSCRIPT_POLICY_METADATA_KEY: {
+                        **policy,
+                        "structured_turns_mapped": bool(
+                            maps_structured_turns[index]
+                            or "metadata" in evaluator_input_schema.get("properties", {})
+                        ),
+                    }
+                }
             outcomes[index] = HydratedConfigurationSnapshot(
                 project_id=criteria.project_id,
                 fingerprint=unit.config_fingerprint,
