@@ -335,6 +335,38 @@ class TestProjectSession:
         # preview reports it rather than failing the query it is read in.
         assert await self._node("sessionEvaluationContext", oversized_session, httpx_client) is None
 
+    async def test_session_evaluation_context_is_null_when_content_is_incomplete(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+            trimmed_session = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, trimmed_session)
+            await _add_span(
+                session,
+                trace,
+                attributes={"input": {"value": "hi"}, "output": {"value": "hello"}},
+            )
+            trimmed_session.content_complete = False
+        # The sweeper never claims a trimmed session, so its remaining turns are
+        # not a context any live evaluation would read.
+        assert await self._node("sessionEvaluationContext", trimmed_session, httpx_client) is None
+
+    async def test_session_evaluation_context_is_null_without_eligible_root_turns(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+            rootless_session = await _add_project_session(session, project)
+            await _add_trace(session, project, rootless_session)
+        # Live hydration returns NO_ROOT_TURNS here, so the preview reports the
+        # session as unevaluable rather than offering an empty transcript.
+        assert await self._node("sessionEvaluationContext", rootless_session, httpx_client) is None
+
     async def test_project(
         self,
         _data: _Data,

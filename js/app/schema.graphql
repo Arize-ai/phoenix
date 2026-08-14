@@ -3378,7 +3378,7 @@ type ProjectSession implements Node {
   lastOutput: SpanIOValue
 
   """
-  The canonical input, output, and metadata context that online evaluators bind against when they run on this session. Null when the session's transcript exceeds the evaluation byte cap, which is the same reason a live evaluation of it would fail.
+  The canonical input, output, and metadata context that online evaluators bind against when they run on this session. Null whenever a live evaluation would refuse this session: its content was trimmed after ingestion, it has no eligible root turn to transcribe, or no whole turn fits the evaluation byte cap. An over-cap transcript that still fits whole turns is truncated and returned, exactly as a live evaluation reads it.
   """
   sessionEvaluationContext: JSON
 

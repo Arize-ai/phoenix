@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, AsyncIterator, Callable, Literal, Optional, Sequence
+from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -343,6 +343,18 @@ async def load_session_eval_context(
         policy=policy,
         total_eligible_root_count=total_eligible_root_count,
     )
+
+
+def has_eligible_root_turns(context: Mapping[str, Any]) -> bool:
+    """Whether an assembled session context has a turn to evaluate.
+
+    A session whose traces carry no root span assembles to an empty transcript.
+    Live hydration refuses it (``NO_ROOT_TURNS``) rather than evaluating that
+    emptiness, so the preview field reads the same predicate and reports the
+    session as unevaluable instead of offering the empty context.
+    """
+    policy = context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
+    return bool(policy["total_eligible_root_count"])
 
 
 def _transcript_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
@@ -674,7 +686,7 @@ class OnlineEvalExecutor:
                 HydrationFailureReason.TRANSCRIPT_TOO_LARGE,
                 str(error),
             )
-        if not context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]["total_eligible_root_count"]:
+        if not has_eligible_root_turns(context):
             return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
         return context
 
