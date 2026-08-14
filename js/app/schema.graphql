@@ -3301,6 +3301,7 @@ type ProjectEvaluator implements Node {
   Machine-readable reason the project evaluator is not schedulable, or null when it is schedulable.
   """
   schedulabilityReason: ProjectEvaluatorSchedulabilityReason
+  runSummary: ProjectEvaluatorRunSummary!
 
   """
   Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
@@ -3343,6 +3344,37 @@ enum ProjectEvaluatorFilterColumn {
 type ProjectEvaluatorMutationPayload {
   evaluator: ProjectEvaluator!
   query: Query!
+}
+
+enum ProjectEvaluatorRunStatus {
+  NEVER_RUN
+  QUEUED
+  HEALTHY
+  FAILING
+}
+
+"""
+How a project evaluator is doing, derived from the evaluations it has produced within the online evaluation retention window.
+"""
+type ProjectEvaluatorRunSummary {
+  status: ProjectEvaluatorRunStatus!
+
+  """
+  When this evaluator last finished an evaluation, or null if it never has.
+  """
+  lastRunAt: DateTime
+
+  """Evaluations waiting to run, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """Evaluations that produced an annotation."""
+  evaluatedCount: Int!
+
+  """Evaluations that were given up on."""
+  failedCount: Int!
+
+  """The most recent evaluation error, or null if none was recorded."""
+  lastError: String
 }
 
 enum ProjectEvaluatorSchedulabilityReason {

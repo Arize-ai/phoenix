@@ -22,6 +22,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
 from phoenix.server.api.evaluators import BuiltInEvaluator as BuiltInEvaluatorClass
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AnnotationConfig import (
@@ -82,6 +83,57 @@ class EvaluationTarget(Enum):
 class ProjectEvaluatorSchedulabilityStatus(Enum):
     SCHEDULABLE = "SCHEDULABLE"
     NOT_SCHEDULABLE = "NOT_SCHEDULABLE"
+
+
+@strawberry.enum
+class ProjectEvaluatorRunStatus(Enum):
+    NEVER_RUN = "NEVER_RUN"
+    QUEUED = "QUEUED"
+    HEALTHY = "HEALTHY"
+    FAILING = "FAILING"
+
+
+@strawberry.type(
+    description=(
+        "How a project evaluator is doing, derived from the evaluations it has produced "
+        "within the online evaluation retention window."
+    )
+)
+class ProjectEvaluatorRunSummary:
+    status: ProjectEvaluatorRunStatus
+    last_run_at: Optional[datetime] = strawberry.field(
+        description="When this evaluator last finished an evaluation, or null if it never has."
+    )
+    queued_count: int = strawberry.field(
+        description="Evaluations waiting to run, including ones awaiting a retry."
+    )
+    evaluated_count: int = strawberry.field(description="Evaluations that produced an annotation.")
+    failed_count: int = strawberry.field(description="Evaluations that were given up on.")
+    last_error: Optional[str] = strawberry.field(
+        description="The most recent evaluation error, or null if none was recorded."
+    )
+
+
+def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> ProjectEvaluatorRunSummary:
+    last_evaluated_at, last_failed_at = counts.last_evaluated_at, counts.last_failed_at
+    if last_failed_at is not None and (
+        last_evaluated_at is None or last_failed_at >= last_evaluated_at
+    ):
+        status = ProjectEvaluatorRunStatus.FAILING
+    elif counts.evaluated:
+        status = ProjectEvaluatorRunStatus.HEALTHY
+    elif counts.queued:
+        status = ProjectEvaluatorRunStatus.QUEUED
+    else:
+        status = ProjectEvaluatorRunStatus.NEVER_RUN
+    return ProjectEvaluatorRunSummary(
+        status=status,
+        last_run_at=max(filter(None, (last_evaluated_at, last_failed_at)), default=None),
+        queued_count=counts.queued,
+        evaluated_count=counts.evaluated,
+        failed_count=counts.failed,
+        last_error=counts.last_error,
+    )
 
 
 # The reason vocabulary is declared beside the conditions it names, in session_policy;
@@ -1213,6 +1265,11 @@ class ProjectEvaluator(Node):
     ) -> Optional[SchedulabilityReason]:
         _, reason = _project_evaluator_schedulability(await self._get_record(info))
         return reason
+
+    @strawberry.field
+    async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
+        counts = await info.context.data_loaders.project_evaluator_run_counts.load(self.id)
+        return _project_evaluator_run_summary(counts)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
