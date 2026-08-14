@@ -16,5 +16,5 @@ async def test_harbor_can_attach_plugin_by_entry_point_name() -> None:
         await attach_job_plugin(
             object(),  # a Job stand-in; the plugin never touches it
             "phoenix",
-            kwargs={},
+            kwargs={"trace_mode": "atif"},
         )
