@@ -149,6 +149,25 @@ describe("flattenObject", () => {
         "metadata.turns": 3,
       });
     });
+
+    it("escapes quotes and backslashes so the segment ends where the key does", () => {
+      expect(
+        flattenObject({
+          obj: {
+            metadata: {
+              "a'b": 1,
+              "a\\b": 2,
+              "a\\'b": 3,
+            },
+          },
+          bracketNonIdentifierKeys: true,
+        })
+      ).toEqual({
+        "metadata['a\\'b']": 1,
+        "metadata['a\\\\b']": 2,
+        "metadata['a\\\\\\'b']": 3,
+      });
+    });
   });
 
   describe("parentKey parameter", () => {

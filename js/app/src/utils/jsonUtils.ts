@@ -316,9 +316,14 @@ const BARE_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /**
  * Renders a key as a quoted JSONPath bracket segment, so a key containing dots
  * stays one segment: `phoenix.transcript` becomes `['phoenix.transcript']`.
+ *
+ * Backslashes are escaped before quotes: the resolver on both sides reads a
+ * backslash as an escape character, so a literal one has to be doubled, and
+ * escaping the quotes alone would let a backslash immediately before a quote
+ * swallow it and end the segment somewhere else.
  */
 function toBracketSegment(key: string): string {
-  return `['${key.replace(/'/g, "\\'")}']`;
+  return `['${key.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}']`;
 }
 
 /**

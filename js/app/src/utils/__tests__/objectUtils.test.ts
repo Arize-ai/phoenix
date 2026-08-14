@@ -1,3 +1,4 @@
+import { flattenObject } from "../jsonUtils";
 import {
   compressObject,
   extractPathsFromDatasetExamples,
@@ -297,6 +298,23 @@ describe("getValueAtPath", () => {
     ).toBeUndefined();
     // Syntax only the server resolves stays unresolved here.
     expect(getValueAtPath(context, "metadata[*]")).toBeUndefined();
+  });
+
+  it("resolves every path the mapping dropdown offers for quoted keys", () => {
+    const context = {
+      metadata: {
+        "a'b": 1,
+        "a\\b": 2,
+        "a\\'b": 3,
+      },
+    };
+    const offeredPaths = Object.keys(
+      flattenObject({ obj: context, bracketNonIdentifierKeys: true })
+    );
+
+    expect(
+      offeredPaths.map((path) => getValueAtPath(context, path))
+    ).toStrictEqual([1, 2, 3]);
   });
 });
 
