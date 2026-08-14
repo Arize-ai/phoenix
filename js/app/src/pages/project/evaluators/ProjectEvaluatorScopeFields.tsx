@@ -97,6 +97,7 @@ export const ProjectEvaluatorScopeFieldGroup = ({
       {showFilterField ? (
         <ProjectEvaluatorSpanFilterField
           projectId={projectId}
+          targetType={scope.targetType}
           value={scope.filterCondition}
           onChange={(filterCondition) =>
             onScopeChange({ ...scope, filterCondition })
@@ -265,12 +266,15 @@ const samplingSliderFillCSS = css`
  */
 const ProjectEvaluatorSpanFilterField = ({
   projectId,
+  targetType,
   value,
   onChange,
   onValidityChange,
   showHint = true,
 }: {
   projectId: string;
+  /** Names the records the condition selects, in the label and the hint. */
+  targetType: ProjectEvaluatorTarget;
   value: string;
   onChange: (filterCondition: string) => void;
   onValidityChange?: (isValid: boolean) => void;
@@ -289,7 +293,7 @@ const ProjectEvaluatorSpanFilterField = ({
   return (
     <Flex direction="column" gap="size-50">
       <Text size="XS" weight="heavy" color="text-700">
-        Span filter
+        {targetType === "SESSION" ? "Session filter" : "Span filter"}
       </Text>
       <SpanFilterConditionFieldCore
         projectId={projectId}
@@ -301,7 +305,9 @@ const ProjectEvaluatorSpanFilterField = ({
       />
       {showHint ? (
         <Text size="XS" color="text-500">
-          Leave empty to evaluate every span.
+          {targetType === "SESSION"
+            ? "Leave empty to evaluate every session."
+            : "Leave empty to evaluate every span."}
         </Text>
       ) : null}
     </Flex>
