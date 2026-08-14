@@ -32,12 +32,9 @@ import {
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import type { CreateProjectCodeEvaluatorDialogContentMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentMutation.graphql";
 import type { CreateProjectCodeEvaluatorDialogContentQuery } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentQuery.graphql";
-import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
-import {
-  toProjectEvaluatorGraphQLTarget,
-  type ProjectEvaluatorScope,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
@@ -185,7 +182,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           sandboxConfigId: selectedSandboxConfigId,
           evaluatorInputMapping: state.evaluator.inputMapping,
           samplingRate: scope.samplingRate,
-          evaluationTarget: toProjectEvaluatorGraphQLTarget(scope.targetType),
+          evaluationTarget: scope.targetType,
           description: state.evaluator.description.trim() || null,
           outputConfigs: buildOutputConfigsInput(state.outputConfigs),
           // A null per-project mapping inherits the evaluator's own mapping.
@@ -255,8 +252,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
         </CodeEvaluatorInputVariablesProvider>
       )}
       left={
-        <ProjectEvaluatorFormSections
-          definitionKind="newCode"
+        <ProjectCodeEvaluatorFormSections
           codeDefinition={
             <CodeAuthoringFields
               language={language}
