@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
@@ -8,26 +8,19 @@ import {
 import {
   Alert,
   Button,
-  Card,
-  DialogTrigger,
   Flex,
   Icon,
   IconButton,
   Icons,
-  Popover,
-  Skeleton,
   Text,
-  View,
 } from "@phoenix/components";
 import type { Annotation } from "@phoenix/components/annotation";
-import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
-import { JSONBlock } from "@phoenix/components/code";
 import type { CodeEvaluatorTestSectionMutation } from "@phoenix/components/evaluators/__generated__/CodeEvaluatorTestSectionMutation.graphql";
 import {
-  buildOutputConfigsInput,
-  computePositiveOptimization,
-} from "@phoenix/components/evaluators/utils";
-import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
+  AnnotationPreviewCard,
+  AnnotationPreviewSkeletonCard,
+} from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
@@ -243,21 +236,14 @@ export const CodeEvaluatorTestSection = ({
       {isShowingPreview && (
         <Flex direction="column" gap="size-100" marginBottom="size-100">
           {isLoading && (
-            <Card title="Evaluator Result">
-              <View padding="size-100">
-                <Flex direction="column" gap="size-100">
-                  <Skeleton height={100} borderRadius={8} animation="wave" />
-                  <Skeleton height={32} width="60%" animation="wave" />
-                </Flex>
-              </View>
-            </Card>
+            <AnnotationPreviewSkeletonCard title="Evaluator Result" />
           )}
           {previewResults.map((result, i) => (
             <Flex direction="column" gap="size-100" key={i} width="100%">
               {result.kind === "success" ? (
-                <Card
+                <AnnotationPreviewCard
                   title="Evaluator Result"
-                  width="100%"
+                  annotation={result.annotation}
                   extra={
                     <IconButton
                       aria-label="Dismiss evaluator result"
@@ -267,31 +253,7 @@ export const CodeEvaluatorTestSection = ({
                       <Icon svg={<Icons.Close />} />
                     </IconButton>
                   }
-                >
-                  <AnnotationPreviewJSONBlock annotation={result.annotation} />
-                  <View padding="size-100">
-                    <DialogTrigger>
-                      <ExperimentAnnotationButton
-                        annotation={result.annotation}
-                        positiveOptimization={
-                          computePositiveOptimization({
-                            annotationName: result.annotation.name,
-                            score: result.annotation.score,
-                            evaluatorName,
-                            outputConfigs,
-                          }) ?? undefined
-                        }
-                      />
-                      <Popover>
-                        <View padding="size-200">
-                          <AnnotationDetailsContent
-                            annotation={result.annotation}
-                          />
-                        </View>
-                      </Popover>
-                    </DialogTrigger>
-                  </View>
-                </Card>
+                />
               ) : (
                 <Alert
                   variant="danger"
@@ -337,17 +299,3 @@ export const CodeEvaluatorTestSection = ({
     </Flex>
   );
 };
-
-function AnnotationPreviewJSONBlock(props: { annotation: Annotation }) {
-  const { name, label, score, explanation } = props.annotation;
-  const jsonString = useMemo(() => {
-    return JSON.stringify({ name, label, score, explanation }, null, 2);
-  }, [explanation, label, name, score]);
-
-  return (
-    <JSONBlock
-      value={jsonString}
-      basicSetup={{ lineNumbers: false, foldGutter: false }}
-    />
-  );
-}

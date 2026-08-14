@@ -1,5 +1,5 @@
+import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import type { EvaluatorInputMapping } from "@phoenix/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 /** A span evaluation context has no counterpart to a dataset `reference`. */
@@ -15,13 +15,18 @@ export function dropReferencePathMappings(
 }
 
 /**
- * The artifact types a project evaluator can run against.
+ * The artifact types a project evaluator can run against. Values are the
+ * GraphQL `EvaluationTarget` enum members; `satisfies` fails to compile if the
+ * schema renames or removes one, and assigning a fetched `EvaluationTarget`
+ * to {@link ProjectEvaluatorTarget} fails to compile if the schema adds one.
  */
-export const PROJECT_EVALUATOR_TARGETS = ["span", "trace", "session"] as const;
+export const PROJECT_EVALUATOR_TARGETS = [
+  "SPAN",
+  "TRACE",
+  "SESSION",
+] as const satisfies readonly EvaluationTarget[];
 
 export type ProjectEvaluatorTarget = (typeof PROJECT_EVALUATOR_TARGETS)[number];
-
-export type ProjectEvaluatorGraphQLTarget = "SPAN" | "TRACE" | "SESSION";
 
 export type ProjectEvaluatorScope = {
   targetType: ProjectEvaluatorTarget;
@@ -34,44 +39,12 @@ export const isProjectEvaluatorTarget = (
 ): value is ProjectEvaluatorTarget =>
   PROJECT_EVALUATOR_TARGETS.includes(value as ProjectEvaluatorTarget);
 
-export function toProjectEvaluatorGraphQLTarget(
-  target: ProjectEvaluatorTarget
-): ProjectEvaluatorGraphQLTarget {
-  switch (target) {
-    case "span":
-      return "SPAN";
-    case "trace":
-      return "TRACE";
-    case "session":
-      return "SESSION";
-    default:
-      return assertUnreachable(target);
-  }
-}
-
-export function fromProjectEvaluatorGraphQLTarget(
-  target: ProjectEvaluatorGraphQLTarget
-): ProjectEvaluatorTarget {
-  switch (target) {
-    case "SPAN":
-      return "span";
-    case "TRACE":
-      return "trace";
-    case "SESSION":
-      return "session";
-    default:
-      return assertUnreachable(target);
-  }
-}
-
 export function toProjectEvaluatorSamplingFraction(percent: number): number {
   return Math.min(100, Math.max(0, percent)) / 100;
 }
 
 /** "SPAN" -> "Span", for display in the evaluators table and details page. */
-export function formatEvaluationTarget(
-  target: ProjectEvaluatorGraphQLTarget
-): string {
+export function formatEvaluationTarget(target: EvaluationTarget): string {
   return `${target.charAt(0)}${target.slice(1).toLowerCase()}`;
 }
 
