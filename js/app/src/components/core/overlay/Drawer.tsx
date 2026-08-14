@@ -20,6 +20,7 @@ import {
   DRAWER_DEFAULT_MIN_SIZE,
   DRAWER_DEFAULT_SIZE,
   DRAWER_HARD_MIN_SIZE_PX,
+  DRAWER_SIDE_NAV_GAP_PX,
   DRAWER_VISIBLE_GUTTER_PX,
 } from "./constants";
 
@@ -172,7 +173,8 @@ export function Drawer({
   const getVisibleGutterWidth = () =>
     Math.max(
       DRAWER_VISIBLE_GUTTER_PX,
-      sideNavigationElement?.getBoundingClientRect().width ?? 0
+      (sideNavigationElement?.getBoundingClientRect().width ?? 0) +
+        DRAWER_SIDE_NAV_GAP_PX
     );
   const [containerWidth, setContainerWidth] = useState(getContainerWidth);
   const [visibleGutterWidth, setVisibleGutterWidth] = useState(
@@ -247,7 +249,8 @@ export function Drawer({
         container?.getBoundingClientRect().width || window.innerWidth;
       const nextGutterWidth = Math.max(
         DRAWER_VISIBLE_GUTTER_PX,
-        sideNavigation?.getBoundingClientRect().width ?? 0
+        (sideNavigation?.getBoundingClientRect().width ?? 0) +
+          DRAWER_SIDE_NAV_GAP_PX
       );
       setContainerWidth(nextWidth);
       setVisibleGutterWidth(nextGutterWidth);

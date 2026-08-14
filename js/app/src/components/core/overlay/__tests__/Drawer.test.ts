@@ -261,7 +261,7 @@ describe("Drawer", () => {
     expect(onResize).toHaveBeenLastCalledWith(90);
   });
 
-  it("preserves an expanded side navigation at maximum size", () => {
+  it("preserves the gap beside an expanded side navigation", () => {
     sideNavigationWidth = 260;
 
     act(() => {
@@ -282,9 +282,9 @@ describe("Drawer", () => {
     const drawer = host?.querySelector<HTMLElement>('[role="complementary"]');
     const handle = host?.querySelector<HTMLElement>('[role="separator"]');
 
-    expect(drawer?.style.width).toBe("67.5%");
-    expect(drawer?.style.maxWidth).toBe("540px");
-    expect(handle?.getAttribute("aria-valuemax")).toBe("68");
+    expect(drawer?.style.width).toBe("64%");
+    expect(drawer?.style.maxWidth).toBe("512px");
+    expect(handle?.getAttribute("aria-valuemax")).toBe("64");
   });
 
   it("resizes by pointer distance relative to the frame host", () => {

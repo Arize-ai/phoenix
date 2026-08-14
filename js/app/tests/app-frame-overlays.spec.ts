@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { DRAWER_SIDE_NAV_GAP_PX } from "@phoenix/components/core/overlay/constants";
+
 async function openAssistant(page: Page) {
   await page.getByRole("button", { name: "Ask PXI" }).click();
   const rail = page.getByRole("complementary", { name: "Assistant" });
@@ -261,8 +263,10 @@ test.describe("application frame overlays", () => {
       ]);
     expect(navGeometry).not.toBeNull();
     expect(
-      expandedViewportGeometry!.width - expandedDrawerGeometry!.width
-    ).toBeCloseTo(navGeometry!.width, 0);
+      expandedViewportGeometry!.width -
+        expandedDrawerGeometry!.width -
+        navGeometry!.width
+    ).toBeCloseTo(DRAWER_SIDE_NAV_GAP_PX, 0);
 
     await expect(rail).toHaveAttribute("data-e2e-identity", "persistent-rail");
     await expect(railInput).toHaveValue("draft survives drawer navigation");

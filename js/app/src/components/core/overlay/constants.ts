@@ -29,5 +29,8 @@ export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
  */
 export const DRAWER_HARD_MIN_SIZE_PX = 320;
 
+/** Gap between the side navigation and a maximally expanded drawer. */
+export const DRAWER_SIDE_NAV_GAP_PX = 28;
+
 /** Minimum space that remains visible at maximum drawer expansion. */
 export const DRAWER_VISIBLE_GUTTER_PX = 80;
