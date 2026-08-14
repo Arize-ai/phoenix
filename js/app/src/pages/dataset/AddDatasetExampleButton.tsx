@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
 
 import {
@@ -28,19 +27,6 @@ import {
 } from "@phoenix/pages/datasets/DatasetFromFileForm";
 
 import { AddExampleFromScratchForm } from "./AddExampleFromScratchForm";
-
-const dialogCSS = css`
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  height: 100%;
-`;
-
-const contentCSS = css`
-  height: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-`;
 
 enum ExamplesAction {
   UPDATE_FROM_FILE = "update-from-file",
@@ -150,14 +136,14 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
           onOpenChange={setIsFromFileOpen}
         >
           <ViewportModal size="fullscreen">
-            <Dialog css={dialogCSS}>
+            <Dialog>
               <DialogHeader>
                 <DialogTitle>Update Dataset From File</DialogTitle>
                 <DialogTitleExtra>
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
-              <DialogContent css={contentCSS}>
+              <DialogContent>
                 <DatasetFromFileForm
                   mode="append"
                   datasetName={datasetName}
@@ -175,7 +161,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
           onOpenChange={setIsManualOpen}
         >
           <ViewportModal size="L">
-            <Dialog css={dialogCSS}>
+            <Dialog>
               {({ close }) => (
                 <>
                   <DialogHeader>
@@ -184,7 +170,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
                       <DialogCloseButton slot="close" />
                     </DialogTitleExtra>
                   </DialogHeader>
-                  <DialogContent css={contentCSS}>
+                  <DialogContent>
                     <AddExampleFromScratchForm
                       datasetId={datasetId}
                       onExampleAdded={handleManualExampleAdded}
