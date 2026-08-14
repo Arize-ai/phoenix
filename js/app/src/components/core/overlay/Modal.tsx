@@ -43,13 +43,21 @@ export const centeredModalCSS = css`
 
   &[data-size="fullscreen"] {
     --modal-width: var(--global-modal-width-FULLSCREEN);
+    --modal-fullscreen-block-margin: var(--global-dimension-size-600);
 
     .react-aria-Dialog {
       // Fullscreen dialogs get a definite height instead of sizing to their
-      // content, so every fullscreen form shares one geometry. It also makes
-      // DialogContent's percentage height resolve, which pins the header and
-      // footer while inner regions own the scrolling.
-      height: calc(100% - var(--global-dimension-size-800));
+      // content, so every fullscreen form shares one geometry. Matching block
+      // margins keep the top navigation and its PXI control unobstructed while
+      // DialogContent pins the header and footer around its scrolling region.
+      height: calc(
+        100% - var(--modal-fullscreen-block-margin) -
+          var(--modal-fullscreen-block-margin)
+      );
+      max-height: calc(
+        100% - var(--modal-fullscreen-block-margin) -
+          var(--modal-fullscreen-block-margin)
+      );
     }
   }
 

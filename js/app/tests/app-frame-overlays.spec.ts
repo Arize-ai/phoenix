@@ -132,6 +132,43 @@ test.describe("application frame overlays", () => {
     await expect(dialog).toBeVisible();
   });
 
+  test("fullscreen dialogs clear the top navigation with matching margins", async ({
+    page,
+  }) => {
+    await page.goto("/datasets");
+    await page.getByTestId("create-dataset-button").click();
+
+    const dialog = page.getByRole("dialog", { name: "Create Dataset" });
+    await expect(dialog).toBeVisible();
+
+    const [dialogGeometry, viewportGeometry, topNavGeometry, pxiGeometry] =
+      await Promise.all([
+        dialog.boundingBox(),
+        page.getByTestId("application-viewport").boundingBox(),
+        page.getByTestId("application-top-navigation").boundingBox(),
+        page.getByRole("button", { name: "Ask PXI" }).boundingBox(),
+      ]);
+
+    expect(dialogGeometry).not.toBeNull();
+    expect(viewportGeometry).not.toBeNull();
+    expect(topNavGeometry).not.toBeNull();
+    expect(pxiGeometry).not.toBeNull();
+
+    const topMargin = dialogGeometry!.y - viewportGeometry!.y;
+    const bottomMargin =
+      viewportGeometry!.y +
+      viewportGeometry!.height -
+      dialogGeometry!.y -
+      dialogGeometry!.height;
+    expect(topMargin).toBeCloseTo(bottomMargin, 0);
+    expect(dialogGeometry!.y).toBeGreaterThanOrEqual(
+      topNavGeometry!.y + topNavGeometry!.height
+    );
+    expect(dialogGeometry!.y).toBeGreaterThanOrEqual(
+      pxiGeometry!.y + pxiGeometry!.height
+    );
+  });
+
   test("centers notifications within the application viewport", async ({
     page,
   }) => {
