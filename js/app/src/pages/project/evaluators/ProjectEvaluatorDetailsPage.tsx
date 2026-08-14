@@ -27,6 +27,7 @@ import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evalu
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { ProjectEvaluatorRunDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRunDetails";
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
 
 const mainCSS = css`
@@ -123,6 +124,9 @@ function ProjectEvaluatorDetailsPageLoaded({
                 marginStart="auto"
                 marginEnd="auto"
               >
+                <ProjectEvaluatorRunDetails
+                  projectEvaluatorRef={projectEvaluator}
+                />
                 <ProjectEvaluatorScopeDetails
                   projectEvaluatorRef={projectEvaluator}
                 />

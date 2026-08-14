@@ -18,6 +18,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
           kind
           description
         }
+        ...ProjectEvaluatorRunDetails_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
       }

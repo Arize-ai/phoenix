@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d0985a906ef92bb8aa795a775e3c6a21>>
+ * @generated SignedSource<<41eda3397c9092d5652d60f16f463582>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,8 @@ export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
+export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "SESSION_FILTER_UNSUPPORTED" | "SESSION_SAMPLING_UNSUPPORTED" | "TRACE_TARGET_UNSUPPORTED";
 export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
@@ -43,7 +45,15 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly filterCondition: string;
   readonly id: string;
   readonly name: string;
+  readonly runSummary: {
+    readonly evaluatedCount: number;
+    readonly failedCount: number;
+    readonly lastRunAt: string | null;
+    readonly queuedCount: number;
+    readonly status: ProjectEvaluatorRunStatus;
+  };
   readonly samplingRate: number;
+  readonly schedulabilityReason: ProjectEvaluatorSchedulabilityReason | null;
   readonly schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus;
   readonly updatedAt: string;
   readonly " $fragmentType": "ProjectEvaluatorsTable_row";
@@ -58,6 +68,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "346865c8849e012c4362648a61cfd77d";
+(node as any).hash = "d5cb9edcc8304ecf789bd28d72889a06";
 
 export default node;
