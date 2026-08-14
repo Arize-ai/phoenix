@@ -3110,7 +3110,7 @@ type Project implements Node {
   sessionFilterVocabulary: [FilterVocabularyTerm!]!
 
   """
-  The bindable terms of the trace filter expression language for this project. Static terms derive from the compiler's bindings; observed trace annotation names and strict-root attribute paths come from the 1000 most recently started traces within the optional time range.
+  The bindable terms of the trace filter expression language for this project. Static terms derive from the compiler's bindings; observed trace annotation names and displayed-root attribute paths come from the 1000 most recently started traces within the optional time range. Root attributes are sampled newest-first within that window up to a 2 MiB scan budget.
   """
   traceFilterVocabulary(timeRange: TimeRange): [FilterVocabularyTerm!]!
   annotationConfigs(
