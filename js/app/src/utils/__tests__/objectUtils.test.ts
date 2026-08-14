@@ -2,6 +2,7 @@ import {
   compressObject,
   extractPathsFromDatasetExamples,
   extractPathsFromObject,
+  getValueAtPath,
 } from "../objectUtils";
 
 type CompressObjectFixture = {
@@ -268,6 +269,34 @@ describe("compressObject", () => {
       const result = compressObject(input);
       expect(result).toEqual({ outer: { inner: null, empty: "" } });
     });
+  });
+});
+
+describe("getValueAtPath", () => {
+  it("reads keys that dot notation cannot address through bracket segments", () => {
+    const context = {
+      metadata: {
+        "phoenix.online_eval.transcript_policy": { version: 2 },
+        turns: [{ input: "hello" }],
+      },
+    };
+
+    expect(
+      getValueAtPath(
+        context,
+        "metadata['phoenix.online_eval.transcript_policy'].version"
+      )
+    ).toBe(2);
+    expect(getValueAtPath(context, "metadata.turns[0].input")).toBe("hello");
+    // Dot notation cannot reach a key that contains dots.
+    expect(
+      getValueAtPath(
+        context,
+        "metadata.phoenix.online_eval.transcript_policy.version"
+      )
+    ).toBeUndefined();
+    // Syntax only the server resolves stays unresolved here.
+    expect(getValueAtPath(context, "metadata[*]")).toBeUndefined();
   });
 });
 

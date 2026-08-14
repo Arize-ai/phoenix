@@ -4,7 +4,7 @@ import type {
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
-import { getValueAtPath } from "@phoenix/utils/objectUtils";
+import { getValueAtPath, parsePathSegments } from "@phoenix/utils/objectUtils";
 
 /** A span evaluation context has no counterpart to a dataset `reference`. */
 export function dropReferencePathMappings(
@@ -113,11 +113,6 @@ export type ProjectEvaluatorMappingDiagnostic = {
   status: "resolved" | "missing" | "optional-missing" | "unverified";
 };
 
-// Only dot-separated bare JSONPath identifiers resolve client-side; anything
-// else (hyphens, brackets, quotes) is left to server validation.
-const SIMPLE_MAPPING_PATH_PATTERN =
-  /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/;
-
 export function getProjectEvaluatorMappingDiagnostics({
   context,
   pathMapping,
@@ -132,7 +127,8 @@ export function getProjectEvaluatorMappingDiagnostics({
   const requiredVariableNames = new Set(requiredVariables);
   return variables.map((variable) => {
     const path = pathMapping[variable] ?? variable;
-    if (!SIMPLE_MAPPING_PATH_PATTERN.test(path)) {
+    // Wildcards and slices only the server can resolve are left to it.
+    if (parsePathSegments(path) === null) {
       return { variable, path, status: "unverified" };
     }
     return {

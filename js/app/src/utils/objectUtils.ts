@@ -33,25 +33,77 @@ export function compressObject<T extends Record<string, unknown>>(
   return Object.fromEntries(entries) as Partial<T>;
 }
 
+const IDENTIFIER_SEGMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*/;
+const BRACKET_SEGMENT_PATTERN = /^\[(?:'((?:[^'\\]|\\.)*)'|(\d+))\]/;
+
 /**
- * Get a value from an object using a dot-notation path.
+ * Splits a JSONPath expression into the keys it addresses.
  *
- * TODO: Replace this with a JSON path-based utility (e.g., using jsonpath-plus
- * or similar library) to support full JSON path syntax like:
- * - $.input.query
- * - $.metadata.tags[0]
- * - $..nested.field
+ * Covers the subset the server resolves that can also be resolved against an
+ * in-memory context: dot notation (`input.query`), quoted bracket segments for
+ * keys dot notation cannot express (`metadata['a.b']`), and array indices
+ * (`metadata.turns[0]`).
+ *
+ * @returns The keys to walk, or null when the expression uses syntax only the
+ *   server can resolve (wildcards, slices, negative indices, the `$` root
+ *   marker), so callers can tell "cannot check here" from "resolved to
+ *   undefined".
+ */
+export function parsePathSegments(path: string): string[] | null {
+  const segments: string[] = [];
+  let rest = path;
+  let expectSeparator = false;
+
+  while (rest.length > 0) {
+    const bracket = BRACKET_SEGMENT_PATTERN.exec(rest);
+    if (bracket) {
+      const [matched, quotedKey, index] = bracket;
+      segments.push(quotedKey?.replace(/\\(.)/g, "$1") ?? index);
+      rest = rest.slice(matched.length);
+      expectSeparator = true;
+      continue;
+    }
+    if (expectSeparator) {
+      if (!rest.startsWith(".")) {
+        return null;
+      }
+      rest = rest.slice(1);
+    }
+    const identifier = IDENTIFIER_SEGMENT_PATTERN.exec(rest);
+    if (!identifier) {
+      return null;
+    }
+    segments.push(identifier[0]);
+    rest = rest.slice(identifier[0].length);
+    expectSeparator = true;
+  }
+
+  return segments;
+}
+
+/**
+ * Get a value from an object using a JSONPath expression.
+ *
+ * Resolves the same subset {@link parsePathSegments} covers, so a path built
+ * from the mapping source reads the same value here that the server reads at
+ * evaluation time.
  *
  * @param obj - The object to retrieve the value from
- * @param path - Dot-notation path (e.g., "input", "input.query")
- * @returns The value at the path, or undefined if not found
+ * @param path - JSONPath expression (e.g., "input", "input.query",
+ *   "metadata['a.b']")
+ * @returns The value at the path, or undefined if not found or not resolvable
+ *   client-side
  */
 export function getValueAtPath(obj: unknown, path: string): unknown {
   if (!path || !isStringKeyedObject(obj)) {
     return obj;
   }
 
-  const segments = path.split(".");
+  const segments = parsePathSegments(path);
+  if (segments === null) {
+    return undefined;
+  }
+
   let current: unknown = obj;
 
   for (const segment of segments) {

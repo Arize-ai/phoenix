@@ -310,6 +310,17 @@ export function filterFlatJSONEntries({
   );
 }
 
+/** Keys that JSONPath dot notation can address directly. */
+const BARE_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * Renders a key as a quoted JSONPath bracket segment, so a key containing dots
+ * stays one segment: `phoenix.transcript` becomes `['phoenix.transcript']`.
+ */
+function toBracketSegment(key: string): string {
+  return `['${key.replace(/'/g, "\\'")}']`;
+}
+
 /**
  * Flattens an object into a single-level object.
  */
@@ -319,6 +330,7 @@ export function flattenObject({
   separator = ".",
   keepNonTerminalValues = false,
   formatIndices = false,
+  bracketNonIdentifierKeys = false,
 }: {
   obj: object;
   /**
@@ -339,6 +351,14 @@ export function flattenObject({
    * If true, the indices (key names) will be formatted like [0] instead of .0
    */
   formatIndices?: boolean;
+  /**
+   * If true, keys that dot notation cannot address — because they contain dots,
+   * hyphens, or spaces — are emitted as bracket segments instead, so each key
+   * stays addressable as a JSONPath expression.
+   * For example, `{ metadata: { "a.b": 1 } }` flattens to `metadata['a.b']`
+   * rather than the unresolvable `metadata.a.b`.
+   */
+  bracketNonIdentifierKeys?: boolean;
 }) {
   const result: Record<string, string | boolean | number> = {};
 
@@ -347,6 +367,8 @@ export function flattenObject({
     if (formatIndices && Array.isArray(obj)) {
       // For arrays with formatIndices, use bracket notation: parentKey[0] or just [0]
       newKey = parentKey ? `${parentKey}[${key}]` : `[${key}]`;
+    } else if (bracketNonIdentifierKeys && !BARE_IDENTIFIER_PATTERN.test(key)) {
+      newKey = `${parentKey}${toBracketSegment(key)}`;
     } else if (parentKey) {
       newKey = `${parentKey}${separator}${key}`;
     } else {
@@ -365,6 +387,7 @@ export function flattenObject({
           separator,
           keepNonTerminalValues,
           formatIndices,
+          bracketNonIdentifierKeys,
         })
       );
     } else {
