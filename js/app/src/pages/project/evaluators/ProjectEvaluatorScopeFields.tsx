@@ -31,8 +31,9 @@ import {
 } from "@phoenix/pages/project/SpanFilterConditionField";
 
 /**
- * The target, sampling, and filter fields wired to a scope object. `children`
- * renders additional fields in the first row after sampling.
+ * The target, sampling, delay, and filter fields wired to a scope object.
+ * `children` renders additional fields at the end of the first row, after
+ * every setting the scope persists.
  */
 export const ProjectEvaluatorScopeFieldGroup = ({
   projectId,
@@ -76,7 +77,6 @@ export const ProjectEvaluatorScopeFieldGroup = ({
           value={scope.samplingRate}
           onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
         />
-        {children}
         {isSessionTarget ? (
           <ProjectEvaluatorEvaluationDelayField
             value={scope.evaluationDelaySeconds}
@@ -85,6 +85,7 @@ export const ProjectEvaluatorScopeFieldGroup = ({
             }
           />
         ) : null}
+        {children}
       </Flex>
       {/* Remounted per target so the draft condition does not survive a switch
           into a language that cannot parse it. */}
