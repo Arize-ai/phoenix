@@ -16,8 +16,10 @@ export const DRAWER_DEFAULT_SIZE: SizeValue = "35%";
 export const DRAWER_DEFAULT_MIN_SIZE: SizeValue = "40%";
 
 /**
- * Default maximum size for resizable drawers. The drawer also always leaves
- * {@link DRAWER_VISIBLE_GUTTER_PX} of the application viewport visible.
+ * Default maximum size for resizable drawers. Expansion is additionally
+ * capped so the side navigation stays clear by {@link DRAWER_SIDE_NAV_GAP_PX},
+ * or — with no navigation to measure — so at least
+ * {@link DRAWER_VISIBLE_GUTTER_PX} of the page stays visible.
  */
 export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
 
@@ -29,8 +31,22 @@ export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
  */
 export const DRAWER_HARD_MIN_SIZE_PX = 320;
 
-/** Gap between the side navigation and a maximally expanded drawer. */
+/**
+ * Breathing room between the side navigation's right edge and a maximally
+ * expanded drawer. The navigation's width is *measured live* (and observed
+ * for resizes), so collapsed, expanded, and mid-animation states are all
+ * handled by adding this gap to whatever the nav currently occupies.
+ */
 export const DRAWER_SIDE_NAV_GAP_PX = 28;
 
-/** Minimum space that remains visible at maximum drawer expansion. */
+/**
+ * Floor on the page area that stays visible at maximum drawer expansion,
+ * for when there is no side navigation to measure — an unhosted drawer
+ * rendered outside the app frame (Storybook, tests), or the first paint
+ * before the nav ref registers. Drawers are non-modal, so some clickable
+ * page must always remain. When a nav is present, `nav width +
+ * DRAWER_SIDE_NAV_GAP_PX` meets or exceeds this floor and wins the `max()`
+ * in the Drawer's gutter calculation (collapsed nav + gap happens to equal
+ * exactly 80; the values drift independently on purpose).
+ */
 export const DRAWER_VISIBLE_GUTTER_PX = 80;
