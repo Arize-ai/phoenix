@@ -29,7 +29,11 @@ from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME, get_env_database_schema
+from phoenix.config import (
+    EVALUATORS_PROJECT_NAME,
+    PLAYGROUND_PROJECT_NAME,
+    get_env_database_schema,
+)
 from phoenix.db import models
 from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 
@@ -405,6 +409,21 @@ def exclude_experiment_projects(
             models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
         ),
     ).where(models.Experiment.project_name.is_(None))
+
+
+def exclude_criteria_targeting_evaluator_traces(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    """Drop criteria whose project is the one collecting evaluator traces.
+
+    Evaluating that project would feed evaluator output back into the
+    evaluators that produced it.
+    """
+    return stmt.where(
+        models.ProjectEvaluatorCriteria.project_id.not_in(
+            select(models.Project.id).where(models.Project.name == EVALUATORS_PROJECT_NAME)
+        )
+    )
 
 
 def exclude_dataset_evaluator_projects(
