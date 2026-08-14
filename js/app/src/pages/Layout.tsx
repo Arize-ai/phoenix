@@ -211,6 +211,7 @@ function ApplicationFrame() {
                 data-testid="application-side-navigation"
                 css={sideNavCellCSS}
                 inert={appFrameOverlay?.isViewportBlocked || undefined}
+                ref={appFrameOverlay?.setSideNavigationElement}
               >
                 <SideNav isExpanded={isSideNavExpanded} />
               </div>

@@ -172,6 +172,20 @@ test.describe("application frame overlays", () => {
   }) => {
     await page.goto("/settings/users");
     const rail = await openAssistant(page);
+    const collapseSideNavigation = page.getByRole("button", {
+      name: "Collapse side navigation",
+    });
+    if (await collapseSideNavigation.isVisible()) {
+      await collapseSideNavigation.click();
+    }
+    const sideNavigation = page.getByTestId("application-side-navigation");
+    await sideNavigation.evaluate(async (element) => {
+      await Promise.all(
+        element
+          .getAnimations({ subtree: true })
+          .map((animation) => animation.finished.catch(() => {}))
+      );
+    });
     const railInput = rail.getByPlaceholder("Send a message...");
     await rail.evaluate((element) => {
       element.setAttribute("data-e2e-identity", "persistent-rail");
@@ -221,13 +235,34 @@ test.describe("application frame overlays", () => {
     await resizeHandle.focus();
     await resizeHandle.press("End");
 
-    const [maximumDrawerGeometry, maximumViewportGeometry] = await Promise.all([
-      drawer.boundingBox(),
-      page.getByTestId("application-viewport").boundingBox(),
-    ]);
+    const [collapsedDrawerGeometry, collapsedViewportGeometry] =
+      await Promise.all([
+        drawer.boundingBox(),
+        page.getByTestId("application-viewport").boundingBox(),
+      ]);
     expect(
-      maximumViewportGeometry!.width - maximumDrawerGeometry!.width
+      collapsedViewportGeometry!.width - collapsedDrawerGeometry!.width
     ).toBeCloseTo(80, 0);
+
+    await page.getByRole("button", { name: "Expand side navigation" }).click();
+    await sideNavigation.evaluate(async (element) => {
+      await Promise.all(
+        element
+          .getAnimations({ subtree: true })
+          .map((animation) => animation.finished.catch(() => {}))
+      );
+    });
+
+    const [expandedDrawerGeometry, expandedViewportGeometry, navGeometry] =
+      await Promise.all([
+        drawer.boundingBox(),
+        page.getByTestId("application-viewport").boundingBox(),
+        sideNavigation.boundingBox(),
+      ]);
+    expect(navGeometry).not.toBeNull();
+    expect(
+      expandedViewportGeometry!.width - expandedDrawerGeometry!.width
+    ).toBeCloseTo(navGeometry!.width, 0);
 
     await expect(rail).toHaveAttribute("data-e2e-identity", "persistent-rail");
     await expect(railInput).toHaveValue("draft survives drawer navigation");

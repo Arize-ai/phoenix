@@ -5,9 +5,11 @@ type AppFrameOverlayContextValue = {
   applicationViewportElement: HTMLDivElement | null;
   drawerHostElement: HTMLDivElement | null;
   isViewportBlocked: boolean;
+  sideNavigationElement: HTMLDivElement | null;
   registerViewportOverlay: () => void;
   setApplicationViewportElement: (element: HTMLDivElement | null) => void;
   setDrawerHostElement: (element: HTMLDivElement | null) => void;
+  setSideNavigationElement: (element: HTMLDivElement | null) => void;
   setViewportModalHostElement: (element: HTMLDivElement | null) => void;
   unregisterViewportOverlay: () => void;
   viewportModalHostElement: HTMLDivElement | null;
@@ -24,6 +26,8 @@ export function AppFrameOverlayProvider({ children }: { children: ReactNode }) {
   const [applicationViewportElement, setApplicationViewportElement] =
     useState<HTMLDivElement | null>(null);
   const [drawerHostElement, setDrawerHostElement] =
+    useState<HTMLDivElement | null>(null);
+  const [sideNavigationElement, setSideNavigationElement] =
     useState<HTMLDivElement | null>(null);
   const [viewportModalHostElement, setViewportModalHostElement] =
     useState<HTMLDivElement | null>(null);
@@ -44,7 +48,9 @@ export function AppFrameOverlayProvider({ children }: { children: ReactNode }) {
         registerViewportOverlay,
         setApplicationViewportElement,
         setDrawerHostElement,
+        setSideNavigationElement,
         setViewportModalHostElement,
+        sideNavigationElement,
         unregisterViewportOverlay,
         viewportModalHostElement,
       }}

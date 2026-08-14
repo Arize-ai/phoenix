@@ -166,9 +166,18 @@ export function Drawer({
   const drawerId = useId();
   const appFrameOverlay = useAppFrameOverlay();
   const drawerHostElement = appFrameOverlay?.drawerHostElement ?? null;
+  const sideNavigationElement = appFrameOverlay?.sideNavigationElement ?? null;
   const getContainerWidth = () =>
     drawerHostElement?.getBoundingClientRect().width || window.innerWidth;
+  const getVisibleGutterWidth = () =>
+    Math.max(
+      DRAWER_VISIBLE_GUTTER_PX,
+      sideNavigationElement?.getBoundingClientRect().width ?? 0
+    );
   const [containerWidth, setContainerWidth] = useState(getContainerWidth);
+  const [visibleGutterWidth, setVisibleGutterWidth] = useState(
+    getVisibleGutterWidth
+  );
   const resolvedMinSize = minSize ?? DRAWER_DEFAULT_MIN_SIZE;
   const resolvedMaxSize = maxSize ?? DRAWER_DEFAULT_MAX_SIZE;
 
@@ -182,31 +191,39 @@ export function Drawer({
       )
     );
 
-  /** Resolve max while preserving the application viewport's left gutter. */
-  const resolveMax = (width = containerWidth) => {
+  /** Resolve max while preserving the side navigation or minimum gutter. */
+  const resolveMax = (
+    width = containerWidth,
+    gutterWidth = visibleGutterWidth
+  ) => {
     const requestedMax = resolveToPixels({
       containerWidth: width,
       value: resolvedMaxSize,
     });
-    const availableMax = Math.max(width - DRAWER_VISIBLE_GUTTER_PX, 0);
+    const availableMax = Math.max(width - gutterWidth, 0);
     return Math.max(Math.min(requestedMax, availableMax), resolveMin(width));
   };
 
   /** Clamp a percentage between the resolved container-relative bounds. */
-  const clampPercent = (percent: number, width = containerWidth) => {
+  const clampPercent = (
+    percent: number,
+    width = containerWidth,
+    gutterWidth = visibleGutterWidth
+  ) => {
     if (width <= 0) return 0;
     const minPercent = (resolveMin(width) / width) * 100;
-    const maxPercent = (resolveMax(width) / width) * 100;
+    const maxPercent = (resolveMax(width, gutterWidth) / width) * 100;
     return Math.min(Math.max(percent, minPercent), maxPercent);
   };
 
   const [sizePercent, setSizePercent] = useState<number>(() => {
     const width = getContainerWidth();
+    const gutterWidth = getVisibleGutterWidth();
     const initialPx = resolveToPixels({
       containerWidth: width,
       value: defaultSize ?? DRAWER_DEFAULT_SIZE,
     });
-    return clampPercent((initialPx / width) * 100, width);
+    return clampPercent((initialPx / width) * 100, width, gutterWidth);
   });
   const hasInitializedContainerSizeRef = useRef(appFrameOverlay == null);
   const [isDragging, setIsDragging] = useState(false);
@@ -224,10 +241,16 @@ export function Drawer({
 
   useLayoutEffect(() => {
     const container = drawerHostElement;
-    const updateContainerWidth = () => {
+    const sideNavigation = sideNavigationElement;
+    const updateFrameMeasurements = () => {
       const nextWidth =
         container?.getBoundingClientRect().width || window.innerWidth;
+      const nextGutterWidth = Math.max(
+        DRAWER_VISIBLE_GUTTER_PX,
+        sideNavigation?.getBoundingClientRect().width ?? 0
+      );
       setContainerWidth(nextWidth);
+      setVisibleGutterWidth(nextGutterWidth);
       setSizePercent((currentPercent) => {
         if (!hasInitializedContainerSizeRef.current && container) {
           hasInitializedContainerSizeRef.current = true;
@@ -235,24 +258,40 @@ export function Drawer({
             containerWidth: nextWidth,
             value: defaultSize ?? DRAWER_DEFAULT_SIZE,
           });
-          return clampPercent((initialPx / nextWidth) * 100, nextWidth);
+          return clampPercent(
+            (initialPx / nextWidth) * 100,
+            nextWidth,
+            nextGutterWidth
+          );
         }
-        return clampPercent(currentPercent, nextWidth);
+        return clampPercent(currentPercent, nextWidth, nextGutterWidth);
       });
     };
 
-    updateContainerWidth();
-    const resizeObserver = container
-      ? new ResizeObserver(updateContainerWidth)
-      : null;
+    updateFrameMeasurements();
+    const resizeObserver =
+      container || sideNavigation
+        ? new ResizeObserver(updateFrameMeasurements)
+        : null;
     if (container && resizeObserver) resizeObserver.observe(container);
-    if (!container) window.addEventListener("resize", updateContainerWidth);
+    if (sideNavigation && resizeObserver) {
+      resizeObserver.observe(sideNavigation);
+    }
+    if (!container) {
+      window.addEventListener("resize", updateFrameMeasurements);
+    }
 
     return () => {
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", updateContainerWidth);
+      window.removeEventListener("resize", updateFrameMeasurements);
     };
-  }, [defaultSize, drawerHostElement, resolvedMaxSize, resolvedMinSize]);
+  }, [
+    defaultSize,
+    drawerHostElement,
+    resolvedMaxSize,
+    resolvedMinSize,
+    sideNavigationElement,
+  ]);
 
   const flushPendingSize = () => {
     rafIdRef.current = null;

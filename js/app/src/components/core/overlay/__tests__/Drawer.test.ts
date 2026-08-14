@@ -40,6 +40,10 @@ function DrawerHost({ children }: { children: ReactNode }) {
     "div",
     null,
     createElement("div", {
+      "data-side-navigation": "",
+      ref: frame?.setSideNavigationElement,
+    }),
+    createElement("div", {
       "data-drawer-host": "",
       ref: frame?.setDrawerHostElement,
     }),
@@ -56,12 +60,14 @@ describe("Drawer", () => {
   let root: Root;
   const originalInnerWidth = window.innerWidth;
   let drawerHostWidth = 800;
+  let sideNavigationWidth = 52;
 
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
     drawerHostWidth = 800;
+    sideNavigationWidth = 52;
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
       function getBoundingClientRect(this: HTMLElement) {
         if (this.hasAttribute("data-drawer-host")) {
@@ -72,6 +78,19 @@ describe("Drawer", () => {
             right: drawerHostWidth,
             top: 0,
             width: drawerHostWidth,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.hasAttribute("data-side-navigation")) {
+          return {
+            bottom: 600,
+            height: 600,
+            left: 0,
+            right: sideNavigationWidth,
+            top: 0,
+            width: sideNavigationWidth,
             x: 0,
             y: 0,
             toJSON: () => ({}),
@@ -240,6 +259,32 @@ describe("Drawer", () => {
     expect(drawer?.style.width).toBe("90%");
     expect(handle?.getAttribute("aria-valuemax")).toBe("90");
     expect(onResize).toHaveBeenLastCalledWith(90);
+  });
+
+  it("preserves an expanded side navigation at maximum size", () => {
+    sideNavigationWidth = 260;
+
+    act(() => {
+      root.render(
+        createElement(
+          HostedDrawerFrame,
+          null,
+          createElement(
+            Drawer,
+            { defaultSize: "95%", isOpen: true },
+            createElement("div", null, "Drawer content")
+          )
+        )
+      );
+    });
+
+    const host = container.querySelector("[data-drawer-host]");
+    const drawer = host?.querySelector<HTMLElement>('[role="complementary"]');
+    const handle = host?.querySelector<HTMLElement>('[role="separator"]');
+
+    expect(drawer?.style.width).toBe("67.5%");
+    expect(drawer?.style.maxWidth).toBe("540px");
+    expect(handle?.getAttribute("aria-valuemax")).toBe("68");
   });
 
   it("resizes by pointer distance relative to the frame host", () => {
