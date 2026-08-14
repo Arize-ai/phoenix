@@ -1,22 +1,6 @@
 import { css } from "@emotion/react";
-import { TextContext } from "react-aria-components";
 
-import {
-  Button,
-  Icon,
-  Icons,
-  Menu,
-  MenuContainer,
-  MenuHeader,
-  MenuHeaderTitle,
-  MenuItem,
-  MenuTrigger,
-  Text,
-  truncateSingleCSS,
-} from "@phoenix/components";
-import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
-import { assertUnreachable } from "@phoenix/typeUtils";
-import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
+import { Flex, Icon, Icons, Token } from "@phoenix/components";
 
 import {
   type AnnotationFilterDefinition,
@@ -39,65 +23,7 @@ type AnnotationTooltipFilterActionsProps = {
     label?: string | null;
     score?: number | null;
   }) => AnnotationFilterDefinition[];
-  onOpenChange?: (isOpen: boolean) => void;
-  positiveOptimization?: boolean | null;
-  targetKind?: "session" | "span" | "trace";
 };
-
-const filterActionsCSS = css`
-  /* Reserve the collapsed icon width; the label expands left without reflowing the row. */
-  position: relative;
-  display: inline-flex;
-  justify-content: flex-end;
-  flex: none;
-  width: var(--global-button-height-s);
-  height: var(--global-button-height-s);
-
-  .annotation-filter-actions__trigger {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: var(--global-button-height-s);
-    white-space: nowrap;
-  }
-
-  .annotation-filter-actions__trigger-label {
-    display: none;
-  }
-
-  &:has(.annotation-filter-actions__trigger[data-hovered]),
-  &:has(.annotation-filter-actions__trigger[data-focus-visible]),
-  &:has(.annotation-filter-actions__trigger[aria-expanded="true"]) {
-    .annotation-filter-actions__trigger {
-      width: auto;
-      background-color: var(--global-input-field-background-color);
-      border-color: var(--global-input-field-border-color);
-    }
-
-    .annotation-filter-actions__trigger-label {
-      display: inline;
-    }
-  }
-`;
-
-const annotationFilterMenuCSS = css`
-  --menu-min-width: var(--global-dimension-size-2500);
-`;
-
-function getFilterPresentation(filter: AnnotationFilterDefinition) {
-  switch (filter.filterName) {
-    case "greater than":
-      return { label: "Higher than", operator: ">" };
-    case "less than":
-      return { label: "Lower than", operator: "<" };
-    case "equals":
-    case "match":
-      return { label: "Exactly", operator: "=" };
-    case "exclude":
-      return { label: "Not", operator: "≠" };
-  }
-  return assertUnreachable(filter.filterName);
-}
 
 export function AnnotationTooltipFilterActions(
   props: AnnotationTooltipFilterActionsProps
@@ -107,8 +33,6 @@ export function AnnotationTooltipFilterActions(
     className,
     onAppendFilterCondition,
     getFilters = getAnnotationTooltipFilters,
-    positiveOptimization,
-    targetKind,
   } = props;
   const filters = getFilters(annotation);
 
@@ -116,96 +40,40 @@ export function AnnotationTooltipFilterActions(
     return null;
   }
 
-  const targetLabel = targetKind ? `${targetKind}s` : "annotations";
-  const annotationValue =
-    typeof annotation.score === "number"
-      ? floatFormatter(annotation.score)
-      : annotation.label;
-
   return (
-    <div className={className} css={filterActionsCSS}>
-      <MenuTrigger onOpenChange={props.onOpenChange}>
-        <Button
-          className="annotation-filter-actions__trigger"
-          size="S"
-          variant="quiet"
-          aria-label={`Filter ${targetLabel} by annotation value`}
-          leadingVisual={<Icon svg={<Icons.ListFilter />} />}
-        >
-          <span className="annotation-filter-actions__trigger-label">
-            Filter
-          </span>
-        </Button>
-        <MenuContainer
-          placement="right top"
-          shouldFlip
-          minHeight={0}
-          aria-label={`Filter ${targetLabel}`}
-        >
-          <MenuHeader>
-            <MenuHeaderTitle>{`Filter ${targetLabel}`}</MenuHeaderTitle>
-          </MenuHeader>
-          <Menu
-            aria-label={`Filter ${targetLabel} by annotation value`}
-            css={annotationFilterMenuCSS}
-            onAction={(action) => onAppendFilterCondition(String(action))}
-          >
-            {filters.map((filter) => {
-              const presentation = getFilterPresentation(filter);
-              return (
-                // Nested Text opts out so the outer Text owns the menu item's label slot.
-                <MenuItem
-                  key={filter.filterName}
-                  id={filter.filterCondition}
-                  textValue={`${presentation.label} ${annotationValue ?? ""}`.trim()}
-                  leadingContent={
-                    <TextContext.Provider value={null}>
-                      <Text aria-hidden fontFamily="mono" size="M">
-                        {presentation.operator}
-                      </Text>
-                    </TextContext.Provider>
-                  }
-                >
-                  <Text
-                    minWidth={0}
-                    flex={1}
-                    css={css`
-                      display: flex;
-                      align-items: center;
-                      gap: var(--global-dimension-size-100);
-                    `}
-                  >
-                    <span>{presentation.label}</span>
-                    {typeof annotation.score === "number" ? (
-                      <TextContext.Provider value={null}>
-                        <AnnotationScoreText
-                          elementType="span"
-                          fontFamily="mono"
-                          positiveOptimization={positiveOptimization}
-                        >
-                          {annotationValue}
-                        </AnnotationScoreText>
-                      </TextContext.Provider>
-                    ) : annotation.label != null ? (
-                      <span
-                        css={css`
-                          ${truncateSingleCSS};
-                          min-width: 0;
-                          flex: 1;
-                        `}
-                        title={annotation.label}
-                      >
-                        {annotation.label}
-                      </span>
-                    ) : null}
-                  </Text>
-                </MenuItem>
-              );
-            })}
-          </Menu>
-        </MenuContainer>
-      </MenuTrigger>
-    </div>
+    <Flex
+      className={className}
+      direction="row"
+      alignItems="center"
+      gap="size-100"
+    >
+      <Icon aria-hidden svg={<Icons.ListFilter />} />
+      <ul
+        aria-label="Annotation filters"
+        css={css`
+          display: flex;
+          min-width: 0;
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: var(--global-dimension-size-100);
+          list-style: none;
+          margin: 0;
+          padding: 0;
+        `}
+      >
+        {filters.map((filter) => (
+          <li key={filter.filterName}>
+            <Token
+              onPress={() => {
+                onAppendFilterCondition(filter.filterCondition);
+              }}
+            >
+              {filter.filterName}
+            </Token>
+          </li>
+        ))}
+      </ul>
+    </Flex>
   );
 }
 

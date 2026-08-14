@@ -42,11 +42,6 @@ const annotationValueCSS = css`
   flex: 1 1 auto;
 `;
 
-type AnnotationDetailsFilterActionsRenderProps = {
-  annotation: Annotation;
-  positiveOptimization: boolean | null | undefined;
-};
-
 export function AnnotationDetailsList({
   annotations,
   annotationConfig,
@@ -54,9 +49,7 @@ export function AnnotationDetailsList({
 }: {
   annotations: readonly Annotation[];
   annotationConfig?: AnnotationOptimizationConfig;
-  renderFilterActions?: (
-    props: AnnotationDetailsFilterActionsRenderProps
-  ) => ReactNode;
+  renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   const annotationName = annotations[0]?.name;
   if (annotationName == null) {
@@ -171,12 +164,6 @@ export function AnnotationDetailsList({
                       </View>
                     ) : null}
                   </Flex>
-                  {renderFilterActions
-                    ? renderFilterActions({
-                        annotation,
-                        positiveOptimization,
-                      })
-                    : null}
                 </Flex>
               </Flex>
               {annotation.explanation ? (
@@ -184,6 +171,7 @@ export function AnnotationDetailsList({
                   <Text color="text-500">{annotation.explanation}</Text>
                 </Truncate>
               ) : null}
+              {renderFilterActions ? renderFilterActions(annotation) : null}
             </Flex>
           );
         })}

@@ -45,12 +45,8 @@ export function AnnotationSummaryTokens({
   annotationsByName: Record<string, readonly Annotation[] | undefined>;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
-  /** Grain-specific filter actions rendered beside each annotation value. */
-  renderFilterActions?: (props: {
-    annotation: Annotation;
-    positiveOptimization: boolean | null | undefined;
-    onOpenChange: (isOpen: boolean) => void;
-  }) => ReactNode;
+  /** Grain-specific filter actions rendered for each annotation. */
+  renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   return (
     <>

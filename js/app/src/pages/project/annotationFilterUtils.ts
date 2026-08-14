@@ -7,7 +7,7 @@ export type AnnotationFilterInput = {
 };
 
 export type AnnotationFilterDefinition = {
-  filterName: "greater than" | "less than" | "equals" | "match" | "exclude";
+  filterName: string;
   filterCondition: string;
 };
 

@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
 import { Popover, PopoverArrow, PreviewTrigger } from "@phoenix/components";
@@ -45,39 +44,16 @@ export function AnnotationSummaryPopover({
   children: ReactNode;
   annotationConfig?: AnnotationOptimizationConfig;
   showFilterActions?: boolean;
-  renderFilterActions?: (
-    props: AnnotationSummaryFilterActionsRenderProps
-  ) => ReactNode;
+  renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   const prototypicalAnnotation = annotations[0];
-  // The portaled filter menu is outside the preview's hover safe area, so keep
-  // the preview open while the menu is open.
-  const isFilterMenuOpenRef = useRef(false);
-  const [isOpen, setIsOpen] = useState(false);
-
-  const onOpenChange = (isNextOpen: boolean) => {
-    // Ignore hover-close requests while the nested menu pins the preview open.
-    if (!isNextOpen && isFilterMenuOpenRef.current) {
-      return;
-    }
-    setIsOpen(isNextOpen);
-  };
-
-  const onFilterMenuOpenChange = (isNextOpen: boolean) => {
-    isFilterMenuOpenRef.current = isNextOpen;
-    if (isNextOpen) {
-      // Opening the child pins the parent; closing it only releases that pin.
-      setIsOpen(true);
-    }
-  };
-
   if (!prototypicalAnnotation) {
     return null;
   }
 
   return (
     <StopPropagation>
-      <PreviewTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
+      <PreviewTrigger>
         <AriaButton
           css={annotationSummaryTriggerCSS}
           aria-label={`View ${prototypicalAnnotation.name} annotation details`}
@@ -95,19 +71,12 @@ export function AnnotationSummaryPopover({
             annotationConfig={annotationConfig}
             renderFilterActions={
               showFilterActions
-                ? ({ annotation, positiveOptimization }) =>
+                ? (annotation) =>
                     renderFilterActions ? (
-                      renderFilterActions({
-                        annotation,
-                        positiveOptimization,
-                        onOpenChange: onFilterMenuOpenChange,
-                      })
+                      renderFilterActions(annotation)
                     ) : (
                       <SpanAnnotationTooltipFilterActions
                         annotation={annotation}
-                        positiveOptimization={positiveOptimization}
-                        targetKind="span"
-                        onOpenChange={onFilterMenuOpenChange}
                       />
                     )
                 : undefined
@@ -118,9 +87,3 @@ export function AnnotationSummaryPopover({
     </StopPropagation>
   );
 }
-
-type AnnotationSummaryFilterActionsRenderProps = {
-  annotation: Annotation;
-  positiveOptimization: boolean | null | undefined;
-  onOpenChange: (isOpen: boolean) => void;
-};

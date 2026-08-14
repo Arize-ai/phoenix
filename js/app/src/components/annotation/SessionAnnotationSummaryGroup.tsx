@@ -89,25 +89,18 @@ type SessionAnnotationSummaryGroupProps = {
 
 function SessionAnnotationTooltipFilterActions({
   annotation,
-  onOpenChange,
-  positiveOptimization,
 }: {
   annotation: {
     name: string;
     label?: string | null;
     score?: number | null;
   };
-  onOpenChange?: (isOpen: boolean) => void;
-  positiveOptimization?: boolean | null;
 }) {
   const { appendFilterCondition } = useSessionFilters();
   return (
     <AnnotationTooltipFilterActions
       annotation={annotation}
       onAppendFilterCondition={appendFilterCondition}
-      onOpenChange={onOpenChange}
-      positiveOptimization={positiveOptimization}
-      targetKind="session"
     />
   );
 }
@@ -136,16 +129,8 @@ export const SessionAnnotationSummaryGroupTokens = ({
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={({
-        annotation,
-        positiveOptimization,
-        onOpenChange,
-      }) => (
-        <SessionAnnotationTooltipFilterActions
-          annotation={annotation}
-          onOpenChange={onOpenChange}
-          positiveOptimization={positiveOptimization}
-        />
+      renderFilterActions={(annotation) => (
+        <SessionAnnotationTooltipFilterActions annotation={annotation} />
       )}
     />
   );
