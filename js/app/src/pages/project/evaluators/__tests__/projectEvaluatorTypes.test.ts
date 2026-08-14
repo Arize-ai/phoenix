@@ -45,15 +45,17 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         context: {
           input: { question: "What is Phoenix?" },
           answer: "An AI observability platform",
+          metadata: { "custom-key": "tagged" },
           unrelated: true,
         },
         pathMapping: {
           question: "input.question",
           missing: "output.missing",
-          complex: "metadata['custom-key']",
+          bracketed: "metadata['custom-key']",
+          complex: "metadata[*]",
           unrelated: "unrelated",
         },
-        variables: ["question", "answer", "missing", "complex"],
+        variables: ["question", "answer", "missing", "bracketed", "complex"],
       })
     ).toEqual([
       {
@@ -68,8 +70,13 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         status: "missing",
       },
       {
-        variable: "complex",
+        variable: "bracketed",
         path: "metadata['custom-key']",
+        status: "resolved",
+      },
+      {
+        variable: "complex",
+        path: "metadata[*]",
         status: "unverified",
       },
     ]);

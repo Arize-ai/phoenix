@@ -1476,33 +1476,46 @@ async def test_session_hydration_excludes_transferred_trace_roots(
     assert await _session_annotations(db) == []
 
 
-async def test_session_criteria_becoming_unschedulable_expires_before_evaluator_call(
+async def test_session_filtered_sampled_criteria_survives_hydration(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
+        project_session = await _add_project_session(
+            session, project, session_id="hydrated-session"
+        )
         trace = await _add_trace(session, project, project_session)
-        await _add_span(session, trace)
+        await _add_span(
+            session,
+            trace,
+            span_kind="CHAIN",
+            attributes={
+                "input": {"value": "question"},
+                "output": {"value": "answer"},
+                "metadata": {},
+            },
+        )
     evaluator_id, criteria_id = await _seed_llm_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
     )
-    unit_id, _ = await _materialize_session_unit(
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(
+                filter_condition="session_id == 'hydrated-session'",
+                sampling_rate=0.5,
+            )
+        )
+    await _materialize_session_unit(
         db,
         project_session.id,
         evaluator_id,
         criteria_id,
     )
-    async with db() as session:
-        await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
-            .values(filter_condition="span_kind == 'LLM'")
-        )
-    client = _StubLLMClient()
-    _patch_playground_client(monkeypatch, client)
+    _patch_playground_client(monkeypatch, _StubLLMClient())
 
     consumer = OnlineEvalConsumer(
         db,
@@ -1513,14 +1526,7 @@ async def test_session_criteria_becoming_unschedulable_expires_before_evaluator_
         claimed_by=consumer._consumer_id,
         limit=1,
     )
-    assert await consumer._executor.hydrate(unit) == HydrationFailure(
-        HydrationFailureReason.CRITERIA_NOT_SCHEDULABLE
-    )
-    await consumer._process_unit(unit)
-
-    assert (await _get_session_unit(db, unit_id)).status == "EXPIRED"
-    assert client.requests == []
-    assert await _session_annotations(db) == []
+    assert isinstance(await consumer._executor.hydrate(unit), HydratedWorkUnit)
 
 
 async def test_session_code_hydration_supplies_configured_payload_cap(
