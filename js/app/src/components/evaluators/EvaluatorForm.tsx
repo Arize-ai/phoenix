@@ -20,8 +20,8 @@ import {
   DEFAULT_STORE_VALUES,
   type EvaluatorStore,
 } from "@phoenix/store/evaluatorStore";
-import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 import type {
+  ClassificationEvaluatorAnnotationConfig,
   EvaluatorInputMapping as EvaluatorInputMappingType,
   EvaluatorKind,
 } from "@phoenix/types";

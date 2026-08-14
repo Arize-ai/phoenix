@@ -6,7 +6,6 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 // import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
-import circleDependency from "vite-plugin-circular-dependency";
 import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
 
@@ -34,7 +33,8 @@ export default defineConfig(() => {
     }),
     relay,
     lezer(),
-    circleDependency({ circleImportThrowErr: true }),
+    // Circular imports are caught at lint time by oxlint's import/no-cycle
+    // rule (see .oxlintrc.json) instead of a build-time vite plugin.
   ];
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());

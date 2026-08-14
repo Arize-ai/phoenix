@@ -7,7 +7,7 @@
     "typeAware": true
   },
 
-  "plugins": ["react", "typescript"],
+  "plugins": ["react", "typescript", "import"],
 
   "jsPlugins": [
     {
@@ -39,6 +39,13 @@
         ]
       }
     ],
+    // Replaces the former src/components/ai/.oxlintrc.json import denylist and
+    // the vite-plugin-circular-dependency build check. Resolves @phoenix/*
+    // through tsconfig paths and reports the full cycle chain. Type-only and
+    // dynamic imports are intentionally not treated as cycle edges (oxlint's
+    // default): type edges are erased at compile time and dynamic-import
+    // cycles are lazy, so neither can deadlock module initialization.
+    "import/no-cycle": "error",
     "react/exhaustive-deps": "error",
     "react/rules-of-hooks": "error",
     "react-hooks-js/set-state-in-effect": "error",

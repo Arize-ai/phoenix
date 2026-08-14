@@ -2,8 +2,10 @@ import { commitMutation, fetchQuery, graphql } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { applySpanAnnotationsCreateMutation } from "./__generated__/applySpanAnnotationsCreateMutation.graphql";
-import type { CreateSpanAnnotationInput } from "./__generated__/applySpanAnnotationsCreateMutation.graphql";
+import type {
+  applySpanAnnotationsCreateMutation,
+  CreateSpanAnnotationInput,
+} from "./__generated__/applySpanAnnotationsCreateMutation.graphql";
 import type { applySpanAnnotationsResolveByNodeIdQuery } from "./__generated__/applySpanAnnotationsResolveByNodeIdQuery.graphql";
 import type { applySpanAnnotationsResolveByOtelIdQuery } from "./__generated__/applySpanAnnotationsResolveByOtelIdQuery.graphql";
 import type { AnnotateSpanInput } from "./types";

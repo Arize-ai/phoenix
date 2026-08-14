@@ -1,9 +1,7 @@
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
-import type {
-  ChatMessage,
-  PlaygroundNormalizedInstance,
-} from "@phoenix/store/playground";
 import {
+  type ChatMessage,
+  type PlaygroundNormalizedInstance,
   createNormalizedPlaygroundInstance,
   generateInstanceId,
   generateMessageId,

@@ -1,8 +1,8 @@
 import type { Meta, StoryFn } from "@storybook/react";
 import { useRef, useState } from "react";
 
-import type { DialogProps } from "@phoenix/components";
 import {
+  type DialogProps,
   Button,
   Dialog,
   DialogTrigger,

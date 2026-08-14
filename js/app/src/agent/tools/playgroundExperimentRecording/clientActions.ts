@@ -1,6 +1,8 @@
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
-import type { ExperimentScaffold } from "@phoenix/store/playground";
-import type { PlaygroundStore } from "@phoenix/store/playground";
+import type {
+  ExperimentScaffold,
+  PlaygroundStore,
+} from "@phoenix/store/playground";
 
 import { parseSetPlaygroundExperimentRecordingInput } from "./parsers";
 import type { SetPlaygroundExperimentRecordingInput } from "./types";

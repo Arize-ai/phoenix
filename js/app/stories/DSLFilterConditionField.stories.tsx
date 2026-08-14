@@ -5,8 +5,8 @@ import { useState } from "react";
 import { fn } from "storybook/test";
 
 import { Flex, Text, View } from "@phoenix/components";
-import type { DSLFilterSnippet } from "@phoenix/components/filter";
 import {
+  type DSLFilterSnippet,
   AIQueryDSLFilterField,
   createAIQueryDSL,
   createAnnotationMemberCompletions,
