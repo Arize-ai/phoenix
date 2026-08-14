@@ -130,6 +130,43 @@ test.describe("application frame overlays", () => {
     await expect(dialog).toBeVisible();
   });
 
+  test("centers notifications within the application viewport", async ({
+    page,
+  }) => {
+    await page.goto("/datasets");
+    const rail = await openAssistant(page);
+
+    await page.getByTestId("create-dataset-button").click();
+    const dialog = page.getByRole("dialog", { name: "Create Dataset" });
+    await dialog.getByRole("tab", { name: "From scratch" }).click();
+    await dialog
+      .getByLabel("Dataset Name")
+      .fill(`app-frame-toast-${Date.now()}`);
+    await dialog.getByRole("button", { name: "Create Dataset" }).click();
+
+    const toast = page.locator(".react-aria-Toast").filter({
+      hasText: "Dataset created",
+    });
+    await expect(toast).toBeVisible();
+
+    const [toastGeometry, viewportGeometry, railGeometry] = await Promise.all([
+      toast.boundingBox(),
+      page.getByTestId("application-viewport").boundingBox(),
+      rail.boundingBox(),
+    ]);
+
+    expect(toastGeometry).not.toBeNull();
+    expect(viewportGeometry).not.toBeNull();
+    expect(railGeometry).not.toBeNull();
+    expect(toastGeometry!.x + toastGeometry!.width / 2).toBeCloseTo(
+      viewportGeometry!.x + viewportGeometry!.width / 2,
+      0
+    );
+    expect(toastGeometry!.x + toastGeometry!.width).toBeLessThanOrEqual(
+      railGeometry!.x
+    );
+  });
+
   test("a drawer belongs to the page-content row and never crosses the rail", async ({
     page,
   }) => {

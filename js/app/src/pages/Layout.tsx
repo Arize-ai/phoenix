@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useRef } from "react";
+import { UNSAFE_PortalProvider } from "react-aria/PortalProvider";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
@@ -15,6 +16,7 @@ import {
   AppFrameOverlayProvider,
   useAppFrameOverlay,
 } from "@phoenix/components/core/overlay";
+import { ToastRegion } from "@phoenix/components/core/toast/ToastRegion";
 import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import {
   AccountMenu,
@@ -53,6 +55,7 @@ const layoutCSS = css`
 `;
 
 const applicationViewportCSS = css`
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
@@ -197,6 +200,13 @@ function ApplicationFrame() {
               css={applicationViewportCSS}
               ref={appFrameOverlay?.setApplicationViewportElement}
             >
+              <UNSAFE_PortalProvider
+                getContainer={() =>
+                  appFrameOverlay?.applicationViewportElement ?? document.body
+                }
+              >
+                <ToastRegion />
+              </UNSAFE_PortalProvider>
               <div
                 data-testid="application-side-navigation"
                 css={sideNavCellCSS}
