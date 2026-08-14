@@ -12,6 +12,7 @@ from opentelemetry.context import Context
 from opentelemetry.trace import format_trace_id
 from sqlalchemy import select, text, update
 from sqlalchemy.orm import with_polymorphic
+from strawberry.relay import GlobalID
 
 from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
@@ -86,7 +87,11 @@ from phoenix.server.online_eval.session_policy import (
     SessionTranscriptPolicy,
 )
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
-from phoenix.server.online_eval.tracing import EVALUATOR_TRACE_MARKER_ATTRIBUTE
+from phoenix.server.online_eval.tracing import (
+    EVALUATOR_TRACE_MARKER_ATTRIBUTE,
+    PROJECT_EVALUATOR_ID_ATTRIBUTE,
+    PROJECT_EVALUATOR_NAME_ATTRIBUTE,
+)
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
@@ -176,10 +181,12 @@ class _StubEvaluator:
     ) -> list[dict[str, Any]]:
         if tracer is None:
             return self._results
-        # Mirror a real evaluator: one root span per evaluation, its trace id on
-        # every result.
+        # Mirror a real evaluator: a root span with a child under it, and the
+        # trace id on every result.
         with tracer.start_as_current_span(f"Evaluator: {name}", context=Context()) as span:
             trace_id = format_trace_id(span.get_span_context().trace_id)
+            with tracer.start_as_current_span("Parse Eval Result"):
+                pass
         return [{**result, "trace_id": trace_id} for result in self._results]
 
 
@@ -1901,10 +1908,16 @@ async def test_evaluation_is_traced_into_the_evaluators_project(db: DbSessionFac
                 .where(models.Project.name == EVALUATORS_PROJECT_NAME)
             )
         ).all()
-    (evaluator_span, evaluator_trace_id) = traced[0]
-    assert evaluator_span.name == "Evaluator: criterion"
-    marker = get_attribute_value(evaluator_span.attributes, EVALUATOR_TRACE_MARKER_ATTRIBUTE)
-    assert marker is True
+    assert {span.name for span, _ in traced} == {"Evaluator: criterion", "Parse Eval Result"}
+    # The marker and identity cover the whole tree, not just its root.
+    for evaluator_span, _ in traced:
+        attributes = evaluator_span.attributes
+        assert get_attribute_value(attributes, EVALUATOR_TRACE_MARKER_ATTRIBUTE) is True
+        assert get_attribute_value(attributes, PROJECT_EVALUATOR_ID_ATTRIBUTE) == str(
+            GlobalID("ProjectEvaluator", str(unit.criteria_id))
+        )
+        assert get_attribute_value(attributes, PROJECT_EVALUATOR_NAME_ATTRIBUTE) == "criterion"
+    (_, evaluator_trace_id) = traced[0]
     (annotation,) = await _annotations(db)
     assert annotation.metadata_["phoenix.evaluator_trace_id"] == evaluator_trace_id
 

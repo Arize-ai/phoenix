@@ -870,7 +870,15 @@ class OnlineEvalExecutor:
         replace a prior attempt so the annotation stays paired with its transcript
         coverage. Raises before writing unless the evaluator returns one complete,
         error-free result set. No DB session is open while the evaluator runs."""
-        tracer = marked_evaluator_tracer(self._tracer_factory()) if self._tracer_factory else None
+        tracer = (
+            marked_evaluator_tracer(
+                self._tracer_factory(),
+                project_evaluator_rowid=unit.criteria_id,
+                project_evaluator_name=hydrated.annotation_name,
+            )
+            if self._tracer_factory
+            else None
+        )
         try:
             results = await hydrated.evaluator.evaluate(
                 context=hydrated.context,
