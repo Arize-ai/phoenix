@@ -33,8 +33,6 @@ export default defineConfig(() => {
     }),
     relay,
     lezer(),
-    // Circular imports are caught at lint time by oxlint's import/no-cycle
-    // rule (see .oxlintrc.json) instead of a build-time vite plugin.
   ];
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
