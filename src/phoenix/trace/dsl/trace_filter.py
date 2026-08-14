@@ -288,144 +288,197 @@ TRACE_BINDINGS = _FilterBindings(
 
 TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
     {
-        "trace_id": "OpenTelemetry trace identifier. `in` ignores case; `==` is exact.",
+        "trace_id": "The trace's OpenTelemetry identifier. `in` ignores case; `==` is exact.",
         "start_time": (
-            "Trace start timestamp. Compare against an ISO 8601 string with an explicit offset, "
-            "e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
+            "The trace's start timestamp. Compare against an ISO 8601 string with an explicit "
+            "offset, e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
         ),
         "end_time": (
-            "Trace end timestamp. Compare against an ISO 8601 string with an explicit offset, "
-            "e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
+            "The trace's end timestamp. Compare against an ISO 8601 string with an explicit "
+            "offset, e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
         ),
-        "latency_ms": "Trace duration in milliseconds, rounded to one decimal place.",
+        "latency_ms": "The trace's duration in milliseconds, rounded to one decimal place.",
         "num_spans": "Number of spans in the trace; 0 when absent, never null.",
-        "error_count": "Number of spans whose status is ERROR; 0 when absent, never null.",
-        "token_count_prompt": "Prompt tokens recorded on LLM spans; 0 when absent, never null.",
-        "token_count_completion": (
-            "Completion tokens recorded on LLM spans; 0 when absent, never null."
+        "error_count": (
+            "Number of spans with ERROR status in the trace; 0 when absent, never null."
         ),
-        "token_count_total": "Total tokens recorded on LLM spans; 0 when absent, never null.",
-        "prompt_cost": "Total prompt cost; 0 when no cost is configured, never null.",
-        "completion_cost": "Total completion cost; 0 when no cost is configured, never null.",
-        "total_cost": "Total cost; 0 when no cost is configured, never null.",
+        "token_count_prompt": (
+            "Prompt tokens summed across all LLM spans in the trace; 0 when absent, never null."
+        ),
+        "token_count_completion": (
+            "Completion tokens summed across all LLM spans in the trace; 0 when absent, never null."
+        ),
+        "token_count_total": (
+            "Prompt and completion tokens summed across all LLM spans in the trace; 0 when "
+            "absent, never null."
+        ),
+        "prompt_cost": (
+            "Prompt cost summed across all span cost rows in the trace; 0 when no cost is "
+            "configured, never null."
+        ),
+        "completion_cost": (
+            "Completion cost summed across all span cost rows in the trace; 0 when no cost is "
+            "configured, never null."
+        ),
+        "total_cost": (
+            "Total cost summed across all span cost rows in the trace; 0 when no cost is "
+            "configured, never null."
+        ),
         "tool_span_count": "Number of TOOL spans in the trace; 0 when absent, never null.",
         "llm_span_count": "Number of LLM spans in the trace; 0 when absent, never null.",
         "input": (
-            "The displayed root span's input.value string. `in` ignores case; `==` is exact. "
-            "Missing when the trace has no displayed root or input value."
+            "The trace's root span's input.value string; if orphan spans are treated as roots, "
+            "they also participate in choosing the earliest root span. `in` ignores case; `==` "
+            "is exact; missing when there is no selected root span or input value."
         ),
         "output": (
-            "The displayed root span's output.value string. `in` ignores case; `==` is exact. "
-            "Missing when the trace has no displayed root or output value."
+            "The trace's root span's output.value string; if orphan spans are treated as roots, "
+            "they also participate in choosing the earliest root span. `in` ignores case; `==` "
+            "is exact; missing when there is no selected root span or output value."
         ),
         "attributes[...]": (
-            "Displayed-root attribute access by OpenTelemetry wire key. String subscripts are "
-            "joined with dots; values are string-cast unless explicitly cast."
+            "The trace's root span's attribute by OpenTelemetry wire key; if orphan spans are "
+            "treated as roots, they also participate in choosing the earliest root span. String "
+            "subscripts are joined with dots; values are string-cast unless explicitly cast."
         ),
-        "user.id": 'Accepted proxy for attributes["user.id"] on the displayed root span.',
+        "user.id": (
+            "The trace's root span's attributes[\"user.id\"] value; user.id is an accepted proxy. "
+            "If orphan spans are treated as roots, they also participate in choosing the "
+            "earliest root span."
+        ),
         'metadata["key"]': (
-            'Accepted proxy for attributes["metadata.key"] on the displayed root span.'
+            'The trace\'s root span\'s attributes["metadata.key"] value; metadata["key"] is an '
+            "accepted proxy. If orphan spans are treated as roots, they also participate in "
+            "choosing the earliest root span."
         ),
         "spans": (
-            "Every span in the trace. Iterate with any/all/len/max/min/sum, e.g. "
+            "All spans in the trace. Iterate with any/all/len/max/min/sum, e.g. "
             'any(span.status_code == "ERROR" for span in spans).'
         ),
-        "trace_annotations": "Every annotation attached directly to the trace.",
-        "span_annotations": "Every annotation attached to a span in the trace.",
-        "span_cost_details": "Every per-token-type cost row for spans in the trace.",
-        "spans.name": "Span name.",
-        "spans.parent_id": ("OpenTelemetry span ID of the parent span; absent on the trace root."),
-        "spans.span_kind": "Span kind, e.g. LLM, TOOL, or RETRIEVER; casing is ignored.",
-        "spans.status_code": "Span status: OK, ERROR, or UNSET; casing is ignored.",
+        "trace_annotations": "All annotations attached directly to the trace.",
+        "span_annotations": "All annotations attached to spans in the trace.",
+        "span_cost_details": "All per-token-type cost rows attached to spans in the trace.",
+        "spans.name": "Name of a span in the trace.",
+        "spans.parent_id": (
+            "A span's parent OpenTelemetry span ID; absent on the trace's root span."
+        ),
+        "spans.span_kind": (
+            "A span's kind in the trace, e.g. LLM, TOOL, or RETRIEVER; casing is ignored."
+        ),
+        "spans.status_code": (
+            "A span's status in the trace: OK, ERROR, or UNSET; casing is ignored."
+        ),
         "spans.start_time": (
-            "Span start timestamp. Compare against an ISO 8601 string with an explicit offset, "
-            "e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
+            "A span's start timestamp in the trace. Compare against an ISO 8601 string with an "
+            "explicit offset, e.g. `2026-07-01T00:00:00Z` or "
+            "`2026-07-01T00:00:00+00:00`."
         ),
         "spans.end_time": (
-            "Span end timestamp. Compare against an ISO 8601 string with an explicit offset, "
-            "e.g. `2026-07-01T00:00:00Z` or `2026-07-01T00:00:00+00:00`."
+            "A span's end timestamp in the trace. Compare against an ISO 8601 string with an "
+            "explicit offset, e.g. `2026-07-01T00:00:00Z` or "
+            "`2026-07-01T00:00:00+00:00`."
         ),
-        "spans.latency_ms": "Span duration in milliseconds.",
+        "spans.latency_ms": "A span's duration in milliseconds within the trace.",
         "spans.cumulative_error_count": (
-            "Number of ERROR spans at or under this span, including this span."
+            "Number of ERROR spans at or under a span in the trace, including that span."
         ),
         "spans.cumulative_llm_token_count_prompt": (
-            "Prompt tokens recorded at or under this span, including this span."
+            "Prompt tokens recorded at or under a span in the trace, including that span."
         ),
         "spans.cumulative_llm_token_count_completion": (
-            "Completion tokens recorded at or under this span, including this span."
+            "Completion tokens recorded at or under a span in the trace, including that span."
         ),
         "spans.cumulative_llm_token_count_total": (
-            "Total tokens recorded at or under this span, including this span."
+            "Total tokens recorded at or under a span in the trace, including that span."
         ),
-        "spans.llm_token_count_prompt": "Prompt tokens recorded on this span.",
-        "spans.llm_token_count_completion": "Completion tokens recorded on this span.",
-        "spans.llm_token_count_total": "Prompt plus completion tokens recorded on this span.",
-        "spans.children": "Spans whose parent edge points to this span.",
-        "spans.siblings": "Other spans with the same non-null parent edge as this span.",
-        "spans.annotations": "Annotations attached to this span.",
-        "spans.cost_details": "Per-token-type cost rows attached to this span.",
-        "spans.parent_span": "Direct parent span; null when no parent row is stored.",
+        "spans.llm_token_count_prompt": ("Prompt tokens recorded on a span in the trace."),
+        "spans.llm_token_count_completion": ("Completion tokens recorded on a span in the trace."),
+        "spans.llm_token_count_total": (
+            "Prompt plus completion tokens recorded on a span in the trace."
+        ),
+        "spans.children": ("A span's children in the trace: spans whose parent edge points to it."),
+        "spans.siblings": (
+            "A span's siblings in the trace: other spans with the same non-null parent edge."
+        ),
+        "spans.annotations": "Annotations attached to a span in the trace.",
+        "spans.cost_details": "Per-token-type cost rows attached to a span in the trace.",
+        "spans.parent_span": (
+            "A span's direct parent in the trace; null when no parent row is stored."
+        ),
         "spans.parent_span.name": (
-            "Direct parent span name; missing when no parent row is stored."
+            "A span's direct parent's name in the trace; missing when no parent row is stored."
         ),
         "spans.parent_span.parent_id": (
-            "OpenTelemetry span ID of the direct parent's parent span; absent when the direct "
-            "parent is the trace root or no parent row is stored."
+            "A span's direct parent's parent OpenTelemetry span ID; absent when the direct "
+            "parent is the trace's root span or no parent row is stored."
         ),
         "spans.parent_span.span_kind": (
-            "Direct parent span kind; missing when no parent row is stored."
+            "A span's direct parent's kind in the trace; missing when no parent row is stored."
         ),
         "spans.parent_span.status_code": (
-            "Direct parent span status; missing when no parent row is stored."
+            "A span's direct parent's status in the trace; missing when no parent row is stored."
         ),
         "spans.parent_span.start_time": (
-            "Direct parent span start timestamp; missing when no parent row is stored. Compare "
-            "against an ISO 8601 string with an explicit offset, e.g. `2026-07-01T00:00:00Z`."
+            "A span's direct parent's start timestamp in the trace; missing when no parent row is "
+            "stored. Compare against an ISO 8601 string with an explicit offset, e.g. "
+            "`2026-07-01T00:00:00Z`."
         ),
         "spans.parent_span.end_time": (
-            "Direct parent span end timestamp; missing when no parent row is stored. Compare "
-            "against an ISO 8601 string with an explicit offset, e.g. `2026-07-01T00:00:00Z`."
+            "A span's direct parent's end timestamp in the trace; missing when no parent row is "
+            "stored. Compare against an ISO 8601 string with an explicit offset, e.g. "
+            "`2026-07-01T00:00:00Z`."
         ),
         "spans.parent_span.latency_ms": (
-            "Direct parent span duration in milliseconds; missing when no parent row is stored."
-        ),
-        "spans.parent_span.cumulative_error_count": (
-            "ERROR spans at or under the direct parent, including the parent; missing when no "
-            "parent row is stored."
-        ),
-        "spans.parent_span.cumulative_llm_token_count_prompt": (
-            "Prompt tokens at or under the direct parent, including the parent; missing when no "
-            "parent row is stored."
-        ),
-        "spans.parent_span.cumulative_llm_token_count_completion": (
-            "Completion tokens at or under the direct parent, including the parent; missing when "
+            "A span's direct parent's duration in milliseconds within the trace; missing when "
             "no parent row is stored."
         ),
+        "spans.parent_span.cumulative_error_count": (
+            "ERROR spans at or under a span's direct parent in the trace, including the parent; "
+            "missing when no parent row is stored."
+        ),
+        "spans.parent_span.cumulative_llm_token_count_prompt": (
+            "Prompt tokens at or under a span's direct parent in the trace, including the parent; "
+            "missing when no parent row is stored."
+        ),
+        "spans.parent_span.cumulative_llm_token_count_completion": (
+            "Completion tokens at or under a span's direct parent in the trace, including the "
+            "parent; missing when no parent row is stored."
+        ),
         "spans.parent_span.cumulative_llm_token_count_total": (
-            "Total tokens at or under the direct parent, including the parent; missing when no "
-            "parent row is stored."
+            "Total tokens at or under a span's direct parent in the trace, including the parent; "
+            "missing when no parent row is stored."
         ),
         "spans.parent_span.llm_token_count_prompt": (
-            "Prompt tokens recorded on the direct parent; missing when no parent row is stored."
+            "Prompt tokens recorded on a span's direct parent in the trace; missing when no "
+            "parent row is stored."
         ),
         "spans.parent_span.llm_token_count_completion": (
-            "Completion tokens recorded on the direct parent; missing when no parent row is stored."
+            "Completion tokens recorded on a span's direct parent in the trace; missing when no "
+            "parent row is stored."
         ),
         "spans.parent_span.llm_token_count_total": (
-            "Total tokens recorded on the direct parent; missing when no parent row is stored."
+            "Total tokens recorded on a span's direct parent in the trace; missing when no parent "
+            "row is stored."
         ),
-        "trace_annotations.name": "Annotation name.",
-        "trace_annotations.label": "Annotation label; null when absent.",
-        "trace_annotations.score": "Annotation score; null when absent.",
-        "span_annotations.name": "Annotation name.",
-        "span_annotations.label": "Annotation label; null when absent.",
-        "span_annotations.score": "Annotation score; null when absent.",
-        "span_cost_details.token_type": "Token type this cost row covers.",
-        "span_cost_details.is_prompt": "Whether this cost row counts toward the prompt side.",
-        "span_cost_details.cost": "Cost of this row; null when not configured.",
-        "span_cost_details.tokens": "Token count for this row; null when unrecorded.",
-        "span_cost_details.cost_per_token": "Cost per token; null when unrecorded.",
+        "trace_annotations.name": "A trace annotation's name.",
+        "trace_annotations.label": "A trace annotation's label; null when absent.",
+        "trace_annotations.score": "A trace annotation's score; null when absent.",
+        "span_annotations.name": "A span annotation's name.",
+        "span_annotations.label": "A span annotation's label; null when absent.",
+        "span_annotations.score": "A span annotation's score; null when absent.",
+        "span_cost_details.token_type": "Token type covered by a span cost row in the trace.",
+        "span_cost_details.is_prompt": (
+            "Whether a span cost row in the trace counts toward the prompt side."
+        ),
+        "span_cost_details.cost": (
+            "Cost recorded by a span cost row in the trace; null when not configured."
+        ),
+        "span_cost_details.tokens": (
+            "Token count recorded by a span cost row in the trace; null when unrecorded."
+        ),
+        "span_cost_details.cost_per_token": (
+            "Cost per token recorded by a span cost row in the trace; null when unrecorded."
+        ),
     }
 )
 
