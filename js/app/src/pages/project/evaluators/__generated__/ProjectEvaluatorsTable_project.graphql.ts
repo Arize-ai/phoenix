@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b0a88ddf710d1e2f063786deb3d4cf87>>
+ * @generated SignedSource<<3c1690467bc572080dbb176d4933b48d>>
  * @lightSyntaxTransform
  */
 
@@ -149,6 +149,13 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "samplingRate",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "schedulabilityStatus",
                       "storageKey": null
                     },
                     {

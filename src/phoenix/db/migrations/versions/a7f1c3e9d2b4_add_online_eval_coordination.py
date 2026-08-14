@@ -14,7 +14,7 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
-from phoenix.db.eval_work import live_eval_work_index_predicate
+from phoenix.db.eval_work import live_eval_session_work_index_predicate
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -77,7 +77,8 @@ def _create_session_work_units_table() -> None:
             "status",
             sa.String(),
             sa.CheckConstraint(
-                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
+                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED', "
+                "'FILTERED_OUT', 'SAMPLED_OUT')",
                 name="valid_eval_work_status",
             ),
             nullable=False,
@@ -106,15 +107,15 @@ def _create_session_work_units_table() -> None:
         "eval_session_work_units",
         ["project_session_rowid", "evaluator_id", "config_fingerprint"],
         unique=True,
-        postgresql_where=sa.text(live_eval_work_index_predicate()),
-        sqlite_where=sa.text(live_eval_work_index_predicate()),
+        postgresql_where=sa.text(live_eval_session_work_index_predicate()),
+        sqlite_where=sa.text(live_eval_session_work_index_predicate()),
     )
     op.create_index(
         "ix_eval_session_work_units_claimable",
         "eval_session_work_units",
         ["status", "id"],
-        postgresql_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
-        sqlite_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
+        postgresql_where=sa.text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
+        sqlite_where=sa.text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
     )
     op.create_index(
         "ix_eval_session_work_units_terminal",

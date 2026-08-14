@@ -294,9 +294,10 @@ not need to solve all levels at launch; a subset is still useful, and we can car
 the rest.
 
 The session filter DSL shipped in [#14101](https://github.com/Arize-ai/phoenix/pull/14101), closing
-[#14041](https://github.com/Arize-ai/phoenix/issues/14041). SESSION online-evaluation criteria do
-not consume it yet: filtered or sampled SESSION criteria are accepted but not scheduled.
-[#14038](https://github.com/Arize-ai/phoenix/issues/14038) owns the sampling half.
+[#14041](https://github.com/Arize-ai/phoenix/issues/14041). SESSION online evaluation applies this
+filter at the session's first eligible quiet period, then applies deterministic sampling to
+matches. A filter non-match or sampling miss is recorded permanently for that evaluator
+configuration, and later activity does not reopen the decision.
 
 Changing a filter affects only future artifacts; it does not backfill or re-run past data.
 
@@ -384,9 +385,10 @@ preserved for audit not by the annotation row (overwritten) but by the run recor
 ## Run Records and Audit
 
 The upsert-by-`identifier` mechanism in [Output](#output) is intentionally destructive: a re-run
-overwrites its own prior annotation, and a decision that produces *no* annotation (filtered out,
-sampled out, overload-dropped, pending, failed) writes nothing at all. Several requirements in
-this spec presuppose a durable record that the annotation tables cannot provide:
+overwrites its own prior annotation. SESSION filter and sampling declines are durable terminal
+work-unit states, but other decisions that produce *no* annotation (including span filter/sample
+misses and overload drops) still lack a complete cross-target run history. Several requirements
+in this spec presuppose a durable record that the annotation tables cannot provide:
 
 - **Audit** ("why is this annotation missing?") needs to tell filtered-out, sampled-out,
   overload-dropped, pending, failed, and succeeded apart — none of which an absent annotation row

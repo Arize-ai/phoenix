@@ -1215,6 +1215,7 @@ def create_llm_evaluator_from_inline(
     output_configs: Sequence[CategoricalOutputConfig],
     name: str,
     description: Optional[str] = None,
+    max_message_bytes: Optional[int] = None,
 ) -> LLMEvaluator:
     """
     Creates an LLMEvaluator instance from inline definition without database persistence.
@@ -1236,6 +1237,7 @@ def create_llm_evaluator_from_inline(
         llm_client=llm_client,
         output_configs=output_configs,
         prompt_name="preview-prompt",
+        max_message_bytes=max_message_bytes,
     )
 
 

@@ -46,6 +46,7 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import {
   formatEvaluationTarget,
+  formatEvaluationTargetPlural,
   formatSamplingRate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -67,6 +68,7 @@ const readRow = (row: ProjectEvaluatorsTable_row$key) => {
         evaluationTarget
         filterCondition
         samplingRate
+        schedulabilityStatus
         enabled
         updatedAt
         evaluator {
@@ -269,8 +271,19 @@ export function ProjectEvaluatorsTable({
         id: "target",
         header: "target",
         size: 110,
-        cell: ({ row }) =>
-          formatEvaluationTarget(row.original.evaluationTarget),
+        // A disabled evaluator already reads as not running from its own
+        // column, so only flag scope-driven reasons here.
+        cell: ({ row }) => (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <Text>{formatEvaluationTarget(row.original.evaluationTarget)}</Text>
+            {row.original.enabled &&
+            row.original.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
+              <span title="This evaluator is not scheduled.">
+                <Icon svg={<Icons.AlertTriangle />} color="warning" />
+              </span>
+            ) : null}
+          </Flex>
+        ),
       },
       {
         id: "filter",
@@ -278,7 +291,8 @@ export function ProjectEvaluatorsTable({
         size: 180,
         cell: ({ row }) => (
           <Text color={row.original.filterCondition ? undefined : "text-700"}>
-            {row.original.filterCondition || "All spans"}
+            {row.original.filterCondition ||
+              `All ${formatEvaluationTargetPlural(row.original.evaluationTarget)}`}
           </Text>
         ),
       },

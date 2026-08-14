@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, AsyncIterator, Callable, Literal, Optional, Sequence
+from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +54,7 @@ from phoenix.server.online_eval.derivation import (
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.online_eval.session_policy import (
+    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
     SessionTranscriptPolicy,
     session_criteria_is_schedulable,
 )
@@ -251,7 +252,6 @@ def session_eval_context(
         "last_loaded_event_time": last_loaded,
         "first_retained_event_time": first_retained,
         "last_retained_event_time": last_retained,
-        "structured_turns_mapped": False,
     }
     return {
         "input": transcript,
@@ -261,6 +261,100 @@ def session_eval_context(
             _TRANSCRIPT_POLICY_METADATA_KEY: applied_policy,
         },
     }
+
+
+async def load_session_eval_context(
+    session: AsyncSession,
+    *,
+    project_session_rowid: int,
+    project_id: int,
+    policy: SessionTranscriptPolicy,
+) -> dict[str, Any]:
+    """The session's evaluation context, exactly as an online evaluation reads it.
+
+    The executor and the GraphQL preview field both call this, so what an author
+    previews is the same transcript, turn ordering, turn cap, and truncation the
+    runtime binds against. Raises ``TranscriptTooLargeError`` when no whole turn
+    fits the byte cap.
+    """
+    root_filters = (
+        models.Trace.project_session_rowid == project_session_rowid,
+        models.Trace.project_rowid == project_id,
+        models.Span.parent_id.is_(None),
+    )
+    total_eligible_root_count = (
+        await session.scalar(
+            select(func.count(func.distinct(models.Trace.id)))
+            .select_from(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(*root_filters)
+        )
+        or 0
+    )
+    ranked_roots = (
+        select(
+            models.Span.input_value,
+            models.Span.output_value,
+            models.Span.metadata_,
+            models.Span.start_time.label("event_time"),
+            models.Span.span_id,
+            models.Trace.start_time.label("trace_start_time"),
+            models.Trace.id.label("trace_id"),
+            func.row_number()
+            .over(
+                partition_by=models.Trace.id,
+                order_by=(models.Span.start_time.asc(), models.Span.span_id.asc()),
+            )
+            .label("root_rank"),
+        )
+        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+        .where(*root_filters)
+        .subquery()
+    )
+    root_rows = (
+        await session.execute(
+            select(
+                ranked_roots.c.input_value,
+                ranked_roots.c.output_value,
+                ranked_roots.c.metadata_,
+                ranked_roots.c.event_time,
+                ranked_roots.c.span_id,
+            )
+            .where(ranked_roots.c.root_rank == 1)
+            .order_by(
+                ranked_roots.c.trace_start_time.desc(),
+                ranked_roots.c.trace_id.desc(),
+            )
+            .limit(policy.max_turns)
+        )
+    ).all()
+    turns = [
+        {
+            "input": row.input_value,
+            "output": row.output_value,
+            "metadata": row.metadata_,
+            "event_time": row.event_time.isoformat(),
+            "span_id": row.span_id,
+        }
+        for row in reversed(root_rows)
+    ]
+    return session_eval_context(
+        turns=turns,
+        policy=policy,
+        total_eligible_root_count=total_eligible_root_count,
+    )
+
+
+def has_eligible_root_turns(context: Mapping[str, Any]) -> bool:
+    """Whether an assembled session context has a turn to evaluate.
+
+    A session whose traces carry no root span assembles to an empty transcript.
+    Live hydration refuses it (``NO_ROOT_TURNS``) rather than evaluating that
+    emptiness, so the preview field reads the same predicate and reports the
+    session as unevaluable instead of offering the empty context.
+    """
+    policy = context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
+    return bool(policy["total_eligible_root_count"])
 
 
 def _transcript_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
@@ -434,6 +528,9 @@ class OnlineEvalExecutor:
 
         contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
         input_mappings: list[Optional[InputMapping]] = [None for _ in units]
+        # Recorded on the annotation, never in the evaluated context: it is
+        # decided per evaluator, after the context an author previews is built.
+        maps_structured_turns: list[bool] = [False for _ in units]
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
@@ -463,8 +560,7 @@ class OnlineEvalExecutor:
                 outcomes[index] = error
                 continue
             if unit.evaluation_target == "SESSION":
-                policy = hydrated_context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
-                policy["structured_turns_mapped"] = any(
+                maps_structured_turns[index] = any(
                     path_expression.removeprefix("$.").startswith("metadata.turns")
                     for path_expression in (resolved_input_mapping.path_mapping or {}).values()
                 )
@@ -523,11 +619,15 @@ class OnlineEvalExecutor:
                     "input_schema",
                     {},
                 )
-                policy["structured_turns_mapped"] = bool(
-                    policy["structured_turns_mapped"]
-                    or "metadata" in evaluator_input_schema.get("properties", {})
-                )
-                annotation_metadata = {_TRANSCRIPT_POLICY_METADATA_KEY: dict(policy)}
+                annotation_metadata = {
+                    _TRANSCRIPT_POLICY_METADATA_KEY: {
+                        **policy,
+                        "structured_turns_mapped": bool(
+                            maps_structured_turns[index]
+                            or "metadata" in evaluator_input_schema.get("properties", {})
+                        ),
+                    }
+                }
             outcomes[index] = HydratedConfigurationSnapshot(
                 project_id=criteria.project_id,
                 fingerprint=unit.config_fingerprint,
@@ -580,80 +680,21 @@ class OnlineEvalExecutor:
             return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
         if not project_session.content_complete:
             return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
-        root_filters = (
-            models.Trace.project_session_rowid == project_session.id,
-            models.Trace.project_rowid == project_id,
-            models.Span.parent_id.is_(None),
-        )
-        total_eligible_root_count = (
-            await session.scalar(
-                select(func.count(func.distinct(models.Trace.id)))
-                .select_from(models.Span)
-                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                .where(*root_filters)
-            )
-            or 0
-        )
-        if total_eligible_root_count == 0:
-            return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
-        ranked_roots = (
-            select(
-                models.Span.input_value,
-                models.Span.output_value,
-                models.Span.metadata_,
-                models.Span.start_time.label("event_time"),
-                models.Span.span_id,
-                models.Trace.start_time.label("trace_start_time"),
-                models.Trace.id.label("trace_id"),
-                func.row_number()
-                .over(
-                    partition_by=models.Trace.id,
-                    order_by=(models.Span.start_time.asc(), models.Span.span_id.asc()),
-                )
-                .label("root_rank"),
-            )
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(*root_filters)
-            .subquery()
-        )
-        root_rows = (
-            await session.execute(
-                select(
-                    ranked_roots.c.input_value,
-                    ranked_roots.c.output_value,
-                    ranked_roots.c.metadata_,
-                    ranked_roots.c.event_time,
-                    ranked_roots.c.span_id,
-                )
-                .where(ranked_roots.c.root_rank == 1)
-                .order_by(
-                    ranked_roots.c.trace_start_time.desc(),
-                    ranked_roots.c.trace_id.desc(),
-                )
-                .limit(self._session_transcript_policy.max_turns)
-            )
-        ).all()
-        turns = [
-            {
-                "input": row.input_value,
-                "output": row.output_value,
-                "metadata": row.metadata_,
-                "event_time": row.event_time.isoformat(),
-                "span_id": row.span_id,
-            }
-            for row in reversed(root_rows)
-        ]
         try:
-            return session_eval_context(
-                turns=turns,
+            context = await load_session_eval_context(
+                session,
+                project_session_rowid=project_session.id,
+                project_id=project_id,
                 policy=self._session_transcript_policy,
-                total_eligible_root_count=total_eligible_root_count,
             )
         except TranscriptTooLargeError as error:
             return HydrationFailure(
                 HydrationFailureReason.TRANSCRIPT_TOO_LARGE,
                 str(error),
             )
+        if not has_eligible_root_turns(context):
+            return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+        return context
 
     def hydrate_from_snapshot(
         self,
@@ -820,10 +861,7 @@ class OnlineEvalExecutor:
                 f"online-eval:{evaluator_orm.id}:{self._sandbox_session_manager.replica_id}"
             ),
             max_payload_bytes=max_payload_bytes,
-            payload_limit_remediation=(
-                "Reduce the dominant evaluator source or mapped inputs, or raise the limit with "
-                "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
-            ),
+            payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
         )
         return _HydratedEvaluatorSnapshot(
             annotator_kind="CODE",
