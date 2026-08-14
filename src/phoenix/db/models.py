@@ -54,7 +54,7 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-from phoenix.db.eval_work import live_eval_work_index_predicate
+from phoenix.db.eval_work import live_eval_session_work_index_predicate
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -191,6 +191,15 @@ GenerativeModelSDK: TypeAlias = Literal[
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR", "EXPIRED"]
+EvalSessionWorkStatus: TypeAlias = Literal[
+    "PENDING",
+    "RUNNING",
+    "DONE",
+    "ERROR",
+    "EXPIRED",
+    "FILTERED_OUT",
+    "SAMPLED_OUT",
+]
 EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
@@ -3770,9 +3779,10 @@ class EvalSessionWorkUnit(HasId):
     config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     transcript_covered_through: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    status: Mapped[EvalWorkStatus] = mapped_column(
+    status: Mapped[EvalSessionWorkStatus] = mapped_column(
         CheckConstraint(
-            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
+            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED', "
+            "'FILTERED_OUT', 'SAMPLED_OUT')",
             name="valid_eval_work_status",
         ),
         default="PENDING",
@@ -3799,15 +3809,15 @@ class EvalSessionWorkUnit(HasId):
             "evaluator_id",
             "config_fingerprint",
             unique=True,
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            postgresql_where=text(live_eval_session_work_index_predicate()),
+            sqlite_where=text(live_eval_session_work_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text("status NOT IN ('DONE', 'EXPIRED')"),
-            sqlite_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+            postgresql_where=text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
+            sqlite_where=text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
         ),
         Index(
             "ix_eval_session_work_units_terminal",
