@@ -116,6 +116,7 @@ export function ModelParametersConfigButton(
   const canConfigureRegion = provider === "AWS";
   const canConfigureOpenAIApiType =
     !usingCustomProvider &&
+    !disableEphemeralRouting &&
     (provider === "OPENAI" || provider === "AZURE_OPENAI");
 
   const showBaseUrl =
@@ -150,11 +151,10 @@ export function ModelParametersConfigButton(
               playgroundInstanceId={playgroundInstanceId}
             />
 
-            {/* OpenAI / Azure API type - built-in only: editable when ephemeral routing enabled, fixed default when disabled */}
+            {/* OpenAI / Azure API type - built-in only, and only where the selection is sent */}
             {canConfigureOpenAIApiType && (
               <OpenAIApiTypeConfigFormField
                 playgroundInstanceId={playgroundInstanceId}
-                displayDefaultOnly={disableEphemeralRouting}
               />
             )}
 

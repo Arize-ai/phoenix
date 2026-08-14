@@ -44,7 +44,7 @@ client.spans.get_spans_dataframe(project_name='your project name')
 You can query for data using our **query DSL** (domain specific language).
 
 <Check>
-This **Query DSL** is the same as what is used by the filter bar in the dashboard. It can be helpful to form your query string in the Phoenix dashboard for more immediate feedback, before moving it to code.
+The `.where()` filter expression is the same language used by the filter bar in the dashboard — see the [Filter Expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions) reference for the full language. It can be helpful to form your filter in the Phoenix dashboard for more immediate feedback, before moving it to code.
 
 </Check>
 
@@ -168,7 +168,7 @@ query = SpanQuery().explode(
 
 ### How to Apply Filters
 
-The `.where()` method accepts a string of valid Python boolean expression. The expression can be arbitrarily complex, but restrictions apply, e.g. making function calls are generally disallowed. Below is a conjunction filtering also on whether the input value contains the string `'programming'`.
+The `.where()` method accepts a **filter expression** — a string of valid Python boolean expression — and returns only the spans it matches. The same expressions work in the spans/traces filter bar in the Phoenix UI.
 
 ```python
 query = SpanQuery().where(
@@ -176,63 +176,11 @@ query = SpanQuery().where(
 )
 ```
 
-#### Filtering Spans by Evaluation Results
+The filter expression language — attribute and annotation access, substring search, `is None`, and the full operator set — is documented in one place, for both spans and sessions:
 
-Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](/docs/phoenix/evaluation/running-pre-tested-evals) for how to compute evaluations for traces, and [here](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations) for how to ingest those results back to Phoenix.)
-
-```python
-query = SpanQuery().where(
-    "evals['correctness'].label == 'incorrect'"
-)
-```
-
-The `annotations` keyword is an alias for `evals` and works the same way.
-
-#### Filtering Spans by Trace-Level Annotations
-
-Annotations attached to a whole trace (rather than an individual span) are referenced with the `trace_annotations` keyword, which supports the same `score`, `label`, `explanation`, and existence syntax. Spans are returned when the trace they belong to carries a matching annotation.
-
-```python
-query = SpanQuery().where(
-    "trace_annotations['quality'].score >= 0.5"
-)
-# query = SpanQuery().where("trace_annotations['quality'].label == 'good'")
-```
-
-#### Filtering on Metadata
-
-`metadata` is an attribute that is a dictionary and it can be filtered like a dictionary.
-
-```python
-query = SpanQuery().where(
-    'metadata["topic"] == \'programming\''
-)
-```
-
-#### Filtering for Substring
-
-Note that Python strings do not have a `contain` method, and substring search is done with the `in` operator.
-
-```python
-query = SpanQuery().where(
-    "'programming' in metadata['topic']"
-)
-```
-
-#### **Filtering for No Evaluations**
-
-Get spans that do not have an evaluation attached yet
-
-```python
-query = SpanQuery().where(
-    "evals['correctness'].label is None"
-)
-# correctness is whatever you named your evaluation metric
-```
-
-### How to Apply Filters (UI)
-
-You can also use Python boolean expressions to filter spans in the Phoenix UI. These expressions can be entered directly into the search bar above your experiment runs, allowing you to apply complex conditions involving span attributes. Any expressions that work with the `.where()` method [above](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-apply-filters) can also be used in the UI.
+<Card title="Filter Expressions" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions" icon="filter" horizontal>
+  The span and session filter language: fields, attributes, annotations/evals, substring search, `is None`, and more.
+</Card>
 
 ### How to Extract Attributes
 

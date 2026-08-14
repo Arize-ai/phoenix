@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from hashlib import sha256
 from typing import NamedTuple, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,9 +21,16 @@ TURN_LOCK_STALENESS = timedelta(seconds=60)
 """How long after its last heartbeat a turn lock is considered abandoned."""
 
 
-def get_otel_session_id(*, project_name: str, agent_session_rowid: int) -> str:
+def get_otel_session_id(
+    *,
+    project_name: str,
+    agent_session_rowid: int,
+    agent_session_created_at: datetime,
+) -> str:
+    """Return a stable OTel session ID unique across Phoenix database instances."""
     agent_session_gid = GlobalID(type_name="AgentSession", node_id=str(agent_session_rowid))
-    return f"{project_name}:{agent_session_gid}"
+    created_at_fingerprint = sha256(agent_session_created_at.isoformat().encode()).hexdigest()[:16]
+    return f"{project_name}:{agent_session_gid}:{created_at_fingerprint}"
 
 
 def is_turn_active(heartbeat_at: Optional[datetime], *, now: datetime) -> bool:

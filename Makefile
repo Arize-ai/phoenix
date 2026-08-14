@@ -206,9 +206,10 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 		--use-default-kwarg \
 		--use-double-quotes \
 		--use-generic-container-types \
+		--no-use-union-operator \
 		--wrap-string-literal \
+		--formatters black isort \
 		--disable-timestamp
-	@$(UV) run python -c "import re; file = '$(PHOENIX_CLIENT_GENERATED)/v1/.dataclass.py'; lines = [re.sub(r'\\bSequence]', 'Sequence[Any]]', line) for line in open(file).readlines()]; open(file, 'w').writelines(lines)"
 	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1
 	@$(UV) run ruff format $(PHOENIX_CLIENT_GENERATED)/v1
 	@$(UV) run ruff check --fix $(PHOENIX_CLIENT_GENERATED)/v1
@@ -415,23 +416,20 @@ ifeq (,$(strip $(SQLITE_ARGS)))
 SKIP_SQLITE := $(findstring --external,$(ARGS))
 endif
 
-# The cross-dialect comparison reads the two canonical files, so it is only
-# meaningful when this run rewrote both. Either variable may have redirected a
-# generator elsewhere, leaving a fresh file compared against a stale one.
-COMPARE_DIALECTS_ARGS := $(strip $(ARGS))$(strip $(SQLITE_ARGS))
-
 schema-ddl: ## Compile DDL schema from PostgreSQL and SQLite databases (ARGS=/SQLITE_ARGS= pass per-database arguments)
 	@echo -e "$(CYAN)Compiling DDL schema...$(NC)"
 	@$(UV) pip install --strict psycopg[binary] testing.postgresql pglast ty
 	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
-	@cd scripts/ddl && $(UV) run ty check generate_ddl_postgresql.py && $(UV) run python generate_ddl_postgresql.py $(ARGS)
+	@cd scripts/ddl && $(UV) run ty check *.py && $(UV) run pytest -q -rN test_*.py
+	@cd scripts/ddl && $(UV) run python generate_ddl_postgresql.py $(ARGS)
 ifeq (,$(SKIP_SQLITE))
-	@cd scripts/ddl && $(UV) run ty check generate_ddl_sqlite.py && $(UV) run python generate_ddl_sqlite.py $(SQLITE_ARGS)
+	@cd scripts/ddl && $(UV) run python generate_ddl_sqlite.py $(SQLITE_ARGS)
 else
 	@echo -e "$(YELLOW)Skipping SQLite: ARGS targets an external PostgreSQL database (pass SQLITE_ARGS= to run it too)$(NC)"
 endif
-ifeq (,$(COMPARE_DIALECTS_ARGS))
-	@cd scripts/ddl && $(UV) run ty check compare_schemas.py && $(UV) run python compare_schemas.py
+	@cd scripts/ddl && $(UV) run python validate_schema_assets.py --postgresql-args "$(ARGS)" --sqlite-args "$(SQLITE_ARGS)"
+ifeq (,$(strip $(ARGS))$(strip $(SQLITE_ARGS)))
+	@cd scripts/ddl && $(UV) run python compare_schemas.py
 else
 	@echo -e "$(YELLOW)Skipping cross-dialect comparison: ARGS/SQLITE_ARGS may not have written the canonical files$(NC)"
 endif

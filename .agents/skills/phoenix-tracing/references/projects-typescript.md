@@ -56,6 +56,30 @@ register({ projectName: "my-app-v1" });
 register({ projectName: "my-app-v2" });
 ```
 
+## Listing Projects Programmatically
+
+`@arizeai/phoenix-client` exposes a `projects` subpath export. `getProjects`
+pages through the REST API for you and returns every project:
+
+```typescript
+import { getProjects } from "@arizeai/phoenix-client/projects";
+
+const projects = await getProjects();
+for (const project of projects) {
+  console.log(`Project: ${project.name} (${project.id})`);
+}
+```
+
+Pass `nameContains` to filter on a case-insensitive substring of the project
+name. The match runs server-side and requires Phoenix server >= 17.16.0:
+
+```typescript
+const agentProjects = await getProjects({ nameContains: "agent" });
+```
+
+`getProjects` accepts `client` alongside `nameContains` (it extends `ClientFn`),
+so a client built with an explicit endpoint or headers can be threaded through.
+
 ## Via HTTP Header (OTEL Collector / config-based tools)
 
 If you cannot set resource attributes in code (e.g. when using an OTEL Collector or another configuration-driven pipeline), set the `x-project-name` HTTP header on OTLP HTTP exports. The header takes precedence over the `openinference.project.name` resource attribute; every span in the request is routed to that project.

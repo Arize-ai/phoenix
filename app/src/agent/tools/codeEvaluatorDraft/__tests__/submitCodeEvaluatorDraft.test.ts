@@ -157,6 +157,7 @@ describe("submit_code_evaluator_draft agent tool", () => {
       persisted: true,
       acceptedBy: "auto",
       evaluator: { id: "ev-1", name: "hallucination" },
+      approval: { decision: "accepted", source: "auto" },
     });
   });
 

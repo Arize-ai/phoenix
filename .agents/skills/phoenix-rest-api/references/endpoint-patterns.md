@@ -13,6 +13,7 @@ Keywords per [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) / [RFC 8174](htt
 - Query params for filtering/sorting/pagination. snake_case names.
 - Cursor-based pagination only. Response: `{"data": [...], "next_cursor": "..."}`.
 - All responses wrap payload in `"data"` key. snake_case field names.
+- Field names MUST be self-describing without reading the endpoint docs. Counts are named `<noun>_count` with the noun spelled out (`transferred_trace_count`, not `transferred` or `count`); IDs say what they identify (`destination_project_id`, not `id`). Bare verbs, adjectives, and abbreviations are not field names.
 
 ## Implementation
 

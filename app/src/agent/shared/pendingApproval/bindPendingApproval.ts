@@ -1,3 +1,4 @@
+import { approvalOutcome } from "./approvalOutcome";
 import type { BindPendingApprovalOptions, PendingApproval } from "./types";
 
 /**
@@ -40,6 +41,7 @@ export function bindPendingApproval<TPreview>({
           status: "accepted",
           acceptedBy: approvalSource,
           message: result.output,
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -49,7 +51,11 @@ export function bindPendingApproval<TPreview>({
         state: "output-available",
         tool: toolName,
         toolCallId,
-        output: { status: "rejected", message: rejectedMessage },
+        output: {
+          status: "rejected",
+          message: rejectedMessage,
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
+        },
       });
     },
   };

@@ -1686,12 +1686,26 @@ def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
+CLIENT_ASSERTION_JWT_AUTH_METHOD = "client_assertion_jwt"
+"""Client authenticates with a JWT it did not sign (RFC 7523 §2.2).
+
+Not an OIDC Core §9 method, and no registered method fits: §9's `client_secret_jwt` and
+`private_key_jwt` both name the key the client signs with, whereas here the assertion is
+minted by the platform (e.g. a Kubernetes projected service account token) and Phoenix
+only relays it. The name matches authlib's constant for the same wire format.
+
+Named for the wire format rather than for a platform, because that is what stays fixed:
+where the assertion comes from is carried by client_assertion_file, so another source
+does not need another auth method.
+"""
+
 _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
     "client_secret_basic",
     "client_secret_post",
     "none",
+    CLIENT_ASSERTION_JWT_AUTH_METHOD,
 )
-"""Allowed OAuth2 token endpoint authentication methods (OIDC Core §9)."""
+"""Allowed OAuth2 token endpoint authentication methods (OIDC Core §9 unless noted)."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1743,6 +1757,60 @@ class OAuth2ClientConfig:
     For Azure AD/Entra ID without email attribute:
         PHOENIX_OAUTH2_AZURE_AD_EMAIL_ATTRIBUTE_PATH=preferred_username
     """
+
+    # Workload identity (RFC 7523 §2.2)
+    client_assertion_file: Optional[str] = None
+    """Resolved path to the file holding the JWT sent as `client_assertion`.
+
+    Required when token_endpoint_auth_method is CLIENT_ASSERTION_JWT_AUTH_METHOD, unset
+    otherwise, and re-read on every token request because the platform rotates the token
+    well before it expires.
+
+    Neither defaulted nor discovered. Platforms that mint the assertion own where they put
+    it and have moved it between releases, so the path cannot be hardcoded; but the variable
+    exporting it is process-global, so consulting one implicitly would bind it to every
+    provider at once. The operator supplies one or the other per provider, this field or
+    client_assertion_file_env_var.
+    """
+
+    client_assertion_file_env_var: Optional[str] = None
+    """Environment variable client_assertion_file was resolved from, when named indirectly.
+
+    Retained for its security consequence, not for diagnostics: this setting can name any
+    variable in the process, so a value that arrived through it must never be repeated where
+    an operator can read it, or rights over the non-secret provider config become a read of
+    any secret-bearing variable. Consumers pair the two fields in AssertionFile, which
+    enforces that. A path set directly needs no such treatment.
+    """
+
+    def __post_init__(self) -> None:
+        if (
+            self.token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD
+            and not self.client_assertion_file
+        ):
+            raise ValueError(
+                f"client_assertion_file is required when token_endpoint_auth_method is "
+                f"'{CLIENT_ASSERTION_JWT_AUTH_METHOD}' (IDP: {self.idp_name}). Set "
+                f"PHOENIX_OAUTH2_{self.idp_name.upper()}_CLIENT_ASSERTION_FILE to the path, "
+                f"or _CLIENT_ASSERTION_FILE_ENV_VAR to the name of the variable holding it. On "
+                f"AKS the Azure Workload Identity webhook exports the path as "
+                f"AZURE_FEDERATED_TOKEN_FILE and owns its value, so name the variable rather "
+                f"than the path"
+            )
+        if self.client_assertion_file and not os.path.isabs(self.client_assertion_file):
+            # Enforced here so the rule holds however the path arrived. A relative path would
+            # resolve against the working directory, which nothing about this deployment
+            # pins — and requiring it now is only possible now, since tightening the contract
+            # after a release would break anyone who had relied on the looser one.
+            source = (
+                f"named by {self.client_assertion_file_env_var}"
+                if self.client_assertion_file_env_var
+                else repr(self.client_assertion_file)
+            )
+            raise ValueError(
+                f"client_assertion_file must be an absolute path (IDP: {self.idp_name}), "
+                f"got {source}"
+            )
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -1802,6 +1870,7 @@ class OAuth2ClientConfig:
         client_secret: Optional[str] = None
 
         # Determine if CLIENT_SECRET is required based on TOKEN_ENDPOINT_AUTH_METHOD:
+        # - "client_assertion_jwt": no secret; a platform-minted JWT is sent as client assertion
         # - "none": CLIENT_SECRET is optional (public clients, RFC 8252 §8.1)
         # - "client_secret_basic" or "client_secret_post": CLIENT_SECRET is required
         # - Not set: Default to requiring CLIENT_SECRET (assumes confidential client with
@@ -1811,7 +1880,49 @@ class OAuth2ClientConfig:
         # used with both public clients (no secret) and confidential clients (with secret) to
         # protect the authorization code from interception.
 
-        if token_endpoint_auth_method == "none":
+        client_assertion_file: Optional[str] = None
+        assertion_file_env_var: Optional[str] = None
+
+        if token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD:
+            # The assertion replaces the client secret entirely. Nothing here inspects the
+            # JWT, so the source is whatever writes the file and the IDP is whichever one
+            # accepts the assertion; IDP names are operator-chosen and cannot gate this.
+            client_secret = None
+            client_assertion_file = _get_optional("CLIENT_ASSERTION_FILE")
+            if assertion_file_env_var := _get_optional("CLIENT_ASSERTION_FILE_ENV_VAR"):
+                if client_assertion_file:
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE and "
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV_VAR are mutually exclusive; "
+                        f"set the path directly or name the variable holding it, not both"
+                    )
+                if not (client_assertion_file := os.getenv(assertion_file_env_var, "").strip()):
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV_VAR names "
+                        f"{assertion_file_env_var}, but that variable is unset or empty. "
+                        f"On AKS it is exported by the Azure Workload Identity webhook, "
+                        f"which requires the "
+                        f"pod label azure.workload.identity/use=true"
+                    )
+                if not os.path.isabs(client_assertion_file):
+                    # The value is never echoed: this setting can name any variable in the
+                    # process, so a caller with rights to the non-secret provider config could
+                    # otherwise route a secret-bearing one into the logs. Requiring an absolute
+                    # path also rejects the values most likely to be secrets, such as URLs.
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV_VAR names "
+                        f"{assertion_file_env_var}, but its value is not an absolute path. "
+                        f"Name the variable that holds the assertion path, not the "
+                        f"assertion or an unrelated setting"
+                    )
+                # Log the source, not the value: which variable a provider resolved through is
+                # the part an operator cannot otherwise recover.
+                logger.info(
+                    "OAuth2 IDP %s: client assertion path resolved from %s",
+                    idp_name,
+                    assertion_file_env_var,
+                )
+        elif token_endpoint_auth_method == "none":
             # Public client - no client authentication required
             client_secret = _get_optional("CLIENT_SECRET")
         else:
@@ -1952,6 +2063,8 @@ class OAuth2ClientConfig:
             role_attribute_strict=role_attribute_strict,
             role_resync=role_resync,
             email_attribute_path=email_attribute_path,
+            client_assertion_file=client_assertion_file,
+            client_assertion_file_env_var=assertion_file_env_var,
         )
 
 
@@ -2568,6 +2681,8 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "AUTO_LOGIN",  # Automatically redirect to this provider (default: false)
     "USE_PKCE",  # Enable PKCE for authorization code protection (RFC 7636, default: false)
     "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint (OIDC Core §9)
+    "CLIENT_ASSERTION_FILE",  # Path to the JWT sent as client_assertion (RFC 7523 §2.2)
+    "CLIENT_ASSERTION_FILE_ENV_VAR",  # Name of the variable holding that path
     # Additional OAuth2 scopes beyond "openid email profile" (RFC 6749 §3.3: space-delimited)
     "SCOPES",
     "EMAIL_ATTRIBUTE_PATH",  # JMESPath expression to extract email from ID token
@@ -2605,7 +2720,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider.
           Required by default for confidential clients. Only optional when TOKEN_ENDPOINT_AUTH_METHOD is
-          explicitly set to "none" (for public clients without client authentication).
+          explicitly set to "none" (public clients) or "client_assertion_jwt" (client assertion).
 
         - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS
           except for localhost). This URL typically ends with /.well-known/openid-configuration and is
@@ -2638,6 +2753,24 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
             • none: No client authentication (for public clients).
               CLIENT_SECRET is not required. Use this for public clients that cannot
               securely store a client secret, typically in combination with PKCE.
+            • client_assertion_jwt: Authenticate with a platform-minted JWT sent as a client
+              assertion (RFC 7523 §2.2). CLIENT_SECRET is not required. The assertion is read
+              from CLIENT_ASSERTION_FILE on every token request, so rotation is picked up
+              without a restart. Requires a federated credential on the IDP that trusts the
+              workload's identity.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE: Path to the file holding the JWT used
+          when TOKEN_ENDPOINT_AUTH_METHOD is "client_assertion_jwt". Ignored for other methods.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE_ENV_VAR: Name of an environment variable
+          holding that path, for platforms that mint the assertion and own where they put it.
+          On AKS set this to AZURE_FEDERATED_TOKEN_FILE, which the Azure Workload Identity
+          webhook exports alongside the token it projects; naming the variable rather than the
+          path keeps the deployment working when the webhook moves it.
+
+          Exactly one of the two is required for "client_assertion_jwt". They are named per IDP
+          on purpose: the variable is process-global, so resolving one implicitly would send the
+          same assertion to every configured provider.
 
           Most providers work with the default behavior. Set this explicitly only if your provider requires
           a specific method or if you're configuring a public client.

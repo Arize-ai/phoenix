@@ -447,6 +447,39 @@ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' |
 
 Key root fields: `projects`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
 
+### Span filter expressions
+
+`Project.spans` takes a `filterCondition` — a Python expression over per-span
+values, the same language the UI's spans/traces filter bar compiles. Annotations
+are reached through three subscript accessors, and **the accessor picks the
+grain**:
+
+| Accessor | Matches annotations on | Written by |
+| -------- | ---------------------- | ---------- |
+| `annotations["name"]` | the span itself | `px span annotate`, `px span add-note` |
+| `evals["name"]` | the span itself (accepted alongside `annotations`) | same as above |
+| `trace_annotations["name"]` | the span's parent **trace** | `px trace annotate`, `px trace add-note` |
+
+Each yields `.label`, `.score`, and `.explanation`. `trace_annotations` joins a
+span through its trace row ID, so every span in an annotated trace matches — pair
+it with `rootSpansOnly: true` when you want one row per trace:
+
+```bash
+px api graphql '{
+  projects(first: 1) { edges { node { spans(
+    first: 20
+    rootSpansOnly: true
+    filterCondition: "trace_annotations[\"quality\"].label == \"poor\""
+  ) { edges { node { spanId name } } } } } }
+}' | jq '.data.projects.edges[0].node.spans.edges[].node'
+```
+
+Picking the wrong accessor fails silently rather than erroring: filtering with
+`annotations[...]` for an annotation that was written at the trace grain joins
+against span annotations and matches nothing. `trace_annotations` is
+span-filter-only — a `sessionFilterCondition` that uses it fails to compile with
+`` `trace_annotations` is only available when filtering spans ``.
+
 ### Session filter expressions
 
 `px session list` has no filter flag, so selecting sessions by shape means going

@@ -59,7 +59,10 @@ from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 from phoenix.server.api.helpers.agent_sessions import TURN_LOCK_STALENESS, get_otel_session_id
 from phoenix.server.api.routers.agents import (
+    _APPROVAL_DECISION_ATTRIBUTE,
+    _APPROVAL_SOURCE_ATTRIBUTE,
     AgentSessionConflict,
+    _approval_attributes,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -84,6 +87,50 @@ _BUILD_MODEL_PATCH_TARGET = "phoenix.server.api.routers.agents.build_model"
 
 
 _DEFAULT_USER_MESSAGE_ID = _message_uuid("msg-user-1")
+
+
+class TestApprovalAttributes:
+    def test_extracts_marker_from_mapping_result(self) -> None:
+        for source in ("user", "auto"):
+            assert _approval_attributes(
+                {
+                    "status": "accepted",
+                    "acceptedBy": source,
+                    "approval": {"decision": "accepted", "source": source},
+                }
+            ) == {
+                _APPROVAL_DECISION_ATTRIBUTE: "accepted",
+                _APPROVAL_SOURCE_ATTRIBUTE: source,
+            }
+
+    def test_extracts_marker_from_json_string_result(self) -> None:
+        assert _approval_attributes(
+            json.dumps(
+                {
+                    "status": "rejected",
+                    "approval": {"decision": "rejected", "source": "user"},
+                }
+            )
+        ) == {
+            _APPROVAL_DECISION_ATTRIBUTE: "rejected",
+            _APPROVAL_SOURCE_ATTRIBUTE: "user",
+        }
+
+    def test_ignores_missing_or_malformed_markers(self) -> None:
+        results: list[object] = [
+            {"status": "loaded"},
+            {"approval": {"decision": "maybe", "source": "user"}},
+            {"approval": {"decision": "accepted", "source": "system"}},
+            {"approval": {"decision": [], "source": "user"}},
+            {"approval": {"decision": "accepted", "source": {}}},
+            {"approval": "accepted"},
+            "not json {",
+            42,
+            None,
+            [1, 2],
+        ]
+        for result in results:
+            assert _approval_attributes(result) == {}
 
 
 def _user_message(text: str, *, message_id: str = _DEFAULT_USER_MESSAGE_ID) -> dict[str, Any]:
@@ -954,6 +1001,7 @@ async def test_chat_turn_persists_session_transcript(
         persisted_session_id = get_otel_session_id(
             project_name=agent_session.project_name,
             agent_session_rowid=agent_session.id,
+            agent_session_created_at=agent_session.created_at,
         )
         # No bash command this turn, so no shell-state snapshot row.
         assert await session.scalar(select(models.AgentSessionSnapshot)) is None
@@ -1806,6 +1854,78 @@ def test_synthesizes_root_and_clamped_client_tool_span() -> None:
     assert tool.end_time == received_at
     assert tool.status_code == "OK"
     assert tool.attributes["tool"]["name"] == "open_page"
+
+
+def test_approval_decision_is_promoted_to_span_attributes() -> None:
+    now = datetime(2026, 7, 10, 12, tzinfo=timezone.utc)
+    turn_trace_context = TurnTraceContext(
+        trace_id="5" * 32,
+        root_span_id="6" * 16,
+        started_at=now,
+    )
+    turn_ids = _resolve_turn_trace_ids(turn_trace_context, now=now)
+    tracer = Tracer(span_cost_calculator=MagicMock())
+    messages = [
+        UIMessage.model_validate(
+            {
+                "id": "user-1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "Edit the prompt"}],
+            }
+        ),
+        UIMessage.model_validate(
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "parts": [
+                    {
+                        "type": "tool-edit_prompt_instance",
+                        "toolCallId": "call-1",
+                        "state": "output-available",
+                        "input": {"instanceId": 5},
+                        "output": {
+                            "status": "rejected",
+                            "message": "User rejected the proposed prompt edit.",
+                            "approval": {"decision": "rejected", "source": "user"},
+                        },
+                        "callProviderMetadata": {
+                            "phoenix": {
+                                "toolExecutionEnvironment": "client",
+                                "toolInputEmittedAt": (now + timedelta(seconds=1)).isoformat(),
+                            }
+                        },
+                    },
+                    {
+                        "type": "tool-read_prompt_instance",
+                        "toolCallId": "call-2",
+                        "state": "output-available",
+                        "input": {"instanceId": 5},
+                        "output": {"revision": 3},
+                        "callProviderMetadata": {
+                            "phoenix": {
+                                "toolExecutionEnvironment": "client",
+                                "toolInputEmittedAt": (now + timedelta(seconds=2)).isoformat(),
+                            }
+                        },
+                    },
+                ],
+            }
+        ),
+    ]
+
+    _synthesize_client_tool_spans(
+        tracer=tracer,
+        turn_ids=turn_ids,
+        messages=messages,
+        received_at=now + timedelta(seconds=5),
+        session_id="session-1",
+    )
+
+    db_traces = tracer.get_db_traces(project_id=1)
+    spans_by_name = {span.name: span for span in db_traces[0].spans}
+    gated = spans_by_name["edit_prompt_instance"].attributes
+    assert gated["pxi"]["approval"] == {"decision": "rejected", "source": "user"}
+    assert "pxi" not in spans_by_name["read_prompt_instance"].attributes
 
 
 def test_error_parts_record_exception_events() -> None:
@@ -3756,6 +3876,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
                 == get_otel_session_id(
                     project_name=agent_session.project_name,
                     agent_session_rowid=agent_session.id,
+                    agent_session_created_at=agent_session.created_at,
                 )
             )
         )

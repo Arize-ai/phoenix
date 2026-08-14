@@ -1,3 +1,5 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "./constants";
 import type {
   AnnotateSpanInput,
@@ -61,6 +63,7 @@ export function bindPendingBatchSpanAnnotateActions({
             approvalSource === "auto"
               ? `${count} span ${noun} auto-approved.`
               : `${count} span ${noun} applied.`,
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
@@ -75,6 +78,7 @@ export function bindPendingBatchSpanAnnotateActions({
           count,
           annotations: annotations.map(toAnnotationOutput),
           message: `User rejected the proposed span ${noun}.`,
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },

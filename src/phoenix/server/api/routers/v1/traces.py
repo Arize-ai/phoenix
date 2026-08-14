@@ -11,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select
+from sqlalchemy import delete, insert, or_, select, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -579,6 +579,111 @@ async def _add_spans(
             for otlp_span in scope_span.spans:
                 span = await run_in_threadpool(decode_otlp_span, otlp_span)
                 await state.enqueue_span(span, project_name)
+
+
+class TransferTracesRequestBody(V1RoutesBaseModel):
+    trace_identifiers: list[str] = Field(
+        min_length=1,
+        description="The traces to transfer. Each identifier is either a trace ID (GlobalID) "
+        "or an OpenTelemetry trace_id (hex string). Must be non-empty, and all traces must "
+        "currently belong to the same source project.",
+    )
+    destination_project_identifier: str = Field(
+        description="The destination project: either project ID (GlobalID) or project name."
+    )
+
+
+class TransferTracesData(V1RoutesBaseModel):
+    transferred_trace_count: int = Field(
+        description="The number of traces that were moved to the destination project."
+    )
+    destination_project_id: str = Field(
+        description="The ID (GlobalID) of the project the traces were moved to."
+    )
+
+
+class TransferTracesResponseBody(ResponseBody[TransferTracesData]):
+    pass
+
+
+@router.post(
+    "/traces/transfer",
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
+    operation_id="transferTraces",
+    summary="Transfer traces to a project",
+    description=(
+        "Move traces into a different project. This re-parents the traces rather than copying "
+        "them, so they no longer appear under their original project. All traces must currently "
+        "belong to the same source project."
+    ),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Destination project or trace not found"},
+            {"status_code": 422, "description": "Invalid request"},
+        ]
+    ),
+)
+async def transfer_traces(
+    request: Request,
+    request_body: TransferTracesRequestBody,
+) -> TransferTracesResponseBody:
+    # Each identifier may be a Trace GlobalID or an OpenTelemetry trace_id (hex string),
+    # mirroring DELETE /traces/{trace_identifier}.
+    trace_rowids: set[int] = set()
+    otel_trace_ids: set[str] = set()
+    for identifier in request_body.trace_identifiers:
+        try:
+            trace_rowids.add(
+                from_global_id_with_expected_type(
+                    GlobalID.from_id(identifier), TraceNodeType.__name__
+                )
+            )
+        except ValueError:
+            otel_trace_ids.add(identifier)
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(
+            session, request_body.destination_project_identifier
+        )
+        traces = (
+            await session.execute(
+                select(models.Trace.id, models.Trace.trace_id, models.Trace.project_rowid).where(
+                    or_(
+                        models.Trace.id.in_(trace_rowids),
+                        models.Trace.trace_id.in_(otel_trace_ids),
+                    )
+                )
+            )
+        ).all()
+        found_rowids = {trace.id for trace in traces}
+        found_otel_trace_ids = {trace.trace_id for trace in traces}
+        if not (trace_rowids <= found_rowids and otel_trace_ids <= found_otel_trace_ids):
+            raise HTTPException(detail="One or more traces not found", status_code=404)
+        source_project_rowids = {trace.project_rowid for trace in traces}
+        # Mirrors the transferTracesToProject mutation: a transfer moves traces out of exactly
+        # one source project, so a mixed-source request is ambiguous and is rejected.
+        if len(source_project_rowids) > 1:
+            raise HTTPException(
+                detail="Cannot transfer traces from multiple projects",
+                status_code=422,
+            )
+        result = await session.execute(
+            update(models.Trace)
+            .where(models.Trace.id.in_(found_rowids))
+            .values(project_rowid=project.id)
+        )
+    # Invalidate per-project cached aggregates (record counts, token counts/costs, latency
+    # quantiles, time ranges) for both the source and destination projects.
+    request.state.event_queue.put(SpanDeleteEvent(tuple({*source_project_rowids, project.id})))
+    return TransferTracesResponseBody(
+        data=TransferTracesData(
+            transferred_trace_count=result.rowcount,
+            destination_project_id=str(GlobalID(ProjectNodeType.__name__, str(project.id))),
+        )
+    )
 
 
 @router.delete(

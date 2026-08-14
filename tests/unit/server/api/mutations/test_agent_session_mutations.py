@@ -521,16 +521,18 @@ async def test_branch_agent_session_copies_the_truncated_transcript(
             row.message_id for row in source_messages
         )
         # The branch gets its own OTel session identity (derived from its own
-        # row id) and uses the currently configured trace project.
+        # row id and creation time) and uses the currently configured trace project.
         source_session, branch_session = sorted(
             agent_sessions, key=lambda agent_session: agent_session.id
         )
         assert get_otel_session_id(
             project_name=branch_session.project_name,
             agent_session_rowid=branch_session.id,
+            agent_session_created_at=branch_session.created_at,
         ) != get_otel_session_id(
             project_name=source_session.project_name,
             agent_session_rowid=source_session.id,
+            agent_session_created_at=source_session.created_at,
         )
         assert branch_session.project_name == configured_project_name
         assert branch_session.project_name != source_session.project_name

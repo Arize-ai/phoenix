@@ -1,5 +1,11 @@
 # Span Filter DSL
 
+> This spec (with its conformance tests) is the authority on what the language accepts. The
+> **user-facing** grammar reference is the public
+> [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions)
+> doc — a curated derivative of this spec, not a second authority. Keep them in sync when the
+> accepted grammar changes.
+
 Reference for the filter-condition language implemented in
 `src/phoenix/trace/dsl/filter.py`.
 

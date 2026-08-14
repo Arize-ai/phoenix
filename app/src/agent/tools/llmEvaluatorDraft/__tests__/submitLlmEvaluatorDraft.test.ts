@@ -155,6 +155,7 @@ describe("submit_llm_evaluator_draft agent tool", () => {
       persisted: true,
       acceptedBy: "auto",
       evaluator: { id: "ev-llm-1", name: "answer_relevance" },
+      approval: { decision: "accepted", source: "auto" },
     });
   });
 
