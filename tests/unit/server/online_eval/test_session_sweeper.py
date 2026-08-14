@@ -10,7 +10,7 @@ from sqlalchemy import Table, func, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
-from phoenix.db.eval_work import live_eval_work_index_predicate
+from phoenix.db.eval_work import live_eval_session_work_index_predicate
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import session_sweeper
@@ -23,6 +23,7 @@ from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
     STALE_FINGERPRINT_ERROR,
     ResolvedCriteria,
+    sample_key,
 )
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
@@ -70,7 +71,7 @@ def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
     migration = import_module(
         "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
     )
-    predicate = live_eval_work_index_predicate()
+    predicate = live_eval_session_work_index_predicate()
     live_key_table = cast(Table, models.EvalSessionWorkUnit.__table__)
     live_key_index = next(
         index
@@ -79,10 +80,14 @@ def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
     )
 
     assert f"attempts < {MAX_ATTEMPTS}" in predicate
+    assert "FILTERED_OUT" in predicate
+    assert "SAMPLED_OUT" in predicate
     assert str(live_key_index.dialect_options["postgresql"]["where"]) == predicate
     assert str(live_key_index.dialect_options["sqlite"]["where"]) == predicate
     assert str(session_sweeper._LIVE_WORK_INDEX_PREDICATE) == predicate
-    assert migration.live_eval_work_index_predicate is live_eval_work_index_predicate
+    assert (
+        migration.live_eval_session_work_index_predicate is live_eval_session_work_index_predicate
+    )
 
 
 @pytest.mark.parametrize(
@@ -149,6 +154,7 @@ async def _add_session_liveness(
     age_seconds: float,
     project_id: int | None = None,
     content_complete: bool = True,
+    session_id: str | None = None,
 ) -> tuple[int, int, datetime]:
     last_span_ingested_at = _now() - timedelta(seconds=age_seconds)
     async with db() as session:
@@ -158,7 +164,7 @@ async def _add_session_liveness(
             existing_project = await session.get(models.Project, project_id)
             assert existing_project is not None
             project = existing_project
-        project_session = await _add_project_session(session, project)
+        project_session = await _add_project_session(session, project, session_id=session_id)
         trace = await _add_trace(session, project, project_session)
         await _add_span(session, trace)
         await session.execute(
@@ -898,23 +904,168 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
         )
 
 
-async def test_trace_filtered_and_sampled_criteria_remain_unscheduled(
+async def test_session_filter_decisions_are_persisted_before_sampling(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_id, matching_session_id, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        session_id="matching-session",
+    )
+    _, declined_session_id, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        project_id=project_id,
+        session_id="declined-session",
+    )
+    async with db() as session:
+        project = await session.get(models.Project, project_id)
+        project_session = await session.get(models.ProjectSession, matching_session_id)
+        assert project is not None
+        assert project_session is not None
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+    await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        filter_condition="num_traces >= 2",
+        sampling_rate=0.5,
+    )
+    sampled_identities: list[str] = []
+
+    def record_sample(identity: int | str) -> float:
+        sampled_identities.append(str(identity))
+        return 0.0
+
+    monkeypatch.setattr(session_sweeper, "sample_key", record_sample)
+    sweeper = SessionEvalSweeper(db)
+    sweeper._publish_metrics = True
+    async with db() as session:
+        criteria = await sweeper._load_criteria(session)
+        database_now = await sweeper._database_now(session)
+        materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+            session,
+            database_now,
+            criteria,
+            limit=2,
+        )
+
+    async with db() as session:
+        statuses = {
+            row.project_session_rowid: row.status
+            for row in (
+                await session.execute(
+                    select(
+                        models.EvalSessionWorkUnit.project_session_rowid,
+                        models.EvalSessionWorkUnit.status,
+                    )
+                )
+            ).all()
+        }
+    assert materialized_count == 1
+    assert eligible_pair_count == 1
+    assert statuses == {
+        matching_session_id: "PENDING",
+        declined_session_id: "FILTERED_OUT",
+    }
+    assert sampled_identities == ["matching-session"]
+
+
+async def test_session_sampling_decisions_are_deterministic_and_idempotent(
+    db: DbSessionFactory,
+) -> None:
+    sampled_in = next(identity for identity in map(str, range(100)) if sample_key(identity) < 0.5)
+    sampled_out = next(identity for identity in map(str, range(100)) if sample_key(identity) >= 0.5)
+    project_id, sampled_in_rowid, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        session_id=sampled_in,
+    )
+    _, sampled_out_rowid, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        project_id=project_id,
+        session_id=sampled_out,
+    )
+    await _seed_criteria(db, project_id, evaluation_target="SESSION", sampling_rate=0.5)
+
+    await SessionEvalSweeper(db)._tick()
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == sampled_out_rowid)
+            .values(last_span_ingested_at=_now() - timedelta(seconds=400))
+        )
+    await SessionEvalSweeper(db)._tick()
+
+    async with db() as session:
+        rows = (
+            await session.execute(
+                select(
+                    models.EvalSessionWorkUnit.project_session_rowid,
+                    models.EvalSessionWorkUnit.status,
+                )
+            )
+        ).all()
+    assert {row.project_session_rowid: row.status for row in rows} == {
+        sampled_in_rowid: "PENDING",
+        sampled_out_rowid: "SAMPLED_OUT",
+    }
+    assert len(rows) == 2
+
+
+async def test_declined_oldest_page_does_not_starve_later_match(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(session_sweeper, "_MAX_ELIGIBLE_PAIRS_PER_TICK", 1)
+    project_id, declined_session_id, _ = await _add_session_liveness(
+        db,
+        age_seconds=700,
+        session_id="declined-session",
+    )
+    _, matching_session_id, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        project_id=project_id,
+        session_id="matching-session",
+    )
+    await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        filter_condition="session_id == 'matching-session'",
+    )
+
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    await sweeper._tick()
+
+    async with db() as session:
+        statuses = {
+            row.project_session_rowid: row.status
+            for row in (
+                await session.execute(
+                    select(
+                        models.EvalSessionWorkUnit.project_session_rowid,
+                        models.EvalSessionWorkUnit.status,
+                    )
+                )
+            ).all()
+        }
+    assert statuses == {
+        declined_session_id: "FILTERED_OUT",
+        matching_session_id: "PENDING",
+    }
+
+
+async def test_trace_criteria_remain_unscheduled(
     db: DbSessionFactory,
 ) -> None:
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="TRACE")
-    await _seed_criteria(
-        db,
-        project_id,
-        evaluation_target="SESSION",
-        filter_condition="span_kind == 'LLM'",
-    )
-    await _seed_criteria(
-        db,
-        project_id,
-        evaluation_target="SESSION",
-        sampling_rate=0.5,
-    )
 
     await SessionEvalSweeper(db)._tick()
     async with db() as session:

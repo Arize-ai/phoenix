@@ -34,7 +34,10 @@ import type { CreateProjectCodeEvaluatorDialogContentMutation } from "@phoenix/p
 import type { CreateProjectCodeEvaluatorDialogContentQuery } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentQuery.graphql";
 import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
-import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  toEvaluationDelayInput,
+  type ProjectEvaluatorScope,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
@@ -188,6 +191,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           // A null per-project mapping inherits the evaluator's own mapping.
           inputMapping: null,
           filterCondition: scope.filterCondition,
+          ...toEvaluationDelayInput(scope),
           enabled: true,
         },
       },

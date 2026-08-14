@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<965113e717b30e0088b141e1e6e4064f>>
+ * @generated SignedSource<<d0985a906ef92bb8aa795a775e3c6a21>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,7 @@ export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorsTable_row$data = {
@@ -43,6 +44,7 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly id: string;
   readonly name: string;
   readonly samplingRate: number;
+  readonly schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus;
   readonly updatedAt: string;
   readonly " $fragmentType": "ProjectEvaluatorsTable_row";
 };
@@ -56,6 +58,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "b3af2600cc18279e0fae388fb2e9b0cf";
+(node as any).hash = "346865c8849e012c4362648a61cfd77d";
 
 export default node;
