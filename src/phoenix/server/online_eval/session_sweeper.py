@@ -99,18 +99,24 @@ def _criteria_relation(
     criteria: Sequence[_SessionCriteria],
     dialect: SupportedSQLDialect,
 ) -> Subquery:
-    """Return a portable inline relation for resolved session criteria."""
+    """Return a portable inline relation for resolved session criteria.
+
+    Bind names are keyed off ``criteria_id`` rather than row position: several of these
+    relations are unioned into one statement, and ``text()`` binds are not unique, so
+    position-keyed names from different relations would silently overwrite each other.
+    """
     rows = []
     parameters: dict[str, Any] = {}
     for index, criterion in enumerate(criteria):
+        prefix = f"sc{criterion.criteria_id}"
         row_parameters = {
-            f"sc{index}_criteria_id": criterion.criteria_id,
-            f"sc{index}_project_id": criterion.project_id,
-            f"sc{index}_evaluator_id": criterion.evaluator_id,
-            f"sc{index}_config_fingerprint": criterion.fingerprint,
-            f"sc{index}_delay_seconds": criterion.delay_seconds,
-            f"sc{index}_created_at": criterion.created_at,
-            f"sc{index}_sampling_rate": criterion.sampling_rate,
+            f"{prefix}_criteria_id": criterion.criteria_id,
+            f"{prefix}_project_id": criterion.project_id,
+            f"{prefix}_evaluator_id": criterion.evaluator_id,
+            f"{prefix}_config_fingerprint": criterion.fingerprint,
+            f"{prefix}_delay_seconds": criterion.delay_seconds,
+            f"{prefix}_created_at": criterion.created_at,
+            f"{prefix}_sampling_rate": criterion.sampling_rate,
         }
         parameters.update(row_parameters)
         placeholders = [f":{name}" for name in row_parameters]
