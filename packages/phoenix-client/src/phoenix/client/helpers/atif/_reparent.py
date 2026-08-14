@@ -13,21 +13,6 @@ from typing import List, Sequence
 from phoenix.client.__generated__ import v1
 
 
-def _reparent_span(
-    span: v1.Span,
-    *,
-    parent_id: str,
-    trace_id: str,
-) -> v1.Span:
-    """Return a copy of ``span`` moved under ``parent_id`` in ``trace_id``."""
-    reparented: v1.Span = {
-        **span,
-        "context": {**span["context"], "trace_id": trace_id},
-        "parent_id": parent_id,
-    }
-    return reparented
-
-
 def _reparent_spans_under_common_parent(
     spans: Sequence[v1.Span],
     *,
@@ -74,5 +59,11 @@ def _reparent_spans_under_common_parent(
         # Fall back to the common parent when the referenced parent is absent,
         # so an unresolvable link cannot orphan a subtree.
         new_parent_id = existing_parent_id if existing_parent_id in span_ids else parent_id
-        reparented.append(_reparent_span(span, parent_id=new_parent_id, trace_id=trace_id))
+        reparented.append(
+            {
+                **span,
+                "context": {**span["context"], "trace_id": trace_id},
+                "parent_id": new_parent_id,
+            }
+        )
     return reparented

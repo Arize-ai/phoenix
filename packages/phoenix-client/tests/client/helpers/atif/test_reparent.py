@@ -12,10 +12,7 @@ from typing import Any, Dict, List, Optional, cast
 import pytest
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.helpers.atif._reparent import (
-    _reparent_span,
-    _reparent_spans_under_common_parent,
-)
+from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
 
 PARENT_TRACE_ID = "0123456789abcdef0123456789abcdef"
 PARENT_SPAN_ID = "0123456789abcdef"
@@ -48,38 +45,6 @@ def a_tree() -> List[v1.Span]:
         span("child", "bbbbbbbbbbbbbbbb", parent_id="aaaaaaaaaaaaaaaa"),
         span("grandchild", "cccccccccccccccc", parent_id="bbbbbbbbbbbbbbbb"),
     ]
-
-
-class TestReparentSpan:
-    def test_sets_parent_and_trace(self) -> None:
-        result = _reparent_span(
-            span("root", "aaaaaaaaaaaaaaaa"),
-            parent_id=PARENT_SPAN_ID,
-            trace_id=PARENT_TRACE_ID,
-        )
-        assert result["parent_id"] == PARENT_SPAN_ID
-        assert result["context"]["trace_id"] == PARENT_TRACE_ID
-
-    def test_does_not_mutate_input(self) -> None:
-        original = span("root", "aaaaaaaaaaaaaaaa")
-        snapshot = {**original, "context": {**original["context"]}}
-        _reparent_span(
-            original,
-            parent_id=PARENT_SPAN_ID,
-            trace_id=PARENT_TRACE_ID,
-        )
-        assert original == snapshot
-
-    def test_preserves_other_fields(self) -> None:
-        original = span("root", "aaaaaaaaaaaaaaaa")
-        original["attributes"] = {"llm.model_name": "gpt-4"}
-        result = _reparent_span(
-            original,
-            parent_id=PARENT_SPAN_ID,
-            trace_id=PARENT_TRACE_ID,
-        )
-        assert result["name"] == "root"
-        assert result["attributes"] == {"llm.model_name": "gpt-4"}
 
 
 class TestReparentSpansUnderCommonParent:
