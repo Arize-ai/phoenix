@@ -11,6 +11,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -1201,7 +1202,9 @@ class ProjectEvaluator(Node):
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.ProjectEvaluatorCriteria]] = None
 
-    @strawberry.field
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="The project whose spans this evaluator evaluates."
+    )
     async def project(
         self, info: Info[Context, None]
     ) -> Annotated["Project", strawberry.lazy(".Project")]:
@@ -1209,6 +1212,27 @@ class ProjectEvaluator(Node):
         from .Project import Project
 
         return Project(id=record.project_id)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "The project holding the traces this evaluator produces when it runs, or null "
+            "until the first evaluator trace creates it. Every evaluator traces into this "
+            "one project, so its spans must be scoped by this evaluator's id to show only "
+            "its own traces."
+        )
+    )
+    async def trace_project(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["Project", strawberry.lazy(".Project")]]:
+        async with info.context.db.read() as session:
+            project_id = await session.scalar(
+                sa.select(models.Project.id).where(models.Project.name == EVALUATORS_PROJECT_NAME)
+            )
+        if project_id is None:
+            return None
+        from .Project import Project
+
+        return Project(id=project_id)
 
     @strawberry.field
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:

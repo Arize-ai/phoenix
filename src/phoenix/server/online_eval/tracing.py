@@ -37,6 +37,9 @@ EVALUATOR_TRACE_MARKER_ATTRIBUTE = "phoenix.evaluator_trace"
 PROJECT_EVALUATOR_ID_ATTRIBUTE = "phoenix.project_evaluator_id"
 """The evaluator whose execution produced the span, as its node id."""
 
+PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH = PROJECT_EVALUATOR_ID_ATTRIBUTE.split(".")
+"""The same attribute as a key path, which is how attributes are stored on a span."""
+
 PROJECT_EVALUATOR_NAME_ATTRIBUTE = "phoenix.project_evaluator_name"
 """The evaluator's name, as the user gave it."""
 

@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.annotation_configs import (
@@ -1819,3 +1820,143 @@ async def test_project_evaluator_run_summary(
     assert run_summary["queuedCount"] == 1
     assert run_summary["lastError"] == "rate limited"
     assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
+
+
+async def test_project_evaluator_trace_project_is_null_before_any_evaluator_runs(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"criteria-{token_hex(4)}"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        session.add(criteria)
+        await session.flush()
+        criteria_id = criteria.id
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    traceProject { id }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("ProjectEvaluator", str(criteria_id)))},
+    )
+
+    assert not response.errors and response.data
+    assert response.data["node"]["traceProject"] is None
+
+
+async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluators_project = models.Project(name=EVALUATORS_PROJECT_NAME)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluators_project, evaluator])
+        await session.flush()
+        criteria = [
+            models.ProjectEvaluatorCriteria(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(f"criteria-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            for _ in range(2)
+        ]
+        trace = models.Trace(
+            trace_id=token_hex(8),
+            project_rowid=evaluators_project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add_all([*criteria, trace])
+        await session.flush()
+        criteria_ids = [c.id for c in criteria]
+        # One root span per evaluator, each stamped the way the evaluator tracer
+        # stamps it, plus a child so the root scoping is exercised too.
+        session.add_all(
+            [
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None if is_root else token_hex(8),
+                    name=f"Evaluator: {criteria_id}",
+                    span_kind="EVALUATOR",
+                    start_time=now,
+                    end_time=now,
+                    attributes={
+                        "phoenix": {
+                            "evaluator_trace": True,
+                            "project_evaluator_id": str(
+                                GlobalID("ProjectEvaluator", str(criteria_id))
+                            ),
+                        }
+                    },
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                for criteria_id in criteria_ids
+                for is_root in (True, False)
+            ]
+        )
+        await session.flush()
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    traceProject {
+                        name
+                        spans(
+                            first: 10
+                            projectEvaluatorId: $id
+                            filterCondition: "parent_id is None"
+                        ) {
+                            edges { node { name } }
+                        }
+                    }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("ProjectEvaluator", str(criteria_ids[0])))},
+    )
+
+    assert not response.errors and response.data
+    trace_project = response.data["node"]["traceProject"]
+    assert trace_project["name"] == EVALUATORS_PROJECT_NAME
+    assert [edge["node"]["name"] for edge in trace_project["spans"]["edges"]] == [
+        f"Evaluator: {criteria_ids[0]}"
+    ]
