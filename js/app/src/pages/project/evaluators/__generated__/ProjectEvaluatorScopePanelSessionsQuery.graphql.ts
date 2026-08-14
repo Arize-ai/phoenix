@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a895b65b8ecfbcec1caf4919298e0497>>
+ * @generated SignedSource<<f0d8a9b00c875796c563e88e9bb84691>>
  * @lightSyntaxTransform
  */
 
@@ -23,13 +23,10 @@ export type ProjectEvaluatorScopePanelSessionsQuery$data = {
     readonly sessions?: {
       readonly edges: ReadonlyArray<{
         readonly session: {
-          readonly firstInput: {
-            readonly truncatedValue: string;
-          } | null;
           readonly id: string;
           readonly numTraces: number;
+          readonly sessionEvaluationContext: any | null;
           readonly sessionId: string;
-          readonly startTime: string;
           readonly tokenUsage: {
             readonly total: number;
           };
@@ -144,13 +141,6 @@ v6 = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "startTime",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
                   "name": "numTraces",
                   "storageKey": null
                 },
@@ -175,19 +165,8 @@ v6 = {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "SpanIOValue",
-                  "kind": "LinkedField",
-                  "name": "firstInput",
-                  "plural": false,
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "truncatedValue",
-                      "storageKey": null
-                    }
-                  ],
+                  "kind": "ScalarField",
+                  "name": "sessionEvaluationContext",
                   "storageKey": null
                 }
               ],
@@ -283,16 +262,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c3285ef32e61e6794ca284cbe249f502",
+    "cacheID": "876e6b96743fcc3ec98e7dd1783fdc1a",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorScopePanelSessionsQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorScopePanelSessionsQuery(\n  $projectId: ID!\n  $sessionFilterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessions(first: $first, sort: {col: startTime, dir: desc}, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n        edges {\n          session: node {\n            id\n            sessionId\n            startTime\n            numTraces\n            tokenUsage {\n              total\n            }\n            firstInput {\n              truncatedValue\n            }\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelSessionsQuery(\n  $projectId: ID!\n  $sessionFilterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessions(first: $first, sort: {col: startTime, dir: desc}, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n        edges {\n          session: node {\n            id\n            sessionId\n            numTraces\n            tokenUsage {\n              total\n            }\n            sessionEvaluationContext\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ee5c5a49ca766853e567c468c4328bd3";
+(node as any).hash = "f5834cfe7302b23d3823bcce1b2c51d0";
 
 export default node;
