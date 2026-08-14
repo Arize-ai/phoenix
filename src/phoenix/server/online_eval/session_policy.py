@@ -24,6 +24,14 @@ if TYPE_CHECKING:
 DEFAULT_SESSION_EVALUATION_DELAY_SECONDS = 300
 MINIMUM_EVALUATION_DELAY_SECONDS = 10
 
+# What to do about an over-limit sandbox payload. Shared with the preview
+# mutation so a preview run under the online limits reports the rejection in the
+# same words the scheduled evaluation would.
+ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION = (
+    "Reduce the dominant evaluator source or mapped inputs, or raise the limit with "
+    "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
+)
+
 TRANSCRIPT_POLICY_VERSION = "2"
 MAX_SESSION_EVAL_TURNS = 1_000
 
@@ -33,8 +41,6 @@ class SchedulabilityReason(Enum):
 
     DISABLED = "DISABLED"
     TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
-    SESSION_FILTER_UNSUPPORTED = "SESSION_FILTER_UNSUPPORTED"
-    SESSION_SAMPLING_UNSUPPORTED = "SESSION_SAMPLING_UNSUPPORTED"
 
 
 @dataclass(frozen=True)
@@ -58,16 +64,6 @@ SESSION_SCHEDULABILITY_CONDITIONS: tuple[SessionSchedulabilityCondition, ...] = 
         blocks=lambda record: not record.enabled,
         blocks_sql=lambda criteria: not_(criteria.enabled),
     ),
-    SessionSchedulabilityCondition(
-        reason=SchedulabilityReason.SESSION_FILTER_UNSUPPORTED,
-        blocks=lambda record: bool(record.filter_condition),
-        blocks_sql=lambda criteria: criteria.filter_condition != "",
-    ),
-    SessionSchedulabilityCondition(
-        reason=SchedulabilityReason.SESSION_SAMPLING_UNSUPPORTED,
-        blocks=lambda record: record.sampling_rate != 1.0,
-        blocks_sql=lambda criteria: criteria.sampling_rate != 1.0,
-    ),
 )
 
 
@@ -84,7 +80,6 @@ def session_schedulability_reason(
 def session_criteria_is_schedulable(
     criteria: type["models.ProjectEvaluatorCriteria"],
 ) -> ColumnElement[bool]:
-    # Session filters shipped in #14101 (#14041); #14038 owns sampling integration.
     return and_(
         criteria.evaluation_target == "SESSION",
         *(not_(condition.blocks_sql(criteria)) for condition in SESSION_SCHEDULABILITY_CONDITIONS),

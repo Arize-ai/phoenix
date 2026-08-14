@@ -27,6 +27,7 @@ from sqlalchemy import (
     select,
     text,
     type_coerce,
+    union_all,
     update,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -40,7 +41,10 @@ from typing_extensions import assert_never
 
 from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
 from phoenix.db import models
-from phoenix.db.eval_work import live_eval_work_index_predicate
+from phoenix.db.eval_work import (
+    SESSION_DECLINED_STATUSES,
+    live_eval_session_work_index_predicate,
+)
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
@@ -49,6 +53,7 @@ from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
     STALE_FINGERPRINT_ERROR,
     config_fingerprint,
+    sample_key,
 )
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
 from phoenix.server.prometheus import (
@@ -60,6 +65,7 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_SWEEP_FAILURES,
     ONLINE_EVAL_SESSION_SWEEP_SUCCESSES,
 )
+from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -74,15 +80,7 @@ _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 # no retention, so an unbounded aggregate would scan more rows on every tick forever.
 _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
-_LIVE_WORK_INDEX_PREDICATE = text(live_eval_work_index_predicate())
-
-_SESSION_WORK_INSERT_COLUMNS = (
-    "project_session_rowid",
-    "evaluator_id",
-    "criteria_id",
-    "config_fingerprint",
-    "evaluated_through",
-)
+_LIVE_WORK_INDEX_PREDICATE = text(live_eval_session_work_index_predicate())
 
 
 @dataclass(frozen=True)
@@ -93,6 +91,8 @@ class _SessionCriteria:
     fingerprint: str
     delay_seconds: int
     created_at: datetime
+    filter_condition: str
+    sampling_rate: float
 
 
 def _criteria_relation(
@@ -110,6 +110,7 @@ def _criteria_relation(
             f"sc{index}_config_fingerprint": criterion.fingerprint,
             f"sc{index}_delay_seconds": criterion.delay_seconds,
             f"sc{index}_created_at": criterion.created_at,
+            f"sc{index}_sampling_rate": criterion.sampling_rate,
         }
         parameters.update(row_parameters)
         placeholders = [f":{name}" for name in row_parameters]
@@ -124,6 +125,7 @@ def _criteria_relation(
                 f"CAST({placeholders[3]} AS VARCHAR)",
                 f"CAST({placeholders[4]} AS INTEGER)",
                 f"CAST({placeholders[5]} AS {created_at_type})",
+                f"CAST({placeholders[6]} AS FLOAT)",
             ]
         rows.append(f"({', '.join(placeholders)})")
     statement = text(
@@ -133,7 +135,8 @@ def _criteria_relation(
         "sc.column3 AS evaluator_id, "
         "sc.column4 AS config_fingerprint, "
         "sc.column5 AS delay_seconds, "
-        "sc.column6 AS created_at "
+        "sc.column6 AS created_at, "
+        "sc.column7 AS sampling_rate "
         f"FROM (VALUES {', '.join(rows)}) AS sc"
     )
     return (
@@ -145,6 +148,7 @@ def _criteria_relation(
             column("config_fingerprint", String),
             column("delay_seconds", Integer),
             column("created_at", models.UtcTimeStamp()),
+            column("sampling_rate", Float),
         )
         .subquery("sweep_criteria")
     )
@@ -162,6 +166,7 @@ def _live_work_exists(criteria_relation: Subquery) -> ColumnElement[bool]:
             live_work.config_fingerprint == criteria_relation.c.config_fingerprint,
             or_(
                 live_work.status.in_(("PENDING", "RUNNING")),
+                live_work.status.in_(SESSION_DECLINED_STATUSES),
                 and_(
                     live_work.status == "ERROR",
                     live_work.attempts < MAX_ATTEMPTS,
@@ -177,6 +182,8 @@ def _eligible_pairs_statement(
     criteria_relation: Subquery,
     database_now: datetime,
     dialect: SupportedSQLDialect,
+    *,
+    filter_matches: ColumnElement[bool],
 ) -> Select[Any]:
     successful_work = aliased(models.EvalSessionWorkUnit)
     terminal_work = aliased(models.EvalSessionWorkUnit)
@@ -188,6 +195,7 @@ def _eligible_pairs_statement(
             terminal_work.config_fingerprint == criteria_relation.c.config_fingerprint,
             or_(
                 terminal_work.status == "DONE",
+                terminal_work.status.in_(SESSION_DECLINED_STATUSES),
                 and_(
                     terminal_work.status == "EXPIRED",
                     or_(
@@ -231,11 +239,14 @@ def _eligible_pairs_statement(
     return (
         select(
             models.ProjectSession.id.label("project_session_rowid"),
+            models.ProjectSession.session_id,
             criteria_relation.c.criteria_id,
             criteria_relation.c.evaluator_id,
             criteria_relation.c.config_fingerprint,
+            criteria_relation.c.sampling_rate,
             models.ProjectSession.last_span_ingested_at.label("evaluated_through"),
             due_at.label("effective_due_time"),
+            filter_matches.label("filter_matches"),
         )
         .select_from(models.ProjectSession)
         .join(
@@ -257,48 +268,73 @@ def _eligible_pairs_statement(
     )
 
 
-def _session_work_insert_statement(
-    eligible_pairs: Subquery,
+def _eligible_pairs_relation(
+    criteria: Sequence[_SessionCriteria],
+    database_now: datetime,
     dialect: SupportedSQLDialect,
-    *,
-    project_session_rowids: Optional[Sequence[int]] = None,
+) -> Subquery:
+    statements: list[Select[Any]] = []
+    unfiltered = [criterion for criterion in criteria if not criterion.filter_condition]
+    if unfiltered:
+        statements.append(
+            _eligible_pairs_statement(
+                _criteria_relation(unfiltered, dialect),
+                database_now,
+                dialect,
+                filter_matches=literal(True),
+            )
+        )
+    for criterion in criteria:
+        if not criterion.filter_condition:
+            continue
+        filter_matches = models.ProjectSession.id.in_(
+            get_filtered_session_rowids_subquery(
+                criterion.filter_condition,
+                [criterion.project_id],
+            )
+        )
+        statements.append(
+            _eligible_pairs_statement(
+                _criteria_relation([criterion], dialect),
+                database_now,
+                dialect,
+                filter_matches=filter_matches,
+            )
+        )
+    if len(statements) == 1:
+        return statements[0].subquery("eligible_pairs")
+    return union_all(*statements).subquery("eligible_pairs")
+
+
+def _session_work_insert_statement(
+    decisions: Sequence[dict[str, Any]],
+    dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Insert work from a globally ordered page whose PostgreSQL sessions are locked."""
+    """Insert scheduling decisions whose PostgreSQL criteria and sessions are locked."""
     index_elements = (
         models.EvalSessionWorkUnit.project_session_rowid,
         models.EvalSessionWorkUnit.evaluator_id,
         models.EvalSessionWorkUnit.config_fingerprint,
     )
-    candidates = select(
-        eligible_pairs.c.project_session_rowid,
-        eligible_pairs.c.evaluator_id,
-        eligible_pairs.c.criteria_id,
-        eligible_pairs.c.config_fingerprint,
-        eligible_pairs.c.evaluated_through,
-    ).where(literal(True))
-    if project_session_rowids is not None:
-        candidates = candidates.where(
-            eligible_pairs.c.project_session_rowid.in_(project_session_rowids)
-        )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         return (
             insert_postgresql(models.EvalSessionWorkUnit)
-            .from_select(list(_SESSION_WORK_INSERT_COLUMNS), candidates)
+            .values(decisions)
             .on_conflict_do_nothing(
                 index_elements=index_elements,
                 index_where=_LIVE_WORK_INDEX_PREDICATE,
             )
-            .returning(models.EvalSessionWorkUnit.criteria_id)
+            .returning(models.EvalSessionWorkUnit.status)
         )
     if dialect is SupportedSQLDialect.SQLITE:
         return (
             insert_sqlite(models.EvalSessionWorkUnit)
-            .from_select(list(_SESSION_WORK_INSERT_COLUMNS), candidates)
+            .values(decisions)
             .on_conflict_do_nothing(
                 index_elements=index_elements,
                 index_where=_LIVE_WORK_INDEX_PREDICATE,
             )
-            .returning(models.EvalSessionWorkUnit.criteria_id)
+            .returning(models.EvalSessionWorkUnit.status)
         )
     assert_never(dialect)
 
@@ -496,6 +532,8 @@ class SessionEvalSweeper(DaemonTask):
                     fingerprint=config_fingerprint(resolved),
                     delay_seconds=criteria.evaluation_delay_seconds,
                     created_at=criteria.created_at,
+                    filter_condition=criteria.filter_condition,
+                    sampling_rate=criteria.sampling_rate,
                 )
             )
         return criteria_rows
@@ -528,16 +566,19 @@ class SessionEvalSweeper(DaemonTask):
     ) -> tuple[int, Optional[int]]:
         if not criteria:
             return 0, 0 if self._publish_metrics else None
-        criteria_relation = _criteria_relation(criteria, self._db.dialect)
-        relation = _eligible_pairs_statement(
-            criteria_relation,
+        relation = _eligible_pairs_relation(
+            criteria,
             database_now,
             self._db.dialect,
-        ).subquery("eligible_pairs")
+        )
         eligible_pair_count = None
         if self._publish_metrics:
             eligible_pair_count = (
-                await session.scalar(select(func.count()).select_from(relation))
+                await session.scalar(
+                    select(func.count())
+                    .select_from(relation)
+                    .where(relation.c.filter_matches.is_(True))
+                )
             ) or 0
         eligible_page = (
             select(relation)
@@ -549,6 +590,7 @@ class SessionEvalSweeper(DaemonTask):
             .limit(limit)
             .subquery("eligible_pair_page")
         )
+        locked_criteria_ids: Optional[Sequence[int]] = None
         locked_project_session_rowids: Optional[Sequence[int]] = None
         if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
             page_criteria_ids = tuple(
@@ -596,18 +638,45 @@ class SessionEvalSweeper(DaemonTask):
             )
             if not locked_project_session_rowids:
                 return 0, eligible_pair_count
-        inserted_count = len(
-            (
-                await session.scalars(
-                    _session_work_insert_statement(
-                        eligible_page,
-                        self._db.dialect,
-                        project_session_rowids=locked_project_session_rowids,
-                    )
+        selected_page = select(eligible_page)
+        if locked_criteria_ids is not None:
+            selected_page = selected_page.where(
+                eligible_page.c.criteria_id.in_(locked_criteria_ids)
+            )
+        if locked_project_session_rowids is not None:
+            selected_page = selected_page.where(
+                eligible_page.c.project_session_rowid.in_(locked_project_session_rowids)
+            )
+        rows = (await session.execute(selected_page)).all()
+        decisions: list[dict[str, Any]] = []
+        for row in rows:
+            if not row.filter_matches:
+                status: models.EvalSessionWorkStatus = "FILTERED_OUT"
+            elif sample_key(row.session_id) >= row.sampling_rate:
+                status = "SAMPLED_OUT"
+            else:
+                status = "PENDING"
+            decisions.append(
+                {
+                    "project_session_rowid": row.project_session_rowid,
+                    "evaluator_id": row.evaluator_id,
+                    "criteria_id": row.criteria_id,
+                    "config_fingerprint": row.config_fingerprint,
+                    "evaluated_through": row.evaluated_through,
+                    "status": status,
+                }
+            )
+        if not decisions:
+            return 0, eligible_pair_count
+        inserted_statuses = (
+            await session.scalars(
+                _session_work_insert_statement(
+                    decisions,
+                    self._db.dialect,
                 )
-            ).all()
-        )
-        return inserted_count, eligible_pair_count
+            )
+        ).all()
+        return inserted_statuses.count("PENDING"), eligible_pair_count
 
     async def _publish_eligibility_metrics(self, eligible_pair_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
