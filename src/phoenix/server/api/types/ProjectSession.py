@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.sql.expression import tuple_
 from strawberry import UNSET, Info, lazy
 from strawberry.relay import Connection, Node, NodeID
+from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -144,6 +145,44 @@ class ProjectSession(Node):
             attr=models.Span.output_value,
             truncated_value=truncate_value(record.truncated_value),
         )
+
+    @strawberry.field(
+        description=(
+            "The canonical input, output, and metadata context that online "
+            "evaluators bind against when they run on this session. Null when "
+            "the session's transcript exceeds the evaluation byte cap, which is "
+            "the same reason a live evaluation of it would fail."
+        ),
+    )  # type: ignore
+    async def session_evaluation_context(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[JSON]:
+        from phoenix.server.online_eval.executor import (
+            TranscriptTooLargeError,
+            load_session_eval_context,
+        )
+        from phoenix.server.online_eval.session_policy import SessionTranscriptPolicy
+
+        if self.db_record:
+            project_rowid = self.db_record.project_id
+        else:
+            project_rowid = await info.context.data_loaders.project_session_fields.load(
+                (self.id, models.ProjectSession.project_id),
+            )
+        async with info.context.db.read() as session:
+            try:
+                context = await load_session_eval_context(
+                    session,
+                    project_session_rowid=self.id,
+                    project_id=project_rowid,
+                    policy=SessionTranscriptPolicy.from_env(),
+                )
+            except TranscriptTooLargeError:
+                # One unevaluable session must not fail the whole list it is
+                # read in; the null row says why on its own.
+                return None
+        return JSON(context)
 
     @strawberry.field(
         description='The first non-null "user.id" span attribute in the session, '

@@ -263,6 +263,88 @@ def session_eval_context(
     }
 
 
+async def load_session_eval_context(
+    session: AsyncSession,
+    *,
+    project_session_rowid: int,
+    project_id: int,
+    policy: SessionTranscriptPolicy,
+) -> dict[str, Any]:
+    """The session's evaluation context, exactly as an online evaluation reads it.
+
+    The executor and the GraphQL preview field both call this, so what an author
+    previews is the same transcript, turn ordering, turn cap, and truncation the
+    runtime binds against. Raises ``TranscriptTooLargeError`` when no whole turn
+    fits the byte cap.
+    """
+    root_filters = (
+        models.Trace.project_session_rowid == project_session_rowid,
+        models.Trace.project_rowid == project_id,
+        models.Span.parent_id.is_(None),
+    )
+    total_eligible_root_count = (
+        await session.scalar(
+            select(func.count(func.distinct(models.Trace.id)))
+            .select_from(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(*root_filters)
+        )
+        or 0
+    )
+    ranked_roots = (
+        select(
+            models.Span.input_value,
+            models.Span.output_value,
+            models.Span.metadata_,
+            models.Span.start_time.label("event_time"),
+            models.Span.span_id,
+            models.Trace.start_time.label("trace_start_time"),
+            models.Trace.id.label("trace_id"),
+            func.row_number()
+            .over(
+                partition_by=models.Trace.id,
+                order_by=(models.Span.start_time.asc(), models.Span.span_id.asc()),
+            )
+            .label("root_rank"),
+        )
+        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+        .where(*root_filters)
+        .subquery()
+    )
+    root_rows = (
+        await session.execute(
+            select(
+                ranked_roots.c.input_value,
+                ranked_roots.c.output_value,
+                ranked_roots.c.metadata_,
+                ranked_roots.c.event_time,
+                ranked_roots.c.span_id,
+            )
+            .where(ranked_roots.c.root_rank == 1)
+            .order_by(
+                ranked_roots.c.trace_start_time.desc(),
+                ranked_roots.c.trace_id.desc(),
+            )
+            .limit(policy.max_turns)
+        )
+    ).all()
+    turns = [
+        {
+            "input": row.input_value,
+            "output": row.output_value,
+            "metadata": row.metadata_,
+            "event_time": row.event_time.isoformat(),
+            "span_id": row.span_id,
+        }
+        for row in reversed(root_rows)
+    ]
+    return session_eval_context(
+        turns=turns,
+        policy=policy,
+        total_eligible_root_count=total_eligible_root_count,
+    )
+
+
 def _transcript_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
     """Newest root-span time actually included in the evaluated transcript.
 
@@ -580,80 +662,21 @@ class OnlineEvalExecutor:
             return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
         if not project_session.content_complete:
             return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
-        root_filters = (
-            models.Trace.project_session_rowid == project_session.id,
-            models.Trace.project_rowid == project_id,
-            models.Span.parent_id.is_(None),
-        )
-        total_eligible_root_count = (
-            await session.scalar(
-                select(func.count(func.distinct(models.Trace.id)))
-                .select_from(models.Span)
-                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                .where(*root_filters)
-            )
-            or 0
-        )
-        if total_eligible_root_count == 0:
-            return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
-        ranked_roots = (
-            select(
-                models.Span.input_value,
-                models.Span.output_value,
-                models.Span.metadata_,
-                models.Span.start_time.label("event_time"),
-                models.Span.span_id,
-                models.Trace.start_time.label("trace_start_time"),
-                models.Trace.id.label("trace_id"),
-                func.row_number()
-                .over(
-                    partition_by=models.Trace.id,
-                    order_by=(models.Span.start_time.asc(), models.Span.span_id.asc()),
-                )
-                .label("root_rank"),
-            )
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(*root_filters)
-            .subquery()
-        )
-        root_rows = (
-            await session.execute(
-                select(
-                    ranked_roots.c.input_value,
-                    ranked_roots.c.output_value,
-                    ranked_roots.c.metadata_,
-                    ranked_roots.c.event_time,
-                    ranked_roots.c.span_id,
-                )
-                .where(ranked_roots.c.root_rank == 1)
-                .order_by(
-                    ranked_roots.c.trace_start_time.desc(),
-                    ranked_roots.c.trace_id.desc(),
-                )
-                .limit(self._session_transcript_policy.max_turns)
-            )
-        ).all()
-        turns = [
-            {
-                "input": row.input_value,
-                "output": row.output_value,
-                "metadata": row.metadata_,
-                "event_time": row.event_time.isoformat(),
-                "span_id": row.span_id,
-            }
-            for row in reversed(root_rows)
-        ]
         try:
-            return session_eval_context(
-                turns=turns,
+            context = await load_session_eval_context(
+                session,
+                project_session_rowid=project_session.id,
+                project_id=project_id,
                 policy=self._session_transcript_policy,
-                total_eligible_root_count=total_eligible_root_count,
             )
         except TranscriptTooLargeError as error:
             return HydrationFailure(
                 HydrationFailureReason.TRANSCRIPT_TOO_LARGE,
                 str(error),
             )
+        if not context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]["total_eligible_root_count"]:
+            return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+        return context
 
     def hydrate_from_snapshot(
         self,

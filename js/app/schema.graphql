@@ -3378,6 +3378,11 @@ type ProjectSession implements Node {
   lastOutput: SpanIOValue
 
   """
+  The canonical input, output, and metadata context that online evaluators bind against when they run on this session. Null when the session's transcript exceeds the evaluation byte cap, which is the same reason a live evaluation of it would fail.
+  """
+  sessionEvaluationContext: JSON
+
+  """
   The first non-null "user.id" span attribute in the session, identifying the end user of the traced application.
   """
   userId: String

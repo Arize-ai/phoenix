@@ -5,10 +5,15 @@ import httpx
 import pytest
 from strawberry.relay import GlobalID
 
+from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES
 from phoenix.db import models
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.online_eval.session_policy import (
+    MAX_SESSION_EVAL_TURNS,
+    TRANSCRIPT_POLICY_VERSION,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -285,6 +290,50 @@ class TestProjectSession:
         project_sessions = _data.project_sessions
         field = "traceLatencyMsQuantile(probability: 0.5)"
         assert await self._node(field, project_sessions[0], httpx_client) == 10000.0
+
+    async def test_session_evaluation_context(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project_session = _data.project_sessions[0]
+        context = await self._node("sessionEvaluationContext", project_session, httpx_client)
+        assert context["input"] == (
+            f"User: {_LONG_FIRST_INPUT}\nAssistant: 321\n\n"
+            f"User: 1234\nAssistant: {_LONG_LAST_OUTPUT}"
+        )
+        assert context["output"] == _LONG_LAST_OUTPUT
+        assert [(turn["input"], turn["output"]) for turn in context["metadata"]["turns"]] == [
+            (_LONG_FIRST_INPUT, "321"),
+            ("1234", _LONG_LAST_OUTPUT),
+        ]
+        policy = context["metadata"]["phoenix.online_eval.transcript_policy"]
+        assert policy["version"] == TRANSCRIPT_POLICY_VERSION
+        assert policy["max_turns"] == MAX_SESSION_EVAL_TURNS
+        assert policy["total_eligible_root_count"] == 2
+        assert policy["retained_turn_count"] == 2
+        assert policy["turn_cap_omitted_count"] == 0
+        assert policy["byte_cap_omitted_count"] == 0
+
+    async def test_session_evaluation_context_is_null_when_transcript_exceeds_byte_cap(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES, "256")
+        async with db() as session:
+            project = await _add_project(session)
+            oversized_session = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, oversized_session)
+            await _add_span(
+                session,
+                trace,
+                attributes={"input": {"value": "hi"}, "output": {"value": "o" * 300}},
+            )
+        # A live evaluation of this session fails for the same reason, so the
+        # preview reports it rather than failing the query it is read in.
+        assert await self._node("sessionEvaluationContext", oversized_session, httpx_client) is None
 
     async def test_project(
         self,
