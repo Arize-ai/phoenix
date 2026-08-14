@@ -30,6 +30,7 @@ import {
 } from "../core/dialog";
 import { Icon, Icons } from "../core/icon";
 import { Modal, ModalOverlay } from "../core/overlay";
+import { normalizeMarkdownHref } from "./markdownHref";
 
 // ---------------------------------------------------------------------------
 // Typography
@@ -100,46 +101,36 @@ const strongCSS = css`
   font-weight: var(--global-font-weight-semibold);
 `;
 
-function shouldPreserveExternalLinkAttributes({
-  href,
-}: {
-  href: string | undefined;
-}) {
-  if (!href) {
-    return false;
-  }
-
-  try {
-    const url = new URL(href, window.location.href);
-
-    // Streamdown adds target/rel for links. Preserve those for external links
-    // so they keep opening in a new tab, but strip them from internal links so
-    // React Router can handle same-tab SPA navigation.
-    return url.origin !== window.location.origin;
-  } catch {
-    return false;
-  }
-}
-
 export function MarkdownLink({
   children,
   className,
   href,
-  rel,
-  target,
+  rel: _rel,
+  target: _target,
   node: _node,
   ...rest
 }: ComponentPropsWithoutRef<"a"> & ExtraProps) {
-  const externalLinkAttributes = shouldPreserveExternalLinkAttributes({ href })
-    ? { rel, target }
-    : {};
+  const normalizedHref = normalizeMarkdownHref({ href });
+  if (normalizedHref.kind === "external") {
+    return (
+      <a
+        css={linkCSS}
+        className={className}
+        href={normalizedHref.href}
+        rel="noopener noreferrer"
+        target="_blank"
+        {...rest}
+      >
+        {children}
+      </a>
+    );
+  }
 
   return (
     <RouterLink
       css={linkCSS}
       className={className}
-      to={href ?? ""}
-      {...externalLinkAttributes}
+      to={normalizedHref.to}
       {...rest}
     >
       {children}
