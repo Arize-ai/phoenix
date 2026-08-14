@@ -1,3 +1,5 @@
+import { formatDistanceToNow } from "date-fns";
+
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
@@ -58,6 +60,113 @@ const samplingRateFormatter = new Intl.NumberFormat(undefined, {
 /** Formats a sampling fraction (0-1) as a percentage for display. */
 export function formatSamplingRate(samplingRate: number): string {
   return samplingRateFormatter.format(samplingRate);
+}
+
+/** Every reason the server can report, including ones this build predates. */
+export function getSchedulabilityExplanation(
+  reason: string | null | undefined
+): string {
+  switch (reason) {
+    case "DISABLED":
+      return "This evaluator is disabled. Enable it to resume scheduling.";
+    case "TRACE_TARGET_UNSUPPORTED":
+      return "Trace evaluators are saved but are not scheduled yet.";
+    case "SESSION_FILTER_UNSUPPORTED":
+      return "Session evaluators with a filter are saved but never scheduled. Clear the filter to schedule this evaluator.";
+    case "SESSION_SAMPLING_UNSUPPORTED":
+      return "Session evaluators with a sampling rate below 100% are saved but never scheduled. Set sampling to 100% to schedule this evaluator.";
+    default:
+      return "This evaluator does not meet the current scheduling requirements.";
+  }
+}
+
+export type ProjectEvaluatorRunSummary = {
+  status: string;
+  lastRunAt: string | null;
+  queuedCount: number;
+  evaluatedCount: number;
+  failedCount: number;
+};
+
+export type ProjectEvaluatorStatus = {
+  label: string;
+  color: string;
+  /** Why the evaluator is in this state, shown on hover and on the details page. */
+  explanation: string;
+};
+
+/**
+ * The one status a row reports. A configuration that keeps the evaluator from
+ * ever being scheduled outranks whatever its past runs say, because clearing it
+ * is the only thing that will change the rest.
+ */
+export function getProjectEvaluatorStatus({
+  schedulabilityStatus,
+  schedulabilityReason,
+  runSummary,
+}: {
+  schedulabilityStatus: string;
+  schedulabilityReason: string | null | undefined;
+  runSummary: ProjectEvaluatorRunSummary;
+}): ProjectEvaluatorStatus {
+  if (schedulabilityStatus === "NOT_SCHEDULABLE") {
+    return {
+      label: "Not scheduled",
+      color: "var(--global-color-warning)",
+      explanation: getSchedulabilityExplanation(schedulabilityReason),
+    };
+  }
+  switch (runSummary.status) {
+    case "FAILING":
+      return {
+        label: "Failing",
+        color: "var(--global-color-danger)",
+        explanation: "The most recent evaluation failed.",
+      };
+    case "HEALTHY":
+      return {
+        label: "Healthy",
+        color: "var(--global-color-success)",
+        explanation: "Evaluations are running and producing annotations.",
+      };
+    case "QUEUED":
+      return {
+        label: "Queued",
+        color: "var(--global-color-info)",
+        explanation: "Evaluations are waiting to run.",
+      };
+    default:
+      return {
+        label: "Never ran",
+        color: "var(--global-color-gray-300)",
+        explanation:
+          "No evaluations have been scheduled for this evaluator yet.",
+      };
+  }
+}
+
+export function formatLastRun(lastRunAt: string | null): string {
+  return lastRunAt == null
+    ? "Never"
+    : formatDistanceToNow(new Date(lastRunAt), { addSuffix: true });
+}
+
+const countFormatter = new Intl.NumberFormat();
+
+/** "118 evaluated · 2 failed · 3 queued", dropping the parts that are zero. */
+export function formatProjectEvaluatorRunCounts(
+  runSummary: ProjectEvaluatorRunSummary
+): string {
+  const parts = (
+    [
+      [runSummary.evaluatedCount, "evaluated"],
+      [runSummary.failedCount, "failed"],
+      [runSummary.queuedCount, "queued"],
+    ] as const
+  )
+    .filter(([count]) => count > 0)
+    .map(([count, label]) => `${countFormatter.format(count)} ${label}`);
+  return parts.join(" · ");
 }
 
 export type ProjectEvaluatorMappingDiagnostic = {

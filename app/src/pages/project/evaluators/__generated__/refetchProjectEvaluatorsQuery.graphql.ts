@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2bc8813c52016fb4b575b3ca6d237f05>>
+ * @generated SignedSource<<8b26f3253f95af1e82b2ee905fb45e1d>>
  * @lightSyntaxTransform
  */
 
@@ -112,10 +112,70 @@ v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "schedulabilityStatus",
   "storageKey": null
 },
 v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "schedulabilityReason",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "ProjectEvaluatorRunSummary",
+  "kind": "LinkedField",
+  "name": "runSummary",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "status",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "lastRunAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "queuedCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evaluatedCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "failedCount",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v15 = {
   "alias": null,
   "args": null,
   "concreteType": "Prompt",
@@ -128,49 +188,49 @@ v12 = {
   ],
   "storageKey": null
 },
-v13 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v14 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelProvider",
   "storageKey": null
 },
-v15 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v16 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "backendType",
   "storageKey": null
 },
-v17 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v18 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cursor",
   "storageKey": null
 },
-v19 = {
+v22 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -195,7 +255,7 @@ v19 = {
   ],
   "storageKey": null
 },
-v20 = [
+v23 = [
   {
     "kind": "Variable",
     "name": "first",
@@ -259,6 +319,9 @@ return {
                               (v8/*:: as any*/),
                               (v9/*:: as any*/),
                               (v10/*:: as any*/),
+                              (v11/*:: as any*/),
+                              (v12/*:: as any*/),
+                              (v13/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -267,11 +330,11 @@ return {
                                 "name": "evaluator",
                                 "plural": false,
                                 "selections": [
-                                  (v11/*:: as any*/),
+                                  (v14/*:: as any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v12/*:: as any*/),
+                                      (v15/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -292,8 +355,8 @@ return {
                                         "name": "promptVersion",
                                         "plural": false,
                                         "selections": [
-                                          (v13/*:: as any*/),
-                                          (v14/*:: as any*/)
+                                          (v16/*:: as any*/),
+                                          (v17/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       }
@@ -304,7 +367,7 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v15/*:: as any*/),
+                                      (v18/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -323,7 +386,7 @@ return {
                                             "name": "provider",
                                             "plural": false,
                                             "selections": [
-                                              (v16/*:: as any*/)
+                                              (v19/*:: as any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -341,15 +404,15 @@ return {
                             "args": null,
                             "argumentDefinitions": []
                           },
-                          (v17/*:: as any*/)
+                          (v20/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v18/*:: as any*/)
+                      (v21/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v19/*:: as any*/)
+                  (v22/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -381,14 +444,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v17/*:: as any*/),
+          (v20/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*:: as any*/),
               {
                 "alias": null,
-                "args": (v20/*:: as any*/),
+                "args": (v23/*:: as any*/),
                 "concreteType": "ProjectEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "evaluators",
@@ -417,6 +480,9 @@ return {
                           (v8/*:: as any*/),
                           (v9/*:: as any*/),
                           (v10/*:: as any*/),
+                          (v11/*:: as any*/),
+                          (v12/*:: as any*/),
+                          (v13/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -425,12 +491,12 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
-                              (v17/*:: as any*/),
-                              (v11/*:: as any*/),
+                              (v20/*:: as any*/),
+                              (v14/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v12/*:: as any*/),
+                                  (v15/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -452,8 +518,8 @@ return {
                                     "name": "promptVersion",
                                     "plural": false,
                                     "selections": [
-                                      (v13/*:: as any*/),
-                                      (v14/*:: as any*/),
+                                      (v16/*:: as any*/),
+                                      (v17/*:: as any*/),
                                       (v4/*:: as any*/)
                                     ],
                                     "storageKey": null
@@ -465,7 +531,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v15/*:: as any*/),
+                                  (v18/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -484,7 +550,7 @@ return {
                                         "name": "provider",
                                         "plural": false,
                                         "selections": [
-                                          (v16/*:: as any*/),
+                                          (v19/*:: as any*/),
                                           (v4/*:: as any*/)
                                         ],
                                         "storageKey": null
@@ -500,21 +566,21 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v17/*:: as any*/)
+                          (v20/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v18/*:: as any*/)
+                      (v21/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v19/*:: as any*/)
+                  (v22/*:: as any*/)
                 ],
                 "storageKey": null
               },
               {
                 "alias": null,
-                "args": (v20/*:: as any*/),
+                "args": (v23/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ProjectEvaluatorsTable_evaluators",
@@ -532,7 +598,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dfcfa74eff5fd31277862cb0484845b5",
+    "cacheID": "8ddb6860c00ed5fc915df591a740fefe",
     "id": null,
     "metadata": {
       "connection": [
@@ -549,7 +615,7 @@ return {
     },
     "name": "refetchProjectEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  schedulabilityStatus\n  schedulabilityReason\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();

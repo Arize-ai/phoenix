@@ -44,6 +44,7 @@ import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/Pr
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
+import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 import {
   formatEvaluationTarget,
   formatSamplingRate,
@@ -69,6 +70,15 @@ const readRow = (row: ProjectEvaluatorsTable_row$key) => {
         samplingRate
         enabled
         updatedAt
+        schedulabilityStatus
+        schedulabilityReason
+        runSummary {
+          status
+          lastRunAt
+          queuedCount
+          evaluatedCount
+          failedCount
+        }
         evaluator {
           kind
           ... on LLMEvaluator {
@@ -180,6 +190,18 @@ export function ProjectEvaluatorsTable({
           <Link to={paths.details(row.original.id)}>
             <Truncate maxWidth="100%">{getValue() as string}</Truncate>
           </Link>
+        ),
+      },
+      {
+        id: "status",
+        header: "status",
+        size: 130,
+        cell: ({ row }) => (
+          <ProjectEvaluatorStatusCell
+            schedulabilityStatus={row.original.schedulabilityStatus}
+            schedulabilityReason={row.original.schedulabilityReason}
+            runSummary={row.original.runSummary}
+          />
         ),
       },
       {
