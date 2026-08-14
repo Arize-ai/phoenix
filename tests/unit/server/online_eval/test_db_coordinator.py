@@ -540,6 +540,28 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
     assert 100.0 <= lag.oldest_actionable_age_seconds < 300.0
 
 
+async def test_session_claim_excludes_declined_decisions(db: DbSessionFactory) -> None:
+    _, unit_ids = await _seed_session_work_units(db, 3)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_ids[0])
+            .values(status="FILTERED_OUT")
+        )
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_ids[1])
+            .values(status="SAMPLED_OUT")
+        )
+
+    claimed = await DbEvalWorkCoordinator(db, evaluation_target="SESSION").claim(
+        claimed_by="session-consumer",
+        limit=3,
+    )
+
+    assert [unit.work_unit_id for unit in claimed] == [unit_ids[2]]
+
+
 @pytest.mark.parametrize("terminal_kind", ["exhausted_error", "expired"])
 async def test_session_no_result_terminal_history_allows_replacement(
     db: DbSessionFactory,
