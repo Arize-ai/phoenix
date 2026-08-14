@@ -121,12 +121,9 @@ const viewportDialogCases: Record<string, ViewportDialogCase> = {
   },
 };
 
+// Runs only in the `app-frame` project (see playwright.config.ts), which
+// provides the assistant-enabled Phoenix server these tests require.
 test.describe("overlay audit", () => {
-  test.skip(
-    process.env.APP_FRAME_E2E !== "true",
-    "runs in the dedicated assistant-enabled app-frame project"
-  );
-
   test.describe("viewport dialogs (Tier 1)", () => {
     for (const [title, dialogCase] of Object.entries(viewportDialogCases)) {
       test(`${title} honors the viewport dialog contract`, async ({ page }) => {
@@ -455,7 +452,12 @@ test.describe("overlay audit", () => {
       const rootMenu = page.getByRole("menu", { name: "Dataset actions" });
       await expect(rootMenu).toBeVisible();
 
-      const labelItem = page.getByRole("menuitem", { name: "Label" });
+      // Scope to the root menu with an exact name: once the submenu opens,
+      // its "No labels" empty state also substring-matches "Label".
+      const labelItem = rootMenu.getByRole("menuitem", {
+        name: "Label",
+        exact: true,
+      });
       await labelItem.hover();
 
       // The submenu popover appears without closing the root menu.

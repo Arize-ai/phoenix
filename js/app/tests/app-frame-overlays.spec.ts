@@ -16,12 +16,9 @@ async function openAssistant(page: Page) {
   return rail;
 }
 
+// Runs only in the `app-frame` project (see playwright.config.ts), which
+// provides the assistant-enabled Phoenix server these tests require.
 test.describe("application frame overlays", () => {
-  test.skip(
-    process.env.APP_FRAME_E2E !== "true",
-    "runs in the dedicated assistant-enabled app-frame project"
-  );
-
   test("Tier 1 keeps the rail collaborative and restores focus", async ({
     page,
   }) => {

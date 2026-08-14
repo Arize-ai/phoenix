@@ -24,7 +24,10 @@ process.env["PHOENIX_DISABLE_RATE_LIMIT"] = "True";
 // the suite real coverage of the metrics code path — e.g. the FastAPI 0.137
 // `_IncludedRouter` route-resolution regression that PrometheusMiddleware hit
 // only surfaces when the middleware actually runs against included routers.
-process.env["PHOENIX_ENABLE_PROMETHEUS"] = "True";
+// Respect a pre-set value: the app-frame webServer entry in
+// playwright.config.ts runs a second server with Prometheus off, since the
+// exporter binds a fixed :9090 that only one process can own.
+process.env["PHOENIX_ENABLE_PROMETHEUS"] ??= "True";
 
 // Fake credentials for hosted sandbox providers so they advertise
 // `status=AVAILABLE` (instead of `MISSING_CREDENTIALS`) and surface in the
