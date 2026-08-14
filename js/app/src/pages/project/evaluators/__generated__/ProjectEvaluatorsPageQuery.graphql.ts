@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e12a19b80833e77062a0bf9af6fa0112>>
+ * @generated SignedSource<<10137666c146b5b676a2ffba87f6cef5>>
  * @lightSyntaxTransform
  */
 
@@ -163,6 +163,13 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "samplingRate",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "schedulabilityStatus",
                             "storageKey": null
                           },
                           {
@@ -367,12 +374,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5b5b40ba96125b7dc6ca3f622523945c",
+    "cacheID": "537d95b7766f38e79540bddd86f29132",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsPageQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectEvaluatorsTable_project\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project on Project {\n  evaluators(first: 30) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorsPageQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectEvaluatorsTable_project\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project on Project {\n  evaluators(first: 30) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  schedulabilityStatus\n  enabled\n  updatedAt\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
