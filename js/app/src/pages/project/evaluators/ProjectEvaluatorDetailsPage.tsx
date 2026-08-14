@@ -126,7 +126,9 @@ function ProjectEvaluatorDetailsPageLoaded({
       />
       <Tabs defaultSelectedKey={traceId ? "traces" : "configuration"}>
         <TabList>
-          <Tab id="configuration">Configuration</Tab>
+          {/* The key stays `configuration` -- it is the tab's identity, not its
+              label, and a Traces deep link selects by it. */}
+          <Tab id="configuration">Overview</Tab>
           <Tab id="traces">Traces</Tab>
         </TabList>
         <LazyTabPanel id="configuration">
