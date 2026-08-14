@@ -652,10 +652,10 @@ const EvaluatorMetadataForm = ({
 }) => {
   return (
     <div css={metadataFormCSS}>
-      <div style={{ flex: "0 0 260px" }}>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
         <EvaluatorNameInput isRequired />
       </div>
-      <div style={{ flex: "0 0 260px" }}>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
         <CodeEvaluatorLanguageField
           language={language}
           onChange={onLanguageChange}
@@ -663,7 +663,7 @@ const EvaluatorMetadataForm = ({
           isRequired
         />
       </div>
-      <div style={{ flex: "0 0 260px" }}>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
         <CodeEvaluatorSandboxField
           sandboxConfigs={sandboxConfigs}
           language={language}
@@ -672,7 +672,7 @@ const EvaluatorMetadataForm = ({
           isRequired={isSandboxRequired}
         />
       </div>
-      <div style={{ flex: "1 1 240px", minWidth: 180 }}>
+      <div style={{ flex: "2 1 240px", minWidth: 240 }}>
         <EvaluatorDescriptionInput placeholder="e.g. code evaluator description" />
       </div>
     </div>
@@ -1257,6 +1257,10 @@ const fieldsetCSS = css`
 const metadataFormCSS = css`
   display: flex;
   flex-direction: row;
+  // The form lives in a splitter-resizable panel, so wrapping keys off the
+  // fields' flex bases rather than a viewport breakpoint: fields share one
+  // row while they fit and wrap onto additional rows as the panel narrows.
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--global-dimension-size-150);
   flex-shrink: 0;
