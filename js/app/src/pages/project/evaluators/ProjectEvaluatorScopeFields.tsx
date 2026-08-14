@@ -69,6 +69,14 @@ export const ProjectEvaluatorScopeFieldGroup = ({
           onChange={handleTargetChange}
           isDisabled={isTargetDisabled}
         />
+        <ProjectEvaluatorSamplingField
+          // A filled slider takes the whole row, which would wrap the delay
+          // field onto a line of its own.
+          fill={fillSampling && !isSessionTarget}
+          value={scope.samplingRate}
+          onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
+        />
+        {children}
         {isSessionTarget ? (
           <ProjectEvaluatorEvaluationDelayField
             value={scope.evaluationDelaySeconds}
@@ -77,12 +85,6 @@ export const ProjectEvaluatorScopeFieldGroup = ({
             }
           />
         ) : null}
-        <ProjectEvaluatorSamplingField
-          fill={fillSampling}
-          value={scope.samplingRate}
-          onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
-        />
-        {children}
       </Flex>
       {/* Remounted per target so the draft condition does not survive a switch
           into a language that cannot parse it. */}
@@ -120,9 +122,10 @@ const ProjectEvaluatorEvaluationDelayField = ({
       <Text size="XS" weight="heavy" color="text-700">
         Evaluation delay
       </Text>
+      {/* Stays at the default M size so it lines up with the segmented
+          control, slider, and select sharing this row. */}
       <NumberField
         aria-label="Evaluation delay in seconds"
-        size="S"
         step={1}
         minValue={MIN_EVALUATION_DELAY_SECONDS}
         value={value}
