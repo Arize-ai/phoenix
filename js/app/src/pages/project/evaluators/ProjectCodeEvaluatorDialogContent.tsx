@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
-import { ProjectEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import {
   ProjectEvaluatorScopePanel,
   type ProjectEvaluatorInlineCode,
@@ -64,8 +64,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
         </EvaluatorInputVariablesProvider>
       )}
       left={
-        <ProjectEvaluatorFormSections
-          definitionKind="code"
+        <ProjectCodeEvaluatorFormSections
           codeEvaluatorName={evaluatorName}
           codeDefinition={codeDefinition}
         />
