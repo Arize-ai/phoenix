@@ -48,7 +48,7 @@ class FilterVocabularyTerm:
     category: str = strawberry.field(
         description="Presentation/discovery grouping: 'session' (intrinsic column), "
         "'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), "
-        "'annotation' (session annotation access), 'iterable' (a collection a "
+        "'annotation' (entity annotation access), 'iterable' (a collection a "
         "comprehension can loop over), or 'element' (a field of one such collection's "
         "elements)."
     )
@@ -134,24 +134,22 @@ def session_filter_vocabulary_terms(
     for annotation_name in sorted(set(annotation_names)):
         annotation_subscript = _subscript_literal(annotation_name)
         add(
-            name=f"annotations[{annotation_subscript}].score",
+            name=f"session_annotations[{annotation_subscript}].score",
             value_type=_NUMBER,
             description=(
                 f"Numeric score of the {annotation_subscript} session annotation; null when the "
                 "session lacks this annotation, so comparisons exclude those sessions "
-                "(target them with `is None`). Here `annotations[...]` reads session "
-                "annotations; the same spelling in the span filter reads span annotations."
+                "(target them with `is None`)."
             ),
             category=_ANNOTATION,
         )
         add(
-            name=f"annotations[{annotation_subscript}].label",
+            name=f"session_annotations[{annotation_subscript}].label",
             value_type=_STRING,
             description=(
                 f"Label of the {annotation_subscript} session annotation; null when the session "
                 "lacks this annotation, so `!=` excludes those sessions "
-                "(target them with `is None`). Here `annotations[...]` reads session "
-                "annotations; the same spelling in the span filter reads span annotations."
+                "(target them with `is None`)."
             ),
             category=_ANNOTATION,
         )
@@ -251,7 +249,7 @@ def trace_filter_vocabulary_terms(
     for annotation_name in sorted(set(annotation_names)):
         annotation_subscript = _subscript_literal(annotation_name)
         add(
-            name=f"annotations[{annotation_subscript}].score",
+            name=f"trace_annotations[{annotation_subscript}].score",
             value_type=_NUMBER,
             description=(
                 f"Numeric score of the {annotation_subscript} trace annotation; null when "
@@ -261,7 +259,7 @@ def trace_filter_vocabulary_terms(
             category=_ANNOTATION,
         )
         add(
-            name=f"annotations[{annotation_subscript}].label",
+            name=f"trace_annotations[{annotation_subscript}].label",
             value_type=_STRING,
             description=(
                 f"Label of the {annotation_subscript} trace annotation; null when the trace "

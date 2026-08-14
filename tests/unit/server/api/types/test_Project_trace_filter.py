@@ -285,7 +285,7 @@ async def test_validate_trace_filter_condition(
     assert invalid["isValid"] is False
     assert invalid["errorMessage"]
 
-    unknown = await validate("annotations['qualty'].score > 0.5")
+    unknown = await validate("trace_annotations['qualty'].score > 0.5")
     assert unknown["isValid"] is True
     assert unknown["errorMessage"] is None
     assert any("unknown annotation name 'qualty'" in warning for warning in unknown["warnings"])
@@ -414,17 +414,17 @@ async def test_trace_filter_vocabulary_is_compiler_derived_and_project_scoped(
     )
     assert parent_span_term["type"] == "boolean"
     assert "no parent row is stored" in parent_span_term["description"]
-    assert terms_by_name['annotations["quality"].score']["type"] == "number"
-    assert terms_by_name['annotations["quality"].label']["type"] == "string"
+    assert terms_by_name['trace_annotations["quality"].score']["type"] == "number"
+    assert terms_by_name['trace_annotations["quality"].label']["type"] == "string"
     excluded = {
         'attributes["before"]',
         'attributes["child_only"]',
         'attributes["at_end"]',
         'attributes["other_project"]',
-        'annotations["before_annotation"].score',
-        'annotations["at_end_annotation"].score',
-        'annotations["other_annotation"].score',
-        'annotations["span_only"].score',
+        'trace_annotations["before_annotation"].score',
+        'trace_annotations["at_end_annotation"].score',
+        'trace_annotations["other_annotation"].score',
+        'trace_annotations["span_only"].score',
     }
     assert excluded.isdisjoint(terms_by_name)
 

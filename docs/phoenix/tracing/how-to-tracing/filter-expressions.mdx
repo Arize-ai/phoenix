@@ -112,8 +112,8 @@ and `last_output` are the session's opening input and final output as strings �
 outputs, and support only `in` / `not in`:
 
 ```python
-annotations['Quality'].score <= 0.5
-annotations['Quality'].score is None
+session_annotations['Quality'].score <= 0.5
+session_annotations['Quality'].score is None
 attributes['llm.model_name'] == 'gpt-4o'
 user.id == 'u1'
 'refund' in any_input
@@ -160,17 +160,18 @@ discover what's available:
 
 ## Syntax rules
 
-These rules apply to both span and session filters.
+These rules apply across the filter grains unless a note says otherwise.
 
 - **Operators.** Compare with `==` `!=` `<` `<=` `>` `>=` (chained comparisons like
   `0.5 < latency_ms < 1000` are supported); combine conditions with `and` / `or` / `not`; test membership
   with `in` / `not in`; check for missing values with `is None` / `is not None`; and do arithmetic
   on numeric fields with `+` `-` `*` `/` `%` (e.g. `num_traces_with_error / num_traces`,
   `total_cost - prompt_cost`). The whole expression must be a condition, not a bare value.
-- **Annotations.** `annotations["name"]` reads the annotations of whatever you're filtering — span
-  annotations in a span filter, session annotations in a session filter — exposing `.score`,
-  `.label`, and `.explanation`. A bare `annotations["name"]` is an existence check (true when that annotation
-  exists at all). `evals["name"]` is a legacy alias for `annotations["name"]`.
+- **Annotations.** Use the entity-prefixed accessor for the grain: `trace_annotations["name"]`
+  in a trace filter and `session_annotations["name"]` in a session filter. Span filters retain
+  `annotations["name"]` and its legacy alias `evals["name"]`; they also accept
+  `trace_annotations["name"]` for annotations on the containing trace. Each accessor exposes
+  `.score`, `.label`, and `.explanation`, and a bare subscript is an existence check.
 - **`in` / `not in` ignore case.** Containment against text is case-insensitive:
   `'refund' in first_input` matches `REFUND please`. Equality (`==` / `!=`) and membership in a
   literal list (`span_kind in ['LLM']`) are exact.

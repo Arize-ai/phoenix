@@ -309,7 +309,7 @@ def _annotation_key(node: ast.expr) -> Optional[str]:
     if (
         isinstance(node, ast.Subscript)
         and isinstance(node.value, ast.Name)
-        and node.value.id in ("annotations", "evals")
+        and node.value.id == "trace_annotations"
         and isinstance(node.slice, ast.Constant)
         and isinstance(node.slice.value, str)
     ):
@@ -819,11 +819,11 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'any(a.label == "correct" for a in span_annotations)',
     'any(d.token_type == "output" and d.cost > 0 for d in span_cost_details)',
     "sum(d.tokens for d in span_cost_details) > 100",
-    'annotations["Quality"]',
-    'annotations["Quality"].score > 0.9',
-    'annotations["Quality"].score > 0.5 and annotations["Quality"].label == "good"',
-    'annotations["Quality"].score is None',
-    'annotations["Missing"].score > 0',
+    'trace_annotations["Quality"]',
+    'trace_annotations["Quality"].score > 0.9',
+    'trace_annotations["Quality"].score > 0.5 and trace_annotations["Quality"].label == "good"',
+    'trace_annotations["Quality"].score is None',
+    'trace_annotations["Missing"].score > 0',
     '"hello" in input',
     'input == "Hello there"',
     'output == "Goodbye"',

@@ -253,8 +253,8 @@ def _attribute_leaf_paths(
             yield path
 
 
-# ``evals`` is the filter compiler's accepted alias for ``annotations``.
-_ANNOTATION_SUBSCRIPT_NAMES = frozenset({"annotations", "evals"})
+_SESSION_ANNOTATION_SUBSCRIPT_NAMES = frozenset({"session_annotations"})
+_TRACE_ANNOTATION_SUBSCRIPT_NAMES = frozenset({"trace_annotations"})
 
 
 def _referenced_subscript_names(condition: str, subscript_names: frozenset[str]) -> set[str]:
@@ -1349,7 +1349,7 @@ class Project(Node):
         except SessionFilterConditionError as e:
             return ValidationResult(is_valid=False, error_message=str(e))
         referenced_annotation_names = _referenced_subscript_names(
-            condition, _ANNOTATION_SUBSCRIPT_NAMES
+            condition, _SESSION_ANNOTATION_SUBSCRIPT_NAMES
         )
         warnings: list[str] = []
         if referenced_annotation_names:
@@ -1398,7 +1398,7 @@ class Project(Node):
         except TraceFilterConditionError as error:
             return ValidationResult(is_valid=False, error_message=str(error))
         referenced_annotation_names = _referenced_subscript_names(
-            condition, _ANNOTATION_SUBSCRIPT_NAMES
+            condition, _TRACE_ANNOTATION_SUBSCRIPT_NAMES
         )
         warnings: list[str] = []
         if referenced_annotation_names:

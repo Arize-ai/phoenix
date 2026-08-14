@@ -215,8 +215,10 @@ class _FilterBindings:
     exists_names: frozenset[str] = frozenset()
     supports_parent_keyword: bool = False
     iterables: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType({})
+    annotation_accessors: frozenset[str] = frozenset(_ANNOTATION_ACCESSORS)
+    annotation_accessor_errors: typing.Mapping[str, str] = MappingProxyType({})
     # The iterable that reads this grain's annotations element-wise, named when an
-    # `annotations[...]` expression is rejected for being out of scope.
+    # annotation accessor is rejected for being out of scope.
     annotation_iterable: typing.Optional[str] = None
     # Whether `in` against a string haystack ignores case. Every grain shipped so far sets it,
     # so the family answers text search the same way; `==` stays exact everywhere.
@@ -585,6 +587,9 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
     if not bindings.iterables:
         return
     iterable_slots: set[int] = set()
+    annotation_accessor_slots = {
+        id(node.value) for node in ast.walk(expression.body) if _is_annotation(node, bindings)
+    }
 
     def check(node: ast.AST, scopes: tuple[_ElementScope, ...]) -> None:
         if (comprehension := _comprehension_argument(node, bindings)) is not None:
@@ -627,6 +632,7 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
             isinstance(node, ast.Name)
             and node.id in bindings.iterables
             and id(node) not in iterable_slots
+            and id(node) not in annotation_accessor_slots
         ):
             raise SyntaxError(
                 f"`{node.id}` is a collection and can only be iterated, "
@@ -653,7 +659,7 @@ class _ComprehensionExtractor(ast.NodeTransformer):
         self._collected: list[list[ComprehensionSpec]] = [[]]
         self._reference_collected: list[dict[str, ElementFieldReference]] = [{}]
         self._count = 0
-        # Session-scope annotation reads are aliased before extraction runs, so
+        # Top-level annotation reads are aliased before extraction runs, so
         # inside a comprehension they surface as opaque alias names. Map them
         # back to their source spelling for the rejection message below.
         self._annotation_aliases: dict[str, tuple[str, typing.Optional[str]]] = {}
@@ -670,7 +676,8 @@ class _ComprehensionExtractor(ast.NodeTransformer):
         for child in ast.walk(node):
             if isinstance(child, ast.Name) and (read := self._annotation_aliases.get(child.id)):
                 annotation_name, attribute = read
-                reference = f"annotations[{annotation_name!r}]" + (
+                accessor = next(iter(self._bindings.annotation_accessors), "annotations")
+                reference = f"{accessor}[{annotation_name!r}]" + (
                     f".{attribute}" if attribute else ""
                 )
                 hint = (
@@ -679,7 +686,7 @@ class _ComprehensionExtractor(ast.NodeTransformer):
                     else ""
                 )
                 raise SyntaxError(
-                    f"`{reference}` is joined at session scope and cannot be read"
+                    f"`{reference}` is joined at top-level scope and cannot be read"
                     f" inside a comprehension{hint}"
                 )
 
@@ -2885,7 +2892,7 @@ class _SemanticPolicy:
                 and (related := scope.grammar.related.get(typing.cast(str, steps[0]))) is not None
             ):
                 return self._binding(typing.cast(str, steps[1]), related)
-        if _is_annotation(node.value):
+        if _is_annotation(node.value, self._bindings):
             return "float" if node.attr == "score" else "string"
         source = ast.unparse(node)
         if replacement := self._bindings.legacy_replacements.get(source):
@@ -2904,7 +2911,7 @@ class _SemanticPolicy:
             if _get_attribute_keys_list(node) is None:
                 raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
             return "json"
-        if _is_annotation(node):
+        if _is_annotation(node, self._bindings):
             # A bare annotation reference is the existence check `annotations["q"]`.
             return "boolean"
         raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
@@ -3173,6 +3180,7 @@ def _validate_expression(
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
     _validate_python_surface(expression.body, source)
+    _validate_annotation_accessors(expression, bindings)
     _validate_exists_name_usage(expression, bindings)
     _validate_comprehensions(expression, bindings)
     for i, node in enumerate(ast.walk(expression.body)):
@@ -3181,7 +3189,7 @@ def _validate_expression(
                 isinstance(node, (ast.BoolOp, ast.Compare))
                 or isinstance(node, ast.UnaryOp)
                 and isinstance(node.op, ast.Not)
-                or _is_annotation(node)
+                or _is_annotation(node, bindings)
                 or _comprehension_argument(node, bindings) is not None
             ):
                 continue
@@ -3216,7 +3224,7 @@ def _validate_expression(
             _is_subscript(node, "metadata") or _is_subscript(node, "attributes")
         ) and _get_attribute_keys_list(node) is not None:
             continue
-        elif _is_annotation(node) and _get_subscript_key(node) is not None:
+        elif _is_annotation(node, bindings) and _get_subscript_key(node) is not None:
             # e.g. `evals["name"]`. The name itself is not checked for
             # existence (see the docstring); only the empty name is rejected,
             # since it can never match an annotation and previously fell to
@@ -3227,8 +3235,8 @@ def _validate_expression(
         elif (
             isinstance(node, ast.Attribute)
             and isinstance(node.value, ast.Attribute)
-            and _is_annotation(node.value.value)
-        ) or (isinstance(node, ast.Subscript) and _is_annotation(node.value)):
+            and _is_annotation(node.value.value, bindings)
+        ) or (isinstance(node, ast.Subscript) and _is_annotation(node.value, bindings)):
             # e.g. `annotations["q"].score.label` or `annotations["q"]["k"]`:
             # traversal past an annotation reads as a reference to something an
             # annotation does not expose; reject it by name instead of letting
@@ -3239,7 +3247,7 @@ def _validate_expression(
                 f"invalid expression: {_ellipsize(ast.unparse(node), 80)}"
                 f"; an annotation exposes only {expected}"
             )
-        elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
+        elif isinstance(node, ast.Attribute) and _is_annotation(node.value, bindings):
             # e.g. `evals["name"].score`
             if (attr := node.attr) not in valid_eval_attributes:
                 attr = _ellipsize(attr, 80)
@@ -3312,22 +3320,39 @@ def _as_attribute(
     )
 
 
-def _is_annotation(node: typing.Any) -> TypeGuard[ast.Subscript]:
+def _is_annotation(
+    node: typing.Any,
+    bindings: _FilterBindings = SPAN_BINDINGS,
+) -> TypeGuard[ast.Subscript]:
     # e.g. `evals["name"]`, `annotations["name"]`, `trace_annotations["name"]`
     return (
         isinstance(node, ast.Subscript)
         and isinstance(value := node.value, ast.Name)
-        and value.id in _ANNOTATION_ACCESSORS
+        and value.id in bindings.annotation_accessors
     )
 
 
-def _is_annotation_rooted(node: typing.Any) -> bool:
+def _is_annotation_rooted(
+    node: typing.Any,
+    bindings: _FilterBindings = SPAN_BINDINGS,
+) -> bool:
     # e.g. `evals["name"]`, `evals["name"].score`, `evals["name"]["key"]`
     while isinstance(node, (ast.Attribute, ast.Subscript)):
-        if _is_annotation(node):
+        if _is_annotation(node, bindings):
             return True
         node = node.value
     return False
+
+
+def _validate_annotation_accessors(
+    expression: ast.Expression,
+    bindings: _FilterBindings,
+) -> None:
+    for node in ast.walk(expression.body):
+        if not isinstance(node, ast.Subscript) or not isinstance(node.value, ast.Name):
+            continue
+        if error := bindings.annotation_accessor_errors.get(node.value.id):
+            raise SyntaxError(error)
 
 
 def _annotation_attribute_error(
@@ -3519,7 +3544,7 @@ class _AnnotationExpressionAliaser(ast.NodeVisitor):
         return tuple(self._relations_by_key.values())
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
-        if not _is_annotation(node.value):
+        if not _is_annotation(node.value, self._bindings):
             self.generic_visit(node)
             return
         if node.attr not in _VALID_EVAL_ATTRIBUTES:
@@ -3532,7 +3557,7 @@ class _AnnotationExpressionAliaser(ast.NodeVisitor):
         self._add_replacement(node, relation.attribute_alias(attribute))
 
     def visit_Subscript(self, node: ast.Subscript) -> None:
-        if not _is_annotation(node):
+        if not _is_annotation(node, self._bindings):
             self.generic_visit(node)
             return
         annotation_name = _get_subscript_key(node)
@@ -3544,7 +3569,9 @@ class _AnnotationExpressionAliaser(ast.NodeVisitor):
     def _get_relation(self, node: ast.Subscript, annotation_name: str) -> AliasedAnnotationRelation:
         annotation_accessor = typing.cast(ast.Name, node.value).id
         kind: AnnotationRelationKind = (
-            "trace" if annotation_accessor == "trace_annotations" else "span"
+            "trace"
+            if self._bindings is SPAN_BINDINGS and annotation_accessor == "trace_annotations"
+            else "span"
         )
         key = (kind, annotation_name)
         if (relation := self._relations_by_key.get(key)) is None:

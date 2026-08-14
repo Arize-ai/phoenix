@@ -16,9 +16,9 @@ evaluates to exactly True. Reductions skip missing values: `len`/`sum` of nothin
 Modeled: session intrinsics, the flat aggregate names, the comprehension grammar over the five
 iterables, root-span `attributes[...]` / `metadata[...]` access resolved by OTel wire key, the
 root-span IO names (`first_input`, `last_output`, `any_input`, `any_output`), and the
-`annotations[...]` subscript.
+`session_annotations[...]` subscript.
 
-`annotations["q"]` compiles to an outer join on the annotation relation, so a session with
+`session_annotations["q"]` compiles to an outer join on the annotation relation, so a session with
 several rows under one name is several candidate rows and matches when *any* of them satisfies
 the whole condition. That is modeled here by binding one row per referenced annotation name and
 trying every combination — the same reason two spellings of one name share a row while two
@@ -318,11 +318,11 @@ def _annotation_names(tree: ast.expr) -> set[str]:
 
 
 def _annotation_key(node: ast.expr) -> Optional[str]:
-    """The annotation name an `annotations["..."]` subscript reads, if that is what this is."""
+    """The annotation name a `session_annotations["..."]` subscript reads, if applicable."""
     if (
         isinstance(node, ast.Subscript)
         and isinstance(node.value, ast.Name)
-        and node.value.id in ("annotations", "evals")
+        and node.value.id == "session_annotations"
         and isinstance(node.slice, ast.Constant)
         and isinstance(key := node.slice.value, str)
     ):
@@ -859,7 +859,8 @@ FIXTURE_SESSIONS: tuple[ReferenceSession, ...] = (
             ),
         ),
         # Several rows share the name `Quality`, one of them with neither label nor score: the
-        # shape that makes `annotations["Quality"]` a set of candidate rows rather than a value.
+        # shape that makes `session_annotations["Quality"]` a set of candidate rows rather than
+        # a value.
         annotations=(
             ReferenceAnnotation(name="Quality", label="good", score=0.95),
             ReferenceAnnotation(name="Quality", label="bad", score=0.4, identifier="second"),
@@ -1095,41 +1096,41 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     "'hello' in first_input or 'hello' in last_output",
     # Annotation point access: several rows can share one name, so the subscript is existential
     # over them, and two attributes of one name read the same row.
-    'annotations["Quality"]',
-    'annotations["Missing"]',
-    'annotations["Quality"].score > 0.9',
-    'annotations["Quality"].score > 0.5',
-    'annotations["Quality"].label == "good"',
-    'annotations["Quality"].score > 0.5 and annotations["Quality"].label == "good"',
-    'annotations["Quality"].score > 0.5 and annotations["Quality"].label == "bad"',
-    'annotations["Quality"].score is None',
-    'annotations["Missing"].score > 0',
-    'annotations["Quality"].score > 0.5 and num_traces > 0',
+    'session_annotations["Quality"]',
+    'session_annotations["Missing"]',
+    'session_annotations["Quality"].score > 0.9',
+    'session_annotations["Quality"].score > 0.5',
+    'session_annotations["Quality"].label == "good"',
+    'session_annotations["Quality"].score > 0.5 and session_annotations["Quality"].label == "good"',
+    'session_annotations["Quality"].score > 0.5 and session_annotations["Quality"].label == "bad"',
+    'session_annotations["Quality"].score is None',
+    'session_annotations["Missing"].score > 0',
+    'session_annotations["Quality"].score > 0.5 and num_traces > 0',
 )
 
-# `annotations["q"].<attr>` and the equivalent quantification over `session_annotations` are two
-# grammars over one table — an aliased outer join versus an EXISTS. Where they overlap they must
-# select the same sessions, whatever the row multiplicity under a name.
+# Point access and equivalent quantification over `session_annotations` are two grammars over one
+# table — an aliased outer join versus an EXISTS. Where they overlap they must select the same
+# sessions, whatever the row multiplicity under a name.
 AGREEMENT_PAIRS: tuple[tuple[str, str], ...] = (
     (
-        'annotations["Quality"]',
+        'session_annotations["Quality"]',
         'any(a.name == "Quality" for a in session_annotations)',
     ),
     (
-        'annotations["Quality"].score > 0.9',
+        'session_annotations["Quality"].score > 0.9',
         'any(a.name == "Quality" and a.score > 0.9 for a in session_annotations)',
     ),
     (
-        'annotations["Quality"].label == "good"',
+        'session_annotations["Quality"].label == "good"',
         'any(a.name == "Quality" and a.label == "good" for a in session_annotations)',
     ),
     (
-        'annotations["Quality"].score > 0.5 and annotations["Quality"].label == "good"',
+        'session_annotations["Quality"].score > 0.5 and session_annotations["Quality"].label == "good"',
         'any(a.name == "Quality" and a.score > 0.5 and a.label == "good" '
         "for a in session_annotations)",
     ),
     (
-        'annotations["Missing"].score > 0',
+        'session_annotations["Missing"].score > 0',
         'any(a.name == "Missing" and a.score > 0 for a in session_annotations)',
     ),
 )

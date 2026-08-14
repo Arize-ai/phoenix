@@ -4350,8 +4350,8 @@ class TestProject:
         }
         assert absent_attribute_terms.isdisjoint(terms_by_name)
         # Per-project session-annotation names are folded in as fully-typed terms.
-        assert 'annotations["quality"].score' in term_names
-        assert 'annotations["quality"].label' in term_names
+        assert 'session_annotations["quality"].score' in term_names
+        assert 'session_annotations["quality"].label' in term_names
         # Span counts are session totals only — no per-tool-name terms are served.
         assert not any(name.startswith("tool_span_count[") for name in term_names)
         # The comprehension surface is served from the compiler's own catalog, so the iterables
@@ -4519,7 +4519,7 @@ class TestProject:
         """A session carrying several annotations under one name is one row on a filtered page.
 
         Session annotations are unique on `(name, project_session_id, identifier)`, so the join a
-        filter on `annotations[...]` makes can match a session more than once.
+        filter on `session_annotations[...]` makes can match a session more than once.
         """
         async with db() as session:
             project = await _add_project(session, name="annotation-fan-out-page")
@@ -4540,7 +4540,7 @@ class TestProject:
                     )
                 )
 
-        condition = 'annotations["Quality"].score > 0.5'
+        condition = 'session_annotations["Quality"].score > 0.5'
         page = await self._node(
             f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
             project,
@@ -4650,7 +4650,7 @@ class TestProject:
 
         # Typo'd annotation name: valid (compiles) but warns, naming the unknown + the observed set.
         result = await self._validate_session_filter(
-            project, "annotations['typoo'].score > 0.5", gql_client
+            project, "session_annotations['typoo'].score > 0.5", gql_client
         )
         assert result["isValid"] is True
         assert result["errorMessage"] is None
@@ -4662,7 +4662,7 @@ class TestProject:
         # An observed annotation name produces no warnings.
         result = await self._validate_session_filter(
             project,
-            "annotations['quality'].score > 0.5 and tool_span_count > 0",
+            "session_annotations['quality'].score > 0.5 and tool_span_count > 0",
             gql_client,
         )
         assert result["isValid"] is True

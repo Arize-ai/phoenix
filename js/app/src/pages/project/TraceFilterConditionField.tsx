@@ -144,11 +144,11 @@ export const traceFilterSnippets: DSLFilterSnippet[] = [
   },
   {
     label: "filter by annotation score",
-    snippet: 'annotations["${name}"].score >= ${0.5}',
+    snippet: 'trace_annotations["${name}"].score >= ${0.5}',
   },
   {
     label: "filter by annotation label",
-    snippet: "annotations[\"${name}\"].label == '${label}'",
+    snippet: "trace_annotations[\"${name}\"].label == '${label}'",
   },
   {
     label: "search input for substring",

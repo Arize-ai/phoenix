@@ -2230,7 +2230,7 @@ type FilterVocabularyTerm {
   description: String!
 
   """
-  Presentation/discovery grouping: 'session' (intrinsic column), 'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), 'annotation' (session annotation access), 'iterable' (a collection a comprehension can loop over), or 'element' (a field of one such collection's elements).
+  Presentation/discovery grouping: 'session' (intrinsic column), 'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), 'annotation' (entity annotation access), 'iterable' (a collection a comprehension can loop over), or 'element' (a field of one such collection's elements).
   """
   category: String!
 

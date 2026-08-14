@@ -283,6 +283,21 @@ TRACE_BINDINGS = _FilterBindings(
     caller_bound_string_names=_ROOT_SPAN_IO_NAMES,
     quantifiers=frozenset(COMPREHENSION_NAMES),
     iterables=_TRACE_ITERABLES,
+    annotation_accessors=frozenset({"trace_annotations"}),
+    annotation_accessor_errors=MappingProxyType(
+        {
+            "annotations": (
+                "`annotations[...]` is not available in the trace filter; use "
+                "`trace_annotations[...]` for trace annotations, or iterate "
+                "`span_annotations` for span-level annotations"
+            ),
+            "evals": (
+                "`evals[...]` is not available in the trace filter; use "
+                "`trace_annotations[...]` for trace annotations, or iterate "
+                "`span_annotations` for span-level annotations"
+            ),
+        }
+    ),
     annotation_iterable="trace_annotations",
     case_insensitive_containment=True,
     strict_semantics=True,

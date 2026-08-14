@@ -36,7 +36,7 @@ REJECTED: tuple[tuple[str, str], ...] = (
     # Text has no cross-dialect ordering, so `<`/`>` refuse it wherever it comes from.
     ("first_input > last_output", "does not order text"),
     ("session_id >= 'm'", "does not order text"),
-    ("annotations['q'].label < 'good'", "does not order text"),
+    ("session_annotations['q'].label < 'good'", "does not order text"),
     ("attributes['llm.model_name'] > 'gpt'", "does not order text"),
     ("any(s.name > 'a' for s in spans)", "does not order text"),
     ("any(d.is_prompt > False for d in span_cost_details)", "does not order a condition"),
@@ -151,7 +151,7 @@ REJECTED: tuple[tuple[str, str], ...] = (
         "`duration_ms` is a top-level term, not a spans element field",
     ),
     (
-        "any(annotations['q'].score > 0.5 for s in spans)",
+        "any(session_annotations['q'].score > 0.5 for s in spans)",
         "session_annotations",
     ),
     # -- Source spelling -------------------------------------------------------------------------
@@ -204,10 +204,10 @@ ACCEPTED: tuple[str, ...] = (
     "str(attributes['retry_count']) == '2'",
     "attributes['streamed'] == True",
     # Annotations, by point access and by iteration.
-    "annotations['Quality']",
-    "annotations['Quality'].score > 0.5",
-    "annotations['Quality'].label == 'good'",
-    "annotations['Quality'].score is None",
+    "session_annotations['Quality']",
+    "session_annotations['Quality'].score > 0.5",
+    "session_annotations['Quality'].label == 'good'",
+    "session_annotations['Quality'].score is None",
     "any(a.name == 'Quality' and a.score > 0.5 for a in session_annotations)",
     "all(a.score is not None for a in session_annotations)",
     "any(a.label == 'correct' for a in span_annotations)",
