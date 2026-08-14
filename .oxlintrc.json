@@ -27,12 +27,6 @@
     "typescript/await-thenable": "off", // 4
     "typescript/no-misused-spread": "off", // 2
     "typescript/no-useless-default-assignment": "off", // 2
-    // Intentional patterns that the default-warn core rules flag: control
-    // characters in terminal/filter regexes (phoenix-cli TUI, the app's
-    // filter-condition utils) and demo constructs in tests/stories.
-    "eslint/no-control-regex": "off",
-    "eslint/no-unsafe-optional-chaining": "off",
-    "eslint/no-constant-binary-expression": "off",
     // "eslint/no-shadow": "warn",
     "eqeqeq": ["error", "smart"],
     "eslint/prefer-const": "error",
