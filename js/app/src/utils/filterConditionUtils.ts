@@ -24,6 +24,7 @@ const DSL_STRING_ESCAPES: Record<string, string> = {
 };
 
 /** C0 controls plus DEL — none of which may appear raw inside a DSL string literal. */
+// oxlint-disable-next-line no-control-regex -- deliberately matches control characters to escape them
 const DSL_CONTROL_CHARACTERS = /[\u0000-\u001F\u007F]/gu;
 
 /**

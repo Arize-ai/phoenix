@@ -58,7 +58,15 @@
   "overrides": [
     {
       "files": ["stories/**/*.stories.tsx"],
-      "plugins": ["react", "typescript", "jsx-a11y"]
+      "plugins": ["react", "typescript", "jsx-a11y"],
+      "rules": {
+        // Stories are isolated component demos: autofocus and label-less
+        // controls are deliberate showcase constructs there, not shipped UI.
+        // Keep the rest of jsx-a11y active so stories stay honest examples.
+        "jsx-a11y/no-autofocus": "off",
+        "jsx-a11y/control-has-associated-label": "off",
+        "jsx-a11y/prefer-tag-over-role": "off"
+      }
     }
   ],
 

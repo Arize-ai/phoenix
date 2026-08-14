@@ -253,7 +253,8 @@ const Template: Story = (args) => {
   const includeRepetitions = args.experiment.repetitions > 1;
 
   const hasAnnotations =
-    args.experimentRepetition.experimentRun?.annotations.edges.length ?? 0 > 0;
+    (args.experimentRepetition.experimentRun?.annotations.edges.length ?? 0) >
+    0;
   const annotationSummaries = hasAnnotations ? mockAnnotationSummaries : [];
 
   return (

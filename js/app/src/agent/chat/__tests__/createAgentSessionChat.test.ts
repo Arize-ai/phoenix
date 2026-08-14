@@ -86,10 +86,10 @@ describe("applyClientToolTimingMetadata", () => {
     expect(messages[0]?.parts[0]).toMatchObject({
       callProviderMetadata: CLIENT_EXECUTION_METADATA,
     });
-    expect(
-      (messages[0]?.parts[0] as { callProviderMetadata: object })
-        .callProviderMetadata
-    ).toEqual(CLIENT_EXECUTION_METADATA);
+    const firstPart = messages[0]?.parts[0] as
+      | { callProviderMetadata: object }
+      | undefined;
+    expect(firstPart?.callProviderMetadata).toEqual(CLIENT_EXECUTION_METADATA);
   });
 
   it("returns the same array when the call has no recorded timings", () => {
