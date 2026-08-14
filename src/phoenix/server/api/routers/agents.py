@@ -3031,8 +3031,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
         subagents_enabled = _subagents_enabled(resolved_contexts)
         graphql_mutations_enabled = (
-            resolved_contexts.graphql is not None
-            and resolved_contexts.graphql.mutations_enabled
+            resolved_contexts.graphql_mutations_enabled
             and not get_env_phoenix_agents_disable_graphql_mutations()
         )
         phoenix_user_email: str | None = None

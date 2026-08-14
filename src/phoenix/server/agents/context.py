@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from typing_extensions import assert_never
+
+logger = logging.getLogger(__name__)
 
 
 def sanitize_untrusted_value(
@@ -232,7 +235,15 @@ class DatasetContext(_ChatContextBase):
 
 
 class GraphQLContext(_ChatContextBase):
-    """GraphQL runtime state."""
+    """Deprecated GraphQL mutations opt-in.
+
+    Mutations are enabled by default (gated per-call by user approval in
+    manual edit mode), so clients no longer need to send this context. It is
+    still accepted so older clients can opt out explicitly; sending it logs a
+    deprecation warning and it will be removed in a future release.
+    """
+
+    model_config = ConfigDict(json_schema_extra={"deprecated": True})
 
     type: Literal["graphql"]
     mutations_enabled: bool = Field(alias="mutationsEnabled")
@@ -293,6 +304,16 @@ class ResolvedContexts:
     web_access: WebAccessContext | None = None
     subagents: SubagentsContext | None = None
 
+    @property
+    def graphql_mutations_enabled(self) -> bool:
+        """Whether the client allows GraphQL mutations.
+
+        Absence of the deprecated ``graphql`` context means enabled; an
+        explicit ``mutationsEnabled`` value from an older client is honored.
+        Callers still apply the server-side env kill switch on top.
+        """
+        return self.graphql is None or self.graphql.mutations_enabled
+
 
 def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
     resolved = ResolvedContexts()
@@ -321,6 +342,11 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
         elif isinstance(context_value, AgentSpanContext):
             resolved.span = context_value
         elif isinstance(context_value, GraphQLContext):
+            logger.warning(
+                "The 'graphql' chat context is deprecated: GraphQL mutations are "
+                "enabled by default and the field will be removed in a future "
+                "release. Stop sending it, or upgrade the client."
+            )
             resolved.graphql = context_value
         elif isinstance(context_value, WebAccessContext):
             resolved.web_access = context_value
