@@ -29,9 +29,6 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
           }
         }
         spanAnnotationSummaries {
-          count
-          scoreCount
-          labelCount
           labelFractions {
             fraction
             label

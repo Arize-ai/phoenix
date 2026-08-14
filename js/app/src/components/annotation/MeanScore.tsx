@@ -30,6 +30,7 @@ export const MeanScore = ({
         elementType="span"
         fontFamily="mono"
         positiveOptimization={positiveOptimization}
+        size={props.size}
       >
         {formatFloat(value)}
       </AnnotationScoreText>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<78ae87dd3d4c1e8e95e208a07fb0dc0d>>
+ * @generated SignedSource<<8f0d27b3462db7b51721035c58ea5d5e>>
  * @lightSyntaxTransform
  */
 
@@ -12,15 +12,12 @@ export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSummaryGroup$data = {
   readonly spanAnnotationSummaries: ReadonlyArray<{
-    readonly count: number;
-    readonly labelCount: number;
     readonly labelFractions: ReadonlyArray<{
       readonly fraction: number;
       readonly label: string;
     }>;
     readonly meanScore: number | null;
     readonly name: string;
-    readonly scoreCount: number;
   }>;
   readonly spanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
@@ -155,27 +152,6 @@ return {
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "count",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "scoreCount",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "labelCount",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
           "concreteType": "LabelFraction",
           "kind": "LinkedField",
           "name": "labelFractions",
@@ -209,6 +185,6 @@ return {
 };
 })();
 
-(node as any).hash = "de66110868b687ed7f19394ed5e2445c";
+(node as any).hash = "894a8f8a79b8c67e452f89e788d4b372";
 
 export default node;

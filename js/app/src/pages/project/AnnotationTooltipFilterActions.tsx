@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
+import { TextContext } from "react-aria-components";
 
 import {
   Button,
-  Flex,
   Icon,
   Icons,
   Menu,
@@ -12,8 +12,7 @@ import {
   MenuItem,
   MenuTrigger,
   Text,
-  Truncate,
-  View,
+  truncateSingleCSS,
 } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -154,39 +153,52 @@ export function AnnotationTooltipFilterActions(
             {filters.map((filter) => {
               const presentation = getFilterPresentation(filter);
               return (
+                // Nested Text opts out so the outer Text owns the menu item's label slot.
                 <MenuItem
                   key={filter.filterName}
                   id={filter.filterCondition}
                   textValue={`${presentation.label} ${annotationValue ?? ""}`.trim()}
                   leadingContent={
-                    <Text fontFamily="mono" size="M">
-                      {presentation.operator}
-                    </Text>
+                    <TextContext.Provider value={null}>
+                      <Text aria-hidden fontFamily="mono" size="M">
+                        {presentation.operator}
+                      </Text>
+                    </TextContext.Provider>
                   }
                 >
-                  <Flex
-                    alignItems="center"
-                    gap="size-100"
+                  <Text
                     minWidth={0}
                     flex={1}
+                    css={css`
+                      display: flex;
+                      align-items: center;
+                      gap: var(--global-dimension-size-100);
+                    `}
                   >
-                    <Text>{presentation.label}</Text>
+                    <span>{presentation.label}</span>
                     {typeof annotation.score === "number" ? (
-                      <AnnotationScoreText
-                        elementType="span"
-                        fontFamily="mono"
-                        positiveOptimization={positiveOptimization}
-                      >
-                        {annotationValue}
-                      </AnnotationScoreText>
+                      <TextContext.Provider value={null}>
+                        <AnnotationScoreText
+                          elementType="span"
+                          fontFamily="mono"
+                          positiveOptimization={positiveOptimization}
+                        >
+                          {annotationValue}
+                        </AnnotationScoreText>
+                      </TextContext.Provider>
                     ) : annotation.label != null ? (
-                      <View minWidth={0} flex={1}>
-                        <Truncate maxWidth="100%" title={annotation.label}>
-                          <Text>{annotation.label}</Text>
-                        </Truncate>
-                      </View>
+                      <span
+                        css={css`
+                          ${truncateSingleCSS};
+                          min-width: 0;
+                          flex: 1;
+                        `}
+                        title={annotation.label}
+                      >
+                        {annotation.label}
+                      </span>
                     ) : null}
-                  </Flex>
+                  </Text>
                 </MenuItem>
               );
             })}
