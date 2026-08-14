@@ -151,6 +151,7 @@ export const useFlattenedEvaluatorInputKeys = ({
     obj: evaluatorMappingSource.source,
     keepNonTerminalValues: true,
     formatIndices: true,
+    bracketNonIdentifierKeys: true,
   });
   return Object.keys(flat).map((key) => ({
     id: key,

@@ -326,10 +326,8 @@ async def test_project_evaluator_scheduling_fields(
     assert not response.errors and response.data
     edges = response.data["node"]["evaluators"]["edges"]
     assert [edge["node"]["evaluationDelaySeconds"] for edge in edges] == [45]
-    assert [edge["node"]["schedulabilityStatus"] for edge in edges] == ["NOT_SCHEDULABLE"]
-    assert [edge["node"]["schedulabilityReason"] for edge in edges] == [
-        "SESSION_FILTER_UNSUPPORTED"
-    ]
+    assert [edge["node"]["schedulabilityStatus"] for edge in edges] == ["SCHEDULABLE"]
+    assert [edge["node"]["schedulabilityReason"] for edge in edges] == [None]
 
 
 class TestDatasetEvaluatorDescriptionFallback:

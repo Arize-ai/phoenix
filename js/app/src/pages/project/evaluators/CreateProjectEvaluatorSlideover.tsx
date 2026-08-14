@@ -30,7 +30,12 @@ import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluato
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
-import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  DEFAULT_EVALUATION_DELAY_SECONDS,
+  toEvaluationDelayInput,
+  toEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorScope,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import {
   useEvaluatorFormDirtyCheck,
@@ -39,6 +44,7 @@ import {
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+  defaultEvaluatorMappingSourceState,
   type AnnotationConfig,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
@@ -147,6 +153,7 @@ const CreateProjectEvaluatorDialog = ({
     targetType: "SPAN",
     filterCondition: "",
     samplingRate: 1,
+    evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
   });
 
   const initialState = (() => {
@@ -161,14 +168,9 @@ const CreateProjectEvaluatorDialog = ({
           kind: "CODE",
         },
         outputConfigs: [createDefaultFreeformOutputConfig("")],
-        evaluatorMappingSource: {
-          grain: "span",
-          source: {
-            input: {},
-            output: {},
-            metadata: { attributes: {} },
-          },
-        },
+        evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+          toEvaluatorMappingSourceGrain(scope.targetType)
+        ),
       } satisfies EvaluatorStoreProps;
     }
     const copiedState =
@@ -204,14 +206,9 @@ const CreateProjectEvaluatorDialog = ({
           : outputConfigs[0]
             ? [{ ...outputConfigs[0], name: defaultEvaluatorName }]
             : [],
-      evaluatorMappingSource: {
-        grain: "span",
-        source: {
-          input: {},
-          output: {},
-          metadata: { attributes: {} },
-        },
-      },
+      evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+        toEvaluatorMappingSourceGrain(scope.targetType)
+      ),
     } satisfies EvaluatorStoreProps;
   })();
 
@@ -361,6 +358,7 @@ function AttachCodeProjectEvaluatorDialog({
               samplingRate: scope.samplingRate,
               evaluationTarget: scope.targetType,
               filterCondition: scope.filterCondition,
+              ...toEvaluationDelayInput(scope),
               enabled: true,
               inputMapping: null,
             },
@@ -452,6 +450,7 @@ function CreateLlmProjectEvaluatorDialog({
           evaluationTarget: scope.targetType,
           samplingRate: scope.samplingRate,
           filterCondition: scope.filterCondition,
+          ...toEvaluationDelayInput(scope),
           enabled: true,
         },
       });

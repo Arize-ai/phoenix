@@ -1,11 +1,16 @@
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Flex, Heading, Text } from "@phoenix/components";
+import { Alert, Flex, Heading, Text } from "@phoenix/components";
 import { evaluatorDetailsCardCSS } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
-import type { ProjectEvaluatorScopeDetails_projectEvaluator$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopeDetails_projectEvaluator.graphql";
+import type {
+  ProjectEvaluatorScopeDetails_projectEvaluator$data,
+  ProjectEvaluatorScopeDetails_projectEvaluator$key,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopeDetails_projectEvaluator.graphql";
 import {
+  formatEvaluationDelay,
   formatEvaluationTarget,
+  formatEvaluationTargetPlural,
   formatSamplingRate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
@@ -25,10 +30,14 @@ export function ProjectEvaluatorScopeDetails({
         evaluationTarget
         filterCondition
         samplingRate
+        evaluationDelaySeconds
+        schedulabilityStatus
+        schedulabilityReason
       }
     `,
     projectEvaluatorRef
   );
+  const isSessionTarget = projectEvaluator.evaluationTarget === "SESSION";
 
   return (
     <Flex direction="column" gap="size-100">
@@ -46,15 +55,42 @@ export function ProjectEvaluatorScopeDetails({
                 {projectEvaluator.filterCondition}
               </Text>
             ) : (
-              "All spans"
+              `All ${formatEvaluationTargetPlural(projectEvaluator.evaluationTarget)}`
             )}
           </Text>
           <Text size="S">
             <Text weight="heavy">Sampling Rate:</Text>{" "}
             {formatSamplingRate(projectEvaluator.samplingRate)}
           </Text>
+          {isSessionTarget ? (
+            <Text size="S">
+              <Text weight="heavy">Evaluation Delay:</Text>{" "}
+              {formatEvaluationDelay(projectEvaluator.evaluationDelaySeconds)}
+            </Text>
+          ) : null}
+          {projectEvaluator.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
+            <Alert variant="warning" title="This evaluator is not scheduled">
+              {getSchedulabilityExplanation(
+                projectEvaluator.schedulabilityReason
+              )}
+            </Alert>
+          ) : null}
         </Flex>
       </div>
     </Flex>
   );
+}
+
+/** Every reason the server can report, including ones this build predates. */
+function getSchedulabilityExplanation(
+  reason: ProjectEvaluatorScopeDetails_projectEvaluator$data["schedulabilityReason"]
+): string {
+  switch (reason) {
+    case "DISABLED":
+      return "Enable this evaluator to resume scheduling.";
+    case "TRACE_TARGET_UNSUPPORTED":
+      return "Trace evaluators are not scheduled yet.";
+    default:
+      return "This evaluator does not meet the scheduling requirements.";
+  }
 }

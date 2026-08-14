@@ -12,6 +12,8 @@ from __future__ import annotations
 # the two sides drifting apart either resurrects dead work or strands retryable work.
 MAX_ATTEMPTS = 3
 
+SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
+
 # Stamped on session work units retired because their session lost content. Like the
 # subsystem's other error markers it is read by operators and matched in tests, so it
 # is spelled once here rather than at the deletion path that writes it.
@@ -28,3 +30,9 @@ def live_eval_work_index_predicate() -> str:
     that rebuilds the index.
     """
     return f"status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < {MAX_ATTEMPTS}"
+
+
+def live_eval_session_work_index_predicate() -> str:
+    """SQL text selecting session work and decisions that hold their dedup key."""
+    declined = ", ".join(f"'{status}'" for status in SESSION_DECLINED_STATUSES)
+    return f"{live_eval_work_index_predicate()} OR status IN ({declined})"
