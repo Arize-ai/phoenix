@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
@@ -9,6 +10,7 @@ import {
   Alert,
   Button,
   Card,
+  Dialog,
   DialogTrigger,
   Flex,
   Heading,
@@ -56,10 +58,6 @@ export const EvaluatorOutputPreview = () => {
   >([]);
   const evaluatorStore = useEvaluatorStoreInstance();
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
-  const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
-  const evaluatorName = useEvaluatorStore(
-    (state) => state.evaluator.name || state.evaluator.globalName
-  );
   const playgroundStore = usePlaygroundStore();
   const credentials = useCredentialsContext((state) => state);
   const [previewEvaluator, isLoadingEvaluatorPreview] =
@@ -231,22 +229,12 @@ export const EvaluatorOutputPreview = () => {
             width="100%"
             marginBottom="size-100"
           >
-            {isLoadingEvaluatorPreview && (
-              <Card title="Evaluator Annotation Preview">
-                <View padding="size-100">
-                  <Flex direction="column" gap="size-100">
-                    <Skeleton height={144} borderRadius={8} animation="wave" />
-                    <Skeleton height={44} width="80%" animation="wave" />
-                  </Flex>
-                </View>
-              </Card>
-            )}
+            {isLoadingEvaluatorPreview && <AnnotationPreviewSkeletonCard />}
             {previewResults.map((result, i) => (
               <Flex direction="column" gap="size-100" key={i} width="100%">
                 {result.kind === "success" ? (
-                  <Card
-                    title="Evaluator Annotation Preview"
-                    width="100%"
+                  <AnnotationPreviewCard
+                    annotation={result.annotation}
                     extra={
                       <IconButton
                         size="S"
@@ -255,33 +243,7 @@ export const EvaluatorOutputPreview = () => {
                         <Icon svg={<Icons.Close />} />
                       </IconButton>
                     }
-                  >
-                    <AnnotationPreviewJSONBlock
-                      annotation={result.annotation}
-                    />
-                    <View padding="size-100">
-                      <DialogTrigger>
-                        <ExperimentAnnotationButton
-                          annotation={result.annotation}
-                          positiveOptimization={
-                            computePositiveOptimization({
-                              annotationName: result.annotation.name,
-                              score: result.annotation.score,
-                              evaluatorName,
-                              outputConfigs,
-                            }) ?? undefined
-                          }
-                        />
-                        <Popover>
-                          <View padding="size-200">
-                            <AnnotationDetailsContent
-                              annotation={result.annotation}
-                            />
-                          </View>
-                        </Popover>
-                      </DialogTrigger>
-                    </View>
-                  </Card>
+                  />
                 ) : (
                   <Alert
                     variant="danger"
@@ -336,6 +298,78 @@ export const EvaluatorOutputPreview = () => {
     </>
   );
 };
+
+/**
+ * The annotation chip that opens the annotation's details in a popover, with
+ * the positive/negative optimization direction derived from the evaluator
+ * store's output configs.
+ */
+export function AnnotationPreviewPopoverButton(props: {
+  annotation: Annotation;
+  /** Hug the annotation content; see {@link ExperimentAnnotationButton}. */
+  compact?: boolean;
+}) {
+  const { annotation, compact } = props;
+  const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
+  const evaluatorName = useEvaluatorStore(
+    (state) => state.evaluator.name || state.evaluator.globalName
+  );
+  return (
+    <DialogTrigger>
+      <ExperimentAnnotationButton
+        annotation={annotation}
+        compact={compact}
+        positiveOptimization={
+          computePositiveOptimization({
+            annotationName: annotation.name,
+            score: annotation.score,
+            evaluatorName,
+            outputConfigs,
+          }) ?? undefined
+        }
+      />
+      <Popover>
+        <Dialog style={{ width: 400 }}>
+          <View padding="size-200">
+            <AnnotationDetailsContent annotation={annotation} />
+          </View>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
+  );
+}
+
+/** The annotation preview card shown while a test is in flight. */
+export function AnnotationPreviewSkeletonCard(props: { title?: string }) {
+  const { title = "Evaluator Annotation Preview" } = props;
+  return (
+    <Card title={title}>
+      <View padding="size-100">
+        <Flex direction="column" gap="size-100">
+          <Skeleton height={144} borderRadius={8} animation="wave" />
+          <Skeleton height={44} width="80%" animation="wave" />
+        </Flex>
+      </View>
+    </Card>
+  );
+}
+
+/** The annotation preview card for a finished test run. */
+export function AnnotationPreviewCard(props: {
+  annotation: Annotation;
+  extra?: ReactNode;
+  title?: string;
+}) {
+  const { annotation, extra, title = "Evaluator Annotation Preview" } = props;
+  return (
+    <Card title={title} width="100%" extra={extra}>
+      <AnnotationPreviewJSONBlock annotation={annotation} />
+      <View padding="size-100">
+        <AnnotationPreviewPopoverButton annotation={annotation} />
+      </View>
+    </Card>
+  );
+}
 
 function AnnotationPreviewJSONBlock(props: { annotation: Annotation }) {
   const { name, label, score, explanation } = props.annotation;
