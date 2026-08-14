@@ -10,13 +10,16 @@ produced them.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Optional
 
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SdkSpan
 from opentelemetry.sdk.trace import SpanProcessor
+from opentelemetry.util.types import AttributeValue
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 
 from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
@@ -31,17 +34,50 @@ logger = logging.getLogger(__name__)
 EVALUATOR_TRACE_MARKER_ATTRIBUTE = "phoenix.evaluator_trace"
 """Marks a span as produced by a Phoenix evaluator rather than by an application."""
 
+PROJECT_EVALUATOR_ID_ATTRIBUTE = "phoenix.project_evaluator_id"
+"""The evaluator whose execution produced the span, as its node id."""
 
-class _EvaluatorTraceMarker(SpanProcessor):
-    """Stamps the evaluator marker on every span the evaluator emits."""
+PROJECT_EVALUATOR_NAME_ATTRIBUTE = "phoenix.project_evaluator_name"
+"""The evaluator's name, as the user gave it."""
+
+_PROJECT_EVALUATOR_NODE_TYPE = "ProjectEvaluator"
+# The GraphQL type name is spelled out rather than imported: the API type module
+# already imports from this package, so importing it back would be circular.
+
+
+class _EvaluatorSpanAttributes(SpanProcessor):
+    """Stamps identity on every span an evaluator execution emits.
+
+    Marking at span start rather than at each ``start_as_current_span`` site
+    covers the whole tree — every evaluator's root span and its children alike —
+    without the evaluators having to know they are being traced.
+    """
+
+    def __init__(self, attributes: Mapping[str, AttributeValue]) -> None:
+        self._attributes = dict(attributes)
 
     def on_start(self, span: SdkSpan, parent_context: Optional[Context] = None) -> None:
-        span.set_attribute(EVALUATOR_TRACE_MARKER_ATTRIBUTE, True)
+        span.set_attributes(self._attributes)
 
 
-def marked_evaluator_tracer(tracer: Tracer) -> Tracer:
-    """Return the tracer with evaluator marking installed."""
-    tracer.tracer_provider.add_span_processor(_EvaluatorTraceMarker())
+def marked_evaluator_tracer(
+    tracer: Tracer,
+    *,
+    project_evaluator_rowid: int,
+    project_evaluator_name: str,
+) -> Tracer:
+    """Return the tracer with evaluator marking and identity installed."""
+    tracer.tracer_provider.add_span_processor(
+        _EvaluatorSpanAttributes(
+            {
+                EVALUATOR_TRACE_MARKER_ATTRIBUTE: True,
+                PROJECT_EVALUATOR_ID_ATTRIBUTE: str(
+                    GlobalID(_PROJECT_EVALUATOR_NODE_TYPE, str(project_evaluator_rowid))
+                ),
+                PROJECT_EVALUATOR_NAME_ATTRIBUTE: project_evaluator_name,
+            }
+        )
+    )
     return tracer
 
 
