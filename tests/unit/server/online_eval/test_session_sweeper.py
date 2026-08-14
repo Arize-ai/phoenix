@@ -973,6 +973,63 @@ async def test_session_filter_decisions_are_persisted_before_sampling(
     assert sampled_identities == ["matching-session"]
 
 
+async def test_filtered_and_unfiltered_criteria_schedule_independently(
+    db: DbSessionFactory,
+) -> None:
+    """An unfiltered criterion and a filtered one compile into separate union arms whose
+    bind parameters must stay distinct: sharing a name drops one criterion's identity
+    from the statement and hands its arm's rows to the other criterion.
+    """
+    project_id, matching_session_id, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        session_id="matching-session",
+    )
+    _, excluded_session_id, _ = await _add_session_liveness(
+        db,
+        age_seconds=600,
+        project_id=project_id,
+        session_id="excluded-session",
+    )
+    _, unfiltered_criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+    )
+    _, filtered_criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        filter_condition="session_id == 'matching-session'",
+    )
+    sweeper = SessionEvalSweeper(db)
+
+    async with db() as session:
+        criteria = await sweeper._load_criteria(session)
+        database_now = await sweeper._database_now(session)
+        compiled = select(
+            session_sweeper._eligible_pairs_relation(criteria, database_now, db.dialect)
+        ).compile(dialect=session.get_bind().dialect)
+    bound_scalars = {
+        value for value in compiled.params.values() if not isinstance(value, (list, tuple))
+    }
+    assert {criterion.criteria_id for criterion in criteria} <= bound_scalars
+    assert {criterion.fingerprint for criterion in criteria} <= bound_scalars
+
+    await sweeper._tick()
+
+    async with db() as session:
+        units = (await session.scalars(select(models.EvalSessionWorkUnit))).all()
+    fingerprints = {criterion.criteria_id: criterion.fingerprint for criterion in criteria}
+    assert {(unit.criteria_id, unit.project_session_rowid): unit.status for unit in units} == {
+        (unfiltered_criteria_id, matching_session_id): "PENDING",
+        (unfiltered_criteria_id, excluded_session_id): "PENDING",
+        (filtered_criteria_id, matching_session_id): "PENDING",
+        (filtered_criteria_id, excluded_session_id): "FILTERED_OUT",
+    }
+    assert all(unit.config_fingerprint == fingerprints[unit.criteria_id] for unit in units)
+
+
 async def test_session_sampling_decisions_are_deterministic_and_idempotent(
     db: DbSessionFactory,
 ) -> None:
