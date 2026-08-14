@@ -151,7 +151,10 @@ export function AnnotationNameAndValue({
             isValueEndAligned && valueEndAlignedCSS
           )}
         >
-          <AnnotationScoreText optimizationValue={optimizationValue}>
+          <AnnotationScoreText
+            optimizationValue={optimizationValue}
+            size={size}
+          >
             <span css={valuePartsCSS}>
               {valueParts.map((part, index) => (
                 <Fragment key={index}>
