@@ -133,6 +133,38 @@ describe("formatMarkdownForTerminal", () => {
     expect(formatted).not.toContain("](/settings/data)");
   });
 
+  it("renders Phoenix-relative markdown links with query strings and fragments", () => {
+    const formatted = stripAnsi(
+      formatMarkdownForTerminal({
+        text: "[Trace](/projects/1?tab=traces#span)",
+        maxWidth: 80,
+        phoenixBaseUrl: "https://example.com/phoenix",
+      })
+    );
+
+    expect(formatted).toContain("Trace");
+    expect(formatted).toContain(
+      "https://example.com/phoenix/projects/1?tab=traces#span"
+    );
+    expect(formatted).not.toContain("](/projects/1?tab=traces#span)");
+  });
+
+  it("renders absolute external markdown links with query strings and fragments", () => {
+    const formatted = stripAnsi(
+      formatMarkdownForTerminal({
+        text: "[Docs](https://arize.com/docs/phoenix/x?a=1&b=2#y)",
+        maxWidth: 80,
+        phoenixBaseUrl: "https://example.com/phoenix",
+      })
+    );
+
+    expect(formatted).toContain("Docs");
+    expect(formatted).toContain("https://arize.com/docs/phoenix/x?a=1&b=2#y");
+    expect(formatted).not.toContain(
+      "](https://arize.com/docs/phoenix/x?a=1&b=2#y)"
+    );
+  });
+
   it("renders Phoenix-relative markdown links inside tables as absolute terminal links", () => {
     const formatted = formatMarkdownForTerminal({
       text: [

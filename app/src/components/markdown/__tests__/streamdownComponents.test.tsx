@@ -22,9 +22,11 @@ afterEach(() => {
 });
 
 function renderMarkdownLink({
+  children = "Link",
   href,
   basename,
 }: {
+  children?: string;
   href: string;
   basename?: string;
 }) {
@@ -32,7 +34,7 @@ function renderMarkdownLink({
     root.render(
       <MemoryRouter basename={basename} initialEntries={[basename ?? "/"]}>
         <MarkdownLink href={href} rel="noopener noreferrer" target="_blank">
-          Link
+          {children}
         </MarkdownLink>
       </MemoryRouter>
     );
@@ -45,6 +47,15 @@ describe("MarkdownLink", () => {
 
     const link = container.querySelector("a");
     expect(link?.getAttribute("href")).toBe("/phoenix/settings/general");
+  });
+
+  it("preserves query strings on internal links when a basename is set", () => {
+    renderMarkdownLink({ href: "/settings?tab=ai", basename: "/phoenix" });
+
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("/phoenix/settings?tab=ai");
+    expect(link?.getAttribute("target")).toBeNull();
+    expect(link?.getAttribute("rel")).toBeNull();
   });
 
   it("does not pass Streamdown's target attributes into React Router links", () => {
@@ -62,5 +73,26 @@ describe("MarkdownLink", () => {
     expect(link?.getAttribute("href")).toBe("https://arize.com/docs/phoenix");
     expect(link?.getAttribute("target")).toBe("_blank");
     expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("preserves query strings and fragments on external links", () => {
+    renderMarkdownLink({
+      href: "https://arize.com/docs/phoenix/x?a=1&b=2#y",
+    });
+
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("href")).toBe(
+      "https://arize.com/docs/phoenix/x?a=1&b=2#y"
+    );
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("does not use display text as the destination", () => {
+    renderMarkdownLink({ children: "other", href: "/real?a=1" });
+
+    const link = container.querySelector("a");
+    expect(link?.textContent).toBe("other");
+    expect(link?.getAttribute("href")).toBe("/real?a=1");
   });
 });
