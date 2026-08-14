@@ -5,7 +5,7 @@ import type { ToolProgressState } from "./toolProgress";
  * one-line preview of what the tool is doing, and a few detail/error lines —
  * from the tool's (possibly still-streaming) input and output. This mirrors
  * the web UI's per-tool presentation registry in
- * `app/src/components/agent/ToolPart.tsx`, which cannot be imported from this
+ * `js/app/src/components/agent/ToolPart.tsx`, which cannot be imported from this
  * package.
  *
  * Everything here is pure string derivation so it stays cheap: the whole

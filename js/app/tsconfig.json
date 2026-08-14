@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
+    "lib": ["ES2023", "DOM"],
     "jsx": "react-jsx",
     "jsxImportSource": "@emotion/react",
     "module": "ES2020",

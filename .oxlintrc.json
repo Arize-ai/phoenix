@@ -1,5 +1,5 @@
 {
-  "$schema": "./app/node_modules/oxlint/configuration_schema.json",
+  "$schema": "./js/app/node_modules/oxlint/configuration_schema.json",
 
   "plugins": ["typescript"],
 

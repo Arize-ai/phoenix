@@ -4,13 +4,21 @@ The Phoenix application is a web application built to enable rapid troubleshooti
 
 ## Installation
 
-To build and develop the web application, you must first install the dependencies via `pnpm` (performant node package manager). Once [installed](https://pnpm.io/installation), install the dependencies using the following command:
+The app is a package (`phoenix-ui`) in the pnpm workspace rooted at [`js/`](../), and depends on the workspace packages `@arizeai/phoenix-client` and `@arizeai/phoenix-evals` via `workspace:*`.
+
+To build and develop the web application, you must first install the dependencies via `pnpm` (performant node package manager). Once [installed](https://pnpm.io/installation), install the dependencies using the following command (from this directory or the workspace root `js/`):
 
 ```shell
 pnpm install --frozen-lockfile
 ```
 
-NB: The `--frozen-lockfile` flag forces `pnpm` to install the exact versions specified in `pnpm-lock.yaml` and will not re-build the lockfile.
+NB: The `--frozen-lockfile` flag forces `pnpm` to install the exact versions specified in `js/pnpm-lock.yaml` and will not re-build the lockfile.
+
+Then build the workspace packages the app depends on:
+
+```shell
+pnpm run build:deps
+```
 
 ## Develop
 

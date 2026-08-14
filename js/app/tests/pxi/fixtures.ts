@@ -53,7 +53,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
       );
       // Write the canonical v0 partialize shape directly so the fixture does
       // not depend on the store's migrate path. The store's version is
-      // tracked in app/src/store/agentStore.ts (`persist({ version })`); keep
+      // tracked in js/app/src/store/agentStore.ts (`persist({ version })`); keep
       // this fixture in sync when bumping the schema version, otherwise the
       // migrate-forced field values silently override what the fixture
       // intends to set.

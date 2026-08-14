@@ -14,13 +14,13 @@ This proposal describes a Playwright harness for evaluating PXI through the Phoe
 
 PXI chat is owned by the frontend runtime but server-defined at the model boundary.
 
-- `app/src/components/agent/useAgentChat.ts` creates an AI SDK `Chat` runtime and binds it to React with `useChat`.
-- `app/src/components/agent/useAgentChatPanelState.ts` builds the chat URL as `/chat?provider_type=...&provider=...&model_name=...` or `/chat?provider_type=custom&provider_id=...&model_name=...`.
-- `app/src/agent/chat/buildAgentChatRequestBody.ts` adds PXI-specific request fields: `userInstructions`, `traceNameSuffix`, `sessionId`, `ingestTraces`, `exportRemoteTraces`, `contexts`, and `capabilities`.
+- `js/app/src/components/agent/useAgentChat.ts` creates an AI SDK `Chat` runtime and binds it to React with `useChat`.
+- `js/app/src/components/agent/useAgentChatPanelState.ts` builds the chat URL as `/chat?provider_type=...&provider=...&model_name=...` or `/chat?provider_type=custom&provider_id=...&model_name=...`.
+- `js/app/src/agent/chat/buildAgentChatRequestBody.ts` adds PXI-specific request fields: `userInstructions`, `traceNameSuffix`, `sessionId`, `ingestTraces`, `exportRemoteTraces`, `contexts`, and `capabilities`.
 - `src/phoenix/server/api/routers/chat.py` handles `POST /chat`, builds the model from query params, injects Phoenix context into the message history, resolves server-owned tools, and streams the response.
 - `src/phoenix/server/agents/tools/registry.py` advertises external tools and context-gated tools. External tools currently include `ask_user` and `bash`; contextual tools currently include `set_spans_filter` when required UI context is present.
-- `app/src/agent/extensions/toolRegistry.ts` dispatches browser-executed tools by name, validates tool inputs, checks capabilities, and returns tool outputs through the AI SDK runtime.
-- `app/src/store/agentStore.ts` persists sessions in local storage under `arize-phoenix-agent` and stores ephemeral runtime state for contexts, client actions, pending elicitations, and chat status.
+- `js/app/src/agent/extensions/toolRegistry.ts` dispatches browser-executed tools by name, validates tool inputs, checks capabilities, and returns tool outputs through the AI SDK runtime.
+- `js/app/src/store/agentStore.ts` persists sessions in local storage under `arize-phoenix-agent` and stores ephemeral runtime state for contexts, client actions, pending elicitations, and chat status.
 
 The harness should not duplicate tool schemas in tests. It should observe the same user-visible transcript and, where needed, instrument the existing stream/store/request surfaces.
 
@@ -37,7 +37,7 @@ The TypeScript client already wraps most of this flow for normal task experiment
 
 ## Harness Architecture
 
-Add a PXI-specific Playwright fixture under `app/tests/pxi/`.
+Add a PXI-specific Playwright fixture under `js/app/tests/pxi/`.
 
 ```ts
 import { test as base } from "@playwright/test";
@@ -72,7 +72,7 @@ type PhoenixE2EApp = {
 };
 ```
 
-The first implementation can reuse the existing Playwright `webServer` path when practical, but the target state should be a per-worker Phoenix server so PXI tests can opt into LLM credentials, isolated DB paths, and seed scripts without affecting the rest of `app/tests`.
+The first implementation can reuse the existing Playwright `webServer` path when practical, but the target state should be a per-worker Phoenix server so PXI tests can opt into LLM credentials, isolated DB paths, and seed scripts without affecting the rest of `js/app/tests`.
 
 ## Skill Layer
 
@@ -122,7 +122,7 @@ description: Write, extend, and debug PXI Playwright E2E tests for Phoenix. Use 
 ---
 ```
 
-`SKILL.md` should stay short and point to focused resources. It should instruct the agent to use the concrete harness under `app/tests/pxi/`, not to generate bespoke Playwright infrastructure in each test.
+`SKILL.md` should stay short and point to focused resources. It should instruct the agent to use the concrete harness under `js/app/tests/pxi/`, not to generate bespoke Playwright infrastructure in each test.
 
 The skill should include:
 
@@ -144,7 +144,7 @@ The skill should not include:
 The intended split is:
 
 ```txt
-app/tests/pxi/*
+js/app/tests/pxi/*
   Runtime code used by Playwright, CI, and humans.
 
 .agents/skills/phoenix-pxi-playwright/*
@@ -527,7 +527,7 @@ On failure, the harness should attach:
 
 ## Implementation Plan
 
-1. Add `app/tests/pxi/fixtures.ts` with `PhoenixE2EApp` and `PxiDriver` fixtures.
+1. Add `js/app/tests/pxi/fixtures.ts` with `PhoenixE2EApp` and `PxiDriver` fixtures.
 2. Add per-worker Phoenix startup with temp file-backed SQLite and env injection.
 3. Add seed fixture convention and one `trace-with-slow-span` seed.
 4. Add test-only PXI instrumentation for request, turn, tool, and context snapshots.
@@ -538,7 +538,7 @@ On failure, the harness should attach:
 
 ## Open Questions
 
-- Should PXI E2E tests live in the normal `app/tests` Playwright project or in a separate project that only runs on demand/nightly because it requires LLM credentials?
+- Should PXI E2E tests live in the normal `js/app/tests` Playwright project or in a separate project that only runs on demand/nightly because it requires LLM credentials?
 - Should experiment persistence go to the same isolated Phoenix instance under test, or optionally to a long-lived Phoenix instance for trend tracking across CI runs?
 - Should test-only PXI instrumentation be browser-global, or should it be exposed through a small app-level testing provider to avoid globals?
 - Should `recorded` mode replay the full AI SDK data stream, or should it stub at the model provider layer before the stream protocol?

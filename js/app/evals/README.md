@@ -54,4 +54,4 @@ the LLM spans under the test's task span.
 | `GOOGLE_GENERATIVE_AI_API_KEY` (or `GEMINI_API_KEY`) | Required — the suites skip without it                                                                                 |
 | `PHOENIX_HOST` / `PHOENIX_API_KEY`                   | Where runs record as experiments — defaults to http://localhost:6006; set `PHOENIX_TEST_TRACKING=false` for a dry run |
 
-Variables are read from `app/.env` (shell variables win).
+Variables are read from `js/app/.env` (shell variables win).

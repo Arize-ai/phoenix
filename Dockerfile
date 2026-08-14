@@ -28,13 +28,18 @@ FROM node:22-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV PHOENIX_ENABLE_SOURCE_MAP=True
-WORKDIR /phoenix/app/
-COPY ./app /phoenix/app
+WORKDIR /phoenix/js/
+COPY ./js /phoenix/js
+# The app's workspace dependency @arizeai/phoenix-client regenerates its
+# OpenAPI types from the repo-level schema during its build.
+COPY ./schemas /phoenix/schemas
 RUN npm i -g corepack
 RUN corepack enable
 RUN corepack install
 RUN pnpm install
-RUN pnpm run build
+# Build the app (phoenix-ui) and its workspace dependencies in topological
+# order. The vite build writes to /phoenix/src/phoenix/server/static.
+RUN pnpm --filter 'phoenix-ui...' run build
 
 # The second stage builds the backend.
 FROM ghcr.io/astral-sh/uv:0.12.1-python3.13-trixie-slim AS backend-builder
