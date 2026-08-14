@@ -48,6 +48,7 @@ dependencies = [
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "openinference-instrumentation-openai>=0.1.41",
+  "sqlglot==30.15.0",
   "sqlalchemy[asyncio]>=2.0.46, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite>=0.22.1",
@@ -174,7 +175,7 @@ dev = [
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
   "libcst>=1.8.6",
-  "datamodel-code-generator==0.32.0",
+  "datamodel-code-generator==0.72.2",
   "grpcio-tools>=1.78.0",
   "mypy-protobuf>=5.0.0",
   "jinja2>=3.1.6",
@@ -267,6 +268,7 @@ artifacts = [
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
   "src/phoenix/db/migrations",
+  "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
@@ -290,6 +292,7 @@ artifacts = [
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
   "src/phoenix/db/migrations",
+  "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]

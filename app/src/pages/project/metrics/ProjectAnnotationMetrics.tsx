@@ -11,7 +11,7 @@ import {
 import {
   AnnotationMetricsChart,
   type AnnotationMetricsSeries,
-  AnnotationScoreLabelToggle,
+  AnnotationMetricsViewMenu,
   ChartPanel,
   ChartSkeleton,
   DeferredChartPanel,
@@ -80,6 +80,11 @@ const annotationGridCSS = css`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--global-dimension-size-200);
 
+  /* Let an unpaired final evaluation chart consume the empty grid cell. */
+  > :last-of-type:nth-of-type(odd) {
+    grid-column: 1 / -1;
+  }
+
   @container (max-width: 900px) {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -143,7 +148,7 @@ function ProjectAnnotationMetricsPanel({
       fillHeight={fillHeight}
       actions={
         showViewToggle ? (
-          <AnnotationScoreLabelToggle view={activeView} onChange={setView} />
+          <AnnotationMetricsViewMenu view={activeView} onChange={setView} />
         ) : undefined
       }
     >

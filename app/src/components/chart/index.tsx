@@ -5,7 +5,7 @@ export * from "./ChartResponsiveContainer";
 export * from "./DeferredChartPanel";
 export * from "./ChartTypeIcon";
 export * from "./AnnotationMetricsChart";
-export * from "./AnnotationScoreLabelToggle";
+export * from "./AnnotationMetricsViewMenu";
 export * from "./annotationMetricsUtils";
 export * from "./MetricsChartSelector";
 export * from "./ChartTooltip";

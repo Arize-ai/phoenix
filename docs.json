@@ -161,6 +161,7 @@
                     ]
                   },
                   "docs/phoenix/tracing/how-to-tracing/cost-tracking",
+                  "docs/phoenix/tracing/how-to-tracing/filter-expressions",
                   {
                     "group": "Advanced",
                     "pages": [
@@ -1373,6 +1374,8 @@
               {
                 "group": "08.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config",
+                  "docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions",
                   "docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts"
                 ]
               },

@@ -70,6 +70,7 @@ jobs:
               - "src/phoenix/db/migrations/versions/**"
             ddl:
               - "src/phoenix/db/migrations/**"
+              - "src/phoenix/db/ddl/*.sql"
               - "scripts/ddl/**"
             json_canonicalization_schema:
               - "src/phoenix/vendor/json_canonicalization_scheme/**/*.py"

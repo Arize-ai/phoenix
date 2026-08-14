@@ -68,7 +68,7 @@ from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_evaluator_prompt_and_configs,
 )
-from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
+from phoenix.server.api.helpers.playground_clients import OpenAIChatCompletionsClient
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
@@ -2300,7 +2300,7 @@ class TestLLMEvaluator:
     def openai_streaming_client(
         self,
         openai_api_key: str,
-    ) -> "OpenAIStreamingClient":
+    ) -> "OpenAIChatCompletionsClient":
         @asynccontextmanager
         async def create_openai_client() -> Any:
             yield AsyncOpenAI(api_key=openai_api_key, max_retries=0)
@@ -2308,7 +2308,7 @@ class TestLLMEvaluator:
         client_factory = LLMClientFactory(
             create_openai_client, openai_rate_limit_key(openai_api_key, None)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name="gpt-4o-mini",
             provider="openai",
@@ -2376,7 +2376,7 @@ class TestLLMEvaluator:
         self,
         llm_evaluator_prompt_version: models.PromptVersion,
         output_config: CategoricalOutputConfig,
-        openai_streaming_client: "OpenAIStreamingClient",
+        openai_streaming_client: "OpenAIChatCompletionsClient",
     ) -> LLMEvaluator:
         template = llm_evaluator_prompt_version.template
         assert isinstance(template, PromptChatTemplate)
@@ -2479,7 +2479,7 @@ class TestLLMEvaluator:
         self,
         multipart_llm_evaluator_prompt_version: models.PromptVersion,
         output_config: CategoricalOutputConfig,
-        openai_streaming_client: "OpenAIStreamingClient",
+        openai_streaming_client: "OpenAIChatCompletionsClient",
     ) -> LLMEvaluator:
         template = multipart_llm_evaluator_prompt_version.template
         assert isinstance(template, PromptChatTemplate)
