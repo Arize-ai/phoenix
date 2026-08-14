@@ -22,7 +22,7 @@ def test_plugin_resolves_phoenix_environment(monkeypatch: pytest.MonkeyPatch) ->
 
     assert plugin.dataset == "dataset"
     assert plugin.endpoint == "https://environment.test"
-    assert plugin._api_key == "environment-secret"
+    assert plugin._api_key == "environment-secret"  # pyright: ignore[reportPrivateUsage]
     assert plugin.project == "environment-project"
     assert plugin.trace_mode == "otlp"
 
@@ -42,7 +42,7 @@ def test_plugin_explicit_configuration_overrides_environment(
     )
 
     assert plugin.endpoint == "https://explicit.test"
-    assert plugin._api_key == "explicit-secret"
+    assert plugin._api_key == "explicit-secret"  # pyright: ignore[reportPrivateUsage]
     assert plugin.project == "explicit-project"
     assert plugin.trace_mode == "none"
 
