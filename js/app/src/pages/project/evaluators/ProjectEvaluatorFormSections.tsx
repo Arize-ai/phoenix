@@ -39,7 +39,9 @@ export const ProjectLlmEvaluatorFormSections = ({
               Evaluator Scope
             </Heading>
             <Text color="text-500" size="S">
-              Choose what gets evaluated and how much of it.
+              {scope.targetType === "SESSION"
+                ? "Select which sessions this evaluator runs on and how often."
+                : "Select which spans this evaluator runs on and how often."}
             </Text>
           </Flex>
           <ProjectEvaluatorScopeFieldGroup

@@ -20,7 +20,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
@@ -65,14 +65,17 @@ import {
 } from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
-import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   SessionInputValueTooltipCell,
   SessionOutputValueTooltipCell,
 } from "./IOValueTooltipCell";
 import { SessionColumnSelector } from "./SessionColumnSelector";
-import { SessionFilterConditionField } from "./SessionFilterConditionField";
+import {
+  EMPTY_SESSION_FILTER_VOCABULARY,
+  SessionFilterConditionField,
+  useSessionFilterVocabulary,
+} from "./SessionFilterConditionField";
 import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
@@ -101,8 +104,6 @@ const toolbarFilterFieldCSS = css`
   min-width: min(100%, 320px);
 `;
 
-const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
-
 /**
  * The filter field, once its per-project autocomplete vocabulary has loaded.
  * The vocabulary resolver scans annotation names and root-span attributes, so
@@ -115,29 +116,10 @@ function SessionFilterConditionFieldWithVocabulary({
   projectId: string;
   onValidCondition: (condition: string) => void;
 }) {
-  const data = useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
-    graphql`
-      query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
-        project: node(id: $id) {
-          ... on Project {
-            sessionFilterVocabulary {
-              name
-              type
-              description
-              category
-              iterableName
-            }
-          }
-        }
-      }
-    `,
-    { id: projectId }
-  );
+  const vocabulary = useSessionFilterVocabulary(projectId);
   return (
     <SessionFilterConditionField
-      vocabulary={
-        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
-      }
+      vocabulary={vocabulary}
       onValidCondition={onValidCondition}
     />
   );
