@@ -18,6 +18,12 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
           kind
           description
         }
+        traceProject {
+          id
+        }
+        runSummary {
+          status
+        }
         ...ProjectEvaluatorRunDetails_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
@@ -44,6 +50,8 @@ export async function projectEvaluatorDetailsLoader(
     typeof loadQuery<projectEvaluatorDetailsLoaderQuery>
   > | null;
   evaluatorDisplayName: string | null;
+  /** The shared evaluator-trace project, or null until the first trace creates it. */
+  traceProjectId: string | null;
 }> {
   const { projectEvaluatorId } = args.params;
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
@@ -74,5 +82,6 @@ export async function projectEvaluatorDetailsLoader(
         )
       : null,
     evaluatorDisplayName: projectEvaluator?.name ?? null,
+    traceProjectId: projectEvaluator?.traceProject?.id ?? null,
   };
 }

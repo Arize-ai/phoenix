@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
-import { Outlet, useLoaderData, useNavigate } from "react-router";
+import { Outlet, useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -10,6 +10,7 @@ import {
   Icon,
   Icons,
   LazyTabPanel,
+  Loading,
   PageHeader,
   Tab,
   TabList,
@@ -17,8 +18,14 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { Empty } from "@phoenix/components/core/empty";
+import {
+  Empty,
+  EmptyState,
+  EmptyStateGraphic,
+} from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { ConnectedTimeRangeSelector } from "@phoenix/components/datetime";
+import { TopNavActions } from "@phoenix/components/nav";
 import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
@@ -29,6 +36,7 @@ import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorRunDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRunDetails";
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
+import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
 
 const mainCSS = css`
   display: flex;
@@ -62,6 +70,9 @@ function ProjectEvaluatorDetailsPageLoaded({
 }) {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
+  // A shared trace link opens the drawer over this page, so the tab behind it
+  // is the one the link came from -- and the one closing the drawer returns to.
+  const { traceId } = useParams();
   const data = useOwnedPreloadedQuery<projectEvaluatorDetailsLoaderQuery>({
     query: projectEvaluatorDetailsLoaderGQL,
     queryRef,
@@ -76,6 +87,9 @@ function ProjectEvaluatorDetailsPageLoaded({
 
   return (
     <main css={mainCSS}>
+      <TopNavActions>
+        <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
       <PageHeader
         title={
           <Heading level={1}>
@@ -110,9 +124,10 @@ function ProjectEvaluatorDetailsPageLoaded({
           </Flex>
         }
       />
-      <Tabs defaultSelectedKey="configuration">
+      <Tabs defaultSelectedKey={traceId ? "traces" : "configuration"}>
         <TabList>
           <Tab id="configuration">Configuration</Tab>
+          <Tab id="traces">Traces</Tab>
         </TabList>
         <LazyTabPanel id="configuration">
           <View width="100%" overflow="auto" height="100%">
@@ -139,12 +154,67 @@ function ProjectEvaluatorDetailsPageLoaded({
             </View>
           </View>
         </LazyTabPanel>
+        <LazyTabPanel id="traces">
+          <Suspense fallback={<Loading />}>
+            <ProjectEvaluatorTracesTabPanel
+              projectEvaluatorId={projectEvaluator.id}
+              hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
+              traceProjectId={projectEvaluator.traceProject?.id ?? null}
+            />
+          </Suspense>
+        </LazyTabPanel>
       </Tabs>
       {/* The edit slideover route renders over the page. */}
       <Suspense>
         <Outlet />
       </Suspense>
     </main>
+  );
+}
+
+/**
+ * The Traces tab, or the reason there is nothing to put in it.
+ *
+ * An evaluator that has never run and one whose past runs left no trace are
+ * different situations with different remedies, so they get different copy.
+ * Everything else is the table's to explain.
+ */
+function ProjectEvaluatorTracesTabPanel({
+  projectEvaluatorId,
+  hasEverRun,
+  traceProjectId,
+}: {
+  projectEvaluatorId: string;
+  hasEverRun: boolean;
+  traceProjectId: string | null;
+}) {
+  if (!hasEverRun) {
+    return (
+      <View paddingTop="size-1000">
+        <EmptyState
+          graphic={<EmptyStateGraphic variant="trace" />}
+          title="This evaluator has not run yet"
+          description="Traces appear here once the evaluator runs. It runs on its own against the spans its scope selects — there is nothing to start."
+        />
+      </View>
+    );
+  }
+  if (traceProjectId == null) {
+    return (
+      <View paddingTop="size-1000">
+        <EmptyState
+          graphic={<EmptyStateGraphic variant="trace" />}
+          title="No traces to show"
+          description="This evaluator has run, but none of its runs produced a trace. Evaluations that ran before evaluator tracing was added did not record one."
+        />
+      </View>
+    );
+  }
+  return (
+    <ProjectEvaluatorTraces
+      projectId={traceProjectId}
+      projectEvaluatorId={projectEvaluatorId}
+    />
   );
 }
 
