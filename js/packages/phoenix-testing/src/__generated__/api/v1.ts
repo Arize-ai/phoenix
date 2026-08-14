@@ -3513,7 +3513,13 @@ export interface components {
         };
         /**
          * GraphQLContext
-         * @description GraphQL runtime state.
+         * @deprecated
+         * @description Deprecated GraphQL mutations opt-in.
+         *
+         *     Mutations are enabled by default (gated per-call by user approval in
+         *     manual edit mode), so clients no longer need to send this context. It is
+         *     still accepted so older clients can opt out explicitly; sending it logs a
+         *     deprecation warning and it will be removed in a future release.
          */
         GraphQLContext: {
             /**
@@ -6979,19 +6985,14 @@ export interface components {
         };
         /**
          * BashMutationApprovalChunk
-         * @description Transient ``data-bash-mutation-approval`` stream chunk: the resolved
-         *     GraphQL mutations awaiting user approval on a deferred bash tool call,
-         *     emitted alongside the tool's ``tool-approval-request`` chunk so the
-         *     approval card can show exactly what will execute. The same payload is
-         *     stamped into the persisted part's ``callProviderMetadata`` for reloads.
+         * @description Transient ``data-bash-mutation-approval`` stream chunk.
          */
         BashMutationApprovalChunk: {
             /**
              * Type
-             * @default data-bash-mutation-approval
              * @constant
              */
-            type?: "data-bash-mutation-approval";
+            type: "data-bash-mutation-approval";
             /**
              * Id
              * @default null

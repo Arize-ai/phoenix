@@ -122,10 +122,6 @@ describe("buildAgentChatRequestBody", () => {
     });
 
     expect(body.contexts).toContainEqual({
-      type: "graphql",
-      mutationsEnabled: true,
-    });
-    expect(body.contexts).toContainEqual({
       type: "web_access",
       enabled: false,
     });

@@ -13818,7 +13818,8 @@
           "mutationsEnabled"
         ],
         "title": "GraphQLContext",
-        "description": "GraphQL runtime state."
+        "description": "Deprecated GraphQL mutations opt-in.\n\nMutations are enabled by default (gated per-call by user approval in\nmanual edit mode), so clients no longer need to send this context. It is\nstill accepted so older clients can opt out explicitly; sending it logs a\ndeprecation warning and it will be removed in a future release.",
+        "deprecated": true
       },
       "HTTPValidationError": {
         "properties": {
@@ -21869,11 +21870,10 @@
       },
       "BashMutationApprovalChunk": {
         "additionalProperties": false,
-        "description": "Transient ``data-bash-mutation-approval`` stream chunk: the resolved\nGraphQL mutations awaiting user approval on a deferred bash tool call,\nemitted alongside the tool's ``tool-approval-request`` chunk so the\napproval card can show exactly what will execute. The same payload is\nstamped into the persisted part's ``callProviderMetadata`` for reloads.",
+        "description": "Transient ``data-bash-mutation-approval`` stream chunk.",
         "properties": {
           "type": {
             "const": "data-bash-mutation-approval",
-            "default": "data-bash-mutation-approval",
             "title": "Type",
             "type": "string"
           },
@@ -21900,6 +21900,7 @@
           }
         },
         "required": [
+          "type",
           "data"
         ],
         "title": "BashMutationApprovalChunk",

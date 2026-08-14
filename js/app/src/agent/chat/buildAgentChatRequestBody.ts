@@ -111,19 +111,6 @@ export type AgentChatRequestBodyPatch = Pick<
 >;
 
 /**
- * Build the GraphQL context sent to the backend.
- *
- * Mutations are always available; the server gates each one behind user
- * approval in manual mode and runs it directly in bypass mode.
- */
-function buildGraphQLContext(): AgentContext {
-  return {
-    type: "graphql",
-    mutationsEnabled: true,
-  };
-}
-
-/**
  * Build web access context from the current capability snapshot.
  *
  * Forwards the user's web access toggle to the backend as a typed context.
@@ -169,7 +156,6 @@ export function buildAgentChatRequestBody({
     observability,
   });
   const requestContexts = [
-    buildGraphQLContext(),
     buildWebAccessContext(capabilities),
     buildSubagentsContext(capabilities),
     ...contexts,

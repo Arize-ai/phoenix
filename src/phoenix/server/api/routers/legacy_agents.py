@@ -181,9 +181,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
-        graphql_mutations_enabled = (
-            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
-        )
+        graphql_mutations_enabled = resolved_contexts.graphql_mutations_enabled
         recording = request.app.state.system_settings.agent_trace_recording
         ingest_traces, export_remote_traces = _resolve_trace_recording(
             record_local_traces=body.ingest_traces,
