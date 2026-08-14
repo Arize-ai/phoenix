@@ -1,6 +1,10 @@
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
-import type { EvaluatorInputMapping } from "@phoenix/types";
-import { getValueAtPath } from "@phoenix/utils/objectUtils";
+import type {
+  EvaluatorInputMapping,
+  EvaluatorMappingSourceGrain,
+} from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
+import { getValueAtPath, parsePathSegments } from "@phoenix/utils/objectUtils";
 
 /** A span evaluation context has no counterpart to a dataset `reference`. */
 export function dropReferencePathMappings(
@@ -28,16 +32,58 @@ export const PROJECT_EVALUATOR_TARGETS = [
 
 export type ProjectEvaluatorTarget = (typeof PROJECT_EVALUATOR_TARGETS)[number];
 
+/** The server rejects anything shorter. */
+export const MIN_EVALUATION_DELAY_SECONDS = 10;
+
+/** What the server stores when a create omits the delay. */
+export const DEFAULT_EVALUATION_DELAY_SECONDS = 300;
+
 export type ProjectEvaluatorScope = {
   targetType: ProjectEvaluatorTarget;
   filterCondition: string;
   samplingRate: number;
+  /** Only session evaluators schedule off this; see `toEvaluationDelayInput`. */
+  evaluationDelaySeconds: number;
 };
+
+/**
+ * The delay half of a create or update input, spread in by every mutation that
+ * carries a scope. Only session scheduling waits out a delay, and the server
+ * rejects one sent for a span evaluator, so non-session targets send nothing.
+ */
+export function toEvaluationDelayInput(scope: ProjectEvaluatorScope): {
+  evaluationDelaySeconds?: number;
+} {
+  return scope.targetType === "SESSION"
+    ? { evaluationDelaySeconds: scope.evaluationDelaySeconds }
+    : {};
+}
 
 export const isProjectEvaluatorTarget = (
   value: string
 ): value is ProjectEvaluatorTarget =>
   PROJECT_EVALUATOR_TARGETS.includes(value as ProjectEvaluatorTarget);
+
+/**
+ * Which mapping-source vocabulary the records of an evaluated target speak.
+ *
+ * Span and session sources are structurally identical, so this is the only thing
+ * that can tell them apart; every place that builds or resets a project
+ * evaluator's mapping source goes through here.
+ */
+export function toEvaluatorMappingSourceGrain(
+  target: ProjectEvaluatorTarget
+): EvaluatorMappingSourceGrain {
+  switch (target) {
+    case "SESSION":
+      return "session";
+    case "SPAN":
+    case "TRACE":
+      return "span";
+    default:
+      return assertUnreachable(target);
+  }
+}
 
 export function toProjectEvaluatorSamplingFraction(percent: number): number {
   return Math.min(100, Math.max(0, percent)) / 100;
@@ -46,6 +92,20 @@ export function toProjectEvaluatorSamplingFraction(percent: number): number {
 /** "SPAN" -> "Span", for display in the evaluators table and details page. */
 export function formatEvaluationTarget(target: EvaluationTarget): string {
   return `${target.charAt(0)}${target.slice(1).toLowerCase()}`;
+}
+
+/** "SPAN" -> "spans", for prose that names what an evaluator runs on. */
+export function formatEvaluationTargetPlural(target: EvaluationTarget): string {
+  return `${target.toLowerCase()}s`;
+}
+
+/** "300" -> "5 minutes"; whole minutes read better than raw seconds. */
+export function formatEvaluationDelay(seconds: number): string {
+  if (seconds < 60 || seconds % 60 !== 0) {
+    return `${seconds.toLocaleString()} second${seconds === 1 ? "" : "s"}`;
+  }
+  const minutes = seconds / 60;
+  return `${minutes.toLocaleString()} minute${minutes === 1 ? "" : "s"}`;
 }
 
 // Hoisted: Intl.NumberFormat construction does locale resolution, and the
@@ -66,11 +126,6 @@ export type ProjectEvaluatorMappingDiagnostic = {
   status: "resolved" | "missing" | "optional-missing" | "unverified";
 };
 
-// Only dot-separated bare JSONPath identifiers resolve client-side; anything
-// else (hyphens, brackets, quotes) is left to server validation.
-const SIMPLE_MAPPING_PATH_PATTERN =
-  /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/;
-
 export function getProjectEvaluatorMappingDiagnostics({
   context,
   pathMapping,
@@ -85,7 +140,8 @@ export function getProjectEvaluatorMappingDiagnostics({
   const requiredVariableNames = new Set(requiredVariables);
   return variables.map((variable) => {
     const path = pathMapping[variable] ?? variable;
-    if (!SIMPLE_MAPPING_PATH_PATTERN.test(path)) {
+    // Wildcards and slices only the server can resolve are left to it.
+    if (parsePathSegments(path) === null) {
       return { variable, path, status: "unverified" };
     }
     return {
