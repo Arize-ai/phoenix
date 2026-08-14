@@ -29,16 +29,39 @@ pip install openai  # or anthropic, google-generativeai, litellm, etc.
 
 ```python
 import os
-from phoenix.evals import LLM, async_evaluate_dataframe
-from phoenix.evals.metrics import DocumentRelevanceEvaluator
+from phoenix.evals import ClassificationEvaluator, LLM, async_evaluate_dataframe
 
 os.environ["OPENAI_API_KEY"] = "<your-openai-key>"
 
-llm = LLM(provider="openai", model="gpt-4o")
-relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
+DOCUMENT_RELEVANCE_TEMPLATE = """You are comparing a document to a question and trying to determine
+if the document text contains information relevant to answering the
+question. Here is the data:
 
-# DataFrame must have columns matching the evaluator's input schema
-# DocumentRelevanceEvaluator expects: 'input' (query) and 'output' (document)
+<data>
+
+<question>
+{input}
+</question>
+
+<document_text>
+{document_text}
+</document_text>
+
+</data>
+
+Compare the question above to the document text. You must determine
+whether the document text contains information that can answer the
+question. Your response must be either "relevant" or "unrelated"."""
+
+llm = LLM(provider="openai", model="gpt-4o")
+relevance_evaluator = ClassificationEvaluator(
+    name="document_relevance",
+    llm=llm,
+    prompt_template=DOCUMENT_RELEVANCE_TEMPLATE,
+    choices={"relevant": 1.0, "unrelated": 0.0},
+)
+
+# DataFrame must have columns matching the evaluator's input fields: 'input' and 'document_text'
 results_df = await async_evaluate_dataframe(
     dataframe=df,
     evaluators=[relevance_evaluator],

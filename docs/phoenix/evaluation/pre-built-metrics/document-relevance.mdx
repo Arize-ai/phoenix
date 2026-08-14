@@ -72,17 +72,43 @@ The evaluator returns a `Score` object with the following properties:
 <Tabs>
   <Tab title="Python" icon="python">
     ```python
-    from phoenix.evals import LLM
-    from phoenix.evals.metrics import DocumentRelevanceEvaluator
+    from phoenix.evals import ClassificationEvaluator, LLM
+
+    # The document relevance prompt
+    DOCUMENT_RELEVANCE_TEMPLATE = """You are comparing a document to a question and trying to determine
+    if the document text contains information relevant to answering the
+    question. Here is the data:
+
+    <data>
+
+    <question>
+    {input}
+    </question>
+
+    <document_text>
+    {document_text}
+    </document_text>
+
+    </data>
+
+    Compare the question above to the document text. You must determine
+    whether the document text contains information that can answer the
+    question. Please focus on whether the very specific question can be
+    answered by the information in the document text. Your response must be
+    either "relevant" or "unrelated". "unrelated" means that the document
+    text does not contain an answer to the question. "relevant" means the
+    document text contains an answer to the question."""
 
     # Initialize the LLM client
     llm = LLM(provider="openai", model="gpt-4o")
 
     # Create the evaluator
-    relevance_eval = DocumentRelevanceEvaluator(llm=llm)
-
-    # Inspect the evaluator's requirements
-    print(relevance_eval.describe())
+    relevance_eval = ClassificationEvaluator(
+        name="document_relevance",
+        llm=llm,
+        prompt_template=DOCUMENT_RELEVANCE_TEMPLATE,
+        choices={"relevant": 1.0, "unrelated": 0.0},
+    )
 
     # Evaluate a single document
     eval_input = {
@@ -98,12 +124,40 @@ The evaluator returns a `Score` object with the following properties:
 
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
+    // The document relevance prompt
+    const DOCUMENT_RELEVANCE_TEMPLATE = `You are comparing a document to a question and trying to determine
+    if the document text contains information relevant to answering the
+    question. Here is the data:
+
+    <data>
+
+    <question>
+    {{input}}
+    </question>
+
+    <document_text>
+    {{documentText}}
+    </document_text>
+
+    </data>
+
+    Compare the question above to the document text. You must determine
+    whether the document text contains information that can answer the
+    question. Please focus on whether the very specific question can be
+    answered by the information in the document text. Your response must be
+    either "relevant" or "unrelated". "unrelated" means that the document
+    text does not contain an answer to the question. "relevant" means the
+    document text contains an answer to the question.`;
+
     // Create the evaluator
-    const relevanceEvaluator = createDocumentRelevanceEvaluator({
+    const relevanceEvaluator = createClassificationEvaluator({
       model: openai("gpt-4o"),
+      name: "document_relevance",
+      promptTemplate: DOCUMENT_RELEVANCE_TEMPLATE,
+      choices: { relevant: 1, unrelated: 0 },
     });
 
     // Evaluate a document
@@ -125,11 +179,16 @@ To evaluate all documents returned by a retriever, iterate over each document:
 <Tabs>
   <Tab title="Python" icon="python">
     ```python
-    from phoenix.evals import LLM
-    from phoenix.evals.metrics import DocumentRelevanceEvaluator
+    from phoenix.evals import ClassificationEvaluator, LLM
 
+    # Reuse the DOCUMENT_RELEVANCE_TEMPLATE defined above
     llm = LLM(provider="openai", model="gpt-4o")
-    relevance_eval = DocumentRelevanceEvaluator(llm=llm)
+    relevance_eval = ClassificationEvaluator(
+        name="document_relevance",
+        llm=llm,
+        prompt_template=DOCUMENT_RELEVANCE_TEMPLATE,
+        choices={"relevant": 1.0, "unrelated": 0.0},
+    )
 
     query = "What are the symptoms of COVID-19?"
     retrieved_documents = [
@@ -154,11 +213,15 @@ To evaluate all documents returned by a retriever, iterate over each document:
 
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    const relevanceEvaluator = createDocumentRelevanceEvaluator({
+    // Reuse the DOCUMENT_RELEVANCE_TEMPLATE defined above
+    const relevanceEvaluator = createClassificationEvaluator({
       model: openai("gpt-4o"),
+      name: "document_relevance",
+      promptTemplate: DOCUMENT_RELEVANCE_TEMPLATE,
+      choices: { relevant: 1, unrelated: 0 },
     });
 
     const query = "What are the symptoms of COVID-19?";
@@ -187,11 +250,16 @@ When your data has different field names, use input mapping.
 <Tabs>
   <Tab title="Python" icon="python">
     ```python
-    from phoenix.evals import LLM
-    from phoenix.evals.metrics import DocumentRelevanceEvaluator
+    from phoenix.evals import ClassificationEvaluator, LLM
 
+    # Reuse the DOCUMENT_RELEVANCE_TEMPLATE defined above
     llm = LLM(provider="openai", model="gpt-4o")
-    relevance_eval = DocumentRelevanceEvaluator(llm=llm)
+    relevance_eval = ClassificationEvaluator(
+        name="document_relevance",
+        llm=llm,
+        prompt_template=DOCUMENT_RELEVANCE_TEMPLATE,
+        choices={"relevant": 1.0, "unrelated": 0.0},
+    )
 
     # Example with different field names
     eval_input = {
@@ -213,11 +281,15 @@ When your data has different field names, use input mapping.
 
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import { bindEvaluator, createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { bindEvaluator, createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    const relevanceEvaluator = createDocumentRelevanceEvaluator({
+    // Reuse the DOCUMENT_RELEVANCE_TEMPLATE defined above
+    const relevanceEvaluator = createClassificationEvaluator({
       model: openai("gpt-4o"),
+      name: "document_relevance",
+      promptTemplate: DOCUMENT_RELEVANCE_TEMPLATE,
+      choices: { relevant: 1, unrelated: 0 },
     });
 
     // Bind with input mapping for different field names
@@ -249,19 +321,14 @@ You can view the latest versions of our prompt templates [on GitHub](https://git
 <Tabs>
   <Tab title="Python" icon="python">
     ```python
-    from phoenix.evals.metrics import DocumentRelevanceEvaluator
-    from phoenix.evals import LLM, ClassificationEvaluator
+    from phoenix.evals import ClassificationEvaluator, LLM
 
     llm = LLM(provider="openai", model="gpt-4o")
-    evaluator = DocumentRelevanceEvaluator(llm=llm)
 
-    # View the prompt template
-    print(evaluator.prompt_template)
-
-    # Create a custom evaluator based on the built-in template
+    # Create a custom evaluator based on the template
     custom_evaluator = ClassificationEvaluator(
         name="document_relevance",
-        prompt_template=evaluator.prompt_template,  # Modify as needed
+        prompt_template=DOCUMENT_RELEVANCE_TEMPLATE,  # Modify as needed
         llm=llm,
         choices={"relevant": 1.0, "unrelated": 0.0},
         direction="maximize",
@@ -271,16 +338,15 @@ You can view the latest versions of our prompt templates [on GitHub](https://git
 
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import { DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG, createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
     import { openai } from "@ai-sdk/openai";
 
-    // View the prompt template
-    console.log(DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template);
-
     // Create a custom evaluator with a modified template
-    const customEvaluator = createDocumentRelevanceEvaluator({
+    const customEvaluator = createClassificationEvaluator({
       model: openai("gpt-4o"),
-      promptTemplate: DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+      name: "document_relevance",
+      promptTemplate: DOCUMENT_RELEVANCE_TEMPLATE, // Modify as needed
+      choices: { relevant: 1, unrelated: 0 },
     });
     ```
   </Tab>
@@ -303,8 +369,8 @@ Use the Document Relevance evaluator in Phoenix experiments:
 
 ## API Reference
 
-- **Python**: [DocumentRelevanceEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/api/evals.html#module-phoenix.evals.metrics)
-- **TypeScript**: [createDocumentRelevanceEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+- **Python**: [ClassificationEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/api/evals.html#module-phoenix.evals)
+- **TypeScript**: [createClassificationEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
 
 ## Related
 
