@@ -54,6 +54,7 @@ from phoenix.server.online_eval.derivation import (
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.online_eval.session_policy import (
+    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
     SessionTranscriptPolicy,
     session_criteria_is_schedulable,
 )
@@ -860,10 +861,7 @@ class OnlineEvalExecutor:
                 f"online-eval:{evaluator_orm.id}:{self._sandbox_session_manager.replica_id}"
             ),
             max_payload_bytes=max_payload_bytes,
-            payload_limit_remediation=(
-                "Reduce the dominant evaluator source or mapped inputs, or raise the limit with "
-                "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
-            ),
+            payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
         )
         return _HydratedEvaluatorSnapshot(
             annotator_kind="CODE",

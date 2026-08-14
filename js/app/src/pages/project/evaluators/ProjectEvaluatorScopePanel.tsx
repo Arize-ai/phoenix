@@ -1593,6 +1593,9 @@ function useEvaluatorPreviewRuns({
               context,
               evaluator,
               inputMapping: state.evaluator.inputMapping,
+              // Every row here stands in for a scheduled run, span or
+              // session, so the run has to fail wherever the live one would.
+              applyOnlineEvaluationLimits: true,
             },
           ],
           credentials: toGqlCredentials(credentials),

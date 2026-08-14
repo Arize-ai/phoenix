@@ -24,6 +24,14 @@ if TYPE_CHECKING:
 DEFAULT_SESSION_EVALUATION_DELAY_SECONDS = 300
 MINIMUM_EVALUATION_DELAY_SECONDS = 10
 
+# What to do about an over-limit sandbox payload. Shared with the preview
+# mutation so a preview run under the online limits reports the rejection in the
+# same words the scheduled evaluation would.
+ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION = (
+    "Reduce the dominant evaluator source or mapped inputs, or raise the limit with "
+    "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
+)
+
 TRANSCRIPT_POLICY_VERSION = "2"
 MAX_SESSION_EVAL_TURNS = 1_000
 
