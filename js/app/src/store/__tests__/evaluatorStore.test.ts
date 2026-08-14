@@ -1,5 +1,6 @@
 import {
   createEvaluatorStore,
+  SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
   type EvaluatorStoreProps,
 } from "../evaluatorStore";
 
@@ -76,6 +77,52 @@ describe("evaluatorStore mapping source grain", () => {
     expect(store.getState().evaluator.inputMapping).toEqual({
       literalMapping: {},
       pathMapping: {},
+    });
+  });
+
+  it("keeps a recorded session context under the session grain", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "session",
+        source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      },
+    });
+
+    store.getState().setEvaluatorMappingSource({
+      input: "User: hi\nAssistant: hello",
+      output: "hello",
+      metadata: { turns: [{ input: "hi", output: "hello" }] },
+    });
+
+    // A dataset fallthrough would coerce input/output to objects and add
+    // `reference`, silently renaming what the evaluator binds against.
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "session",
+      source: {
+        input: "User: hi\nAssistant: hello",
+        output: "hello",
+        metadata: { turns: [{ input: "hi", output: "hello" }] },
+      },
+    });
+  });
+
+  it("resets the source to the new grain's default when the grain changes", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: "What is Phoenix?",
+          output: "An AI observability platform",
+          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+        },
+      },
+    });
+
+    store.getState().setEvaluatorMappingSourceGrain("session");
+
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "session",
+      source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
     });
   });
 

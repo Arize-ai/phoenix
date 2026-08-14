@@ -34,13 +34,18 @@ import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluato
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
-import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  toEvaluationDelayInput,
+  toEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorScope,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+  defaultEvaluatorMappingSourceState,
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
@@ -113,6 +118,7 @@ export function useProjectEvaluator(projectEvaluatorId: string) {
             evaluationTarget
             filterCondition
             samplingRate
+            evaluationDelaySeconds
             enabled
             inputMapping {
               pathMapping
@@ -269,6 +275,7 @@ function getScope(evaluator: ProjectEvaluatorNode): ProjectEvaluatorScope {
     targetType: evaluator.evaluationTarget,
     filterCondition: evaluator.filterCondition,
     samplingRate: evaluator.samplingRate,
+    evaluationDelaySeconds: evaluator.evaluationDelaySeconds,
   };
 }
 
@@ -359,14 +366,11 @@ function EditLlmProjectEvaluatorContent({
     outputConfigs: outputConfigs.length
       ? outputConfigs
       : DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs,
-    evaluatorMappingSource: {
-      grain: "span" as const,
-      source: {
-        input: {},
-        output: {},
-        metadata: { attributes: {} },
-      },
-    },
+    // The persisted target decides the mapping vocabulary before any recorded
+    // record loads; a session evaluator must never open speaking span.
+    evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+      toEvaluatorMappingSourceGrain(scope.targetType)
+    ),
   } satisfies EvaluatorStoreProps;
 
   const submit = (
@@ -403,6 +407,7 @@ function EditLlmProjectEvaluatorContent({
             samplingRate: scope.samplingRate,
             evaluationTarget: scope.targetType,
             filterCondition: scope.filterCondition,
+            ...toEvaluationDelayInput(scope),
           },
         },
         onCompleted: () => {
@@ -533,14 +538,9 @@ function EditCodeProjectEvaluator({
     },
     outputConfigs: loadedOutputConfigs,
     showPromptPreview: false,
-    evaluatorMappingSource: {
-      grain: "span",
-      source: {
-        input: {},
-        output: {},
-        metadata: { attributes: {} },
-      },
-    },
+    evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+      toEvaluatorMappingSourceGrain(scope.targetType)
+    ),
   };
   return (
     <EvaluatorStoreProvider initialState={initialState}>
@@ -637,6 +637,7 @@ function EditCodeProjectEvaluator({
                     samplingRate: scope.samplingRate,
                     evaluationTarget: scope.targetType,
                     filterCondition: scope.filterCondition,
+                    ...toEvaluationDelayInput(scope),
                   },
                 },
                 onCompleted: () => {

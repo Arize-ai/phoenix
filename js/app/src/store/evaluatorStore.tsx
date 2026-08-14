@@ -12,11 +12,12 @@ import type {
   EvaluatorKind,
   EvaluatorMappingSource,
   EvaluatorMappingSourceField,
+  EvaluatorMappingSourceGrain,
   EvaluatorOptimizationDirection,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import type { DeepPartial } from "@phoenix/typeUtils";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
 /**
@@ -35,6 +36,10 @@ export type EvaluatorMappingSourceState =
   | {
       grain: "span";
       source: EvaluatorMappingSource<"span">;
+    }
+  | {
+      grain: "session";
+      source: EvaluatorMappingSource<"session">;
     };
 
 export type EvaluatorStoreProps = {
@@ -95,6 +100,15 @@ export type EvaluatorStoreActions = {
   setEvaluatorMappingSource: (
     evaluatorMappingSource: EvaluatorMappingSource
   ) => void;
+  /**
+   * Switches which kind of record the mapping source describes, resetting it to
+   * that grain's default.
+   *
+   * Span and session sources are structurally identical, so no setter can infer
+   * the grain from a source. Callers that change the evaluated target must say
+   * so explicitly, or mapping vocabulary silently keeps naming the old record.
+   */
+  setEvaluatorMappingSourceGrain: (grain: EvaluatorMappingSourceGrain) => void;
   /** Sets a single field of the evaluator mapping source. */
   setEvaluatorMappingSourceField: (
     params:
@@ -106,6 +120,11 @@ export type EvaluatorStoreActions = {
       | {
           grain: "span";
           field: EvaluatorMappingSourceField<"span">;
+          value: Record<string, unknown>;
+        }
+      | {
+          grain: "session";
+          field: EvaluatorMappingSourceField<"session">;
           value: Record<string, unknown>;
         }
   ) => void;
@@ -219,6 +238,32 @@ export const SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"span
       attributes: {},
     },
   };
+
+/** Stands in until a recorded session's server-computed context arrives. */
+export const SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"session"> =
+  {
+    input: "",
+    output: "",
+    metadata: {
+      turns: [],
+    },
+  };
+
+/** The mapping source a grain starts from before any record is selected. */
+export function defaultEvaluatorMappingSourceState(
+  grain: EvaluatorMappingSourceGrain
+): EvaluatorMappingSourceState {
+  switch (grain) {
+    case "dataset":
+      return { grain, source: EVALUATOR_MAPPING_SOURCE_DEFAULT };
+    case "span":
+      return { grain, source: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT };
+    case "session":
+      return { grain, source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT };
+    default:
+      return assertUnreachable(grain);
+  }
+}
 
 /**
  * Default value for the evaluator mapping source as a string.
@@ -460,30 +505,55 @@ export const createEvaluatorStore = (
           },
           setEvaluatorMappingSource(evaluatorMappingSource) {
             const { input, output, metadata } = evaluatorMappingSource;
-            const currentMappingSource = get().evaluatorMappingSource;
+            const { grain } = get().evaluatorMappingSource;
+            let nextEvaluatorMappingSource: EvaluatorMappingSourceState;
+            switch (grain) {
+              case "span":
+                nextEvaluatorMappingSource = {
+                  grain: "span",
+                  source: { input, output, metadata },
+                };
+                break;
+              case "session":
+                nextEvaluatorMappingSource = {
+                  grain: "session",
+                  source: { input, output, metadata },
+                };
+                break;
+              case "dataset":
+                nextEvaluatorMappingSource = {
+                  grain: "dataset",
+                  source: {
+                    input: isStringKeyedObject(input) ? input : {},
+                    output: isStringKeyedObject(output) ? output : {},
+                    reference:
+                      "reference" in evaluatorMappingSource
+                        ? evaluatorMappingSource.reference
+                        : {},
+                    metadata,
+                  },
+                };
+                break;
+              default:
+                assertUnreachable(grain);
+            }
+            set(
+              { evaluatorMappingSource: nextEvaluatorMappingSource },
+              undefined,
+              "setEvaluatorMappingSource"
+            );
+          },
+          setEvaluatorMappingSourceGrain(grain) {
+            if (get().evaluatorMappingSource.grain === grain) {
+              return;
+            }
             set(
               {
                 evaluatorMappingSource:
-                  currentMappingSource.grain === "span"
-                    ? {
-                        grain: "span",
-                        source: { input, output, metadata },
-                      }
-                    : {
-                        grain: "dataset",
-                        source: {
-                          input: isStringKeyedObject(input) ? input : {},
-                          output: isStringKeyedObject(output) ? output : {},
-                          reference:
-                            "reference" in evaluatorMappingSource
-                              ? evaluatorMappingSource.reference
-                              : {},
-                          metadata,
-                        },
-                      },
+                  defaultEvaluatorMappingSourceState(grain),
               },
               undefined,
-              "setEvaluatorMappingSource"
+              "setEvaluatorMappingSourceGrain"
             );
           },
           setEvaluatorMappingSourceField(params) {
@@ -492,22 +562,38 @@ export const createEvaluatorStore = (
               evaluatorMappingSource.grain === params.grain,
               "Evaluator mapping source grain must match the field grain"
             );
-            const nextEvaluatorMappingSource =
-              evaluatorMappingSource.grain === "dataset"
-                ? {
-                    grain: "dataset" as const,
-                    source: {
-                      ...evaluatorMappingSource.source,
-                      [params.field]: params.value,
-                    },
-                  }
-                : {
-                    grain: "span" as const,
-                    source: {
-                      ...evaluatorMappingSource.source,
-                      [params.field]: params.value,
-                    },
-                  };
+            let nextEvaluatorMappingSource: EvaluatorMappingSourceState;
+            switch (evaluatorMappingSource.grain) {
+              case "dataset":
+                nextEvaluatorMappingSource = {
+                  grain: "dataset",
+                  source: {
+                    ...evaluatorMappingSource.source,
+                    [params.field]: params.value,
+                  },
+                };
+                break;
+              case "span":
+                nextEvaluatorMappingSource = {
+                  grain: "span",
+                  source: {
+                    ...evaluatorMappingSource.source,
+                    [params.field]: params.value,
+                  },
+                };
+                break;
+              case "session":
+                nextEvaluatorMappingSource = {
+                  grain: "session",
+                  source: {
+                    ...evaluatorMappingSource.source,
+                    [params.field]: params.value,
+                  },
+                };
+                break;
+              default:
+                assertUnreachable(evaluatorMappingSource);
+            }
             set(
               { evaluatorMappingSource: nextEvaluatorMappingSource },
               undefined,

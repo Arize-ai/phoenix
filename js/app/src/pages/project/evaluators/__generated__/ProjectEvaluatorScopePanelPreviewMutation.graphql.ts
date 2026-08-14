@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<555849633b41b6fd7bb8933afe7995fc>>
+ * @generated SignedSource<<ee77a3b0f3dba3b26cbae4373dd94b63>>
  * @lightSyntaxTransform
  */
 
@@ -22,6 +22,7 @@ export type EvaluatorPreviewsInput = {
   previews: ReadonlyArray<EvaluatorPreviewItemInput>;
 };
 export type EvaluatorPreviewItemInput = {
+  applyOnlineEvaluationLimits?: boolean;
   context: any;
   evaluator: EvaluatorPreviewInput;
   inputMapping: EvaluatorInputMappingInput;
