@@ -765,7 +765,9 @@ class _ComprehensionExtractor(ast.NodeTransformer):
             if len(steps) == 1:
                 attribute = typing.cast(str, steps[0])
                 if attribute in scope.grammar.related:
-                    kind = "boolean"
+                    kind: typing.Optional[
+                        typing.Literal["string", "float", "datetime", "boolean"]
+                    ] = "boolean"
                     uppercase = False
                 else:
                     kind = _binding_kind(attribute, field_bindings)
