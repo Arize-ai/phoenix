@@ -41,6 +41,49 @@ describe("getAnnotationTooltipFilters", () => {
       },
     ]);
   });
+
+  it("builds trace annotation score filters", () => {
+    expect(
+      getAnnotationTooltipFilters({
+        accessor: "trace_annotations",
+        name: "quality",
+        score: 0.5,
+      })
+    ).toEqual([
+      {
+        filterName: "greater than",
+        filterCondition: "trace_annotations['quality'].score > 0.5",
+      },
+      {
+        filterName: "less than",
+        filterCondition: "trace_annotations['quality'].score < 0.5",
+      },
+      {
+        filterName: "equals",
+        filterCondition: "trace_annotations['quality'].score == 0.5",
+      },
+    ]);
+  });
+
+  it("builds trace annotation label filters", () => {
+    expect(
+      getAnnotationTooltipFilters({
+        accessor: "trace_annotations",
+        name: "quality",
+        label: "pass",
+      })
+    ).toEqual([
+      {
+        filterName: "match",
+        filterCondition: "trace_annotations['quality'].label == \"pass\"",
+      },
+      {
+        filterName: "exclude",
+        filterCondition:
+          "(trace_annotations['quality'].label != \"pass\" or trace_annotations['quality'].label is None)",
+      },
+    ]);
+  });
 });
 
 describe("getTraceSpanAnnotationTooltipFilters", () => {

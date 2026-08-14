@@ -13,6 +13,7 @@ import { useTraceFilters } from "@phoenix/pages/project/TraceFiltersContext";
 
 import { groupAnnotationsByName, hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
+import type { Annotation } from "./types";
 
 const useTraceAnnotationSummaryGroup = (
   trace: TraceAnnotationSummaryGroup$key
@@ -70,6 +71,7 @@ type TraceAnnotationSummaryGroupProps = {
   trace: TraceAnnotationSummaryGroup$key;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
+  renderFilterActions?: (annotation: Annotation) => React.ReactNode;
   renderEmptyState?: () => React.ReactNode;
 };
 
@@ -95,6 +97,7 @@ export const TraceAnnotationSummaryGroupTokens = ({
   trace,
   annotationConfigsByName,
   showFilterActions = false,
+  renderFilterActions,
   renderEmptyState,
 }: TraceAnnotationSummaryGroupProps) => {
   const { sortedSummariesByName, annotationsByName } =
@@ -115,9 +118,12 @@ export const TraceAnnotationSummaryGroupTokens = ({
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={(annotation) => (
-        <TraceAnnotationTooltipFilterActions annotation={annotation} />
-      )}
+      renderFilterActions={
+        renderFilterActions ??
+        ((annotation) => (
+          <TraceAnnotationTooltipFilterActions annotation={annotation} />
+        ))
+      }
     />
   );
 };

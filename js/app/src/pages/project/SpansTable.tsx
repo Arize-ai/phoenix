@@ -70,6 +70,7 @@ import {
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
@@ -602,6 +603,12 @@ export function SpansTable(props: SpansTableProps) {
             <TraceAnnotationSummaryGroupTokens
               trace={row.original.trace}
               annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+              renderFilterActions={(annotation) => (
+                <SpanTraceAnnotationTooltipFilterActions
+                  annotation={annotation}
+                />
+              )}
             />
           </OverflowRow>
         );

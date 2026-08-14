@@ -1,6 +1,7 @@
 import { getDslStringLiteral } from "@phoenix/utils/filterConditionUtils";
 
 export type AnnotationFilterInput = {
+  accessor?: "annotations" | "trace_annotations";
   name: string;
   label?: string | null;
   score?: number | null;
@@ -14,10 +15,10 @@ export type AnnotationFilterDefinition = {
 export function getAnnotationTooltipFilters(
   annotation: AnnotationFilterInput
 ): AnnotationFilterDefinition[] {
-  const { name, label, score } = annotation;
+  const { accessor = "annotations", name, label, score } = annotation;
   const nameLiteral = getDslStringLiteral({ value: name, quote: "'" });
-  const annotationLabel = `annotations[${nameLiteral}].label`;
-  const annotationScore = `annotations[${nameLiteral}].score`;
+  const annotationLabel = `${accessor}[${nameLiteral}].label`;
+  const annotationScore = `${accessor}[${nameLiteral}].score`;
 
   const filters: AnnotationFilterDefinition[] = [];
   if (typeof score === "number") {
