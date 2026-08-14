@@ -165,6 +165,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                 <td
                   key={cell.id}
                   className={TABLE_DATA_CELL_CLASS}
+                  data-column-id={cell.column.id}
                   align={cell.column.columnDef.meta?.textAlign}
                   style={{
                     ...getCommonPinningStyles(cell.column),

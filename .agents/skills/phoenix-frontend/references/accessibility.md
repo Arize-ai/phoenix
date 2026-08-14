@@ -8,3 +8,8 @@
 ## WCAG 2.1 AA baseline
 
 [WCAG 2.1 AA](https://www.w3.org/WAI/standards-guidelines/wcag/) MUST be followed: 4.5:1 contrast for text, keyboard operability, visible focus indicators, labeled form inputs.
+
+## Focus indicators
+
+- Focus rings MUST NOT be clipped by `overflow: hidden` on ancestor elements.
+- When a table cell contains a focusable control (e.g. a row-selection checkbox or action button), keep `overflow` visible on that cell and apply truncation/clipping only to dedicated text wrappers inside the cell.
