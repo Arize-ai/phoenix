@@ -32,6 +32,7 @@ import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/Pro
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
+  toEvaluationDelayInput,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
@@ -357,7 +358,7 @@ function AttachCodeProjectEvaluatorDialog({
               samplingRate: scope.samplingRate,
               evaluationTarget: scope.targetType,
               filterCondition: scope.filterCondition,
-              evaluationDelaySeconds: scope.evaluationDelaySeconds,
+              ...toEvaluationDelayInput(scope),
               enabled: true,
               inputMapping: null,
             },
@@ -449,7 +450,7 @@ function CreateLlmProjectEvaluatorDialog({
           evaluationTarget: scope.targetType,
           samplingRate: scope.samplingRate,
           filterCondition: scope.filterCondition,
-          evaluationDelaySeconds: scope.evaluationDelaySeconds,
+          ...toEvaluationDelayInput(scope),
           enabled: true,
         },
       });

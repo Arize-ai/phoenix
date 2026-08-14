@@ -42,9 +42,22 @@ export type ProjectEvaluatorScope = {
   targetType: ProjectEvaluatorTarget;
   filterCondition: string;
   samplingRate: number;
-  /** Only session evaluators use this; other targets store it unused. */
+  /** Only session evaluators schedule off this; see `toEvaluationDelayInput`. */
   evaluationDelaySeconds: number;
 };
+
+/**
+ * The delay half of a create or update input, spread in by every mutation that
+ * carries a scope. Only session scheduling waits out a delay, and the server
+ * rejects one sent for a span evaluator, so non-session targets send nothing.
+ */
+export function toEvaluationDelayInput(scope: ProjectEvaluatorScope): {
+  evaluationDelaySeconds?: number;
+} {
+  return scope.targetType === "SESSION"
+    ? { evaluationDelaySeconds: scope.evaluationDelaySeconds }
+    : {};
+}
 
 export const isProjectEvaluatorTarget = (
   value: string

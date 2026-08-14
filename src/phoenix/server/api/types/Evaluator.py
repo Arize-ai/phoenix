@@ -1220,9 +1220,8 @@ class ProjectEvaluator(Node):
             f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New criteria store the current "
             f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds when no value is "
             "provided. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation. Non-SESSION targets preserve this value without using it. A "
-            "later change to SESSION uses the stored value, but the target cannot change after "
-            "evaluation work exists for this project evaluator."
+            "another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator "
+            "cannot set one, and TRACE evaluators are not scheduled."
         )
     )
     async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:

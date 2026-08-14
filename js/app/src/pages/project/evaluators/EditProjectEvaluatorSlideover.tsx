@@ -35,6 +35,7 @@ import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/eva
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
+  toEvaluationDelayInput,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
@@ -406,7 +407,7 @@ function EditLlmProjectEvaluatorContent({
             samplingRate: scope.samplingRate,
             evaluationTarget: scope.targetType,
             filterCondition: scope.filterCondition,
-            evaluationDelaySeconds: scope.evaluationDelaySeconds,
+            ...toEvaluationDelayInput(scope),
           },
         },
         onCompleted: () => {
@@ -636,7 +637,7 @@ function EditCodeProjectEvaluator({
                     samplingRate: scope.samplingRate,
                     evaluationTarget: scope.targetType,
                     filterCondition: scope.filterCondition,
-                    evaluationDelaySeconds: scope.evaluationDelaySeconds,
+                    ...toEvaluationDelayInput(scope),
                   },
                 },
                 onCompleted: () => {

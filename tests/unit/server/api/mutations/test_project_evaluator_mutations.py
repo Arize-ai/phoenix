@@ -270,7 +270,6 @@ async def test_project_code_evaluator_crud_and_connection(
                 "inputMapping": _mapping(context="override"),
                 "samplingRate": 0.25,
                 "evaluationTarget": "SPAN",
-                "evaluationDelaySeconds": 30,
                 "filterCondition": "span_kind == 'LLM'",
                 "enabled": False,
             }
@@ -280,7 +279,6 @@ async def test_project_code_evaluator_crud_and_connection(
     updated = update_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert updated["name"] == "updated-code"
     assert updated["evaluationTarget"] == "SPAN"
-    assert updated["evaluationDelaySeconds"] == 30
     assert updated["schedulabilityStatus"] == "NOT_SCHEDULABLE"
     assert updated["schedulabilityReason"] == "DISABLED"
     assert updated["inputMapping"] == _mapping(context="override")
@@ -292,7 +290,6 @@ async def test_project_code_evaluator_crud_and_connection(
         assert criteria is not None
         assert criteria.input_mapping is not None
         assert criteria.input_mapping.literal_mapping == {"context": "override"}
-        assert criteria.evaluation_delay_seconds == 30
         evaluator = await session.get(models.CodeEvaluator, criteria.evaluator_id)
         assert evaluator is not None
         user_role_id = await session.scalar(select(models.UserRole.id).limit(1))
@@ -327,7 +324,6 @@ async def test_project_code_evaluator_crud_and_connection(
     omitted = omitted_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert omitted["inputMapping"] == _mapping(context="override")
     assert omitted["enabled"] is False
-    assert omitted["evaluationDelaySeconds"] == 30
     assert omitted["schedulabilityStatus"] == "NOT_SCHEDULABLE"
     assert omitted["schedulabilityReason"] == "DISABLED"
     async with db() as session:
@@ -335,7 +331,6 @@ async def test_project_code_evaluator_crud_and_connection(
         assert criteria is not None
         assert criteria.input_mapping is not None
         assert criteria.input_mapping.literal_mapping == {"context": "override"}
-        assert criteria.evaluation_delay_seconds == 30
         evaluator = await session.get(models.CodeEvaluator, criteria.evaluator_id)
         assert evaluator is not None
         assert evaluator.description == "updated"
@@ -901,6 +896,7 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
     error_message = "evaluationDelaySeconds must be at least 10 seconds"
 
     create_code_input = _code_create_input(project, sandbox_config)
+    create_code_input["evaluationTarget"] = "SESSION"
     create_code_input["evaluationDelaySeconds"] = 9
     before = await _row_counts(db)
     create_code_result = await gql_client.execute(_CREATE_CODE, {"input": create_code_input})
@@ -959,6 +955,56 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
         assert code_criteria is not None and llm_criteria is not None
         assert code_criteria.evaluation_delay_seconds == 300
         assert llm_criteria.evaluation_delay_seconds == 300
+
+
+async def test_evaluation_delay_rejected_for_span_project_evaluators(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    error_message = (
+        "evaluationDelaySeconds is not accepted for SPAN evaluators: span scheduling "
+        "does not honor an evaluation delay"
+    )
+
+    create_input = _code_create_input(project, sandbox_config)
+    create_input["evaluationDelaySeconds"] = 30
+    before = await _row_counts(db)
+    create_result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+    assert create_result.errors
+    assert create_result.errors[0].message == error_message
+    assert await _row_counts(db) == before
+
+    valid_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert valid_result.data and not valid_result.errors
+    created = valid_result.data["createProjectCodeEvaluator"]["evaluator"]
+    update_result = await gql_client.execute(
+        _UPDATE_CODE,
+        {
+            "input": {
+                "projectEvaluatorId": created["id"],
+                "name": created["name"],
+                "evaluatorInputMapping": _mapping(output="value"),
+                "samplingRate": 1.0,
+                "evaluationTarget": "SPAN",
+                "evaluationDelaySeconds": 30,
+                "filterCondition": "",
+                "enabled": True,
+            }
+        },
+    )
+    assert update_result.errors
+    assert update_result.errors[0].message == error_message
+
+    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    async with db() as session:
+        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        assert criteria is not None
+        assert criteria.evaluation_delay_seconds == 300
 
 
 async def test_evaluation_target_change_rejected_from_creation(
