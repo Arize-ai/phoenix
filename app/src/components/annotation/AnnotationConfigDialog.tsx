@@ -34,6 +34,9 @@ import type {
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
+const isBlankCategoryLabel = (label: string | null | undefined) =>
+  label == null || label.trim() === "";
+
 const optimizationDirections = [
   "MAXIMIZE",
   "MINIMIZE",
@@ -96,10 +99,15 @@ export const AnnotationConfigDialog = ({
     };
     switch (data.annotationType) {
       case "CATEGORICAL": {
+        // Discard fully blank rows (no label and no score) so that leaving a
+        // trailing default row empty does not block submission.
+        const values = data.values.filter(
+          (value) => !(isBlankCategoryLabel(value.label) && value.score == null)
+        );
         const config: AnnotationConfigCategorical = {
           annotationType: "CATEGORICAL",
           name: data.name,
-          values: data.values,
+          values,
           id: initialAnnotationConfig?.id || "",
           optimizationDirection: data.optimizationDirection,
           description: data.description,
@@ -359,7 +367,29 @@ export const AnnotationConfigDialog = ({
                           control={control}
                           name={`values.${index}.label`}
                           rules={{
-                            required: "Category label is required",
+                            validate: (value, formValues) => {
+                              if (!isBlankCategoryLabel(value)) {
+                                return true;
+                              }
+                              // This field only renders for CATEGORICAL, so the
+                              // form values always carry the `values` array.
+                              const rows =
+                                (formValues as AnnotationConfigCategorical)
+                                  .values ?? [];
+                              const rowScore = rows[index]?.score;
+                              // Allow a fully blank row to pass (it is dropped
+                              // on submit) as long as at least one other row
+                              // still defines a category.
+                              const hasAnotherLabeledRow = rows.some(
+                                (row, rowIndex) =>
+                                  rowIndex !== index &&
+                                  !isBlankCategoryLabel(row.label)
+                              );
+                              if (rowScore == null && hasAnotherLabeledRow) {
+                                return true;
+                              }
+                              return "Category label is required";
+                            },
                           }}
                           render={({ field, fieldState: { error } }) => (
                             <TextField
