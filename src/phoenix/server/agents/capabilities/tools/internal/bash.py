@@ -536,8 +536,10 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
             mutation_policy=mutation_policy,
             initial_snapshot=initial_snapshot,
         )
-        # Parallel tool calls share the shell and the mutation policy. Each
-        # call stamps its own approval context onto the policy, snapshots the
+        # pydantic-ai executes same-turn tool calls concurrently, so multiple
+        # bash calls from one model response can enter the closure below at
+        # once while sharing the shell and the mutation policy. Each call
+        # stamps its own approval context onto the policy, snapshots the
         # shell, executes, then drains pending mutations and may roll the
         # shell back — interleaving would leak one call's approved digests
         # into another's execution, misattribute pending mutations, and
