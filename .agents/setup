@@ -4,9 +4,21 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-uv_version="0.11.31"
-node_version="22.22.0"
-pnpm_version="11.11.0"
+# Read from [tool.uv] required-version, which uv enforces at startup: a second
+# pin here would abort every uv command in this script the moment it drifts.
+uv_version="$(grep -E '^required-version\s*=' pyproject.toml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+if [[ -z "$uv_version" ]]; then
+  echo "ERROR: could not read uv required-version from pyproject.toml" >&2
+  exit 1
+fi
+# Read from .nvmrc so the orb runs the same node local dev does. The download
+# URL below needs an exact version, so reject the range forms nvm also accepts.
+node_version="$(tr -d '[:space:]' <.nvmrc)"
+node_version="${node_version#v}"
+if [[ ! "$node_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "ERROR: .nvmrc must hold an exact node version, got '$node_version'" >&2
+  exit 1
+fi
 node_name="node-v${node_version}-linux-x64"
 node_dir="$HOME/.local/share/$node_name"
 node_current="$HOME/.local/share/phoenix-node"
@@ -45,6 +57,14 @@ if [[ ! -x "$node_dir/bin/node" ]]; then
 fi
 ln -sfn "$node_dir" "$node_current"
 
+# Read from the packageManager field CI installs pnpm from. Derived here rather
+# than at the top of the script because it needs the node installed just above.
+pnpm_version="$(node -p "require('./app/package.json').packageManager.split('@')[1].split('+')[0]")"
+if [[ ! "$pnpm_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "ERROR: app/package.json packageManager must pin an exact pnpm version" >&2
+  exit 1
+fi
+
 echo "==> Enabling pnpm $pnpm_version"
 corepack enable
 corepack install --global "pnpm@$pnpm_version"
@@ -63,7 +83,7 @@ EOF
 fi
 
 echo "==> Installing Python dependencies"
-uv sync --frozen --python 3.10
+uv sync --frozen  # interpreter comes from .python-version
 uv tool install tox --with tox-uv
 
 echo "==> Installing frontend dependencies"
