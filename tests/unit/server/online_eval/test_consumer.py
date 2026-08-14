@@ -1477,7 +1477,7 @@ async def test_session_hydration_excludes_transferred_trace_roots(
 
 
 async def test_session_filtered_sampled_criteria_survives_hydration(
-    db: DbSessionFactory,
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
@@ -1515,6 +1515,7 @@ async def test_session_filtered_sampled_criteria_survives_hydration(
         evaluator_id,
         criteria_id,
     )
+    _patch_playground_client(monkeypatch, _StubLLMClient())
 
     consumer = OnlineEvalConsumer(
         db,
