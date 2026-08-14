@@ -32,6 +32,7 @@ import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/Pro
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
+  toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
@@ -42,6 +43,7 @@ import {
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+  defaultEvaluatorMappingSourceState,
   type AnnotationConfig,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
@@ -165,14 +167,9 @@ const CreateProjectEvaluatorDialog = ({
           kind: "CODE",
         },
         outputConfigs: [createDefaultFreeformOutputConfig("")],
-        evaluatorMappingSource: {
-          grain: "span",
-          source: {
-            input: {},
-            output: {},
-            metadata: { attributes: {} },
-          },
-        },
+        evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+          toEvaluatorMappingSourceGrain(scope.targetType)
+        ),
       } satisfies EvaluatorStoreProps;
     }
     const copiedState =
@@ -208,14 +205,9 @@ const CreateProjectEvaluatorDialog = ({
           : outputConfigs[0]
             ? [{ ...outputConfigs[0], name: defaultEvaluatorName }]
             : [],
-      evaluatorMappingSource: {
-        grain: "span",
-        source: {
-          input: {},
-          output: {},
-          metadata: { attributes: {} },
-        },
-      },
+      evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+        toEvaluatorMappingSourceGrain(scope.targetType)
+      ),
     } satisfies EvaluatorStoreProps;
   })();
 

@@ -14,6 +14,7 @@ import type {
   EvaluatorMappingSource,
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 type EvaluatorMappingSourceFieldConfig<
   TGrain extends EvaluatorMappingSourceGrain,
@@ -83,6 +84,31 @@ const SPAN_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"span">[] = [
   },
 ];
 
+const SESSION_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"session">[] = [
+  {
+    field: "input",
+    label: "input",
+    description: "The matched session's transcript, one line per turn.",
+    tooltip:
+      "Every root span in the session, rendered as alternating User and Assistant turns under the transcript policy the evaluation runs with.",
+  },
+  {
+    field: "output",
+    label: "output",
+    description: "The last response in the matched session.",
+    tooltip:
+      "The output of the session's final turn, so an evaluator can judge how the conversation ended.",
+  },
+  {
+    field: "metadata",
+    label: "metadata",
+    description:
+      "From the matched session. Individual turns are under turns, and the transcript policy records what was truncated.",
+    tooltip:
+      "Each turn's input, output, metadata, and time are available for path mapping under metadata.turns.",
+  },
+];
+
 const editorContainerCSS = css`
   min-height: 60px;
   border-radius: var(--global-rounding-small);
@@ -104,20 +130,31 @@ type EvaluatorMappingSourceEditorProps = {
 export function EvaluatorMappingSourceEditor(
   props: EvaluatorMappingSourceEditorProps
 ) {
-  if (props.grain === "span") {
-    return (
-      <EvaluatorMappingSourceFields
-        {...props}
-        fieldConfig={SPAN_FIELD_CONFIG}
-      />
-    );
+  switch (props.grain) {
+    case "span":
+      return (
+        <EvaluatorMappingSourceFields
+          {...props}
+          fieldConfig={SPAN_FIELD_CONFIG}
+        />
+      );
+    case "session":
+      return (
+        <EvaluatorMappingSourceFields
+          {...props}
+          fieldConfig={SESSION_FIELD_CONFIG}
+        />
+      );
+    case "dataset":
+      return (
+        <EvaluatorMappingSourceFields
+          {...props}
+          fieldConfig={DATASET_FIELD_CONFIG}
+        />
+      );
+    default:
+      return assertUnreachable(props);
   }
-  return (
-    <EvaluatorMappingSourceFields
-      {...props}
-      fieldConfig={DATASET_FIELD_CONFIG}
-    />
-  );
 }
 
 function EvaluatorMappingSourceFields<

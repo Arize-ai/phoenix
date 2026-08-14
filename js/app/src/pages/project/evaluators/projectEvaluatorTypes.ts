@@ -1,5 +1,9 @@
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
-import type { EvaluatorInputMapping } from "@phoenix/types";
+import type {
+  EvaluatorInputMapping,
+  EvaluatorMappingSourceGrain,
+} from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 /** A span evaluation context has no counterpart to a dataset `reference`. */
@@ -46,6 +50,27 @@ export const isProjectEvaluatorTarget = (
   value: string
 ): value is ProjectEvaluatorTarget =>
   PROJECT_EVALUATOR_TARGETS.includes(value as ProjectEvaluatorTarget);
+
+/**
+ * Which mapping-source vocabulary the records of an evaluated target speak.
+ *
+ * Span and session sources are structurally identical, so this is the only thing
+ * that can tell them apart; every place that builds or resets a project
+ * evaluator's mapping source goes through here.
+ */
+export function toEvaluatorMappingSourceGrain(
+  target: ProjectEvaluatorTarget
+): EvaluatorMappingSourceGrain {
+  switch (target) {
+    case "SESSION":
+      return "session";
+    case "SPAN":
+    case "TRACE":
+      return "span";
+    default:
+      return assertUnreachable(target);
+  }
+}
 
 export function toProjectEvaluatorSamplingFraction(percent: number): number {
   return Math.min(100, Math.max(0, percent)) / 100;

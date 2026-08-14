@@ -34,13 +34,17 @@ import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluato
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
-import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  toEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorScope,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+  defaultEvaluatorMappingSourceState,
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
@@ -361,14 +365,11 @@ function EditLlmProjectEvaluatorContent({
     outputConfigs: outputConfigs.length
       ? outputConfigs
       : DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs,
-    evaluatorMappingSource: {
-      grain: "span" as const,
-      source: {
-        input: {},
-        output: {},
-        metadata: { attributes: {} },
-      },
-    },
+    // The persisted target decides the mapping vocabulary before any recorded
+    // record loads; a session evaluator must never open speaking span.
+    evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+      toEvaluatorMappingSourceGrain(scope.targetType)
+    ),
   } satisfies EvaluatorStoreProps;
 
   const submit = (
@@ -536,14 +537,9 @@ function EditCodeProjectEvaluator({
     },
     outputConfigs: loadedOutputConfigs,
     showPromptPreview: false,
-    evaluatorMappingSource: {
-      grain: "span",
-      source: {
-        input: {},
-        output: {},
-        metadata: { attributes: {} },
-      },
-    },
+    evaluatorMappingSource: defaultEvaluatorMappingSourceState(
+      toEvaluatorMappingSourceGrain(scope.targetType)
+    ),
   };
   return (
     <EvaluatorStoreProvider initialState={initialState}>
