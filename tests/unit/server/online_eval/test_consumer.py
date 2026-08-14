@@ -8,9 +8,12 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
+from opentelemetry.context import Context
+from opentelemetry.trace import format_trace_id
 from sqlalchemy import select, text, update
 from sqlalchemy.orm import with_polymorphic
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.db.types.annotation_configs import (
@@ -83,8 +86,11 @@ from phoenix.server.online_eval.session_policy import (
     SessionTranscriptPolicy,
 )
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
+from phoenix.server.online_eval.tracing import EVALUATOR_TRACE_MARKER_ATTRIBUTE
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.attributes import get_attribute_value
+from phoenix.tracers import Tracer
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
@@ -161,8 +167,20 @@ class _StubEvaluator:
     def __init__(self, results: list[dict[str, Any]]) -> None:
         self._results = results
 
-    async def evaluate(self, **_: Any) -> list[dict[str, Any]]:
-        return self._results
+    async def evaluate(
+        self,
+        *,
+        name: str = "",
+        tracer: Optional[Any] = None,
+        **_: Any,
+    ) -> list[dict[str, Any]]:
+        if tracer is None:
+            return self._results
+        # Mirror a real evaluator: one root span per evaluation, its trace id on
+        # every result.
+        with tracer.start_as_current_span(f"Evaluator: {name}", context=Context()) as span:
+            trace_id = format_trace_id(span.get_span_context().trace_id)
+        return [{**result, "trace_id": trace_id} for result in self._results]
 
 
 def _output_config(name: str) -> CategoricalOutputConfig:
@@ -1853,6 +1871,42 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
     assert len(annotations) == 1
     assert events.get_nowait() == SpanAnnotationInsertEvent((annotations[0].id,))
     assert events.empty()
+
+
+async def test_evaluation_is_traced_into_the_evaluators_project(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    hydrated = _hydrated_stub(
+        results=[_evaluation_result("criterion")],
+        evaluator_kind="LLM",
+        output_configs=[_output_config("quality")],
+    )
+    executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
+    unit = await _claim_materialized_unit(
+        db,
+        project_id=project.id,
+        span_rowid=span.id,
+    )
+
+    await executor.evaluate_and_annotate(unit, hydrated)
+
+    async with db() as session:
+        traced = (
+            await session.execute(
+                select(models.Span, models.Trace.trace_id)
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .join(models.Project, models.Trace.project_rowid == models.Project.id)
+                .where(models.Project.name == EVALUATORS_PROJECT_NAME)
+            )
+        ).all()
+    (evaluator_span, evaluator_trace_id) = traced[0]
+    assert evaluator_span.name == "Evaluator: criterion"
+    marker = get_attribute_value(evaluator_span.attributes, EVALUATOR_TRACE_MARKER_ATTRIBUTE)
+    assert marker is True
+    (annotation,) = await _annotations(db)
+    assert annotation.metadata_["phoenix.evaluator_trace_id"] == evaluator_trace_id
 
 
 async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) -> None:
