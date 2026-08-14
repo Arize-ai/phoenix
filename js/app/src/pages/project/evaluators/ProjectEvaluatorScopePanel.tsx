@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
+import type { ComponentProps } from "react";
 import {
   Suspense,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -12,48 +14,43 @@ import invariant from "tiny-invariant";
 import {
   Alert,
   Button,
+  Card,
+  CardCollapsedPreview,
   Flex,
   Heading,
   Icon,
   Icons,
-  ListBox,
   Loading,
   LoadMoreButton,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
-  Slider,
-  SliderNumberField,
+  SegmentedControl,
+  SegmentedControlItem,
   Tab,
   TabList,
   TabPanel,
   Tabs,
   Text,
+  Token,
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import {
-  Disclosure,
-  DisclosurePanel,
-  DisclosureTrigger,
-} from "@phoenix/components/core/disclosure";
-import { EvaluatorCategoricalChoiceConfig } from "@phoenix/components/evaluators/EvaluatorCategoricalChoiceConfig";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
+  AnnotationPreviewCard,
+  AnnotationPreviewPopoverButton,
+  AnnotationPreviewSkeletonCard,
+} from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import {
   buildOutputConfigsInput,
-  computePositiveOptimization,
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import type { ProjectEvaluatorScopePanelCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelCountQuery.graphql";
 import type {
@@ -62,23 +59,20 @@ import type {
   ProjectEvaluatorScopePanelPreviewMutation,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelPreviewMutation.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
-import { ProjectEvaluatorTargetField } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetField";
+import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
   getProjectEvaluatorMappingDiagnostics,
   type ProjectEvaluatorScope,
-  toProjectEvaluatorSamplingFraction,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
-import {
-  SpanFilterConditionFieldCore,
-  type SpanFilterValidConditionArgs,
-} from "@phoenix/pages/project/SpanFilterConditionField";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorMappingSource,
 } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 export type ProjectEvaluatorInlineCode = {
@@ -88,27 +82,38 @@ export type ProjectEvaluatorInlineCode = {
 };
 
 const TIME_WINDOW_PRESETS = [
-  { id: "1h", label: "Last hour", prose: "in the last hour", ms: 3_600_000 },
+  {
+    id: "1h",
+    label: "Last hour",
+    shortLabel: "1h",
+    prose: "in the last hour",
+    ms: 3_600_000,
+  },
   {
     id: "24h",
     label: "Last 24 hours",
+    shortLabel: "24h",
     prose: "in the last 24 hours",
     ms: 86_400_000,
   },
   {
     id: "7d",
     label: "Last 7 days",
+    shortLabel: "7d",
     prose: "in the last 7 days",
     ms: 7 * 86_400_000,
   },
   {
     id: "30d",
     label: "Last 30 days",
+    shortLabel: "30d",
     prose: "in the last 30 days",
     ms: 30 * 86_400_000,
   },
-  { id: "all", label: "All time", prose: "all time", ms: null },
 ] as const;
+
+const isTimeWindowPresetId = (value: string): value is TimeWindowPresetId =>
+  TIME_WINDOW_PRESETS.some(({ id }) => id === value);
 
 type TimeWindowPresetId = (typeof TIME_WINDOW_PRESETS)[number]["id"];
 
@@ -119,7 +124,7 @@ type TimeWindowPresetId = (typeof TIME_WINDOW_PRESETS)[number]["id"];
 type TimeWindow = {
   presetId: TimeWindowPresetId;
   prose: string;
-  startIso: string | null;
+  startIso: string;
 };
 
 function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
@@ -128,54 +133,113 @@ function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
   return {
     presetId,
     prose: preset.prose,
-    startIso:
-      preset.ms == null ? null : new Date(Date.now() - preset.ms).toISOString(),
+    startIso: new Date(Date.now() - preset.ms).toISOString(),
   };
 }
 
+type ProjectEvaluatorScopePanelScopeFieldsProps =
+  | {
+      /** Target, sampling, and the span filter render in this panel. */
+      showScopeFields?: true;
+      onScopeChange: (scope: ProjectEvaluatorScope) => void;
+      onFilterValidityChange?: (isValid: boolean) => void;
+      isTargetDisabled?: boolean;
+    }
+  | {
+      /**
+       * The scope fields render in the definition panel instead; the panel
+       * starts at the matching-span preview and edits no scope.
+       */
+      showScopeFields: false;
+    };
+
 /** Scope is committed by the form's create/save action, not by this panel. */
-export const ProjectEvaluatorScopePanel = ({
-  projectId,
-  scope,
-  onScopeChange,
-  onFilterValidityChange,
-  codeEvaluatorId,
-  inlineCode,
-  requiredVariables,
-  showAnnotationTemplate = false,
-  isTargetDisabled = false,
-}: {
-  projectId: string;
-  scope: ProjectEvaluatorScope;
-  onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  onFilterValidityChange?: (isValid: boolean) => void;
-  codeEvaluatorId?: string;
-  inlineCode?: ProjectEvaluatorInlineCode;
-  requiredVariables?: string[];
-  showAnnotationTemplate?: boolean;
-  isTargetDisabled?: boolean;
-}) => {
+export const ProjectEvaluatorScopePanel = (
+  props: {
+    projectId: string;
+    scope: ProjectEvaluatorScope;
+    codeEvaluatorId?: string;
+    inlineCode?: ProjectEvaluatorInlineCode;
+    requiredVariables?: string[];
+  } & ProjectEvaluatorScopePanelScopeFieldsProps
+) => {
+  const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
+    props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
+  // The run list below the Suspense boundary owns the spans and the run
+  // machinery; it hands the header's Test All button the latest run-all
+  // closure through this ref and reports readiness through the state.
+  const runAllSpansRef = useRef<() => void>(() => {});
+  const [canRunAllSpans, setCanRunAllSpans] = useState(false);
+  const testAllButton = (
+    <Button
+      size="S"
+      variant="primary"
+      leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+      isDisabled={!canRunAllSpans}
+      onPress={() => runAllSpansRef.current()}
+    >
+      Test All
+    </Button>
+  );
   return (
     <div css={panelCSS}>
       <div css={panelScrollCSS}>
+        {props.showScopeFields !== false ? (
+          <>
+            <Flex direction="column" gap="size-25">
+              <Heading level={2}>Scope</Heading>
+              <Text color="text-500" size="S">
+                Choose what gets evaluated and how much of it.
+              </Text>
+            </Flex>
+            <ScopeEditorCard
+              projectId={projectId}
+              scope={scope}
+              onScopeChange={props.onScopeChange}
+              onFilterValidityChange={props.onFilterValidityChange}
+              timeWindow={timeWindow}
+              onTimeWindowChange={setTimeWindow}
+              isTargetDisabled={props.isTargetDisabled ?? false}
+            />
+          </>
+        ) : null}
         <Flex direction="column" gap="size-25">
-          <Heading level={2}>Scope</Heading>
-          <Text color="text-500" size="S">
-            Select which spans this evaluator runs on and how often.
-          </Text>
-        </Flex>
-        <ScopeEditorCard
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={onFilterValidityChange}
-          timeWindow={timeWindow}
-          onTimeWindowChange={setTimeWindow}
-          isTargetDisabled={isTargetDisabled}
-        />
-        <Flex direction="column" gap="size-25">
-          <Heading level={2}>Matching spans</Heading>
+          {props.showScopeFields !== false ? (
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              gap="size-200"
+            >
+              <Heading level={2}>Matching spans</Heading>
+              {testAllButton}
+            </Flex>
+          ) : (
+            <>
+              <Flex
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                gap="size-200"
+              >
+                <Heading level={2} weight="heavy">
+                  Test with a Span
+                </Heading>
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <TimeWindowSegmentedControl
+                    size="S"
+                    value={timeWindow.presetId}
+                    onChange={setTimeWindow}
+                  />
+                  {testAllButton}
+                </Flex>
+              </Flex>
+              <Text color="text-500">
+                Test your evaluator on recent spans that match your scope.
+              </Text>
+            </>
+          )}
           <Suspense
             fallback={
               <Text size="S" color="text-500">
@@ -199,6 +263,8 @@ export const ProjectEvaluatorScopePanel = ({
               codeEvaluatorId={codeEvaluatorId}
               inlineCode={inlineCode}
               requiredVariables={requiredVariables}
+              runAllSpansRef={runAllSpansRef}
+              onCanRunAllChange={setCanRunAllSpans}
             />
           ) : (
             <LlmSpanRunList
@@ -206,10 +272,11 @@ export const ProjectEvaluatorScopePanel = ({
               filterCondition={scope.filterCondition}
               timeWindow={timeWindow}
               requiredVariables={requiredVariables}
+              runAllSpansRef={runAllSpansRef}
+              onCanRunAllChange={setCanRunAllSpans}
             />
           )}
         </Suspense>
-        {showAnnotationTemplate ? <AnnotationTemplateDisclosure /> : null}
       </div>
     </div>
   );
@@ -229,7 +296,6 @@ const panelScrollCSS = css`
   padding: 0 var(--global-dimension-size-200) var(--global-dimension-size-200);
 `;
 
-/** Bounded windows only — an all-time count is an unbounded bucket scan. */
 function useMatchedSpanCount({
   projectId,
   filterCondition,
@@ -275,6 +341,39 @@ function useMatchedSpanCount({
   );
 }
 
+function TimeWindowSegmentedControl({
+  value,
+  onChange,
+  size,
+}: {
+  value: TimeWindowPresetId;
+  onChange: (timeWindow: TimeWindow) => void;
+  size?: ComponentProps<typeof SegmentedControl>["size"];
+}) {
+  return (
+    <SegmentedControl
+      aria-label="Preview window"
+      size={size}
+      selectedKey={value}
+      onSelectionChange={(key) => {
+        if (typeof key === "string" && isTimeWindowPresetId(key)) {
+          onChange(makeTimeWindow(key));
+        }
+      }}
+    >
+      {TIME_WINDOW_PRESETS.map((preset) => (
+        <SegmentedControlItem
+          key={preset.id}
+          id={preset.id}
+          aria-label={preset.label}
+        >
+          {preset.shortLabel}
+        </SegmentedControlItem>
+      ))}
+    </SegmentedControl>
+  );
+}
+
 function ScopeEditorCard({
   projectId,
   scope,
@@ -292,106 +391,25 @@ function ScopeEditorCard({
   onTimeWindowChange: (timeWindow: TimeWindow) => void;
   isTargetDisabled: boolean;
 }) {
-  // Only validated conditions are lifted into `scope`.
-  const [filterConditionDraft, setFilterConditionDraft] = useState(
-    scope.filterCondition
-  );
-  const handleValidCondition = ({
-    condition: filterCondition,
-  }: SpanFilterValidConditionArgs) => {
-    if (filterCondition === scope.filterCondition) {
-      return;
-    }
-    onScopeChange({ ...scope, filterCondition });
-  };
   return (
     <div css={scopeEditorCardCSS}>
-      <Flex direction="column" gap="size-200">
-        <Flex direction="row" gap="size-400" wrap alignItems="start">
-          <ProjectEvaluatorTargetField
-            value={scope.targetType}
-            onChange={(targetType) => onScopeChange({ ...scope, targetType })}
-            isDisabled={isTargetDisabled}
-          />
-          <Flex direction="column" gap="size-50">
-            <Text size="XS" weight="heavy" color="text-700">
-              Sampling
-            </Text>
-            <Slider
-              aria-label="Sampling rate"
-              css={samplingSliderCSS}
-              minValue={0}
-              maxValue={100}
-              step={1}
-              value={Math.round(scope.samplingRate * 100)}
-              onChange={(samplingRatePercent) =>
-                onScopeChange({
-                  ...scope,
-                  samplingRate:
-                    toProjectEvaluatorSamplingFraction(samplingRatePercent),
-                })
-              }
-              thumbLabels={["Sampling rate percentage"]}
-            >
-              <SliderNumberField
-                aria-label="Sampling rate percentage"
-                formatOptions={{
-                  style: "unit",
-                  unit: "percent",
-                  unitDisplay: "narrow",
-                }}
-              />
-            </Slider>
-          </Flex>
-          <Flex direction="column" gap="size-50">
-            <Text size="XS" weight="heavy" color="text-700">
-              Preview window
-            </Text>
-            <Select
-              value={timeWindow.presetId}
-              onChange={(presetId) =>
-                onTimeWindowChange(
-                  makeTimeWindow(presetId as TimeWindowPresetId)
-                )
-              }
-              aria-label="Preview window"
-              css={css`
-                width: 160px;
-              `}
-            >
-              <Button>
-                <SelectValue />
-                <SelectChevronUpDownIcon />
-              </Button>
-              <Popover>
-                <ListBox>
-                  {TIME_WINDOW_PRESETS.map((preset) => (
-                    <SelectItem key={preset.id} id={preset.id}>
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                </ListBox>
-              </Popover>
-            </Select>
-          </Flex>
-        </Flex>
+      <ProjectEvaluatorScopeFieldGroup
+        projectId={projectId}
+        scope={scope}
+        onScopeChange={onScopeChange}
+        onFilterValidityChange={onFilterValidityChange}
+        isTargetDisabled={isTargetDisabled}
+      >
         <Flex direction="column" gap="size-50">
           <Text size="XS" weight="heavy" color="text-700">
-            Span filter
+            Preview window
           </Text>
-          <SpanFilterConditionFieldCore
-            projectId={projectId}
-            filterCondition={filterConditionDraft}
-            onFilterConditionChange={setFilterConditionDraft}
-            onValidCondition={handleValidCondition}
-            onValidityChange={onFilterValidityChange}
-            placeholder="span_kind == 'LLM'"
+          <TimeWindowSegmentedControl
+            value={timeWindow.presetId}
+            onChange={onTimeWindowChange}
           />
-          <Text size="XS" color="text-500">
-            Leave empty to evaluate every span.
-          </Text>
         </Flex>
-      </Flex>
+      </ProjectEvaluatorScopeFieldGroup>
     </div>
   );
 }
@@ -405,34 +423,7 @@ function MatchedSpanCountLine({
   filterCondition: string;
   timeWindow: TimeWindow;
 }) {
-  if (timeWindow.startIso == null) {
-    return (
-      <Text size="S" color="text-500">
-        The most recent spans that match this scope.
-      </Text>
-    );
-  }
-  return (
-    <BoundedMatchedSpanCountLine
-      projectId={projectId}
-      filterCondition={filterCondition}
-      startIso={timeWindow.startIso}
-      prose={timeWindow.prose}
-    />
-  );
-}
-
-function BoundedMatchedSpanCountLine({
-  projectId,
-  filterCondition,
-  startIso,
-  prose,
-}: {
-  projectId: string;
-  filterCondition: string;
-  startIso: string;
-  prose: string;
-}) {
+  const { startIso, prose } = timeWindow;
   const matchedCount = useMatchedSpanCount({
     projectId,
     filterCondition,
@@ -440,7 +431,7 @@ function BoundedMatchedSpanCountLine({
   });
   const hasMatches = matchedCount > 0;
   return (
-    <Text size="S" color={hasMatches ? "success" : "text-500"}>
+    <Text size="S" color="text-500">
       {hasMatches
         ? `${matchedCount.toLocaleString()} span${matchedCount === 1 ? "" : "s"} matched ${prose}. The most recent are shown below.`
         : `No spans matched this scope ${prose}.`}
@@ -452,29 +443,6 @@ const scopeEditorCardCSS = css`
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   padding: var(--global-dimension-size-200);
-`;
-
-const samplingSliderCSS = css`
-  grid-template-areas: "track output";
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  /* Match the specificity of the base component's orientation rule, which
-     otherwise wins with width: 100% and collapses the track. */
-  &[data-orientation="horizontal"] {
-    width: 220px;
-    height: var(--global-input-height-m);
-  }
-  .slider__output {
-    display: flex;
-    align-items: center;
-    min-height: 0;
-  }
-  /* The base slider styles this input under an orientation-qualified selector;
-     restate that qualification so these later, equal-specificity rules win. */
-  &[data-orientation="horizontal"] .slider__number-field .react-aria-Input {
-    margin-bottom: 0;
-    height: var(--global-input-height-m);
-  }
 `;
 
 type SpanRunResult = {
@@ -496,7 +464,7 @@ type SpanRun =
 type SpanListRow = {
   key: string;
   name: string;
-  startTime: string | null;
+  spanKind: string;
   context: unknown;
   isSample: boolean;
 };
@@ -523,6 +491,8 @@ function SpanRunList({
   inlineCode,
   playgroundStore,
   requiredVariables,
+  runAllSpansRef,
+  onCanRunAllChange,
 }: {
   projectId: string;
   filterCondition: string;
@@ -531,8 +501,10 @@ function SpanRunList({
   inlineCode?: ProjectEvaluatorInlineCode;
   playgroundStore?: ReturnType<typeof usePlaygroundStore>;
   requiredVariables?: string[];
+  /** Receives the latest run-every-loaded-span closure for the header button. */
+  runAllSpansRef?: { current: () => void };
+  onCanRunAllChange?: (canRunAll: boolean) => void;
 }) {
-  const { shortDateTimeFormatter } = useTimeFormatters();
   const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
   // A transition keeps the current rows visible instead of collapsing the list
   // to its Suspense fallback while the wider page loads.
@@ -557,7 +529,7 @@ function SpanRunList({
                 span: node {
                   id
                   name
-                  startTime
+                  spanKind
                   evaluationContext
                 }
               }
@@ -572,8 +544,7 @@ function SpanRunList({
     {
       projectId,
       filterCondition: filterCondition.trim() || null,
-      timeRange:
-        timeWindow.startIso == null ? null : { start: timeWindow.startIso },
+      timeRange: { start: timeWindow.startIso },
       first: limit,
     },
     { fetchPolicy: "store-and-network" }
@@ -586,7 +557,7 @@ function SpanRunList({
     ? spans.map((span) => ({
         key: span.id,
         name: span.name,
-        startTime: span.startTime,
+        spanKind: span.spanKind,
         context: span.evaluationContext,
         isSample: false,
       }))
@@ -595,7 +566,7 @@ function SpanRunList({
           {
             key: SAMPLE_ROW_KEY,
             name: `Sample ${sample.spanKind} span`,
-            startTime: null,
+            spanKind: sample.spanKind.toLowerCase(),
             context: sample.context,
             isSample: true,
           },
@@ -633,6 +604,22 @@ function SpanRunList({
     inlineCode,
     playgroundStore,
   });
+  // No dependency array: rows and runOnSpan are rebuilt every render, so the
+  // ref is refreshed each render to keep the header's Test All button current.
+  useEffect(() => {
+    if (runAllSpansRef) {
+      runAllSpansRef.current = () => {
+        for (const row of rows) {
+          runOnSpan(row.key, row.context);
+        }
+      };
+    }
+  });
+  const canRunAllSpans = isRunnable && rows.length > 0;
+  useEffect(() => {
+    onCanRunAllChange?.(canRunAllSpans);
+    return () => onCanRunAllChange?.(false);
+  }, [canRunAllSpans, onCanRunAllChange]);
   return (
     <div css={runListCSS}>
       {rows[0]?.isSample ? (
@@ -646,7 +633,6 @@ function SpanRunList({
             key={row.key}
             row={row}
             isExpanded={expandedRowKey === row.key}
-            isMappingSource={activeRow?.key === row.key}
             onToggleExpanded={() =>
               setExpandedKey(expandedRowKey === row.key ? null : row.key)
             }
@@ -655,11 +641,6 @@ function SpanRunList({
             onRun={() => runOnSpan(row.key, row.context)}
             pathMapping={pathMapping}
             requiredVariables={requiredVariables}
-            formattedTime={
-              row.startTime
-                ? shortDateTimeFormatter(new Date(row.startTime))
-                : null
-            }
           />
         ))}
       </ul>
@@ -689,291 +670,181 @@ const runListCSS = css`
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--global-dimension-size-25);
+    gap: var(--global-dimension-size-100);
   }
 `;
 
 function SpanRunRow({
   row,
   isExpanded,
-  isMappingSource,
   onToggleExpanded,
   run,
   isRunnable,
   onRun,
   pathMapping,
   requiredVariables,
-  formattedTime,
 }: {
   row: SpanListRow;
   isExpanded: boolean;
-  isMappingSource: boolean;
   onToggleExpanded: () => void;
   run: SpanRun | undefined;
   isRunnable: boolean;
   onRun: () => void;
   pathMapping: Record<string, string>;
   requiredVariables?: string[];
-  formattedTime: string | null;
 }) {
   const isRunning = run?.status === "running";
   return (
-    <li
-      css={runRowCSS}
-      data-expanded={isExpanded}
-      aria-current={isMappingSource ? "true" : undefined}
-    >
-      <div className="span-run-row__header">
-        <button
-          type="button"
-          className="span-run-row__toggle"
-          aria-expanded={isExpanded}
-          onClick={onToggleExpanded}
-        >
-          <Icon
-            svg={isExpanded ? <Icons.ChevronDown /> : <Icons.ChevronRight />}
-          />
-          <span className="span-run-row__name">{row.name}</span>
-          {row.isSample ? (
-            <span className="span-run-row__badge">Sample</span>
-          ) : null}
-          {isMappingSource ? (
-            <span className="span-run-row__badge">Mapping source</span>
-          ) : null}
-          <span className="span-run-row__snippet">
+    <li>
+      <Card
+        collapsible
+        isOpen={isExpanded}
+        onOpenChange={onToggleExpanded}
+        title={
+          <>
+            <SpanKindToken spanKind={row.spanKind} size="S" />
+            {row.name}
+          </>
+        }
+        titleExtra={row.isSample ? <Token size="S">sample</Token> : null}
+        headerContent={
+          <CardCollapsedPreview>
             {getContextSnippet(row.context)}
-          </span>
-          {formattedTime ? (
-            <span className="span-run-row__time">{formattedTime}</span>
-          ) : null}
-        </button>
-        <SpanRunResultChip run={run} />
-        <Button
-          size="S"
-          aria-label={`Run evaluator on ${row.name}, ${
-            formattedTime ?? `span ${row.key.slice(-8)}`
-          }`}
-          leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-          isDisabled={!isRunnable || isRunning}
-          isPending={isRunning}
-          onPress={onRun}
-        />
-      </div>
-      {isExpanded ? (
-        <div className="span-run-row__detail">
-          <SpanRunDetail run={run} />
-          <Tabs defaultSelectedKey="bindings">
-            <TabList>
-              <Tab id="bindings">Bindings</Tab>
-              <Tab id="context">Context</Tab>
-            </TabList>
-            <TabPanel id="bindings">
-              <BindingPreview
-                context={row.context}
-                pathMapping={pathMapping}
-                requiredVariables={requiredVariables}
-                isSampleContext={row.isSample}
-              />
-            </TabPanel>
-            <TabPanel id="context">
-              <div css={contextViewerCSS}>
-                <JSONBlock
-                  value={JSON.stringify(row.context, null, 2)}
-                  basicSetup={{ lineNumbers: false }}
+          </CardCollapsedPreview>
+        }
+        extra={
+          <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+            <SpanRunResultChip run={run} />
+            <Button
+              size="S"
+              variant="primary"
+              aria-label={
+                // Recent spans commonly share a name; suffix the span id so
+                // each row's button has a distinct accessible name.
+                row.isSample
+                  ? `Test evaluator on ${row.name}`
+                  : `Test evaluator on ${row.name}, span ${row.key.slice(-8)}`
+              }
+              leadingVisual={
+                <Icon
+                  svg={isRunning ? <Icons.Loading /> : <Icons.PlayCircle />}
                 />
-              </div>
-            </TabPanel>
-          </Tabs>
-        </div>
-      ) : null}
+              }
+              isDisabled={!isRunnable || isRunning}
+              isPending={isRunning}
+              onPress={onRun}
+            >
+              {isRunning ? "Testing..." : "Test"}
+            </Button>
+          </Flex>
+        }
+      >
+        {isExpanded ? (
+          <View padding="size-200">
+            <Flex direction="column" gap="size-100">
+              <SpanRunDetail run={run} />
+              <Tabs defaultSelectedKey="bindings">
+                <TabList>
+                  <Tab id="bindings">Bindings</Tab>
+                  <Tab id="context">Context</Tab>
+                </TabList>
+                <TabPanel id="bindings">
+                  <BindingPreview
+                    context={row.context}
+                    pathMapping={pathMapping}
+                    requiredVariables={requiredVariables}
+                    isSampleContext={row.isSample}
+                  />
+                </TabPanel>
+                <TabPanel id="context">
+                  <div css={contextViewerCSS}>
+                    <JSONBlock
+                      value={JSON.stringify(row.context, null, 2)}
+                      basicSetup={{ lineNumbers: false }}
+                    />
+                  </div>
+                </TabPanel>
+              </Tabs>
+            </Flex>
+          </View>
+        ) : null}
+      </Card>
     </li>
   );
 }
 
-const runRowCSS = css`
-  border: 1px solid transparent;
-  border-radius: var(--global-rounding-small);
-  &[aria-current="true"] {
-    border-color: var(--global-color-info);
-  }
-  &[data-expanded="true"] {
-    border-color: var(--global-border-color-default);
-    background-color: var(--global-color-gray-100);
-  }
-  .span-run-row__header {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-100);
-    padding-right: var(--global-dimension-size-75);
-  }
-  .span-run-row__toggle {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-75) var(--global-dimension-size-100);
-    border: none;
-    border-radius: var(--global-rounding-small);
-    background: none;
-    cursor: pointer;
-    text-align: left;
-    color: var(--global-text-color-700);
-    &:hover {
-      background-color: rgba(var(--global-color-gray-500-rgb), 0.15);
-    }
-    &:focus-visible {
-      outline: 2px solid var(--global-color-info);
-      outline-offset: 1px;
-    }
-  }
-  .span-run-row__name {
-    font-family: var(--global-font-family-code, monospace);
-    font-size: var(--global-font-size-xs);
-    font-weight: 600;
-    flex: none;
-    color: var(--global-text-color-900);
-  }
-  .span-run-row__badge {
-    flex: none;
-    font-size: var(--global-font-size-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--global-text-color-500);
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-small);
-    padding: 0 var(--global-dimension-size-75);
-  }
-  .span-run-row__snippet {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--global-font-size-xs);
-    color: var(--global-text-color-500);
-  }
-  .span-run-row__time {
-    flex: none;
-    font-variant-numeric: tabular-nums;
-    font-size: var(--global-font-size-xs);
-    color: var(--global-text-color-500);
-  }
-  .span-run-row__detail {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-100);
-    border-top: 1px solid var(--global-border-color-default);
-  }
-`;
-
+/**
+ * The collapsed-row result summary: the same annotation button and details
+ * popover the dataset evaluator's test panel renders.
+ */
 function SpanRunResultChip({ run }: { run: SpanRun | undefined }) {
-  const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
-  const evaluatorName = useEvaluatorStore(
-    (state) => state.evaluator.name || state.evaluator.globalName
-  );
   if (run == null || run.status === "running") {
     return null;
   }
-  if (run.status === "error") {
-    return <span css={[resultChipCSS, resultChipDangerCSS]}>failed</span>;
-  }
-  const failed = run.results.filter((result) => result.error);
-  const annotated = run.results.find((result) => result.annotation != null);
+  const annotated =
+    run.status === "done"
+      ? run.results.find((result) => result.annotation != null)
+      : null;
   if (annotated?.annotation) {
-    const { annotation } = annotated;
-    const positiveOptimization = computePositiveOptimization({
-      annotationName: annotation.name,
-      score: annotation.score,
-      evaluatorName,
-      outputConfigs,
-    });
-    const valueParts = [
-      annotation.label,
-      annotation.score != null ? annotation.score.toLocaleString() : null,
-    ].filter((part): part is string => part != null);
     return (
-      <span
-        css={resultChipCSS}
-        data-direction={
-          positiveOptimization == null
-            ? undefined
-            : positiveOptimization
-              ? "positive"
-              : "negative"
-        }
-        title={annotation.explanation ?? undefined}
-      >
-        {annotation.name}
-        {valueParts.length ? ` · ${valueParts.join(" · ")}` : ""}
-      </span>
+      <div css={resultAnnotationCSS}>
+        <AnnotationPreviewPopoverButton
+          annotation={annotated.annotation}
+          compact
+        />
+      </div>
     );
   }
-  if (failed.length) {
-    return <span css={[resultChipCSS, resultChipDangerCSS]}>failed</span>;
-  }
-  return null;
+  const hasFailure =
+    run.status === "error" || run.results.some((result) => result.error);
+  return hasFailure ? (
+    <Token size="S" color="var(--global-color-danger)">
+      failed
+    </Token>
+  ) : null;
 }
 
-const resultChipCSS = css`
-  flex: none;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--global-font-family-code, monospace);
-  font-size: var(--global-font-size-xs);
-  font-weight: 600;
-  color: var(--global-text-color-700);
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-small);
-  padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
-  &[data-direction="positive"] {
-    color: var(--global-color-optimization-direction-positive);
-    background-color: var(
-      --global-color-background-optimization-direction-positive
-    );
-  }
-  &[data-direction="negative"] {
-    color: var(--global-color-optimization-direction-negative);
-    background-color: var(
-      --global-color-background-optimization-direction-negative
-    );
-  }
+/**
+ * ExperimentAnnotationButton is inline-size contained (intrinsic width 0), so
+ * a shrink-wrapping flex item would collapse it; give it a definite width.
+ */
+const resultAnnotationCSS = css`
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 280px;
 `;
 
-const resultChipDangerCSS = css`
-  color: var(--global-color-danger);
-`;
-
+/**
+ * The expanded-row result: the dataset evaluator's "Evaluator Annotation
+ * Preview" card, with the same skeleton while a test is in flight.
+ */
 function SpanRunDetail({ run }: { run: SpanRun | undefined }) {
-  if (run == null || run.status === "running") {
+  if (run == null) {
     return null;
+  }
+  if (run.status === "running") {
+    return <AnnotationPreviewSkeletonCard />;
   }
   if (run.status === "error") {
     return (
-      <Alert variant="danger" title="Test failed">
+      <Alert variant="danger" title="Evaluator Error">
         {run.message}
       </Alert>
     );
   }
   return (
-    <Flex direction="column" gap="size-75">
+    <Flex direction="column" gap="size-100">
       {run.results.map((result, index) =>
         result.error ? (
           <Alert
             key={index}
             variant="danger"
-            title={`${result.evaluatorName} failed`}
+            title={`Evaluator Error: ${result.evaluatorName}`}
           >
             {result.error}
           </Alert>
-        ) : result.annotation?.explanation ? (
-          <Text key={index} size="S" color="text-700">
-            {result.annotation.explanation}
-          </Text>
+        ) : result.annotation ? (
+          <AnnotationPreviewCard key={index} annotation={result.annotation} />
         ) : null
       )}
     </Flex>
@@ -1205,26 +1076,46 @@ const bindingRowCSS = css`
   }
 `;
 
+/**
+ * The collapsed-card excerpt for a span: the span's input, falling back to its
+ * output. An LLM span's input often arrives as a serialized chat payload, so
+ * surface the latest message's text rather than the raw JSON envelope.
+ */
 function getContextSnippet(context: unknown): string {
   if (!isStringKeyedObject(context)) {
     return "";
   }
-  const input = context.input;
-  const text =
-    typeof input === "string"
-      ? input
-      : input != null
-        ? JSON.stringify(input)
-        : "";
-  return text.replace(/\s+/g, " ").trim().slice(0, 140);
+  return (
+    toContentPreview(getLatestMessageText(context.input) ?? context.input) ??
+    toContentPreview(getLatestMessageText(context.output) ?? context.output) ??
+    ""
+  );
+}
+
+/** The text of the last non-empty message in a chat payload, if it is one. */
+function getLatestMessageText(value: unknown): string | null {
+  const payload =
+    typeof value === "string" && value.trimStart().startsWith("{")
+      ? safelyParseJSON(value).json
+      : value;
+  if (!isStringKeyedObject(payload) || !Array.isArray(payload.messages)) {
+    return null;
+  }
+  for (let index = payload.messages.length - 1; index >= 0; index--) {
+    const message: unknown = payload.messages[index];
+    const content = isStringKeyedObject(message) ? message.content : null;
+    if (typeof content === "string" && content.trim()) {
+      return content;
+    }
+  }
+  return null;
 }
 
 function getBoundValueSnippet(value: unknown): string {
   if (value === undefined) {
     return "";
   }
-  const text = typeof value === "string" ? value : JSON.stringify(value);
-  return (text ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  return toContentPreview(value, { maxLength: 120 }) ?? "";
 }
 
 function isSpanEvaluatorMappingSource(
@@ -1367,58 +1258,3 @@ function useEvaluatorPreviewRuns({
 
   return { runs, runOnSpan, isRunnable };
 }
-
-function AnnotationTemplateDisclosure() {
-  const isCategorical = useEvaluatorStore((state) => {
-    const outputConfig = state.outputConfigs[0];
-    return outputConfig != null && "values" in outputConfig;
-  });
-  if (!isCategorical) {
-    return null;
-  }
-  return (
-    <Disclosure
-      id="annotation-template"
-      defaultExpanded
-      css={annotationTemplateDisclosureCSS}
-    >
-      <DisclosureTrigger direction="column" alignItems="start" width="100%">
-        <Heading level={2}>Annotation template</Heading>
-        <Text color="text-500">
-          Define the annotation that your evaluator will attach to matched
-          spans.
-        </Text>
-      </DisclosureTrigger>
-      <DisclosurePanel>
-        <View padding="size-200">
-          <EvaluatorCategoricalChoiceConfig />
-        </View>
-      </DisclosurePanel>
-    </Disclosure>
-  );
-}
-
-/**
- * A standalone disclosure trigger shrinks to fit its text; widen it so the
- * whole card header is the click target.
- */
-const annotationTemplateDisclosureCSS = css`
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-medium);
-  .react-aria-Heading {
-    width: 100%;
-  }
-  [slot="trigger"] {
-    width: 100%;
-    padding: var(--global-dimension-size-200);
-    border-bottom: none;
-    /* Inset by the card's 1px border so the hover background stays inside its
-       corners. */
-    border-radius: calc(var(--global-rounding-medium) - 1px);
-  }
-  &[data-expanded="true"] [slot="trigger"] {
-    border-bottom: 1px solid var(--global-border-color-default);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-`;
