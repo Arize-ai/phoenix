@@ -4,6 +4,7 @@ import {
   Suspense,
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
   useTransition,
@@ -939,8 +940,17 @@ function RecordedRunList({
   const pathMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping.pathMapping
   );
-  // Key the effect on the row key: the row object is rebuilt every render.
+  // The row object is rebuilt every render, and a session keeps its key while
+  // its context changes under it — a refresh, a preview-window change, or a
+  // load-more can all return a new transcript for the same row. Key the effect
+  // on what the context says, so the mapping source follows the value the Run
+  // actually sends rather than the one the row opened with.
   const activeRowKey = activeRow?.key ?? null;
+  const activeRowContext = activeRow?.context;
+  const activeRowContextIdentity = useMemo(
+    () => (activeRowContext == null ? null : JSON.stringify(activeRowContext)),
+    [activeRowContext]
+  );
   const syncMappingSource = useEffectEvent(() => {
     const context = activeRow?.context;
     if (context && hasEvaluatorMappingSourceShape(context)) {
@@ -949,7 +959,7 @@ function RecordedRunList({
   });
   useEffect(() => {
     syncMappingSource();
-  }, [activeRowKey]);
+  }, [activeRowKey, activeRowContextIdentity]);
   const { runs, runOnContext, isRunnable } = useEvaluatorPreviewRuns({
     codeEvaluatorId,
     inlineCode,
