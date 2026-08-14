@@ -3,6 +3,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
+
 const notificationMocks = vi.hoisted(() => ({
   notify: vi.fn(),
 }));
@@ -30,12 +32,12 @@ describe("LegacyTraceFilterParamNotice", () => {
     container.remove();
   });
 
-  it("notifies once and removes only the legacy traces filter", async () => {
+  it("notifies once and preserves the span filter for the spans tab", async () => {
     await act(async () => {
       root.render(
         <MemoryRouter
           initialEntries={[
-            "/projects/project-1/traces?filterCondition=status_code%20%3D%3D%20%27ERROR%27&selectedSpan=span-1",
+            `/projects/project-1/traces?${SPAN_FILTER_CONDITION_PARAM}=status_code%20%3D%3D%20%27ERROR%27&selectedSpan=span-1`,
           ]}
         >
           <LegacyTraceFilterParamNotice isActive />
@@ -46,11 +48,16 @@ describe("LegacyTraceFilterParamNotice", () => {
 
     expect(notificationMocks.notify).toHaveBeenCalledTimes(1);
     expect(notificationMocks.notify).toHaveBeenCalledWith({
-      title: "Span filter not applied",
+      title: "Traces now use trace-level filters",
       message:
-        "This link's span filter no longer applies to the Traces tab. Showing all traces.",
+        "The span-level filter from this link still applies on the Spans tab.",
     });
-    expect(currentSearch).toBe("?selectedSpan=span-1");
+    expect(
+      new URLSearchParams(currentSearch).get(SPAN_FILTER_CONDITION_PARAM)
+    ).toBe("status_code == 'ERROR'");
+    expect(new URLSearchParams(currentSearch).get("selectedSpan")).toBe(
+      "span-1"
+    );
   });
 });
 

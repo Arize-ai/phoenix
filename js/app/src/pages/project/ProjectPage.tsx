@@ -96,7 +96,6 @@ export function ProjectPage() {
 }
 
 const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
-const LEGACY_TRACE_FILTER_CONDITION_PARAM = "filterCondition";
 
 /**
  * Type guard for the tab path in the URL
@@ -165,30 +164,22 @@ export function LegacyTraceFilterParamNotice({
   isActive: boolean;
 }) {
   const notify = useNotify();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const hasNotified = useRef(false);
 
   useEffect(() => {
-    if (!isActive || !searchParams.has(LEGACY_TRACE_FILTER_CONDITION_PARAM)) {
+    if (!isActive || !searchParams.has(SPAN_FILTER_CONDITION_PARAM)) {
       return;
     }
     if (!hasNotified.current) {
       hasNotified.current = true;
       notify({
-        title: "Span filter not applied",
+        title: "Traces now use trace-level filters",
         message:
-          "This link's span filter no longer applies to the Traces tab. Showing all traces.",
+          "The span-level filter from this link still applies on the Spans tab.",
       });
     }
-    setSearchParams(
-      (previousParams) => {
-        const nextParams = new URLSearchParams(previousParams);
-        nextParams.delete(LEGACY_TRACE_FILTER_CONDITION_PARAM);
-        return nextParams;
-      },
-      { replace: true }
-    );
-  }, [isActive, notify, searchParams, setSearchParams]);
+  }, [isActive, notify, searchParams]);
 
   return null;
 }
