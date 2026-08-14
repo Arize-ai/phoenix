@@ -88,24 +88,22 @@ const SESSION_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"session">[] = [
   {
     field: "input",
     label: "input",
-    description: "The matched session's transcript, one line per turn.",
+    description: "From the matched session's transcript.",
     tooltip:
-      "Every root span in the session, rendered as alternating User and Assistant turns under the transcript policy the evaluation runs with.",
+      "This is the session's turns, rendered as alternating User and Assistant messages.",
   },
   {
     field: "output",
     label: "output",
-    description: "The last response in the matched session.",
-    tooltip:
-      "The output of the session's final turn, so an evaluator can judge how the conversation ended.",
+    description: "From the matched session's last response.",
+    tooltip: "This is the output of the session's final turn.",
   },
   {
     field: "metadata",
     label: "metadata",
-    description:
-      "From the matched session. Individual turns are under turns, and the transcript policy records what was truncated.",
+    description: "From the matched session. Session turns are under turns.",
     tooltip:
-      "Each turn's input, output, metadata, and time are available for path mapping under metadata.turns.",
+      "Session turns are available for path mapping under metadata.turns.",
   },
 ];
 

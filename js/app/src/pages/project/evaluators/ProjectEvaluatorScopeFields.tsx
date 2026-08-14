@@ -87,6 +87,11 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         ) : null}
         {children}
       </Flex>
+      {isSessionTarget ? (
+        <Text size="XS" color="text-500">
+          Sessions are evaluated after this many seconds of inactivity.
+        </Text>
+      ) : null}
       {/* Remounted per target so the draft condition does not survive a switch
           into a language that cannot parse it. */}
       <ProjectEvaluatorFilterField
@@ -99,13 +104,6 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         }
         onValidityChange={onFilterValidityChange}
       />
-      {isSessionTarget ? (
-        <Text size="XS" color="text-500">
-          Each matching session is evaluated once, after it stays quiet for the
-          evaluation delay. Later activity in the session does not schedule
-          another evaluation.
-        </Text>
-      ) : null}
     </Flex>
   );
 };
@@ -285,6 +283,7 @@ const ProjectEvaluatorFilterField = ({
           onFilterConditionChange={setDraft}
           onValidCondition={applyValidCondition}
           onValidityChange={onValidityChange}
+          placeholder="num_traces >= 5"
         />
       ) : (
         <SpanFilterConditionFieldCore

@@ -205,8 +205,8 @@ export const ProjectEvaluatorScopePanel = (
               <Heading level={2}>Scope</Heading>
               <Text color="text-500" size="S">
                 {isSessionTarget
-                  ? "Choose which sessions this evaluator runs on and when."
-                  : "Choose what gets evaluated and how much of it."}
+                  ? "Select which sessions this evaluator runs on and how often."
+                  : "Select which spans this evaluator runs on and how often."}
               </Text>
             </Flex>
             <ScopeEditorCard
@@ -386,9 +386,9 @@ function SessionInputNote() {
     <Flex direction="column" gap="size-25">
       <Heading level={2}>Session input</Heading>
       <Text color="text-500" size="S">
-        Your evaluator receives the session transcript as <code>input</code> and
-        the last response in the session as <code>output</code>. Individual
-        turns are available under <code>metadata.turns</code>.
+        Your evaluator receives the transcript as <code>input</code>, the last
+        response as <code>output</code>, and the turns under{" "}
+        <code>metadata.turns</code>.
       </Text>
     </Flex>
   );
@@ -698,10 +698,7 @@ function SessionRunList({
         isSample: false,
         unavailableReason:
           session.sessionEvaluationContext == null
-            ? "There is no transcript to evaluate: this session has no complete " +
-              "turn that fits the evaluation byte cap, or its content was " +
-              "trimmed after ingestion. A live evaluation would not run this " +
-              "session either."
+            ? "This session has no evaluable transcript."
             : undefined,
         metric: formatSessionMetric(
           session.numTraces,

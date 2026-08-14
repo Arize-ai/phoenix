@@ -278,7 +278,7 @@ export function ProjectEvaluatorsTable({
             <Text>{formatEvaluationTarget(row.original.evaluationTarget)}</Text>
             {row.original.enabled &&
             row.original.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
-              <span title="This evaluator is not scheduled. Open it for details.">
+              <span title="This evaluator is not scheduled.">
                 <Icon svg={<Icons.AlertTriangle />} color="warning" />
               </span>
             ) : null}
