@@ -83,7 +83,7 @@ feature actually does. Commit messages are often terse — the code tells the re
 - **Server REST endpoints**: `src/phoenix/server/api/routers/v1/`
 - **Python client SDK**: `packages/phoenix-client/src/phoenix/client/`
 - **TypeScript client SDK**: `js/packages/phoenix-client/src/`
-- **UI features**: `app/src/pages/`
+- **UI features**: `js/app/src/pages/`
 - **Evaluators**: `packages/phoenix-evals/src/phoenix/evals/`
 - **CLI**: `packages/phoenix-client/src/phoenix/client/cli/`
 - **Models/providers**: playground and model configuration code

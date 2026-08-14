@@ -9,7 +9,7 @@ command -v uv >/dev/null
 command -v node >/dev/null
 command -v pnpm >/dev/null
 test -x .venv/bin/python
-test -d app/node_modules
+test -d js/app/node_modules
 test -d js/node_modules
 
 echo "Phoenix orb environment is ready; no persistent services need resuming."

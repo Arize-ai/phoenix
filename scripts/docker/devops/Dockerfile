@@ -5,18 +5,19 @@ ARG NODE_VERSION=22
 
 # Stage 1: Frontend Builder
 FROM node:${NODE_VERSION}-slim AS frontend-builder
-WORKDIR /phoenix/app
-# Copy only package files first for better dependency caching
-COPY ./app/package*.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./app/.pnpmfile.cjs ./
-# Install dependencies
+WORKDIR /phoenix/js
+# The app lives in the js/ pnpm workspace and depends on workspace packages
+# (@arizeai/phoenix-client, @arizeai/phoenix-evals), so the whole workspace is
+# copied. schemas/ is needed by phoenix-client's prebuild OpenAPI codegen.
+COPY ./js ./
+COPY ./schemas /phoenix/schemas
 RUN npm i -g corepack && \
     corepack enable && \
     pnpm install --frozen-lockfile
-# Copy source and build
-COPY ./app ./
 # Create directory structure that vite expects
 RUN mkdir -p /phoenix/src/phoenix/server/static
-RUN pnpm build
+# Build the app (phoenix-ui) and its workspace dependencies in topological order
+RUN pnpm --filter 'phoenix-ui...' run build
 
 # Stage 2: Backend Builder  
 FROM python:${PYTHON_VERSION}-slim-bullseye AS backend-builder

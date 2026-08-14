@@ -59,9 +59,9 @@ ln -sfn "$node_dir" "$node_current"
 
 # Read from the packageManager field CI installs pnpm from. Derived here rather
 # than at the top of the script because it needs the node installed just above.
-pnpm_version="$(node -p "require('./app/package.json').packageManager.split('@')[1].split('+')[0]")"
+pnpm_version="$(node -p "require('./js/package.json').packageManager.split('@')[1].split('+')[0]")"
 if [[ ! "$pnpm_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "ERROR: app/package.json packageManager must pin an exact pnpm version" >&2
+  echo "ERROR: js/package.json packageManager must pin an exact pnpm version" >&2
   exit 1
 fi
 
@@ -86,10 +86,10 @@ echo "==> Installing Python dependencies"
 uv sync --frozen  # interpreter comes from .python-version
 uv tool install tox --with tox-uv
 
-echo "==> Installing frontend dependencies"
-pnpm --dir app install --frozen-lockfile
-
-echo "==> Installing TypeScript package dependencies"
+echo "==> Installing JavaScript workspace dependencies (packages + app)"
 pnpm --dir js install --frozen-lockfile
+
+echo "==> Building workspace dependencies of the app"
+pnpm --dir js/app run build:deps
 
 echo "==> Phoenix orb setup complete"

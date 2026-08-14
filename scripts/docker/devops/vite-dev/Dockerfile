@@ -3,7 +3,7 @@
 
 FROM node:22-slim
 
-WORKDIR /app
+WORKDIR /phoenix/js/app
 
 # Skip pnpm 11's auto deps-status check before every script run. The CMD
 # invokes `pnpm run` / `pnpm exec`, which would otherwise re-run
@@ -15,15 +15,17 @@ ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 # Install pnpm
 RUN npm i -g corepack && corepack enable
 
-# Copy package files for dependency installation
-COPY ./app/package.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./app/.pnpmfile.cjs ./
+# The app lives in the js/ pnpm workspace and depends on workspace packages
+# (@arizeai/phoenix-client, @arizeai/phoenix-evals), so install the whole
+# workspace. node_modules dirs are excluded by the repo-root .dockerignore.
+COPY ./js /phoenix/js
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN cd /phoenix/js && pnpm install --frozen-lockfile
 
 # Create Docker-specific Vite config that extends the base config
 # Create it in a hidden directory that will be excluded by anonymous volume
-RUN mkdir -p /app/.vite-config && cat > /app/.vite-config/vite.config.mts << 'EOF'
+RUN mkdir -p /phoenix/js/app/.vite-config && cat > /phoenix/js/app/.vite-config/vite.config.mts << 'EOF'
 import { defineConfig } from "vite";
 import baseConfig from "../vite.config.mts";
 

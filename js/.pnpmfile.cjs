@@ -5,8 +5,10 @@
 const TYPESCRIPT6 = "npm:@typescript/typescript6@^6.0.2";
 
 const NEEDS_TS6_API = new Set([
-  "openapi-typescript", // phoenix-client prebuild codegen
+  "openapi-typescript", // phoenix-client prebuild codegen, app generate:openapi (typescript-CI)
   "typedoc", // docs:generate (gh_pages workflow)
+  "react-docgen-typescript", // storybook docgen (app)
+  "@joshwooding/vite-plugin-react-docgen-typescript", // storybook docgen vite plugin (app)
 ]);
 
 function readPackage(pkg) {

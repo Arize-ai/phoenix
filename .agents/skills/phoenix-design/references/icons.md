@@ -1,6 +1,6 @@
 # Icons — Noun → Icon Mapping
 
-Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use this canonical mapping so that the same Phoenix concept (the **noun**) is always represented by the same glyph across the app. Consistency matters more than aesthetic preference — when the noun appears, reach for the icon below.
+Phoenix has a curated icon set in `js/app/src/components/core/icon/Icons.tsx`. Use this canonical mapping so that the same Phoenix concept (the **noun**) is always represented by the same glyph across the app. Consistency matters more than aesthetic preference — when the noun appears, reach for the icon below.
 
 ## Canonical mapping
 

@@ -76,7 +76,7 @@ Error: `Blocked request. This host ("vite-dev") is not allowed.`
 **Problem:** Don't want Docker-specific config polluting version control  
 **Solution:** Environment variable pattern for optional overrides
 
-**app/vite.config.mts** (clean, works locally AND in Docker):
+**js/app/vite.config.mts** (clean, works locally AND in Docker):
 ```ts
 server: {
   allowedHosts: "all",
@@ -96,8 +96,8 @@ server: {
 **Solution:** Anonymous volume overlay
 ```yaml
 volumes:
-  - ../../../app:/app:cached           # Mount source code
-  - /app/node_modules                  # Prevent host from overwriting
+  - ../../../js/app:/phoenix/js/app:cached  # Mount source code
+  - /phoenix/js/app/node_modules            # Prevent host from overwriting
 ```
 Container's `node_modules` takes precedence over host's.
 

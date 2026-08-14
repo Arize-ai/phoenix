@@ -129,7 +129,9 @@ const FORWARD_DELETE_INPUTS = new Set([
   `${ESCAPE_INPUT}[3^`,
 ]);
 const KITTY_BACKSPACE_INPUT_PATTERN =
+  // oxlint-disable-next-line no-control-regex -- matches Kitty keyboard-protocol escape sequences
   /^\x1B\[(?:8|127)(?:;\d+(?::[12])?(?:;[\d:]+)?)?u$/;
+// oxlint-disable-next-line no-control-regex -- matches Kitty keyboard-protocol escape sequences
 const KITTY_FORWARD_DELETE_INPUT_PATTERN = /^\x1B\[3;\d+:[12]~$/;
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";

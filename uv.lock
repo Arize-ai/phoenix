@@ -885,7 +885,7 @@ dev = [
 
 [[package]]
 name = "arize-phoenix-client"
-version = "3.1.0"
+version = "3.2.0"
 source = { editable = "packages/phoenix-client" }
 dependencies = [
     { name = "httpx" },

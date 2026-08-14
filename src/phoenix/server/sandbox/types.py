@@ -56,7 +56,7 @@ class SandboxRuntimeContext:
     monty: "MontyRuntime"
 
 
-# Dependency-spec grammar. Mirrored in app/src/pages/settings/sandboxes/utils.tsx.
+# Dependency-spec grammar. Mirrored in js/app/src/pages/settings/sandboxes/utils.tsx.
 
 _IDENT = r"[A-Za-z0-9](?:[A-Za-z0-9._~-]*[A-Za-z0-9])?"
 
