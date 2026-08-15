@@ -45,7 +45,10 @@ from phoenix.db.eval_work import (
     SESSION_DECLINED_STATUSES,
     live_eval_session_work_index_predicate,
 )
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    exclude_criteria_targeting_evaluator_traces,
+)
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
@@ -506,13 +509,15 @@ class SessionEvalSweeper(DaemonTask):
         )
         rows = (
             await session.execute(
-                select(models.ProjectEvaluatorCriteria, polymorphic_evaluator)
-                .join(
-                    polymorphic_evaluator,
-                    models.ProjectEvaluatorCriteria.evaluator_id == polymorphic_evaluator.id,
-                )
-                .where(
-                    session_criteria_is_schedulable(models.ProjectEvaluatorCriteria),
+                exclude_criteria_targeting_evaluator_traces(
+                    select(models.ProjectEvaluatorCriteria, polymorphic_evaluator)
+                    .join(
+                        polymorphic_evaluator,
+                        models.ProjectEvaluatorCriteria.evaluator_id == polymorphic_evaluator.id,
+                    )
+                    .where(
+                        session_criteria_is_schedulable(models.ProjectEvaluatorCriteria),
+                    )
                 )
             )
         ).all()

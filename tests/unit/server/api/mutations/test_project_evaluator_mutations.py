@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -1190,6 +1191,28 @@ async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
         )
     assert state_after == state_before
     assert versions_after == versions_before
+
+
+async def test_evaluators_project_cannot_be_given_an_evaluator(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = models.Project(name=EVALUATORS_PROJECT_NAME)
+        session.add(project)
+        await session.flush()
+    counts_before = await _row_counts(db)
+
+    result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="evaluates-evaluators", text="Evaluate {{input}}")},
+    )
+
+    assert result.errors
+    assert result.errors[0].message == (
+        "The evaluators project holds evaluator traces and cannot be evaluated"
+    )
+    assert await _row_counts(db) == counts_before
 
 
 async def _row_counts(db: DbSessionFactory) -> dict[str, int]:
