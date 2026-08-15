@@ -4121,6 +4121,9 @@ def verify_server_environment_variables() -> None:
 
 PLAYGROUND_PROJECT_NAME = "playground"
 
+EVALUATORS_PROJECT_NAME = "evaluators"
+"""The project that collects traces of evaluator executions."""
+
 EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
 """The time to live for ephemeral experiments in hours."""
 
