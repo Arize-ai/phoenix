@@ -1,11 +1,11 @@
-# pyright: reportMissingImports=false, reportUnknownVariableType=false
+# pyright: reportArgumentType=false, reportMissingImports=false, reportMissingTypeStubs=false, reportUnknownVariableType=false
 """Contract tests against Harbor."""
 
 from __future__ import annotations
 
 import pytest
 
-pytest.importorskip("harbor", reason="run the phoenix_client_harbor tox env")
+pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
 
 
 async def test_harbor_can_attach_plugin_by_entry_point_name() -> None:
