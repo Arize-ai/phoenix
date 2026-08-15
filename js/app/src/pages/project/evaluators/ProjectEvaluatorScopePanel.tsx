@@ -62,12 +62,18 @@ import type {
 import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
+import { BOUND_VARIABLES_PLACEMENT } from "@phoenix/pages/project/evaluators/boundVariablesPlacement";
+import { getEvaluatorBoundVariableNames } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { ProjectEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
+  dropOtherGrainEntityPathMappings,
   getProjectEvaluatorMappingDiagnostics,
   toEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorMappingDiagnostic,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type {
   CodeEvaluatorLanguage,
@@ -176,9 +182,15 @@ export const ProjectEvaluatorScopePanel = (
   const evaluatorStore = useEvaluatorStoreInstance();
   const mappingSourceGrain = toEvaluatorMappingSourceGrain(scope.targetType);
   useEffect(() => {
-    evaluatorStore
-      .getState()
-      .setEvaluatorMappingSourceGrain(mappingSourceGrain);
+    const state = evaluatorStore.getState();
+    state.setEvaluatorMappingSourceGrain(mappingSourceGrain);
+    // A path written against the previous kind of record names a root the new
+    // one does not have, and a path that matches nothing fails the evaluation.
+    const { pathMapping } = dropOtherGrainEntityPathMappings(
+      state.evaluator.inputMapping,
+      mappingSourceGrain
+    );
+    state.setPathMapping(pathMapping);
   }, [evaluatorStore, mappingSourceGrain]);
   // The run list below the Suspense boundary owns the records and the run
   // machinery; it hands the header's Test All button the latest run-all
@@ -667,6 +679,7 @@ function SessionRunList({
                     total
                   }
                   sessionEvaluationContext
+                  sessionEvaluationBoundVariables
                 }
               }
               pageInfo {
@@ -686,15 +699,13 @@ function SessionRunList({
     { fetchPolicy: "store-and-network" }
   );
   const sessions = data.project?.sessions?.edges.map(({ session }) => session);
-  if (!sessions?.length) {
-    return null;
-  }
-  return (
-    <RecordedRunList
-      rows={sessions.map((session) => ({
+  const sample = sessions?.length ? null : getSampleSessionEvaluationContext();
+  const rows: RecordedRunListRow[] = sessions?.length
+    ? sessions.map((session) => ({
         key: session.id,
         name: session.sessionId,
         context: session.sessionEvaluationContext,
+        boundVariables: session.sessionEvaluationBoundVariables,
         isSample: false,
         unavailableReason:
           session.sessionEvaluationContext == null
@@ -704,7 +715,21 @@ function SessionRunList({
           session.numTraces,
           session.tokenUsage.total
         ),
-      }))}
+      }))
+    : sample
+      ? [
+          {
+            key: SAMPLE_ROW_KEY,
+            name: "Sample session",
+            context: sample.context,
+            boundVariables: sample.boundVariables,
+            isSample: true,
+          },
+        ]
+      : [];
+  return (
+    <RecordedRunList
+      rows={rows}
       recordNoun="session"
       listLabel="Recent matching sessions"
       hasMore={data.project?.sessions?.pageInfo.hasNextPage ?? false}
@@ -753,6 +778,8 @@ type RecordedRunListRow = {
   /** Prefixes the card title on a span row; a session has no kind. */
   spanKind?: string;
   context: unknown;
+  /** What this record supplies to an evaluator by name, with no mapping entry. */
+  boundVariables?: unknown;
   isSample: boolean;
   /** An at-a-glance measure of the record, such as a session's trace count. */
   metric?: string;
@@ -827,6 +854,7 @@ function SpanRunList({
                   name
                   spanKind
                   evaluationContext
+                  evaluationBoundVariables
                 }
               }
               pageInfo {
@@ -854,6 +882,7 @@ function SpanRunList({
         name: span.name,
         spanKind: span.spanKind,
         context: span.evaluationContext,
+        boundVariables: span.evaluationBoundVariables,
         isSample: false,
       }))
     : sample
@@ -863,6 +892,7 @@ function SpanRunList({
             name: `Sample ${sample.spanKind} span`,
             spanKind: sample.spanKind.toLowerCase(),
             context: sample.context,
+            boundVariables: sample.boundVariables,
             isSample: true,
           },
         ]
@@ -953,6 +983,12 @@ function RecordedRunList({
     if (context && hasEvaluatorMappingSourceShape(context)) {
       evaluatorStore.getState().setEvaluatorMappingSource(context);
     }
+    const boundVariables = activeRow?.boundVariables;
+    evaluatorStore
+      .getState()
+      .setEvaluatorBoundVariables(
+        isStringKeyedObject(boundVariables) ? boundVariables : {}
+      );
   });
   useEffect(() => {
     syncMappingSource();
@@ -1124,13 +1160,25 @@ function RecordedRunRow({
                     <Tab id="context">Context</Tab>
                   </TabList>
                   <TabPanel id="bindings">
-                    <BindingPreview
-                      context={row.context}
-                      recordNoun={recordNoun}
-                      pathMapping={pathMapping}
-                      requiredVariables={requiredVariables}
-                      isSampleContext={row.isSample}
-                    />
+                    <Flex direction="column" gap="size-200">
+                      <BindingPreview
+                        context={row.context}
+                        boundVariables={
+                          isStringKeyedObject(row.boundVariables)
+                            ? row.boundVariables
+                            : {}
+                        }
+                        recordNoun={recordNoun}
+                        pathMapping={pathMapping}
+                        requiredVariables={requiredVariables}
+                        isSampleContext={row.isSample}
+                      />
+                      {BOUND_VARIABLES_PLACEMENT === "scope-panel" ? (
+                        <ProjectEvaluatorBoundVariables
+                          grain={recordNoun === "session" ? "session" : "span"}
+                        />
+                      ) : null}
+                    </Flex>
                   </TabPanel>
                   <TabPanel id="context">
                     <div css={contextViewerCSS}>
@@ -1251,12 +1299,15 @@ type BindingRow = {
 
 function BindingPreview({
   context,
+  boundVariables,
   recordNoun,
   pathMapping,
   requiredVariables,
   isSampleContext,
 }: {
   context: unknown;
+  /** The values this record supplies by name, with no mapping entry. */
+  boundVariables: Record<string, unknown>;
   recordNoun: RecordedRunNoun;
   pathMapping: Record<string, string>;
   requiredVariables?: string[];
@@ -1272,31 +1323,35 @@ function BindingPreview({
     pathMapping,
     variables,
     requiredVariables,
+    boundVariableNames: getEvaluatorBoundVariableNames(
+      recordNoun === "session" ? "session" : "span"
+    ),
   });
+  const resolvedValue = ({
+    path,
+    source,
+  }: ProjectEvaluatorMappingDiagnostic): unknown =>
+    source === "record" ? boundVariables[path] : getValueAtPath(context, path);
   const automaticRows: BindingRow[] = diagnostics
-    .filter(
-      ({ variable, status }) =>
-        status === "resolved" && !(variable in pathMapping)
-    )
-    .map(({ variable, path }) => ({
-      keyword: variable,
-      value: getValueAtPath(context, path),
+    .filter(({ status, source }) => status === "resolved" && source !== "path")
+    .map((diagnostic) => ({
+      keyword: diagnostic.variable,
+      value: resolvedValue(diagnostic),
     }));
   const mappedRows: BindingRow[] = diagnostics
-    .filter(
-      ({ variable, status }) => status === "resolved" && variable in pathMapping
-    )
-    .map(({ variable, path }) => ({
-      keyword: variable,
-      path,
-      value: getValueAtPath(context, path),
+    .filter(({ status, source }) => status === "resolved" && source === "path")
+    .map((diagnostic) => ({
+      keyword: diagnostic.variable,
+      path: diagnostic.path,
+      value: resolvedValue(diagnostic),
     }));
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
-        <Alert variant="info" title="Bindings use a sample span">
-          Verify the bindings against a real span once matching spans exist.
+        <Alert variant="info" title={`Bindings use a sample ${recordNoun}`}>
+          Check them against a real {recordNoun} once this project has one that
+          matches.
         </Alert>
       ) : null}
       {[...automaticRows, ...mappedRows].map((row) => (
@@ -1316,14 +1371,16 @@ function BindingPreview({
           This evaluator declares no recognizable inputs.
         </Text>
       ) : null}
-      {diagnostics.map(({ variable, path, status }) =>
+      {diagnostics.map(({ variable, path, status, source }) =>
         status === "missing" ? (
           <Alert
             key={variable}
             variant="danger"
-            title={`${variable} does not resolve`}
+            title={`${variable} would fail on this ${recordNoun}`}
           >
-            No value at {path} on this {recordNoun}.
+            {source === "path"
+              ? `Nothing matches ${path}, so the evaluation stops with an error instead of writing an annotation.`
+              : `This ${recordNoun} offers no ${variable}, so the evaluation stops with an error instead of writing an annotation.`}
           </Alert>
         ) : status === "unverified" ? (
           <Alert

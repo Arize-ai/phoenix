@@ -526,6 +526,7 @@ function EditCodeProjectEvaluator({
   const initialDescription = evaluator.evaluator.description ?? "";
   const initialOutputConfigsJson = JSON.stringify(loadedOutputConfigs);
   const initialState: EvaluatorStoreProps = {
+    evaluatorBoundVariables: {},
     evaluator: {
       id: evaluator.evaluator.id,
       globalName: evaluator.name,

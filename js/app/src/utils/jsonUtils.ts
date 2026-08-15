@@ -322,7 +322,7 @@ const BARE_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
  * escaping the quotes alone would let a backslash immediately before a quote
  * swallow it and end the segment somewhere else.
  */
-function toBracketSegment(key: string): string {
+export function toBracketSegment(key: string): string {
   return `['${key.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}']`;
 }
 
