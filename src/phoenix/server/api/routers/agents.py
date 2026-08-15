@@ -842,6 +842,14 @@ def _get_last_user_text(messages: Iterable[UIMessage]) -> str | None:
     return None
 
 
+def _get_assistant_text(message: UIMessage) -> str | None:
+    if message.role != "assistant":
+        return None
+    return (
+        "".join(part.text for part in message.parts if isinstance(part, TextUIPart)).strip() or None
+    )
+
+
 def _build_exception_event(*, message: str, timestamp: datetime) -> Event:
     """OTel semconv ``exception`` event for a synthetic error span. Client
     failures surface as bare messages, so no type or stacktrace is recorded."""
@@ -1094,14 +1102,7 @@ def _close_superseded_turn_trace(
         session_id=session_id,
     )
     trailing_message = messages[-1] if messages else None
-    output_text: str | None = None
-    if trailing_message is not None and trailing_message.role == "assistant":
-        output_text = (
-            "".join(
-                part.text for part in trailing_message.parts if isinstance(part, TextUIPart)
-            ).strip()
-            or None
-        )
+    output_text = _get_assistant_text(trailing_message) if trailing_message is not None else None
     _emit_turn_root_span(
         tracer=tracer,
         turn_ids=turn_ids,
@@ -3409,12 +3410,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 summary_task.cancel()
                         if tracer is not None:
                             if turn_is_terminal or stream_error is not None:
+                                turn_output_text = (
+                                    turn_final_output_text
+                                    if turn_is_terminal
+                                    else _get_assistant_text(message_state.message)
+                                )
                                 _emit_turn_root_span(
                                     tracer=tracer,
                                     turn_ids=turn_ids,
                                     session_id=otel_session_id,
                                     input_text=_get_last_user_text(transcript_messages),
-                                    output_text=turn_final_output_text,
+                                    output_text=turn_output_text,
                                     error_message=(
                                         None
                                         if stream_error is None
