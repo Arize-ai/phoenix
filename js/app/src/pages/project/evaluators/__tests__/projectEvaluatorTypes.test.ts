@@ -4,6 +4,7 @@ import {
   formatProjectEvaluatorRunCounts,
   getProjectEvaluatorMappingDiagnostics,
   getProjectEvaluatorStatus,
+  isSameInputMapping,
   toProjectEvaluatorSamplingFraction,
 } from "../projectEvaluatorTypes";
 
@@ -268,5 +269,25 @@ describe("dropOtherGrainEntityPathMappings", () => {
       literalMapping: {},
       pathMapping: { kept: "span.attributes" },
     });
+  });
+});
+
+describe("isSameInputMapping", () => {
+  it("reads the store's copy of a stored mapping as unchanged", () => {
+    // The store merges a loaded mapping onto defaults that list `literalMapping`
+    // first, so its copy of an untouched mapping serializes differently from the
+    // value that was loaded. Comparing the two as strings reported an edit on a
+    // form nobody touched, which wrote an empty mapping over a stored `null`.
+    const loaded = { pathMapping: {}, literalMapping: {} };
+    const storeCopy = { literalMapping: {}, pathMapping: {} };
+    expect(JSON.stringify(loaded)).not.toEqual(JSON.stringify(storeCopy));
+    expect(isSameInputMapping(storeCopy, loaded)).toBe(true);
+
+    expect(
+      isSameInputMapping(
+        { literalMapping: {}, pathMapping: { output: "span.attributes" } },
+        loaded
+      )
+    ).toBe(false);
   });
 });

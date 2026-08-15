@@ -9,6 +9,11 @@ import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/
  * server's list is the one that binds at evaluation time
  * (`phoenix.server.online_eval.bound_variables`); this mirrors it so the
  * authoring surface can name and order them without a round trip.
+ *
+ * The two lists are held together by
+ * `tests/unit/server/online_eval/test_bound_variables.py`, which fails if
+ * either side gains or loses a name. Adding one here without adding it there
+ * offers authors a variable no evaluation will bind.
  */
 export type EvaluatorBoundVariable = {
   name: string;

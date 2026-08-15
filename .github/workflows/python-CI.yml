@@ -54,6 +54,9 @@ jobs:
               - "evals/**"
               - "src/**"
               - "tests/**"
+              # Mirrors the online-eval bound-variable vocabulary; a test here
+              # holds the two lists together, so edits to it must run this suite.
+              - "js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts"
               - "tutorials/**"
               - "pyproject.toml"
               - "tox.ini"
