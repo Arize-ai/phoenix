@@ -292,6 +292,10 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       },
     },
     getCoreRowModel: getCoreRowModel(),
+    // Key rows by entity ID rather than by index so that row-hosted overlays
+    // (action menus) and row selection stay bound to the row they were opened
+    // on when a refetch re-orders the list.
+    getRowId: (row) => row.id,
     getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;

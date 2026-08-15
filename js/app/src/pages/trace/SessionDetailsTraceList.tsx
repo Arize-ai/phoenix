@@ -26,11 +26,11 @@ import {
   ListBox,
   ListBoxItem,
   Loading,
-  Modal,
-  ModalOverlay,
   Text,
   Truncate,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
 import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAction";
@@ -264,17 +264,17 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
           />
         </Flex>
       </Flex>
-      <ModalOverlay
+      <ViewportModalOverlay
         isOpen={isAnnotationDialogOpen}
         onOpenChange={setIsAnnotationDialogOpen}
       >
-        <Modal variant="slideover" size="L">
+        <ViewportModal size="L">
           <EditSpanAnnotationsDialog
             spanNodeId={rootSpan.id}
             projectId={rootSpan.project.id}
           />
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
       <div
         css={css`
           align-self: start;

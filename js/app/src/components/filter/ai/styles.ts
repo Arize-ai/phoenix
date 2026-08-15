@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 import { svgSize as glyphSize } from "@phoenix/components/agent/PxiGlyph";
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 import { dslFilterBadgeGrowIn } from "../styles";
 
@@ -34,7 +34,7 @@ export const aiQueryFilterFieldCSS = css`
      Elevate the whole outline only while a tooltip is showing so the
      field doesn't sit above sibling floating UI the rest of the time. */
   &:has(.cm-tooltip) {
-    z-index: ${NON_MODAL_FLOATING_Z_INDEX};
+    z-index: ${APP_FLOATING_Z_INDEX};
   }
   /* In the prose variant the gradient wraps the field and IS the border —
      the input's own border under it reads as a second, internal ring, and

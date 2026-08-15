@@ -4,8 +4,8 @@ import {
   DialogTrigger,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 
 import type { RunExperimentCodeDialogProps } from "./RunExperimentCodeDialog";
@@ -31,15 +31,15 @@ export function ExperimentCodeModal({
   version,
 }: RunExperimentCodeDialogProps) {
   return (
-    <ModalOverlay isDismissable>
-      <Modal variant="slideover" size="L">
+    <ViewportModalOverlay isDismissable>
+      <ViewportModal size="L">
         <RunExperimentCodeDialogContent
           datasetName={datasetName}
           datasetId={datasetId}
           version={version}
         />
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }
 

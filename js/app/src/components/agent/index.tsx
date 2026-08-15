@@ -7,6 +7,7 @@ export {
 } from "./AgentExperimentalSettings";
 export { SystemSettingsWarning } from "./SystemSettingsWarning";
 export { AgentChatPanel, FloatingAgentChatPanel } from "./AgentChatPanel";
+export { ASSISTANT_RAIL_PANEL_ID } from "./AgentChatPanelView";
 export { AgentChatTopNavButton } from "./AgentChatTopNavButton";
 export { AgentChatWidget } from "./AgentChatWidget";
 export { PxiGlyphOutline } from "./PxiGlyph";

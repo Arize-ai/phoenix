@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
 
+import { APP_NOTIFICATION_Z_INDEX } from "@phoenix/components/core/zIndex";
+
 import { StorageAlert } from "./StorageAlert";
 
 const alertsContainerCSS = css`
@@ -8,7 +10,7 @@ const alertsContainerCSS = css`
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
+  z-index: ${APP_NOTIFICATION_Z_INDEX};
 `;
 
 export function AppAlerts() {
