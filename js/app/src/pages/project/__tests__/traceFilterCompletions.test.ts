@@ -1,5 +1,8 @@
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@uiw/react-codemirror";
+import {
+  EditorState,
+  type EditorView,
+  type Transaction,
+} from "@uiw/react-codemirror";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -58,19 +61,41 @@ const vocabulary: TraceFilterVocabularyTerm[] = [
 
 const completionModel = buildTraceFilterCompletionModel(vocabulary);
 
-function applyCompletion(
+/**
+ * Expands a snippet completion against state alone. The applier only reads
+ * `state` and dispatches the transaction it builds, so the snippet expands for
+ * real — a live `EditorView` would instead measure a viewport against a layout
+ * jsdom does not compute. `EditorState` must come from the same re-export the
+ * editor uses: state resolved from a second copy of `@codemirror/state` fails
+ * the `instanceof` check inside `update`, which drops the placeholder
+ * selection rather than erroring.
+ */
+function applySnippetCompletion(
   completion: (typeof completionModel.completions)[number]
 ) {
-  const view = new EditorView({ state: EditorState.create() });
-  const apply = completion.apply ?? completion.label;
-  if (typeof apply === "string") {
-    view.dispatch({ changes: { from: 0, insert: apply } });
-  } else {
-    apply(view, completion, 0, 0);
+  const applySnippet = completion.apply;
+  if (typeof applySnippet !== "function") {
+    throw new Error(`"${completion.label}" does not apply a snippet`);
   }
-  const result = view.state.doc.toString();
-  view.destroy();
-  return result;
+  let state = EditorState.create();
+  applySnippet(
+    {
+      get state() {
+        return state;
+      },
+      dispatch: (transaction: Transaction) => {
+        state = transaction.state;
+      },
+    } as unknown as EditorView,
+    completion,
+    0,
+    0
+  );
+  const { from, to } = state.selection.main;
+  return {
+    text: state.doc.toString(),
+    selectedText: state.doc.sliceString(from, to),
+  };
 }
 
 function getLabels({
@@ -96,7 +121,11 @@ describe("trace filter contextual completions", () => {
       ({ label }) => label === "attributes[...]"
     );
     expect(completion).toBeDefined();
-    expect(applyCompletion(completion!)).toBe('attributes["key"]');
+
+    const { text, selectedText } = applySnippetCompletion(completion!);
+
+    expect(text).toBe('attributes["key"]');
+    expect(selectedText).toBe("key");
   });
 
   it("offers nested collections only in a nested for-clause target", () => {
