@@ -37,6 +37,7 @@ from phoenix.db.types.prompts import PromptChatTemplate
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
     CodeEvaluatorRunner,
+    EvaluationResult,
     LLMEvaluator,
     get_builtin_evaluator_by_key,
 )
@@ -58,14 +59,20 @@ from phoenix.server.online_eval.session_policy import (
     SessionTranscriptPolicy,
     session_criteria_is_schedulable,
 )
+from phoenix.server.online_eval.tracing import (
+    marked_evaluator_tracer,
+    persist_evaluator_traces,
+)
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import CanPutItem, DbSessionFactory
+from phoenix.tracers import Tracer
 
 logger = logging.getLogger(__name__)
 
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
+_EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 
 AnnotatorKind = Literal["LLM", "CODE"]
@@ -357,6 +364,13 @@ def has_eligible_root_turns(context: Mapping[str, Any]) -> bool:
     return bool(policy["total_eligible_root_count"])
 
 
+def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
+    """The evaluator trace this annotation came from, for readers that want to
+    open the evaluation behind a score."""
+    trace_id = result.get("trace_id")
+    return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
+
+
 def _transcript_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
     """Newest root-span time actually included in the evaluated transcript.
 
@@ -390,12 +404,14 @@ class OnlineEvalExecutor:
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
         execution_deadline_seconds: float = _DEFAULT_EXECUTION_DEADLINE_SECONDS,
         db_semaphore: Optional[asyncio.Semaphore] = None,
+        tracer_factory: Optional[Callable[[], Tracer]] = None,
     ) -> None:
         self._db = db
         self._coordinator = coordinator
         self._decrypt = decrypt
         self._sandbox_session_manager = sandbox_session_manager
         self._event_queue = event_queue
+        self._tracer_factory = tracer_factory
         self._execution_deadline_seconds = execution_deadline_seconds
         self._db_semaphore = db_semaphore
         # Read once, at construction: the same caps are fingerprinted at
@@ -892,12 +908,39 @@ class OnlineEvalExecutor:
         replace a prior attempt so the annotation stays paired with its transcript
         coverage. Raises before writing unless the evaluator returns one complete,
         error-free result set. No DB session is open while the evaluator runs."""
-        results = await hydrated.evaluator.evaluate(
-            context=hydrated.context,
-            input_mapping=hydrated.input_mapping,
-            name=hydrated.annotation_name,
-            output_configs=hydrated.output_configs,
+        tracer = (
+            marked_evaluator_tracer(
+                self._tracer_factory(),
+                project_evaluator_rowid=unit.criteria_id,
+                project_evaluator_name=hydrated.annotation_name,
+            )
+            if self._tracer_factory
+            else None
         )
+        try:
+            results = await hydrated.evaluator.evaluate(
+                context=hydrated.context,
+                input_mapping=hydrated.input_mapping,
+                name=hydrated.annotation_name,
+                output_configs=hydrated.output_configs,
+                tracer=tracer,
+            )
+        finally:
+            if tracer is not None:
+                # A failed evaluation is exactly when its trace is worth reading,
+                # so the trace is written whether or not the evaluation succeeded —
+                # including when the consumer cancels the evaluation at its
+                # execution deadline, which is why the write is shielded: an
+                # unshielded await would re-raise the cancellation before the
+                # persist ran, dropping the trace of exactly the run a user
+                # would want to debug.
+                persist = asyncio.ensure_future(self._persist_evaluator_traces(tracer))
+                try:
+                    await asyncio.shield(persist)
+                except asyncio.CancelledError:
+                    if not persist.done():
+                        await asyncio.wait([persist])
+                    raise
         errored = [result for result in results if result["error"] is not None]
         if errored:
             raise EvalExecutionError(errored[0]["error"]) from errored[0].get("error_exc")
@@ -953,6 +996,7 @@ class OnlineEvalExecutor:
                 "metadata_": {
                     **result["metadata"],
                     **hydrated.annotation_metadata,
+                    **_evaluator_trace_metadata(result),
                 },
                 "annotator_kind": hydrated.annotator_kind,
                 "identifier": unit.identifier,
@@ -1009,6 +1053,18 @@ class OnlineEvalExecutor:
                     self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
         if not records:
             raise EvalExecutionError("evaluator returned no results")
+
+    async def _persist_evaluator_traces(self, tracer: Tracer) -> None:
+        """Write the evaluator's trace, never failing the evaluation over it."""
+        try:
+            async with self._db_phase():
+                await persist_evaluator_traces(
+                    db=self._db,
+                    tracer=tracer,
+                    event_queue=self._event_queue,
+                )
+        except Exception:
+            logger.exception("Failed to record an evaluator trace")
 
     @asynccontextmanager
     async def _db_phase(self) -> AsyncIterator[None]:
