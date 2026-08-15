@@ -1,8 +1,55 @@
 import {
   dropReferencePathMappings,
+  formatProjectEvaluatorRunCounts,
   getProjectEvaluatorMappingDiagnostics,
+  getProjectEvaluatorStatus,
   toProjectEvaluatorSamplingFraction,
 } from "../projectEvaluatorTypes";
+
+const runSummary = {
+  status: "HEALTHY",
+  lastRunAt: "2026-08-14T12:00:00Z",
+  queuedCount: 3,
+  evaluatedCount: 118,
+  failedCount: 2,
+};
+
+describe("getProjectEvaluatorStatus", () => {
+  it("reports the run status of a schedulable evaluator", () => {
+    expect(
+      getProjectEvaluatorStatus({
+        schedulabilityStatus: "SCHEDULABLE",
+        schedulabilityReason: null,
+        runSummary,
+      }).label
+    ).toBe("Healthy");
+  });
+
+  it("reports a blocking configuration ahead of past runs", () => {
+    expect(
+      getProjectEvaluatorStatus({
+        schedulabilityStatus: "NOT_SCHEDULABLE",
+        schedulabilityReason: "DISABLED",
+        runSummary,
+      })
+    ).toMatchObject({
+      label: "Not scheduled",
+      explanation:
+        "This evaluator is disabled. Enable it to resume scheduling.",
+    });
+  });
+});
+
+describe("formatProjectEvaluatorRunCounts", () => {
+  it("omits the parts of the funnel that are empty", () => {
+    expect(formatProjectEvaluatorRunCounts(runSummary)).toBe(
+      "118 evaluated · 2 failed · 3 queued"
+    );
+    expect(
+      formatProjectEvaluatorRunCounts({ ...runSummary, failedCount: 0 })
+    ).toBe("118 evaluated · 3 queued");
+  });
+});
 
 describe("dropReferencePathMappings", () => {
   it("drops only reference-rooted paths", () => {
