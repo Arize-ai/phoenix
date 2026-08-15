@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15c1bdf22898bbb92f6b631a637e9cb0>>
+ * @generated SignedSource<<aa7f2fbef88835a4e8e8228111d87eaa>>
  * @lightSyntaxTransform
  */
 
@@ -155,6 +155,13 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "schedulabilityStatus",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "enabled",
                       "storageKey": null
                     },
@@ -163,13 +170,6 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "updatedAt",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "schedulabilityStatus",
                       "storageKey": null
                     },
                     {

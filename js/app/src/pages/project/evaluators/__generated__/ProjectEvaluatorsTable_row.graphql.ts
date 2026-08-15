@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<41eda3397c9092d5652d60f16f463582>>
+ * @generated SignedSource<<3a122b10c85f5315587b50cbc7627731>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,7 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
-export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "SESSION_FILTER_UNSUPPORTED" | "SESSION_SAMPLING_UNSUPPORTED" | "TRACE_TARGET_UNSUPPORTED";
+export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
 export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
@@ -68,6 +68,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "d5cb9edcc8304ecf789bd28d72889a06";
+(node as any).hash = "23584063f4ee4332cc6f4ee85b256554";
 
 export default node;
