@@ -290,6 +290,24 @@ class Span(Node):
         self,
         info: Info[Context, None],
     ) -> JSON:
+        return JSON(await self._evaluation_context(info))
+
+    @strawberry.field(
+        description=(
+            "Values an online evaluator running on this span binds by variable "
+            "name when its input mapping leaves that name unmapped."
+        ),
+    )  # type: ignore
+    async def evaluation_bound_variables(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        from phoenix.server.online_eval.bound_variables import span_bound_variables
+
+        context = await self._evaluation_context(info)
+        return JSON(span_bound_variables(context["span"]))
+
+    async def _evaluation_context(self, info: Info[Context, None]) -> dict[str, Any]:
         from phoenix.server.online_eval.executor import span_eval_context
 
         span = (
@@ -297,7 +315,10 @@ class Span(Node):
             if self.db_record
             else await info.context.data_loaders.span_by_id.load(self.id)
         )
-        return JSON(span_eval_context(span))
+        trace_id = await info.context.data_loaders.span_fields.load(
+            (self.id, models.Trace.trace_id),
+        )
+        return span_eval_context(span, trace_id=trace_id)
 
     @strawberry.field(
         description="Span attributes as a JSON string",

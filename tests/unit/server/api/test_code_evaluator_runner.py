@@ -247,6 +247,15 @@ class TestInputSchemaInference:
         assert error is not None
         assert "Use a destructured object parameter" in error
 
+    def test_python_input_schema_accepts_bound_variable_parameter_names(self) -> None:
+        runner, _ = _make_runner(
+            source_code="def evaluate(output, latency_ms=None):\n    return 1\n"
+        )
+
+        schema, error = runner._infer_input_schema()
+        assert error is None
+        assert schema["properties"] == {"output": {}, "latency_ms": {}}
+
     def test_python_input_schema_returns_error_for_unsupported_parameter_names(self) -> None:
         runner, _ = _make_runner(
             source_code="def evaluate(outputs, reference=None):\n    return 1\n"

@@ -18,7 +18,7 @@ from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Seq
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import with_polymorphic
+from sqlalchemy.orm import joinedload, with_polymorphic
 from strawberry.relay import GlobalID
 
 from phoenix.config import (
@@ -46,6 +46,12 @@ from phoenix.server.dml_event import (
     DmlEvent,
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
+)
+from phoenix.server.online_eval.bound_variables import (
+    load_session_bound_variables,
+    session_duration_ms,
+    span_bound_variables,
+    unmapped_bound_variable_names,
 )
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit, EvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
@@ -178,8 +184,9 @@ ConfigurationSnapshotOutcome = (
 )
 
 
-def span_eval_context(span: models.Span) -> dict[str, Any]:
-    """Span context; ``metadata.attributes`` roots attribute ``path_mapping`` expressions."""
+def span_eval_context(span: models.Span, *, trace_id: str) -> dict[str, Any]:
+    """Span context; ``span`` roots whole-entity ``path_mapping`` expressions and
+    ``metadata.attributes`` roots the attribute expressions written before it."""
     return {
         "input": span.input_value,
         "output": span.output_value,
@@ -190,11 +197,31 @@ def span_eval_context(span: models.Span) -> dict[str, Any]:
             "status_code": span.status_code,
             "status_message": span.status_message,
         },
+        "span": {
+            "span_id": span.span_id,
+            "trace_id": trace_id,
+            "parent_id": span.parent_id,
+            "name": span.name,
+            "span_kind": span.span_kind,
+            "status_code": span.status_code,
+            "status_message": span.status_message,
+            "latency_ms": span.latency_ms,
+            "start_time": span.start_time.isoformat(),
+            "end_time": span.end_time.isoformat(),
+            "cumulative_llm_token_count_prompt": span.cumulative_llm_token_count_prompt,
+            "cumulative_llm_token_count_completion": span.cumulative_llm_token_count_completion,
+            "cumulative_llm_token_count_total": span.cumulative_llm_token_count_total,
+            "input_value": span.input_value,
+            "output_value": span.output_value,
+            "attributes": span.attributes,
+            "events": span.events,
+        },
     }
 
 
 def session_eval_context(
     *,
+    project_session: models.ProjectSession,
     turns: Sequence[dict[str, Any]],
     policy: SessionTranscriptPolicy,
     total_eligible_root_count: Optional[int] = None,
@@ -268,6 +295,16 @@ def session_eval_context(
             "turns": list(turns),
             _TRANSCRIPT_POLICY_METADATA_KEY: applied_policy,
         },
+        "session": {
+            "session_id": project_session.session_id,
+            "start_time": project_session.start_time.isoformat(),
+            "end_time": project_session.end_time.isoformat(),
+            "duration_ms": session_duration_ms(
+                project_session.start_time,
+                project_session.end_time,
+            ),
+            "turns": list(turns),
+        },
     }
 
 
@@ -285,6 +322,9 @@ async def load_session_eval_context(
     runtime binds against. Raises ``TranscriptTooLargeError`` when no whole turn
     fits the byte cap.
     """
+    project_session = await session.get(models.ProjectSession, project_session_rowid)
+    if project_session is None:
+        raise ValueError(f"Project session {project_session_rowid} no longer exists")
     root_filters = (
         models.Trace.project_session_rowid == project_session_rowid,
         models.Trace.project_rowid == project_id,
@@ -347,6 +387,7 @@ async def load_session_eval_context(
         for row in reversed(root_rows)
     ]
     return session_eval_context(
+        project_session=project_session,
         turns=turns,
         policy=policy,
         total_eligible_root_count=total_eligible_root_count,
@@ -584,7 +625,9 @@ class OnlineEvalExecutor:
                 continue
             if unit.evaluation_target == "SESSION":
                 maps_structured_turns[index] = any(
-                    path_expression.removeprefix("$.").startswith("metadata.turns")
+                    path_expression.removeprefix("$.").startswith(
+                        ("metadata.turns", "session.turns")
+                    )
                     for path_expression in (resolved_input_mapping.path_mapping or {}).values()
                 )
             contexts[index] = hydrated_context
@@ -616,6 +659,49 @@ class OnlineEvalExecutor:
                     else HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
                 )
 
+        bound_variable_names: list[frozenset[str]] = [frozenset() for _ in units]
+        for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
+            if outcome is not None:
+                continue
+            _, evaluator = criteria_evaluators[unit.criteria_id]
+            evaluator_snapshot_outcome = evaluator_snapshots[evaluator.id]
+            snapshot_input_mapping = input_mappings[index]
+            if (
+                isinstance(evaluator_snapshot_outcome, (HydrationFailure, Exception))
+                or snapshot_input_mapping is None
+            ):
+                continue
+            bound_variable_names[index] = unmapped_bound_variable_names(
+                input_schema=getattr(evaluator_snapshot_outcome.evaluator, "input_schema", {})
+                or {},
+                input_mapping=snapshot_input_mapping,
+                evaluation_target=unit.evaluation_target,
+            )
+
+        session_bound_variables: dict[int, dict[str, Any]] = {}
+        session_indices = [
+            index
+            for index, unit in enumerate(units)
+            if unit.evaluation_target == "SESSION" and bound_variable_names[index]
+        ]
+        if session_indices:
+            try:
+                # One savepointed batch read: a failure here is infrastructure,
+                # not a property of any one session's data.
+                async with session.begin_nested():
+                    session_bound_variables = await load_session_bound_variables(
+                        session,
+                        project_session_rowids={
+                            units[index].target_rowid for index in session_indices
+                        },
+                        names=frozenset().union(
+                            *(bound_variable_names[index] for index in session_indices)
+                        ),
+                    )
+            except Exception as error:
+                for index in session_indices:
+                    outcomes[index] = SharedHydrationFailure(error)
+
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
@@ -634,6 +720,19 @@ class OnlineEvalExecutor:
             if snapshot_input_mapping is None:
                 outcomes[index] = RuntimeError("Input mapping hydration did not produce a result")
                 continue
+            if requested_names := bound_variable_names[index]:
+                available = (
+                    span_bound_variables(snapshot_context["span"])
+                    if unit.evaluation_target == "SPAN"
+                    else session_bound_variables.get(unit.target_rowid, {})
+                )
+                snapshot_input_mapping = InputMapping(
+                    path_mapping=dict(snapshot_input_mapping.path_mapping or {}),
+                    literal_mapping={
+                        **{name: available[name] for name in requested_names if name in available},
+                        **(snapshot_input_mapping.literal_mapping or {}),
+                    },
+                )
             annotation_metadata: dict[str, Any] = {}
             if unit.evaluation_target == "SESSION":
                 policy = snapshot_context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
@@ -692,10 +791,14 @@ class OnlineEvalExecutor:
         project_id: int,
     ) -> dict[str, Any] | HydrationFailure:
         if unit.evaluation_target == "SPAN":
-            span = await session.get(models.Span, unit.target_rowid)
+            span = await session.get(
+                models.Span,
+                unit.target_rowid,
+                options=[joinedload(models.Span.trace)],
+            )
             if span is None:
                 return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
-            return span_eval_context(span)
+            return span_eval_context(span, trace_id=span.trace.trace_id)
         project_session = await session.get(models.ProjectSession, unit.target_rowid)
         if project_session is None:
             return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
