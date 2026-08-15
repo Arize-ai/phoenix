@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3c1690467bc572080dbb176d4933b48d>>
+ * @generated SignedSource<<aa7f2fbef88835a4e8e8228111d87eaa>>
  * @lightSyntaxTransform
  */
 
@@ -170,6 +170,59 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "updatedAt",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "schedulabilityReason",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "ProjectEvaluatorRunSummary",
+                      "kind": "LinkedField",
+                      "name": "runSummary",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "status",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "lastRunAt",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "queuedCount",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "evaluatedCount",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "failedCount",
+                          "storageKey": null
+                        }
+                      ],
                       "storageKey": null
                     },
                     {

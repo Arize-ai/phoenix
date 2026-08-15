@@ -11,6 +11,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -22,6 +23,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
 from phoenix.server.api.evaluators import BuiltInEvaluator as BuiltInEvaluatorClass
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AnnotationConfig import (
@@ -84,6 +86,57 @@ class ProjectEvaluatorSchedulabilityStatus(Enum):
     NOT_SCHEDULABLE = "NOT_SCHEDULABLE"
 
 
+@strawberry.enum
+class ProjectEvaluatorRunStatus(Enum):
+    NEVER_RUN = "NEVER_RUN"
+    QUEUED = "QUEUED"
+    HEALTHY = "HEALTHY"
+    FAILING = "FAILING"
+
+
+@strawberry.type(
+    description=(
+        "How a project evaluator is doing, derived from the evaluations it has produced "
+        "within the online evaluation retention window."
+    )
+)
+class ProjectEvaluatorRunSummary:
+    status: ProjectEvaluatorRunStatus
+    last_run_at: Optional[datetime] = strawberry.field(
+        description="When this evaluator last finished an evaluation, or null if it never has."
+    )
+    queued_count: int = strawberry.field(
+        description="Evaluations waiting to run, including ones awaiting a retry."
+    )
+    evaluated_count: int = strawberry.field(description="Evaluations that produced an annotation.")
+    failed_count: int = strawberry.field(description="Evaluations that were given up on.")
+    last_error: Optional[str] = strawberry.field(
+        description="The most recent evaluation error, or null if none was recorded."
+    )
+
+
+def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> ProjectEvaluatorRunSummary:
+    last_evaluated_at, last_failed_at = counts.last_evaluated_at, counts.last_failed_at
+    if last_failed_at is not None and (
+        last_evaluated_at is None or last_failed_at >= last_evaluated_at
+    ):
+        status = ProjectEvaluatorRunStatus.FAILING
+    elif counts.evaluated:
+        status = ProjectEvaluatorRunStatus.HEALTHY
+    elif counts.queued:
+        status = ProjectEvaluatorRunStatus.QUEUED
+    else:
+        status = ProjectEvaluatorRunStatus.NEVER_RUN
+    return ProjectEvaluatorRunSummary(
+        status=status,
+        last_run_at=max(filter(None, (last_evaluated_at, last_failed_at)), default=None),
+        queued_count=counts.queued,
+        evaluated_count=counts.evaluated,
+        failed_count=counts.failed,
+        last_error=counts.last_error,
+    )
+
+
 # The reason vocabulary is declared beside the conditions it names, in session_policy;
 # this only registers it with the schema under its GraphQL name.
 strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason")
@@ -91,7 +144,16 @@ strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason
 
 def _project_evaluator_schedulability(
     record: models.ProjectEvaluatorCriteria,
+    *,
+    targets_evaluator_traces: bool,
 ) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
+    if targets_evaluator_traces:
+        # Mirrors exclude_criteria_targeting_evaluator_traces: both sweep loads drop
+        # these criteria regardless of target, so the row must not advertise otherwise.
+        return (
+            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
+            SchedulabilityReason.TARGETS_EVALUATOR_TRACES,
+        )
     if record.evaluation_target == "SESSION":
         # Every SESSION condition is declared once in session_policy, beside the SQL
         # the sweeper and the executor gate on, so this field cannot advertise an
@@ -1149,7 +1211,9 @@ class ProjectEvaluator(Node):
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.ProjectEvaluatorCriteria]] = None
 
-    @strawberry.field
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="The project whose spans this evaluator evaluates."
+    )
     async def project(
         self, info: Info[Context, None]
     ) -> Annotated["Project", strawberry.lazy(".Project")]:
@@ -1157,6 +1221,27 @@ class ProjectEvaluator(Node):
         from .Project import Project
 
         return Project(id=record.project_id)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "The project holding the traces this evaluator produces when it runs, or null "
+            "until the first evaluator trace creates it. Every evaluator traces into this "
+            "one project, so its spans must be scoped by this evaluator's id to show only "
+            "its own traces."
+        )
+    )
+    async def trace_project(
+        self, info: Info[Context, None]
+    ) -> Optional[Annotated["Project", strawberry.lazy(".Project")]]:
+        async with info.context.db.read() as session:
+            project_id = await session.scalar(
+                sa.select(models.Project.id).where(models.Project.name == EVALUATORS_PROJECT_NAME)
+            )
+        if project_id is None:
+            return None
+        from .Project import Project
+
+        return Project(id=project_id)
 
     @strawberry.field
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:
@@ -1191,6 +1276,20 @@ class ProjectEvaluator(Node):
         record = await self._get_record(info)
         return EvaluationTarget(record.evaluation_target)
 
+    async def _targets_evaluator_traces(
+        self, info: Info[Context, None], record: models.ProjectEvaluatorCriteria
+    ) -> bool:
+        """Whether this criteria targets the project holding evaluator traces.
+
+        Creation refuses such criteria, but a project that predates the reservation
+        can already carry them; both sweep loads exclude those, and schedulability
+        must say so rather than advertise an evaluator the sweeps never pick up.
+        """
+        project_name = await info.context.data_loaders.project_fields.load(
+            (record.project_id, models.Project.name),
+        )
+        return project_name == EVALUATORS_PROJECT_NAME
+
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Whether this project evaluator is currently eligible for scheduling."
     )
@@ -1198,7 +1297,11 @@ class ProjectEvaluator(Node):
         self,
         info: Info[Context, None],
     ) -> ProjectEvaluatorSchedulabilityStatus:
-        status, _ = _project_evaluator_schedulability(await self._get_record(info))
+        record = await self._get_record(info)
+        status, _ = _project_evaluator_schedulability(
+            record,
+            targets_evaluator_traces=await self._targets_evaluator_traces(info, record),
+        )
         return status
 
     @strawberry.field(  # type: ignore[untyped-decorator]
@@ -1211,8 +1314,17 @@ class ProjectEvaluator(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[SchedulabilityReason]:
-        _, reason = _project_evaluator_schedulability(await self._get_record(info))
+        record = await self._get_record(info)
+        _, reason = _project_evaluator_schedulability(
+            record,
+            targets_evaluator_traces=await self._targets_evaluator_traces(info, record),
+        )
         return reason
+
+    @strawberry.field
+    async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
+        counts = await info.context.data_loaders.project_evaluator_run_counts.load(self.id)
+        return _project_evaluator_run_summary(counts)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(

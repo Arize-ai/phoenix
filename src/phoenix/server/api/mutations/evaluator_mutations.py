@@ -14,6 +14,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
 from phoenix.db.models import EvaluatorKind
@@ -316,6 +317,25 @@ async def _ensure_evaluator_prompt_label(
             prompt_label_id=label.id,
         )
         session.add(association)
+
+
+async def _validate_project_evaluator_project(
+    session: AsyncSession,
+    project_id: int,
+    project_global_id: GlobalID,
+) -> None:
+    """Reject a project that cannot be evaluated.
+
+    The evaluators project holds the traces of evaluator executions; evaluating
+    it would feed evaluator output back into the evaluators that produced it.
+    """
+    project = await session.get(models.Project, project_id)
+    if project is None:
+        raise NotFound(f"Project not found: {project_global_id}")
+    if project.name == EVALUATORS_PROJECT_NAME:
+        raise BadRequest(
+            f"The {EVALUATORS_PROJECT_NAME} project holds evaluator traces and cannot be evaluated"
+        )
 
 
 def _validate_project_evaluator_filter(
@@ -769,8 +789,7 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                if await session.get(models.Project, project_id) is None:
-                    raise NotFound(f"Project not found: {input.project_id}")
+                await _validate_project_evaluator_project(session, project_id, input.project_id)
                 evaluator_name = await _generate_unique_evaluator_name(session, name)
 
                 target_prompt_version_id: Optional[int] = None
@@ -1035,8 +1054,7 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                if await session.get(models.Project, project_id) is None:
-                    raise NotFound(f"Project not found: {input.project_id}")
+                await _validate_project_evaluator_project(session, project_id, input.project_id)
                 if await session.get(models.CodeEvaluator, evaluator_id) is None:
                     raise BadRequest("CODE evaluator not found")
                 criteria = models.ProjectEvaluatorCriteria(
@@ -1110,8 +1128,7 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                if await session.get(models.Project, project_id) is None:
-                    raise NotFound(f"Project not found: {input.project_id}")
+                await _validate_project_evaluator_project(session, project_id, input.project_id)
                 evaluator_name = await _generate_unique_evaluator_name(session, name)
                 evaluator = models.CodeEvaluator(
                     name=evaluator_name,
