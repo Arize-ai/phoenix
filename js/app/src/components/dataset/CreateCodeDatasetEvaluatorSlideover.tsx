@@ -191,6 +191,7 @@ const CreateCodeEvaluatorDialog = ({
     );
   const initialState: EvaluatorStoreProps = useMemo(() => {
     return {
+      evaluatorBoundVariables: {},
       evaluator: {
         globalName: "",
         name: "",

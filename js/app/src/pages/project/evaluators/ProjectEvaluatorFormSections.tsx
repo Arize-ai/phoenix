@@ -1,11 +1,18 @@
 import { memo, type ReactNode } from "react";
 
-import { Flex, Heading, View } from "@phoenix/components";
+import { Flex, Heading, Text, View } from "@phoenix/components";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import { BOUND_VARIABLES_PLACEMENT } from "@phoenix/pages/project/evaluators/boundVariablesPlacement";
+import { ProjectEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBoundVariables";
+import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
-import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type {
+  ProjectEvaluatorMappingSourceGrain,
+  ProjectEvaluatorScope,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { toEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /** Scope-editing props shared by every left definition panel. */
 type ProjectEvaluatorScopeProps = {
@@ -69,8 +76,63 @@ export const ProjectLlmEvaluatorFormSections = (
     <>
       <EvaluatorNameAndDescriptionFields />
       <ProjectEvaluatorScopeSection {...scopeProps} />
-      <LLMEvaluatorForm showInputMapping={false} />
+      <LLMEvaluatorForm
+        inputMappingSection={
+          <ProjectEvaluatorInputMappingSection
+            grain={toEvaluatorMappingSourceGrain(scopeProps.scope.targetType)}
+          />
+        }
+      />
     </>
+  );
+};
+
+/**
+ * The three inputs an evaluator receives, and — where the experiment currently
+ * places it — the list of values its record supplies by name.
+ */
+const ProjectEvaluatorInputMappingSection = ({
+  grain,
+}: {
+  grain: ProjectEvaluatorMappingSourceGrain;
+}) => {
+  const recordNoun = grain === "session" ? "session" : "span";
+  return (
+    <Flex direction="column" gap="size-200" marginTop="size-200">
+      <Flex direction="column" gap="size-100">
+        <Flex direction="column" gap="size-25">
+          <Heading level={2} weight="heavy">
+            Evaluator Inputs
+          </Heading>
+          <Text color="text-500" size="S">
+            Every evaluator receives an input, an output, and metadata. Leave a
+            row alone to use what the {recordNoun} already provides, or point it
+            at any field of the {recordNoun}.
+          </Text>
+        </Flex>
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          marginTop="size-50"
+          borderColor="default"
+        >
+          {/* Keyed so the rows rebuild against the new record kind rather than
+              carrying the previous one's paths forward. */}
+          <ProjectEvaluatorInputMapping key={grain} grain={grain} />
+        </View>
+      </Flex>
+      {BOUND_VARIABLES_PLACEMENT === "mapping-section" ? (
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          borderColor="default"
+        >
+          <ProjectEvaluatorBoundVariables grain={grain} />
+        </View>
+      ) : null}
+    </Flex>
   );
 };
 

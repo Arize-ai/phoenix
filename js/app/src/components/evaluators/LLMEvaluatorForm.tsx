@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -12,9 +13,16 @@ import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateForm
 export const LLMEvaluatorForm = ({
   showInputMapping = true,
   showAnnotationConfig = true,
+  inputMappingSection,
 }: {
   showInputMapping?: boolean;
   showAnnotationConfig?: boolean;
+  /**
+   * Replaces the dataset mapping section. A dataset evaluator maps one row per
+   * template variable; an evaluator on a project's records maps the three
+   * inputs it receives, so the two sections are not the same control.
+   */
+  inputMappingSection?: ReactNode;
 }) => {
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   if (evaluatorKind !== "LLM") {
@@ -77,7 +85,8 @@ export const LLMEvaluatorForm = ({
           </Flex>
         </View>
       ) : null}
-      {showInputMapping ? (
+      {inputMappingSection}
+      {inputMappingSection == null && showInputMapping ? (
         <Flex direction="column" gap="size-100">
           <Heading level={2} weight="heavy">
             Map Prompt Variables (optional)

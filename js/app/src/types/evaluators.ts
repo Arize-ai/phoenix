@@ -170,18 +170,21 @@ export type DatasetEvaluatorMappingSource = {
 
 /**
  * As produced by the server: `input`/`output` are raw attribute values
- * (commonly a string or null), and `metadata` is rooted at `metadata.attributes`.
+ * (commonly a string or null), `metadata` is rooted at `metadata.attributes`,
+ * and `span` is the whole span, which a mapping path can address directly.
  */
 export type SpanEvaluatorMappingSource = {
   input: unknown;
   output: unknown;
   metadata: Record<string, unknown>;
+  span: Record<string, unknown>;
 };
 
 /**
  * As produced by the server: `input` is the session transcript, `output` is the
- * last response in the session, and `metadata` holds the ordered turns and the
- * transcript policy that assembled them.
+ * last response in the session, `metadata` holds the ordered turns and the
+ * transcript policy that assembled them, and `session` is the whole session,
+ * which a mapping path can address directly.
  *
  * Structurally identical to a span source, but semantically distinct: the two
  * grains name different records and offer different mapping vocabulary, so the
@@ -191,6 +194,7 @@ export type SessionEvaluatorMappingSource = {
   input: unknown;
   output: unknown;
   metadata: Record<string, unknown>;
+  session: Record<string, unknown>;
 };
 
 export type EvaluatorMappingSourceGrain = "dataset" | "span" | "session";
