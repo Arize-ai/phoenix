@@ -3402,6 +3402,7 @@ type ProjectEvaluatorRunSummary {
 enum ProjectEvaluatorSchedulabilityReason {
   DISABLED
   TRACE_TARGET_UNSUPPORTED
+  TARGETS_EVALUATOR_TRACES
 }
 
 enum ProjectEvaluatorSchedulabilityStatus {

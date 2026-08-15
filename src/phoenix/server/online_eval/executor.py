@@ -928,8 +928,19 @@ class OnlineEvalExecutor:
         finally:
             if tracer is not None:
                 # A failed evaluation is exactly when its trace is worth reading,
-                # so the trace is written whether or not the evaluation succeeded.
-                await self._persist_evaluator_traces(tracer)
+                # so the trace is written whether or not the evaluation succeeded —
+                # including when the consumer cancels the evaluation at its
+                # execution deadline, which is why the write is shielded: an
+                # unshielded await would re-raise the cancellation before the
+                # persist ran, dropping the trace of exactly the run a user
+                # would want to debug.
+                persist = asyncio.ensure_future(self._persist_evaluator_traces(tracer))
+                try:
+                    await asyncio.shield(persist)
+                except asyncio.CancelledError:
+                    if not persist.done():
+                        await asyncio.wait([persist])
+                    raise
         errored = [result for result in results if result["error"] is not None]
         if errored:
             raise EvalExecutionError(errored[0]["error"]) from errored[0].get("error_exc")

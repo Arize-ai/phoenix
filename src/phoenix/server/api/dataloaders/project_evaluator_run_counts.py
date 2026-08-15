@@ -7,7 +7,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.eval_work import MAX_ATTEMPTS
+from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.server.online_eval.derivation import STALE_FINGERPRINT_ERROR
 from phoenix.server.types import DbSessionFactory
 
@@ -64,27 +64,37 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
         return [result.get(criteria_id, empty) for criteria_id in keys]
 
 
+def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
+    """A unit that was given up on — the only units whose errors the user is owed.
+
+    Two expiries are excluded because nothing failed: a stale fingerprint means the
+    evaluator's configuration changed under the unit, and content-incomplete means
+    the session's traces were deleted (retention or an explicit delete) before the
+    evaluation ran. Both are lifecycle events, not evaluation failures.
+    """
+    return sa.or_(
+        sa.and_(model.status == "ERROR", model.attempts >= MAX_ATTEMPTS),
+        sa.and_(
+            model.status == "EXPIRED",
+            sa.or_(
+                model.error.is_(None),
+                model.error.not_in((STALE_FINGERPRINT_ERROR, SESSION_CONTENT_INCOMPLETE_ERROR)),
+            ),
+        ),
+    )
+
+
 def _outcome(model: _WorkUnitModel) -> sa.Case[Optional[str]]:
     """Bucket a work unit into the funnel the user sees.
 
-    Superseded units — expired because the evaluator's configuration changed under them —
-    fall outside every bucket, since no evaluation was ever owed for them.
+    Superseded units — expired because the evaluator's configuration changed under
+    them — and content-incomplete units — expired because their session's traces
+    were deleted first — fall outside every bucket, since no evaluation was ever
+    owed for them.
     """
     return sa.case(
         (model.status == "DONE", _EVALUATED),
-        (
-            sa.or_(
-                sa.and_(model.status == "ERROR", model.attempts >= MAX_ATTEMPTS),
-                sa.and_(
-                    model.status == "EXPIRED",
-                    sa.or_(
-                        model.error.is_(None),
-                        model.error != STALE_FINGERPRINT_ERROR,
-                    ),
-                ),
-            ),
-            _FAILED,
-        ),
+        (_failed(model), _FAILED),
         (model.status.in_(("PENDING", "RUNNING", "ERROR")), _QUEUED),
         else_=None,
     )
@@ -118,6 +128,15 @@ def _outcome_stmt(criteria_ids: list[Key]) -> sa.Select[Any]:
 
 
 def _last_error_stmt(criteria_ids: list[Key]) -> sa.Select[Any]:
+    """The newest error among FAILED units only.
+
+    A unit that errored transiently and later succeeded keeps its error string
+    (claim and complete never clear it), so ranking every non-null error would
+    surface a stale message under a healthy evaluator. Restricting to units the
+    funnel counts as failed keeps ``lastError`` describing what ``status`` says —
+    and bounds the ranked partition to given-up work.
+    """
+
     def grain(model: _WorkUnitModel) -> sa.Select[Any]:
         return sa.select(
             model.criteria_id.label("criteria_id"),
@@ -126,7 +145,7 @@ def _last_error_stmt(criteria_ids: list[Key]) -> sa.Select[Any]:
         ).where(
             model.criteria_id.in_(criteria_ids),
             model.error.is_not(None),
-            model.error != STALE_FINGERPRINT_ERROR,
+            _failed(model),
         )
 
     grains = sa.union_all(grain(models.EvalWorkUnit), grain(models.EvalSessionWorkUnit)).subquery()

@@ -10,7 +10,7 @@ import httpx
 import pytest
 from opentelemetry.context import Context
 from opentelemetry.trace import format_trace_id
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
@@ -1939,7 +1939,7 @@ async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) ->
         evaluator_kind="LLM",
         output_configs=output_configs,
     )
-    executor = _executor(db)
+    executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
     unit = await _claim_materialized_unit(
         db,
         project_id=project.id,
@@ -1950,6 +1950,16 @@ async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) ->
         await executor.evaluate_and_annotate(unit, hydrated)
 
     assert await _annotations(db) == []
+    # A failed evaluation is exactly when its trace is worth reading, so the
+    # trace is written even though the evaluation wrote no annotation.
+    async with db() as session:
+        traced_span_count = await session.scalar(
+            select(func.count(models.Span.id))
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(models.Project.name == EVALUATORS_PROJECT_NAME)
+        )
+    assert traced_span_count
 
 
 async def test_duplicate_output_name_writes_nothing(db: DbSessionFactory) -> None:

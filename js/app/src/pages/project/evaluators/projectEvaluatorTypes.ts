@@ -131,6 +131,8 @@ export function getSchedulabilityExplanation(
       return "This evaluator is disabled. Enable it to resume scheduling.";
     case "TRACE_TARGET_UNSUPPORTED":
       return "Trace evaluators are saved but are not scheduled yet.";
+    case "TARGETS_EVALUATOR_TRACES":
+      return "This project holds the traces evaluators produce and is never evaluated. Point the evaluator at a different project.";
     case "SESSION_FILTER_UNSUPPORTED":
       return "Session evaluators with a filter are saved but never scheduled. Clear the filter to schedule this evaluator.";
     case "SESSION_SAMPLING_UNSUPPORTED":
