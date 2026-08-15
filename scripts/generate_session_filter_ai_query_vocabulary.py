@@ -8,7 +8,7 @@ from typing import Final
 from phoenix.server.api.types.FilterVocabularyTerm import session_filter_vocabulary_terms
 
 _DEFAULT_OUTPUT: Final = (
-    Path(__file__).parents[1] / "app/src/pages/project/sessionFilterCoreVocabulary.generated.ts"
+    Path(__file__).parents[1] / "js/app/src/pages/project/sessionFilterCoreVocabulary.generated.ts"
 )
 
 

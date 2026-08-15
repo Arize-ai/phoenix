@@ -1,4 +1,5 @@
 packages:
+  - app
   - packages/*
   - examples/apps/*
   - benchmarks/*
@@ -7,13 +8,23 @@ managePackageManagerVersions: true
 
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
-  - "@arizeai/openinference-core"
+  - "@arizeai/*"
+
+# @browser-ai/core imports @ai-sdk/provider at runtime without declaring it,
+# so it only resolves when some other package happens to hoist it — declare
+# the dependency it forgot so dependency-graph shifts can't break it.
+packageExtensions:
+  "@browser-ai/core":
+    dependencies:
+      "@ai-sdk/provider": "*"
 
 allowBuilds:
+  "@mongodb-js/zstd": false
   # Only has a "use pnpm" preinstall guard; no build output needed.
   autoevals: false
   esbuild: true
   msw: false
+  node-liblzma: false
   protobufjs: true
   # napi-postinstall binding fixup for jest 30's resolver.
   unrs-resolver: true
