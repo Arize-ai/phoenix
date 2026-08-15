@@ -35,6 +35,7 @@ import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/eva
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
+  isSameInputMapping,
   toEvaluationDelayInput,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
@@ -492,7 +493,7 @@ function EditCodeProjectEvaluator({
   });
   // The update mutation treats an omitted inputMapping as "preserve", so
   // snapshot the stored value to tell an edit from an inherited setting.
-  const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
+  const initialInputMapping = evaluator.inputMapping as EvaluatorInputMapping;
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [error, setError] = useState<string>();
   // See the LLM edit path: the details page loader must re-run after a save.
@@ -586,9 +587,10 @@ function EditCodeProjectEvaluator({
             onSubmit={() => {
               setError(undefined);
               const state = store.getState();
-              const inputMappingChanged =
-                JSON.stringify(state.evaluator.inputMapping) !==
-                initialInputMappingJson;
+              const inputMappingChanged = !isSameInputMapping(
+                state.evaluator.inputMapping,
+                initialInputMapping
+              );
               const descriptionChanged =
                 state.evaluator.description !== initialDescription;
               const outputConfigsChanged =
