@@ -3103,7 +3103,23 @@ type Project implements Node {
   """
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, traceFilterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+  spans(
+    first: Int!
+    timeRange: TimeRange
+    last: Int
+    after: String
+    before: String
+    sort: SpanSort
+    rootSpansOnly: Boolean
+    filterCondition: String
+    traceFilterCondition: String
+    orphanSpanAsRootSpan: Boolean = true
+
+    """
+    Restrict to spans produced by this project evaluator. Every evaluator traces into one shared project, so its own traces are only reachable through this scope.
+    """
+    projectEvaluatorId: ID
+  ): SpanConnection!
 
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. sessionFilterCondition is a session filter expression (see sessionFilterVocabulary).
@@ -3276,7 +3292,14 @@ type ProjectEdge {
 type ProjectEvaluator implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """The project whose spans this evaluator evaluates."""
   project: Project!
+
+  """
+  The project holding the traces this evaluator produces when it runs, or null until the first evaluator trace creates it. Every evaluator traces into this one project, so its spans must be scoped by this evaluator's id to show only its own traces.
+  """
+  traceProject: Project
   evaluator: Evaluator!
   name: Identifier!
   filterCondition: String!
@@ -3294,6 +3317,7 @@ type ProjectEvaluator implements Node {
   Machine-readable reason the project evaluator is not schedulable, or null when it is schedulable.
   """
   schedulabilityReason: ProjectEvaluatorSchedulabilityReason
+  runSummary: ProjectEvaluatorRunSummary!
 
   """
   Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
@@ -3338,9 +3362,41 @@ type ProjectEvaluatorMutationPayload {
   query: Query!
 }
 
+enum ProjectEvaluatorRunStatus {
+  NEVER_RUN
+  QUEUED
+  HEALTHY
+  FAILING
+}
+
+"""
+How a project evaluator is doing, derived from the evaluations it has produced within the online evaluation retention window.
+"""
+type ProjectEvaluatorRunSummary {
+  status: ProjectEvaluatorRunStatus!
+
+  """
+  When this evaluator last finished an evaluation, or null if it never has.
+  """
+  lastRunAt: DateTime
+
+  """Evaluations waiting to run, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """Evaluations that produced an annotation."""
+  evaluatedCount: Int!
+
+  """Evaluations that were given up on."""
+  failedCount: Int!
+
+  """The most recent evaluation error, or null if none was recorded."""
+  lastError: String
+}
+
 enum ProjectEvaluatorSchedulabilityReason {
   DISABLED
   TRACE_TARGET_UNSUPPORTED
+  TARGETS_EVALUATOR_TRACES
 }
 
 enum ProjectEvaluatorSchedulabilityStatus {

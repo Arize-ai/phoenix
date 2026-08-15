@@ -6,6 +6,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import React, {
   startTransition,
   useCallback,
@@ -123,6 +124,17 @@ type SpansTableProps = {
    * match both its text and its root scope from the first render.
    */
   seed: SettledSpanFilterSeed;
+  /**
+   * Restricts every fetch to the spans one project evaluator produced. The
+   * server applies it alongside the user's filter, so it survives whatever the
+   * filter field is edited to. Must match the preload's own scope.
+   */
+  projectEvaluatorId?: string;
+  /**
+   * Replaces the generic "no traces match" state when the table has no rows,
+   * for views that can say something more specific about why.
+   */
+  emptyState?: ReactNode;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -213,6 +225,7 @@ export const MemoizedTableBody = React.memo(
 ) as typeof TableBody;
 
 export function SpansTable(props: SpansTableProps) {
+  const { projectEvaluatorId } = props;
   const [searchParams, setSearchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
@@ -318,6 +331,7 @@ export function SpansTable(props: SpansTableProps) {
             defaultValue: { col: startTime, dir: desc }
           }
           filterCondition: { type: "String", defaultValue: null }
+          projectEvaluatorId: { type: "ID", defaultValue: null }
         ) {
           name
           spanAnnotationNames
@@ -329,6 +343,7 @@ export function SpansTable(props: SpansTableProps) {
             after: $after
             sort: $sort
             filterCondition: $filterCondition
+            projectEvaluatorId: $projectEvaluatorId
             timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
             edges {
@@ -818,6 +833,7 @@ export function SpansTable(props: SpansTableProps) {
           first: PAGE_SIZE,
           filterCondition,
           rootSpansOnly,
+          projectEvaluatorId,
           timeRange: timeRangeISOStrings,
         },
         { fetchPolicy: "store-and-network" }
@@ -829,6 +845,7 @@ export function SpansTable(props: SpansTableProps) {
     filterCondition,
     fetchKey,
     rootSpansOnly,
+    projectEvaluatorId,
     timeRangeISOStrings,
   ]);
   const fetchMoreOnBottomReached = useCallback(
@@ -1093,7 +1110,7 @@ export function SpansTable(props: SpansTableProps) {
                     // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
                     // spans. This is an undesirable edge case. The optimization is a stopgap solution that
                     // will be replaced to eliminate this condition.
-                    <ProjectTableEmpty />
+                    (props.emptyState ?? <ProjectTableEmpty />)
                   ) : columnSizingInfo.isResizingColumn ? (
                     <MemoizedTableBody
                       table={table}

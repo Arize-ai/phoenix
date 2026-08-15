@@ -1127,6 +1127,7 @@ def create_app(
             claim_batch_size=claim_batch_size,
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
+            tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         )
         if get_env_online_eval_session_enabled():
             # Both halves of the session lifecycle sit behind the one flag: a consumer
@@ -1141,6 +1142,7 @@ def create_app(
                 claim_batch_size=claim_batch_size,
                 evaluator_semaphore=evaluator_semaphore,
                 db_semaphore=db_semaphore,
+                tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
             )
             online_eval_session_sweeper = SessionEvalSweeper(db)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
