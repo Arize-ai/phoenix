@@ -3,11 +3,8 @@ import { Dialog } from "react-aria-components";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  AppFrameOverlayProvider,
-  useAppFrameOverlay,
-} from "../AppFrameOverlayContext";
 import { Drawer } from "../Drawer";
+import { OverlayFrameProvider, useOverlayFrame } from "../frame";
 import { ViewportModal, ViewportModalOverlay } from "../ViewportModal";
 
 function dispatchPointerEvent(
@@ -28,14 +25,14 @@ function dispatchPointerEvent(
 
 function HostedDrawerFrame({ children }: { children: ReactNode }) {
   return createElement(
-    AppFrameOverlayProvider,
+    OverlayFrameProvider,
     null,
     createElement(DrawerHost, null, children)
   );
 }
 
 function DrawerHost({ children }: { children: ReactNode }) {
-  const frame = useAppFrameOverlay();
+  const frame = useOverlayFrame();
   return createElement(
     "div",
     null,

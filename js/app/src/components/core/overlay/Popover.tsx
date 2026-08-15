@@ -1,7 +1,8 @@
 import { css, keyframes } from "@emotion/react";
+import { clsx } from "clsx";
 import type { CSSProperties, MouseEvent, Ref } from "react";
-import { createContext, useCallback, useContext, useMemo, useRef } from "react";
-import { mergeProps, useInteractOutside } from "react-aria";
+import { useCallback, useContext } from "react";
+import { mergeProps } from "react-aria";
 import type {
   PopoverProps as AriaPopoverProps,
   PopoverRenderProps,
@@ -13,13 +14,17 @@ import {
   useSlottedContext,
 } from "react-aria-components";
 
-import type { OverlayStackingBand } from "@phoenix/components/core/zIndex";
+import {
+  OverlayTreeContext,
+  useConsumeOutsidePress,
+  useOverlayTreeNode,
+} from "./outsideInteraction";
+import type { OverlayStackingBand } from "./stacking";
 import {
   OVERLAY_STACKING_BAND_Z_INDEX,
-  OVERLAY_STACKING_BANDS,
-} from "@phoenix/components/core/zIndex";
-import { classNames } from "@phoenix/utils/classNames";
-
+  OverlayStackingContext,
+  resolveStackingBand,
+} from "./stacking";
 import { popoverSurfaceCSS } from "./styles";
 
 const popoverSlideKeyframes = keyframes`
@@ -132,77 +137,15 @@ type PopoverProps = AriaPopoverProps & {
    */
   stacking?: OverlayStackingBand;
   /**
-   * Close this non-modal popover when a pointer interaction starts outside it,
-   * consuming that interaction so the dismissing press cannot also activate
-   * whatever sits beneath — the same guarantee a modal underlay provides,
-   * without the scroll lock or the `ariaHideOutside` walk. A press on the
-   * popover's own trigger is also consumed and closes (modal-parity toggle;
-   * the next press reopens). Interactions inside descendant popovers (menus,
-   * submenus, nested pickers — recognized across portals) are left alone so
-   * they keep working, and a consumer-provided `shouldCloseOnInteractOutside`
-   * exempts targets from both closing and consumption (use it for coordinated
-   * sibling-trigger groups). Has no effect on modal popovers, which already
-   * own outside interactions.
+   * Close this non-modal popover when a pointer interaction starts outside
+   * it, consuming that interaction so the dismissing press cannot also
+   * activate whatever sits beneath. See `useConsumeOutsidePress` for the
+   * full contract (trigger toggling, descendant overlays, consumer
+   * exemptions). Has no effect on modal popovers, which already own outside
+   * interactions.
    */
   closeOnInteractOutside?: boolean;
 };
-
-const OverlayStackingContext = createContext<OverlayStackingBand | null>(null);
-
-/**
- * Registry linking a popover to the popover elements rendered from its React
- * subtree. DOM containment cannot express this relationship because nested
- * popovers portal to the body; React context can, since it follows the
- * component tree. Registration propagates upward so an ancestor's `contains`
- * covers every descendant overlay, however deep.
- */
-type OverlayTreeNode = {
-  register: (element: Element) => () => void;
-  contains: (target: Node) => boolean;
-};
-
-function createOverlayTreeNode(
-  parent: OverlayTreeNode | null
-): OverlayTreeNode {
-  const elements = new Set<Element>();
-  return {
-    register: (element) => {
-      elements.add(element);
-      const unregisterFromParent = parent?.register(element);
-      return () => {
-        elements.delete(element);
-        unregisterFromParent?.();
-      };
-    },
-    contains: (target) => {
-      for (const element of elements) {
-        if (element.contains(target)) {
-          return true;
-        }
-      }
-      return false;
-    },
-  };
-}
-
-const OverlayTreeContext = createContext<OverlayTreeNode | null>(null);
-
-function resolveStackingBand({
-  requested,
-  inherited,
-}: {
-  requested: OverlayStackingBand;
-  inherited: OverlayStackingBand | null;
-}): OverlayStackingBand {
-  if (
-    inherited !== null &&
-    OVERLAY_STACKING_BANDS.indexOf(inherited) >
-      OVERLAY_STACKING_BANDS.indexOf(requested)
-  ) {
-    return inherited;
-  }
-  return requested;
-}
 
 const popoverInteractionBoundaryProps = {
   // React events bubble through the component tree even when a popover is
@@ -224,26 +167,7 @@ function Popover({
   const band = resolveStackingBand({ requested: stacking, inherited });
   const zIndex = OVERLAY_STACKING_BAND_Z_INDEX[band];
 
-  const parentTree = useContext(OverlayTreeContext);
-  const tree = useMemo(() => createOverlayTreeNode(parentTree), [parentTree]);
-  const elementRef = useRef<HTMLDivElement | null>(null);
-  const unregisterRef = useRef<(() => void) | null>(null);
-  // The popover element only exists while open, so registration is keyed to
-  // ref attachment rather than an effect: the node arrives when the popover
-  // opens and leaves when it closes.
-  const mergedRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      unregisterRef.current?.();
-      unregisterRef.current = node ? tree.register(node) : null;
-      elementRef.current = node;
-      if (typeof ref === "function") {
-        ref(node);
-      } else if (ref) {
-        ref.current = node;
-      }
-    },
-    [ref, tree]
-  );
+  const { tree, elementRef, registerRef } = useOverlayTreeNode(ref);
 
   const state = useContext(OverlayTriggerStateContext);
   const popoverContext = useSlottedContext(PopoverContext, props.slot);
@@ -270,45 +194,13 @@ function Popover({
   // open on pointerdown (MenuTrigger only ever opens — its toggle-close
   // came from the modal machinery eating the press). The next press reopens
   // through the trigger's own handlers since the popover is closed by then.
-  const shouldIgnoreOutsideInteraction = useCallback(
-    (event: PointerEvent) => {
-      if (!(event.target instanceof Element)) {
-        return false;
-      }
-      if (tree.contains(event.target)) {
-        return true;
-      }
-      // A consumer-provided policy (e.g. sibling-trigger exclusions) also
-      // exempts the press from consumption, not just from closing.
-      if (
-        consumerShouldCloseOnInteractOutside &&
-        !consumerShouldCloseOnInteractOutside(event.target)
-      ) {
-        return true;
-      }
-      return false;
-    },
-    [tree, consumerShouldCloseOnInteractOutside]
-  );
-  useInteractOutside({
-    ref: elementRef,
+  useConsumeOutsidePress({
+    elementRef,
     isDisabled:
       !closeOnInteractOutside || props.isNonModal !== true || !state?.isOpen,
-    onInteractOutsideStart: (event) => {
-      if (shouldIgnoreOutsideInteraction(event)) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    onInteractOutside: (event) => {
-      if (shouldIgnoreOutsideInteraction(event)) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      state?.close();
-    },
+    shouldCloseOnInteractOutside: consumerShouldCloseOnInteractOutside,
+    state,
+    tree,
   });
 
   const popoverStyle = props.style;
@@ -325,9 +217,9 @@ function Popover({
     <AriaPopover
       {...mergeProps(props, popoverInteractionBoundaryProps)}
       shouldCloseOnInteractOutside={shouldCloseOnInteractOutside}
-      ref={mergedRef}
+      ref={registerRef}
       style={style}
-      className={classNames("popover react-aria-Popover", props.className)}
+      className={clsx("popover react-aria-Popover", props.className)}
       css={popoverCSS}
     >
       {(renderProps) => (

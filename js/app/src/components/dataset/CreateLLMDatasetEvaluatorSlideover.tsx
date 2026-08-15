@@ -5,11 +5,11 @@ import invariant from "tiny-invariant";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
-import type { ViewportModalOverlayProps } from "@phoenix/components/core/overlay/ViewportModal";
+import type { ViewportModalOverlayProps } from "@phoenix/components/core/overlay";
 import {
   ViewportModal,
   ViewportModalOverlay,
-} from "@phoenix/components/core/overlay/ViewportModal";
+} from "@phoenix/components/core/overlay";
 import type { CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";

@@ -104,6 +104,7 @@
     "react-resizable": "^4.0.2",
     "react-resizable-panels": "^4.12.2",
     "react-router": "^8.3.0",
+    "react-stately": "^3.49.0",
     "recharts": "^3.10.1",
     "relay-runtime": "^21.0.1",
     "shade": "^0.1.1",

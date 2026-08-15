@@ -19,7 +19,7 @@ import {
 
 import { fieldBaseCSS } from "../field/styles";
 import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
-import { Popover } from "../overlay/Popover";
+import { Popover } from "../overlay";
 import type { SizingProps } from "../types";
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 

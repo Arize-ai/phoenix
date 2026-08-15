@@ -3,23 +3,20 @@ import { Button, Dialog, DialogTrigger, Heading } from "react-aria-components";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  AppFrameOverlayProvider,
-  useAppFrameOverlay,
-} from "../AppFrameOverlayContext";
+import { OverlayFrameProvider, useOverlayFrame } from "../frame";
 import { Modal, ModalOverlay } from "../Modal";
 import { ViewportModal, ViewportModalOverlay } from "../ViewportModal";
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <AppFrameOverlayProvider>
+    <OverlayFrameProvider>
       <FrameContent>{children}</FrameContent>
-    </AppFrameOverlayProvider>
+    </OverlayFrameProvider>
   );
 }
 
 function FrameContent({ children }: { children: ReactNode }) {
-  const frame = useAppFrameOverlay();
+  const frame = useOverlayFrame();
   return (
     <div ref={frame?.setApplicationViewportElement}>
       <main

@@ -6,10 +6,7 @@ import {
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
 
-import {
-  APP_MODAL_BACKDROP_Z_INDEX,
-  APP_MODAL_Z_INDEX,
-} from "@phoenix/components/core/zIndex";
+import { APP_MODAL_BACKDROP_Z_INDEX, APP_MODAL_Z_INDEX } from "./stacking";
 const modalFade = keyframes`
   from {
     opacity: 0;

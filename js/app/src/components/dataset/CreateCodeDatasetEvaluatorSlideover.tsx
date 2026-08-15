@@ -12,11 +12,11 @@ import invariant from "tiny-invariant";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
-import type { ViewportModalOverlayProps } from "@phoenix/components/core/overlay/ViewportModal";
+import type { ViewportModalOverlayProps } from "@phoenix/components/core/overlay";
 import {
   ViewportModal,
   ViewportModalOverlay,
-} from "@phoenix/components/core/overlay/ViewportModal";
+} from "@phoenix/components/core/overlay";
 import type { CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation.graphql";
 import type { CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation.graphql";
 import type { CreateCodeDatasetEvaluatorSlideoverQuery } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideoverQuery.graphql";

@@ -1,47 +1,61 @@
+/**
+ * Tier 1 — the viewport modal. Blocks only the application viewport; the
+ * assistant rail stays an ordinary, interactive sibling. Never `aria-modal`
+ * (that would hide the still-interactive rail from assistive technology).
+ *
+ * ── Polyfill ledger ─────────────────────────────────────────────────────
+ * React Aria's modality is hardwired to the window: `useModalOverlay` hides
+ * everything outside the overlay from `document.body` down, and neither the
+ * hooks nor RAC expose the `root`/exemption options that exist on the raw
+ * `ariaHideOutside` utility. Region-scoped modality is a known, open gap:
+ *   - adobe/react-spectrum#8784 (option to skip hiding) — closed unfixed
+ *   - adobe/react-spectrum#8796 (stacking-context-aware inert) — unmerged
+ *   - adobe/react-spectrum#7743 (scoped scroll lock), #7954 (optional focus
+ *     trap) — open
+ * Until those land, this component owns blocking itself: it portals into the
+ * frame's viewport-modal plane, registers with the frame (which stamps
+ * `inert` on the blocked regions), and scopes focus with `FocusScope`.
+ * If react-aria ships region modality, this collapses onto RAC's `Modal`.
+ *
+ * Load-bearing: the `useOverlay` call below is what enrolls this overlay in
+ * React Aria's internal overlay stack — it is why Escape and outside presses
+ * resolve top-down correctly against menus and popovers opened above the
+ * modal. Do not replace it with a bare keydown listener.
+ * ────────────────────────────────────────────────────────────────────────
+ */
 import { css } from "@emotion/react";
 import type { HTMLAttributes, ReactNode, Ref } from "react";
-import {
-  createContext,
-  useContext,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useContext, useLayoutEffect, useRef } from "react";
 import { FocusScope, mergeRefs, Overlay, useOverlay } from "react-aria";
-import type { ModalOverlayProps as AriaModalOverlayProps } from "react-aria-components";
+import type {
+  ModalOverlayProps as AriaModalOverlayProps,
+  OverlayTriggerState,
+} from "react-aria-components";
 import { OverlayTriggerStateContext } from "react-aria-components";
 import { flushSync } from "react-dom";
 
-import { useAppFrameOverlay } from "./AppFrameOverlayContext";
 import { DrawerContext } from "./DrawerContext";
+import {
+  useOverlayFrame,
+  VIEWPORT_MODAL_INTERACTION_EXEMPT_SELECTOR,
+} from "./frame";
 import type { ModalSize } from "./Modal";
 import { centeredModalCSS, modalBackdropCSS } from "./Modal";
-
-type ViewportOverlayState = {
-  close: () => void;
-  isOpen: boolean;
-  open: () => void;
-  setOpen: (isOpen: boolean) => void;
-  toggle: () => void;
-  /** Anchors an overlay to the cursor (context menus). A viewport modal is
-     centered, so it stays null and `setPoint` is a no-op. */
-  point: { x: number; y: number } | null;
-  setPoint: (point: { x: number; y: number }) => void;
-};
+import {
+  useResolvedOverlayTriggerState,
+  withInterceptedClose,
+} from "./triggerState";
 
 type ViewportModalContextValue = {
   isDismissable: boolean;
   isKeyboardDismissDisabled: boolean;
   shouldCloseOnInteractOutside: (target: Element) => boolean;
-  state: ViewportOverlayState;
+  state: OverlayTriggerState;
 };
 
 const ViewportModalContext = createContext<ViewportModalContextValue | null>(
   null
 );
-
-const VIEWPORT_MODAL_INTERACTION_EXEMPT_SELECTOR =
-  "[data-viewport-modal-interaction-exempt]";
 
 const viewportModalOverlayCSS = css`
   ${modalBackdropCSS};
@@ -72,42 +86,6 @@ export type ViewportModalOverlayProps = Omit<
   ref?: Ref<HTMLDivElement>;
 };
 
-function useViewportOverlayState({
-  defaultOpen,
-  isOpen,
-  onOpenChange,
-}: Pick<
-  ViewportModalOverlayProps,
-  "defaultOpen" | "isOpen" | "onOpenChange"
->): ViewportOverlayState {
-  const triggerState = useContext(OverlayTriggerStateContext);
-  const [localOpen, setLocalOpen] = useState(defaultOpen ?? false);
-  const shouldUseTriggerState =
-    isOpen == null && defaultOpen == null && triggerState != null;
-  const resolvedIsOpen = shouldUseTriggerState
-    ? triggerState.isOpen
-    : (isOpen ?? localOpen);
-
-  const setOpen = (nextIsOpen: boolean) => {
-    if (shouldUseTriggerState) {
-      triggerState.setOpen(nextIsOpen);
-      return;
-    }
-    if (isOpen == null) setLocalOpen(nextIsOpen);
-    onOpenChange?.(nextIsOpen);
-  };
-
-  return {
-    close: () => setOpen(false),
-    isOpen: resolvedIsOpen,
-    open: () => setOpen(true),
-    setOpen,
-    toggle: () => setOpen(!resolvedIsOpen),
-    point: null,
-    setPoint: () => {},
-  };
-}
-
 /**
  * A dialog overlay that blocks only the application viewport. The pinned
  * assistant rail remains an ordinary, interactive sibling.
@@ -115,7 +93,7 @@ function useViewportOverlayState({
 export function ViewportModalOverlay({
   children,
   defaultOpen,
-  // Matches Phoenix's ModalOverlay wrapper (not React Aria's default): a
+  // Matches this module's ModalOverlay wrapper (not React Aria's default): a
   // backdrop press dismisses unless a caller opts out. Presses outside the
   // application viewport (e.g. on the assistant rail) never dismiss — see
   // canCloseForTarget.
@@ -127,7 +105,7 @@ export function ViewportModalOverlay({
   shouldCloseOnInteractOutside,
   ...domProps
 }: ViewportModalOverlayProps) {
-  const state = useViewportOverlayState({
+  const state = useResolvedOverlayTriggerState({
     defaultOpen,
     isOpen,
     onOpenChange,
@@ -165,18 +143,16 @@ function ViewportModalOverlayInner({
   isKeyboardDismissDisabled: boolean;
   ref?: Ref<HTMLDivElement>;
   shouldCloseOnInteractOutside?: (target: Element) => boolean;
-  state: ViewportOverlayState;
+  state: OverlayTriggerState;
   style?: AriaModalOverlayProps["style"];
 }) {
-  const appFrameOverlay = useAppFrameOverlay();
-  const registerViewportOverlay = appFrameOverlay?.registerViewportOverlay;
-  const unregisterViewportOverlay = appFrameOverlay?.unregisterViewportOverlay;
+  const frame = useOverlayFrame();
+  const registerViewportOverlay = frame?.registerViewportOverlay;
+  const unregisterViewportOverlay = frame?.unregisterViewportOverlay;
   const registrationRef = useRef(false);
   const restoreTargetRef = useRef<HTMLElement | null>(null);
   const portalContainer =
-    appFrameOverlay == null
-      ? document.body
-      : appFrameOverlay.viewportModalHostElement;
+    frame == null ? document.body : frame.viewportModalHostElement;
 
   useLayoutEffect(() => {
     restoreTargetRef.current =
@@ -191,6 +167,9 @@ function ViewportModalOverlayInner({
         unregisterViewportOverlay?.();
         registrationRef.current = false;
       }
+      // FocusScope's own restoreFocus loses the race when the restore target
+      // sat inside a region the frame had stamped inert — focus lands on the
+      // body instead. Restore by hand once the frame has released `inert`.
       const restoreTarget = restoreTargetRef.current;
       window.requestAnimationFrame(() => {
         if (
@@ -205,6 +184,8 @@ function ViewportModalOverlayInner({
   }, [registerViewportOverlay, unregisterViewportOverlay]);
 
   const close = () => {
+    // Release the frame's blocked state synchronously so the regions it
+    // stamped `inert` are interactive again before focus restoration runs.
     if (registrationRef.current && unregisterViewportOverlay) {
       flushSync(unregisterViewportOverlay);
       registrationRef.current = false;
@@ -212,27 +193,13 @@ function ViewportModalOverlayInner({
     state.close();
   };
 
-  const scopedState: ViewportOverlayState = {
-    ...state,
-    close,
-    setOpen: (nextIsOpen) => {
-      if (!nextIsOpen) {
-        close();
-        return;
-      }
-      state.setOpen(true);
-    },
-    toggle: () => {
-      if (state.isOpen) close();
-      else state.open();
-    },
-  };
+  const scopedState = withInterceptedClose(state, close);
 
   const canCloseForTarget = (target: Element) => {
     if (target.closest(VIEWPORT_MODAL_INTERACTION_EXEMPT_SELECTOR)) {
       return false;
     }
-    const applicationViewport = appFrameOverlay?.applicationViewportElement;
+    const applicationViewport = frame?.applicationViewportElement;
     if (applicationViewport && !applicationViewport.contains(target)) {
       return false;
     }
@@ -301,6 +268,7 @@ export function ViewportModal({
   const context = useContext(ViewportModalContext);
   const localRef = useRef<HTMLDivElement>(null);
   const resolvedRef = mergeRefs(localRef, ref);
+  // Enrolls the modal in React Aria's overlay stack (see the file banner).
   const { overlayProps } = useOverlay(
     {
       isDismissable: context?.isDismissable,

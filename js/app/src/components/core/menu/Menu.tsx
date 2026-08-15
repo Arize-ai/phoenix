@@ -17,7 +17,7 @@ import { classNames } from "@phoenix/utils/classNames";
 import { Heading, Text } from "../content";
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
-import { Popover, type PopoverProps } from "../overlay/Popover";
+import { Popover, type PopoverProps } from "../overlay";
 
 const menuCSS = css`
   --menu-min-width: 250px;

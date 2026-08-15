@@ -11,10 +11,10 @@ import {
   ModalOverlay,
   Text,
   View,
-  AppFrameOverlayProvider,
+  OverlayFrameProvider,
   ViewportModal,
   ViewportModalOverlay,
-  useAppFrameOverlay,
+  useOverlayFrame,
 } from "@phoenix/components";
 import {
   DialogCloseButton,
@@ -175,14 +175,14 @@ const tier1RailCSS = css`
 
 function Tier1StoryFrame({ children }: { children: ReactNode }) {
   return (
-    <AppFrameOverlayProvider>
+    <OverlayFrameProvider>
       <Tier1StoryFrameContent>{children}</Tier1StoryFrameContent>
-    </AppFrameOverlayProvider>
+    </OverlayFrameProvider>
   );
 }
 
 function Tier1StoryFrameContent({ children }: { children: ReactNode }) {
-  const frame = useAppFrameOverlay();
+  const frame = useOverlayFrame();
   return (
     <div css={tier1FrameCSS}>
       <div css={tier1ViewportCSS} ref={frame?.setApplicationViewportElement}>

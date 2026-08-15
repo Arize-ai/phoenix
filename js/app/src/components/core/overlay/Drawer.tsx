@@ -11,10 +11,6 @@ import { OverlayTriggerStateContext } from "react-aria-components";
 import { createPortal } from "react-dom";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { useAppFrameOverlay } from "@phoenix/components/core/overlay/AppFrameOverlayContext";
-import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
-import type { SizeValue } from "@phoenix/types/sizing";
-
 import {
   DRAWER_DEFAULT_MAX_SIZE,
   DRAWER_DEFAULT_MIN_SIZE,
@@ -23,6 +19,11 @@ import {
   DRAWER_SIDE_NAV_GAP_PX,
   DRAWER_VISIBLE_GUTTER_PX,
 } from "./constants";
+import { DrawerContext } from "./DrawerContext";
+import { useOverlayFrame } from "./frame";
+import type { SizeValue } from "./sizing";
+import { LOCAL_RAISED_Z_INDEX } from "./stacking";
+import { createDismissTriggerState } from "./triggerState";
 
 /**
  * Resolve a {@link SizeValue} to pixels using the containing viewport width.
@@ -56,7 +57,7 @@ const drawerCSS = css`
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  z-index: 100;
+  z-index: ${LOCAL_RAISED_Z_INDEX};
   top: 0;
   right: 0;
   left: auto;
@@ -165,9 +166,9 @@ export function Drawer({
   children,
 }: DrawerProps) {
   const drawerId = useId();
-  const appFrameOverlay = useAppFrameOverlay();
-  const drawerHostElement = appFrameOverlay?.drawerHostElement ?? null;
-  const sideNavigationElement = appFrameOverlay?.sideNavigationElement ?? null;
+  const frame = useOverlayFrame();
+  const drawerHostElement = frame?.drawerHostElement ?? null;
+  const sideNavigationElement = frame?.sideNavigationElement ?? null;
   const getContainerWidth = () =>
     drawerHostElement?.getBoundingClientRect().width || window.innerWidth;
   const getVisibleGutterWidth = () =>
@@ -227,7 +228,6 @@ export function Drawer({
     });
     return clampPercent((initialPx / width) * 100, width, gutterWidth);
   });
-  const hasInitializedContainerSizeRef = useRef(appFrameOverlay == null);
   const [isDragging, setIsDragging] = useState(false);
 
   // Drag-session refs are the source of truth during a drag. Using refs
@@ -240,6 +240,8 @@ export function Drawer({
   const startPercentRef = useRef(0);
   const pendingPercentRef = useRef<number | null>(null);
   const rafIdRef = useRef<number | null>(null);
+
+  const hasInitializedContainerSizeRef = useRef(frame == null);
 
   useLayoutEffect(() => {
     const container = drawerHostElement;
@@ -383,11 +385,13 @@ export function Drawer({
 
   // Global Escape listener — works regardless of where focus is so the
   // drawer can be dismissed while interacting with the content behind it.
+  // Guarded on the frame's blocked state because this listener sits outside
+  // React Aria's overlay stack: an open viewport modal owns Escape.
   useHotkeys("Escape", () => onClose?.(), {
-    enabled: isOpen && !(appFrameOverlay?.isViewportBlocked ?? false),
+    enabled: isOpen && !(frame?.isViewportBlocked ?? false),
   });
 
-  if (!isOpen || (appFrameOverlay && !drawerHostElement)) return null;
+  if (!isOpen || (frame && !drawerHostElement)) return null;
 
   const minPx = resolveMin();
   const maxPx = resolveMax();
@@ -400,19 +404,7 @@ export function Drawer({
 
   // Provide OverlayTriggerStateContext so react-aria's Dialog render prop
   // surfaces a working `close` function and `slot="close"` auto-wires.
-  // `point` anchors an overlay to the cursor (context menus). A drawer is
-  // anchored to the viewport edge, so it stays null and `setPoint` is a no-op.
-  const overlayState = {
-    isOpen: true as const,
-    open: () => {},
-    close: () => onClose?.(),
-    toggle: () => onClose?.(),
-    setOpen: (open: boolean) => {
-      if (!open) onClose?.();
-    },
-    point: null,
-    setPoint: () => {},
-  };
+  const overlayState = createDismissTriggerState(() => onClose?.());
 
   const drawer = (
     <DrawerContext.Provider value={true}>

@@ -1,4 +1,4 @@
-import type { SizeValue } from "@phoenix/types/sizing";
+import type { SizeValue } from "./sizing";
 
 /**
  * Default initial size for resizable drawers when no persisted size or

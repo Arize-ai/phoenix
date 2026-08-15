@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import type { SizeValue } from "@phoenix/types/sizing";
+import type { SizeValue } from "./sizing";
 
 // v2 stores application-viewport percentages. v1 stored browser-viewport
 // percentages, so reusing those values would change their coordinate system.

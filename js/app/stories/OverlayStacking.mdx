@@ -21,6 +21,11 @@ overlay bugs in this codebase — click-through to table rows, submenus painting
 beneath their parent, popovers locking scroll unexpectedly — trace back to
 answering one of these questions with the other one's vocabulary.
 
+The overlay system is one self-contained module,
+`@phoenix/components/core/overlay` — its `README.md` is the architectural
+reference (tiers, planes, dismissal, and the ledger of react-aria polyfills
+it carries). This page is the interactive companion.
+
 > A note on copying from this page's stories: every demo is the production
 > component in a production-supported state, but a docs page needs a few
 > accommodations production never does. Those are marked `Story-only:` in the
@@ -199,19 +204,22 @@ paints above the one that launched it. When either of those stops being true,
 users experience it as breakage: an overlay both _under_ something and
 _light-dismiss_ is a dead surface.
 
-## Floating UI above modals
+## Floating UI above viewport modals
 
-The floating assistant panel has its own two-value stratum prop,
-`FloatingPanelLayer` (`"content" | "modal"`). `"content"` is the everyday
-assistant surface in the `app-floating` bands. When a modal opens, `Layout`
-passes `layer={hasOpenModal ? "modal" : "content"}`, elevating the panel into
-the `app-modal-floating` bands _and_ portaling it into the modal's portal
-container so React Aria keeps it interactive instead of marking it inert.
+The assistant stays usable while a form dialog is open because the dialog is
+a **Tier 1 viewport modal**: it blocks only the application viewport, and the
+pinned assistant rail is a sibling _outside_ that viewport, so no stacking
+trick is needed — the rail is simply never blocked. The one piece of floating
+UI that lives _inside_ the viewport but must survive Tier 1 (the assistant's
+top-nav toggle) is marked with `viewportModalInteractionExemptProps`: the
+frame never stamps it inert, and pressing it never dismisses the modal.
 
-Note what this is: a **stacking** decision plus an accessibility escape
-hatch. The panel itself never becomes modal — you can keep chatting with the
-assistant while the modal waits. Same lesson as everywhere else on this page:
-the interaction contract and the paint order moved independently.
+Note what this is: an interaction-contract decision, not a z-index one. The
+exemption never elevates the control's band, and a **Tier 2 window modal**
+(a destructive confirmation) still blocks it like everything else. The
+`app-modal-floating(-control)` rungs remain reserved in the ladder for
+floating UI that must one day paint above a window modal's backdrop; nothing
+occupies them today.
 
 ## Anti-patterns
 

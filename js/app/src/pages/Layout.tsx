@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import { Suspense, useRef } from "react";
-import { UNSAFE_PortalProvider } from "react-aria/PortalProvider";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
@@ -13,8 +12,12 @@ import {
   useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
 import {
-  AppFrameOverlayProvider,
-  useAppFrameOverlay,
+  DrawerPlane,
+  OverlayFrameProvider,
+  useOverlayFrame,
+  ViewportModalPlane,
+  viewportModalInteractionExemptProps,
+  ViewportPortal,
 } from "@phoenix/components/core/overlay";
 import { ToastRegion } from "@phoenix/components/core/toast/ToastRegion";
 import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
@@ -107,26 +110,14 @@ const contentCSS = css`
   border-radius: var(--global-rounding-medium) 0 0 0;
 `;
 
-const drawerHostCSS = css`
+const drawerPlaneCellCSS = css`
   grid-column: 1 / 3;
   grid-row: 2;
-  position: relative;
-  z-index: 100;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  pointer-events: none;
 `;
 
-const viewportModalHostCSS = css`
+const viewportModalPlaneCellCSS = css`
   grid-column: 1 / 3;
   grid-row: 1 / 3;
-  position: relative;
-  z-index: 200;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  pointer-events: none;
 `;
 
 const bottomLinksCSS = css`
@@ -146,15 +137,15 @@ const sideLinksCSS = css`
 
 export function Layout() {
   return (
-    <AppFrameOverlayProvider>
+    <OverlayFrameProvider>
       <ApplicationFrame />
-    </AppFrameOverlayProvider>
+    </OverlayFrameProvider>
   );
 }
 
 function ApplicationFrame() {
   const contentRef = useRef<HTMLDivElement>(null);
-  const appFrameOverlay = useAppFrameOverlay();
+  const frame = useOverlayFrame();
   const { isSideNavExpanded, isSideNavExpansionAllowed, setIsSideNavExpanded } =
     useResponsiveSideNav();
   const isAgentAssistantEnabled = useAssistantAgentEnabled();
@@ -198,20 +189,16 @@ function ApplicationFrame() {
             <div
               data-testid="application-viewport"
               css={applicationViewportCSS}
-              ref={appFrameOverlay?.setApplicationViewportElement}
+              ref={frame?.setApplicationViewportElement}
             >
-              <UNSAFE_PortalProvider
-                getContainer={() =>
-                  appFrameOverlay?.applicationViewportElement ?? document.body
-                }
-              >
+              <ViewportPortal>
                 <ToastRegion />
-              </UNSAFE_PortalProvider>
+              </ViewportPortal>
               <div
                 data-testid="application-side-navigation"
                 css={sideNavCellCSS}
-                inert={appFrameOverlay?.isViewportBlocked || undefined}
-                ref={appFrameOverlay?.setSideNavigationElement}
+                inert={frame?.isViewportBlocked || undefined}
+                ref={frame?.setSideNavigationElement}
               >
                 <SideNav isExpanded={isSideNavExpanded} />
               </div>
@@ -221,7 +208,7 @@ function ApplicationFrame() {
                     className="top-navbar__page-controls"
                     css={topNavPageControlsCSS}
                     data-testid="application-top-navigation-page-controls"
-                    inert={appFrameOverlay?.isViewportBlocked || undefined}
+                    inert={frame?.isViewportBlocked || undefined}
                   >
                     <SideNavToggleButton
                       isExpanded={isSideNavExpanded}
@@ -235,7 +222,7 @@ function ApplicationFrame() {
                     <div
                       className="top-navbar__assistant-control"
                       css={topNavAssistantControlCSS}
-                      data-viewport-modal-interaction-exempt=""
+                      {...viewportModalInteractionExemptProps}
                     >
                       <AgentChatTopNavButton />
                     </div>
@@ -245,24 +232,15 @@ function ApplicationFrame() {
               <div
                 data-testid="content"
                 css={contentCSS}
-                inert={appFrameOverlay?.isViewportBlocked || undefined}
+                inert={frame?.isViewportBlocked || undefined}
                 ref={contentRef}
               >
                 <Suspense fallback={<Loading />}>
                   <Outlet />
                 </Suspense>
               </div>
-              <div
-                data-testid="application-drawer-plane"
-                css={drawerHostCSS}
-                inert={appFrameOverlay?.isViewportBlocked || undefined}
-                ref={appFrameOverlay?.setDrawerHostElement}
-              />
-              <div
-                data-testid="application-viewport-modal-plane"
-                css={viewportModalHostCSS}
-                ref={appFrameOverlay?.setViewportModalHostElement}
-              />
+              <DrawerPlane css={drawerPlaneCellCSS} />
+              <ViewportModalPlane css={viewportModalPlaneCellCSS} />
             </div>
             {isAgentFabFloating ? (
               <AgentChatWidget boundaryRef={contentRef} />
