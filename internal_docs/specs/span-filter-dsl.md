@@ -1544,10 +1544,10 @@ go looking for a grammar that does not exist.
 | `src/phoenix/db/models.py` | `SafeJsonFloat`, `SafeJsonBoolean`, `TextContains` — the dialect-specific SQL the guarantees compile to |
 | `src/phoenix/server/api/types/Project.py` | `validateSpanFilterCondition`, `analyzeSpanFilterCondition` |
 | `src/phoenix/server/api/exceptions.py` | Filter errors (`SpanFilterError`, `ExperimentRunFilterConditionSyntaxError`) → GraphQL error mapping |
-| `app/src/components/filter/DSLFilterConditionField.tsx` | Debounced field, error badge |
-| `app/src/pages/project/spanFilterValidation.ts` | Client validation + cache |
-| `app/src/pages/project/spanFilterSeed.ts` | Mount-time seed classification |
-| `app/src/pages/project/SpanFilterErrorFallback.tsx` | Error-boundary fallback |
+| `js/app/src/components/filter/DSLFilterConditionField.tsx` | Debounced field, error badge |
+| `js/app/src/pages/project/spanFilterValidation.ts` | Client validation + cache |
+| `js/app/src/pages/project/spanFilterSeed.ts` | Mount-time seed classification |
+| `js/app/src/pages/project/SpanFilterErrorFallback.tsx` | Error-boundary fallback |
 | `tests/unit/trace/dsl/test_filter.py` | Grammar, type, dialect, and execution tests |
 | `tests/unit/trace/dsl/test_filter_spec_conformance.py` | Executable form of this document's accept/reject tables |
 | `tests/unit/trace/dsl/test_filter_error_messages.py` | Pins the user-facing messages above |

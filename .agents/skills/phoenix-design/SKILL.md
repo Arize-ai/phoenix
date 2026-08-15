@@ -1,6 +1,6 @@
 ---
 name: phoenix-design
-description: Design system conventions for the Phoenix frontend — layout, dialogs, error display, BEM CSS class naming, and CSS design tokens. Use when building UI, naming CSS classes, creating or consuming tokens, handling errors, or designing dialog interactions in app/src/.
+description: Design system conventions for the Phoenix frontend — layout, dialogs, error display, BEM CSS class naming, and CSS design tokens. Use when building UI, naming CSS classes, creating or consuming tokens, handling errors, or designing dialog interactions in js/app/src/.
 license: Apache-2.0
 metadata:
   author: oss@arize.com

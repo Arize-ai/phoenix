@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.1.0...arize-phoenix-client-v3.2.0) (2026-08-14)
+
+
+### Features
+
+* **server:** add POST /traces/transfer ([#15363](https://github.com/Arize-ai/phoenix/issues/15363)) ([5c38cc7](https://github.com/Arize-ai/phoenix/commit/5c38cc7ff2398569da3bbb23aa9a384ad73a0134))
+
 ## [3.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.0.0...arize-phoenix-client-v3.1.0) (2026-08-11)
 
 

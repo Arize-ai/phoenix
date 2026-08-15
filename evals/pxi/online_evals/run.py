@@ -20,7 +20,7 @@ from phoenix.evals.evaluators import Score
 
 from evals.pxi.online_evals import judge
 from evals.pxi.online_evals.evaluators import EVALUATORS
-from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary
+from evals.pxi.online_evals.models import EvaluatorSpec, RunSummary, SpanSelector
 from evals.pxi.online_evals.topology import InvalidTurnTrace, span_id, trace_id
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_LOOKBACK = timedelta(hours=48)
 DEFAULT_SETTLE_DELAY = timedelta(minutes=5)
 DEFAULT_TIMEOUT_SECONDS = 120
-MAX_CANDIDATE_ROOTS = 5_000
+MAX_CANDIDATE_SPANS = 5_000
 MAX_SPANS_PER_BATCH = 10_000
 TRACE_ID_BATCH_SIZE = 100
 ANNOTATION_WRITE_BATCH_SIZE = 100
@@ -43,6 +43,10 @@ class OversizedTraceError(RuntimeError):
         super().__init__(
             f"trace {trace_id} alone reached the span safety limit ({MAX_SPANS_PER_BATCH})"
         )
+
+
+class CandidateLimitError(RuntimeError):
+    """Raised when discovery may have truncated the candidate set."""
 
 
 def _sampled(spec: EvaluatorSpec, artifact_id: str) -> bool:
@@ -71,32 +75,66 @@ def _resolve_identifier(spec: EvaluatorSpec) -> str:
     return spec.identifier
 
 
-def _ended_before(root: v1.Span, cutoff: datetime) -> bool:
-    value = root.get("end_time")
+def _ended_before(span: v1.Span, cutoff: datetime) -> bool:
+    """Whether a target span ended before the settle cutoff."""
+    value = span.get("end_time")
     if not isinstance(value, str):
-        logger.warning("skipping root %s without an end time", span_id(root))
+        logger.warning("skipping span %s without an end time", span_id(span))
         return False
     try:
         end_time = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
-        logger.warning("skipping root %s with invalid end time %r", span_id(root), value)
+        logger.warning("skipping span %s with invalid end time %r", span_id(span), value)
         return False
     if end_time.tzinfo is None:
         end_time = end_time.replace(tzinfo=timezone.utc)
     return end_time <= cutoff
 
 
+def _discover_candidates(
+    client: Client,
+    *,
+    project: str,
+    selector: SpanSelector,
+    start_time: datetime,
+    end_time: datetime,
+) -> list[v1.Span]:
+    filters: dict[str, object] = {}
+    if selector.names:
+        filters["name"] = sorted(selector.names)
+    if selector.span_kinds:
+        filters["span_kind"] = sorted(selector.span_kinds)
+    if selector.parent_id is not None:
+        filters["parent_id"] = selector.parent_id
+    if selector.attributes:
+        filters["attributes"] = dict(selector.attributes)
+    candidates = client.spans.get_spans(
+        project_identifier=project,
+        start_time=start_time,
+        end_time=end_time,
+        limit=MAX_CANDIDATE_SPANS,
+        timeout=DEFAULT_TIMEOUT_SECONDS,
+        **filters,  # type: ignore[arg-type]
+    )
+    if len(candidates) == MAX_CANDIDATE_SPANS:
+        raise CandidateLimitError(
+            f"candidate discovery for selector {selector} reached its safety limit "
+            f"({MAX_CANDIDATE_SPANS}); reduce the run window"
+        )
+    return list(candidates)
+
+
 def _existing_annotation_keys(
     client: Client,
     *,
     project: str,
-    roots: Sequence[v1.Span],
+    targets: Sequence[v1.Span],
     specs: Sequence[EvaluatorSpec],
 ) -> set[tuple[str, str, str]]:
-    if not roots:
+    if not targets:
         return set()
     annotations = client.spans.get_span_annotations(
-        spans=roots,
+        spans=list(targets),
         project_identifier=project,
         include_annotation_names=sorted({spec.name for spec in specs}),
         timeout=DEFAULT_TIMEOUT_SECONDS,
@@ -186,70 +224,94 @@ async def run_evaluators(
     identifiers = {spec.name: _resolve_identifier(spec) for spec in specs}
 
     current = now or datetime.now(timezone.utc)
-    roots = client.spans.get_spans(
-        project_identifier=project,
-        start_time=current - lookback,
-        end_time=current,
-        parent_id="null",
-        name=sorted({spec.root_span_name for spec in specs}),
-        limit=MAX_CANDIDATE_ROOTS,
-        timeout=DEFAULT_TIMEOUT_SECONDS,
-    )
-    if len(roots) == MAX_CANDIDATE_ROOTS:
-        raise RuntimeError("candidate discovery reached its safety limit; reduce the run window")
-    roots = [root for root in roots if _ended_before(root, current - settle_delay)]
+    settled_cutoff = current - settle_delay
 
-    summaries = {
-        spec.name: RunSummary(discovered=sum(root["name"] == spec.root_span_name for root in roots))
-        for spec in specs
-    }
-    existing = _existing_annotation_keys(client, project=project, roots=roots, specs=specs)
-    pending: list[tuple[EvaluatorSpec, v1.Span]] = []
+    by_selector: dict[SpanSelector, list[EvaluatorSpec]] = defaultdict(list)
     for spec in specs:
-        summary = summaries[spec.name]
-        for root in roots:
-            if root["name"] != spec.root_span_name:
-                continue
-            key = (span_id(root), spec.name, identifiers[spec.name])
-            if key in existing:
-                summary.already_annotated += 1
-            elif not _sampled(spec, trace_id(root)):
-                summary.sampled_out += 1
-            else:
-                pending.append((spec, root))
+        by_selector[spec.selector].append(spec)
+
+    summaries = {spec.name: RunSummary() for spec in specs}
+    candidates_by_selector: dict[SpanSelector, list[v1.Span]] = {}
+    for selector in by_selector:
+        try:
+            discovered = _discover_candidates(
+                client,
+                project=project,
+                selector=selector,
+                start_time=current - lookback,
+                end_time=current,
+            )
+        except CandidateLimitError:
+            raise
+        except Exception:
+            logger.exception("discovery failed for selector %s; skipping its evaluators", selector)
+            for spec in by_selector[selector]:
+                summaries[spec.name].errors += 1
+            candidates_by_selector[selector] = []
+            continue
+        candidates_by_selector[selector] = [
+            span for span in discovered if _ended_before(span, settled_cutoff)
+        ]
+
+    all_targets = [span for spans in candidates_by_selector.values() for span in spans]
+    existing = _existing_annotation_keys(client, project=project, targets=all_targets, specs=specs)
+    pending: list[tuple[EvaluatorSpec, v1.Span]] = []
+    for selector, selector_specs in by_selector.items():
+        for spec in selector_specs:
+            summary = summaries[spec.name]
+            for target in candidates_by_selector[selector]:
+                if not selector.matches(target):
+                    continue
+                summary.discovered += 1
+                key = (span_id(target), spec.name, identifiers[spec.name])
+                if key in existing:
+                    summary.already_annotated += 1
+                elif not _sampled(spec, trace_id(target)):
+                    summary.sampled_out += 1
+                else:
+                    pending.append((spec, target))
 
     traces, oversized_trace_ids = _load_trace_spans(
-        client, project=project, trace_ids=(trace_id(root) for _, root in pending)
+        client, project=project, trace_ids=(trace_id(target) for _, target in pending)
     )
     evaluable: list[tuple[EvaluatorSpec, v1.Span]] = []
-    for spec, root in pending:
-        if trace_id(root) in oversized_trace_ids:
+    for spec, target in pending:
+        if trace_id(target) in oversized_trace_ids:
             summaries[spec.name].errors += 1
         else:
-            evaluable.append((spec, root))
+            evaluable.append((spec, target))
 
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_EVALUATIONS)
 
-    async def _evaluate(spec: EvaluatorSpec, root: v1.Span) -> Score | None:
+    async def _evaluate(spec: EvaluatorSpec, target: v1.Span) -> Score | None:
         async with semaphore:
-            return await spec.evaluate(root, traces.get(trace_id(root), []))
+            return await spec.evaluate(target, traces.get(trace_id(target), []))
 
-    tasks = [(spec, root, asyncio.create_task(_evaluate(spec, root))) for spec, root in evaluable]
+    tasks = [
+        (spec, target, asyncio.create_task(_evaluate(spec, target))) for spec, target in evaluable
+    ]
     annotations: list[v1.SpanAnnotationData] = []
-    for spec, root, task in tasks:
+    for spec, target, task in tasks:
         try:
             result = await task
+        except CandidateLimitError:
+            raise
         except InvalidTurnTrace as error:
             logger.warning(
                 "%s: skipping trace %s because its topology is incomplete: %s",
                 spec.name,
-                trace_id(root),
+                trace_id(target),
                 error,
             )
             summaries[spec.name].record_not_applicable(INCOMPLETE_TOPOLOGY)
             continue
         except Exception:
-            logger.exception("%s failed on trace %s; continuing", spec.name, trace_id(root))
+            logger.exception(
+                "%s failed on trace %s span %s; continuing",
+                spec.name,
+                trace_id(target),
+                span_id(target),
+            )
             summaries[spec.name].errors += 1
             continue
         if result is None:
@@ -259,7 +321,7 @@ async def run_evaluators(
         annotation: v1.SpanAnnotationData = {
             "name": spec.name,
             "annotator_kind": spec.annotator_kind,
-            "span_id": span_id(root),
+            "span_id": span_id(target),
             "identifier": identifiers[spec.name],
             "result": {},
         }

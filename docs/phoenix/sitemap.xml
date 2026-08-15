@@ -197,6 +197,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions</loc>
+    <lastmod>2026-08-12T19:25:43+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2155,6 +2159,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config</loc>
+    <lastmod>2026-08-12T19:25:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions</loc>
+    <lastmod>2026-08-12T19:25:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts</loc>

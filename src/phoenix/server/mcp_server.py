@@ -59,6 +59,7 @@ from phoenix.server.bearer_auth import (
 from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.utils import prepend_root_path
+from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -66,6 +67,7 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
     from phoenix.server.monty_runtime import MontyRuntime
+    from phoenix.server.types import DbSessionFactory
 
 #: Path the MCP ASGI app is mounted at on the Phoenix FastAPI app.
 MCP_MOUNT_PATH = "/mcp"
@@ -436,6 +438,7 @@ def create_phoenix_mcp_app(
     app: "FastAPI",
     *,
     monty_runtime: Optional["MontyRuntime"] = None,
+    db: "DbSessionFactory",
 ) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
     """Build the MCP server from ``app``'s REST API and return its ASGI app.
 
@@ -445,6 +448,7 @@ def create_phoenix_mcp_app(
     Args:
         app: Phoenix application whose REST API becomes the MCP tool surface.
         monty_runtime: Shared runtime required only when code mode is enabled.
+        db: Session factory for the analytics SQL tools.
 
     Returns:
         The ASGI app to mount, and — when code mode is enabled — the sandbox
@@ -466,6 +470,9 @@ def create_phoenix_mcp_app(
         openapi_spec=openapi_spec,
         client=client,
         name="Arize Phoenix",
+        # Without this the handshake advertises the FastMCP library version, which
+        # tells a client nothing about the Phoenix it is talking to.
+        version=phoenix_version,
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
@@ -490,6 +497,9 @@ def create_phoenix_mcp_app(
         mcp.add_transform(code_mode)
     else:
         _install_progressive_disclosure(mcp, openapi_spec)
+    from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
+
+    register_analytics_sql_tools(mcp, db=db)
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".
     return mcp.http_app(path="/"), sandbox_provider

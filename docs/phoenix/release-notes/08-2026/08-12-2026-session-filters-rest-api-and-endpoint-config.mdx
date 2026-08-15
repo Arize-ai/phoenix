@@ -1,0 +1,377 @@
+---
+title: "08.12.2026: Session Filter Expressions, REST API Expansion, and Endpoint Configuration"
+description: "Filter sessions with a full expression language and plain-English AI query, manage dataset splits and experiment tags over REST, move traces between projects, update prompt metadata from both SDKs, point every SDK at one PHOENIX_ENDPOINT, and log in to OAuth2 with a platform-minted assertion."
+---
+
+# Session Filter Expressions
+
+August 5 – August 10, 2026
+
+**Available in arize-phoenix 19.18.0+ (filter expressions) and 19.21.0+ (AI query)**
+
+The sessions table now takes a filter expression, the same way the spans and traces tables do. Filter
+on the session's own properties, on per-session aggregates, or on anything inside it with a
+comprehension.
+
+- **Session intrinsics** — `session_id`, `start_time`, `end_time`, `duration_ms`, plus `first_input`
+  and `last_output` for the earliest and latest root-span payloads.
+- **Aggregates, never null** — `num_traces`, `num_traces_with_error`, `token_count_prompt`,
+  `token_count_completion`, `token_count_total`, `prompt_cost`, `completion_cost`, `total_cost`,
+  `tool_span_count`, and `llm_span_count` all read `0` when absent.
+- **Comprehensions over what's inside** — iterate `spans`, `traces`, `session_annotations`,
+  `span_annotations`, and `span_cost_details` with `any`, `all`, `len`, `max`, `min`, and `sum`. A
+  trace element iterates its own `spans`, so you can nest.
+- **Root-span reach-through** — `attributes["llm.model_name"]`, `metadata["key"]`, and `user.id` read
+  the session's earliest root span; `any_input` and `any_output` test every root span for containing
+  text, ignoring case.
+- **Typeahead and snippets** — the field completes field names by category (Session, Aggregates,
+  Collections, Attributes, Annotations) and inserting a collection drops in a working comprehension
+  with the loop variable already named.
+
+```python
+num_traces >= 5 and any(span.status_code == "ERROR" for span in spans)
+```
+
+```python
+max(span.latency_ms for span in spans) > 5_000
+```
+
+```python
+'refund' in any_input and annotations["Quality"].score < 0.5
+```
+
+```python
+any(any(span.span_kind == "TOOL" for span in trace.spans) for trace in traces)
+```
+
+The session filter field also gets the **AI query** toggle already on the span, trace, and
+experiment-run fields: switch it into plain-English mode, describe the sessions you want, and press
+Enter to have the expression written and validated for you.
+
+<CardGroup cols={2}>
+  <Card title="Sessions" icon="comments" href="/docs/phoenix/tracing/llm-traces/sessions">
+    Group traces into conversations Phoenix can filter
+  </Card>
+  <Card title="Extract Data from Spans" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
+    The span-grain filter language these expressions mirror
+  </Card>
+</CardGroup>
+
+# Dataset Splits over REST
+
+August 10, 2026
+
+**Available in arize-phoenix 19.20.0+**
+
+Create, edit, and delete dataset splits without opening the UI, so a script that builds a dataset can
+carve it into train, validation, and regression sets in the same run.
+
+- **`POST /v1/datasets/{dataset_identifier}/splits`** — name the split, optionally give it a
+  description, hex color, JSON metadata, and a seed list of example IDs.
+- **`PATCH /v1/datasets/{dataset_identifier}/splits/{split_id}`** — rename, recolor, replace
+  metadata, and move examples in or out with `add_example_ids` and `remove_example_ids`. Omitted
+  fields are left alone; an example named in both arrays ends up removed.
+- **`DELETE /v1/datasets/{dataset_identifier}/splits/{split_id}`** — drop the split and its
+  memberships, leaving the examples themselves untouched.
+
+Splits stay readable through `GET /v1/datasets/{id}/examples?split=`, which filters examples to the
+splits you name.
+
+```bash
+curl -X POST "$PHOENIX_ENDPOINT/v1/datasets/support-tickets/splits" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "regression",
+    "description": "Cases we must never break",
+    "color": "#33c5e8"
+  }'
+```
+
+<CardGroup cols={2}>
+  <Card title="Dataset Splits" icon="layer-group" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/splits">
+    Partition a dataset and run experiments against one slice
+  </Card>
+</CardGroup>
+
+# Experiment Tags over REST
+
+August 10, 2026
+
+**Available in arize-phoenix 19.21.0+ (server) and @arizeai/phoenix-client 7.3.1+ (TypeScript types)**
+
+Tags are dataset-scoped movable pointers: one name points at one experiment per dataset, so tagging a
+new experiment moves the tag off whichever one held it.
+
+- **`GET /v1/experiments/{experiment_id}/tags`** — the tags currently pointing at this experiment.
+- **`POST /v1/experiments/{experiment_id}/tags`** — assign a tag, atomically stealing it from another
+  experiment on the same dataset. Re-assigning a tag the experiment already owns is idempotent and
+  replaces the description.
+- **`DELETE /v1/experiments/{experiment_id}/tags/{tag_identifier}`** — remove by node ID or name.
+  Idempotent, and never takes a tag from an experiment that owns it.
+
+Assigning the reserved `baseline` tag makes the experiment the dataset's baseline for comparisons —
+the same thing the UI's baseline control does. Ephemeral experiments cannot be the baseline.
+
+```bash
+curl -X POST "$PHOENIX_ENDPOINT/v1/experiments/$EXPERIMENT_ID/tags" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "baseline", "description": "Current production config"}'
+```
+
+<CardGroup cols={2}>
+  <Card title="Run Experiments" icon="flask" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments">
+    Run experiments and compare them against a baseline
+  </Card>
+</CardGroup>
+
+# Move Traces Between Projects
+
+August 12, 2026
+
+**Available in arize-phoenix 20.1.0+**
+
+`POST /v1/traces/transfer` re-parents traces into another project — useful when instrumentation wrote
+to the wrong project, or when you want to split a firehose project apart after the fact.
+
+- **Re-parents, not copies** — the traces leave their original project.
+- **Identify traces either way** — each entry in `trace_identifiers` is a trace GlobalID or an
+  OpenTelemetry `trace_id` hex string, matching `DELETE /v1/traces/{trace_identifier}`.
+- **Name the destination either way** — `destination_project_identifier` accepts a project ID or a
+  project name.
+- **One source project per call** — a request mixing traces from several projects is rejected with a
+  `422` rather than guessing.
+
+The response reports `transferred_trace_count` and the destination `project_id`, and the cached
+per-project aggregates (record counts, token counts, costs, latency quantiles) are invalidated on
+both sides.
+
+```bash
+curl -X POST "$PHOENIX_ENDPOINT/v1/traces/transfer" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "trace_identifiers": ["3fa85f6457174562b3fc2c963f66afa6"],
+    "destination_project_identifier": "production"
+  }'
+```
+
+# Update a Prompt's Description and Metadata
+
+August 5, 2026
+
+**Available in arize-phoenix 19.18.0+ (server), arize-phoenix-client 3.0.0+ (Python), and @arizeai/phoenix-client 7.4.0+ (TypeScript)**
+
+`PATCH /v1/prompts/{prompt_identifier}` edits a prompt's description and metadata without publishing
+a new version. Omit a field to leave it unchanged, pass `description: null` to clear it, and note
+that `metadata` replaces the existing object as a whole.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+prompt = client.prompts.update(
+    prompt_identifier="my-prompt",
+    prompt_description="Production classifier",
+    prompt_metadata={"team": "ml", "env": "prod"},
+)
+print(prompt.get("metadata"))
+
+# Clear the description only
+client.prompts.update(prompt_identifier="my-prompt", prompt_description=None)
+```
+
+```typescript
+import { updatePrompt } from "@arizeai/phoenix-client/prompts";
+
+const prompt = await updatePrompt({
+  promptIdentifier: "my-prompt",
+  description: "Production classifier",
+  metadata: { team: "ml", env: "prod" },
+});
+```
+
+# One Variable for API Access: `PHOENIX_ENDPOINT`
+
+August 8, 2026
+
+**Available in arize-phoenix-client 3.0.0+ (Python), @arizeai/phoenix-client 7.3.0+, @arizeai/phoenix-otel 2.2.0+, @arizeai/phoenix-cli 1.15.0+, @arizeai/phoenix-mcp 4.3.0+, and @arizeai/phoenix-config 0.5.0+ (TypeScript)**
+
+`PHOENIX_ENDPOINT` is now the canonical variable for reaching the Phoenix API, alongside
+`PHOENIX_COLLECTOR_ENDPOINT` for trace export. Every SDK, the `px` CLI, and the MCP server resolve it
+the same way, rung for rung, so one environment reaches the same server from either language.
+
+```bash
+export PHOENIX_ENDPOINT=https://phoenix.example.com
+export PHOENIX_API_KEY=your-api-key
+```
+
+- **Ranked resolution** — `PHOENIX_ENDPOINT` first, then the trace-export variables
+  `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` (any `/v1/traces` path stripped),
+  then the legacy `PHOENIX_HOST`. Setting only a collector variable no longer sends reads to
+  `localhost:6006`.
+- **Trace export resolves too** — `register()` in `@arizeai/phoenix-otel` walks an explicit `url`,
+  `PHOENIX_COLLECTOR_ENDPOINT`, `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`,
+  `OTEL_EXPORTER_OTLP_ENDPOINT`, then `PHOENIX_ENDPOINT`. Configurations that already set
+  `PHOENIX_COLLECTOR_ENDPOINT` are unchanged; the case that previously dropped every span now
+  reaches the server that was named, and a resolution below the collector variable logs which
+  variable supplied it.
+- **`PHOENIX_COLLECTOR_ENDPOINT` takes either shape** — a base URL or a full OTLP traces URL. The
+  `/v1/traces` path is appended when missing and left alone when present.
+- **Empty means unset** — `export PHOENIX_ENDPOINT=` falls through to the next variable everywhere
+  instead of stranding a client on localhost.
+- **`px setup` writes both** `PHOENIX_ENDPOINT` and `PHOENIX_COLLECTOR_ENDPOINT` into
+  `.env.phoenix`, and every other `px` command run in that directory honors the file. An endpoint
+  merely inferred from a trace-export variable still ranks below an active CLI profile, so exporting
+  one for application tracing cannot redirect authenticated commands.
+
+<Note>
+`PHOENIX_BASE_URL` — advertised in the TypeScript client docs for years while no code read it — is
+now honored as an undocumented compatibility fallback, below the trace-export variables. Values set
+from those docs start working without retargeting anyone who set both.
+</Note>
+
+# Workload Identity for OAuth2 Login
+
+August 12, 2026
+
+**Available in arize-phoenix 20.1.0+**
+
+Phoenix can now authenticate to an OAuth2 identity provider with a platform-minted JWT instead of a
+client secret, so a self-hosted deployment can drop the last long-lived credential out of its
+configuration.
+
+Set the provider's token endpoint auth method to `client_assertion_jwt` and tell Phoenix where the
+assertion lives. On AKS the Azure Workload Identity webhook projects the token and owns its path, so
+name the variable rather than the path:
+
+```bash
+export PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_CLIENT_ID=entra_client_id
+export PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_OIDC_CONFIG_URL=https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration
+export PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_TOKEN_ENDPOINT_AUTH_METHOD=client_assertion_jwt
+export PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_CLIENT_ASSERTION_FILE_ENV_VAR=AZURE_FEDERATED_TOKEN_FILE
+```
+
+- **No client secret** — `CLIENT_SECRET` is not required under this auth method.
+- **Re-read on every token request** — platforms rotate the projected token well before it expires.
+- **Or name the path directly** — set `CLIENT_ASSERTION_FILE` to an absolute path when the location
+  is fixed and you control it. The two settings are mutually exclusive.
+- **Not Azure-specific** — any provider that maps an external issuer onto a client, and any platform
+  that writes a JWT to a file, works the same way.
+
+Phoenix logs which variable each provider resolved through at startup, and fails at startup with a
+message naming both the variable and the missing pod label when nothing was projected.
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/docs/phoenix/self-hosting/features/authentication">
+    Configure OAuth2 identity providers, including the full workload-identity walkthrough
+  </Card>
+</CardGroup>
+
+# Breaking Change: Google Prompt Helpers Target `google-genai`
+
+August 11, 2026
+
+**Breaking change in arize-phoenix-client 3.0.0**
+
+The Python client's Google prompt helpers are rebuilt on the current `google-genai` SDK, replacing
+the ones written against the retired `google-generativeai` package.
+
+- **Format for Google** with `sdk="google_genai"`, which returns `google.genai` `Content` objects and
+  a `GenerateContentConfig` ready for `client.models.generate_content`.
+- **Create a prompt version from Google inputs** with the `PromptVersion.from_google_genai`
+  constructor, which takes the model name, `contents`, and an optional `config`.
+
+```python
+from google import genai
+from phoenix.client import Client
+
+prompt_version = Client().prompts.get(prompt_identifier="my-prompt")
+formatted_prompt = prompt_version.format(
+    variables={"question": "Who made you?"}, sdk="google_genai"
+)
+
+with genai.Client() as client:
+    response = client.models.generate_content(
+        contents=formatted_prompt.messages, **formatted_prompt.kwargs
+    )
+```
+
+<Warning>
+Code that formatted prompts for the old `google-generativeai` SDK must move to `sdk="google_genai"`
+and install `google-genai`. Stored prompts are unaffected — only the client-side formatting helpers
+changed.
+</Warning>
+
+# Filter Spans by Trace Annotations
+
+August 11, 2026
+
+**Available in arize-phoenix 20.0.0+**
+
+The span filter language gains a `trace_annotations` keyword, so you can pull spans out of traces
+that a trace-level evaluation flagged — the trace-grain sibling of `annotations`, with the same
+`score`, `label`, `explanation`, and existence syntax.
+
+```python
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
+
+query = SpanQuery().where("trace_annotations['quality'].score < 0.5")
+spans = Client().spans.get_spans_dataframe(query=query, project_identifier="my-project")
+```
+
+The same keyword works in the filter bar above the spans and traces tables.
+
+# Faster SQLite Reads and Unicode-Correct Matching
+
+August 6 – August 8, 2026
+
+**Available in arize-phoenix 19.19.0+ (SQLite extension packaging) and 19.19.1+ (read pool, case folding, JSONB)**
+
+Self-hosted SQLite deployments get noticeably more responsive under concurrent reads, and
+case-insensitive filtering stops missing non-English text.
+
+- **A dedicated read pool** — reads no longer queue behind the single writer connection. Phoenix
+  keeps eight reader connections open, opens up to eight more to absorb a burst, and gives readers
+  their own page-cache settings while the writer keeps the larger cache that sustained ingest needs.
+- **Unicode case folding** — `in` containment on SQLite now folds case the way Unicode defines it,
+  so accented and non-Latin text matches regardless of case. Previously only ASCII folded reliably.
+- **JSONB stays JSONB on SQLite**, so metadata and attribute columns round-trip without losing their
+  type.
+- **`arize-phoenix-sqlean`** replaces the archived `sqlean.py` as the source of the SQLite text
+  extensions Phoenix relies on. It is a maintained fork published by Arize and installed as an
+  ordinary dependency — no action required.
+
+# Also in This Release
+
+August 5 – August 12, 2026
+
+**Available in arize-phoenix 19.19.0–20.1.0, arize-phoenix-otel 0.17.1+ (Python), and @arizeai/phoenix-client 7.2.0+ (TypeScript)**
+
+- **Long conversations open on the message you want** — an LLM span's message list arrives with every
+  message collapsed except the last, each showing a one-line preview, and a control expands or
+  collapses the whole prompt or completion at once (arize-phoenix 19.19.0+).
+- **Copy anything from a session turn** — each turn divider labels the turn, links to its trace, and
+  copies the trace ID, and the input and output bubbles each get a copy action (arize-phoenix
+  19.20.0+).
+- **Evaluation charts read as a grid** — annotation metric charts lay out two to a row (an unpaired
+  final chart spans the width) and each carries a **Scores** / **Labels** view control
+  (arize-phoenix 20.1.0+).
+- **Tooltips color scores by intent** — a project metric tooltip renders an annotation score against
+  its optimization direction, so a good score reads as good whether higher or lower is better
+  (arize-phoenix 20.0.0+).
+- **Reasoning models reach the right OpenAI API** — the Playground now routes any OpenAI model name
+  outside the explicit chat-completions list to the Responses API, so newly released reasoning models
+  work without a Phoenix upgrade (arize-phoenix 20.1.0+).
+- **Project navigation stays responsive** while route data loads instead of blocking on the fetch
+  (arize-phoenix 19.20.0+), and responsive charts debounce their resize work (arize-phoenix 19.21.0+).
+- **Double-click a session turn** to open its trace (arize-phoenix 20.0.0+).
+- **`getProjects` in the TypeScript client** — the new `@arizeai/phoenix-client/projects` entry point
+  lists projects with automatic cursor pagination and an optional `nameContains` filter
+  (@arizeai/phoenix-client 7.2.0+).
+- **Add a span processor without losing Phoenix's exporter** — passing
+  `replace_default_processor=False` to `add_span_processor` now really keeps the default processor
+  alongside the new one (arize-phoenix-otel 0.17.1+).
