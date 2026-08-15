@@ -149,7 +149,7 @@ def representative_root_span_by_trace(
 ) -> Select[Any]:
     """Select the displayed representative root span for each trace."""
     parent_spans = models.Span.__table__.alias("parent_spans")
-    root_predicate = models.Span.parent_id.is_(None)
+    root_predicate: ColumnElement[bool] = models.Span.parent_id.is_(None)
     if orphan_span_as_root_span:
         root_predicate = or_(
             root_predicate,
