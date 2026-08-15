@@ -21,16 +21,48 @@ import { UNSAFE_PortalProvider } from "react-aria/PortalProvider";
 import { LOCAL_OVERLAY_Z_INDEX, LOCAL_RAISED_Z_INDEX } from "./stacking";
 
 type OverlayFrameContextValue = {
+  /**
+   * The region viewport-tier overlays cover — everything except the
+   * assistant rail. `ViewportModalOverlay` uses it to decide whether a press
+   * landed outside the viewport (and so must never dismiss), and
+   * `ViewportPortal` re-homes React Aria portals into it.
+   */
   applicationViewportElement: HTMLDivElement | null;
+  /**
+   * The `DrawerPlane` element `Drawer` portals into. Spans only the
+   * page-content row (a drawer never crosses the top navigation), and goes
+   * inert while a viewport modal is open — which is why it is a separate
+   * plane from `viewportModalHostElement` rather than one shared host.
+   */
   drawerHostElement: HTMLDivElement | null;
+  /**
+   * True while at least one viewport modal (Tier 1) is open. The host stamps
+   * `inert` on each region such a modal must block; overlays outside React
+   * Aria's stack (e.g. `Drawer`'s global Escape) guard on it.
+   */
   isViewportBlocked: boolean;
+  /**
+   * The side navigation element, observed by `Drawer` so a maximally
+   * expanded drawer keeps a fixed gap beside the nav at its current width.
+   */
   sideNavigationElement: HTMLDivElement | null;
+  /** Called by each viewport modal on open; drives `isViewportBlocked`. */
   registerViewportOverlay: () => void;
+  /** Ref callback for the host's application-viewport element. */
   setApplicationViewportElement: (element: HTMLDivElement | null) => void;
+  /** Ref callback used by `DrawerPlane`; hosts rarely call it directly. */
   setDrawerHostElement: (element: HTMLDivElement | null) => void;
+  /** Ref callback for the host's side-navigation element. */
   setSideNavigationElement: (element: HTMLDivElement | null) => void;
+  /** Ref callback used by `ViewportModalPlane`; hosts rarely call it directly. */
   setViewportModalHostElement: (element: HTMLDivElement | null) => void;
+  /** Called by each viewport modal on close; drives `isViewportBlocked`. */
   unregisterViewportOverlay: () => void;
+  /**
+   * The `ViewportModalPlane` element `ViewportModalOverlay` portals into.
+   * Spans the full viewport (navigation included, so the backdrop buries it)
+   * and is never inert — it hosts the blocking overlay itself.
+   */
   viewportModalHostElement: HTMLDivElement | null;
 };
 

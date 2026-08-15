@@ -270,6 +270,11 @@ const menuContainerCss = css`
  * closing it before it can be used. Both hosts keep flipping enabled so the
  * menu can move to the opposite side of its trigger before constraining its
  * height and introducing a scrollbar.
+ *
+ * This helper only picks the `placement`/`shouldFlip` defaults handed to
+ * `Popover`; the flipping itself is React Aria's overlay positioning
+ * (`useOverlayPosition` inside the RAC Popover), which flips against the
+ * browser window's edges — not the application frame's.
  */
 export function resolveMenuContainerOverlayProps({
   placement,
