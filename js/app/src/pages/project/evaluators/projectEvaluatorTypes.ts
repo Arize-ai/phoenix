@@ -43,6 +43,34 @@ export function dropOtherGrainEntityPathMappings(
   return { ...inputMapping, pathMapping };
 }
 
+/**
+ * Whether two input mappings carry the same entries, ignoring key order.
+ *
+ * An edit form compares what it loaded against what the store holds to decide
+ * whether to send a mapping at all. The two differ in key order — the store
+ * merges the loaded value onto its own defaults, which list `literalMapping`
+ * first — so comparing serialized objects reports a change on a form nobody
+ * touched, and an evaluator that stored no mapping gets an empty one written
+ * over it.
+ */
+export function isSameInputMapping(
+  a: EvaluatorInputMapping,
+  b: EvaluatorInputMapping
+): boolean {
+  return (
+    sortedEntriesJson(a.pathMapping) === sortedEntriesJson(b.pathMapping) &&
+    sortedEntriesJson(a.literalMapping) === sortedEntriesJson(b.literalMapping)
+  );
+}
+
+function sortedEntriesJson(mapping: Record<string, unknown> | undefined) {
+  return JSON.stringify(
+    Object.entries(mapping ?? {}).sort(([x], [y]) =>
+      x < y ? -1 : x > y ? 1 : 0
+    )
+  );
+}
+
 /** `span`, `span.attributes`, and `span['a.b']` are rooted at `span`; `spanX` is not. */
 function isPathRootedAt(path: string, root: string): boolean {
   if (!path.startsWith(root)) {
