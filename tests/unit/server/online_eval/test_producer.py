@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 from sqlalchemy import func, select, update
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
@@ -510,6 +511,16 @@ async def test_future_targets_are_not_loaded_by_span_producer(
     async with db() as session:
         project = await _add_project(session)
     await _seed_criteria(db, project.id, evaluation_target=evaluation_target)
+
+    producer = OnlineEvalProducer(db)
+
+    assert await producer._load_active_criteria() == []
+
+
+async def test_criteria_on_the_evaluators_project_are_not_loaded(db: DbSessionFactory) -> None:
+    async with db() as session:
+        evaluators_project = await _add_project(session, name=EVALUATORS_PROJECT_NAME)
+    await _seed_criteria(db, evaluators_project.id)
 
     producer = OnlineEvalProducer(db)
 
