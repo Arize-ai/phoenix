@@ -5,7 +5,7 @@ import type {
   EvaluatorInputMapping,
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { getValueAtPath, parsePathSegments } from "@phoenix/utils/objectUtils";
 
 /** A span evaluation context has no counterpart to a dataset `reference`. */
@@ -18,6 +18,36 @@ export function dropReferencePathMappings(
     )
   );
   return { ...inputMapping, pathMapping };
+}
+
+/**
+ * Drops the paths rooted at the record kind an evaluator no longer runs on.
+ *
+ * A path may be written against the whole record — `span.attributes…`,
+ * `session.turns…` — and that root exists only on its own kind. Switching an
+ * evaluator from spans to sessions would otherwise leave paths behind that
+ * match nothing, and a path that matches nothing fails the evaluation.
+ */
+export function dropOtherGrainEntityPathMappings(
+  inputMapping: EvaluatorInputMapping,
+  grain: ProjectEvaluatorMappingSourceGrain
+): EvaluatorInputMapping {
+  const staleRoot = grain === "session" ? "span" : "session";
+  const pathMapping = Object.fromEntries(
+    Object.entries(inputMapping.pathMapping).filter(
+      ([, path]) => !isPathRootedAt(path, staleRoot)
+    )
+  );
+  return { ...inputMapping, pathMapping };
+}
+
+/** `span`, `span.attributes`, and `span['a.b']` are rooted at `span`; `spanX` is not. */
+function isPathRootedAt(path: string, root: string): boolean {
+  if (!path.startsWith(root)) {
+    return false;
+  }
+  const next = path.charAt(root.length);
+  return next === "" || next === "." || next === "[";
 }
 
 /**
@@ -66,6 +96,12 @@ export const isProjectEvaluatorTarget = (
 ): value is ProjectEvaluatorTarget =>
   PROJECT_EVALUATOR_TARGETS.includes(value as ProjectEvaluatorTarget);
 
+/** A project evaluator runs on a record, never on a dataset example. */
+export type ProjectEvaluatorMappingSourceGrain = Exclude<
+  EvaluatorMappingSourceGrain,
+  "dataset"
+>;
+
 /**
  * Which mapping-source vocabulary the records of an evaluated target speak.
  *
@@ -75,7 +111,7 @@ export const isProjectEvaluatorTarget = (
  */
 export function toEvaluatorMappingSourceGrain(
   target: ProjectEvaluatorTarget
-): EvaluatorMappingSourceGrain {
+): ProjectEvaluatorMappingSourceGrain {
   switch (target) {
     case "SESSION":
       return "session";
@@ -235,6 +271,12 @@ export type ProjectEvaluatorMappingDiagnostic = {
   variable: string;
   path: string;
   status: "resolved" | "missing" | "optional-missing" | "unverified";
+  /**
+   * Where the value comes from: a path the author wrote, a field of the same
+   * name on the record's evaluation context, or a value the record supplies by
+   * name. Only `path` carries a path worth showing.
+   */
+  source: "path" | "context" | "record";
 };
 
 export function getProjectEvaluatorMappingDiagnostics({
@@ -242,28 +284,59 @@ export function getProjectEvaluatorMappingDiagnostics({
   pathMapping,
   variables,
   requiredVariables = variables,
+  boundVariableNames,
 }: {
   context: unknown;
   pathMapping: Record<string, string>;
   variables: string[];
   requiredVariables?: string[];
+  /** The names this record kind supplies without a mapping entry. */
+  boundVariableNames?: ReadonlySet<string>;
 }): ProjectEvaluatorMappingDiagnostic[] {
   const requiredVariableNames = new Set(requiredVariables);
-  return variables.map((variable) => {
-    const path = pathMapping[variable] ?? variable;
-    // Wildcards and slices only the server can resolve are left to it.
-    if (parsePathSegments(path) === null) {
-      return { variable, path, status: "unverified" };
+  const missingStatus = (variable: string) =>
+    requiredVariableNames.has(variable) ? "missing" : "optional-missing";
+  return variables.map((variable): ProjectEvaluatorMappingDiagnostic => {
+    const mappedPath = pathMapping[variable];
+    if (mappedPath != null) {
+      // Wildcards and slices only the server can resolve are left to it.
+      if (parsePathSegments(mappedPath) === null) {
+        return {
+          variable,
+          path: mappedPath,
+          status: "unverified",
+          source: "path",
+        };
+      }
+      return {
+        variable,
+        path: mappedPath,
+        status:
+          getValueAtPath(context, mappedPath) === undefined
+            ? missingStatus(variable)
+            : "resolved",
+        source: "path",
+      };
+    }
+    // An unmapped variable binds only from a field of the same name at the top
+    // of the context — never by walking into it — so a dotted variable name
+    // resolves here exactly as little as it does at evaluation time.
+    if (isStringKeyedObject(context) && variable in context) {
+      return {
+        variable,
+        path: variable,
+        status: "resolved",
+        source: "context",
+      };
+    }
+    if (boundVariableNames?.has(variable)) {
+      return { variable, path: variable, status: "resolved", source: "record" };
     }
     return {
       variable,
-      path,
-      status:
-        getValueAtPath(context, path) === undefined
-          ? requiredVariableNames.has(variable)
-            ? "missing"
-            : "optional-missing"
-          : "resolved",
+      path: variable,
+      status: missingStatus(variable),
+      source: "context",
     };
   });
 }

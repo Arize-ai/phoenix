@@ -65,6 +65,7 @@ describe("evaluatorStore mapping source grain", () => {
           input: { question: "What is Phoenix?" },
           output: { answer: "An AI observability platform" },
           metadata: { attributes: { "openinference.span.kind": "LLM" } },
+          span: { span_id: "abc123", latency_ms: 12.5 },
         },
       },
     });
@@ -73,6 +74,7 @@ describe("evaluatorStore mapping source grain", () => {
       input: { question: "What is Phoenix?" },
       output: { answer: "An AI observability platform" },
       metadata: { attributes: { "openinference.span.kind": "LLM" } },
+      span: { span_id: "abc123", latency_ms: 12.5 },
     });
     expect(store.getState().evaluator.inputMapping).toEqual({
       literalMapping: {},
@@ -92,6 +94,7 @@ describe("evaluatorStore mapping source grain", () => {
       input: "User: hi\nAssistant: hello",
       output: "hello",
       metadata: { turns: [{ input: "hi", output: "hello" }] },
+      session: { session_id: "s-1", duration_ms: 42 },
     });
 
     // A dataset fallthrough would coerce input/output to objects and add
@@ -102,6 +105,7 @@ describe("evaluatorStore mapping source grain", () => {
         input: "User: hi\nAssistant: hello",
         output: "hello",
         metadata: { turns: [{ input: "hi", output: "hello" }] },
+        session: { session_id: "s-1", duration_ms: 42 },
       },
     });
   });
@@ -114,6 +118,7 @@ describe("evaluatorStore mapping source grain", () => {
           input: "What is Phoenix?",
           output: "An AI observability platform",
           metadata: { attributes: { "openinference.span.kind": "LLM" } },
+          span: {},
         },
       },
     });
@@ -134,6 +139,7 @@ describe("evaluatorStore mapping source grain", () => {
           input: "What is Phoenix?",
           output: null,
           metadata: { attributes: { "openinference.span.kind": "LLM" } },
+          span: {},
         },
       },
     });
@@ -142,6 +148,7 @@ describe("evaluatorStore mapping source grain", () => {
       input: "What is Phoenix?",
       output: null,
       metadata: { attributes: { "openinference.span.kind": "LLM" } },
+      span: {},
     });
   });
 });

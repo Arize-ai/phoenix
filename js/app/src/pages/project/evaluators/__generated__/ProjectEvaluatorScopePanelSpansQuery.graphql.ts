@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa185184fe8ece2c0858b5bc11ef905d>>
+ * @generated SignedSource<<ac80a7c06c372e10e6ca009f6e10a7e4>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type ProjectEvaluatorScopePanelSpansQuery$data = {
     readonly spans?: {
       readonly edges: ReadonlyArray<{
         readonly span: {
+          readonly evaluationBoundVariables: any;
           readonly evaluationContext: any;
           readonly id: string;
           readonly name: string;
@@ -148,6 +149,13 @@ v6 = {
                   "kind": "ScalarField",
                   "name": "evaluationContext",
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "evaluationBoundVariables",
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -242,16 +250,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "504241f06c3f81499d5962f57931c91f",
+    "cacheID": "b3b97d1935eac92ee571b31f6bb7175a",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorScopePanelSpansQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorScopePanelSpansQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            spanKind\n            evaluationContext\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelSpansQuery(\n  $projectId: ID!\n  $filterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            name\n            spanKind\n            evaluationContext\n            evaluationBoundVariables\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2e351471a45f96a10387e23a9aab373d";
+(node as any).hash = "c56015721faaeba14069d18c742c7702";
 
 export default node;

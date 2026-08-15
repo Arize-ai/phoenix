@@ -1,4 +1,5 @@
 import {
+  dropOtherGrainEntityPathMappings,
   dropReferencePathMappings,
   formatProjectEvaluatorRunCounts,
   getProjectEvaluatorMappingDiagnostics,
@@ -109,22 +110,31 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         variable: "question",
         path: "input.question",
         status: "resolved",
+        source: "path",
       },
-      { variable: "answer", path: "answer", status: "resolved" },
+      {
+        variable: "answer",
+        path: "answer",
+        status: "resolved",
+        source: "context",
+      },
       {
         variable: "missing",
         path: "output.missing",
         status: "missing",
+        source: "path",
       },
       {
         variable: "bracketed",
         path: "metadata['custom-key']",
         status: "resolved",
+        source: "path",
       },
       {
         variable: "complex",
         path: "metadata[*]",
         status: "unverified",
+        source: "path",
       },
     ]);
   });
@@ -138,12 +148,125 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         requiredVariables: ["output"],
       })
     ).toEqual([
-      { variable: "output", path: "output", status: "resolved" },
+      {
+        variable: "output",
+        path: "output",
+        status: "resolved",
+        source: "context",
+      },
       {
         variable: "reference",
         path: "reference",
         status: "optional-missing",
+        source: "context",
       },
     ]);
+  });
+
+  // An unmapped variable binds from a top-level field of the same name, never
+  // by walking into the context, which is what the server does when it runs.
+  it("does not resolve an unmapped variable by walking into the context", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { metadata: { turns: [] } },
+        pathMapping: {},
+        variables: ["metadata.turns"],
+      })
+    ).toEqual([
+      {
+        variable: "metadata.turns",
+        path: "metadata.turns",
+        status: "missing",
+        source: "context",
+      },
+    ]);
+  });
+
+  it("counts a name the record supplies as resolved", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { input: "hi", output: "hello", metadata: {} },
+        pathMapping: {},
+        variables: ["latency_ms", "made_up"],
+        boundVariableNames: new Set(["latency_ms"]),
+      })
+    ).toEqual([
+      {
+        variable: "latency_ms",
+        path: "latency_ms",
+        status: "resolved",
+        source: "record",
+      },
+      {
+        variable: "made_up",
+        path: "made_up",
+        status: "missing",
+        source: "context",
+      },
+    ]);
+  });
+
+  it("prefers an explicit mapping over a name the record supplies", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { span: { latency_ms: 12 } },
+        pathMapping: { latency_ms: "span.missing" },
+        variables: ["latency_ms"],
+        boundVariableNames: new Set(["latency_ms"]),
+      })
+    ).toEqual([
+      {
+        variable: "latency_ms",
+        path: "span.missing",
+        status: "missing",
+        source: "path",
+      },
+    ]);
+  });
+});
+
+describe("dropOtherGrainEntityPathMappings", () => {
+  it("drops paths rooted at the record kind the evaluator no longer runs on", () => {
+    expect(
+      dropOtherGrainEntityPathMappings(
+        {
+          literalMapping: { rubric: "helpfulness" },
+          pathMapping: {
+            whole: "span",
+            nested: "span.attributes.llm.model_name",
+            bracketed: "span['a.b']",
+            similarPrefix: "spanX.name",
+            kept: "session.turns[0].input",
+            slot: "metadata.turns",
+          },
+        },
+        "session"
+      )
+    ).toEqual({
+      literalMapping: { rubric: "helpfulness" },
+      pathMapping: {
+        similarPrefix: "spanX.name",
+        kept: "session.turns[0].input",
+        slot: "metadata.turns",
+      },
+    });
+  });
+
+  it("drops session-rooted paths when the evaluator moves to spans", () => {
+    expect(
+      dropOtherGrainEntityPathMappings(
+        {
+          literalMapping: {},
+          pathMapping: {
+            stale: "session.turns[0].input",
+            kept: "span.attributes",
+          },
+        },
+        "span"
+      )
+    ).toEqual({
+      literalMapping: {},
+      pathMapping: { kept: "span.attributes" },
+    });
   });
 });
