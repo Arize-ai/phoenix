@@ -89,6 +89,7 @@ from phoenix.server.cost_tracking.token_types import (
     OUTPUT_TOKEN_TYPE,
     REASONING_TOKEN_TYPE,
 )
+from phoenix.server.online_eval.tracing import PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
     apply_session_filter_to_page,
@@ -310,6 +311,21 @@ def _trace_annotation_names_stmt(project_rowid: int) -> Select[*tuple[Any, ...]]
         select(distinct(models.TraceAnnotation.name))
         .join(models.Trace)
         .where(models.Trace.project_rowid == project_rowid)
+    )
+
+
+def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> Any:
+    """Match only the spans an evaluator execution stamped with its own identity.
+
+    The id is rebuilt from its row id so a differently encoded but equivalent
+    global id still matches what the evaluator wrote.
+    """
+    try:
+        rowid = from_global_id_with_expected_type(project_evaluator_id, ProjectEvaluator.__name__)
+    except ValueError:
+        raise BadRequest(f"Invalid project evaluator ID: {project_evaluator_id}")
+    return models.Span.attributes[PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH].as_string() == str(
+        GlobalID(ProjectEvaluator.__name__, str(rowid))
     )
 
 
@@ -852,13 +868,28 @@ class Project(Node):
         sort: Optional[SpanSort] = UNSET,
         filter_condition: Optional[str] = UNSET,
         trace_filter_condition: Optional[str] = UNSET,
+        project_evaluator_id: Annotated[
+            Optional[GlobalID],
+            strawberry.argument(
+                description=(
+                    "Restrict to spans produced by this project evaluator. Every evaluator "
+                    "traces into one shared project, so its own traces are only reachable "
+                    "through this scope."
+                )
+            ),
+        ] = UNSET,
     ) -> Connection[Span]:
+        evaluator_scope = (
+            _project_evaluator_span_scope(project_evaluator_id) if project_evaluator_id else None
+        )
         stmt: Select[*tuple[Any, ...]] = (
             select(models.Span.id)
             .select_from(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id)
         )
+        if evaluator_scope is not None:
+            stmt = stmt.where(evaluator_scope)
         span_bounds: list[ColumnElement[bool]] = []
         if time_range:
             if time_range.start:
@@ -894,6 +925,7 @@ class Project(Node):
             and filter_condition
             and is_root_span_predicate(filter_condition)
             and not trace_filter_condition
+            and evaluator_scope is None
             # A cursor continues in the order it was issued in. Without one, a short time range
             # is read in span order: a page it cannot fill would otherwise look for root spans
             # whose trace started before the range, among every span in the range or every

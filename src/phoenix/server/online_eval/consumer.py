@@ -48,6 +48,7 @@ from phoenix.server.prometheus import (
 )
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
+from phoenix.tracers import Tracer
 
 logger = logging.getLogger(__name__)
 _T = TypeVar("_T")
@@ -114,6 +115,7 @@ class OnlineEvalConsumer(DaemonTask):
         execution_deadline_seconds: float = EXECUTION_DEADLINE_SECONDS,
         evaluator_semaphore: Optional[asyncio.Semaphore] = None,
         db_semaphore: Optional[asyncio.Semaphore] = None,
+        tracer_factory: Optional[Callable[[], Tracer]] = None,
     ) -> None:
         super().__init__()
         self._db = db
@@ -131,6 +133,7 @@ class OnlineEvalConsumer(DaemonTask):
             event_queue=event_queue,
             execution_deadline_seconds=execution_deadline_seconds,
             db_semaphore=db_semaphore,
+            tracer_factory=tracer_factory,
         )
         self._consumer_id = f"consumer-{token_hex(8)}"
         self._tick_interval_seconds = tick_interval_seconds
