@@ -8,6 +8,7 @@ import {
   AgentChatPanel,
   AgentChatTopNavButton,
   AgentChatWidget,
+  ASSISTANT_RAIL_PANEL_ID,
   FloatingAgentChatPanel,
   useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
@@ -159,7 +160,7 @@ function ApplicationFrame() {
   const shouldShowFloatingAgentPanel =
     isAgentAssistantEnabled && isAgentPanelOpen && agentPosition === "detached";
   const panelIds = shouldShowDockedAgentPanel
-    ? ["layout-content", "agent-chat"]
+    ? ["layout-content", ASSISTANT_RAIL_PANEL_ID]
     : ["layout-content"];
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "application-frame-panels",

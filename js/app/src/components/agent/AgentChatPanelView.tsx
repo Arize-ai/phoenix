@@ -310,6 +310,14 @@ export function AgentChatHeader({
 }
 
 /**
+ * Panel id of the pinned assistant rail in the application frame's panel
+ * group. One name for one thing: the panel id, `data-testid`, and the
+ * blocking exemptions all use the "assistant rail" vocabulary. Also the key
+ * `react-resizable-panels` persists the rail's size under.
+ */
+export const ASSISTANT_RAIL_PANEL_ID = "assistant-rail";
+
+/**
  * Shared content frame for the docked and embedded assistant surfaces.
  */
 function AgentChatFrame({
@@ -323,16 +331,17 @@ function AgentChatFrame({
   children: ReactNode;
   contentCss: ReturnType<typeof css>;
 }) {
+  const isAssistantRail = panelId === ASSISTANT_RAIL_PANEL_ID;
   return (
     <>
       <Separator css={compactResizeHandleCSS} />
       <Panel
         {...panelProps}
         id={panelId}
-        aria-label={panelId === "agent-chat" ? "Assistant" : undefined}
-        data-agent-rail={panelId === "agent-chat" ? "" : undefined}
-        data-testid={panelId === "agent-chat" ? "assistant-rail" : undefined}
-        role={panelId === "agent-chat" ? "complementary" : undefined}
+        aria-label={isAssistantRail ? "Assistant" : undefined}
+        data-agent-rail={isAssistantRail ? "" : undefined}
+        data-testid={isAssistantRail ? "assistant-rail" : undefined}
+        role={isAssistantRail ? "complementary" : undefined}
       >
         <div css={contentCss}>{children}</div>
       </Panel>
@@ -346,7 +355,7 @@ function AgentChatFrame({
 export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
   return (
     <AgentChatFrame
-      panelId="agent-chat"
+      panelId={ASSISTANT_RAIL_PANEL_ID}
       panelProps={{
         minSize: "420px",
         maxSize: "50%",
