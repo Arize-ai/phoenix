@@ -547,7 +547,7 @@ async def test_trace_filter_vocabulary_is_compiler_derived_and_project_scoped(
     parent_span_term = next(
         term for term in terms if term["iterableName"] == "spans" and term["name"] == "parent_span"
     )
-    assert parent_span_term["type"] == "boolean"
+    assert parent_span_term["type"] == "relation"
     assert "no parent row is stored" in parent_span_term["description"]
     assert terms_by_name['trace_annotations["quality"].score']["type"] == "number"
     assert terms_by_name['trace_annotations["quality"].label']["type"] == "string"

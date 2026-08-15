@@ -13,6 +13,7 @@ _STRING = "string"
 _NUMBER = "number"
 _DATETIME = "datetime"
 _BOOLEAN = "boolean"
+_RELATION = "relation"
 _ITERABLE_TYPE = "iterable"
 _CONTAINMENT_TYPE = "containment"
 
@@ -38,9 +39,10 @@ class FilterVocabularyTerm:
     )
     type: str = strawberry.field(
         description="Value-type hint for the comparand: 'string', 'number', 'datetime', "
-        "or 'boolean'. Collections carry 'iterable' — they are looped over rather than "
-        "compared. 'containment' marks a term that only takes `in` / `not in` against a "
-        "string literal and never `==`."
+        "or 'boolean'. 'relation' marks a nullable related row that only supports "
+        "presence checks with `is None` / `is not None`. Collections carry 'iterable' — "
+        "they are looped over rather than compared. 'containment' marks a term that only "
+        "takes `in` / `not in` against a string literal and never `==`."
     )
     description: str = strawberry.field(
         description="Human-readable gloss of what the term means and how it evaluates."
@@ -216,7 +218,7 @@ def trace_filter_vocabulary_terms(
         for related_name, related_bindings in sorted(grammar.related.items()):
             add(
                 related_name,
-                _BOOLEAN,
+                _RELATION,
                 _ELEMENT,
                 description=TRACE_FILTER_DESCRIPTIONS[f"{iterable_name}.{related_name}"],
                 iterable_name=iterable_name,

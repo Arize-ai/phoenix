@@ -2222,7 +2222,7 @@ type FilterVocabularyTerm {
   name: String!
 
   """
-  Value-type hint for the comparand: 'string', 'number', 'datetime', or 'boolean'. Collections carry 'iterable' — they are looped over rather than compared. 'containment' marks a term that only takes `in` / `not in` against a string literal and never `==`.
+  Value-type hint for the comparand: 'string', 'number', 'datetime', or 'boolean'. 'relation' marks a nullable related row that only supports presence checks with `is None` / `is not None`. Collections carry 'iterable' — they are looped over rather than compared. 'containment' marks a term that only takes `in` / `not in` against a string literal and never `==`.
   """
   type: String!
 
