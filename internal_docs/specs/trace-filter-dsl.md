@@ -89,10 +89,7 @@ any(span.parent_span is not None for span in spans)
 A direct child of a stored trace root is distinct from an orphan and is written:
 
 ```python
-any(
-    span.parent_span is not None and span.parent_span.parent_id is None
-    for span in spans
-)
+any(span.parent_span is not None and span.parent_span.parent_id is None for span in spans)
 ```
 
 Traversal exposes the parent's ordinary fields, including enum and datetime coercion:
