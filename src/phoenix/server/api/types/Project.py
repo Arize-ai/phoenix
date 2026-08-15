@@ -69,6 +69,7 @@ from phoenix.server.api.types.SpanFilterConditionAnalysis import (
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.online_eval.tracing import PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
     apply_session_filter_to_page,
@@ -272,6 +273,21 @@ def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
         select(distinct(models.ProjectSessionAnnotation.name))
         .join(models.ProjectSession)
         .where(models.ProjectSession.project_id == project_rowid)
+    )
+
+
+def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> Any:
+    """Match only the spans an evaluator execution stamped with its own identity.
+
+    The id is rebuilt from its row id so a differently encoded but equivalent
+    global id still matches what the evaluator wrote.
+    """
+    try:
+        rowid = from_global_id_with_expected_type(project_evaluator_id, ProjectEvaluator.__name__)
+    except ValueError:
+        raise BadRequest(f"Invalid project evaluator ID: {project_evaluator_id}")
+    return models.Span.attributes[PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH].as_string() == str(
+        GlobalID(ProjectEvaluator.__name__, str(rowid))
     )
 
 
@@ -638,8 +654,27 @@ class Project(Node):
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
         orphan_span_as_root_span: Optional[bool] = True,
+        project_evaluator_id: Annotated[
+            Optional[GlobalID],
+            strawberry.argument(
+                description=(
+                    "Restrict to spans produced by this project evaluator. Every evaluator "
+                    "traces into one shared project, so its own traces are only reachable "
+                    "through this scope."
+                )
+            ),
+        ] = UNSET,
     ) -> Connection[Span]:
-        if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
+        evaluator_scope = (
+            _project_evaluator_span_scope(project_evaluator_id) if project_evaluator_id else None
+        )
+        if (
+            root_spans_only
+            and not filter_condition
+            and evaluator_scope is None
+            and sort
+            and sort.col is SpanColumn.startTime
+        ):
             return await _paginate_span_by_trace_start_time(
                 db=info.context.db,
                 project_rowid=self.id,
@@ -655,6 +690,8 @@ class Project(Node):
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id)
         )
+        if evaluator_scope is not None:
+            stmt = stmt.where(evaluator_scope)
         if time_range:
             if time_range.start:
                 stmt = stmt.where(time_range.start <= models.Span.start_time)

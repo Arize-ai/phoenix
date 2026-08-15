@@ -23,6 +23,10 @@ import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLo
 import type { ProjectEvaluatorDetailsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
+import {
+  PROJECT_EVALUATOR_DETAILS_ROUTE_ID,
+  ProjectEvaluatorTracePage,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
@@ -531,6 +535,7 @@ export const appRouteObjects = createRoutesFromElements(
               }}
             >
               <Route
+                id={PROJECT_EVALUATOR_DETAILS_ROUTE_ID}
                 path=":projectEvaluatorId"
                 element={<ProjectEvaluatorDetailsPage />}
                 loader={projectEvaluatorDetailsLoader}
@@ -540,7 +545,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Evaluator Details",
                     description:
-                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state — and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
                   },
                 }}
               >
@@ -552,6 +557,17 @@ export const appRouteObjects = createRoutesFromElements(
                       label: "Edit Project Evaluator",
                       description:
                         "Edit a project evaluator's definition and scope. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                    },
+                  }}
+                />
+                <Route
+                  path=":traceId"
+                  element={<ProjectEvaluatorTracePage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Project Evaluator Trace",
+                      description:
+                        "Inspect one trace a project evaluator produced when it ran — its mapped inputs, model call or sandbox run, and parsed judgment. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
                     },
                   }}
                 />
