@@ -11,7 +11,7 @@ UV := uv
 NODE := node
 
 # Directories
-APP_DIR := app
+APP_DIR := js/app
 JS_DIR := js
 SCHEMAS_DIR := schemas
 PACKAGES_DIR := packages
@@ -57,7 +57,7 @@ help: ## Show this help message
 	@echo -e "  ui-message-stream-fixtures - Generate AI SDK reducer conformance fixtures"
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
-	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (app/)"
+	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
@@ -74,28 +74,28 @@ help: ## Show this help message
 	@echo -e "  dev-mock-llm           - Start the mock LLM server"
 	@echo -e ""
 	@echo -e "$(GREEN)Testing:$(NC)"
-	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + frontend + TypeScript)"
+	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + TypeScript workspace)"
 	@echo -e "  test-python            - Run Python tests (unit + integration)"
-	@echo -e "  test-frontend          - Run frontend tests (app/)"
-	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
+	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
+	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
 	@echo -e "  test-helm              - Run Helm chart tests"
 	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
-	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
+	@echo -e "  typecheck              - Type check all code (Python + TypeScript workspace)"
 	@echo -e "  typecheck-python       - Type check Python only"
 	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
-	@echo -e "  typecheck-frontend     - Type check frontend only (app/)"
-	@echo -e "  typecheck-ts           - Type check TypeScript packages only (js/)"
+	@echo -e "  typecheck-frontend     - Type check frontend only (js/app/)"
+	@echo -e "  typecheck-ts           - Type check all TypeScript (js/ workspace)"
 	@echo -e ""
 	@echo -e "$(GREEN)Code Quality:$(NC)"
-	@echo -e "  $(YELLOW)format$(NC)                - Format all code (Python + frontend + TypeScript)"
+	@echo -e "  $(YELLOW)format$(NC)                - Format all code (Python + TypeScript workspace)"
 	@echo -e "  format-python          - Format Python with ruff"
-	@echo -e "  format-frontend        - Format frontend (app/)"
-	@echo -e "  format-ts              - Format TypeScript packages (js/)"
+	@echo -e "  format-frontend        - Format frontend only (js/app/)"
+	@echo -e "  format-ts              - Format all TypeScript (js/ workspace)"
 	@echo -e "  clean-notebooks        - Clean Jupyter notebook metadata"
-	@echo -e "  $(YELLOW)lint$(NC)                  - Lint all code (Python + frontend + TypeScript)"
+	@echo -e "  $(YELLOW)lint$(NC)                  - Lint all code (Python + TypeScript workspace)"
 	@echo -e "  lint-python            - Lint Python with ruff"
-	@echo -e "  lint-frontend          - Lint frontend (app/)"
-	@echo -e "  lint-ts                - Lint TypeScript packages (js/)"
+	@echo -e "  lint-frontend          - Lint frontend only (js/app/)"
+	@echo -e "  lint-ts                - Lint all TypeScript (js/ workspace)"
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
@@ -115,10 +115,10 @@ help: ## Show this help message
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
-	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
+	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + TypeScript workspace)"
 	@echo -e "  build-python           - Build Python package"
-	@echo -e "  build-frontend         - Build frontend"
-	@echo -e "  build-ts               - Build TypeScript packages"
+	@echo -e "  build-frontend         - Build frontend only (js/app/ and its deps)"
+	@echo -e "  build-ts               - Build all TypeScript (js/ workspace)"
 	@echo -e ""
 	@echo -e "$(GREEN)Cleanup:$(NC)"
 	@echo -e "  clean                  - Clean build artifacts"
@@ -154,8 +154,9 @@ install-python: ## Install Python dependencies
 
 install-node: ## Install Node.js dependencies
 	@echo -e "$(CYAN)Installing Node.js dependencies...$(NC)"
-	@cd $(APP_DIR) && $(PNPM) install --silent
 	@cd $(JS_DIR) && $(PNPM) install --silent
+	@echo -e "$(CYAN)Building workspace dependencies of the app...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent build:deps
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 setup: check-tools install-python install-node ## Complete development environment setup
@@ -177,7 +178,7 @@ setup-remote-export: ## Configure PXI remote trace export
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
 	@$(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o $(APP_DIR)/schema.graphql
-	@echo -e "$(GREEN)✓ app/schema.graphql$(NC)"
+	@echo -e "$(GREEN)✓ js/app/schema.graphql$(NC)"
 
 relay-build: ## Build Relay from GraphQL schema
 	@echo -e "$(CYAN)Building Relay GraphQL types...$(NC)"
@@ -226,7 +227,7 @@ codegen-ts-testing: ## Generate phoenix-testing TypeScript types from OpenAPI
 	@cd $(JS_DIR)/packages/phoenix-testing && $(PNPM) run --silent generate
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-codegen-ts-app: ## Generate TypeScript OpenAPI types for app/
+codegen-ts-app: ## Generate TypeScript OpenAPI types for js/app/
 	@echo -e "$(CYAN)Generating TypeScript OpenAPI types for app...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:openapi
 	@echo -e "$(GREEN)✓ Done$(NC)"
@@ -278,15 +279,15 @@ doctest: ## Run doctests across all modules in src/ (override with MODULES=...)
 	@$(UV) run pytest --doctest-modules $(or $(MODULES),$(DOCTEST_MODULES))
 	@echo -e "$(GREEN)✓ Doctests passed$(NC)"
 
-test-frontend: ## Run frontend tests (app/)
+test-frontend: ## Run frontend tests (js/app/)
 	@echo -e "$(CYAN)Running frontend tests...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) test
 
-test-ts: ## Run TypeScript package tests (js/)
-	@echo -e "$(CYAN)Running TypeScript package tests...$(NC)"
-	@cd $(JS_DIR) && $(PNPM) run -r test
+test-ts: ## Run all TypeScript tests (js/ workspace, including the app)
+	@echo -e "$(CYAN)Running TypeScript tests...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run test
 
-test: test-python test-frontend test-ts ## Run all tests (Python + frontend + TypeScript)
+test: test-python test-ts ## Run all tests (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ All tests complete$(NC)"
 
 typecheck-python: ## Type check Python code
@@ -299,15 +300,15 @@ typecheck-python-ty: ## Type check Python with ty (verify expected errors only)
 	@$(UV) run python scripts/uv/type_check/type_check.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-typecheck-frontend: ## Type check frontend (app/)
+typecheck-frontend: ## Type check frontend (js/app/)
 	@echo -e "$(CYAN)Type checking frontend...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent typecheck
 
-typecheck-ts: ## Type check TypeScript packages (js/)
-	@echo -e "$(CYAN)Type checking TypeScript packages...$(NC)"
-	@cd $(JS_DIR) && $(PNPM) run --silent -r typecheck
+typecheck-ts: ## Type check all TypeScript (js/ workspace, including the app)
+	@echo -e "$(CYAN)Type checking TypeScript...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run --silent typecheck
 
-typecheck: check-session-filter-ai-query-vocabulary typecheck-python typecheck-frontend typecheck-ts ## Type check all code (Python + frontend + TypeScript)
+typecheck: check-session-filter-ai-query-vocabulary typecheck-python typecheck-ts ## Type check all code (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
 
 #=============================================================================
@@ -319,17 +320,17 @@ format-python: ## Format Python code with ruff
 	@$(UV) run ruff format
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-format-frontend: ## Format frontend (app/)
+format-frontend: ## Format frontend (js/app/)
 	@echo -e "$(CYAN)Formatting frontend...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent fmt
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-format-ts: ## Format TypeScript packages (js/)
-	@echo -e "$(CYAN)Formatting TypeScript packages...$(NC)"
+format-ts: ## Format all TypeScript (js/ workspace, including the app)
+	@echo -e "$(CYAN)Formatting TypeScript...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent fmt
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-format: format-python format-frontend format-ts ## Format all code (Python + frontend + TypeScript)
+format: format-python format-ts ## Format all code (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ Code formatting complete$(NC)"
 
 clean-notebooks: ## Clean Jupyter notebook output and metadata
@@ -347,17 +348,17 @@ lint-python: ## Lint Python code with ruff
 	@$(UV) run ruff check --fix
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-lint-frontend: ## Lint frontend (app/)
+lint-frontend: ## Lint frontend (js/app/)
 	@echo -e "$(CYAN)Linting frontend...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent lint
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-lint-ts: ## Lint TypeScript packages (js/)
-	@echo -e "$(CYAN)Linting TypeScript packages...$(NC)"
+lint-ts: ## Lint all TypeScript (js/ workspace, including the app)
+	@echo -e "$(CYAN)Linting TypeScript...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent lint
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-lint: lint-python lint-frontend lint-ts ## Lint all code (Python + frontend + TypeScript)
+lint: lint-python lint-ts ## Lint all code (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ Linting complete$(NC)"
 
 #=============================================================================
@@ -371,15 +372,15 @@ build-python: ## Build Python package
 
 build-frontend: ## Build frontend for production
 	@echo -e "$(CYAN)Building frontend...$(NC)"
-	@cd $(APP_DIR) && $(PNPM) run --silent build
+	@cd $(JS_DIR) && $(PNPM) --filter 'phoenix-ui...' run --silent build
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-build-ts: ## Build TypeScript packages
-	@echo -e "$(CYAN)Building TypeScript packages...$(NC)"
-	@cd $(JS_DIR) && $(PNPM) run --silent -r build
+build-ts: ## Build all TypeScript (js/ workspace, including the app)
+	@echo -e "$(CYAN)Building TypeScript...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run --silent build
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-build: build-python build-frontend build-ts ## Build everything (Python + frontend + TypeScript packages)
+build: build-python build-ts ## Build everything (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ Build complete$(NC)"
 
 gen-session-filter-ai-query-vocabulary: ## Generate the session AI query vocabulary

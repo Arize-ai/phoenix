@@ -13,17 +13,24 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import time
 from pathlib import Path
 from typing import Any, Dict, Sequence
 
 from phoenix.client import Client
-from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
+from phoenix.client.helpers.atif import (
+    _convert_atif_trajectories_to_spans,
+    upload_atif_trajectories_as_spans,
+)
 from phoenix.client.helpers.atif._convert import _base_session_id, _sha256_trace_id
+from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
 
 PHOENIX_URL = os.environ.get("PHOENIX_URL", "http://localhost:6006")
-# Append a timestamp suffix so re-runs don't hit duplicate span errors
-# from deterministic IDs. Override with ATIF_PROJECT_SUFFIX env var.
+# Append a timestamp suffix to keep each UI verification run in its own
+# project. Span IDs are globally unique across projects, so the plain uploader
+# sections can still report duplicates when this script is rerun against the
+# same database. Override with ATIF_PROJECT_SUFFIX env var.
 _SUFFIX = os.environ.get("ATIF_PROJECT_SUFFIX", str(int(time.time())))
 PROJECT_NAME = f"atif-verify-{_SUFFIX}"
 
@@ -305,6 +312,79 @@ def _upload_batch(
         return 0
 
 
+def _upload_under_common_parent(
+    client: Client,
+    trajectories: Sequence[Dict[str, Any]],
+    label: str,
+    project: str = PROJECT_NAME,
+) -> int:
+    """Group trajectories beneath a caller-owned trial span and upload.
+
+    Mirrors how a caller with an enclosing operation composes conversion and
+    reparenting, and checks the batch is internally consistent before sending.
+    """
+    trace_id, parent_span_id = secrets.token_hex(16), secrets.token_hex(8)
+    trial_span: Dict[str, Any] = {
+        "name": "harbor.trial",
+        "context": {"trace_id": trace_id, "span_id": parent_span_id},
+        "span_kind": "CHAIN",
+        "start_time": "2026-03-26T10:00:00+00:00",
+        "end_time": "2026-03-26T10:05:00+00:00",
+        "status_code": "OK",
+        "attributes": {"input": {"value": label}},
+    }
+    # The Harbor plugin supplies globally unique, replay-stable trajectory IDs
+    # before conversion. Give this manual run equivalent identities so its two
+    # trial uploads exercise the real contract without colliding.
+    identified_trajectories = [
+        {**trajectory, "trajectory_id": f"{_SUFFIX}:{label}:{index}"}
+        for index, trajectory in enumerate(trajectories)
+    ]
+    grouped = _reparent_spans_under_common_parent(
+        _convert_atif_trajectories_to_spans(identified_trajectories),
+        parent_id=parent_span_id,
+        trace_id=trace_id,
+    )
+    batch = [trial_span, *grouped]
+
+    traces = {s["context"]["trace_id"] for s in grouped}
+    span_ids = [s["context"]["span_id"] for s in grouped]
+    known = set(span_ids) | {parent_span_id}
+    dangling = [s["name"] for s in grouped if s.get("parent_id") not in known]
+    roots = [s["name"] for s in grouped if s.get("parent_id") == parent_span_id]
+    problems = []
+    if traces != {trace_id}:
+        problems.append(f"expected one trace, got {len(traces)}")
+    if len(set(span_ids)) != len(span_ids):
+        problems.append("duplicate span IDs")
+    if dangling:
+        problems.append(f"dangling parents: {dangling}")
+
+    if problems:
+        print(
+            f"  ✗ {label:<45} | trajs={len(trajectories)} spans={len(batch):>3} "
+            f"| roots under trial={len(roots)}"
+        )
+        for problem in problems:
+            print(f"      ! {problem}")
+        return 0
+
+    try:
+        result = client.spans.log_spans(project_identifier=project, spans=batch)
+        queued = result["total_queued"]
+        if queued != len(batch):
+            problems.append(f"queued {queued} of {len(batch)}")
+    except Exception as e:
+        print(f"  ✗ {label}: {e}")
+        return 0
+
+    print(
+        f"  ✓ {label:<45} | trajs={len(trajectories)} spans={len(batch):>3} "
+        f"| roots under trial={len(roots)}"
+    )
+    return len(batch)
+
+
 def main() -> None:
     print(f"Connecting to Phoenix at {PHOENIX_URL}...")
     client = Client(base_url=PHOENIX_URL)
@@ -372,7 +452,23 @@ def main() -> None:
             "batch: continuation + cont-1",
         )
 
-    # ── 5. Rich hand-crafted trajectory ──────────────────────────────
+    # ── 5. Common-parent grouping (one trial) ────────────────────────
+    print("\n── Common Parent: One Trial, Many Trajectories ──")
+    if harbor_parent_path.exists() and all(p.exists() for p in harbor_sub_paths):
+        total_spans += _upload_under_common_parent(
+            client,
+            [harbor_parent] + harbor_children,
+            "trial: terminus-2 + 3 subagents (real)",
+        )
+        # The same source trajectories under a distinct logical trial identity
+        # must not collide.
+        total_spans += _upload_under_common_parent(
+            client,
+            [harbor_parent] + harbor_children,
+            "trial: same trajectories, second trial",
+        )
+
+    # ── 6. Rich hand-crafted trajectory ──────────────────────────────
     print("\n── Hand-Crafted Debugging Trajectory ──")
     total_spans += _upload_batch(client, [DEBUGGING_TRAJECTORY], "inline: debug-assistant")
 

@@ -1,5 +1,5 @@
 {
-  "$schema": "./app/node_modules/oxlint/configuration_schema.json",
+  "$schema": "./js/app/node_modules/oxlint/configuration_schema.json",
 
   "plugins": ["typescript"],
 
@@ -10,12 +10,23 @@
     "typescript/no-require-imports": "error",
     "typescript/no-import-type-side-effects": "error",
     "typescript/prefer-ts-expect-error": "error",
-    // TODO: Re-promote no-unsafe-type-assertion to "error" once existing
-    // violations are fixed. It became far stricter when tsgolint (type-aware
-    // linting) was adopted and pre-existing code has not been cleaned up yet.
     "typescript/consistent-return": "error",
     "typescript/consistent-type-imports": "error",
-    "typescript/no-unsafe-type-assertion": "warn",
+    // TODO(#15439): Re-enable the type-aware rules below (one at a time, as
+    // "error") once existing violations are fixed. They arrived default-on at "warn"
+    // when tsgolint (type-aware linting) was adopted, and pre-existing code
+    // has not been cleaned up: together they produced ~1,100 warnings that
+    // drowned out actionable lint output. Counts at time of disabling:
+    "typescript/no-unsafe-type-assertion": "off", // 810
+    "typescript/no-floating-promises": "off", // 105
+    "typescript/no-redundant-type-constituents": "off", // 70
+    "typescript/no-base-to-string": "off", // 56
+    "typescript/restrict-template-expressions": "off", // 47
+    "typescript/unbound-method": "off", // 22
+    "typescript/require-array-sort-compare": "off", // 4
+    "typescript/await-thenable": "off", // 4
+    "typescript/no-misused-spread": "off", // 2
+    "typescript/no-useless-default-assignment": "off", // 2
     // "eslint/no-shadow": "warn",
     "eqeqeq": ["error", "smart"],
     "eslint/prefer-const": "error",

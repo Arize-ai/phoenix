@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      UV_VERSION: "0.11.31"
+      UV_VERSION: "0.12.1"
       HARBOR_ENV: daytona
       # Two attempts, gated on the mean: a one-off agent slip passes while a
       # consistent regression still fails.

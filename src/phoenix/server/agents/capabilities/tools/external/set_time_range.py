@@ -14,8 +14,8 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "set_time_range"
 
 # Drift warning: the ``timeRangeKey`` enum below must stay in sync with:
-#   - ``parseSetTimeRangeInput`` in app/src/agent/extensions/toolRegistry.ts
-#   - ``TimeRangeKey`` in app/src/components/datetime/types.ts
+#   - ``parseSetTimeRangeInput`` in js/app/src/agent/extensions/toolRegistry.ts
+#   - ``TimeRangeKey`` in js/app/src/components/datetime/types.ts
 PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
