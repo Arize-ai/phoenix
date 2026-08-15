@@ -48,9 +48,7 @@ evals = [
 [project.entry-points.pytest11]
 phoenix = "phoenix.client.pytest.plugin"
 
-# The Harbor plugin is opt-in: `harbor` is NOT a dependency of this
-# package. Harbor reads this group lazily (it enumerates names without importing, and only
-# imports the target when a user selects `--plugin phoenix`). phoenix.client.harbor imports harbor only under TYPE_CHECKING.
+# Harbor is opt-in and only imported when selected with ``--plugin phoenix``.
 [project.entry-points."harbor.plugins"]
 phoenix = "phoenix.client.harbor:PhoenixJobPlugin"
 
