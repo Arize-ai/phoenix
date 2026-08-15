@@ -84,7 +84,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.31"
+          version: "0.12.1"
       - name: Install PostgreSQL (product floor)
         if: matrix.db == 'postgresql' && runner.os == 'Linux'
         # Floor version from PGDG; see the note in python-CI.yml. The macOS
@@ -164,7 +164,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.31"
+          version: "0.12.1"
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
@@ -193,7 +193,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.31"
+          version: "0.12.1"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals-non-linux:
@@ -219,7 +219,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.31"
+          version: "0.12.1"
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel-non-linux:
@@ -245,7 +245,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.31"
+          version: "0.12.1"
       - run: uvx tox run -e phoenix_otel -- -ra -x
 
   slack-notification:

@@ -54,7 +54,7 @@ Do not assume the framework package bundles its model provider SDK. In a clean e
 
 ### 1. Add implementation function
 
-**Directory:** `app/src/components/project/integrationSnippets/` — read existing files to match conventions.
+**Directory:** `js/app/src/components/project/integrationSnippets/` — read existing files to match conventions.
 
 Whether a snippet passes an endpoint depends on what consumes it. Either way the value comes from `PHOENIX_COLLECTOR_ENDPOINT`, which the onboarding UI displays alongside the snippet.
 
@@ -75,7 +75,7 @@ Exception: if the framework emits native OpenTelemetry spans and uses a mutating
 
 ### 2. Register the integration
 
-**File:** `app/src/pages/project/integrationRegistry.tsx`
+**File:** `js/app/src/pages/project/integrationRegistry.tsx`
 
 Import your function and add an entry to `ONBOARDING_INTEGRATIONS`. Pass snippet functions as direct references (they match the `getImplementationCode` type in `integrationDefinitions.ts`).
 

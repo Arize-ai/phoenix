@@ -1,0 +1,122 @@
+# Companion to clean_up_caches.yml, which deletes a PR's caches when the PR
+# closes and therefore only ever reaches refs/pull/*. Nothing prunes
+# refs/heads/main, where keys carry a commit SHA and run ID, so every push
+# mints a fresh entry that is never superseded — CodeQL overlay databases at
+# ~290MB apiece are the bulk of it. Left alone, main crowds the repository's
+# shared 10GB budget and GitHub evicts by LRU across every workflow.
+name: Prune stale caches on main
+
+on:
+  schedule:
+    - cron: "0 9 * * *" # daily, 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Report what would be deleted without deleting it.
+        type: boolean
+        default: true
+
+permissions:
+  actions: write # delete Actions caches
+
+# Two runs would list the same entries and race to delete them. The loser
+# gets 404s, which is handled, but queueing keeps the summaries honest.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    name: Prune superseded caches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prune superseded cache entries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          KEEP: "2"
+        run: |
+          set -euo pipefail
+
+          # A scheduled run carries no inputs, so DRY_RUN is empty rather than
+          # false. Only a dispatch can ask for a rehearsal.
+          if [ "$EVENT" = "schedule" ]; then dry=false; else dry="${DRY_RUN:-true}"; fi
+          echo "event=$EVENT dry_run=$dry keep=$KEEP"
+
+          gh api "repos/${REPO}/actions/caches?per_page=100" --paginate \
+            --jq '.actions_caches[] | select(.ref == "refs/heads/main")
+                  | [.id, .size_in_bytes, .created_at, .key] | @tsv' > all.tsv
+          echo "main-ref entries: $(wc -l < all.tsv)"
+
+          # Group by the key with its trailing volatile segments removed, keep
+          # the newest $KEEP of each group, and mark the rest superseded. Only
+          # hex blobs and bare integers are stripped, so version-like segments
+          # (2.26.2, 24.04) survive and distinct variants stay in distinct
+          # groups.
+          python3 - <<'PY' > doomed.tsv
+          import collections, os, re
+
+          HEX = re.compile(r"^[0-9a-f]{7,}$", re.I)
+          NUM = re.compile(r"^\d+$")
+          KEEP = int(os.environ["KEEP"])
+
+          def group_of(key):
+              parts = key.split("-")
+              while len(parts) > 1 and (HEX.match(parts[-1]) or NUM.match(parts[-1])):
+                  parts.pop()
+              return "-".join(parts)
+
+          groups = collections.defaultdict(list)
+          with open("all.tsv") as f:
+              for line in f:
+                  cache_id, size, created, key = line.rstrip("\n").split("\t")
+                  groups[group_of(key)].append((created, int(size), cache_id, key))
+
+          rows, reclaim = [], 0
+          summary = ["| group | entries | deleting | reclaimed |", "| --- | --- | --- | --- |"]
+          for group, members in sorted(groups.items(), key=lambda kv: -sum(m[1] for m in kv[1])):
+              if len(members) <= KEEP:
+                  continue
+              members.sort(reverse=True)  # newest created_at first
+              doomed = members[KEEP:]
+              freed = sum(m[1] for m in doomed)
+              reclaim += freed
+              rows.extend(doomed)
+              summary.append(f"| `{group}` | {len(members)} | {len(doomed)} | {freed / 1e6:.0f} MB |")
+
+          for _, size, cache_id, key in rows:
+              print(f"{cache_id}\t{size}\t{key}")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              print(f"### {len(rows)} superseded entries, {reclaim / 1e9:.2f} GB\n", file=out)
+              print("\n".join(summary) if rows else "Nothing to prune.", file=out)
+          PY
+
+          count=$(wc -l < doomed.tsv)
+          echo "superseded: $count"
+          if [ "$count" -eq 0 ] || [ "$dry" = true ]; then
+            [ "$dry" = true ] && echo "dry run — nothing deleted"
+            exit 0
+          fi
+
+          ok=0 gone=0
+          while IFS=$'\t' read -r id size key; do
+            if gh api -X DELETE "repos/${REPO}/actions/caches/${id}" --silent 2>/dev/null; then
+              ok=$((ok + 1))
+            else
+              # Expected: the repository sits over budget, so LRU evicts entries
+              # between the listing above and this delete. Already gone is the
+              # outcome we wanted.
+              gone=$((gone + 1))
+              echo "::debug::already evicted: $key"
+            fi
+          done < doomed.tsv
+
+          echo "deleted=$ok already-gone=$gone"
+          # Every single call failing is a broken token or endpoint, not eviction.
+          if [ "$ok" -eq 0 ]; then
+            echo "::error::no cache deletion succeeded across $count attempts"
+            exit 1
+          fi

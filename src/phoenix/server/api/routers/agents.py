@@ -1010,6 +1010,7 @@ def _synthesize_client_tool_spans(
             else:
                 attributes[SpanAttributes.OUTPUT_VALUE] = json.dumps(part.output)
                 attributes[SpanAttributes.OUTPUT_MIME_TYPE] = "application/json"
+                attributes.update(_approval_attributes(part.output))
                 status = Status(StatusCode.OK)
             tracer.record_readable_span(
                 build_synthetic_readable_span(
@@ -1026,6 +1027,43 @@ def _synthesize_client_tool_spans(
                     instrumentation_scope=_PXI_INSTRUMENTATION_SCOPE,
                 )
             )
+
+
+_APPROVAL_DECISION_ATTRIBUTE = "pxi.approval.decision"
+_APPROVAL_SOURCE_ATTRIBUTE = "pxi.approval.source"
+_APPROVAL_KEY = "approval"
+_APPROVAL_DECISIONS = frozenset({"accepted", "rejected"})
+_APPROVAL_SOURCES = frozenset({"user", "auto"})
+
+
+def _approval_attributes(result: object) -> dict[str, str]:
+    """Extract validated approval attributes from a client tool result."""
+    marker = _approval_marker(result)
+    if marker is None:
+        return {}
+    decision = marker.get("decision")
+    source = marker.get("source")
+    # JSON values may be unhashable, so validate their types before set membership.
+    if not isinstance(decision, str) or decision not in _APPROVAL_DECISIONS:
+        return {}
+    if not isinstance(source, str) or source not in _APPROVAL_SOURCES:
+        return {}
+    return {
+        _APPROVAL_DECISION_ATTRIBUTE: decision,
+        _APPROVAL_SOURCE_ATTRIBUTE: source,
+    }
+
+
+def _approval_marker(result: object) -> dict[str, Any] | None:
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except (ValueError, TypeError):
+            return None
+    if not isinstance(result, dict):
+        return None
+    marker = result.get(_APPROVAL_KEY)
+    return marker if isinstance(marker, dict) else None
 
 
 def _close_superseded_turn_trace(

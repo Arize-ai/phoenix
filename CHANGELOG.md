@@ -1,5 +1,30 @@
 # Changelog
 
+## [20.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.2.0...arize-phoenix-v20.2.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#15434](https://github.com/Arize-ai/phoenix/issues/15434)) ([4090acd](https://github.com/Arize-ai/phoenix/commit/4090acd0d248e1ed03d37bf339c9975ee171c7ff))
+
+## [20.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.1.0...arize-phoenix-v20.2.0) (2026-08-13)
+
+
+### Features
+
+* **agents:** emit a machine-readable approval decision on gated PXI tools ([#15029](https://github.com/Arize-ai/phoenix/issues/15029)) ([f46fced](https://github.com/Arize-ai/phoenix/commit/f46fcedacb341adbcdd11f248883bc35dcada153))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#15390](https://github.com/Arize-ai/phoenix/issues/15390)) ([36d02ab](https://github.com/Arize-ai/phoenix/commit/36d02ab728b6275fcc4bda36f73e36a78e991a2a))
+
+
+### Documentation
+
+* add Phoenix release notes ([#15395](https://github.com/Arize-ai/phoenix/issues/15395)) ([63e89b0](https://github.com/Arize-ai/phoenix/commit/63e89b0048341a33923a644620e450ff9e0541d8))
+* **filters:** add span & session filter expressions reference ([#15189](https://github.com/Arize-ai/phoenix/issues/15189)) ([876c5a0](https://github.com/Arize-ai/phoenix/commit/876c5a08824f5ca65b5a1c5534158acbac3b1ac4))
+
 ## [20.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.0.0...arize-phoenix-v20.1.0) (2026-08-12)
 
 
