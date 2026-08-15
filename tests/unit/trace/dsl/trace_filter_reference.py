@@ -261,7 +261,7 @@ _UPPERCASE_FIELDS = frozenset({"span_kind", "status_code"})
 _DATETIME_FIELDS = frozenset({"start_time", "end_time"})
 _QUANTIFIERS = frozenset({"any", "all"})
 _REDUCERS = frozenset({"len", "max", "min", "sum"})
-_CASTS = frozenset({"str", "float", "int"})
+_CASTS = frozenset({"str", "float"})
 
 _COMPARATORS: Mapping[type, Callable[[Any, Any], bool]] = {
     ast.Eq: operator.eq,
@@ -279,7 +279,6 @@ _ARITHMETIC: Mapping[type, Callable[[Any, Any], Any]] = {
     ast.Sub: operator.sub,
     ast.Mult: operator.mul,
     ast.Div: operator.truediv,
-    ast.FloorDiv: operator.floordiv,
     ast.Mod: operator.mod,
 }
 
@@ -288,6 +287,7 @@ _Scope = Mapping[str, tuple[str, Any]]
 
 def matches(condition: str, trace: ReferenceTrace) -> bool:
     tree = ast.parse(condition, mode="eval").body
+    _validate_grammar(tree)
     names = sorted(_annotation_names(tree))
     candidates = [trace.annotations_named(name) or (None,) for name in names]
     return any(
@@ -505,7 +505,7 @@ class _Evaluator:
         right = self.evaluate(node.right, scope)
         if left is MISSING or right is MISSING:
             return MISSING
-        if isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)) and right == 0:
+        if isinstance(node.op, (ast.Div, ast.Mod)) and right == 0:
             return MISSING
         arithmetic = _ARITHMETIC.get(type(node.op))
         if arithmetic is None:
@@ -662,6 +662,60 @@ def _is_none_literal(node: ast.expr) -> bool:
     return isinstance(node, ast.Constant) and node.value is None
 
 
+def _validate_grammar(tree: ast.expr) -> None:
+    if isinstance(tree, ast.Constant) and isinstance(tree.value, bool):
+        raise SyntaxError("a bare boolean is not a condition")
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.FloorDiv):
+            raise SyntaxError("floor division is not supported")
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "int":
+            raise SyntaxError("int() is not supported")
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if (
+                node.func.id in _QUANTIFIERS
+                and len(node.args) == 1
+                and isinstance(node.args[0], (ast.GeneratorExp, ast.ListComp))
+                and isinstance(node.args[0].elt, ast.Constant)
+                and isinstance(node.args[0].elt.value, bool)
+            ):
+                raise SyntaxError("a quantifier requires a condition")
+        if not isinstance(node, ast.Compare):
+            continue
+        left = node.left
+        for op, right in zip(node.ops, node.comparators):
+            if isinstance(op, (ast.Is, ast.IsNot)) and not (
+                _is_none_literal(left) or _is_none_literal(right)
+            ):
+                raise SyntaxError("identity comparison is only supported with None")
+            if _is_datetime_expression(left):
+                _validate_datetime_literals(right)
+            if _is_datetime_expression(right):
+                _validate_datetime_literals(left)
+            left = right
+
+
+def _is_datetime_expression(node: ast.expr) -> bool:
+    if isinstance(node, ast.Name):
+        return node.id in _DATETIME_FIELDS
+    if isinstance(node, ast.Attribute):
+        return node.attr in _DATETIME_FIELDS
+    return bool(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in ("max", "min")
+        and len(node.args) == 1
+        and isinstance(node.args[0], (ast.GeneratorExp, ast.ListComp))
+        and _is_datetime_expression(node.args[0].elt)
+    )
+
+
+def _validate_datetime_literals(node: ast.expr) -> None:
+    values = node.elts if isinstance(node, (ast.List, ast.Tuple)) else (node,)
+    for value in values:
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            _parse_datetime_literal(value.value)
+
+
 def _contains(haystack: Any, needle: Any) -> bool:
     if isinstance(haystack, (list, tuple)):
         return needle in haystack
@@ -679,9 +733,12 @@ def _uppercase(value: Any) -> Any:
 
 
 def _parse_datetime_literal(value: str) -> datetime:
-    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise SyntaxError(f"invalid datetime literal: {value!r}") from error
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise SyntaxError(f"datetime literal {value!r} has no timezone")
     return parsed.astimezone(timezone.utc)
 
 
