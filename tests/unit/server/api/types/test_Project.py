@@ -2948,9 +2948,7 @@ class TestProject:
             _orphan_spans.spans,
             orphan_span_as_root_span,
         )
-        filtered_spans = [
-            span for span in root_spans if "2" in span.attributes["input"]["value"]
-        ]
+        filtered_spans = [span for span in root_spans if "2" in span.attributes["input"]["value"]]
 
         # Sort spans by start time and ID
         sorted_spans = sorted(filtered_spans, key=lambda t: (t.start_time, t.id), reverse=True)
@@ -3158,8 +3156,7 @@ class TestProject:
         # The boolean arguments additionally choose one representative per trace,
         # so applying the filter to that view is the intersection of both scopes.
         flag_only_res = await self._node(
-            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100)"
-            "{edges{node{id}}}",
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
             project,
             httpx_client,
         )
