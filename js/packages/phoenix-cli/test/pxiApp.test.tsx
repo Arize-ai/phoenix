@@ -1225,17 +1225,29 @@ describe("PXI app", () => {
   });
 
   it("browses and restores a persisted session", async () => {
-    const restoredMessage: PxiMessage = {
+    const restoredUserMessage: PxiMessage = {
       id: "restored-user",
       role: "user",
       parts: [{ type: "text", text: "restored conversation" }],
+    };
+    const restoredInterruptedMessage: PxiMessage = {
+      id: "restored-assistant",
+      role: "assistant",
+      parts: [{ type: "text", text: "partial response", state: "done" }],
+      metadata: {
+        phoenix: {
+          type: "assistant",
+          sessionId: "session-2",
+          interrupted: true,
+        },
+      },
     };
     const getSession = vi.fn(async ({ sessionId }: { sessionId: string }) => ({
       id: sessionId,
       title: "Second session",
       updatedAt: "2026-07-24T12:00:00Z",
       isTemporary: false,
-      messages: [restoredMessage],
+      messages: [restoredUserMessage, restoredInterruptedMessage],
       // Differs from the --provider/--model flags so restoring writes the
       // flag model instead of resolving against the server catalog.
       model: {
@@ -1291,8 +1303,11 @@ describe("PXI app", () => {
     await act(async () => Promise.resolve());
 
     expect(getSession).toHaveBeenCalledWith({ sessionId: "session-2" });
-    expect(stripAnsi(lastFrame() ?? "")).toContain("restored conversation");
-    expect(stripAnsi(lastFrame() ?? "")).toContain("session: Second session");
+    const restoredFrame = stripAnsi(lastFrame() ?? "");
+    expect(restoredFrame).toContain("restored conversation");
+    expect(restoredFrame).toContain("partial response");
+    expect(restoredFrame).toContain("── Response interrupted ──");
+    expect(restoredFrame).toContain("session: Second session");
     unmount();
   });
 
