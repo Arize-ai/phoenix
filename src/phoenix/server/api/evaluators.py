@@ -62,6 +62,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.monty_runtime import MontyServiceError
+from phoenix.server.online_eval.bound_variables import BOUND_VARIABLE_NAMES
 from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.sandbox import (  # noqa: E402
     MissingSecretError,
@@ -2470,7 +2471,16 @@ def _make_object_input_schema(
     }
 
 
-_SUPPORTED_CODE_EVALUATOR_INPUT_NAMES = ("output", "reference", "input", "metadata")
+# Schema inference has no grain, so a code evaluator may declare any bound
+# variable name; one that does not exist at the grain it is attached to is
+# reported when the evaluation runs.
+_SUPPORTED_CODE_EVALUATOR_INPUT_NAMES = (
+    "output",
+    "reference",
+    "input",
+    "metadata",
+    *sorted(BOUND_VARIABLE_NAMES),
+)
 
 
 def _validate_code_evaluator_input_names(
