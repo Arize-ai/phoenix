@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import Table, func, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import live_eval_session_work_index_predicate
 from phoenix.db.types.identifier import Identifier
@@ -106,6 +107,23 @@ async def test_database_now_uses_statement_time(
 
     statement = session.scalar.await_args.args[0]
     assert expected_clock in str(statement)
+
+
+async def test_criteria_on_the_evaluators_project_are_not_loaded(db: DbSessionFactory) -> None:
+    """The session half of the feedback-loop guard.
+
+    Creation refuses criteria on the evaluators project, but a project that predates
+    the reservation can already carry them — the sweep load is the layer that keeps
+    those from evaluating the evaluators' own traces.
+    """
+    async with db() as session:
+        evaluators_project = await _add_project(session, name=EVALUATORS_PROJECT_NAME)
+    await _seed_criteria(db, evaluators_project.id, evaluation_target="SESSION")
+
+    sweeper = SessionEvalSweeper(db)
+
+    async with db() as session:
+        assert await sweeper._load_criteria(session) == []
 
 
 async def test_materialization_rechecks_eligibility_at_write_time(
