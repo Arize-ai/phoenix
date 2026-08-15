@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c6661a06ef57ebf69d0f72d354859e78>>
+ * @generated SignedSource<<f431ee1d1db168b5511b5f699eaab375>>
  * @lightSyntaxTransform
  */
 
@@ -204,6 +204,11 @@ return {
       "name": "first"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "projectEvaluatorId"
+    },
+    {
       "defaultValue": true,
       "kind": "LocalArgument",
       "name": "rootSpansOnly"
@@ -282,6 +287,11 @@ return {
           "kind": "Variable",
           "name": "filterCondition",
           "variableName": "filterCondition"
+        },
+        {
+          "kind": "Variable",
+          "name": "projectEvaluatorId",
+          "variableName": "projectEvaluatorId"
         },
         {
           "kind": "Variable",
@@ -634,6 +644,6 @@ return {
 };
 })();
 
-(node as any).hash = "170311ad8e4ffb461895c59f263619ae";
+(node as any).hash = "08cb08eeea4fe1ec57e87268be24ccdb";
 
 export default node;
