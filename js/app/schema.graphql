@@ -3443,6 +3443,11 @@ type ProjectSession implements Node {
   sessionEvaluationContext: JSON
 
   """
+  Values an online evaluator running on this session binds by variable name when its input mapping leaves that name unmapped.
+  """
+  sessionEvaluationBoundVariables: JSON!
+
+  """
   The first non-null "user.id" span attribute in the session, identifying the end user of the traced application.
   """
   userId: String
@@ -4487,6 +4492,11 @@ type Span implements Node {
   The canonical input, output, and metadata context that online evaluators bind against when they run on this span.
   """
   evaluationContext: JSON!
+
+  """
+  Values an online evaluator running on this span binds by variable name when its input mapping leaves that name unmapped.
+  """
+  evaluationBoundVariables: JSON!
 
   """Span attributes as a JSON string"""
   attributes: String!

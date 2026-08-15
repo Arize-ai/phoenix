@@ -199,6 +199,29 @@ class ProjectSession(Node):
         return JSON(context)
 
     @strawberry.field(
+        description=(
+            "Values an online evaluator running on this session binds by "
+            "variable name when its input mapping leaves that name unmapped."
+        ),
+    )  # type: ignore
+    async def session_evaluation_bound_variables(
+        self,
+        info: Info[Context, None],
+    ) -> JSON:
+        from phoenix.server.online_eval.bound_variables import (
+            SESSION_BOUND_VARIABLE_NAMES,
+            load_session_bound_variables,
+        )
+
+        async with info.context.db.read() as session:
+            resolved = await load_session_bound_variables(
+                session,
+                project_session_rowids=[self.id],
+                names=SESSION_BOUND_VARIABLE_NAMES,
+            )
+        return JSON(resolved[self.id])
+
+    @strawberry.field(
         description='The first non-null "user.id" span attribute in the session, '
         "identifying the end user of the traced application.",
     )  # type: ignore

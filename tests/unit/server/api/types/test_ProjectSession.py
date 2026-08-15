@@ -10,6 +10,7 @@ from phoenix.db import models
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.online_eval.bound_variables import SESSION_BOUND_VARIABLE_NAMES
 from phoenix.server.online_eval.session_policy import (
     MAX_SESSION_EVAL_TURNS,
     TRANSCRIPT_POLICY_VERSION,
@@ -317,6 +318,37 @@ class TestProjectSession:
         # Decided per evaluator at hydration time and recorded on the
         # annotation, so it is not part of the context an author previews.
         assert "structured_turns_mapped" not in policy
+        assert context["session"] == {
+            "session_id": project_session.session_id,
+            "start_time": project_session.start_time.isoformat(),
+            "end_time": project_session.end_time.isoformat(),
+            "duration_ms": 0.0,
+            "turns": context["metadata"]["turns"],
+        }
+
+    async def test_session_evaluation_bound_variables(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project_session = _data.project_sessions[0]
+        bound_variables = await self._node(
+            "sessionEvaluationBoundVariables", project_session, httpx_client
+        )
+        assert set(bound_variables) == set(SESSION_BOUND_VARIABLE_NAMES)
+        assert bound_variables["session_id"] == project_session.session_id
+        assert bound_variables["duration_ms"] == 0.0
+        assert bound_variables["first_input"] == _LONG_FIRST_INPUT
+        assert bound_variables["last_output"] == _LONG_LAST_OUTPUT
+        assert bound_variables["num_traces"] == 2
+        assert bound_variables["num_traces_with_error"] == 1
+        assert bound_variables["token_count_prompt"] == 4
+        assert bound_variables["token_count_completion"] == 6
+        assert bound_variables["token_count_total"] == 10
+        assert bound_variables["llm_span_count"] == 2
+        assert bound_variables["tool_span_count"] == 0
+        assert bound_variables["total_cost"] == 0
+        assert bound_variables["user_id"] is None
 
     async def test_session_evaluation_context_is_null_when_transcript_exceeds_byte_cap(
         self,

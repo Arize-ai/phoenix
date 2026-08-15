@@ -52,6 +52,12 @@ from phoenix.server.dml_event import (
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
+from phoenix.server.online_eval.bound_variables import (
+    SESSION_BOUND_VARIABLE_NAMES,
+    SPAN_BOUND_VARIABLE_NAMES,
+    load_session_bound_variables,
+    span_bound_variables,
+)
 from phoenix.server.online_eval.consumer import (
     OnlineEvalConsumer,
 )
@@ -620,20 +626,38 @@ async def test_span_eval_context_nests_span_fields_under_metadata(
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace, attributes=attributes)
 
-        context = span_eval_context(span)
+        context = span_eval_context(span, trace_id=trace.trace_id)
 
-    assert set(context) == {"input", "output", "metadata"}
-    assert context == {
-        "input": "span input",
-        "output": "span output",
-        "metadata": {
-            "attributes": attributes,
-            "name": span.name,
-            "span_kind": "LLM",
-            "status_code": "OK",
-            "status_message": "test_status_message",
-        },
+    assert set(context) == {"input", "output", "metadata", "span"}
+    assert context["input"] == "span input"
+    assert context["output"] == "span output"
+    assert context["metadata"] == {
+        "attributes": attributes,
+        "name": span.name,
+        "span_kind": "LLM",
+        "status_code": "OK",
+        "status_message": "test_status_message",
     }
+    assert context["span"] == {
+        "span_id": span.span_id,
+        "trace_id": trace.trace_id,
+        "parent_id": None,
+        "name": span.name,
+        "span_kind": "LLM",
+        "status_code": "OK",
+        "status_message": "test_status_message",
+        "latency_ms": span.latency_ms,
+        "start_time": span.start_time.isoformat(),
+        "end_time": span.end_time.isoformat(),
+        "cumulative_llm_token_count_prompt": 0,
+        "cumulative_llm_token_count_completion": 0,
+        "cumulative_llm_token_count_total": 0,
+        "input_value": "span input",
+        "output_value": "span output",
+        "attributes": attributes,
+        "events": [],
+    }
+    assert set(span_bound_variables(context["span"])) == SPAN_BOUND_VARIABLE_NAMES
 
 
 async def _session_annotations(
@@ -782,7 +806,23 @@ def _transcript_policy(
     )
 
 
+def _unsaved_project_session(
+    *,
+    session_id: str = "session-under-test",
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+) -> models.ProjectSession:
+    start_time = start_time or datetime.now(timezone.utc)
+    return models.ProjectSession(
+        session_id=session_id,
+        project_id=1,
+        start_time=start_time,
+        end_time=end_time or (start_time + timedelta(seconds=2)),
+    )
+
+
 def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> None:
+    project_session = _unsaved_project_session()
     turns = [
         {
             "input": f"question-{index}-" + "🙂" * 40,
@@ -797,11 +837,19 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     )
 
     context = session_eval_context(
+        project_session=project_session,
         turns=turns,
         policy=_transcript_policy(len(expected_transcript.encode("utf-8"))),
     )
 
-    assert set(context) == {"input", "output", "metadata"}
+    assert set(context) == {"input", "output", "metadata", "session"}
+    assert context["session"] == {
+        "session_id": project_session.session_id,
+        "start_time": project_session.start_time.isoformat(),
+        "end_time": project_session.end_time.isoformat(),
+        "duration_ms": 2000.0,
+        "turns": turns,
+    }
     assert context["input"] == expected_transcript
     assert len(context["input"].encode("utf-8")) <= len(expected_transcript.encode("utf-8"))
     assert context["output"] == turns[-1]["output"]
@@ -817,6 +865,7 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     omitted_transcript = f"User: {omitted_turn['input']}\nAssistant: {omitted_turn['output']}"
     with pytest.raises(TranscriptTooLargeError) as exc_info:
         session_eval_context(
+            project_session=project_session,
             turns=[omitted_turn],
             policy=_transcript_policy(256),
         )
@@ -827,6 +876,7 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     assert "Raise" in error
 
     null_values = session_eval_context(
+        project_session=project_session,
         turns=[{"input": None, "output": None, "metadata": {"raw": True}}],
         policy=_transcript_policy(256),
     )
@@ -837,12 +887,218 @@ def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> No
     ]
 
     empty = session_eval_context(
+        project_session=project_session,
         turns=[],
         policy=_transcript_policy(256),
     )
     assert empty["input"] == ""
     assert empty["output"] == ""
     assert empty["metadata"]["turns"] == []
+
+
+async def test_load_session_bound_variables_reads_filter_language_values(
+    db: DbSessionFactory,
+) -> None:
+    start_time = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(
+            session,
+            project,
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=3),
+        )
+        first_trace = await _add_trace(session, project, project_session, start_time=start_time)
+        await _add_span(
+            session,
+            first_trace,
+            attributes={
+                "input": {"value": "first question"},
+                "output": {"value": "first answer"},
+                "user": {"id": "user-7"},
+            },
+            llm_token_count_prompt=1,
+            llm_token_count_completion=2,
+        )
+        second_trace = await _add_trace(
+            session,
+            project,
+            project_session,
+            start_time=start_time + timedelta(seconds=1),
+        )
+        await _add_span(
+            session,
+            second_trace,
+            attributes={
+                "input": {"value": "second question"},
+                "output": {"value": "second answer"},
+            },
+            llm_token_count_prompt=3,
+            llm_token_count_completion=4,
+            cumulative_error_count=1,
+        )
+        empty_session = await _add_project_session(session, project, start_time=start_time)
+
+    async with db() as session:
+        resolved = await load_session_bound_variables(
+            session,
+            project_session_rowids=[project_session.id, empty_session.id],
+            names=SESSION_BOUND_VARIABLE_NAMES,
+        )
+
+    populated = resolved[project_session.id]
+    assert set(populated) == set(SESSION_BOUND_VARIABLE_NAMES)
+    assert populated["session_id"] == project_session.session_id
+    assert populated["duration_ms"] == 3000.0
+    assert populated["first_input"] == "first question"
+    assert populated["last_output"] == "second answer"
+    assert populated["user_id"] == "user-7"
+    assert populated["num_traces"] == 2
+    assert populated["num_traces_with_error"] == 1
+    assert populated["token_count_prompt"] == 4
+    assert populated["token_count_completion"] == 6
+    assert populated["token_count_total"] == 10
+    assert populated["llm_span_count"] == 2
+    assert populated["tool_span_count"] == 0
+    # A session with nothing to aggregate reads zero, as it does in a filter.
+    assert resolved[empty_session.id]["num_traces"] == 0
+    assert resolved[empty_session.id]["first_input"] is None
+
+
+async def test_span_entity_root_path_mapping_binds_attribute(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"llm": {"model_name": "gpt-4o-mini"}},
+        )
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        template_content="Model: {{input}}",
+        criteria_input_mapping=InputMapping(
+            path_mapping={"input": "span.attributes.llm.model_name"},
+            literal_mapping={},
+        ),
+    )
+    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    await consumer._cycle()
+
+    assert len(client.requests) == 1
+    assert client.requests[0]["messages"][0]["content"] == "Model: gpt-4o-mini"
+    assert len(await _annotations(db)) == 1
+
+
+async def test_span_bound_variable_binds_without_input_mapping(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    start_time = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=2),
+        )
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        template_content="Latency: {{latency_ms}}",
+    )
+    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    await consumer._cycle()
+
+    assert len(client.requests) == 1
+    assert client.requests[0]["messages"][0]["content"] == "Latency: 2000.0"
+    assert len(await _annotations(db)) == 1
+
+
+async def test_session_bound_variable_binds_without_input_mapping(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+        template_content="Traces: {{num_traces}}",
+    )
+    await _materialize_session_unit(db, project_session.id, evaluator_id, criteria_id)
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    await consumer._cycle()
+
+    assert len(client.requests) == 1
+    assert client.requests[0]["messages"][0]["content"] == "Traces: 1"
+    assert len(await _session_annotations(db)) == 1
+
+
+async def test_session_entity_turns_path_records_structured_turns_mapped(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+        template_content="First turn: {{question}}",
+        criteria_input_mapping=InputMapping(
+            path_mapping={"question": "session.turns[0].input"},
+            literal_mapping={},
+        ),
+    )
+    await _materialize_session_unit(db, project_session.id, evaluator_id, criteria_id)
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    await consumer._cycle()
+
+    assert len(client.requests) == 1
+    assert client.requests[0]["messages"][0]["content"] == "First turn: hi"
+    (annotation,) = await _session_annotations(db)
+    policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
+    assert policy["structured_turns_mapped"] is True
 
 
 async def test_happy_path_claims_evaluates_annotates_and_completes(
