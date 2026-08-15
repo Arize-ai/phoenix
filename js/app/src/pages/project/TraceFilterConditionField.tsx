@@ -179,7 +179,7 @@ function getExamplePredicate(iterableName: string): string {
 }
 
 function getCompletionOption(term: TraceFilterVocabularyTerm): Completion {
-  return {
+  const completion: Completion = {
     label: term.name,
     type: "variable",
     // `detail` renders right-aligned in the dropdown; the category is
@@ -188,6 +188,9 @@ function getCompletionOption(term: TraceFilterVocabularyTerm): Completion {
     info: term.description,
     section: vocabularyCategorySections[term.category],
   };
+  return term.name === "attributes[...]"
+    ? snippetCompletion('attributes["${key}"]', completion)
+    : completion;
 }
 
 /**

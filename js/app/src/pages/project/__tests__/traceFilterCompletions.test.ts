@@ -1,3 +1,5 @@
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@uiw/react-codemirror";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,6 +9,12 @@ import {
 } from "../TraceFilterConditionField";
 
 const vocabulary: TraceFilterVocabularyTerm[] = [
+  {
+    name: "attributes[...]",
+    type: "string",
+    description: "Displayed-root attribute by key.",
+    category: "attribute",
+  },
   {
     name: "spans",
     type: "iterable",
@@ -50,6 +58,21 @@ const vocabulary: TraceFilterVocabularyTerm[] = [
 
 const completionModel = buildTraceFilterCompletionModel(vocabulary);
 
+function applyCompletion(
+  completion: (typeof completionModel.completions)[number]
+) {
+  const view = new EditorView({ state: EditorState.create() });
+  const apply = completion.apply ?? completion.label;
+  if (typeof apply === "string") {
+    view.dispatch({ changes: { from: 0, insert: apply } });
+  } else {
+    apply(view, completion, 0, 0);
+  }
+  const result = view.state.doc.toString();
+  view.destroy();
+  return result;
+}
+
 function getLabels({
   textBeforeCursor,
   textAfterCursor,
@@ -68,6 +91,14 @@ function getLabels({
 }
 
 describe("trace filter contextual completions", () => {
+  it("inserts an editable key for generic attributes", () => {
+    const completion = completionModel.completions.find(
+      ({ label }) => label === "attributes[...]"
+    );
+    expect(completion).toBeDefined();
+    expect(applyCompletion(completion!)).toBe('attributes["key"]');
+  });
+
   it("offers nested collections only in a nested for-clause target", () => {
     expect(
       getLabels({

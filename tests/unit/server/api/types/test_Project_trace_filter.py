@@ -9,6 +9,7 @@ from phoenix.db import models
 from phoenix.server.api.types import FilterVocabularyTerm as vocabulary_module
 from phoenix.server.api.types.FilterVocabularyTerm import trace_filter_vocabulary_terms
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.dsl import TraceFilter
 from phoenix.trace.dsl.trace_filter import TRACE_BINDINGS, TRACE_FILTER_DESCRIPTIONS
 from tests.unit._helpers import _add_project, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
@@ -572,3 +573,37 @@ def test_trace_filter_vocabulary_requires_descriptions(
 
     with pytest.raises(KeyError, match="trace_id"):
         trace_filter_vocabulary_terms()
+
+
+@pytest.mark.parametrize(
+    "term",
+    [
+        term
+        for term in trace_filter_vocabulary_terms(
+            annotation_names=("quality",),
+            root_span_attribute_paths=(("custom", "key"),),
+        )
+        if term.iterable_name is None
+    ],
+    ids=lambda term: term.name,
+)
+def test_trace_filter_top_level_vocabulary_completions_compile(
+    term: vocabulary_module.FilterVocabularyTerm,
+) -> None:
+    iterable_conditions = {
+        "spans": "any(span.name is not None for span in spans)",
+        "trace_annotations": (
+            "any(annotation.name is not None for annotation in trace_annotations)"
+        ),
+        "span_annotations": ("any(annotation.name is not None for annotation in span_annotations)"),
+        "span_cost_details": (
+            "any(cost_detail.tokens is not None for cost_detail in span_cost_details)"
+        ),
+    }
+    if term.type == "iterable":
+        condition = iterable_conditions[term.name]
+    else:
+        inserted_text = 'attributes["key"]' if term.name == "attributes[...]" else term.name
+        condition = f"{inserted_text} is None"
+
+    TraceFilter(condition)
