@@ -90,7 +90,7 @@ from phoenix.server.trace_filters import (
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
-from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
+from phoenix.trace.dsl.filter import root_span_scope
 
 logger = logging.getLogger(__name__)
 
@@ -646,13 +646,21 @@ class Project(Node):
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
                 lowering="probe",
+                orphan_span_as_root_span=bool(orphan_span_as_root_span),
             )
             stmt = stmt.where(models.Span.trace_rowid.in_(filtered_trace_rowids))
-        filter_root_scope: Optional[RootSpanScope] = None
+        if root_spans_only:
+            representative_root_spans = representative_root_span_by_trace(
+                project_rowids=[self.id],
+                orphan_span_as_root_span=bool(orphan_span_as_root_span),
+            ).subquery()
+            stmt = stmt.join(
+                representative_root_spans,
+                models.Span.id == representative_root_spans.c[TRACE_SPAN_ROWID],
+            )
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
-            filter_root_scope = span_filter.root_scope
         sort_config: Optional[SpanSortConfig] = None
         cursor_rowid_column: Any = models.Span.id
         if sort:
@@ -678,33 +686,6 @@ class Project(Node):
             else:
                 stmt = stmt.where(models.Span.id > cursor.rowid)
         stmt = stmt.order_by(cursor_rowid_column)
-        # The flag is redundant when the condition already restricts at least as
-        # narrowly, and applying both would add a second correlated subquery (plus,
-        # in the orphan-aware branch, a CTE over `spans`) selecting the same rows.
-        if (
-            root_spans_only
-            and filter_root_scope is not None
-            and (orphan_span_as_root_span or filter_root_scope == "strict")
-        ):
-            root_spans_only = False
-        if root_spans_only:
-            # A root span is either a span with no parent_id or an orphan span
-            # (a span whose parent_id references a span that doesn't exist in the database)
-            if orphan_span_as_root_span:
-                # Include both types of root spans
-                parent_spans = select(models.Span.span_id).alias("parent_spans")
-                candidate_spans = stmt.add_columns(models.Span.parent_id).cte("candidate_spans")
-                stmt = select(candidate_spans).where(
-                    or_(
-                        candidate_spans.c.parent_id.is_(None),
-                        ~select(1)
-                        .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
-                        .exists(),
-                    )
-                )
-            else:
-                # Only include explicit root spans (spans with parent_id = NULL)
-                stmt = stmt.where(models.Span.parent_id.is_(None))
         stmt = stmt.limit(
             first + 1  # overfetch by one to determine whether there's a next page
         )

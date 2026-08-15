@@ -74,6 +74,7 @@ def test_rowid_subquery_forwards_scope_and_lowering(
         end_time=end_time,
         candidate_trace_rowids=(3, 4),
         lowering="probe",
+        orphan_span_as_root_span=False,
     )
 
     assert actual is expected
@@ -83,4 +84,5 @@ def test_rowid_subquery_forwards_scope_and_lowering(
         end_time=end_time,
         candidate_trace_rowids=(3, 4),
         lowering="probe",
+        orphan_span_as_root_span=False,
     )

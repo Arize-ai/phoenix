@@ -57,6 +57,7 @@ def get_filtered_trace_rowids_subquery(
     end_time: Optional[datetime] = None,
     candidate_trace_rowids: Optional[Sequence[int]] = None,
     lowering: FilterLowering = "scan",
+    orphan_span_as_root_span: bool = True,
 ) -> ScalarSelect[int]:
     """Compile a trace filter expression into a subquery of matching trace rowids.
 
@@ -72,6 +73,7 @@ def get_filtered_trace_rowids_subquery(
             end_time=end_time,
             candidate_trace_rowids=candidate_trace_rowids,
             lowering=lowering,
+            orphan_span_as_root_span=orphan_span_as_root_span,
         )
 
 
