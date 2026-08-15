@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
@@ -8,27 +8,21 @@ import {
 import {
   Alert,
   Button,
-  Card,
-  DialogTrigger,
   Flex,
   Icon,
   IconButton,
   Icons,
-  Popover,
-  Skeleton,
   Text,
-  View,
 } from "@phoenix/components";
 import type { Annotation } from "@phoenix/components/annotation";
-import { AnnotationDetailsContent } from "@phoenix/components/annotation/AnnotationDetailsContent";
-import { getPositiveOptimization } from "@phoenix/components/annotation/optimizationUtils";
-import { JSONBlock } from "@phoenix/components/code";
 import type { CodeEvaluatorTestSectionMutation } from "@phoenix/components/evaluators/__generated__/CodeEvaluatorTestSectionMutation.graphql";
+import {
+  AnnotationPreviewCard,
+  AnnotationPreviewSkeletonCard,
+} from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
-import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -38,77 +32,6 @@ type EvaluationPreviewResult =
 
 type EvaluatorPreviewsOutput =
   CodeEvaluatorTestSectionMutation["response"]["evaluatorPreviews"];
-
-/**
- * Computes whether an annotation score represents a positive optimization result
- * by matching the annotation name to the corresponding output config.
- */
-function computePositiveOptimization({
-  annotationName,
-  score,
-  evaluatorName,
-  outputConfigs,
-}: {
-  annotationName: string;
-  score: number | null | undefined;
-  evaluatorName: string;
-  outputConfigs: AnnotationConfig[];
-}): boolean | null {
-  if (outputConfigs.length === 0) {
-    return null;
-  }
-
-  let matchedConfig: AnnotationConfig | undefined;
-  if (outputConfigs.length === 1) {
-    matchedConfig = outputConfigs[0];
-  } else {
-    // Multi-output: annotation name is "evaluatorName.configName"
-    const prefix = evaluatorName + ".";
-    if (annotationName.startsWith(prefix)) {
-      const configName = annotationName.slice(prefix.length);
-      matchedConfig = outputConfigs.find((c) => c.name === configName);
-    }
-  }
-
-  if (matchedConfig == null) {
-    return null;
-  }
-
-  const optimizationDirection =
-    matchedConfig.optimizationDirection === "MAXIMIZE" ||
-    matchedConfig.optimizationDirection === "MINIMIZE"
-      ? matchedConfig.optimizationDirection
-      : undefined;
-
-  let lowerBound: number | undefined;
-  let upperBound: number | undefined;
-  let threshold: number | undefined;
-
-  if ("values" in matchedConfig) {
-    const scores = matchedConfig.values
-      .map((v) => v.score)
-      .filter((s): s is number => s != null);
-    if (scores.length > 0) {
-      lowerBound = Math.min(...scores);
-      upperBound = Math.max(...scores);
-    }
-  } else if ("threshold" in matchedConfig) {
-    threshold = matchedConfig.threshold ?? undefined;
-    lowerBound = matchedConfig.lowerBound ?? undefined;
-    upperBound = matchedConfig.upperBound ?? undefined;
-  } else if ("lowerBound" in matchedConfig) {
-    lowerBound = matchedConfig.lowerBound ?? undefined;
-    upperBound = matchedConfig.upperBound ?? undefined;
-  }
-
-  return getPositiveOptimization({
-    score,
-    lowerBound,
-    upperBound,
-    threshold,
-    optimizationDirection,
-  });
-}
 
 function buildPreviewResults(
   response: CodeEvaluatorTestSectionMutation["response"]
@@ -229,7 +152,7 @@ export const CodeEvaluatorTestSection = ({
           input: {
             previews: [
               {
-                context: evaluatorMappingSource,
+                context: evaluatorMappingSource.source,
                 evaluator: {
                   inlineCodeEvaluator: {
                     name: evaluatorName,
@@ -313,21 +236,14 @@ export const CodeEvaluatorTestSection = ({
       {isShowingPreview && (
         <Flex direction="column" gap="size-100" marginBottom="size-100">
           {isLoading && (
-            <Card title="Evaluator Result">
-              <View padding="size-100">
-                <Flex direction="column" gap="size-100">
-                  <Skeleton height={100} borderRadius={8} animation="wave" />
-                  <Skeleton height={32} width="60%" animation="wave" />
-                </Flex>
-              </View>
-            </Card>
+            <AnnotationPreviewSkeletonCard title="Evaluator Result" />
           )}
           {previewResults.map((result, i) => (
             <Flex direction="column" gap="size-100" key={i} width="100%">
               {result.kind === "success" ? (
-                <Card
+                <AnnotationPreviewCard
                   title="Evaluator Result"
-                  width="100%"
+                  annotation={result.annotation}
                   extra={
                     <IconButton
                       aria-label="Dismiss evaluator result"
@@ -337,31 +253,7 @@ export const CodeEvaluatorTestSection = ({
                       <Icon svg={<Icons.Close />} />
                     </IconButton>
                   }
-                >
-                  <AnnotationPreviewJSONBlock annotation={result.annotation} />
-                  <View padding="size-100">
-                    <DialogTrigger>
-                      <ExperimentAnnotationButton
-                        annotation={result.annotation}
-                        positiveOptimization={
-                          computePositiveOptimization({
-                            annotationName: result.annotation.name,
-                            score: result.annotation.score,
-                            evaluatorName,
-                            outputConfigs,
-                          }) ?? undefined
-                        }
-                      />
-                      <Popover>
-                        <View padding="size-200">
-                          <AnnotationDetailsContent
-                            annotation={result.annotation}
-                          />
-                        </View>
-                      </Popover>
-                    </DialogTrigger>
-                  </View>
-                </Card>
+                />
               ) : (
                 <Alert
                   variant="danger"
@@ -407,17 +299,3 @@ export const CodeEvaluatorTestSection = ({
     </Flex>
   );
 };
-
-function AnnotationPreviewJSONBlock(props: { annotation: Annotation }) {
-  const { name, label, score, explanation } = props.annotation;
-  const jsonString = useMemo(() => {
-    return JSON.stringify({ name, label, score, explanation }, null, 2);
-  }, [explanation, label, name, score]);
-
-  return (
-    <JSONBlock
-      value={jsonString}
-      basicSetup={{ lineNumbers: false, foldGutter: false }}
-    />
-  );
-}

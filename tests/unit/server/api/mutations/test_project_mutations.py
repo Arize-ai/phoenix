@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
+from ...._helpers import _add_live_session_work_unit
 from ....graphql import AsyncGraphQLClient
 
 PATCH_PROJECT_MUTATION = """
@@ -131,6 +133,138 @@ class TestProjectMutations:
                 if i < n - 1:
                     session_obj = await session.get(models.ProjectSession, project_sessions[i].id)
                     assert session_obj is None, f"Session {i} should be deleted"
+
+    async def test_clear_project_keeps_session_spanning_end_time(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """A session with traces on both sides of end_time must keep its newer traces.
+
+        Trace.project_session_rowid cascades on delete, so deleting the session row would
+        take the retained traces with it.
+        """
+        base_start_time = datetime.now(timezone.utc)
+        end_time = base_start_time - timedelta(hours=12)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+
+            project_session = models.ProjectSession(
+                project_id=project.id,
+                session_id=token_hex(8),
+                start_time=base_start_time - timedelta(days=1),
+                end_time=base_start_time,
+            )
+            session.add(project_session)
+            await session.flush()
+
+            old_trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                start_time=base_start_time - timedelta(days=1),
+                end_time=base_start_time - timedelta(days=1) + timedelta(hours=1),
+                project_session_rowid=project_session.id,
+            )
+            new_trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                start_time=base_start_time,
+                end_time=base_start_time + timedelta(hours=1),
+                project_session_rowid=project_session.id,
+            )
+            session.add_all([old_trace, new_trace])
+            await session.flush()
+            project_id, session_rowid = project.id, project_session.id
+            old_trace_id, new_trace_id = old_trace.id, new_trace.id
+
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) {
+                    __typename
+                }
+            }
+            """,
+            variables={
+                "input": {
+                    "id": str(GlobalID("Project", str(project_id))),
+                    "endTime": end_time.isoformat(),
+                }
+            },
+        )
+        assert not result.errors
+
+        async with db() as session:
+            assert await session.get(models.Trace, old_trace_id) is None
+            assert await session.get(models.Trace, new_trace_id) is not None
+            assert await session.get(models.ProjectSession, session_rowid) is not None
+
+    async def test_clear_project_leaves_no_live_session_evaluations(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Clearing a project destroys session content, so no evaluation of that content
+        may stay live — whether the session row itself survives the clear or not.
+        """
+        cutoff = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                project_id=project.id,
+                session_id=token_hex(8),
+                start_time=cutoff - timedelta(hours=2),
+                end_time=cutoff + timedelta(hours=2),
+            )
+            session.add(project_session)
+            await session.flush()
+            for offset in (timedelta(hours=-1), timedelta(hours=1)):
+                session.add(
+                    models.Trace(
+                        project_rowid=project.id,
+                        trace_id=token_hex(16),
+                        start_time=cutoff + offset,
+                        end_time=cutoff + offset,
+                        project_session_rowid=project_session.id,
+                    )
+                )
+            await _add_live_session_work_unit(session, project_session)
+            project_id = project.id
+
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) {
+                    __typename
+                }
+            }
+            """,
+            variables={
+                "input": {
+                    "id": str(GlobalID("Project", str(project_id))),
+                    "endTime": cutoff.isoformat(),
+                }
+            },
+        )
+        assert not result.errors
+
+        async with db() as session:
+            statuses = list(
+                await session.scalars(
+                    select(models.EvalSessionWorkUnit.status)
+                    .join(
+                        models.ProjectSession,
+                        models.EvalSessionWorkUnit.project_session_rowid
+                        == models.ProjectSession.id,
+                    )
+                    .where(models.ProjectSession.project_id == project_id)
+                )
+            )
+        assert all(status == "EXPIRED" for status in statuses)
 
     async def test_create_project(
         self,

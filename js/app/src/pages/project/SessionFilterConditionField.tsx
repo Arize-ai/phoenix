@@ -1,6 +1,7 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
 import { snippetCompletion } from "@codemirror/autocomplete";
 import { useCallback, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   AIQueryDSLFilterField,
@@ -15,6 +16,7 @@ import {
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
+import type { SessionFilterConditionFieldVocabularyQuery } from "./__generated__/SessionFilterConditionFieldVocabularyQuery.graphql";
 import {
   getSessionFilterLoopVariable,
   sessionFilterAIQueryDSL,
@@ -180,16 +182,90 @@ const sessionFilterAIQuery: DSLFilterAIQueryProps = {
   dsl: sessionFilterAIQueryDSL,
 };
 
+/** A project whose vocabulary has not loaded still filters, without typeahead. */
+export const EMPTY_SESSION_FILTER_VOCABULARY: readonly SessionFilterVocabularyTerm[] =
+  [];
+
+/**
+ * The project's session-filter autocomplete vocabulary. Suspends: the resolver
+ * scans annotation names and root-span attributes, so callers render the field
+ * with {@link EMPTY_SESSION_FILTER_VOCABULARY} until it arrives.
+ */
+export function useSessionFilterVocabulary(
+  projectId: string
+): readonly SessionFilterVocabularyTerm[] {
+  const data = useLazyLoadQuery<SessionFilterConditionFieldVocabularyQuery>(
+    graphql`
+      query SessionFilterConditionFieldVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+  );
+}
+
+/**
+ * Requires `SessionFiltersProvider`/`TracingProvider`; use
+ * {@link SessionFilterConditionFieldCore} outside them.
+ */
 export function SessionFilterConditionField(
   props: SessionFilterConditionFieldProps
 ) {
-  const {
-    onValidCondition,
-    vocabulary,
-    placeholder = "filter condition (e.g. num_traces >= 5)",
-  } = props;
+  const { onValidCondition, vocabulary, placeholder } = props;
   const { filterCondition, setFilterCondition } = useSessionFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  return (
+    <SessionFilterConditionFieldCore
+      projectId={projectId}
+      vocabulary={vocabulary}
+      filterCondition={filterCondition}
+      onFilterConditionChange={setFilterCondition}
+      onValidCondition={onValidCondition}
+      placeholder={placeholder}
+    />
+  );
+}
+
+export type SessionFilterConditionFieldCoreProps = {
+  projectId: string;
+  vocabulary: readonly SessionFilterVocabularyTerm[];
+  filterCondition: string;
+  onFilterConditionChange: (condition: string) => void;
+  onValidCondition: (condition: string) => void;
+  /** An empty condition reports as valid (unfiltered). */
+  onValidityChange?: (isValid: boolean) => void;
+  placeholder?: string;
+};
+
+/**
+ * Takes all filter state as props, so it can mount outside
+ * `SessionFiltersProvider`/`TracingProvider`.
+ */
+export function SessionFilterConditionFieldCore(
+  props: SessionFilterConditionFieldCoreProps
+) {
+  const {
+    projectId,
+    vocabulary,
+    filterCondition,
+    onFilterConditionChange,
+    onValidCondition,
+    onValidityChange,
+    placeholder = "filter condition (e.g. num_traces >= 5)",
+  } = props;
 
   // Element fields are split out of the top-level vocabulary: offering
   // `latency_ms` bare would complete a condition the compiler rejects, since
@@ -299,7 +375,7 @@ export function SessionFilterConditionField(
       aria-label="Filter sessions"
       className="session-filter-condition-field"
       value={filterCondition}
-      onChange={setFilterCondition}
+      onChange={onFilterConditionChange}
       placeholder={placeholder}
       completions={completions}
       snippets={sessionFilterSnippets}
@@ -308,6 +384,7 @@ export function SessionFilterConditionField(
       getErrorRange={findDSLFilterComprehensionRange}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      onValidationStateChange={onValidityChange}
       aiQuery={sessionFilterAIQuery}
     />
   );

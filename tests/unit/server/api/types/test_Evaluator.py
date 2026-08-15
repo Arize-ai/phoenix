@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, AsyncIterator
 
@@ -5,7 +6,9 @@ import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -22,7 +25,12 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
-from phoenix.server.api.types.Evaluator import BuiltInEvaluator, DatasetEvaluator, LLMEvaluator
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
+    DatasetEvaluator,
+    LLMEvaluator,
+)
+from phoenix.server.online_eval.derivation import STALE_FINGERPRINT_ERROR
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -107,6 +115,31 @@ class TestEvaluatorFields:
             session.add_all([de_1, de_2])
             await session.flush()
 
+            # Project evaluator associations for the untagged evaluator
+            project_a = models.Project(name=f"project-a-{token_hex(4)}")
+            project_b = models.Project(name=f"project-b-{token_hex(4)}")
+            session.add_all([project_a, project_b])
+            await session.flush()
+
+            criteria_1 = models.ProjectEvaluatorCriteria(
+                project_id=project_a.id,
+                evaluator_id=untagged.id,
+                name=Identifier("criteria_one"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+            )
+            criteria_2 = models.ProjectEvaluatorCriteria(
+                project_id=project_b.id,
+                evaluator_id=untagged.id,
+                name=Identifier("criteria_two"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+            )
+            session.add_all([criteria_1, criteria_2])
+            await session.flush()
+
         ids = {
             "prompt": prompt.id,
             "v1": v1.id,
@@ -116,6 +149,8 @@ class TestEvaluatorFields:
             "tagged": tagged.id,
             "de_1": de_1.id,
             "de_2": de_2.id,
+            "project_a": project_a.id,
+            "project_b": project_b.id,
         }
         yield ids
 
@@ -201,6 +236,102 @@ class TestEvaluatorFields:
         )
         assert not resp.errors and resp.data
         assert resp.data["node"]["datasetEvaluators"] == []
+
+    async def test_projects_field(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """Test Evaluator.projects returns projects associated via project evaluator criteria."""
+        # Untagged evaluator is attached to two projects as a project evaluator
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on Evaluator {
+                        projects(first: 10) {
+                            edges { node { id name } }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["untagged"])))},
+        )
+        assert not resp.errors and resp.data
+        projects = [edge["node"] for edge in resp.data["node"]["projects"]["edges"]]
+        returned_ids = [project["id"] for project in projects]
+        # Sorted by project name ascending: project-a before project-b
+        assert returned_ids == [
+            str(GlobalID("Project", str(_test_data["project_a"]))),
+            str(GlobalID("Project", str(_test_data["project_b"]))),
+        ]
+
+        # Tagged evaluator is not attached to any project
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on Evaluator {
+                        projects(first: 10) {
+                            edges { node { id } }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(LLMEvaluator.__name__, str(_test_data["tagged"])))},
+        )
+        assert not resp.errors and resp.data
+        assert resp.data["node"]["projects"]["edges"] == []
+
+
+async def test_project_evaluator_scheduling_fields(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"criteria-{token_hex(4)}"),
+            evaluation_target="SESSION",
+            filter_condition="span_kind == 'LLM'",
+            sampling_rate=1.0,
+            evaluation_delay_seconds=45,
+        )
+        session.add(criteria)
+        await session.flush()
+        project_id = project.id
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on Project {
+                    evaluators {
+                        edges {
+                            node {
+                                evaluationDelaySeconds
+                                schedulabilityStatus
+                                schedulabilityReason
+                            }
+                        }
+                    }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("Project", str(project_id)))},
+    )
+
+    assert not response.errors and response.data
+    edges = response.data["node"]["evaluators"]["edges"]
+    assert [edge["node"]["evaluationDelaySeconds"] for edge in edges] == [45]
+    assert [edge["node"]["schedulabilityStatus"] for edge in edges] == ["SCHEDULABLE"]
+    assert [edge["node"]["schedulabilityReason"] for edge in edges] == [None]
 
 
 class TestDatasetEvaluatorDescriptionFallback:
@@ -1465,3 +1596,552 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
         looked_up = ce["version"]
         assert looked_up["id"] == v1_gid
         assert looked_up["sequenceNumber"] == 1
+
+
+class TestCodeEvaluatorOutputConfigs:
+    """Stored code-evaluator output configs must survive the GraphQL read path.
+
+    Stored configs deserialize as base annotation-config models, so a naive
+    isinstance filter against the OutputConfig subclasses silently drops every
+    config (regression: the resolver returned [] and the frontend lost
+    coloring metadata for attached code evaluators).
+    """
+
+    async def test_stored_output_configs_resolve_over_graphql(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        from phoenix.server.sandbox.sync import sync_languages
+
+        async with db() as session:
+            await sync_languages(session)
+            evaluator_row = models.CodeEvaluator(
+                name=Identifier(root=f"output-configs-{token_hex(4)}"),
+                metadata_={},
+                language="PYTHON",
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="score",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description=None,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    ),
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="verdict",
+                        optimization_direction=OptimizationDirection.MINIMIZE,
+                        description=None,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+            )
+            session.add(evaluator_row)
+            await session.flush()
+            evaluator_id = evaluator_row.id
+
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on CodeEvaluator {
+                        outputConfigs {
+                            __typename
+                            ... on ContinuousAnnotationConfig {
+                                name
+                                optimizationDirection
+                                lowerBound
+                                upperBound
+                            }
+                            ... on CategoricalAnnotationConfig {
+                                name
+                                optimizationDirection
+                                values { label score }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID("CodeEvaluator", str(evaluator_id)))},
+        )
+        assert not resp.errors and resp.data
+        output_configs = resp.data["node"]["outputConfigs"]
+        assert len(output_configs) == 2
+        continuous, categorical = output_configs
+        assert continuous["__typename"] == "ContinuousAnnotationConfig"
+        assert continuous["name"] == "score"
+        assert continuous["optimizationDirection"] == "MAXIMIZE"
+        assert continuous["lowerBound"] == 0.0
+        assert continuous["upperBound"] == 1.0
+        assert categorical["__typename"] == "CategoricalAnnotationConfig"
+        assert categorical["name"] == "verdict"
+        assert categorical["optimizationDirection"] == "MINIMIZE"
+        assert {v["label"] for v in categorical["values"]} == {"good", "bad"}
+
+
+async def test_project_evaluator_run_summary(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    now = datetime.now(timezone.utc)
+    fingerprint = token_hex(8)
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"criteria-{token_hex(4)}"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        trace = models.Trace(
+            trace_id=token_hex(8),
+            project_rowid=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        project_session = models.ProjectSession(
+            session_id=token_hex(8),
+            project_id=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add_all([criteria, trace, project_session])
+        await session.flush()
+        spans = [
+            models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                name=f"span-{index}",
+                span_kind="LLM",
+                start_time=now,
+                end_time=now,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            for index in range(6)
+        ]
+        session.add_all(spans)
+        await session.flush()
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=spans[0].id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    status="DONE",
+                    updated_at=now - timedelta(minutes=1),
+                ),
+                models.EvalWorkUnit(
+                    span_rowid=spans[1].id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    status="ERROR",
+                    attempts=MAX_ATTEMPTS,
+                    error="rate limited",
+                    updated_at=now - timedelta(minutes=10),
+                ),
+                models.EvalWorkUnit(
+                    span_rowid=spans[2].id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    status="PENDING",
+                    updated_at=now,
+                ),
+                models.EvalWorkUnit(
+                    span_rowid=spans[3].id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    status="EXPIRED",
+                    error=STALE_FINGERPRINT_ERROR,
+                    updated_at=now,
+                ),
+                # An error with attempts remaining is a retry in progress, not a
+                # failure — it must count as queued and must not surface its error.
+                models.EvalWorkUnit(
+                    span_rowid=spans[4].id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    status="ERROR",
+                    attempts=1,
+                    error="retrying rate limit",
+                    updated_at=now,
+                ),
+                # A non-stale expiry was given up on — it counts as failed and,
+                # being the newest failure, owns lastError.
+                models.EvalWorkUnit(
+                    span_rowid=spans[5].id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    status="EXPIRED",
+                    error="execution deadline exceeded",
+                    updated_at=now - timedelta(minutes=5),
+                ),
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    evaluated_through=now,
+                    status="DONE",
+                    updated_at=now - timedelta(minutes=2),
+                ),
+                # Expired because the session's traces were deleted before the
+                # evaluation ran — a lifecycle event outside every bucket.
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=token_hex(8),
+                    evaluated_through=now,
+                    status="EXPIRED",
+                    error=SESSION_CONTENT_INCOMPLETE_ERROR,
+                    updated_at=now,
+                ),
+            ]
+        )
+        await session.flush()
+        criteria_id = criteria.id
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    runSummary {
+                        status
+                        lastRunAt
+                        queuedCount
+                        evaluatedCount
+                        failedCount
+                        lastError
+                    }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("ProjectEvaluator", str(criteria_id)))},
+    )
+
+    assert not response.errors and response.data
+    run_summary = response.data["node"]["runSummary"]
+    assert run_summary["status"] == "HEALTHY"
+    assert run_summary["evaluatedCount"] == 2
+    # Given up on: the ERROR at MAX_ATTEMPTS and the non-stale EXPIRED. The
+    # stale-fingerprint and content-incomplete expiries fall outside every bucket.
+    assert run_summary["failedCount"] == 2
+    # Waiting: the PENDING unit and the ERROR with attempts remaining.
+    assert run_summary["queuedCount"] == 2
+    # The newest FAILED unit's error — not the retrying unit's, which is newer but
+    # not a failure, and not a lifecycle expiry's.
+    assert run_summary["lastError"] == "execution deadline exceeded"
+    assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
+
+
+async def test_project_evaluator_run_summary_reports_failing_when_failure_is_newest(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Failure newer than the last success wins the status — the direction that
+    matters for an evaluator that used to work and no longer does."""
+    now = datetime.now(timezone.utc)
+    fingerprint = token_hex(8)
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"criteria-{token_hex(4)}"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        trace = models.Trace(
+            trace_id=token_hex(8),
+            project_rowid=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add_all([criteria, trace])
+        await session.flush()
+        spans = [
+            models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                name=f"span-{index}",
+                span_kind="LLM",
+                start_time=now,
+                end_time=now,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            for index in range(2)
+        ]
+        session.add_all(spans)
+        await session.flush()
+        session.add_all(
+            [
+                models.EvalWorkUnit(
+                    span_rowid=spans[0].id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    status="DONE",
+                    updated_at=now - timedelta(minutes=10),
+                ),
+                models.EvalWorkUnit(
+                    span_rowid=spans[1].id,
+                    evaluator_id=evaluator.id,
+                    criteria_id=criteria.id,
+                    config_fingerprint=fingerprint,
+                    status="ERROR",
+                    attempts=MAX_ATTEMPTS,
+                    error="credentials expired",
+                    updated_at=now - timedelta(minutes=1),
+                ),
+            ]
+        )
+        await session.flush()
+        criteria_id = criteria.id
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    runSummary { status lastError }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("ProjectEvaluator", str(criteria_id)))},
+    )
+
+    assert not response.errors and response.data
+    run_summary = response.data["node"]["runSummary"]
+    assert run_summary["status"] == "FAILING"
+    assert run_summary["lastError"] == "credentials expired"
+
+
+async def test_project_evaluator_on_the_evaluators_project_is_not_schedulable(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A criteria row on the evaluators project — possible when the project predates
+    the name reservation — must report why the sweeps will never pick it up."""
+    async with db() as session:
+        evaluators_project = models.Project(name=EVALUATORS_PROJECT_NAME)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([evaluators_project, evaluator])
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=evaluators_project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"criteria-{token_hex(4)}"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+            enabled=True,
+        )
+        session.add(criteria)
+        await session.flush()
+        criteria_id = criteria.id
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    schedulabilityStatus
+                    schedulabilityReason
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("ProjectEvaluator", str(criteria_id)))},
+    )
+
+    assert not response.errors and response.data
+    node = response.data["node"]
+    assert node["schedulabilityStatus"] == "NOT_SCHEDULABLE"
+    assert node["schedulabilityReason"] == "TARGETS_EVALUATOR_TRACES"
+
+
+async def test_project_evaluator_trace_project_is_null_before_any_evaluator_runs(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        criteria = models.ProjectEvaluatorCriteria(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"criteria-{token_hex(4)}"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        session.add(criteria)
+        await session.flush()
+        criteria_id = criteria.id
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    traceProject { id }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("ProjectEvaluator", str(criteria_id)))},
+    )
+
+    assert not response.errors and response.data
+    assert response.data["node"]["traceProject"] is None
+
+
+async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluators_project = models.Project(name=EVALUATORS_PROJECT_NAME)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluators_project, evaluator])
+        await session.flush()
+        criteria = [
+            models.ProjectEvaluatorCriteria(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(f"criteria-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            for _ in range(2)
+        ]
+        trace = models.Trace(
+            trace_id=token_hex(8),
+            project_rowid=evaluators_project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add_all([*criteria, trace])
+        await session.flush()
+        criteria_ids = [c.id for c in criteria]
+        # One root span per evaluator, each stamped the way the evaluator tracer
+        # stamps it, plus a child so the root scoping is exercised too.
+        session.add_all(
+            [
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None if is_root else token_hex(8),
+                    name=f"Evaluator: {criteria_id}",
+                    span_kind="EVALUATOR",
+                    start_time=now,
+                    end_time=now,
+                    attributes={
+                        "phoenix": {
+                            "evaluator_trace": True,
+                            "project_evaluator_id": str(
+                                GlobalID("ProjectEvaluator", str(criteria_id))
+                            ),
+                        }
+                    },
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                for criteria_id in criteria_ids
+                for is_root in (True, False)
+            ]
+        )
+        await session.flush()
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    traceProject {
+                        name
+                        spans(
+                            first: 10
+                            projectEvaluatorId: $id
+                            filterCondition: "parent_id is None"
+                        ) {
+                            edges { node { name } }
+                        }
+                    }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("ProjectEvaluator", str(criteria_ids[0])))},
+    )
+
+    assert not response.errors and response.data
+    trace_project = response.data["node"]["traceProject"]
+    assert trace_project["name"] == EVALUATORS_PROJECT_NAME
+    assert [edge["node"]["name"] for edge in trace_project["spans"]["edges"]] == [
+        f"Evaluator: {criteria_ids[0]}"
+    ]

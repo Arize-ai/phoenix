@@ -4,13 +4,18 @@ import { useState } from "react";
 import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
 import {
+  DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { CodeEvaluatorForm } from "@phoenix/components/evaluators/CodeEvaluatorForm";
+import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
 export const EditBuiltInEvaluatorDialogContent = ({
@@ -47,19 +52,7 @@ export const EditBuiltInEvaluatorDialogContent = ({
             : "Edit Built-in Code Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
-          <Button slot="close" isDisabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button
-            data-testid="builtin-evaluator-form-submit-button"
-            data-mode={mode}
-            variant="primary"
-            isDisabled={isSubmitting}
-            isPending={isSubmitting}
-            onPress={handleSubmit}
-          >
-            {mode === "create" ? "Create" : "Update"}
-          </Button>
+          <DialogCloseButton isDisabled={isSubmitting} />
         </DialogTitleExtra>
       </DialogHeader>
       <fieldset
@@ -95,9 +88,32 @@ export const EditBuiltInEvaluatorDialogContent = ({
         <CodeEvaluatorInputVariablesProvider
           evaluatorInputSchema={evaluatorInputSchema}
         >
-          <EvaluatorForm />
+          <EvaluatorForm
+            left={
+              <>
+                <EvaluatorNameAndDescriptionFields />
+                <CodeEvaluatorForm />
+              </>
+            }
+            right={<EvaluatorDatasetTestPanel />}
+          />
         </CodeEvaluatorInputVariablesProvider>
       </fieldset>
+      <DialogFooter>
+        <Button slot="close" isDisabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button
+          data-testid="builtin-evaluator-form-submit-button"
+          data-mode={mode}
+          variant="primary"
+          isDisabled={isSubmitting}
+          isPending={isSubmitting}
+          onPress={handleSubmit}
+        >
+          {mode === "create" ? "Create" : "Update"}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 };

@@ -18,6 +18,13 @@ async function createProject(
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+// The evaluator slideovers are routes, so the test asserts on them. Each ends
+// in `(\?|$)` because project pages always carry a time-range search param.
+const EVALUATORS_URL = /\/projects\/[^/]+\/evaluators(\?|$)/;
+const NEW_LLM_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/new\/llm(\?|$)/;
+const EDIT_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/[^/]+\/edit(\?|$)/;
+const EVALUATOR_DETAILS_URL = /\/projects\/[^/]+\/evaluators\/[^/]+(\?|$)/;
+
 async function clickSortableHeaderAndExpect(
   header: Locator,
   direction: "ascending" | "descending"
@@ -186,6 +193,127 @@ test.describe.serial("Projects", () => {
     await expect(settingsCard.getByLabel("Description")).toHaveValue(
       "Updated description"
     );
+  });
+
+  test("can create, edit, and delete a span LLM evaluator", async ({
+    page,
+  }) => {
+    const evaluatorProjectName = `evaluator-project-${randomUUID().slice(0, 8)}`;
+    const evaluatorName = `span-evaluator-${randomUUID().slice(0, 8)}`;
+    const updatedEvaluatorName = `${evaluatorName}-updated`;
+    await createProject(
+      page,
+      evaluatorProjectName,
+      "Project evaluator lifecycle test"
+    );
+
+    const evaluatorsTab = page.getByRole("tab", { name: "Evaluators" });
+    await evaluatorsTab.click();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+
+    await expect(
+      page.getByText("No evaluators for this project")
+    ).toBeVisible();
+    await expect(
+      page.getByRole("table", { name: "Project evaluators" })
+    ).toHaveCount(0);
+    await expect(evaluatorsTab).toContainText("0");
+
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page
+      .getByRole("menuitem", { name: "Create new LLM evaluator" })
+      .click();
+
+    // The slideover is a route of its own, so it is linkable and closable with
+    // the browser's back button.
+    await expect(page).toHaveURL(NEW_LLM_EVALUATOR_URL);
+    const createDialog = page.getByRole("dialog", {
+      name: "Create new LLM evaluator",
+    });
+    await expect(createDialog).toBeVisible();
+    await expect(
+      createDialog.getByRole("tab", { name: "Bindings" })
+    ).toBeVisible();
+    await page.goBack();
+    await expect(createDialog).not.toBeVisible();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+    await page.goForward();
+    await expect(createDialog).toBeVisible();
+    // The annotation output has a "Name" field too; the evaluator's own name is
+    // the first one.
+    await createDialog.getByLabel("Name").first().fill(evaluatorName);
+    await createDialog
+      .getByRole("button", { name: "Create", exact: true })
+      .click();
+    await expect(createDialog).not.toBeVisible();
+
+    const table = page.getByRole("table", { name: "Project evaluators" });
+    const evaluatorRow = table
+      .getByRole("row")
+      .filter({ hasText: evaluatorName });
+    await expect(evaluatorRow).toBeVisible();
+    await expect(evaluatorsTab).toContainText("1");
+    // Exact, because the generated evaluator name contains "span" as a
+    // substring.
+    await expect(
+      evaluatorRow.getByRole("cell", { name: "Span", exact: true })
+    ).toBeVisible();
+    await expect(
+      evaluatorRow.getByRole("cell", { name: "100%" })
+    ).toBeVisible();
+
+    // The evaluator's name links to its read-only details page.
+    await evaluatorRow
+      .getByRole("link", { name: evaluatorName, exact: true })
+      .click();
+    await expect(page).toHaveURL(EVALUATOR_DETAILS_URL);
+    await expect(
+      page.getByRole("heading", { name: `Evaluator: ${evaluatorName}` })
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Scope" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Prompt" })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+
+    await evaluatorRow
+      .getByRole("button", { name: "Evaluator actions" })
+      .click();
+    await page.getByRole("menuitem", { name: "Edit" }).click();
+    await expect(page).toHaveURL(EDIT_EVALUATOR_URL);
+    const editDialog = page.getByRole("dialog", {
+      name: `Edit LLM evaluator “${evaluatorName}”`,
+    });
+    await expect(editDialog).toBeVisible();
+    await editDialog.getByLabel("Name").first().fill(updatedEvaluatorName);
+    await editDialog.getByRole("button", { name: "Update" }).click();
+    await expect(editDialog).not.toBeVisible();
+
+    // The edit slideover is nested under the details page, so saving lands on
+    // the details view showing the fresh name.
+    await expect(page).toHaveURL(EVALUATOR_DETAILS_URL);
+    await expect(
+      page.getByRole("heading", { name: `Evaluator: ${updatedEvaluatorName}` })
+    ).toBeVisible();
+
+    // Deletion lives on the list's row action menu, not the details page.
+    await page.goBack();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+    const updatedRow = table
+      .getByRole("row")
+      .filter({ hasText: updatedEvaluatorName });
+    await expect(updatedRow).toBeVisible();
+    await updatedRow.getByRole("button", { name: "Evaluator actions" }).click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    const deleteDialog = page.getByRole("dialog").filter({
+      has: page.getByRole("heading", { name: "Delete evaluator" }),
+    });
+    await expect(deleteDialog).toBeVisible();
+    await deleteDialog
+      .getByRole("button", { name: "Delete evaluator" })
+      .click();
+    await expect(deleteDialog).not.toBeVisible();
+    await expect(updatedRow).not.toBeVisible();
+    await expect(evaluatorsTab).toContainText("0");
   });
 
   test("project table remains usable after mutation workflows", async ({

@@ -19,6 +19,7 @@ import {
 } from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
+import { Counter } from "@phoenix/components/core/counter";
 import {
   ConnectedTimeRangeSelector,
   type TimeRangeISOStrings,
@@ -56,7 +57,7 @@ const mainCSS = css`
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    div[role="tablist"] {
+    > div[role="tablist"] {
       flex: none;
     }
     .tabs__pane-container {
@@ -94,7 +95,14 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
+const TABS = [
+  "spans",
+  "traces",
+  "sessions",
+  "config",
+  "metrics",
+  "evaluators",
+] as const;
 
 /**
  * Type guard for the tab path in the URL
@@ -109,6 +117,7 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   sessions: 2,
   metrics: 3,
   config: 4,
+  evaluators: 5,
 };
 
 const TAB_PATH_BY_INDEX = Object.fromEntries(
@@ -166,11 +175,13 @@ function ProjectPageContentBody({
 }) {
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
+  const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
+            evaluatorCount
             ...ProjectStats_project
             ...ProjectTimeRangeControls_data
           }
@@ -210,7 +221,6 @@ function ProjectPageContentBody({
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
   // React Router recreates this setter on every location change. The resolvers
   // below are handed to the filter field, whose validation effect keys on their
   // identity -- depending on the setter directly would revalidate on every URL
@@ -404,6 +414,12 @@ function ProjectPageContentBody({
             <Tab id="traces">Traces</Tab>
             <Tab id="sessions">Sessions</Tab>
             <Tab id="metrics">Metrics</Tab>
+            <Tab id="evaluators">
+              Evaluators{" "}
+              <Counter variant="quiet">
+                {data.project.evaluatorCount ?? 0}
+              </Counter>
+            </Tab>
             <Tab id="config">Config</Tab>
           </TabList>
           <LazyTabPanel padded={false} id="spans">
@@ -419,6 +435,9 @@ function ProjectPageContentBody({
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel padded={false} id="config">
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="evaluators">
             <Outlet />
           </LazyTabPanel>
         </Tabs>

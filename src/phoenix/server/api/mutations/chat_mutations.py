@@ -7,11 +7,13 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
+from phoenix.config import get_env_online_eval_max_sandbox_payload_bytes
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
     FreeformOutputConfig,
+    as_output_configs,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
@@ -51,6 +53,10 @@ from phoenix.server.monty_runtime import (
     MontyUnavailable,
     MontyWorkerCrashed,
     MontyWorkerTurnTimedOut,
+)
+from phoenix.server.online_eval.session_policy import (
+    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
+    SessionTranscriptPolicy,
 )
 from phoenix.server.sandbox import (
     MissingSecretError,
@@ -237,6 +243,14 @@ class ChatCompletionMutationMixin:
             evaluator_input = preview_item.evaluator
             context = cast(dict[str, Any], preview_item.context)
             input_mapping = preview_item.input_mapping
+            # Read from the server's configuration, never from the request: a
+            # preview that stands in for a scheduled run has to be rejected by
+            # the same caps, and a client-supplied cap would not be one.
+            max_message_bytes: Optional[int] = None
+            max_payload_bytes: Optional[int] = None
+            if preview_item.apply_online_evaluation_limits:
+                max_message_bytes = SessionTranscriptPolicy.from_env().max_llm_message_bytes
+                max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
 
             if evaluator_id := evaluator_input.built_in_evaluator_id:
                 type_name, db_id = from_global_id(evaluator_id)
@@ -300,6 +314,7 @@ class ChatCompletionMutationMixin:
                     output_configs=categorical_configs,
                     name=inline_llm_evaluator.name,
                     description=inline_llm_evaluator.description,
+                    max_message_bytes=max_message_bytes,
                 )
 
                 try:
@@ -378,18 +393,7 @@ class ChatCompletionMutationMixin:
                     evaluator_name = code_evaluator_record.name.root
                     evaluator_description = code_evaluator_record.description
                     evaluator_source_code = code_evaluator_version.source_code
-                    output_configs = [
-                        c
-                        for c in code_evaluator_record.output_configs
-                        if isinstance(
-                            c,
-                            (
-                                CategoricalOutputConfig,
-                                ContinuousOutputConfig,
-                                FreeformOutputConfig,
-                            ),
-                        )
-                    ]
+                    output_configs = as_output_configs(code_evaluator_record.output_configs)
 
                     if live_sandbox_config is not None:
                         try:
@@ -435,6 +439,8 @@ class ChatCompletionMutationMixin:
                         GlobalID("CodeEvaluatorVersion", str(code_evaluator_version.id))
                     ),
                     sandbox_session_manager=None,
+                    max_payload_bytes=max_payload_bytes,
+                    payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
                 )
                 eval_results = await _evaluate_code_preview(
                     runner,
@@ -491,6 +497,8 @@ class ChatCompletionMutationMixin:
                     language=language,
                     timeout=sandbox_timeout,
                     sandbox_session_manager=None,
+                    max_payload_bytes=max_payload_bytes,
+                    payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
                 )
                 eval_results = await _evaluate_code_preview(
                     runner,

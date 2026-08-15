@@ -1,5 +1,5 @@
 import strawberry
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, literal, not_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import load_only
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -9,6 +9,7 @@ from strawberry.types import Info
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.helpers import delete_traces, mark_session_content_incomplete
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict
@@ -76,24 +77,43 @@ class ProjectMutationMixin:
         project_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name="Project"
         )
-        delete_statement = (
-            delete(models.Trace)
-            .where(models.Trace.project_rowid == project_id)
-            .returning(models.Trace.project_session_rowid)
-        )
+        trace_filter = models.Trace.project_rowid == project_id
         if input.end_time:
-            delete_statement = delete_statement.where(models.Trace.start_time < input.end_time)
+            trace_filter = and_(trace_filter, models.Trace.start_time < input.end_time)
         async with info.context.db() as session:
-            deleted_trace_project_session_ids = await session.scalars(delete_statement)
             session_ids_to_delete = [
-                id_ for id_ in set(deleted_trace_project_session_ids) if id_ is not None
+                id_
+                for id_ in await session.scalars(
+                    select(models.Trace.project_session_rowid)
+                    .where(trace_filter, models.Trace.project_session_rowid.is_not(None))
+                    .distinct()
+                )
+                if id_ is not None
             ]
+            await delete_traces(session, trace_filter)
             # Process deletions in chunks of 10000 to avoid PostgreSQL argument limit
             chunk_size = 10000
             stmt = delete(models.ProjectSession)
             for i in range(0, len(session_ids_to_delete), chunk_size):
                 chunk = session_ids_to_delete[i : i + chunk_size]
-                await session.execute(stmt.where(models.ProjectSession.id.in_(chunk)))
+                # Belt and braces: delete_traces already stood these sessions down, and
+                # the CASCADE on EvalSessionWorkUnit.project_session_rowid removes their
+                # work rows with the session anyway.
+                await mark_session_content_incomplete(session, chunk)
+                await session.execute(
+                    stmt.where(
+                        and_(
+                            models.ProjectSession.id.in_(chunk),
+                            not_(
+                                select(literal(1))
+                                .where(
+                                    models.Trace.project_session_rowid == models.ProjectSession.id
+                                )
+                                .exists()
+                            ),
+                        )
+                    )
+                )
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
 

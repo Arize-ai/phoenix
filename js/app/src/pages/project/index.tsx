@@ -4,4 +4,7 @@ export * from "./ProjectSessionsPage";
 export * from "./ProjectSpansPage";
 export * from "./ProjectTracesPage";
 export * from "./projectLoader";
+export * from "./evaluators/ProjectEvaluatorsPage";
+export * from "./evaluators/projectEvaluatorsLoader";
+export * from "./evaluators/ProjectEvaluatorSlideoverRoutes";
 export * from "./metrics/ProjectMetricsPage";

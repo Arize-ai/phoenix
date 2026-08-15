@@ -1,6 +1,15 @@
-import { createEvaluatorStore } from "../evaluatorStore";
+import {
+  createEvaluatorStore,
+  SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  type EvaluatorStoreProps,
+} from "../evaluatorStore";
 
-const createFreeformStore = () =>
+const createFreeformStore = (
+  evaluatorMappingSourceState?: Pick<
+    EvaluatorStoreProps,
+    "evaluatorMappingSource"
+  >
+) =>
   createEvaluatorStore({
     evaluator: {
       kind: "CODE",
@@ -20,7 +29,122 @@ const createFreeformStore = () =>
         upperBound: null,
       },
     ],
+    ...evaluatorMappingSourceState,
   });
+
+describe("evaluatorStore mapping source grain", () => {
+  it("keeps dataset mapping sources including reference data", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "dataset",
+        source: {
+          input: { question: "What is Phoenix?" },
+          output: { answer: "An AI observability platform" },
+          reference: { answer: "An observability platform for AI" },
+          metadata: { category: "product" },
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "dataset",
+      source: {
+        input: { question: "What is Phoenix?" },
+        output: { answer: "An AI observability platform" },
+        reference: { answer: "An observability platform for AI" },
+        metadata: { category: "product" },
+      },
+    });
+  });
+
+  it("keeps span mapping sources limited to runtime context fields", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: { question: "What is Phoenix?" },
+          output: { answer: "An AI observability platform" },
+          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource.source).toEqual({
+      input: { question: "What is Phoenix?" },
+      output: { answer: "An AI observability platform" },
+      metadata: { attributes: { "openinference.span.kind": "LLM" } },
+    });
+    expect(store.getState().evaluator.inputMapping).toEqual({
+      literalMapping: {},
+      pathMapping: {},
+    });
+  });
+
+  it("keeps a recorded session context under the session grain", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "session",
+        source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      },
+    });
+
+    store.getState().setEvaluatorMappingSource({
+      input: "User: hi\nAssistant: hello",
+      output: "hello",
+      metadata: { turns: [{ input: "hi", output: "hello" }] },
+    });
+
+    // A dataset fallthrough would coerce input/output to objects and add
+    // `reference`, silently renaming what the evaluator binds against.
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "session",
+      source: {
+        input: "User: hi\nAssistant: hello",
+        output: "hello",
+        metadata: { turns: [{ input: "hi", output: "hello" }] },
+      },
+    });
+  });
+
+  it("resets the source to the new grain's default when the grain changes", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: "What is Phoenix?",
+          output: "An AI observability platform",
+          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+        },
+      },
+    });
+
+    store.getState().setEvaluatorMappingSourceGrain("session");
+
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "session",
+      source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+    });
+  });
+
+  it("preserves raw string and null span input/output verbatim", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: "What is Phoenix?",
+          output: null,
+          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource.source).toEqual({
+      input: "What is Phoenix?",
+      output: null,
+      metadata: { attributes: { "openinference.span.kind": "LLM" } },
+    });
+  });
+});
 
 describe("evaluatorStore bounds handlers", () => {
   it("setOutputConfigLowerBoundAtIndex updates lowerBound on the freeform config", () => {

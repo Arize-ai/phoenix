@@ -20,6 +20,13 @@ import {
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import type { ProjectEvaluatorDetailsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
+import {
+  PROJECT_EVALUATOR_DETAILS_ROUTE_ID,
+  ProjectEvaluatorTracePage,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
@@ -52,8 +59,10 @@ import type {
   SpanPlaygroundPageLoaderData,
 } from "./pages";
 import {
+  AttachCodeProjectEvaluatorPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
+  CopyLlmProjectEvaluatorPage,
   dashboardsLoader,
   DashboardsEmptyPage,
   DashboardsRoot,
@@ -63,6 +72,7 @@ import {
   DatasetsPage,
   datasetVersionsLoader,
   DatasetVersionsPage,
+  EditProjectEvaluatorPage,
   ErrorElement,
   ExamplePage,
   examplesLoader,
@@ -74,6 +84,8 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
+  NewCodeProjectEvaluatorPage,
+  NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
   PlaygroundPage,
   playgroundPageLoader,
@@ -83,6 +95,8 @@ import {
   ProfileGenerativeAIPage,
   ProfilePage,
   ProfilePreferencesPage,
+  ProjectEvaluatorsPage,
+  projectEvaluatorsLoader,
   ProjectIndexPage,
   projectLoader,
   ProjectMetricsPage,
@@ -448,6 +462,116 @@ export const appRouteObjects = createRoutesFromElements(
                   },
                 }}
               />
+              <Route
+                path="evaluators"
+                element={<ProjectEvaluatorsPage />}
+                loader={projectEvaluatorsLoader}
+                handle={{
+                  agentRoute: {
+                    label: "Project Evaluators",
+                    description:
+                      "Create and manage project evaluators — online evals that automatically run against live spans.",
+                  },
+                }}
+              >
+                <Route
+                  path="new/llm"
+                  element={<NewLlmProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "New Project LLM Evaluator",
+                      description:
+                        "Author a new LLM-as-a-judge evaluator for a project from scratch.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/code"
+                  element={<NewCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "New Project Code Evaluator",
+                      description:
+                        "Author a new Python or TypeScript code evaluator for a project from scratch.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/copy/:evaluatorId"
+                  element={<CopyLlmProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Copy LLM Evaluator Into Project",
+                      description:
+                        "Create a project evaluator seeded from an existing LLM evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/attach/:evaluatorId"
+                  element={<AttachCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Attach Code Evaluator To Project",
+                      description:
+                        "Attach an existing code evaluator to a project. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being attached.",
+                    },
+                  }}
+                />
+              </Route>
+            </Route>
+            {/* The evaluator details page is a full page rather than a tab,
+                mirroring the dataset evaluator details route. The edit
+                slideover nests beneath it so it opens over the details view. */}
+            <Route
+              path="evaluators"
+              handle={{
+                crumb: () => "evaluators",
+                agentRoute: {
+                  label: "Project Evaluators",
+                  description:
+                    "Create and manage project evaluators — online evals that automatically run against live spans.",
+                },
+              }}
+            >
+              <Route
+                id={PROJECT_EVALUATOR_DETAILS_ROUTE_ID}
+                path=":projectEvaluatorId"
+                element={<ProjectEvaluatorDetailsPage />}
+                loader={projectEvaluatorDetailsLoader}
+                handle={{
+                  crumb: (data: ProjectEvaluatorDetailsLoaderData) =>
+                    data?.evaluatorDisplayName || "evaluator",
+                  agentRoute: {
+                    label: "Project Evaluator Details",
+                    description:
+                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state — and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                  },
+                }}
+              >
+                <Route
+                  path="edit"
+                  element={<EditProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Edit Project Evaluator",
+                      description:
+                        "Edit a project evaluator's definition and scope. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                    },
+                  }}
+                />
+                <Route
+                  path=":traceId"
+                  element={<ProjectEvaluatorTracePage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Project Evaluator Trace",
+                      description:
+                        "Inspect one trace a project evaluator produced when it ran — its mapped inputs, model call or sandbox run, and parsed judgment. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
+                    },
+                  }}
+                />
+              </Route>
             </Route>
           </Route>
         </Route>

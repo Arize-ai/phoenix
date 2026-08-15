@@ -14,6 +14,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
 from phoenix.db.models import EvaluatorKind
@@ -25,6 +26,7 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     FreeformOutputConfig,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
@@ -52,24 +54,43 @@ from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
     DatasetEvaluator,
+    EvaluationTarget,
     LLMEvaluator,
+    ProjectEvaluator,
 )
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.api.types.SandboxConfig import (
     Language,
     SandboxConfig,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.online_eval.session_policy import (
+    DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+    MINIMUM_EVALUATION_DELAY_SECONDS,
+)
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
+from phoenix.server.session_filters import validate_session_filter_condition
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.dsl.filter import validate_span_filter_condition
 
 _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
     LLMEvaluator.__name__: "LLM",
     CodeEvaluator.__name__: "CODE",
     BuiltInEvaluator.__name__: "BUILTIN",
 }
+
+_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
+    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
+    "session at the first quiet period after the evaluation delay: it applies the session "
+    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
+    "A filter non-match or sampling miss is permanently declined for that evaluator "
+    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
+    "but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN "
+    "target rejects. The target is fixed at creation."
+)
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -298,6 +319,111 @@ async def _ensure_evaluator_prompt_label(
         session.add(association)
 
 
+async def _validate_project_evaluator_project(
+    session: AsyncSession,
+    project_id: int,
+    project_global_id: GlobalID,
+) -> None:
+    """Reject a project that cannot be evaluated.
+
+    The evaluators project holds the traces of evaluator executions; evaluating
+    it would feed evaluator output back into the evaluators that produced it.
+    """
+    project = await session.get(models.Project, project_id)
+    if project is None:
+        raise NotFound(f"Project not found: {project_global_id}")
+    if project.name == EVALUATORS_PROJECT_NAME:
+        raise BadRequest(
+            f"The {EVALUATORS_PROJECT_NAME} project holds evaluator traces and cannot be evaluated"
+        )
+
+
+def _validate_project_evaluator_filter(
+    filter_condition: str,
+    evaluation_target: EvaluationTarget,
+) -> None:
+    """Validate a filter in the language of the target it selects.
+
+    Spans and traces are filtered with the span filter DSL, sessions with the session
+    filter DSL, so the expression is compiled by the same path its target's scheduler
+    sweep will use.
+    """
+    try:
+        if evaluation_target is EvaluationTarget.SESSION:
+            validate_session_filter_condition(filter_condition)
+        else:
+            validate_span_filter_condition(filter_condition)
+    except Exception:
+        raise BadRequest("Invalid filter condition: unable to compile for supported databases")
+
+
+def _validate_project_evaluator_sampling_rate(sampling_rate: float) -> None:
+    if not 0.0 <= sampling_rate <= 1.0:
+        raise BadRequest("samplingRate must be between 0.0 and 1.0")
+
+
+def _materialize_project_evaluator_evaluation_delay(
+    evaluation_delay_seconds: Optional[int],
+    evaluation_target: EvaluationTarget,
+) -> int:
+    """Resolve the delay to store; only the session sweep waits one out.
+
+    Span work is scheduled off the global ingestion frontier, so a delay supplied for a
+    span evaluator is refused rather than stored as a setting that never applies.
+    """
+    if evaluation_delay_seconds is None:
+        return DEFAULT_SESSION_EVALUATION_DELAY_SECONDS
+    if evaluation_target is EvaluationTarget.SPAN:
+        raise BadRequest(
+            "evaluationDelaySeconds is not accepted for SPAN evaluators: span scheduling "
+            "does not honor an evaluation delay"
+        )
+    if evaluation_delay_seconds < MINIMUM_EVALUATION_DELAY_SECONDS:
+        raise BadRequest(
+            f"evaluationDelaySeconds must be at least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds"
+        )
+    return evaluation_delay_seconds
+
+
+def _validate_project_evaluator_target_update(
+    criteria: models.ProjectEvaluatorCriteria,
+    evaluation_target: EvaluationTarget,
+) -> None:
+    if criteria.evaluation_target == evaluation_target.value:
+        return
+    raise BadRequest("evaluationTarget is fixed at project evaluator creation")
+
+
+async def _garbage_collect_evaluators(
+    session: AsyncSession,
+    *,
+    evaluator_ids: set[int],
+    prompt_ids: set[int],
+    delete_associated_prompt: bool,
+) -> None:
+    if evaluator_ids:
+        await session.execute(
+            delete(models.Evaluator).where(
+                models.Evaluator.id.in_(evaluator_ids),
+                ~select(models.DatasetEvaluators.id)
+                .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
+                .exists(),
+                ~select(models.ProjectEvaluatorCriteria.id)
+                .where(models.ProjectEvaluatorCriteria.evaluator_id == models.Evaluator.id)
+                .exists(),
+            )
+        )
+    if delete_associated_prompt and prompt_ids:
+        await session.execute(
+            delete(models.Prompt).where(
+                models.Prompt.id.in_(prompt_ids),
+                ~select(models.LLMEvaluator.id)
+                .where(models.LLMEvaluator.prompt_id == models.Prompt.id)
+                .exists(),
+            )
+        )
+
+
 def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
     """
     Parse evaluator ID accepting LLMEvaluator, CodeEvaluator and BuiltInEvaluator types.
@@ -330,7 +456,7 @@ class UpdateDatasetLLMEvaluatorInput:
     dataset_evaluator_id: GlobalID
     dataset_id: GlobalID
     name: Identifier
-    description: Optional[str] = None
+    description: Optional[str] = UNSET
     prompt_version_id: Optional[GlobalID] = UNSET
     prompt_version: ChatPromptVersionInput
     output_configs: list[AnnotationConfigInput]
@@ -405,6 +531,184 @@ class DeleteDatasetEvaluatorsPayload:
 
 
 @strawberry.input
+class CreateProjectLLMEvaluatorInput:
+    project_id: GlobalID
+    name: Identifier
+    prompt_version: ChatPromptVersionInput
+    output_configs: list[AnnotationConfigInput]
+    input_mapping: EvaluatorInputMappingInput
+    sampling_rate: float
+    evaluation_target: EvaluationTarget
+    description: Optional[str] = None
+    prompt_version_id: Optional[GlobalID] = UNSET
+    filter_condition: str = ""
+    enabled: bool = True
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=None,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
+            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
+            "are stored but not scheduled. Omit or use null to store the current default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation."
+        ),
+    )
+
+
+@strawberry.input
+class UpdateProjectLLMEvaluatorInput:
+    project_evaluator_id: GlobalID
+    name: Identifier
+    prompt_version: ChatPromptVersionInput
+    output_configs: list[AnnotationConfigInput]
+    input_mapping: EvaluatorInputMappingInput
+    sampling_rate: float
+    evaluation_target: EvaluationTarget = strawberry.field(
+        description="The evaluation target is fixed at project evaluator creation."
+    )
+    filter_condition: str
+    enabled: Optional[bool] = UNSET
+    description: Optional[str] = UNSET
+    prompt_version_id: Optional[GlobalID] = UNSET
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
+            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
+            "are stored but not scheduled. Omit to preserve the current setting, or use null "
+            f"to store the current default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
+            "seconds. A session is evaluated only once, and later activity does not schedule "
+            "another evaluation."
+        ),
+    )
+
+
+@strawberry.input
+class AddProjectCodeEvaluatorInput:
+    project_id: GlobalID
+    evaluator_id: GlobalID
+    name: Identifier
+    sampling_rate: float
+    evaluation_target: EvaluationTarget
+    input_mapping: Optional[EvaluatorInputMappingInput] = strawberry.field(
+        default=None,
+        description=(
+            "Project-specific CODE input mapping. Null inherits the evaluator input mapping; "
+            "an object overrides it."
+        ),
+    )
+    filter_condition: str = ""
+    enabled: bool = True
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=None,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
+            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
+            "are stored but not scheduled. Omit or use null to store the current default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation."
+        ),
+    )
+
+
+@strawberry.input
+class CreateProjectCodeEvaluatorInput:
+    project_id: GlobalID
+    name: Identifier
+    source_code: str
+    language: Language
+    sandbox_config_id: GlobalID
+    evaluator_input_mapping: EvaluatorInputMappingInput
+    sampling_rate: float
+    evaluation_target: EvaluationTarget
+    description: Optional[str] = None
+    output_configs: Optional[list[AnnotationConfigInput]] = None
+    input_mapping: Optional[EvaluatorInputMappingInput] = strawberry.field(
+        default=None,
+        description=(
+            "Project-specific CODE input mapping. Null inherits the evaluator input mapping; "
+            "an object overrides it."
+        ),
+    )
+    filter_condition: str = ""
+    enabled: bool = True
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=None,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
+            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
+            "are stored but not scheduled. Omit or use null to store the current default of "
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            "once, and later activity does not schedule another evaluation."
+        ),
+    )
+
+
+@strawberry.input
+class UpdateProjectCodeEvaluatorInput:
+    project_evaluator_id: GlobalID
+    name: Identifier
+    sampling_rate: float
+    evaluation_target: EvaluationTarget = strawberry.field(
+        description="The evaluation target is fixed at project evaluator creation."
+    )
+    filter_condition: str
+    evaluator_input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+    enabled: Optional[bool] = UNSET
+    description: Optional[str] = UNSET
+    source_code: Optional[str] = UNSET
+    sandbox_config_id: Optional[GlobalID] = UNSET
+    output_configs: Optional[list[AnnotationConfigInput]] = UNSET
+    input_mapping: Optional[EvaluatorInputMappingInput] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Project-specific CODE input mapping patch. Omit to preserve the current setting, "
+            "use null to inherit the evaluator input mapping, or provide an object to override it."
+        ),
+    )
+    evaluation_delay_seconds: Optional[int] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
+            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
+            "are stored but not scheduled. Omit to preserve the current setting, or use null "
+            f"to store the current default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
+            "seconds. A session is evaluated only once, and later activity does not schedule "
+            "another evaluation."
+        ),
+    )
+
+
+@strawberry.input
+class SetProjectEvaluatorEnabledInput:
+    project_evaluator_id: GlobalID
+    enabled: bool
+
+
+@strawberry.type
+class ProjectEvaluatorMutationPayload:
+    evaluator: ProjectEvaluator
+    query: Query
+
+
+@strawberry.input
+class DeleteProjectEvaluatorsInput:
+    project_evaluator_ids: list[GlobalID]
+    delete_associated_prompt: bool = True
+
+
+@strawberry.type
+class DeleteProjectEvaluatorsPayload:
+    project_evaluator_ids: list[GlobalID]
+    query: Query
+
+
+@strawberry.input
 class CreateCodeEvaluatorInput:
     name: Identifier
     source_code: str
@@ -451,6 +755,706 @@ class CreateCodeEvaluatorVersionPayload:
 
 @strawberry.type
 class EvaluatorMutationMixin:
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=f"Create an LLM project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+    )  # type: ignore
+    async def create_project_llm_evaluator(
+        self, info: Info[Context, None], input: CreateProjectLLMEvaluatorInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
+        except ValueError:
+            raise BadRequest(f"Invalid project id: {input.project_id}")
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds, input.evaluation_target
+        )
+        try:
+            name = IdentifierModel.model_validate(input.name)
+            prompt_version = input.prompt_version.to_orm_prompt_version(None)
+            output_configs = list(
+                LLMEvaluatorOutputConfigs.from_inputs(input.output_configs).configs
+            )
+        except (ValueError, ValidationError) as error:
+            raise BadRequest(str(error))
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+            prompt_version.user_id = user_id
+
+        try:
+            async with info.context.db() as session:
+                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                evaluator_name = await _generate_unique_evaluator_name(session, name)
+
+                target_prompt_version_id: Optional[int] = None
+                if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
+                    prompt_version_id = from_global_id_with_expected_type(
+                        input.prompt_version_id, PromptVersion.__name__
+                    )
+                    existing_prompt_version = await session.get(
+                        models.PromptVersion, prompt_version_id
+                    )
+                    if existing_prompt_version is None:
+                        raise NotFound(f"Prompt version not found: {input.prompt_version_id}")
+                    prompt = await session.get(models.Prompt, existing_prompt_version.prompt_id)
+                    if prompt is None:
+                        raise NotFound("Prompt for the selected version was not found")
+                    if existing_prompt_version.has_identical_content(prompt_version):
+                        target_prompt_version_id = existing_prompt_version.id
+                    else:
+                        prompt_version.prompt_id = prompt.id
+                        session.add(prompt_version)
+                        await session.flush()
+                        target_prompt_version_id = prompt_version.id
+                else:
+                    prompt = models.Prompt(
+                        name=IdentifierModel.model_validate(
+                            f"{input.name}-evaluator-{token_hex(4)}"
+                        ),
+                        description=input.description,
+                        prompt_versions=[prompt_version],
+                    )
+
+                evaluator = models.LLMEvaluator(
+                    name=evaluator_name,
+                    description=input.description,
+                    kind="LLM",
+                    output_configs=output_configs,
+                    user_id=user_id,
+                    prompt=prompt,
+                )
+                try:
+                    validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
+                except ValueError as error:
+                    raise BadRequest(str(error))
+                session.add(evaluator)
+                await session.flush()
+                await _ensure_evaluator_prompt_label(session, prompt.id)
+                evaluator.prompt_version_tag = models.PromptVersionTag(
+                    name=IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
+                    prompt_id=prompt.id,
+                    prompt_version_id=target_prompt_version_id or prompt_version.id,
+                )
+                criteria = models.ProjectEvaluatorCriteria(
+                    project_id=project_id,
+                    evaluator_id=evaluator.id,
+                    name=name,
+                    filter_condition=input.filter_condition,
+                    sampling_rate=input.sampling_rate,
+                    evaluation_target=input.evaluation_target.value,
+                    input_mapping=input.input_mapping.to_orm(),
+                    evaluation_delay_seconds=evaluation_delay_seconds,
+                    enabled=input.enabled,
+                )
+                session.add(criteria)
+                await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict("A project evaluator with this name already exists for this project")
+
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=f"Update an LLM project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+    )  # type: ignore
+    async def update_project_llm_evaluator(
+        self, info: Info[Context, None], input: UpdateProjectLLMEvaluatorInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            criteria_id = from_global_id_with_expected_type(
+                input.project_evaluator_id, ProjectEvaluator.__name__
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid project evaluator id: {input.project_evaluator_id}")
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        if input.enabled is None:
+            raise BadRequest("enabled cannot be set to null")
+        if input.evaluation_delay_seconds is not UNSET:
+            _materialize_project_evaluator_evaluation_delay(
+                input.evaluation_delay_seconds, input.evaluation_target
+            )
+        try:
+            name = IdentifierModel.model_validate(input.name)
+            prompt_version = input.prompt_version.to_orm_prompt_version(None)
+            output_configs = list(
+                LLMEvaluatorOutputConfigs.from_inputs(input.output_configs).configs
+            )
+        except (ValueError, ValidationError) as error:
+            raise BadRequest(str(error))
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+            prompt_version.user_id = user_id
+
+        try:
+            async with info.context.db() as session:
+                pair = (
+                    await session.execute(
+                        select(models.ProjectEvaluatorCriteria, models.LLMEvaluator)
+                        .join(
+                            models.LLMEvaluator,
+                            models.ProjectEvaluatorCriteria.evaluator_id == models.LLMEvaluator.id,
+                        )
+                        .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+                    )
+                ).one_or_none()
+                if pair is None:
+                    raise NotFound(f"LLM project evaluator not found: {input.project_evaluator_id}")
+                criteria, evaluator = pair
+                _validate_project_evaluator_target_update(
+                    criteria,
+                    input.evaluation_target,
+                )
+                shared_evaluator_changed = False
+                if criteria.name != name:
+                    evaluator.name = await _generate_unique_evaluator_name(session, name)
+                    shared_evaluator_changed = True
+
+                selected_version: Optional[models.PromptVersion] = None
+                if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
+                    selected_version_id = from_global_id_with_expected_type(
+                        input.prompt_version_id, PromptVersion.__name__
+                    )
+                    selected_version = await session.get(models.PromptVersion, selected_version_id)
+                    if selected_version is None:
+                        raise NotFound(f"Prompt version not found: {input.prompt_version_id}")
+                elif evaluator.prompt_version_tag_id is not None:
+                    selected_version = await session.scalar(
+                        select(models.PromptVersion)
+                        .join(
+                            models.PromptVersionTag,
+                            models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
+                        )
+                        .where(models.PromptVersionTag.id == evaluator.prompt_version_tag_id)
+                    )
+
+                target_prompt_id = (
+                    selected_version.prompt_id
+                    if selected_version is not None
+                    else evaluator.prompt_id
+                )
+                final_prompt_version_id: Optional[int] = None
+                if selected_version is not None and selected_version.has_identical_content(
+                    prompt_version
+                ):
+                    final_prompt_version_id = selected_version.id
+                else:
+                    prompt_version.prompt_id = target_prompt_id
+                    session.add(prompt_version)
+                    await session.flush()
+                    final_prompt_version_id = prompt_version.id
+                    shared_evaluator_changed = True
+
+                if input.description is not UNSET and evaluator.description != input.description:
+                    evaluator.description = input.description
+                    shared_evaluator_changed = True
+                if evaluator.output_configs != output_configs:
+                    evaluator.output_configs = output_configs
+                    shared_evaluator_changed = True
+                if evaluator.prompt_id != target_prompt_id:
+                    evaluator.prompt_id = target_prompt_id
+                    shared_evaluator_changed = True
+                try:
+                    validate_consistent_llm_evaluator_and_prompt_version(prompt_version, evaluator)
+                except ValueError as error:
+                    raise BadRequest(str(error))
+                if evaluator.prompt_version_tag_id is None:
+                    evaluator.prompt_version_tag = models.PromptVersionTag(
+                        name=IdentifierModel.model_validate(
+                            f"{input.name}-evaluator-{token_hex(4)}"
+                        ),
+                        prompt_id=target_prompt_id,
+                        prompt_version_id=final_prompt_version_id,
+                    )
+                    shared_evaluator_changed = True
+                else:
+                    prompt_version_tag = await session.get(
+                        models.PromptVersionTag, evaluator.prompt_version_tag_id
+                    )
+                    if prompt_version_tag is None:
+                        raise NotFound("Prompt version tag was not found")
+                    if (
+                        prompt_version_tag.prompt_id != target_prompt_id
+                        or prompt_version_tag.prompt_version_id != final_prompt_version_id
+                    ):
+                        prompt_version_tag.prompt_id = target_prompt_id
+                        prompt_version_tag.prompt_version_id = final_prompt_version_id
+                        shared_evaluator_changed = True
+
+                if shared_evaluator_changed:
+                    evaluator.user_id = user_id
+                    evaluator.updated_at = datetime.now(timezone.utc)
+
+                criteria.name = name
+                criteria.filter_condition = input.filter_condition
+                criteria.sampling_rate = input.sampling_rate
+                criteria.evaluation_target = input.evaluation_target.value
+                criteria.input_mapping = input.input_mapping.to_orm()
+                if input.evaluation_delay_seconds is not UNSET:
+                    criteria.evaluation_delay_seconds = (
+                        _materialize_project_evaluator_evaluation_delay(
+                            input.evaluation_delay_seconds, input.evaluation_target
+                        )
+                    )
+                if input.enabled is not UNSET:
+                    assert input.enabled is not None
+                    criteria.enabled = input.enabled
+                await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict("A project evaluator with this name already exists for this project")
+
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Bind an existing CODE evaluator to a project. The evaluator's configuration is "
+            "shared with every project and dataset it is bound to. "
+            f"{_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
+        ),
+    )  # type: ignore
+    async def add_project_code_evaluator(
+        self, info: Info[Context, None], input: AddProjectCodeEvaluatorInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
+        except ValueError:
+            raise BadRequest(f"Invalid project id: {input.project_id}")
+        try:
+            evaluator_id, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
+        except ValueError as error:
+            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {error}")
+        if evaluator_kind != "CODE":
+            raise BadRequest("Evaluator must be a CODE evaluator")
+        try:
+            name = IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(str(error))
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds, input.evaluation_target
+        )
+
+        try:
+            async with info.context.db() as session:
+                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                if await session.get(models.CodeEvaluator, evaluator_id) is None:
+                    raise BadRequest("CODE evaluator not found")
+                criteria = models.ProjectEvaluatorCriteria(
+                    project_id=project_id,
+                    evaluator_id=evaluator_id,
+                    name=name,
+                    filter_condition=input.filter_condition,
+                    sampling_rate=input.sampling_rate,
+                    evaluation_target=input.evaluation_target.value,
+                    input_mapping=(
+                        input.input_mapping.to_orm() if input.input_mapping is not None else None
+                    ),
+                    evaluation_delay_seconds=evaluation_delay_seconds,
+                    enabled=input.enabled,
+                )
+                session.add(criteria)
+                await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict("A project evaluator with this name already exists for this project")
+
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=f"Create a CODE project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+    )  # type: ignore
+    async def create_project_code_evaluator(
+        self, info: Info[Context, None], input: CreateProjectCodeEvaluatorInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
+            name = IdentifierModel.model_validate(input.name)
+        except (ValueError, ValidationError) as error:
+            raise BadRequest(str(error))
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+            input.evaluation_delay_seconds, input.evaluation_target
+        )
+        _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
+        if input.output_configs is not None:
+            try:
+                validate_unique_config_names(input.output_configs)
+            except ValueError as error:
+                raise BadRequest(str(error))
+        output_configs = cast(
+            list[AnnotationConfigType],
+            _convert_output_config_inputs_to_pydantic(input.output_configs or []),
+        )
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        # Validated before the write session opens: the helper takes the session
+        # factory and opens its own session, which would otherwise nest inside
+        # the transaction below.
+        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+            info.context.db,
+            sandbox_config_global_id=input.sandbox_config_id,
+            language=input.language.value,
+            action="creating this evaluator",
+            source_code=input.source_code,
+            sandbox_runtime=info.context.sandbox_runtime,
+        )
+
+        try:
+            async with info.context.db() as session:
+                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                evaluator_name = await _generate_unique_evaluator_name(session, name)
+                evaluator = models.CodeEvaluator(
+                    name=evaluator_name,
+                    description=input.description,
+                    language=input.language.value,
+                    user_id=user_id,
+                    sandbox_config_id=sandbox_config_id,
+                    input_mapping=input.evaluator_input_mapping.to_orm(),
+                    output_configs=output_configs,
+                )
+                session.add(evaluator)
+                await session.flush()
+                session.add(
+                    models.CodeEvaluatorVersion(
+                        code_evaluator_id=evaluator.id,
+                        source_code=input.source_code,
+                        user_id=user_id,
+                    )
+                )
+                criteria = models.ProjectEvaluatorCriteria(
+                    project_id=project_id,
+                    evaluator_id=evaluator.id,
+                    name=name,
+                    filter_condition=input.filter_condition,
+                    sampling_rate=input.sampling_rate,
+                    evaluation_target=input.evaluation_target.value,
+                    input_mapping=(
+                        input.input_mapping.to_orm() if input.input_mapping is not None else None
+                    ),
+                    evaluation_delay_seconds=evaluation_delay_seconds,
+                    enabled=input.enabled,
+                )
+                session.add(criteria)
+                await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict("A project evaluator with this name already exists for this project")
+
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Update a CODE project evaluator. Editing changes the underlying evaluator, which "
+            "applies to every project and dataset it is bound to. "
+            f"{_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
+        ),
+    )  # type: ignore
+    async def update_project_code_evaluator(
+        self, info: Info[Context, None], input: UpdateProjectCodeEvaluatorInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            criteria_id = from_global_id_with_expected_type(
+                input.project_evaluator_id, ProjectEvaluator.__name__
+            )
+            name = IdentifierModel.model_validate(input.name)
+        except (ValueError, ValidationError) as error:
+            raise BadRequest(str(error))
+        _validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
+        _validate_project_evaluator_sampling_rate(input.sampling_rate)
+        if input.evaluator_input_mapping is None:
+            raise BadRequest("evaluator_input_mapping cannot be set to null")
+        if input.enabled is None:
+            raise BadRequest("enabled cannot be set to null")
+        if input.evaluation_delay_seconds is not UNSET:
+            _materialize_project_evaluator_evaluation_delay(
+                input.evaluation_delay_seconds, input.evaluation_target
+            )
+        if input.source_code is not UNSET and input.source_code is None:
+            raise BadRequest("source_code cannot be set to null")
+        if input.output_configs is None:
+            raise BadRequest("output_configs cannot be set to null")
+        if input.output_configs is not UNSET:
+            try:
+                validate_unique_config_names(input.output_configs)
+            except ValueError as error:
+                raise BadRequest(str(error))
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        # Validated before the write session opens: the helper takes the session
+        # factory and opens its own session, which would otherwise nest inside
+        # the transaction below.
+        validated_sandbox_config_id: Optional[int] = None
+        if input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None:
+            async with info.context.db() as session:
+                current_pair = (
+                    await session.execute(
+                        select(models.ProjectEvaluatorCriteria, models.CodeEvaluator)
+                        .join(
+                            models.CodeEvaluator,
+                            models.ProjectEvaluatorCriteria.evaluator_id == models.CodeEvaluator.id,
+                        )
+                        .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+                    )
+                ).one_or_none()
+                if current_pair is None:
+                    raise NotFound(
+                        f"CODE project evaluator not found: {input.project_evaluator_id}"
+                    )
+                _, current_evaluator = current_pair
+                current_language = current_evaluator.language
+                current_with_version = await code_evaluator_with_latest_version(
+                    session, current_evaluator.id
+                )
+                stored_source_code = (
+                    current_with_version[1].source_code
+                    if current_with_version is not None and current_with_version[1] is not None
+                    else ""
+                )
+            # Source code supplied in this same request is what will be stored,
+            # so the sandbox is validated against that rather than the version
+            # it is about to replace.
+            validated_sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+                info.context.db,
+                sandbox_config_global_id=input.sandbox_config_id,
+                language=current_language,
+                action="updating this evaluator",
+                source_code=(
+                    input.source_code
+                    if input.source_code is not UNSET and input.source_code is not None
+                    else stored_source_code
+                ),
+                sandbox_runtime=info.context.sandbox_runtime,
+            )
+
+        try:
+            async with info.context.db() as session:
+                pair = (
+                    await session.execute(
+                        select(models.ProjectEvaluatorCriteria, models.CodeEvaluator)
+                        .join(
+                            models.CodeEvaluator,
+                            models.ProjectEvaluatorCriteria.evaluator_id == models.CodeEvaluator.id,
+                        )
+                        .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+                    )
+                ).one_or_none()
+                if pair is None:
+                    raise NotFound(
+                        f"CODE project evaluator not found: {input.project_evaluator_id}"
+                    )
+                criteria, evaluator = pair
+                _validate_project_evaluator_target_update(
+                    criteria,
+                    input.evaluation_target,
+                )
+                shared_evaluator_changed = False
+                if criteria.name != name:
+                    evaluator.name = await _generate_unique_evaluator_name(session, name)
+                    shared_evaluator_changed = True
+                if input.description is not UNSET and evaluator.description != input.description:
+                    evaluator.description = input.description
+                    shared_evaluator_changed = True
+                if input.evaluator_input_mapping is not UNSET:
+                    assert input.evaluator_input_mapping is not None
+                    evaluator_input_mapping = input.evaluator_input_mapping.to_orm()
+                    if evaluator.input_mapping != evaluator_input_mapping:
+                        evaluator.input_mapping = evaluator_input_mapping
+                        shared_evaluator_changed = True
+
+                if input.sandbox_config_id is not UNSET:
+                    if input.sandbox_config_id is None:
+                        sandbox_config_id = None
+                    else:
+                        sandbox_config_id = validated_sandbox_config_id
+                    if evaluator.sandbox_config_id != sandbox_config_id:
+                        evaluator.sandbox_config_id = sandbox_config_id
+                        shared_evaluator_changed = True
+                if input.output_configs is not UNSET:
+                    output_configs = cast(
+                        list[AnnotationConfigType],
+                        _convert_output_config_inputs_to_pydantic(input.output_configs),
+                    )
+                    if evaluator.output_configs != output_configs:
+                        evaluator.output_configs = output_configs
+                        shared_evaluator_changed = True
+                if input.source_code is not UNSET and input.source_code is not None:
+                    _raise_on_uninferable_evaluate_signature(
+                        input.source_code, Language(evaluator.language)
+                    )
+                    locked = await code_evaluator_with_latest_version(session, evaluator.id)
+                    if locked is None:
+                        raise NotFound(
+                            f"CODE project evaluator not found: {input.project_evaluator_id}"
+                        )
+                    _, current_version = locked
+                    candidate = models.CodeEvaluatorVersion(
+                        code_evaluator_id=evaluator.id,
+                        source_code=input.source_code,
+                        user_id=user_id,
+                    )
+                    if current_version is None or not current_version.has_identical_content(
+                        candidate
+                    ):
+                        session.add(candidate)
+                        shared_evaluator_changed = True
+
+                if shared_evaluator_changed:
+                    evaluator.user_id = user_id
+
+                criteria.name = name
+                criteria.filter_condition = input.filter_condition
+                criteria.sampling_rate = input.sampling_rate
+                criteria.evaluation_target = input.evaluation_target.value
+                if input.input_mapping is not UNSET:
+                    criteria.input_mapping = (
+                        input.input_mapping.to_orm() if input.input_mapping is not None else None
+                    )
+                if input.evaluation_delay_seconds is not UNSET:
+                    criteria.evaluation_delay_seconds = (
+                        _materialize_project_evaluator_evaluation_delay(
+                            input.evaluation_delay_seconds, input.evaluation_target
+                        )
+                    )
+                if input.enabled is not UNSET:
+                    assert input.enabled is not None
+                    criteria.enabled = input.enabled
+                await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict("A project evaluator with this name already exists for this project")
+
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Enable or disable a project evaluator. Flips only the enabled flag on the "
+            "project binding, leaving the underlying evaluator untouched. Works for both "
+            "LLM and CODE evaluators."
+        ),
+    )  # type: ignore
+    async def set_project_evaluator_enabled(
+        self, info: Info[Context, None], input: SetProjectEvaluatorEnabledInput
+    ) -> ProjectEvaluatorMutationPayload:
+        try:
+            criteria_id = from_global_id_with_expected_type(
+                input.project_evaluator_id, ProjectEvaluator.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        async with info.context.db() as session:
+            criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+            if criteria is None:
+                raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
+            criteria.enabled = input.enabled
+            await session.flush()
+        return ProjectEvaluatorMutationPayload(
+            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def delete_project_evaluators(
+        self, info: Info[Context, None], input: DeleteProjectEvaluatorsInput
+    ) -> DeleteProjectEvaluatorsPayload:
+        criteria_ids: list[int] = []
+        for global_id in input.project_evaluator_ids:
+            try:
+                criteria_ids.append(
+                    from_global_id_with_expected_type(global_id, ProjectEvaluator.__name__)
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid project evaluator id: {global_id}")
+        if not criteria_ids:
+            return DeleteProjectEvaluatorsPayload(project_evaluator_ids=[], query=Query())
+
+        deleted_ids: list[GlobalID] = []
+        async with info.context.db() as session:
+            llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)
+            rows = (
+                await session.execute(
+                    select(
+                        models.ProjectEvaluatorCriteria.id,
+                        models.ProjectEvaluatorCriteria.evaluator_id,
+                        models.Evaluator.kind,
+                        llm_evaluator_alias.prompt_id,
+                    )
+                    .join(
+                        models.Evaluator,
+                        models.ProjectEvaluatorCriteria.evaluator_id == models.Evaluator.id,
+                    )
+                    .outerjoin(
+                        llm_evaluator_alias,
+                        models.ProjectEvaluatorCriteria.evaluator_id == llm_evaluator_alias.id,
+                    )
+                    .where(models.ProjectEvaluatorCriteria.id.in_(criteria_ids))
+                )
+            ).all()
+            evaluator_ids: set[int] = set()
+            prompt_ids: set[int] = set()
+            actual_criteria_ids: list[int] = []
+            for criteria_id, evaluator_id, kind, prompt_id in rows:
+                actual_criteria_ids.append(criteria_id)
+                deleted_ids.append(GlobalID(ProjectEvaluator.__name__, str(criteria_id)))
+                if kind != "BUILTIN":
+                    evaluator_ids.add(evaluator_id)
+                    if prompt_id is not None:
+                        prompt_ids.add(prompt_id)
+            if actual_criteria_ids:
+                await session.execute(
+                    delete(models.ProjectEvaluatorCriteria).where(
+                        models.ProjectEvaluatorCriteria.id.in_(actual_criteria_ids)
+                    )
+                )
+                await _garbage_collect_evaluators(
+                    session,
+                    evaluator_ids=evaluator_ids,
+                    prompt_ids=prompt_ids,
+                    delete_associated_prompt=input.delete_associated_prompt,
+                )
+
+        return DeleteProjectEvaluatorsPayload(
+            project_evaluator_ids=deleted_ids,
+            query=Query(),
+        )
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_llm_evaluator(
         self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput
@@ -676,6 +1680,7 @@ class EvaluatorMutationMixin:
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
                 )
             dataset_evaluator, llm_evaluator, prompt_version_tag = dataset_evaluator_triplet
+            shared_evaluator_changed = False
 
             # Handle prompt_version_id if provided
             target_prompt_id = llm_evaluator.prompt_id
@@ -696,11 +1701,17 @@ class EvaluatorMutationMixin:
                 if provided_prompt_version.prompt_id != llm_evaluator.prompt_id:
                     target_prompt_id = provided_prompt_version.prompt_id
                     llm_evaluator.prompt_id = target_prompt_id
+                    shared_evaluator_changed = True
                 # Update the prompt_version_tag to point to the provided prompt_version
                 if llm_evaluator.prompt_version_tag_id is not None:
                     if prompt_version_tag is not None:
-                        prompt_version_tag.prompt_id = target_prompt_id
-                        prompt_version_tag.prompt_version_id = provided_prompt_version_id
+                        if (
+                            prompt_version_tag.prompt_id != target_prompt_id
+                            or prompt_version_tag.prompt_version_id != provided_prompt_version_id
+                        ):
+                            prompt_version_tag.prompt_id = target_prompt_id
+                            prompt_version_tag.prompt_version_id = provided_prompt_version_id
+                            shared_evaluator_changed = True
                     else:
                         raise NotFound(
                             f"Prompt version tag with id {llm_evaluator.prompt_version_tag_id} "
@@ -728,25 +1739,25 @@ class EvaluatorMutationMixin:
 
                 target_prompt_id = new_prompt.id
                 llm_evaluator.prompt_id = target_prompt_id
+                shared_evaluator_changed = True
                 # Use the newly created prompt_version for comparison (it will always be "new")
                 active_prompt_version = prompt_version
 
             dataset_evaluator.name = evaluator_name
-            dataset_evaluator.description = (
-                input.description if isinstance(input.description, str) else None
-            )
+            if input.description is not UNSET:
+                dataset_evaluator.description = input.description
             dataset_evaluator.output_configs = list(output_configs)
             if input.input_mapping is None:
                 raise BadRequest("input_mapping is required")
             dataset_evaluator.input_mapping = input.input_mapping.to_orm()
             dataset_evaluator.user_id = user_id
 
-            llm_evaluator.description = (
-                input.description if isinstance(input.description, str) else None
-            )
-            llm_evaluator.output_configs = list(output_configs)
-            llm_evaluator.updated_at = datetime.now(timezone.utc)
-            llm_evaluator.user_id = user_id
+            if input.description is not UNSET and llm_evaluator.description != input.description:
+                llm_evaluator.description = input.description
+                shared_evaluator_changed = True
+            if llm_evaluator.output_configs != list(output_configs):
+                llm_evaluator.output_configs = list(output_configs)
+                shared_evaluator_changed = True
 
             if new_prompt is not None:
                 # We already created a new prompt above
@@ -759,6 +1770,7 @@ class EvaluatorMutationMixin:
                 if create_new_prompt_version:
                     prompt_version.prompt_id = target_prompt_id
                     session.add(prompt_version)
+                    shared_evaluator_changed = True
 
             try:
                 validate_consistent_llm_evaluator_and_prompt_version(prompt_version, llm_evaluator)
@@ -780,9 +1792,18 @@ class EvaluatorMutationMixin:
             if final_prompt_version_id is not None:
                 if llm_evaluator.prompt_version_tag_id is not None:
                     if prompt_version_tag is not None:
-                        prompt_version_tag.prompt_version_id = final_prompt_version_id
-                        # Ensure prompt_id matches
-                        prompt_version_tag.prompt_id = target_prompt_id
+                        if (
+                            prompt_version_tag.prompt_version_id != final_prompt_version_id
+                            or prompt_version_tag.prompt_id != target_prompt_id
+                        ):
+                            prompt_version_tag.prompt_version_id = final_prompt_version_id
+                            # Ensure prompt_id matches
+                            prompt_version_tag.prompt_id = target_prompt_id
+                            shared_evaluator_changed = True
+
+            if shared_evaluator_changed:
+                llm_evaluator.updated_at = datetime.now(timezone.utc)
+                llm_evaluator.user_id = user_id
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id),
@@ -906,6 +1927,31 @@ class EvaluatorMutationMixin:
                     if prompt_id is not None:
                         candidate_prompt_ids.add(prompt_id)
 
+            if project_ids:
+                cascade_rows = (
+                    await session.execute(
+                        select(
+                            models.ProjectEvaluatorCriteria.evaluator_id,
+                            models.Evaluator.kind,
+                            llm_evaluator_alias.prompt_id,
+                        )
+                        .join(
+                            models.Evaluator,
+                            models.ProjectEvaluatorCriteria.evaluator_id == models.Evaluator.id,
+                        )
+                        .outerjoin(
+                            llm_evaluator_alias,
+                            models.ProjectEvaluatorCriteria.evaluator_id == llm_evaluator_alias.id,
+                        )
+                        .where(models.ProjectEvaluatorCriteria.project_id.in_(project_ids))
+                    )
+                ).all()
+                for evaluator_id, kind, prompt_id in cascade_rows:
+                    if kind != "BUILTIN":
+                        gc_candidate_evaluator_ids.add(evaluator_id)
+                        if prompt_id is not None:
+                            candidate_prompt_ids.add(prompt_id)
+
             if not link_ids:
                 return DeleteDatasetEvaluatorsPayload(
                     dataset_evaluator_ids=[],
@@ -923,36 +1969,17 @@ class EvaluatorMutationMixin:
                     )
                 )
 
-            # Garbage collect non-BUILTIN evaluators that no DatasetEvaluators
-            # row still references. The correlated NOT EXISTS skips evaluators that
-            # remain in use by other datasets.
-            if gc_candidate_evaluator_ids:
-                await session.execute(
-                    delete(models.Evaluator).where(
-                        models.Evaluator.id.in_(gc_candidate_evaluator_ids),
-                        ~select(models.DatasetEvaluators.id)
-                        .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
-                        .exists(),
-                    )
-                )
-
-            # Garbage collect prompts of LLM evaluators we just deleted. Prompts whose
-            # LLMEvaluator was *not* garbage collected (still referenced) keep their
-            # LLMEvaluator row, so the NOT EXISTS predicate spares them.
-            if input.delete_associated_prompt and candidate_prompt_ids:
-                await session.execute(
-                    delete(models.Prompt).where(
-                        models.Prompt.id.in_(candidate_prompt_ids),
-                        ~select(models.LLMEvaluator.id)
-                        .where(models.LLMEvaluator.prompt_id == models.Prompt.id)
-                        .exists(),
-                    )
-                )
-
             if project_ids:
                 await session.execute(
                     delete(models.Project).where(models.Project.id.in_(project_ids))
                 )
+
+            await _garbage_collect_evaluators(
+                session,
+                evaluator_ids=gc_candidate_evaluator_ids,
+                prompt_ids=candidate_prompt_ids,
+                delete_associated_prompt=input.delete_associated_prompt,
+            )
 
         return DeleteDatasetEvaluatorsPayload(
             dataset_evaluator_ids=deleted_gids,
@@ -1249,14 +2276,7 @@ class EvaluatorMutationMixin:
             )
 
         if output_configs is None:
-            dataset_evaluator.output_configs = [
-                config
-                for config in code_evaluator.output_configs
-                if isinstance(
-                    config,
-                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                )
-            ]
+            dataset_evaluator.output_configs = as_output_configs(code_evaluator.output_configs)
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
@@ -1338,14 +2358,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
 
         if dataset_evaluator.output_configs is None:
-            dataset_evaluator.output_configs = [
-                config
-                for config in evaluator.output_configs
-                if isinstance(
-                    config,
-                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                )
-            ]
+            dataset_evaluator.output_configs = as_output_configs(evaluator.output_configs)
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),

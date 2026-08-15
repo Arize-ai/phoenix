@@ -12,10 +12,11 @@ from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
 from sqlalchemy import Select, and_, case, desc, distinct, exists, func, or_, select
-from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
+from sqlalchemy.sql.sqltypes import String
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, Edge, GlobalID, Node, NodeID, PageInfo
 from strawberry.types import Info
@@ -29,6 +30,7 @@ from phoenix.server.api.annotation_metrics import build_entity_weighted_annotati
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
+from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
@@ -41,6 +43,7 @@ from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.Evaluator import ProjectEvaluator
 from phoenix.server.api.types.FilterVocabularyTerm import (
     FilterVocabularyTerm,
     session_filter_vocabulary_terms,
@@ -66,16 +69,20 @@ from phoenix.server.api.types.SpanFilterConditionAnalysis import (
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.online_eval.tracing import PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
     apply_session_filter_to_page,
-    compile_session_filter,
     get_filtered_session_rowids_subquery,
-    session_filter_errors,
+    validate_session_filter_condition,
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
-from phoenix.trace.dsl.filter import RootSpanScope, root_span_scope
+from phoenix.trace.dsl.filter import (
+    RootSpanScope,
+    root_span_scope,
+    validate_span_filter_condition,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +276,21 @@ def _session_annotation_names_stmt(project_rowid: int) -> Select[Any]:
     )
 
 
+def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> Any:
+    """Match only the spans an evaluator execution stamped with its own identity.
+
+    The id is rebuilt from its row id so a differently encoded but equivalent
+    global id still matches what the evaluator wrote.
+    """
+    try:
+        rowid = from_global_id_with_expected_type(project_evaluator_id, ProjectEvaluator.__name__)
+    except ValueError:
+        raise BadRequest(f"Invalid project evaluator ID: {project_evaluator_id}")
+    return models.Span.attributes[PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH].as_string() == str(
+        GlobalID(ProjectEvaluator.__name__, str(rowid))
+    )
+
+
 def _unknown_annotation_name_warning(name: str, observed_names: Sequence[str]) -> str:
     """Warn about an unrecognized annotation name, naming its closest observed neighbors."""
     if not observed_names:
@@ -322,6 +344,52 @@ class Project(Node):
                 ),
             )
         return description
+
+    @strawberry.field(description="Number of evaluators attached to this project.")  # type: ignore
+    async def evaluator_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        stmt = select(func.count(models.ProjectEvaluatorCriteria.id)).where(
+            models.ProjectEvaluatorCriteria.project_id == self.id
+        )
+        async with info.context.db.read() as session:
+            return (await session.scalar(stmt)) or 0
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = DEFAULT_PAGE_SIZE,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+        filter: Optional[ProjectEvaluatorFilter] = UNSET,
+    ) -> Connection[ProjectEvaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = (
+            select(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.project_id == self.id)
+            .order_by(
+                models.ProjectEvaluatorCriteria.name,
+                models.ProjectEvaluatorCriteria.id,
+            )
+        )
+        if filter and (value := filter.value.strip()):
+            column = getattr(models.ProjectEvaluatorCriteria, filter.col.value)
+            # `name` is an Identifier-typed column; compare it as text so LIKE applies.
+            stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
+        async with info.context.db.read() as session:
+            records = list(await session.scalars(stmt))
+        return connection_from_list(
+            data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
+            args=args,
+        )
 
     @strawberry.field
     async def gradient_start_color(
@@ -586,8 +654,27 @@ class Project(Node):
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
         orphan_span_as_root_span: Optional[bool] = True,
+        project_evaluator_id: Annotated[
+            Optional[GlobalID],
+            strawberry.argument(
+                description=(
+                    "Restrict to spans produced by this project evaluator. Every evaluator "
+                    "traces into one shared project, so its own traces are only reachable "
+                    "through this scope."
+                )
+            ),
+        ] = UNSET,
     ) -> Connection[Span]:
-        if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
+        evaluator_scope = (
+            _project_evaluator_span_scope(project_evaluator_id) if project_evaluator_id else None
+        )
+        if (
+            root_spans_only
+            and not filter_condition
+            and evaluator_scope is None
+            and sort
+            and sort.col is SpanColumn.startTime
+        ):
             return await _paginate_span_by_trace_start_time(
                 db=info.context.db,
                 project_rowid=self.id,
@@ -603,6 +690,8 @@ class Project(Node):
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id)
         )
+        if evaluator_scope is not None:
+            stmt = stmt.where(evaluator_scope)
         if time_range:
             if time_range.start:
                 stmt = stmt.where(time_range.start <= models.Span.start_time)
@@ -1247,10 +1336,7 @@ class Project(Node):
         # depend on the live annotation table -- besides costing a query per
         # keystroke. See the spec's Known Gaps.
         try:
-            span_filter = SpanFilter(condition=condition)
-            stmt = span_filter(select(models.Span))
-            str(stmt.compile(dialect=sqlite.dialect()))
-            str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            validate_span_filter_condition(condition)
             return ValidationResult(is_valid=True, error_message=None)
         except SpanFilterError as e:
             # The DSL guarantees these messages are user-safe statements about
@@ -1301,11 +1387,7 @@ class Project(Node):
         as valid is one they will accept.
         """
         try:
-            with session_filter_errors():
-                session_filter = compile_session_filter(condition)
-                stmt = session_filter(select(models.ProjectSession))
-                str(stmt.compile(dialect=sqlite.dialect()))
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            validate_session_filter_condition(condition)
         except SessionFilterConditionError as e:
             return ValidationResult(is_valid=False, error_message=str(e))
         referenced_annotation_names = _referenced_subscript_names(
