@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.2.1...arize-phoenix-v20.3.0) (2026-08-16)
+
+
+### Features
+
+* **traces:** expression filter DSL ([#14973](https://github.com/Arize-ai/phoenix/issues/14973)) ([954cba2](https://github.com/Arize-ai/phoenix/commit/954cba21468aa247e48a5f9e9c19bd0487985a64))
+
 ## [20.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.2.0...arize-phoenix-v20.2.1) (2026-08-14)
 
 
