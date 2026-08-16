@@ -62,9 +62,9 @@ export const sessionFilterCases: FrontierFilterEvalCase[] = [
     id: "annotation-negative-label",
     query: "sessions whose correctness annotation label is incorrect",
     accepted: [
-      "annotations['correctness'].label == 'incorrect'",
-      'annotations["correctness"].label == "incorrect"',
-      "annotations[\"correctness\"].label == 'incorrect'",
+      "session_annotations['correctness'].label == 'incorrect'",
+      'session_annotations["correctness"].label == "incorrect"',
+      "session_annotations[\"correctness\"].label == 'incorrect'",
       "any(annotation.name == 'correctness' and annotation.label == 'incorrect' for annotation in session_annotations)",
       "any(annotation.label == 'incorrect' and annotation.name == 'correctness' for annotation in session_annotations)",
     ],

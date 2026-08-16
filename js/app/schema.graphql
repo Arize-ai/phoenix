@@ -2222,7 +2222,7 @@ type FilterVocabularyTerm {
   name: String!
 
   """
-  Value-type hint for the comparand: 'string', 'number', 'datetime', or 'boolean'. Collections carry 'iterable' — they are looped over rather than compared. 'containment' marks a term that only takes `in` / `not in` against a string literal and never `==`.
+  Value-type hint for the comparand: 'string', 'number', 'datetime', or 'boolean'. 'relation' marks a nullable related row that only supports presence checks with `is None` / `is not None`. Collections carry 'iterable' — they are looped over rather than compared. 'containment' marks a term that only takes `in` / `not in` against a string literal and never `==`.
   """
   type: String!
 
@@ -2230,7 +2230,7 @@ type FilterVocabularyTerm {
   description: String!
 
   """
-  Presentation/discovery grouping: 'session' (intrinsic column), 'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), 'annotation' (session annotation access), 'iterable' (a collection a comprehension can loop over), or 'element' (a field of one such collection's elements).
+  Presentation/discovery grouping: 'session' (intrinsic column), 'aggregate' (per-session aggregate), 'attribute' (root-span attribute path), 'annotation' (entity annotation access), 'iterable' (a collection a comprehension can loop over), or 'element' (a field of one such collection's elements).
   """
   category: String!
 
@@ -2996,7 +2996,7 @@ type Project implements Node {
   """
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, traceFilterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
 
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. sessionFilterCondition is a session filter expression (see sessionFilterVocabulary).
@@ -3100,9 +3100,19 @@ type Project implements Node {
   validateSessionFilterCondition(condition: String!): ValidationResult!
 
   """
+  Validate a trace filter expression without executing it. A condition that fails to compile returns isValid=false with an errorMessage; a condition that compiles but references annotation names not observed in this project returns isValid=true with advisory warnings.
+  """
+  validateTraceFilterCondition(condition: String!): ValidationResult!
+
+  """
   The bindable terms of the session filter expression language for this project, for autocomplete, agent discovery, and docs. Static terms derive from the filter compiler's own bindings so they cannot drift from what compiles; observed per-project names (session annotations, root-span attribute paths) are folded in. Observed names come from the project's 1000 most recently started sessions; root-span attributes are sampled newest-first within that window up to a 2 MiB scan budget. This is a discovery aid rather than a complete list: a name that only older sessions carry drops out of the suggestions once 1000 newer sessions exist, and still filters correctly when typed by hand.
   """
   sessionFilterVocabulary: [FilterVocabularyTerm!]!
+
+  """
+  The bindable terms of the trace filter expression language for this project. Static terms derive from the compiler's bindings; observed trace annotation names and displayed-root attribute paths come from the 1000 most recently started traces within the optional time range. Root attributes are sampled newest-first within that window up to a 2 MiB scan budget.
+  """
+  traceFilterVocabulary(timeRange: TimeRange): [FilterVocabularyTerm!]!
   annotationConfigs(
     first: Int = 50
     last: Int = null

@@ -8,6 +8,8 @@ import {
   Summary,
   SummaryValue,
 } from "@phoenix/pages/project/AnnotationSummary";
+import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
+import { useTraceFilters } from "@phoenix/pages/project/TraceFiltersContext";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
 const useTraceAnnotationSummaryGroup = (
@@ -125,6 +127,24 @@ type TraceAnnotationSummaryGroupProps = {
   renderEmptyState?: () => React.ReactNode;
 };
 
+function TraceAnnotationTooltipFilterActions({
+  annotation,
+}: {
+  annotation: {
+    name: string;
+    label?: string | null;
+    score?: number | null;
+  };
+}) {
+  const { appendFilterCondition } = useTraceFilters();
+  return (
+    <AnnotationTooltipFilterActions
+      annotation={annotation}
+      onAppendFilterCondition={appendFilterCondition}
+    />
+  );
+}
+
 export const TraceAnnotationSummaryGroupTokens = ({
   trace,
   showFilterActions = false,
@@ -146,6 +166,9 @@ export const TraceAnnotationSummaryGroupTokens = ({
       annotationsByName={annotationsByName}
       categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
       showFilterActions={showFilterActions}
+      renderFilterActions={(annotation) => (
+        <TraceAnnotationTooltipFilterActions annotation={annotation} />
+      )}
     />
   );
 };

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cba703b338e9d99e738b5f69e641f80a>>
+ * @generated SignedSource<<d9b2d9445ae4fbe6fa8a3a2dba494c98>>
  * @lightSyntaxTransform
  */
 
@@ -27,12 +27,12 @@ export type TimeRange = {
 };
 export type TracesTableQuery$variables = {
   after?: string | null;
-  filterCondition?: string | null;
   first?: number | null;
   id: string;
   numDescendants?: number | null;
   sort?: SpanSort | null;
   timeRange?: TimeRange | null;
+  traceFilterCondition?: string | null;
 };
 export type TracesTableQuery$data = {
   readonly node: {
@@ -51,26 +51,21 @@ var v0 = {
   "name": "after"
 },
 v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "filterCondition"
-},
-v2 = {
   "defaultValue": 30,
   "kind": "LocalArgument",
   "name": "first"
 },
-v3 = {
+v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "id"
 },
-v4 = {
+v3 = {
   "defaultValue": 50,
   "kind": "LocalArgument",
   "name": "numDescendants"
 },
-v5 = {
+v4 = {
   "defaultValue": {
     "col": "startTime",
     "dir": "desc"
@@ -78,10 +73,15 @@ v5 = {
   "kind": "LocalArgument",
   "name": "sort"
 },
-v6 = {
+v5 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "timeRange"
+},
+v6 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "traceFilterCondition"
 },
 v7 = [
   {
@@ -97,18 +97,18 @@ v8 = {
 },
 v9 = {
   "kind": "Variable",
-  "name": "filterCondition",
-  "variableName": "filterCondition"
-},
-v10 = {
-  "kind": "Variable",
   "name": "first",
   "variableName": "first"
 },
-v11 = {
+v10 = {
   "kind": "Variable",
   "name": "sort",
   "variableName": "sort"
+},
+v11 = {
+  "kind": "Variable",
+  "name": "traceFilterCondition",
+  "variableName": "traceFilterCondition"
 },
 v12 = {
   "alias": null,
@@ -134,18 +134,18 @@ v14 = {
 v15 = [
   (v8/*:: as any*/),
   (v9/*:: as any*/),
-  (v10/*:: as any*/),
   {
     "kind": "Literal",
     "name": "rootSpansOnly",
     "value": true
   },
-  (v11/*:: as any*/),
+  (v10/*:: as any*/),
   {
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
-  }
+  },
+  (v11/*:: as any*/)
 ],
 v16 = {
   "alias": null,
@@ -520,12 +520,12 @@ return {
             "args": [
               (v8/*:: as any*/),
               (v9/*:: as any*/),
-              (v10/*:: as any*/),
               {
                 "kind": "Variable",
                 "name": "numDescendants",
                 "variableName": "numDescendants"
               },
+              (v10/*:: as any*/),
               (v11/*:: as any*/)
             ],
             "kind": "FragmentSpread",
@@ -543,11 +543,11 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
+      (v3/*:: as any*/),
       (v4/*:: as any*/),
       (v5/*:: as any*/),
       (v6/*:: as any*/),
-      (v3/*:: as any*/)
+      (v2/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "TracesTableQuery",
@@ -883,7 +883,7 @@ return {
                 "filters": [
                   "sort",
                   "rootSpansOnly",
-                  "filterCondition",
+                  "traceFilterCondition",
                   "timeRange"
                 ],
                 "handle": "connection",
@@ -901,16 +901,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dd63067eb45db4158823d3475d74df16",
+    "cacheID": "47a24e28611d4851d755f77ce292f796",
     "id": null,
     "metadata": {},
     "name": "TracesTableQuery",
     "operationKind": "query",
-    "text": "query TracesTableQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 30\n  $numDescendants: Int = 50\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...TracesTable_spans_1DScCA\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationsNames\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TracesTable_spans_1DScCA on Project {\n  name\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true, filterCondition: $filterCondition, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        statusMessage\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          userId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n          traceAnnotationSummaries {\n            labelFractions {\n              fraction\n              label\n            }\n            meanScore\n            name\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: $numDescendants) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query TracesTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $numDescendants: Int = 50\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $traceFilterCondition: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...TracesTable_spans_BLnO5\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationsNames\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TracesTable_spans_BLnO5 on Project {\n  id\n  name\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        statusMessage\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          userId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n          traceAnnotationSummaries {\n            labelFractions {\n              fraction\n              label\n            }\n            meanScore\n            name\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: $numDescendants) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "16a471d01a937ac52c8a5ddd2ccec751";
+(node as any).hash = "0811c5be6095de316e1cccb9188f81cf";
 
 export default node;

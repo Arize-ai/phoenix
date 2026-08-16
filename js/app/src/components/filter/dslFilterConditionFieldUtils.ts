@@ -243,6 +243,23 @@ function getTextToEnclosingClose(textAfterCursor: string): string {
   return textAfterCursor;
 }
 
+/** The text following the close paired with the current comprehension. */
+function getTextAfterEnclosingClose(textAfterCursor: string): string {
+  let depth = 0;
+  for (let index = 0; index < textAfterCursor.length; index++) {
+    const character = textAfterCursor[index];
+    if (character === "(" || character === "[") {
+      depth++;
+    } else if (character === ")" || character === "]") {
+      if (depth === 0) {
+        return textAfterCursor.slice(index + 1);
+      }
+      depth--;
+    }
+  }
+  return "";
+}
+
 function findLastForClause(text: string): RegExpMatchArray | null {
   const matches = [...text.matchAll(forClauseScanPattern)];
   return matches[matches.length - 1] ?? null;
@@ -363,6 +380,37 @@ export function detectDSLFilterForClauseTarget({
   }
 
   return null;
+}
+
+/**
+ * Finds the comprehension immediately enclosing a nested `for ... in` target.
+ * Its binding follows the nested comprehension's closing bracket, so it cannot
+ * be recovered from `textBeforeCursor` alone.
+ */
+export function detectDSLFilterEnclosingComprehensionScopeForClauseTarget({
+  textBeforeCursor,
+  textAfterCursor,
+  isIterableName,
+}: {
+  textBeforeCursor: string;
+  textAfterCursor: string;
+  isIterableName: (name: string) => boolean;
+}): DSLFilterComprehensionScope | null {
+  if (!detectDSLFilterForClauseTarget({ textBeforeCursor })) {
+    return null;
+  }
+  const enclosingForClause = findFirstForClause(
+    getTextAfterEnclosingClose(textAfterCursor)
+  );
+  const loopVariable = enclosingForClause?.[1];
+  const iterableExpression = enclosingForClause?.[2]?.replace(/\s+/g, "");
+  if (!loopVariable || !iterableExpression) {
+    return null;
+  }
+  const iterableName = iterableExpression.slice(
+    iterableExpression.lastIndexOf(".") + 1
+  );
+  return isIterableName(iterableName) ? { iterableName, loopVariable } : null;
 }
 
 /**

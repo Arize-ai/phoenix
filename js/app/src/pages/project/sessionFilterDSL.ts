@@ -111,11 +111,11 @@ export const sessionFilterSnippets: DSLFilterSnippet[] = [
   },
   {
     label: "filter by annotation score",
-    snippet: 'annotations["${name}"].score >= ${0.5}',
+    snippet: 'session_annotations["${name}"].score >= ${0.5}',
   },
   {
     label: "filter by annotation label",
-    snippet: "annotations[\"${name}\"].label == '${label}'",
+    snippet: "session_annotations[\"${name}\"].label == '${label}'",
   },
   {
     label: "search inputs for substring",
@@ -179,11 +179,11 @@ const sessionFilterAIExamples = [
   },
   {
     description: "sessions the quality annotation labeled bad",
-    expression: "annotations['quality'].label == 'bad'",
+    expression: "session_annotations['quality'].label == 'bad'",
   },
   {
     description: "sessions with no helpfulness annotation",
-    expression: "annotations['helpfulness'].score is None",
+    expression: "session_annotations['helpfulness'].score is None",
   },
 ];
 
@@ -199,7 +199,7 @@ export const sessionFilterAIQueryDSL = createAIQueryDSL({
     "Use any, all, len, max, min, and sum with Python-style comprehensions. Element fields are qualified by the loop variable, such as span.latency_ms or trace.start_time.",
     "Guard all with a non-empty check when empty collections should not match, for example len([span for span in spans]) > 0 and all(... for span in spans).",
     "A trace exposes trace.spans for nested comprehensions over the spans in that trace.",
-    "Project-specific session annotation names and root-span attribute keys are discovered at runtime. Preserve names from the request verbatim in annotations['name'], metadata['key'], user.id, or attributes['otel.key']; do not invent near-synonyms.",
+    "Project-specific session annotation names and root-span attribute keys are discovered at runtime. Preserve names from the request verbatim in session_annotations['name'], metadata['key'], user.id, or attributes['otel.key']; do not invent near-synonyms.",
     "attributes string subscripts are OTel wire keys. attributes['llm.model_name'] and attributes['llm']['model_name'] name the same key.",
     "num_traces is an approximate conversation-turn count only when instrumentation starts one trace per exchange. tool_span_count counts TOOL spans.",
     "The only helpers are any, all, len, max, min, and sum over comprehensions. sorted(), list indexing, and slicing are not supported — approximate a percentile with max() or a threshold count instead.",
