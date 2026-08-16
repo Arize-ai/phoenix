@@ -5,7 +5,7 @@ import type { ToolProgressState } from "./toolProgress";
  * one-line preview of what the tool is doing, and a few detail/error lines —
  * from the tool's (possibly still-streaming) input and output. This mirrors
  * the web UI's per-tool presentation registry in
- * `app/src/components/agent/ToolPart.tsx`, which cannot be imported from this
+ * `js/app/src/components/agent/ToolPart.tsx`, which cannot be imported from this
  * package.
  *
  * Everything here is pure string derivation so it stays cheap: the whole
@@ -221,7 +221,10 @@ function getBashPresentation({
   };
   const outputRecord = state === "output-available" ? asRecord(output) : null;
   if (outputRecord) {
-    const exitCode = outputRecord.exit_code;
+    // The CLI is released independently of the server: newer servers emit
+    // camelCase (exitCode), but servers predating the server-side bash
+    // unification still stream snake_case (exit_code).
+    const exitCode = outputRecord.exitCode ?? outputRecord.exit_code;
     if (typeof exitCode === "number" && exitCode !== 0) {
       presentation.statusSuffix = `exit ${exitCode}`;
       const stderr = getStringField({ record: outputRecord, field: "stderr" });

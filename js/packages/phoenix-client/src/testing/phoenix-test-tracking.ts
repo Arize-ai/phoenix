@@ -16,7 +16,10 @@ import {
 import type { Span } from "@opentelemetry/api";
 
 import { createDataset } from "../datasets";
-import { cleanupOwnedTracerProvider } from "../experiments/tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+} from "../experiments/tracing";
 import { createClient, type PhoenixClient } from "../index";
 import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
@@ -163,9 +166,9 @@ interface TaskSpanLifecycle {
 const taskSpansByRun = new WeakMap<RunState, TaskSpanLifecycle>();
 
 /**
- * Warn once when `PHOENIX_HOST` is plain `http:` while an `Authorization`
- * header is being forwarded to the OTLP exporter — that combination
- * exfiltrates the bearer token in cleartext.
+ * Warn once when the resolved base URL is plain `http:` while an
+ * `Authorization` header is being forwarded to the OTLP exporter — that
+ * combination exfiltrates the bearer token in cleartext.
  */
 let warnedAboutHttpScheme = false;
 function maybeWarnHttpScheme(
@@ -191,9 +194,9 @@ function maybeWarnHttpScheme(
   warnedAboutHttpScheme = true;
   // eslint-disable-next-line no-console
   console.warn(
-    `[@arizeai/phoenix-client] PHOENIX_HOST="${baseUrl}" uses http:// with ` +
-      `an Authorization header set; the bearer token will travel in cleartext. ` +
-      `Use https:// for non-localhost Phoenix endpoints.`
+    `[@arizeai/phoenix-client] The Phoenix base URL "${baseUrl}" uses http:// ` +
+      `with an Authorization header set; the bearer token will travel in ` +
+      `cleartext. Use https:// for non-localhost Phoenix endpoints.`
   );
 }
 
@@ -349,7 +352,7 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
   if (!baseUrl) {
     suite.trackingDisabled = true;
     suite.setupError = new Error(
-      "Phoenix base URL not found. Set PHOENIX_HOST or pass baseUrl on the client."
+      "Phoenix base URL not found. Set PHOENIX_ENDPOINT (or PHOENIX_COLLECTOR_ENDPOINT) or pass baseUrl on the client."
     );
     suite.tracer = createNoOpProvider().getTracer("no-op");
     suite.evaluatorTracer = suite.tracer;
@@ -362,7 +365,7 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
   try {
     provider = register({
       projectName: suite.projectName,
-      url: baseUrl,
+      url: getTraceExportUrl(client.config),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,

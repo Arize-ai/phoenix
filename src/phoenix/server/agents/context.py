@@ -47,18 +47,14 @@ class ProjectContext(_ChatContextBase):
 
     ``span_filter`` carries the project-scoped span filter expression when the
     span filter field is mounted — empty string when the field is mounted with
-    no condition applied, ``None`` when the field is not present at all.
-
-    ``root_spans_only`` carries the current state of the spans-table root vs.
-    all toggle when that toggle is mounted — ``True`` when the table is
-    restricted to root spans, ``False`` when it shows every span, ``None``
-    when the toggle is not present (e.g. on the traces tab).
+    no condition applied, ``None`` when the field is not present at all. It
+    describes the view in full, root-span scoping included (which is expressed
+    within the filter DSL as ``parent_id is None``).
     """
 
     type: Literal["project"]
     project_node_id: str = Field(alias="projectNodeId")
     span_filter: str | None = Field(default=None, alias="spanFilter")
-    root_spans_only: bool | None = Field(default=None, alias="rootSpansOnly")
 
 
 class TraceContext(_ChatContextBase):

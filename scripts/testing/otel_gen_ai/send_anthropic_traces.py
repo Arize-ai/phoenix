@@ -26,7 +26,7 @@ Auth/identity headers are scrubbed. Mode is ``once``: first run hits the live AP
 subsequent runs replay the cassette. To force re-record, delete the cassette files.
 Phoenix-bound OTLP traffic is excluded from recording via ``ignore_hosts``.
 
-Override the endpoint with ``PHOENIX_ENDPOINT`` if your Phoenix isn't on :6006.
+Override the endpoint with ``PHOENIX_COLLECTOR_ENDPOINT`` if your Phoenix isn't on :6006.
 """
 
 from __future__ import annotations
@@ -48,12 +48,27 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from vcr.record_mode import RecordMode
 
-PHOENIX_ENDPOINT = os.environ.get("PHOENIX_ENDPOINT", "http://localhost:6006/v1/traces")
+
+def _traces_endpoint() -> str:
+    """OTLP traces URL for the exporter below.
+
+    ``PHOENIX_COLLECTOR_ENDPOINT`` may be a base URL or already carry the OTLP path;
+    the exporter POSTs to exactly the URL it is given, so append the path when missing.
+    """
+    endpoint = (
+        os.environ.get("PHOENIX_COLLECTOR_ENDPOINT") or "http://localhost:6006/v1/traces"
+    ).rstrip("/")
+    if urlparse(endpoint).path.endswith("/v1/traces"):
+        return endpoint
+    return f"{endpoint}/v1/traces"
+
+
+TRACES_ENDPOINT = _traces_endpoint()
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-7")
 CASSETTE_DIR = Path(__file__).resolve().parent / "cassettes"
 
 # Don't record OTLP traffic to Phoenix — only the Anthropic API calls.
-_phoenix_host = urlparse(PHOENIX_ENDPOINT).hostname or "localhost"
+_phoenix_host = urlparse(TRACES_ENDPOINT).hostname or "localhost"
 recorder = vcr.VCR(
     cassette_library_dir=str(CASSETTE_DIR),
     record_mode=RecordMode.ALL,
@@ -82,7 +97,7 @@ def main() -> int:
         return 1
 
     provider = TracerProvider(resource=Resource.create({"service.name": "anthropic-otel-demo"}))
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=PHOENIX_ENDPOINT)))
+    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=TRACES_ENDPOINT)))
     trace.set_tracer_provider(provider)
     AnthropicInstrumentor().instrument()
 

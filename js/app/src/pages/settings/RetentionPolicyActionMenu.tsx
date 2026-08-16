@@ -1,0 +1,254 @@
+import { Suspense, useState } from "react";
+import { ConnectionHandler, graphql, useMutation } from "react-relay";
+
+import {
+  Button,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Modal,
+  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
+  Popover,
+  Text,
+  View,
+} from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { DEFAULT_RETENTION_POLICY_NAME } from "@phoenix/constants";
+import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
+
+import { EditRetentionPolicy } from "./EditRetentionPolicy";
+
+enum RetentionPolicyAction {
+  EDIT = "editPolicy",
+  DELETE = "deletePolicy",
+}
+
+export interface RetentionPolicyActionMenuProps {
+  policyId: string;
+  policyName: string;
+  /**
+   * The names of the projects associated with the policy.
+   */
+  projectNames: string[];
+  /**
+   * Called after an edit succeeds, for site-specific effects. Success
+   * notifications are handled by the menu itself.
+   */
+  onPolicyEdit?: () => void;
+  /**
+   * Called after a delete is issued, for site-specific effects. Success
+   * notifications are handled by the menu itself.
+   */
+  onPolicyDelete?: () => void;
+}
+
+export const RetentionPolicyActionMenu = ({
+  policyId,
+  policyName,
+  projectNames,
+  onPolicyEdit,
+  onPolicyDelete,
+}: RetentionPolicyActionMenuProps) => {
+  const notifySuccess = useNotifySuccess();
+  const canDelete = policyName !== DEFAULT_RETENTION_POLICY_NAME;
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const connectionId = ConnectionHandler.getConnectionID(
+    "client:root",
+    "RetentionPoliciesTable_projectTraceRetentionPolicies"
+  );
+  const [deletePolicy, isDeleting] = useMutation(graphql`
+    mutation RetentionPolicyActionMenuDeletePolicyMutation(
+      $policyId: ID!
+      $connectionId: ID!
+    ) {
+      deleteProjectTraceRetentionPolicy(input: { id: $policyId }) {
+        query {
+          ...RetentionPoliciesTable_policies
+        }
+        node {
+          id @deleteEdge(connections: [$connectionId])
+        }
+      }
+    }
+  `);
+
+  return (
+    <StopPropagation>
+      <MenuTrigger>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
+        />
+        <Popover placement="bottom end">
+          <Menu
+            disabledKeys={canDelete ? [] : [RetentionPolicyAction.DELETE]}
+            onAction={(action) => {
+              switch (action as RetentionPolicyAction) {
+                case RetentionPolicyAction.EDIT: {
+                  return setShowEditDialog(true);
+                }
+                case RetentionPolicyAction.DELETE: {
+                  return setShowDeleteDialog(true);
+                }
+              }
+            }}
+          >
+            <MenuItem id={RetentionPolicyAction.EDIT} textValue="Edit Policy">
+              <Flex
+                direction="row"
+                gap="size-75"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.Edit />} />
+                <Text>Edit</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem
+              id={RetentionPolicyAction.DELETE}
+              textValue="Delete Policy"
+            >
+              <Flex
+                direction="row"
+                gap="size-75"
+                justifyContent="start"
+                alignItems="center"
+              >
+                <Icon svg={<Icons.Trash />} />
+                <Text>Delete</Text>
+              </Flex>
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
+      {/* Edit Dialog */}
+      <DialogTrigger isOpen={showEditDialog} onOpenChange={setShowEditDialog}>
+        <ViewportModalOverlay>
+          <ViewportModal size="M">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Retention Policy</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton
+                      onPress={() => setShowEditDialog(false)}
+                      slot="close"
+                    />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <Suspense fallback={<Loading />}>
+                  <EditRetentionPolicy
+                    policyId={policyId}
+                    onEditCompleted={() => {
+                      notifySuccess({
+                        title: "Policy Updated",
+                        message: `Policy "${policyName}" was updated and will take effect shortly.`,
+                      });
+                      onPolicyEdit?.();
+                      setShowEditDialog(false);
+                    }}
+                    onCancel={() => {
+                      setShowEditDialog(false);
+                    }}
+                  />
+                </Suspense>
+              </DialogContent>
+            </Dialog>
+          </ViewportModal>
+        </ViewportModalOverlay>
+      </DialogTrigger>
+
+      {/* Delete Dialog */}
+      <DialogTrigger
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+      >
+        <ModalOverlay>
+          <Modal size="S">
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Delete Retention Policy</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton slot="close" />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <View padding="size-200">
+                  <Text color="danger">
+                    {`Are you sure you want to delete retention policy "${policyName}"? This cannot be undone.`}
+                  </Text>
+                  <br />
+                  {projectNames.length > 0 && (
+                    <Text color="danger">
+                      {`This policy is associated with the following projects: ${projectNames.join(
+                        ", "
+                      )}. These projects will fall back to the default policy.`}
+                    </Text>
+                  )}
+                </View>
+                <View
+                  paddingEnd="size-200"
+                  paddingTop="size-100"
+                  paddingBottom="size-100"
+                  borderTopColor="default"
+                  borderTopWidth="thin"
+                >
+                  <Flex direction="row" justifyContent="end" gap="size-100">
+                    <Button
+                      variant="default"
+                      size="S"
+                      slot="close"
+                      isDisabled={isDeleting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="S"
+                      onPress={() => {
+                        deletePolicy({
+                          variables: {
+                            policyId,
+                            connectionId,
+                          },
+                        });
+                        setShowDeleteDialog(false);
+                        notifySuccess({
+                          title: "Policy deleted",
+                          message: `Policy "${policyName}" was deleted`,
+                        });
+                        onPolicyDelete?.();
+                      }}
+                      isDisabled={isDeleting}
+                      leadingVisual={
+                        isDeleting ? (
+                          <Icon svg={<Icons.Loading />} />
+                        ) : undefined
+                      }
+                    >
+                      {isDeleting ? "Deleting..." : "Delete Policy"}
+                    </Button>
+                  </Flex>
+                </View>
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+    </StopPropagation>
+  );
+};

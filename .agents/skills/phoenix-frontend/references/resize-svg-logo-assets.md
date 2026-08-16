@@ -8,8 +8,8 @@ appropriate TSX file.
 
 | Target        | Canvas | File                                                               | Component style                            |
 |---------------|--------|--------------------------------------------------------------------|--------------------------------------------|
-| `provider`    | 24x24  | `app/src/components/generative/GenerativeProviderIcon.tsx`         | Private const, accepts `{ height }` prop   |
-| `integration` | 32x32  | `app/src/components/project/IntegrationIcons.tsx`                  | Named export, no props, fixed 32x32        |
+| `provider`    | 24x24  | `js/app/src/components/generative/GenerativeProviderIcon.tsx`         | Private const, accepts `{ height }` prop   |
+| `integration` | 32x32  | `js/app/src/components/project/IntegrationIcons.tsx`                  | Named export, no props, fixed 32x32        |
 
 If the user does not specify a target, **ask before proceeding**.
 

@@ -1,0 +1,824 @@
+import { css } from "@emotion/react";
+import type {
+  ColumnDef,
+  ExpandedState,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  getExpandedRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import React, {
+  startTransition,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { Group, Panel } from "react-resizable-panels";
+import { useNavigate, useParams, useSearchParams } from "react-router";
+
+import {
+  ContextualHelp,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  OverflowRow,
+  Text,
+  View,
+} from "@phoenix/components";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useTimeRange } from "@phoenix/components/datetime";
+import {
+  expandableSelectableTableCSS,
+  TABLE_DATA_CELL_CLASS,
+} from "@phoenix/components/table/styles";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
+import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
+import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
+
+import {
+  ColumnHeaderCell,
+  ColumnOrderingProvider,
+  CopyableTextCell,
+  IntCell,
+  RowExpandToggleButton,
+  useTableRowsExpanded,
+  useColumnOrder,
+} from "../../components/table";
+import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
+import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
+import type { SessionsTableSessionFilterVocabularyQuery } from "./__generated__/SessionsTableSessionFilterVocabularyQuery.graphql";
+import { DEFAULT_PAGE_SIZE } from "./constants";
+import {
+  SessionInputValueTooltipCell,
+  SessionOutputValueTooltipCell,
+} from "./IOValueTooltipCell";
+import { SessionColumnSelector } from "./SessionColumnSelector";
+import { SessionFilterConditionField } from "./SessionFilterConditionField";
+import { SessionsTableAside } from "./SessionsTableAside";
+import { SessionsTableEmpty } from "./SessionsTableEmpty";
+import { spansTableCSS } from "./styles";
+import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
+import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
+import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
+import {
+  ANNOTATION_COLUMN_SIZING,
+  DEFAULT_SESSION_SORT,
+  getGqlSessionSort,
+  makeAnnotationColumnId,
+} from "./tableUtils";
+type SessionsTableProps = {
+  project: SessionsTable_sessions$key;
+};
+
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
+
+const toolbarFilterFieldCSS = css`
+  flex: 2 1 420px;
+  min-width: min(100%, 320px);
+`;
+
+const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
+
+/**
+ * The filter field, once its per-project autocomplete vocabulary has loaded.
+ * The vocabulary resolver scans annotation names and root-span attributes, so
+ * it is suspended separately from the table it sits above.
+ */
+function SessionFilterConditionFieldWithVocabulary({
+  projectId,
+  onValidCondition,
+}: {
+  projectId: string;
+  onValidCondition: (condition: string) => void;
+}) {
+  const data = useLazyLoadQuery<SessionsTableSessionFilterVocabularyQuery>(
+    graphql`
+      query SessionsTableSessionFilterVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    <SessionFilterConditionField
+      vocabulary={
+        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+      }
+      onValidCondition={onValidCondition}
+    />
+  );
+}
+
+const TableBody = <T extends { id: string }>({
+  table,
+}: {
+  table: Table<T>;
+}) => {
+  "use no memo";
+  const navigate = useNavigate();
+  const { sessionId } = useParams();
+  const [searchParams] = useSearchParams();
+  return (
+    <tbody>
+      {table.getRowModel().rows.map((row) => {
+        const isSelected = row.original.id === sessionId;
+        return (
+          <tr
+            key={row.id}
+            data-selected={isSelected}
+            onClick={() =>
+              navigate(
+                getSessionDetailsPath({
+                  sessionId: row.original.id,
+                  searchParams,
+                })
+              )
+            }
+          >
+            {row.getVisibleCells().map((cell) => {
+              return (
+                <td
+                  key={cell.id}
+                  className={TABLE_DATA_CELL_CLASS}
+                  style={{
+                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+    </tbody>
+  );
+};
+
+// special memoized wrapper for our table body that we will use during column resizing
+export const MemoizedTableBody = React.memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
+
+export function SessionsTable(props: SessionsTableProps) {
+  // we need a reference to the scrolling element for pagination logic down below
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [validSessionFilterCondition, setValidSessionFilterCondition] =
+    useState<string>("");
+  const { fetchKey } = useStreamState();
+  // Source the time range directly here (rather than only via the preloaded
+  // parent query) so a live window sliding forward refetches with the current
+  // search/filter still applied. The parent query is intentionally not reloaded
+  // on window slides — see the load effect in `ProjectPage` and issue #14216.
+  const { timeRangeISOStrings } = useTimeRange();
+  const {
+    isExpanded: areRowsExpanded,
+    setIsExpanded: setAreRowsExpanded,
+    tableProps: rowsExpandedTableProps,
+  } = useTableRowsExpanded();
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
+      graphql`
+        fragment SessionsTable_sessions on Project
+        @refetchable(queryName: "SessionsTableQuery")
+        @argumentDefinitions(
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 30 }
+          sort: {
+            type: "ProjectSessionSort"
+            defaultValue: { col: startTime, dir: desc }
+          }
+          sessionFilterCondition: { type: "String", defaultValue: null }
+        ) {
+          id
+          name
+          ...SessionColumnSelector_annotations
+          sessions(
+            first: $first
+            after: $after
+            sort: $sort
+            sessionFilterCondition: $sessionFilterCondition
+            timeRange: $timeRange
+          ) @connection(key: "SessionsTable_sessions") {
+            edges {
+              session: node {
+                id
+                sessionId
+                userId
+                numTraces
+                startTime
+                endTime
+                firstInput {
+                  value: truncatedValue
+                }
+                lastOutput {
+                  value: truncatedValue
+                }
+                tokenUsage {
+                  total
+                }
+                traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)
+                traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)
+                costSummary {
+                  total {
+                    cost
+                  }
+                }
+                sessionAnnotations {
+                  id
+                  name
+                  label
+                  score
+                  annotatorKind
+                  user {
+                    username
+                    profilePictureUrl
+                  }
+                }
+                sessionAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
+                }
+                project {
+                  id
+                  annotationConfigs {
+                    edges {
+                      node {
+                        ... on AnnotationConfigBase {
+                          annotationType
+                        }
+                        ... on CategoricalAnnotationConfig {
+                          id
+                          name
+                          optimizationDirection
+                          values {
+                            label
+                            score
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                ...SessionAnnotationSummaryGroup
+              }
+            }
+          }
+        }
+      `,
+      props.project
+    );
+  const tableData = useMemo(() => {
+    return data.sessions.edges.map(({ session }) => ({
+      ...session,
+      tokenCountTotal: session.tokenUsage.total,
+      costTotal: session.costSummary?.total?.cost ?? null,
+    }));
+  }, [data.sessions]);
+  type TableRow = (typeof tableData)[number];
+
+  const setSessionSequence = useSessionPagination()?.setSessionSequence;
+  useEffect(() => {
+    if (!setSessionSequence) {
+      return undefined;
+    }
+    setSessionSequence(
+      data.sessions.edges.map(({ session }) => ({
+        sessionId: session.id,
+      }))
+    );
+    return () => {
+      setSessionSequence([]);
+    };
+  }, [data.sessions.edges, setSessionSequence]);
+
+  const annotationColumnVisibility = useTracingContext(
+    (state) => state.annotationColumnVisibility
+  );
+  const visibleAnnotationColumnNames = useMemo(() => {
+    return Object.keys(annotationColumnVisibility).filter(
+      (name) => annotationColumnVisibility[name]
+    );
+  }, [annotationColumnVisibility]);
+
+  const dynamicAnnotationColumns: ColumnDef<TableRow>[] =
+    visibleAnnotationColumnNames.map((name) => {
+      return {
+        header: name,
+        columns: [
+          {
+            header: `labels`,
+            accessorKey: makeAnnotationColumnId(name, "label"),
+            cell: ({ row }) => {
+              const annotation = row.original.sessionAnnotationSummaries.find(
+                (annotation) => annotation.name === name
+              );
+              if (!annotation) {
+                return null;
+              }
+              return (
+                <SummaryValueLabels
+                  name={name}
+                  labelFractions={annotation.labelFractions}
+                />
+              );
+            },
+          } as ColumnDef<TableRow>,
+          {
+            header: `mean score`,
+            accessorKey: makeAnnotationColumnId(name, "score"),
+            cell: ({ row }) => {
+              const annotation = row.original.sessionAnnotationSummaries.find(
+                (annotation) => annotation.name === name
+              );
+              if (!annotation) {
+                return null;
+              }
+              return <MeanScore value={annotation.meanScore} fallback={null} />;
+            },
+          } as ColumnDef<TableRow>,
+        ],
+      };
+    });
+
+  const annotationColumns: ColumnDef<TableRow>[] = [
+    {
+      header: () => (
+        <Flex direction="row" gap="size-50" alignItems="center">
+          <span>annotations</span>
+          <ContextualHelp>
+            <Heading level={3} weight="heavy">
+              Annotations
+            </Heading>
+            <Text>
+              Evaluations and human annotations logged via the API or set via
+              the UI.
+            </Text>
+          </ContextualHelp>
+        </Flex>
+      ),
+      id: "annotations",
+      accessorKey: "sessionAnnotations",
+      enableSorting: false,
+      ...ANNOTATION_COLUMN_SIZING,
+      cell: ({ row }) => {
+        return (
+          <OverflowRow isExpanded={areRowsExpanded}>
+            <SessionAnnotationSummaryGroupTokens
+              session={row.original}
+              showFilterActions
+            />
+          </OverflowRow>
+        );
+      },
+    },
+    ...dynamicAnnotationColumns,
+  ];
+
+  const columns: ColumnDef<TableRow>[] = [
+    {
+      header: "session id",
+      accessorKey: "sessionId",
+      enableSorting: false,
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
+    },
+    {
+      header: "first input",
+      accessorKey: "firstInput.value",
+      enableSorting: false,
+      cell: ({ getValue, row }) => (
+        <SessionInputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
+    },
+    {
+      header: "last output",
+      accessorKey: "lastOutput.value",
+      enableSorting: false,
+      cell: ({ getValue, row }) => (
+        <SessionOutputValueTooltipCell
+          nodeId={row.original.id}
+          preview={getValue()}
+        />
+      ),
+    },
+    {
+      header: "user",
+      accessorKey: "userId",
+      enableSorting: false,
+      cell: ({ getValue }) => (
+        <CopyableTextCell value={getValue() as string | null} />
+      ),
+    },
+    ...annotationColumns,
+    {
+      header: "start time",
+      accessorKey: "startTime",
+      enableSorting: true,
+      cell: TimestampCell,
+    },
+    {
+      header: "end time",
+      accessorKey: "endTime",
+      enableSorting: true,
+      cell: TimestampCell,
+    },
+    {
+      header: "p50 latency",
+      accessorKey: "traceLatencyMsP50",
+      enableSorting: false,
+      meta: { textAlign: "right" },
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return null;
+        }
+        return <LatencyText latencyMs={value} size="S" />;
+      },
+    },
+    {
+      header: "p99 latency",
+      accessorKey: "traceLatencyMsP99",
+      enableSorting: false,
+      meta: { textAlign: "right" },
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return null;
+        }
+        return <LatencyText latencyMs={value} size="S" />;
+      },
+    },
+    {
+      header: "total tokens",
+      accessorKey: "tokenCountTotal",
+      enableSorting: true,
+      minSize: 80,
+      meta: { textAlign: "right" },
+      cell: ({ getValue, row }) => {
+        const value = getValue();
+        if (value == null || typeof value !== "number") {
+          return "--";
+        }
+        const session = row.original;
+        return (
+          <SessionTokenCount
+            tokenCountTotal={value as number}
+            nodeId={session.id}
+            size="S"
+          />
+        );
+      },
+    },
+    {
+      header: "total cost",
+      accessorKey: "costSummary.total.cost",
+      id: "costTotal",
+      enableSorting: true,
+      minSize: 80,
+      meta: { textAlign: "right" },
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        const session = row.original;
+        return (
+          <SessionTokenCosts totalCost={value} nodeId={session.id} size="S" />
+        );
+      },
+    },
+    {
+      header: "total traces",
+      accessorKey: "numTraces",
+      enableSorting: true,
+      cell: IntCell,
+    },
+  ];
+  useEffect(() => {
+    const sort = sorting[0];
+    startTransition(() => {
+      refetch(
+        {
+          sort: sort ? getGqlSessionSort(sort) : DEFAULT_SESSION_SORT,
+          after: null,
+          first: PAGE_SIZE,
+          sessionFilterCondition: validSessionFilterCondition || null,
+          timeRange: timeRangeISOStrings,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
+  }, [
+    sorting,
+    refetch,
+    validSessionFilterCondition,
+    fetchKey,
+    timeRangeISOStrings,
+  ]);
+  const fetchMoreOnBottomReached = React.useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        // once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const columnVisibility = useTracingContext((state) => state.columnVisibility);
+  const columnSizing = useTracingContext((state) => state.columnSizing);
+  const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
+  const storedColumnOrder = useTracingContext((state) => state.columnOrder);
+  const setStoredColumnOrder = useTracingContext(
+    (state) => state.setColumnOrder
+  );
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    onVisibleColumnOrderChange,
+    getColumnOrderIndex,
+  } = useColumnOrder({
+    columns,
+    columnOrder: storedColumnOrder,
+    onColumnOrderChange: setStoredColumnOrder,
+    columnVisibility,
+  });
+  const table = useReactTable<TableRow>({
+    columns,
+    data: tableData,
+    onExpandedChange: setExpanded,
+    manualSorting: true,
+    state: {
+      sorting,
+      expanded,
+      columnVisibility,
+      columnSizing,
+      columnOrder: leafColumnOrder,
+    },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
+    onColumnSizingChange: setColumnSizing,
+    enableSubRowSelection: false,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+  });
+  const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+  const colLength = columns.length;
+  /**
+   * Instead of calling `column.getSize()` on every render for every header
+   * and especially every data cell (very expensive),
+   * we will calculate all column sizes at once at the root table level in a useMemo
+   * and pass the column sizes down as CSS variables to the <table> element.
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = React.useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${header.id}-size`] = header.getSize();
+      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  return (
+    <TableMetricsChartsPanelGroup view="sessions">
+      <div css={spansTableCSS}>
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+          flex="none"
+        >
+          <Flex
+            direction="row"
+            gap="size-100"
+            width="100%"
+            alignItems="center"
+            wrap="wrap"
+          >
+            <div css={toolbarFilterFieldCSS}>
+              {/* Autocomplete data must not gate the table's first paint, so
+                  the field renders — and filters — before it arrives. */}
+              <Suspense
+                fallback={
+                  <SessionFilterConditionField
+                    vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
+                    onValidCondition={setValidSessionFilterCondition}
+                  />
+                }
+              >
+                <SessionFilterConditionFieldWithVocabulary
+                  projectId={data.id}
+                  onValidCondition={setValidSessionFilterCondition}
+                />
+              </Suspense>
+            </div>
+            <TableMetricsChartSelector view="sessions" />
+            <SessionColumnSelector
+              columns={table.getAllColumns()}
+              query={data}
+            />
+            <RowExpandToggleButton
+              isExpanded={areRowsExpanded}
+              onChange={setAreRowsExpanded}
+            />
+            <TableAsideToggleButton />
+          </Flex>
+        </View>
+        <Group
+          orientation="horizontal"
+          id="sessions-table-layout"
+          css={css`
+            flex: 1 1 auto;
+            min-height: 0;
+          `}
+        >
+          <Panel>
+            <div
+              css={css`
+                height: 100%;
+                overflow: auto;
+              `}
+              onScroll={(e) =>
+                fetchMoreOnBottomReached(e.target as HTMLDivElement)
+              }
+              ref={tableContainerRef}
+            >
+              <ColumnOrderingProvider
+                columnOrder={visibleColumnOrder}
+                onColumnOrderChange={onVisibleColumnOrderChange}
+              >
+                <table
+                  css={expandableSelectableTableCSS}
+                  {...rowsExpandedTableProps}
+                  style={{
+                    ...columnSizeVars,
+                    width: table.getTotalSize(),
+                    minWidth: "100%",
+                  }}
+                >
+                  <thead>
+                    {table
+                      .getHeaderGroups()
+                      .map((headerGroup, headerGroupIndex) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <ColumnHeaderCell
+                              key={header.id}
+                              columnId={header.column.id}
+                              // Only the top header group is reorderable;
+                              // sub-headers of a group column move with it
+                              index={
+                                headerGroupIndex === 0
+                                  ? getColumnOrderIndex(header.column.id)
+                                  : -1
+                              }
+                              label={
+                                typeof header.column.columnDef.header ===
+                                "string"
+                                  ? header.column.columnDef.header
+                                  : undefined
+                              }
+                              colSpan={header.colSpan}
+                              style={{
+                                width: `calc(var(--header-${header.id}-size) * 1px)`,
+                              }}
+                            >
+                              {header.isPlaceholder ? null : (
+                                <>
+                                  <div
+                                    data-sortable={header.column.getCanSort()}
+                                    {...{
+                                      className: header.column.getCanSort()
+                                        ? "sort"
+                                        : "",
+                                      onClick:
+                                        header.column.getToggleSortingHandler(),
+                                      style: {
+                                        left: header.getStart(),
+                                        width: header.getSize(),
+                                      },
+                                    }}
+                                  >
+                                    <Truncate maxWidth="100%">
+                                      {flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext()
+                                      )}
+                                    </Truncate>
+                                    {header.column.getIsSorted() ? (
+                                      <Icon
+                                        className="sort-icon"
+                                        svg={
+                                          header.column.getIsSorted() ===
+                                          "asc" ? (
+                                            <Icons.CaretUpFilled />
+                                          ) : (
+                                            <Icons.CaretDownFilled />
+                                          )
+                                        }
+                                      />
+                                    ) : null}
+                                  </div>
+                                  <div
+                                    {...{
+                                      onMouseDown: header.getResizeHandler(),
+                                      onTouchStart: header.getResizeHandler(),
+                                      className: `resizer ${
+                                        header.column.getIsResizing()
+                                          ? "isResizing"
+                                          : ""
+                                      }`,
+                                    }}
+                                  />
+                                </>
+                              )}
+                            </ColumnHeaderCell>
+                          ))}
+                        </tr>
+                      ))}
+                  </thead>
+                  {isEmpty ? (
+                    <SessionsTableEmpty />
+                  ) : columnSizingInfo.isResizingColumn ? (
+                    <MemoizedTableBody table={table} />
+                  ) : (
+                    <TableBody table={table} />
+                  )}
+                </table>
+              </ColumnOrderingProvider>
+            </div>
+          </Panel>
+          <TableAsidePanel>
+            <SessionsTableAside
+              sessionFilterCondition={validSessionFilterCondition || null}
+            />
+          </TableAsidePanel>
+        </Group>
+      </div>
+    </TableMetricsChartsPanelGroup>
+  );
+}

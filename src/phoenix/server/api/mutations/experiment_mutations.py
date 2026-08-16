@@ -13,11 +13,14 @@ from strawberry.types import Info
 from phoenix.config import EXPERIMENT_TOGGLE_COOLDOWN
 from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_names_for_experiments
-from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, CustomGraphQLError
-from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
+from phoenix.server.api.experiment_tags import (
+    BASELINE_EXPERIMENT_TAG_NAME,
+    remove_experiment_tag,
+    upsert_experiment_tag,
+)
 from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PatchExperimentInput import PatchExperimentInput
@@ -292,31 +295,19 @@ class ExperimentMutationMixin:
                     previous_baseline_experiment = await session.get(
                         models.Experiment, previous_baseline_experiment_id
                     )
-                await session.execute(
-                    insert_on_conflict(
-                        {
-                            "experiment_id": experiment.id,
-                            "dataset_id": experiment.dataset_id,
-                            "user_id": info.context.user_id,
-                            "name": BASELINE_EXPERIMENT_TAG_NAME,
-                            "description": None,
-                        },
-                        table=models.ExperimentTag,
-                        dialect=info.context.db.dialect,
-                        unique_by=("dataset_id", "name"),
-                        set_={
-                            "experiment_id": experiment.id,
-                            "user_id": info.context.user_id,
-                            "description": None,
-                        },
-                    )
+                await upsert_experiment_tag(
+                    session,
+                    experiment=experiment,
+                    name=BASELINE_EXPERIMENT_TAG_NAME,
+                    description=None,
+                    user_id=info.context.user_id,
+                    dialect=info.context.db.dialect,
                 )
             else:
-                await session.execute(
-                    delete(models.ExperimentTag)
-                    .where(models.ExperimentTag.dataset_id == experiment.dataset_id)
-                    .where(models.ExperimentTag.name == BASELINE_EXPERIMENT_TAG_NAME)
-                    .where(models.ExperimentTag.experiment_id == experiment.id)
+                await remove_experiment_tag(
+                    session,
+                    experiment=experiment,
+                    name=BASELINE_EXPERIMENT_TAG_NAME,
                 )
             try:
                 await session.commit()

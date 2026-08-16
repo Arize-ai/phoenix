@@ -17,7 +17,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'LLM'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -34,7 +33,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'TOOL'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -51,7 +49,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: status_code == 'ERROR'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -93,7 +90,6 @@ examples:
         set_spans_filter:
           condition:
             contains_all: ["span_kind == 'LLM'", "latency_ms >= 5000"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -126,7 +122,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: name == 'retrieve_documents'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -149,7 +144,6 @@ examples:
           condition:
             contains_all: ["refund policy", "in input.value"]
             not_contains: [".contains("]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -166,7 +160,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: annotations['Hallucination'].label == 'hallucinated'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -182,8 +175,7 @@ examples:
         required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: ""
-          rootSpansOnly: true
+          condition: parent_id is None
     metadata:
       annotation:
         agreement: high
@@ -206,8 +198,8 @@ examples:
         n_opinions: 3
   - id: agent-root-spans
     # Genuinely ambiguous: "top-level agent traces" can resolve to either
-    # filtering by AGENT span_kind (with root-only) or just showing root
-    # spans (with no filter). Accept either via variants.
+    # filtering by AGENT span_kind alongside the root predicate, or just the
+    # root predicate on its own. Accept either via variants.
     splits: [regression]
     input:
       messages:
@@ -218,10 +210,9 @@ examples:
         required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          - condition: span_kind == 'AGENT'
-            rootSpansOnly: true
-          - condition: ""
-            rootSpansOnly: true
+          - condition:
+              contains_all: ["span_kind == 'AGENT'", "parent_id is None"]
+          - condition: parent_id is None
     metadata:
       annotation:
         agreement: medium
@@ -238,7 +229,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'EMBEDDING'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -255,7 +245,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: status_code == 'OK'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -272,7 +261,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: status_code == 'UNSET'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -291,7 +279,6 @@ examples:
           condition:
             contains_all: ["span_kind == 'LLM'", "llm.token_count.prompt", "10000"]
             not_contains: ["llm.token_count.prompt < ", "llm.token_count.prompt <= "]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -308,9 +295,9 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition:
-            contains_all: ["cumulative_token_count.total", "50000"]
+            contains_all:
+              ["cumulative_token_count.total", "50000", "parent_id is None"]
             not_contains: ["cumulative_token_count.total < ", "cumulative_token_count.total <= "]
-          rootSpansOnly: true
     metadata:
       annotation:
         agreement: high
@@ -364,7 +351,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: parent_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -383,7 +369,6 @@ examples:
           condition:
             contains_all: ["annotations['Helpfulness'].score", "0.8"]
             not_contains: ["annotations['Helpfulness'].score < ", "annotations['Helpfulness'].score <= "]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -401,7 +386,6 @@ examples:
         set_spans_filter:
           condition:
             contains_all: ["502", "output.value"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: medium
@@ -450,7 +434,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'RETRIEVER'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -508,7 +491,6 @@ examples:
           condition:
             contains_all: ["LLM", "TOOL"]
             not_contains: ["!=", "not_in", "not in"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -527,7 +509,6 @@ examples:
           condition:
             contains_all: ["span_kind == 'LLM'", "llm.token_count.completion", "2000"]
             not_contains: ["llm.token_count.completion < ", "llm.token_count.completion <= "]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -561,7 +542,6 @@ examples:
         set_spans_filter:
           condition:
             contains_all: ["timeout", "status_message"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -596,7 +576,6 @@ examples:
           condition:
             contains_all: ["span_kind == 'LLM'", "status_code == 'ERROR'", "latency_ms", "3000"]
             not_contains: ["latency_ms < ", "latency_ms <= "]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -636,7 +615,6 @@ examples:
           condition:
             contains_all: ["TOOL", "RETRIEVER"]
             not_contains: ["!=", "not_in", "not in"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: medium
@@ -655,7 +633,6 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition: span_kind != 'TOOL'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -847,7 +824,6 @@ examples:
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: "span_kind == 'LLM'"
-          rootSpansOnly: false
       messages:
         - role: user
           content: Show me only the latest traces in this project.
@@ -901,7 +877,6 @@ examples:
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: ""
-          rootSpansOnly: false
       messages:
         - role: user
           content: Show me only the slow LLM calls in this project.
@@ -954,7 +929,6 @@ examples:
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: "status_code == 'ERROR'"
-          rootSpansOnly: false
       messages:
         - role: user
           content: Keep the error filter, but only show root spans.
@@ -964,8 +938,8 @@ examples:
         forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
       tool_call_args:
         set_spans_filter:
-          condition: status_code == 'ERROR'
-          rootSpansOnly: true
+          condition:
+            contains_all: ["status_code == 'ERROR'", "parent_id is None"]
       budgets:
         max_tool_calls: 1
     metadata: {}

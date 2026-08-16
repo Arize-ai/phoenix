@@ -22,7 +22,21 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ include "phoenix.fullname" . }}
+        {{- /* `app` is merged in last and wins: it is the immutable Deployment selector, and
+               emitting it twice yields a manifest the API server rejects. Values are quoted
+               because labels must be strings and the common ones look boolean. */}}
+        {{- $podLabels := .Values.deployment.podLabels }}
+        {{- /* Checked before defaulting. `default` substitutes on any empty value, so false,
+               0, "" and [] would otherwise render as no labels at all — a mis-wired value
+               silently dropping azure.workload.identity/use rather than failing here. nil is
+               `invalid` to Sprig and stays allowed, so the key can be unset or cleared. */}}
+        {{- if not (or (kindIs "invalid" $podLabels) (kindIs "map" $podLabels)) }}
+        {{- fail (printf "deployment.podLabels must be a map, got %s" (kindOf $podLabels)) }}
+        {{- end }}
+        {{- $podLabels = merge (dict "app" (include "phoenix.fullname" .)) ($podLabels | default dict) }}
+        {{- range $key, $value := $podLabels }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
     spec:
       terminationGracePeriodSeconds: {{ .Values.deployment.terminationGracePeriodSeconds }}
       {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}

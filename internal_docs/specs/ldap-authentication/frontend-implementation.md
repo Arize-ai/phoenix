@@ -143,7 +143,7 @@ export function LoginPage() {
 ## Update UsersTable.tsx
 
 ```typescript
-// app/src/pages/settings/UsersTable.tsx
+// js/app/src/pages/settings/UsersTable.tsx
 
 {
   header: "method",
@@ -169,7 +169,7 @@ export function LoginPage() {
 ## Update Window Config
 
 ```typescript
-// app/src/globals.d.ts
+// js/app/src/globals.d.ts
 
 interface WindowConfig {
   // Existing

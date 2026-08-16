@@ -47,7 +47,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundStreamingClient,
+    PlaygroundClient,
     get_playground_client,
 )
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
@@ -216,7 +216,7 @@ class LLMEvaluator(BaseEvaluator):
         tools: PromptTools,
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
-        llm_client: PlaygroundStreamingClient[Any],
+        llm_client: PlaygroundClient[Any],
         output_configs: Sequence[CategoricalOutputConfig],
         prompt_name: str,
     ):
@@ -244,7 +244,7 @@ class LLMEvaluator(BaseEvaluator):
         return self._output_configs
 
     @property
-    def llm_client(self) -> "PlaygroundStreamingClient[Any]":
+    def llm_client(self) -> "PlaygroundClient[Any]":
         return self._llm_client
 
     @property
@@ -1151,7 +1151,7 @@ def evaluation_result_to_span_annotation(
 def create_llm_evaluator_from_inline(
     *,
     prompt_version_orm: models.PromptVersion,
-    llm_client: "PlaygroundStreamingClient[Any]",
+    llm_client: "PlaygroundClient[Any]",
     output_configs: Sequence[CategoricalOutputConfig],
     name: str,
     description: Optional[str] = None,

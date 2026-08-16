@@ -29,13 +29,13 @@ npx @arizeai/phoenix-cli
 ### 1. Set your Phoenix endpoint
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 ```
 
 For a remote deployment:
 
 ```bash
-export PHOENIX_HOST=https://your-phoenix.example.com
+export PHOENIX_ENDPOINT=https://your-phoenix.example.com
 ```
 
 ### 2. Set your project name
@@ -383,10 +383,10 @@ px trace list --limit 100 --format raw --no-progress | \
 
 ### "Phoenix endpoint not configured"
 
-Set the `PHOENIX_HOST` environment variable:
+Set the `PHOENIX_ENDPOINT` environment variable:
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 ```
 
 Or use the `--endpoint` flag:

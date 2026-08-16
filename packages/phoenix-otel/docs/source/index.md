@@ -250,9 +250,9 @@ The package recognizes these Phoenix-specific environment variables for automati
 # Local Phoenix server (default)
 export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 
-# Phoenix Cloud instance
+# Remote Phoenix instance with API key
 export PHOENIX_API_KEY="your-api-key"
-export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/your-space"
+export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 export PHOENIX_PROJECT_NAME="production-app"
 
 # Custom Phoenix instance with authentication

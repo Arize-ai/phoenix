@@ -16,7 +16,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import INVALID_SPAN, StatusCode, Tracer
 from pydantic import SecretStr
 
 from phoenix.db import models
@@ -37,17 +37,23 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
-    AnthropicStreamingClient,
-    AzureOpenAIReasoningNonStreamingClient,
-    AzureOpenAIResponsesAPIStreamingClient,
-    AzureOpenAIStreamingClient,
-    OpenAIBaseStreamingClient,
-    OpenAIReasoningNonStreamingClient,
-    OpenAIResponsesAPIStreamingClient,
-    OpenAIStreamingClient,
+    OPENAI_CHAT_COMPLETIONS_MODELS,
+    OPENAI_REASONING_MODELS,
+    AnthropicClient,
+    AzureOpenAIChatCompletionsClient,
+    AzureOpenAIResponsesClient,
+    GoogleClient,
+    OpenAIChatCompletionsClient,
+    OpenAICompatibleClient,
+    OpenAIResponsesClient,
     _get_builtin_provider_client,
+    _get_custom_provider_client,
     _resolve_provider_api_key,
     get_openai_client_class,
+)
+from phoenix.server.api.helpers.playground_registry import (
+    PLAYGROUND_CLIENT_REGISTRY,
+    PROVIDER_DEFAULT,
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
@@ -56,6 +62,25 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
+
+
+class TestGoogleStreamingClient:
+    @pytest.fixture
+    def client(self) -> GoogleClient:
+        return object.__new__(GoogleClient)
+
+    def test_rate_limit_error(self, client: GoogleClient) -> None:
+        from google.genai.errors import ClientError
+
+        assert client.is_rate_limit_error(ClientError(429, {}))
+        assert not client.is_rate_limit_error(ClientError(400, {}))
+
+    def test_transient_error(self, client: GoogleClient) -> None:
+        from google.genai.errors import ClientError, ServerError
+
+        assert client.is_transient_error(ServerError(500, {}))
+        assert not client.is_transient_error(ClientError(400, {}))
+        assert client.is_transient_error(TimeoutError())
 
 
 class TestOpenAIBaseStreamingClient:
@@ -87,7 +112,7 @@ class TestOpenAIBaseStreamingClient:
         tracer: Tracer,
         in_memory_span_exporter: InMemorySpanExporter,
     ) -> None:
-        client = OpenAIBaseStreamingClient(
+        client = OpenAICompatibleClient(
             client_factory=openai_client_factory,
             model_name="gpt-4o-mini",
             provider="openai",
@@ -200,7 +225,7 @@ class TestOpenAIBaseStreamingClient:
         tracer: Tracer,
         in_memory_span_exporter: InMemorySpanExporter,
     ) -> None:
-        client = OpenAIBaseStreamingClient(
+        client = OpenAICompatibleClient(
             client_factory=openai_client_factory,
             model_name="gpt-4o-mini",
             provider="openai",
@@ -371,7 +396,7 @@ class TestOpenAIBaseStreamingClient:
         tracer: Tracer,
         in_memory_span_exporter: InMemorySpanExporter,
     ) -> None:
-        client = OpenAIBaseStreamingClient(
+        client = OpenAICompatibleClient(
             client_factory=openai_client_factory,
             model_name="gpt-4o-mini",
             provider="openai",
@@ -472,7 +497,7 @@ class TestAnthropicStreamingClient:
         async def create_client() -> AsyncIterator[Any]:
             yield None
 
-        client: Any = AnthropicStreamingClient(
+        client: Any = AnthropicClient(
             client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
             model_name="claude-3-5-sonnet-latest",
             provider="anthropic",
@@ -541,7 +566,7 @@ class TestAnthropicStreamingClient:
         async def create_client() -> AsyncIterator[Any]:
             yield None
 
-        client: Any = AnthropicStreamingClient(
+        client: Any = AnthropicClient(
             client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
             model_name="claude-3-5-sonnet-latest",
             provider="anthropic",
@@ -639,50 +664,51 @@ class TestGetOpenAIClientClass:
     # OpenAI provider tests
 
     def test_openai_chat_completions_returns_streaming_client(self) -> None:
-        """Standard models with CHAT_COMPLETIONS should return OpenAIStreamingClient."""
+        """Standard models with CHAT_COMPLETIONS should return OpenAIChatCompletionsClient."""
         client_class = get_openai_client_class(
             GenerativeProviderKey.OPENAI,
             "gpt-4o",
             OpenAIApiType.CHAT_COMPLETIONS,
         )
-        assert client_class is OpenAIStreamingClient
+        assert client_class is OpenAIChatCompletionsClient
 
     def test_openai_chat_completions_custom_model_returns_streaming_client(self) -> None:
-        """Custom/unknown models with CHAT_COMPLETIONS should return OpenAIStreamingClient."""
+        """Custom/unknown models with CHAT_COMPLETIONS should return OpenAIChatCompletionsClient."""
         client_class = get_openai_client_class(
             GenerativeProviderKey.OPENAI,
             "my-custom-fine-tuned-model",
             OpenAIApiType.CHAT_COMPLETIONS,
         )
-        assert client_class is OpenAIStreamingClient
+        assert client_class is OpenAIChatCompletionsClient
 
-    def test_openai_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
-        """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning client."""
-        for model_name in ["o1", "o3", "o3-mini"]:
+    def test_openai_chat_completions_reasoning_model_returns_streaming_client(self) -> None:
+        """Reasoning models need no Chat Completions specialization -- they accept
+        `system` and every other parameter the base client sends."""
+        for model_name in ["o1", "o3", "o3-mini", "gpt-5.6-luna"]:
             client_class = get_openai_client_class(
                 GenerativeProviderKey.OPENAI,
                 model_name,
                 OpenAIApiType.CHAT_COMPLETIONS,
             )
-            assert client_class is OpenAIReasoningNonStreamingClient, f"Failed for {model_name}"
+            assert client_class is OpenAIChatCompletionsClient, f"Failed for {model_name}"
 
     def test_openai_responses_returns_responses_client(self) -> None:
-        """RESPONSES API type should return OpenAIResponsesAPIStreamingClient."""
+        """RESPONSES API type should return OpenAIResponsesClient."""
         client_class = get_openai_client_class(
             GenerativeProviderKey.OPENAI,
             "gpt-4o",
             OpenAIApiType.RESPONSES,
         )
-        assert client_class is OpenAIResponsesAPIStreamingClient
+        assert client_class is OpenAIResponsesClient
 
     def test_openai_responses_custom_model_returns_responses_client(self) -> None:
-        """Custom models with RESPONSES should return OpenAIResponsesAPIStreamingClient."""
+        """Custom models with RESPONSES should return OpenAIResponsesClient."""
         client_class = get_openai_client_class(
             GenerativeProviderKey.OPENAI,
             "my-custom-model",
             OpenAIApiType.RESPONSES,
         )
-        assert client_class is OpenAIResponsesAPIStreamingClient
+        assert client_class is OpenAIResponsesClient
 
     def test_openai_none_api_type_uses_registry_fallback(self) -> None:
         """When openai_api_type is None, should fall back to registry."""
@@ -692,7 +718,7 @@ class TestGetOpenAIClientClass:
             "gpt-4o",
             None,
         )
-        assert client_class is OpenAIStreamingClient
+        assert client_class is OpenAIChatCompletionsClient
 
         # For unknown models, registry should return PROVIDER_DEFAULT
         client_class = get_openai_client_class(
@@ -700,46 +726,47 @@ class TestGetOpenAIClientClass:
             "unknown-model",
             None,
         )
-        # PROVIDER_DEFAULT for OpenAI is OpenAIResponsesAPIStreamingClient
-        assert client_class is OpenAIResponsesAPIStreamingClient
+        # PROVIDER_DEFAULT for OpenAI is OpenAIResponsesClient
+        assert client_class is OpenAIResponsesClient
 
     # Azure OpenAI provider tests
 
     def test_azure_chat_completions_returns_azure_streaming_client(self) -> None:
-        """Azure with CHAT_COMPLETIONS should return AzureOpenAIStreamingClient."""
+        """Azure with CHAT_COMPLETIONS should return AzureOpenAIChatCompletionsClient."""
         client_class = get_openai_client_class(
             GenerativeProviderKey.AZURE_OPENAI,
             "gpt-4o",
             OpenAIApiType.CHAT_COMPLETIONS,
         )
-        assert client_class is AzureOpenAIStreamingClient
+        assert client_class is AzureOpenAIChatCompletionsClient
 
     def test_azure_chat_completions_custom_model_returns_azure_streaming_client(self) -> None:
-        """Azure custom models with CHAT_COMPLETIONS should return AzureOpenAIStreamingClient."""
+        """Azure custom models with CHAT_COMPLETIONS should return AzureOpenAIChatCompletionsClient."""
         client_class = get_openai_client_class(
             GenerativeProviderKey.AZURE_OPENAI,
             "my-azure-deployment",
             OpenAIApiType.CHAT_COMPLETIONS,
         )
-        assert client_class is AzureOpenAIStreamingClient
+        assert client_class is AzureOpenAIChatCompletionsClient
 
-    def test_azure_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
-        """Azure reasoning models with CHAT_COMPLETIONS should return reasoning client."""
-        client_class = get_openai_client_class(
-            GenerativeProviderKey.AZURE_OPENAI,
-            "o1",
-            OpenAIApiType.CHAT_COMPLETIONS,
-        )
-        assert client_class is AzureOpenAIReasoningNonStreamingClient
+    def test_azure_chat_completions_reasoning_model_returns_streaming_client(self) -> None:
+        """Azure reasoning models need no Chat Completions specialization either."""
+        for model_name in ["o1", "gpt-5.6-luna"]:
+            client_class = get_openai_client_class(
+                GenerativeProviderKey.AZURE_OPENAI,
+                model_name,
+                OpenAIApiType.CHAT_COMPLETIONS,
+            )
+            assert client_class is AzureOpenAIChatCompletionsClient, f"Failed for {model_name}"
 
     def test_azure_responses_returns_azure_responses_client(self) -> None:
-        """Azure with RESPONSES should return AzureOpenAIResponsesAPIStreamingClient."""
+        """Azure with RESPONSES should return AzureOpenAIResponsesClient."""
         client_class = get_openai_client_class(
             GenerativeProviderKey.AZURE_OPENAI,
             "gpt-4o",
             OpenAIApiType.RESPONSES,
         )
-        assert client_class is AzureOpenAIResponsesAPIStreamingClient
+        assert client_class is AzureOpenAIResponsesClient
 
     # Non-OpenAI provider tests
 
@@ -769,6 +796,292 @@ class TestGetOpenAIClientClass:
             None,
         )
         assert client_class is None
+
+
+class TestReasoningModelClientRouting:
+    """Reasoning models must reach the Responses API when no API type is configured.
+
+    They reject function tools combined with ``reasoning_effort`` on
+    ``/v1/chat/completions``, and LLM evaluators always send a function tool.
+    """
+
+    @pytest.mark.parametrize(
+        "provider_key,expected_class",
+        [
+            (GenerativeProviderKey.OPENAI, OpenAIResponsesClient),
+            (GenerativeProviderKey.AZURE_OPENAI, AzureOpenAIResponsesClient),
+        ],
+    )
+    def test_reasoning_models_default_to_responses_client(
+        self,
+        provider_key: GenerativeProviderKey,
+        expected_class: type[OpenAICompatibleClient],
+    ) -> None:
+        for model_name in OPENAI_REASONING_MODELS:
+            client_class = get_openai_client_class(provider_key, model_name, None)
+            assert client_class is expected_class, f"Failed for {model_name}"
+
+    def test_response_params_keep_tools_and_map_reasoning_effort(self) -> None:
+        """Function tools + reasoning_effort + disabled parallel tool calls must all
+        survive translation into a Responses API request."""
+        client = OpenAIResponsesClient(
+            client_factory=LLMClientFactory(
+                lambda: AsyncOpenAI(api_key="sk-test"), ("openai", "test")
+            ),
+            model_name="gpt-5.6-luna",
+            provider="openai",
+        )
+
+        tools = PromptTools(
+            type="tools",
+            tools=[
+                PromptToolFunction(
+                    type="function",
+                    function=PromptToolFunctionDefinition(
+                        name="record_evaluation",
+                        description="Record the evaluation result",
+                        parameters={
+                            "type": "object",
+                            "properties": {"label": {"type": "string"}},
+                        },
+                    ),
+                )
+            ],
+            tool_choice=PromptToolChoiceSpecificFunctionTool(
+                type="specific_function", function_name="record_evaluation"
+            ),
+            disable_parallel_tool_calls=True,
+        )
+        invocation_parameters = PromptOpenAIInvocationParameters(
+            type="openai",
+            openai=PromptOpenAIInvocationParametersContent(reasoning_effort="high"),
+        )
+        messages: list[PlaygroundMessage] = [
+            create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this span.")
+        ]
+
+        params, extra_body = client._openai_response_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=None,
+            invocation_parameters=invocation_parameters,
+            span=INVALID_SPAN,
+        )
+
+        assert extra_body is None
+        assert params["model"] == "gpt-5.6-luna"
+        assert params["parallel_tool_calls"] is False
+        tool_params = params.get("tools")
+        assert tool_params, "function tools were dropped from the Responses request"
+        assert tool_params[0]["name"] == "record_evaluation"
+        assert params["tool_choice"] == {"type": "function", "name": "record_evaluation"}
+        assert params["reasoning"] == {"effort": "high"}
+        assert "reasoning_effort" not in params
+
+
+class TestDefaultApiTypeRouting:
+    """``get_openai_client_class`` decides the client when no API type is configured.
+
+    The playground registry carries the model catalog, not routing.
+    """
+
+    @pytest.mark.parametrize(
+        "model_provider,model_name,expected_class",
+        [
+            # The exact configuration that produced the 400 in #15299: builtin
+            # provider, no connection config, reasoning model, function tool.
+            (ModelProvider.OPENAI, "gpt-5.6-luna", OpenAIResponsesClient),
+            (ModelProvider.OPENAI, "o3", OpenAIResponsesClient),
+            (ModelProvider.OPENAI, "gpt-4o", OpenAIChatCompletionsClient),
+            (ModelProvider.OPENAI, "gpt-6-does-not-exist-yet", OpenAIResponsesClient),
+        ],
+    )
+    async def test_builtin_client_without_connection_config(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        model_provider: ModelProvider,
+        model_name: str,
+        expected_class: type[OpenAICompatibleClient],
+    ) -> None:
+        """End-to-end through the path evaluators take: connection=None.
+
+        The registry is poisoned for this model so the assertion fails if any part of
+        the builtin path starts consulting it again.
+        """
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+
+        class WrongClient(OpenAIChatCompletionsClient):
+            pass
+
+        provider_key = GenerativeProviderKey.from_model_provider(model_provider)
+        poisoned = dict(PLAYGROUND_CLIENT_REGISTRY._registry[provider_key])
+        poisoned[model_name] = WrongClient
+        poisoned[PROVIDER_DEFAULT] = WrongClient
+        monkeypatch.setitem(PLAYGROUND_CLIENT_REGISTRY._registry, provider_key, poisoned)
+
+        async with db() as session:
+            client = await _get_builtin_provider_client(
+                model_provider,
+                model_name,
+                None,
+                None,
+                session,
+                _identity_decrypt,
+            )
+        assert type(client) is expected_class
+
+    def test_legacy_model_list_is_exactly_the_pre_responses_models(self) -> None:
+        """Literal expectation: a name silently added or dropped changes routing."""
+        assert set(OPENAI_CHAT_COMPLETIONS_MODELS) == {
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4.1-nano",
+            "gpt-4o",
+            "chatgpt-4o-latest",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-4-turbo-preview",
+            "gpt-4",
+            "gpt-3.5-turbo",
+        }
+        assert not set(OPENAI_CHAT_COMPLETIONS_MODELS) & set(OPENAI_REASONING_MODELS)
+
+    def test_openai_defaults_to_responses_except_legacy_models(self) -> None:
+        for model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
+            assert (
+                get_openai_client_class(GenerativeProviderKey.OPENAI, model_name, None)
+                is OpenAIChatCompletionsClient
+            ), f"Failed for {model_name}"
+        for model_name in [*OPENAI_REASONING_MODELS, "gpt-6-does-not-exist-yet"]:
+            assert (
+                get_openai_client_class(GenerativeProviderKey.OPENAI, model_name, None)
+                is OpenAIResponsesClient
+            ), f"Failed for {model_name}"
+
+    def test_azure_defaults_to_chat_completions_except_reasoning_models(self) -> None:
+        for model_name in OPENAI_REASONING_MODELS:
+            assert (
+                get_openai_client_class(GenerativeProviderKey.AZURE_OPENAI, model_name, None)
+                is AzureOpenAIResponsesClient
+            ), f"Failed for {model_name}"
+        for model_name in ["gpt-4o"]:
+            assert (
+                get_openai_client_class(GenerativeProviderKey.AZURE_OPENAI, model_name, None)
+                is AzureOpenAIChatCompletionsClient
+            ), f"Failed for {model_name}"
+
+    def test_azure_deployment_alias_is_not_recognized_as_a_reasoning_model(self) -> None:
+        """Known limitation, not desired behavior.
+
+        Azure model names are user-chosen deployment names, so a reasoning model
+        deployed under an alias is indistinguishable from any other deployment and
+        falls to Chat Completions -- where function tools plus reasoning_effort still
+        fail. Closing this needs deployment metadata from Azure, not name matching.
+        """
+        assert (
+            get_openai_client_class(GenerativeProviderKey.AZURE_OPENAI, "prod-evaluator", None)
+            is AzureOpenAIChatCompletionsClient
+        )
+
+    @pytest.mark.parametrize(
+        "provider_key,model_name,expected_class",
+        [
+            (GenerativeProviderKey.OPENAI, "gpt-5.6-luna", OpenAIResponsesClient),
+            (GenerativeProviderKey.OPENAI, "gpt-4o", OpenAIChatCompletionsClient),
+            (
+                GenerativeProviderKey.AZURE_OPENAI,
+                "gpt-5.6-luna",
+                AzureOpenAIResponsesClient,
+            ),
+            (GenerativeProviderKey.AZURE_OPENAI, "gpt-4o", AzureOpenAIChatCompletionsClient),
+        ],
+    )
+    def test_registry_entries_do_not_affect_routing(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        provider_key: GenerativeProviderKey,
+        model_name: str,
+        expected_class: type[OpenAICompatibleClient],
+    ) -> None:
+        """A wrong catalog entry must not be able to redirect a request."""
+
+        class WrongClient(OpenAIChatCompletionsClient):
+            pass
+
+        provider_registry = dict(PLAYGROUND_CLIENT_REGISTRY._registry[provider_key])
+        provider_registry[model_name] = WrongClient
+        provider_registry[PROVIDER_DEFAULT] = WrongClient
+        monkeypatch.setitem(PLAYGROUND_CLIENT_REGISTRY._registry, provider_key, provider_registry)
+
+        assert get_openai_client_class(provider_key, model_name, None) is expected_class
+
+
+class TestChatCompletionsMessageRoles:
+    @pytest.mark.parametrize(
+        "client_class",
+        [OpenAIChatCompletionsClient, AzureOpenAIChatCompletionsClient],
+    )
+    def test_system_messages_keep_the_system_role(
+        self, client_class: type[OpenAICompatibleClient]
+    ) -> None:
+        """`system` is sent as-is on every model, reasoning included.
+
+        Reasoning models accept `system` and treat it as a `developer` message, so
+        rewriting the role gains nothing and costs compatibility with the
+        OpenAI-compatible endpoints reachable through a custom base URL.
+        """
+        message = create_playground_message(ChatCompletionMessageRole.SYSTEM, "be terse")
+        param = client_class._to_openai_chat_completion_message_param(None, message)  # type: ignore[arg-type]
+        assert param == {"content": "be terse", "role": "system"}
+
+
+class TestCustomProviderClientSelection:
+    """Custom providers select on API type alone, never on the model name.
+
+    The openai SDK config serves any OpenAI-compatible endpoint, so a name matching
+    an OpenAI model does not imply OpenAI semantics. Applying the reasoning clients
+    here would rewrite ``system`` to ``developer`` against providers that may not
+    accept it.
+    """
+
+    @pytest.mark.parametrize(
+        "openai_api_type,model_name,expected_class",
+        [
+            ("responses", "gpt-4o", OpenAIResponsesClient),
+            ("responses", "gpt-5.6-luna", OpenAIResponsesClient),
+            ("chat_completions", "gpt-4o", OpenAIChatCompletionsClient),
+            ("chat_completions", "gpt-5.6-luna", OpenAIChatCompletionsClient),
+        ],
+    )
+    async def test_openai_custom_provider_selects_on_api_type_only(
+        self,
+        openai_api_type: str,
+        model_name: str,
+        expected_class: type[OpenAICompatibleClient],
+    ) -> None:
+        import phoenix.db.types.model_provider as mp
+
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.OpenAICustomProviderConfig(
+                openai_authentication_method=mp.AuthenticationMethodApiKey(api_key="sk-test"),
+                openai_api_type=openai_api_type,
+            )
+        )
+        provider_record = models.GenerativeModelCustomProvider(
+            name="proxy",
+            provider="openai",
+            sdk="openai",
+            config=config.model_dump_json().encode(),
+        )
+
+        client = await _get_custom_provider_client(
+            provider_record=provider_record,
+            model_name=model_name,
+            extra_headers=None,
+            decrypt=_identity_decrypt,
+        )
+        assert type(client) is expected_class
 
 
 def _identity_decrypt(value: bytes) -> bytes:
@@ -918,4 +1231,4 @@ class TestResolveProviderApiKey:
                 _identity_decrypt,
                 credentials,
             )
-        assert isinstance(client, OpenAIStreamingClient)
+        assert isinstance(client, OpenAIChatCompletionsClient)

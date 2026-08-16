@@ -52,7 +52,7 @@ This feature introduces full Mustache template support for Phoenix's server-side
 │                          Variable Extraction Layer                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Python: src/phoenix/utilities/template_formatters.py                       │
-│  TypeScript: app/src/components/templateEditor/.../mustacheLikeTemplating.ts│
+│  TypeScript: js/app/src/components/templateEditor/.../mustacheLikeTemplating.ts│
 │                                                                             │
 │  parse_with_types() / extractVariablesFromMustacheLike():                  │
 │  1. Parse template with native Mustache parser                              │
@@ -79,7 +79,7 @@ This feature introduces full Mustache template support for Phoenix's server-side
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           Input Mapping Layer                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  Frontend: app/src/components/evaluators/EvaluatorInputMapping.tsx         │
+│  Frontend: js/app/src/components/evaluators/EvaluatorInputMapping.tsx         │
 │  Backend:  src/phoenix/server/api/evaluators.py :: apply_input_mapping()   │
 │                                                                             │
 │  UI Flow:                                                                   │
@@ -477,9 +477,9 @@ No tools called.
 
 ### TypeScript
 
-- `app/src/components/templateEditor/language/mustacheLike/mustacheLikeTemplating.ts` - Frontend Mustache parsing, variable extraction, validation
-- `app/src/components/evaluators/EvaluatorInputMapping.tsx` - Input mapping UI
-- `app/src/pages/playground/PlaygroundChatTemplate.tsx` - Template editor with validation banners
+- `js/app/src/components/templateEditor/language/mustacheLike/mustacheLikeTemplating.ts` - Frontend Mustache parsing, variable extraction, validation
+- `js/app/src/components/evaluators/EvaluatorInputMapping.tsx` - Input mapping UI
+- `js/app/src/pages/playground/PlaygroundChatTemplate.tsx` - Template editor with validation banners
 
 ### Dependencies Added
 
