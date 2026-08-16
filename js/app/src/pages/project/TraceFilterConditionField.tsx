@@ -3,10 +3,10 @@ import { snippetCompletion } from "@codemirror/autocomplete";
 import { useCallback, useMemo } from "react";
 
 import {
+  AIQueryDSLFilterField,
+  type DSLFilterAIQueryProps,
   type DSLFilterCompletionRequest,
   type DSLFilterComprehensionCall,
-  DSLFilterConditionField,
-  type DSLFilterSnippet,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
   detectDSLFilterEnclosingComprehensionScopeForClauseTarget,
@@ -16,16 +16,14 @@ import {
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
+import {
+  getTraceFilterLoopVariable,
+  traceFilterAIQueryDSL,
+  traceFilterSnippets,
+  type TraceFilterVocabularyTerm,
+} from "./traceFilterDSL";
 import { useTraceFilters } from "./TraceFiltersContext";
 import { validateTraceFilterCondition } from "./traceFilterValidation";
-
-export type TraceFilterVocabularyTerm = {
-  readonly name: string;
-  readonly type: string;
-  readonly description: string;
-  readonly category: string;
-  readonly iterableName?: string | null;
-};
 
 /**
  * Ranks continue past the field's own built-in sections — Recent searches (0),
@@ -62,117 +60,6 @@ const examplePredicates: Partial<Record<string, string>> = {
   span_annotations: "annotation.score < 0.5",
   span_cost_details: "cost_detail.tokens > 1_000",
 };
-
-const traceFilterLoopVariables: Partial<Record<string, string>> = {
-  spans: "span",
-  trace_annotations: "annotation",
-  span_annotations: "annotation",
-  span_cost_details: "cost_detail",
-};
-
-function getTraceFilterLoopVariable(iterableName: string): string {
-  return (
-    traceFilterLoopVariables[iterableName] ??
-    (iterableName.endsWith("s") ? iterableName.slice(0, -1) : "item")
-  );
-}
-
-export const traceFilterSnippets: DSLFilterSnippet[] = [
-  {
-    label: "search input and output for text",
-    snippet: "'${search text}' in input or '${search text}' in output",
-    boost: 1,
-  },
-  {
-    label: "filter by number of spans",
-    snippet: "num_spans >= ${5}",
-  },
-  {
-    label: "any span errored",
-    snippet: 'any(span.status_code == "ERROR" for span in spans)',
-  },
-  {
-    label: "slowest span in the trace",
-    snippet: "max(span.latency_ms for span in spans) > ${5_000}",
-  },
-  {
-    label: "any span has an errored child",
-    snippet:
-      'any(any(child.status_code == "ERROR" for child in span.children) for span in spans)',
-  },
-  {
-    label: "direct child of the trace root",
-    snippet:
-      "any(span.parent_span is not None and span.parent_span.parent_id is None for span in spans)",
-  },
-  {
-    label: "combine trace and span conditions",
-    snippet:
-      'num_spans >= ${5} and any(span.status_code == "ERROR" for span in spans)',
-  },
-  {
-    label: "filter by errors",
-    snippet: "error_count > 0",
-  },
-  {
-    label: "filter by duration",
-    snippet: "latency_ms >= ${10_000}",
-  },
-  {
-    label: "filter by trace id",
-    snippet: "trace_id == '${trace id}'",
-  },
-  {
-    label: "filter by total tokens",
-    snippet: "token_count_total > ${1_000}",
-  },
-  {
-    label: "filter by total cost",
-    snippet: "total_cost > ${1}",
-  },
-  {
-    label: "filter by tool usage",
-    snippet: "tool_span_count > 0",
-  },
-  {
-    label: "filter by user",
-    snippet: "user.id == '${user id}'",
-  },
-  {
-    label: "filter by metadata",
-    snippet: "metadata[\"${key}\"] == '${value}'",
-  },
-  {
-    label: "filter by annotation score",
-    snippet: 'trace_annotations["${name}"].score >= ${0.5}',
-  },
-  {
-    label: "filter by annotation label",
-    snippet: "trace_annotations[\"${name}\"].label == '${label}'",
-  },
-  {
-    label: "search input for substring",
-    snippet: "'${search text}' in input",
-  },
-  {
-    label: "search output for substring",
-    snippet: "'${search text}' in output",
-  },
-  {
-    label: "any span matches a condition",
-    snippet: "any(${span.latency_ms > 1000} for span in ${spans})",
-  },
-  {
-    label: "all spans match a condition",
-    snippet:
-      "len([span for span in ${spans}]) > 0 and all(${span.latency_ms < 1000} for span in ${spans})",
-  },
-  {
-    label: "count spans matching a condition",
-    snippet:
-      'len([span for span in spans if span.span_kind == "${TOOL}"]) >= ${2}',
-  },
-];
 
 function getExamplePredicate(iterableName: string): string {
   return examplePredicates[iterableName] ?? "condition";
@@ -304,6 +191,10 @@ type TraceFilterConditionFieldProps = {
   onValidCondition: (condition: string) => void;
   vocabulary: readonly TraceFilterVocabularyTerm[];
   placeholder?: string;
+};
+
+const traceFilterAIQuery: DSLFilterAIQueryProps = {
+  dsl: traceFilterAIQueryDSL,
 };
 
 type TraceFilterCompletionModel = {
@@ -489,7 +380,7 @@ export function TraceFilterConditionField(
   );
 
   return (
-    <DSLFilterConditionField
+    <AIQueryDSLFilterField
       aria-label="Filter traces"
       className="trace-filter-condition-field"
       value={filterCondition}
@@ -502,6 +393,7 @@ export function TraceFilterConditionField(
       getErrorRange={findDSLFilterComprehensionRange}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      aiQuery={traceFilterAIQuery}
     />
   );
 }

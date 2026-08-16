@@ -389,6 +389,12 @@ gen-session-filter-ai-query-vocabulary: ## Generate the session AI query vocabul
 check-session-filter-ai-query-vocabulary: ## Check the session AI query vocabulary for drift
 	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py --check
 
+gen-trace-filter-ai-query-vocabulary: ## Generate the trace AI query vocabulary
+	@$(UV) run python scripts/generate_trace_filter_ai_query_vocabulary.py
+
+check-trace-filter-ai-query-vocabulary: ## Check the trace AI query vocabulary for drift
+	@$(UV) run python scripts/generate_trace_filter_ai_query_vocabulary.py --check
+
 #=============================================================================
 # Utilities
 #=============================================================================
