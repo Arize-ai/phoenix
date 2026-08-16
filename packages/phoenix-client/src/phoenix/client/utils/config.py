@@ -454,7 +454,12 @@ def _normalize_base_url_candidate(env_key: str, value: str, port: Optional[str])
         # PHOENIX_HOST is the server's bind host, so a bare host becomes a URL
         # on PHOENIX_PORT; a value that already carries a port is taken as-is.
         host = "127.0.0.1" if value == "0.0.0.0" else value
-        return f"http://{host}" if ":" in host else f"http://{host}:{_coerce_port(port)}"
+        root_path = get_env_host_root_path()
+        return (
+            f"http://{host}{root_path}"
+            if ":" in host
+            else f"http://{host}:{_coerce_port(port)}{root_path}"
+        )
     return value
 
 

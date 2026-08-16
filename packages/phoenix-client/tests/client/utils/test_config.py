@@ -383,3 +383,22 @@ class TestEnvFileDiscovery:
 )
 def test_parse_env_file(text: str, expected: dict[str, str]) -> None:
     assert config_module._parse_env_file(text) == expected  # pyright: ignore[reportPrivateUsage]
+
+
+def test_get_base_url_includes_host_root_path() -> None:
+    env = {
+        "PHOENIX_HOST": "example.com",
+        "PHOENIX_PORT": "6006",
+        "PHOENIX_HOST_ROOT_PATH": "/phoenix",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        assert str(get_base_url()) == "http://example.com:6006/phoenix"
+
+
+def test_get_base_url_keeps_explicit_endpoint_precedence() -> None:
+    env = {
+        "PHOENIX_COLLECTOR_ENDPOINT": "http://collector.example.com",
+        "PHOENIX_HOST_ROOT_PATH": "/phoenix",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        assert str(get_base_url()) == "http://collector.example.com"
