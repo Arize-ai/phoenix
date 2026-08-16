@@ -220,7 +220,7 @@ Glance at the [metrics dashboard](/docs/phoenix/tracing/llm-traces/metrics) [in 
 
 Once a week, pull a deliberately mixed sample of traces and read them with open-ended notes. This is where improvement is made real. You'll learn how in the last section of this guide.
 
-<Callout icon="warning" color="#3b82f6">
+<Callout icon="triangle-alert">
     Teams that only do the daily check end up dashboard-watching. Teams that only do deep dives get surprised by fires. You need both, as they are complementary. Smoke-check anomalies tell you where to oversample in the weekly review.
 </Callout>
 
@@ -229,7 +229,7 @@ Once a week, pull a deliberately mixed sample of traces and read them with open-
 Hard failures are queryable with zero setup. Phoenix records span status, exception events, and error messages on every trace. Triage them visually in the [Phoenix UI](http://localhost:6006) or straight from the terminal with the [`px` CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli). (Prefer code, e.g. for monitoring scripts? The same queries run through the [Python](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) and [TypeScript](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) clients.)
 
 <Tabs>
-<Tab title="UI" icon="window-maximize">
+<Tab title="UI" icon="app-window">
 1. Open the Phoenix UI at [http://localhost:6006](http://localhost:6006) and select your project (`high-signal-demo`).
 2. You will see a spans table. Click the "Traces" tab at the top of the table, next to "Spans".
 3. Type a condition into the filter bar: `status_code == 'ERROR'`. The table narrows to errored spans only.
@@ -270,7 +270,7 @@ Latency and cost problems rarely announce themselves in averages. A healthy p50 
 From the terminal, or programmatically for latency-tail analysis:
 
 <Tabs>
-<Tab title="UI" icon="window-maximize">
+<Tab title="UI" icon="app-window">
   Go to your [project's dashboard](http://localhost:6006/dashboards/). The "Trace Latency" panel plots the percentile lines (P50 through P99) over time, so you can read **both tails** at a glance: watch the **P99** line for the slow tail, and the **P50** dipping toward zero for the suspiciously fast tail. Toggle individual percentiles in the legend to isolate the tail you're reading. The dashboard tells you *when* a tail moved; use the CLI or Python tabs to pull the actual outlier traces to read.
 </Tab>
 
@@ -739,7 +739,7 @@ The pipeline below has four stages, each doing one job:
 
 The code below adds two more steps that put the clusters to work: cross-referencing them against failure signals, then building the review sample.
 
-<Callout icon="sparkles" color="#3b82f6">
+<Callout icon="sparkles">
     [BERTopic](https://maartengr.github.io/BERTopic/) packages this exact pipeline if you'd rather not assemble it yourself.
 </Callout>
 
@@ -906,7 +906,7 @@ main().catch((err) => {
 </Tab>
 </Tabs>
 
-<Callout icon="sparkles" color="#3b82f6">
+<Callout icon="sparkles">
     Phoenix doesn't include a built-in embedding projector. The workflow above shows the full DIY approach: embed, reduce, cluster, cross-reference against error rates. This portability is a feature. You control the embedding model and clustering algorithm.
 </Callout>
 

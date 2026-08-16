@@ -3,25 +3,40 @@
   "theme": "mint",
   "name": "Phoenix",
   "colors": {
-    "primary": "#0384C3",
-    "light": "#0384C3",
-    "dark": "#0384C3"
+    "primary": "#00769E",
+    "light": "#39C7FF",
+    "dark": "#009DD2"
   },
   "contextual": {
     "options": ["copy", "view", "chatgpt", "claude", "perplexity"]
   },
   "background": {
-    "decoration": "gradient"
+    "color": {
+      "light": "#FFFFFF",
+      "dark": "#08090A"
+    }
   },
   "interaction": {
     "drilldown": false
   },
   "fonts": {
     "heading": {
-      "family": "Roboto"
+      "family": "Geist",
+      "weight": 600
     },
     "body": {
-      "family": "Roboto"
+      "family": "Geist"
+    }
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "styling": {
+    "codeblocks": {
+      "theme": {
+        "light": "github-light-default",
+        "dark": "github-dark-default"
+      }
     }
   },
   "integrations": {
@@ -299,7 +314,7 @@
           },
           {
             "group": "Datasets & Experiments",
-            "icon": "flask",
+            "icon": "flask-conical",
             "pages": [
               {
                 "group": "Tutorial",
@@ -338,7 +353,7 @@
           },
           {
             "group": "Prompts",
-            "icon": "wand-magic-sparkles",
+            "icon": "wand-sparkles",
             "pages": [
               {
                 "group": "Tutorial",
@@ -378,7 +393,7 @@
 
           {
             "group": "Settings",
-            "icon": "gear-complex",
+            "icon": "settings-2",
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/settings/api-keys",
@@ -452,7 +467,7 @@
           },
           {
             "group": "Resources",
-            "icon": "books",
+            "icon": "library",
             "pages": [
               {
                 "group": "Frequently Asked Questions",
@@ -486,7 +501,7 @@
       },
       {
         "tab": "Integrations",
-        "icon": "puzzle-piece",
+        "icon": "puzzle",
         "groups": [
           {
             "group": " ",
@@ -511,7 +526,7 @@
           },
           {
             "group": "LLM Providers",
-            "icon": "user-robot",
+            "icon": "bot",
             "pages": [
               {
                 "group": "Amazon Bedrock",
@@ -887,7 +902,7 @@
           },
           {
             "group": "Sandboxes",
-            "icon": "cube",
+            "icon": "box",
             "pages": [
               "docs/phoenix/integrations/sandboxes/e2b",
               "docs/phoenix/integrations/sandboxes/daytona",
@@ -923,7 +938,7 @@
       },
       {
         "tab": "SDK & API Reference",
-        "icon": "rectangle-terminal",
+        "icon": "square-terminal",
         "groups": [
           {
             "group": "Python",
@@ -996,7 +1011,7 @@
           },
           {
             "group": "Rest API",
-            "icon": "network-wired",
+            "icon": "network",
             "pages": [
               "docs/phoenix/sdk-api-reference/rest-api/overview",
               {
@@ -1204,7 +1219,7 @@
           },
           {
             "group": "Deployment Options",
-            "icon": "rocket-launch",
+            "icon": "rocket",
             "pages": [
               "docs/phoenix/self-hosting/deployment-options/terminal",
               "docs/phoenix/self-hosting/deployment-options/docker",
@@ -1219,7 +1234,7 @@
           },
           {
             "group": "Features",
-            "icon": "layer-group",
+            "icon": "layers",
             "pages": [
               "docs/phoenix/self-hosting/features/provisioning",
               "docs/phoenix/self-hosting/features/authentication",
@@ -1231,7 +1246,7 @@
           },
           {
             "group": "Upgrade",
-            "icon": "angles-up",
+            "icon": "chevrons-up",
             "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
           },
           {
@@ -1245,12 +1260,12 @@
           },
           {
             "group": "Advanced",
-            "icon": "gears",
+            "icon": "settings",
             "pages": ["docs/phoenix/self-hosting/advanced/encryption"]
           },
           {
             "group": "Misc",
-            "icon": "boxes-stacked",
+            "icon": "boxes",
             "pages": [
               "docs/phoenix/self-hosting/misc/frequently-asked-questions"
             ]
@@ -1259,7 +1274,7 @@
       },
       {
         "tab": "Cookbooks",
-        "icon": "user-chef",
+        "icon": "chef-hat",
         "groups": [
           {
             "group": " ",
@@ -1281,7 +1296,7 @@
           },
           {
             "group": "AI Engineering Workflows",
-            "icon": "gear",
+            "icon": "settings",
             "pages": [
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
@@ -1313,7 +1328,7 @@
           },
           {
             "group": "Prompts",
-            "icon": "wand-magic-sparkles",
+            "icon": "wand-sparkles",
             "pages": [
               "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
               "docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification",
@@ -1342,7 +1357,7 @@
           },
           {
             "group": "Guardrails & Safety",
-            "icon": "shield-halved",
+            "icon": "shield",
             "pages": [
               "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense",
               "docs/phoenix/cookbook/guardrails/designing-realtime-guardrails"
@@ -1350,7 +1365,7 @@
           },
           {
             "group": "Datasets & Experiments",
-            "icon": "flask",
+            "icon": "flask-conical",
             "pages": [
               "docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments",
               "docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
@@ -1669,25 +1684,41 @@
         "label": "",
         "href": "https://x.com/ArizePhoenix",
         "title": "X",
-        "icon": "x-twitter"
+        "icon": {
+          "name": "x-twitter",
+          "library": "fontawesome",
+          "style": "brands"
+        }
       },
       {
         "label": "",
         "href": "https://bsky.app/profile/arize-phoenix.bsky.social",
         "title": "Bluesky",
-        "icon": "bluesky"
+        "icon": {
+          "name": "bluesky",
+          "library": "fontawesome",
+          "style": "brands"
+        }
       },
       {
         "label": "",
         "href": "https://www.linkedin.com/showcase/113218220",
         "title": "LinkedIn",
-        "icon": "linkedin"
+        "icon": {
+          "name": "linkedin",
+          "library": "fontawesome",
+          "style": "brands"
+        }
       },
       {
         "label": "",
         "href": "https://github.com/Arize-ai/phoenix",
         "title": "GitHub",
-        "icon": "github"
+        "icon": {
+          "name": "github",
+          "library": "fontawesome",
+          "style": "brands"
+        }
       }
     ]
   },
