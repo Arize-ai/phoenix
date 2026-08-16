@@ -5,7 +5,6 @@ from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
 
 
@@ -22,14 +21,14 @@ class PromptLabel(Node):
     async def name(
         self,
         info: Info[Context, None],
-    ) -> Identifier:
+    ) -> str:
         if self.db_record:
             val = self.db_record.name
         else:
             val = await info.context.data_loaders.prompt_label_fields.load(
                 (self.id, models.PromptLabel.name),
             )
-        return Identifier(val)
+        return val
 
     @strawberry.field
     async def description(
@@ -56,3 +55,12 @@ class PromptLabel(Node):
                 (self.id, models.PromptLabel.color),
             )
         return val
+
+    @strawberry.field(
+        description="The number of prompts that this label is applied to.",
+    )  # type: ignore
+    async def usage_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        return await info.context.data_loaders.prompt_label_usage_counts.load(self.id)

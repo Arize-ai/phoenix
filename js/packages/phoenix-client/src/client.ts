@@ -9,9 +9,11 @@ import type {
   paths as oapiPathsV1,
 } from "./__generated__/api/v1.d.ts";
 import {
+  type BaseUrlSource,
   defaultGetEnvironmentOptions,
   makeDefaultClientOptions,
 } from "./config";
+import { HttpError } from "./errors";
 import type { SemanticVersion } from "./types/semver";
 import { parseSemanticVersion } from "./utils/semverUtils";
 
@@ -36,6 +38,14 @@ export type Types = {
 };
 
 /**
+ * The client's resolved options, tagged with where the base URL came from so
+ * consumers can tell deliberate configuration from an ambient environment.
+ */
+export type PhoenixClientOptions = ClientOptions & {
+  baseUrlSource: BaseUrlSource;
+};
+
+/**
  * Merge all configuration options according to priority:
  * defaults < environment < explicit options
  *
@@ -50,13 +60,20 @@ export const getMergedOptions = ({
 }: {
   options?: Partial<ClientOptions>;
   getEnvironmentOptions?: () => Partial<ClientOptions>;
-} = {}): ClientOptions => {
+} = {}): PhoenixClientOptions => {
   const defaultOptions = makeDefaultClientOptions();
   const environmentOptions = getEnvironmentOptions();
+  const baseUrlSource: BaseUrlSource =
+    options.baseUrl !== undefined
+      ? "explicit"
+      : environmentOptions.baseUrl !== undefined
+        ? "environment"
+        : "default";
   return {
     ...defaultOptions,
     ...environmentOptions,
     ...options,
+    baseUrlSource,
   };
 };
 
@@ -66,10 +83,7 @@ export const getMergedOptions = ({
 const middleware: Middleware = {
   onResponse({ response }) {
     if (!response.ok) {
-      // Will produce error messages like "https://example.org/api/v1/example: 404 Not Found".
-      throw new Error(
-        `${response.url}: ${response.status} ${response.statusText}`
-      );
+      throw new HttpError(response);
     }
   },
 };
@@ -144,9 +158,10 @@ export const createClient = (
         const headers = mergedOptions.headers
           ? { ...(mergedOptions.headers as Record<string, string>) }
           : {};
-        const resp = await fetch(`${baseUrl}/arize_phoenix_version`, {
-          headers,
-        });
+        const fetchImpl = mergedOptions.fetch ?? globalThis.fetch;
+        const resp = await fetchImpl(
+          new Request(`${baseUrl}/arize_phoenix_version`, { headers })
+        );
         if (resp.ok) {
           const text = await resp.text();
           const parsed = parseSemanticVersion(text);

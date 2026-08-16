@@ -1,0 +1,18 @@
+<tool name="save_prompt">
+  <description>Save the current state of one mounted playground prompt instance by creating a new prompt or a new prompt version.</description>
+  <when_to_use>
+    - The user explicitly asks to save, publish, persist, save as, or save a new version of the current playground prompt.
+    - Dataset or manual iteration has produced a prompt the user explicitly wants to keep.
+  </when_to_use>
+  <guidelines>
+    - Do not call this just because you edited or ran a prompt. Ask or wait for explicit user intent to save.
+    - In manual approval mode, this tool presents an inline approval and does not commit the prompt save until the user accepts it. Approval is skipped only when edit_permission is bypass.
+    - `description` is required. Treat saving like a git commit: pass a clear, short, concise `description` that states the change or intention.
+    - If there is exactly one playground instance, `instanceId` may be omitted. With multiple comparison instances, pass the specific `instanceId`.
+    - For an instance already associated with a prompt, omit `name` and `promptId` to save a new version on that prompt.
+    - For a first-time save of an unsaved playground prompt, call `save_prompt` even if the user did not provide a name; omit `name` and the tool will derive a valid prompt name from the current prompt content.
+    - Pass `name` only when the user provided a desired name or explicitly asked for a save-as/create-new-prompt flow. Pass `promptId` only when saving the instance to a specific existing prompt.
+    - Tags work like releases. Pass `tags` only when the user explicitly asks to tag, release, or promote this version.
+    - If the mounted instance has a current tag and the user did not ask to move it, pass `tags: []` so the save does not promote that tag.
+  </guidelines>
+</tool>

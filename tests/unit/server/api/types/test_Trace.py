@@ -83,6 +83,35 @@ class TestTrace:
             "name": span.name,
         }
 
+    async def test_user_id(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+            trace_without_user = await _add_trace(session, project)
+            await _add_span(session, trace_without_user)
+            trace_with_user = await _add_trace(session, project)
+            root_span = await _add_span(
+                session,
+                trace_with_user,
+                attributes={"user": {"id": "user-1"}},
+            )
+            await _add_span(session, trace_with_user, parent_span=root_span)
+            trace_with_user_on_child = await _add_trace(session, project)
+            root_span_without_user = await _add_span(session, trace_with_user_on_child)
+            await _add_span(
+                session,
+                trace_with_user_on_child,
+                parent_span=root_span_without_user,
+                attributes={"user": {"id": "user-2"}},
+            )
+        field = "userId"
+        assert await self._node(field, trace_without_user, httpx_client) is None
+        assert await self._node(field, trace_with_user, httpx_client) == "user-1"
+        assert await self._node(field, trace_with_user_on_child, httpx_client) == "user-2"
+
 
 async def test_trace_spans_pagination(
     db: DbSessionFactory,

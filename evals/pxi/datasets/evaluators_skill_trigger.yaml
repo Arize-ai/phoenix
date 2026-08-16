@@ -1,0 +1,281 @@
+dataset_name: evaluators_skill_trigger
+description: >-
+  PXI server-side eval suite for evaluators skill trigger correctness.
+  Tests whether the agent calls load_skill(skill_name="evaluators") when the
+  user asks to author or refine a code or LLM evaluator (positive cases), and
+  correctly avoids triggering the skill for trace diagnosis, pure prompt
+  iteration, experiment comparison, and closed-form reads that route to a
+  sibling skill or no skill (negative cases). Positives are spread across the
+  three surfaces that gate the skill into the catalog: a mounted dataset, a
+  mounted code-evaluator form, and a mounted LLM-evaluator form.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - forbidden_tool_call_args_match
+
+examples:
+
+  # ===== Positive triggers: evaluators skill should fire =====
+  # Each positive carries one of the three gating contexts (dataset,
+  # code_evaluator, or llm_evaluator), because the evaluators skill is gated
+  # into the catalog on the presence of any of them; without one load_skill
+  # cannot resolve the name.
+
+  - id: write-code-check-empty-output
+    splits: [regression]
+    input:
+      contexts:
+        - type: code_evaluator
+      messages:
+        - role: user
+          content: Add a check that fails when the model returns an empty answer.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      category: code_evaluator_authoring
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Deterministic empty-output check on a mounted code-evaluator form —
+          core code-evaluator authoring covered by the evaluators skill.
+
+  - id: write-llm-judge-grounded
+    splits: [regression]
+    input:
+      contexts:
+        - type: llm_evaluator
+      messages:
+        - role: user
+          content: Write a judge that scores whether the answer is grounded in the retrieved context.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      category: llm_evaluator_authoring
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          LLM-as-a-judge groundedness evaluator on a mounted LLM-evaluator
+          form. Subsumed by the evaluators skill.
+
+  - id: create-evaluator-from-dataset
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: I want to start scoring my outputs on this dataset. Help me build an evaluator.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      category: evaluator_from_dataset
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Building a new evaluator from a mounted dataset. Dataset context
+          gates the evaluators skill in alongside experiments; an explicit
+          "build an evaluator" ask routes here.
+
+  - id: refine-evaluator-labels
+    splits: [regression]
+    input:
+      contexts:
+        - type: llm_evaluator
+      messages:
+        - role: user
+          content: My judge's labels are too fuzzy. Help me tighten them so they're mutually exclusive.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      category: evaluator_refinement
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Refining label design on an existing judge — the evaluators skill's
+          label/rubric methodology.
+
+  - id: deterministic-before-judge
+    splits: [regression]
+    input:
+      contexts:
+        - type: code_evaluator
+      messages:
+        - role: user
+          content: Can you add a deterministic check that the output is valid JSON before I reach for a judge?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      category: code_evaluator_authoring
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Deterministic JSON-validity check on a code-evaluator form — the
+          code-vs-LLM choice the evaluators skill teaches.
+
+  - id: evaluator-from-observed-failures
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: My agent keeps hallucinating citations. Build me an eval that catches that.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      category: evaluator_from_failure
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Evaluator built from an observed failure mode (the skill's "evals
+          from observed failures, not generic metrics" guidance). Medium
+          because the failure framing sits near debug-trace; the explicit
+          "build me an eval" ask resolves it to evaluators.
+
+  # ===== Negative triggers: evaluators skill should NOT fire =====
+  # Uses forbidden_tool_call_args so a legitimate load_skill for the correct
+  # sibling skill in the same turn does not fail the example.
+
+  - id: negative-debug-traces
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What's going wrong with my agent?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      negative: true
+      category: negative_trace_diagnosis
+      difficulty: obvious
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Cross-trace failure diagnosis routes to debug-trace, not evaluators.
+          No evaluator surface mounted.
+
+  - id: negative-rewrite-prompt
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Make this prompt shorter and clearer.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      negative: true
+      category: negative_prompt_iteration
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Pure prompt rewrite routes to the playground skill, not evaluators.
+
+  - id: negative-compare-experiments
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Which of my two experiment runs scored higher overall?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      negative: true
+      category: negative_experiment_comparison
+      difficulty: tricky
+      polarity: negative
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Comparing existing experiment scores routes to experiments, not
+          evaluators. Tricky because it mentions scores, which sits near the
+          evaluator boundary, but the ask is to read results, not author a
+          scorer.
+
+  - id: negative-explain-evaluator-score
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: What did my relevance evaluator score on the last run?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: evaluators
+    metadata:
+      negative: true
+      category: negative_closed_form_read
+      difficulty: tricky
+      polarity: negative
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Reading back an existing evaluator's score is a closed-form gql read,
+          not authoring. Medium-tricky: names an evaluator but asks to read,
+          not build or refine.

@@ -13,14 +13,17 @@ Projects group traces for a single application or experiment.
 ### Environment Variable (Recommended)
 
 ```bash
-export PHOENIX_PROJECT_NAME="my-app-prod"
+export PHOENIX_PROJECT="my-app-prod"  # PHOENIX_PROJECT_NAME is a supported alias
 ```
 
 ```typescript
-process.env.PHOENIX_PROJECT_NAME = "my-app-prod";
+process.env.PHOENIX_PROJECT = "my-app-prod";
 import { register } from "@arizeai/phoenix-otel";
 register();  // Uses "my-app-prod"
 ```
+
+`PHOENIX_PROJECT` is canonical and takes precedence over the `PHOENIX_PROJECT_NAME`
+alias when both are set.
 
 ### Code
 
@@ -52,6 +55,30 @@ register({ projectName: "chatbot-claude" });
 register({ projectName: "my-app-v1" });
 register({ projectName: "my-app-v2" });
 ```
+
+## Listing Projects Programmatically
+
+`@arizeai/phoenix-client` exposes a `projects` subpath export. `getProjects`
+pages through the REST API for you and returns every project:
+
+```typescript
+import { getProjects } from "@arizeai/phoenix-client/projects";
+
+const projects = await getProjects();
+for (const project of projects) {
+  console.log(`Project: ${project.name} (${project.id})`);
+}
+```
+
+Pass `nameContains` to filter on a case-insensitive substring of the project
+name. The match runs server-side and requires Phoenix server >= 17.16.0:
+
+```typescript
+const agentProjects = await getProjects({ nameContains: "agent" });
+```
+
+`getProjects` accepts `client` alongside `nameContains` (it extends `ClientFn`),
+so a client built with an explicit endpoint or headers can be threaded through.
 
 ## Via HTTP Header (OTEL Collector / config-based tools)
 

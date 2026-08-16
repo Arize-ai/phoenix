@@ -3,8 +3,10 @@ import type { z } from "zod";
 /**
  * Simple utility to check if two types are exactly equivalent
  */
-export type AssertEqual<T, U> =
-  (<V>() => V extends T ? 1 : 2) extends <V>() => V extends U ? 1 : 2
+export type AssertEqual<Actual, Expected> =
+  (<Argument>() => Argument extends Actual ? 1 : 2) extends <
+    Argument,
+  >() => Argument extends Expected ? 1 : 2
     ? true
     : false;
 
@@ -14,16 +16,16 @@ export type AssertEqual<T, U> =
  * @see https://github.com/colinhacks/zod/issues/372#issuecomment-2445439772
  */
 export const schemaMatches =
-  <T>() =>
-  <S extends z.ZodType<T, unknown>>(
-    schema: AssertEqual<S["_output"], T> extends true
-      ? S
-      : S & {
+  <Value>() =>
+  <Schema extends z.ZodType<Value, unknown>>(
+    schema: AssertEqual<Schema["_output"], Value> extends true
+      ? Schema
+      : Schema & {
           "types do not match": {
-            expected: T;
-            received: S["_output"];
+            expected: Value;
+            received: Schema["_output"];
           };
         }
-  ): S => {
+  ): Schema => {
     return schema;
   };

@@ -173,17 +173,17 @@ def main() -> None:
     user_msg_1 = "Briefly explain why ice floats on water. " + ("Be thorough. " * 400)
 
     result1 = agent.run_sync(user_msg_1, deps=Deps(tone="formal"))
-    write1, read1 = _cache_tokens(result1.usage())
+    write1, read1 = _cache_tokens(result1.usage)
     print(
-        f"Run 1 — input={result1.usage().input_tokens} "
+        f"Run 1 — input={result1.usage.input_tokens} "
         f"cache_write={write1} cache_read={read1} "
-        f"output={result1.usage().output_tokens}"
+        f"output={result1.usage.output_tokens}"
     )
     _print_turn("RUN 1", result1.all_messages(), _CAPTURED_ANTHROPIC_REQUESTS[0])
 
     assert write1 > 0, (
         f"Expected a non-zero cache write on run 1, got cache_write_tokens={write1}. "
-        f"Full usage: {result1.usage()}"
+        f"Full usage: {result1.usage}"
     )
 
     result2 = agent.run_sync(
@@ -191,11 +191,11 @@ def main() -> None:
         message_history=result1.all_messages(),
         deps=Deps(tone="playful"),
     )
-    write2, read2 = _cache_tokens(result2.usage())
+    write2, read2 = _cache_tokens(result2.usage)
     print(
-        f"\nRun 2 — input={result2.usage().input_tokens} "
+        f"\nRun 2 — input={result2.usage.input_tokens} "
         f"cache_write={write2} cache_read={read2} "
-        f"output={result2.usage().output_tokens}"
+        f"output={result2.usage.output_tokens}"
     )
     _print_turn("RUN 2", result2.all_messages(), _CAPTURED_ANTHROPIC_REQUESTS[1])
 

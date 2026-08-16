@@ -1,0 +1,81 @@
+---
+title: "06.10.2026: PXI Agent Update"
+description: "PXI gains a skills menu, parallel subagents, full playground orchestration, evaluator authoring, and dataset management — plus Claude Fable 5 in the playground."
+---
+
+# PXI Skills Menu, Subagents, and Playground Orchestration
+
+June 10, 2026
+
+**Available in arize-phoenix 17.3.0+ (PXI beta)**
+
+PXI can now drive much more of Phoenix on your behalf. This release adds a skills menu in chat, parallel subagents for data retrieval, end-to-end playground orchestration, evaluator authoring, and dataset management — all behind the same accept/reject approval flows introduced at launch.
+
+## Skills menu
+
+Type `/` in the PXI chat input to browse and invoke PXI's skill library directly. Each skill packages a methodology PXI follows for a specific job:
+
+- **`/debug-trace`** — investigate traces to identify failure modes, root causes, and prioritized fixes
+- **`/llm-evaluator-authoring`** — design or refine an LLM-as-a-judge evaluator, including labels, rubric, and test cases
+- **`/playground`** — author, edit, run, compare, and improve prompts in the playground
+- **`/datasets`** — reason about dataset examples, outputs, splits, and labels
+- **`/annotate-spans`** — create consistent annotations and design feedback taxonomies
+
+Combine multiple skills in one message, and watch each skill load in the transcript as PXI picks it up.
+
+## Subagents
+
+<video controls autoPlay={false} loop={false} width="100%">
+  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/pxi/sub_agents.mp4" type="video/mp4" />
+</video>
+
+PXI can delegate data retrieval to parallel subagents. Each subagent runs read-only queries against your Phoenix data with your identity and permissions, so large lookups happen alongside the main investigation instead of crowding its context. Subagent calls appear as expandable entries in the chat transcript.
+
+## Playground orchestration
+
+PXI can now run a full prompt-iteration loop in the playground:
+
+- **Load a dataset** into the playground, optionally scoped to a single split
+- **Switch the model** on any prompt instance, across built-in and custom providers
+- **Add or remove comparison instances** to set up side-by-side prompt variants
+- **Set repetitions** to repeat runs and surface flaky outputs
+- **Point template variables and appended message history** at specific dataset fields
+- **Toggle experiment recording** to decide whether dataset runs are saved as experiments or kept ephemeral
+- **Cancel a running playground run** and pick up the experiment results once a dataset run completes
+
+## Evaluator authoring
+
+Ask PXI to write an evaluator and it works inside the same forms you use:
+
+- **LLM-as-a-judge evaluators** — PXI drafts the judge prompt, labels, and model configuration, proposing every change as an accept/reject diff
+- **Code evaluators** — PXI writes the `evaluate()` source, configures outputs, and tests it in the sandbox before saving
+- **Validated saves** — evaluators persist through the same validation as the Create button, and results report whether changes were accepted by you or auto-accepted
+
+## Dataset management
+
+PXI can create and maintain evaluation datasets from chat: create or rename datasets, add and edit examples, organize splits and labels, and import spans from your projects as new examples. Dataset writes render as diffs for approval before they apply.
+
+## Chat refinements
+
+- **Reviewable tool edits** — playground tool-definition changes are gated behind an accept/reject diff
+- **Readable transcripts** — long tool outputs auto-collapse with an expand control, and the transcript keeps your scroll position while sections open and close
+- **Copy trace IDs** directly from PXI responses
+
+<CardGroup cols={2}>
+  <Card title="PXI Agent" icon="robot" href="/docs/phoenix/pxi">
+    Learn how to enable and use PXI in your Phoenix deployment.
+  </Card>
+</CardGroup>
+
+# Claude Fable 5 in the Playground
+
+June 10, 2026
+
+**Available in arize-phoenix 17.3.0+**
+
+The playground now supports Anthropic's Claude Fable 5:
+
+- **Anthropic** — `claude-fable-5`
+- **AWS Bedrock** — `anthropic.claude-fable-5`
+
+Select it from the model picker in the playground and prompts, with cost tracking included.

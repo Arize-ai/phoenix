@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import os
 from asyncio import AbstractEventLoop
@@ -22,7 +23,7 @@ from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, create_async_engine
 from starlette.types import ASGIApp
 
 from phoenix.db import models
@@ -44,11 +45,41 @@ from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
 
 
+def pytest_configure(config: Config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "postgres_only: mark a test as requiring PostgreSQL (skipped under --db sqlite)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_monty_runtime_probe: run the real Monty runtime startup probe "
+        "(spawns a worker subprocess)",
+    )
+
+
+@pytest.fixture(autouse=True)
+def _stub_code_mode_startup_check(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The code-mode startup check spawns a worker subprocess, and MCP plus code
+    mode default on — so every app-lifespan test would pay that spawn inside
+    asgi_lifespan's 5s startup budget. Stubbed suite-wide; tests exercising the
+    check itself opt back in with ``@pytest.mark.real_monty_runtime_probe``."""
+    if request.node.get_closest_marker("real_monty_runtime_probe"):
+        return
+
+    async def _skip(self: Any) -> bool:
+        return True
+
+    monkeypatch.setattr("phoenix.server.monty_runtime.MontyRuntime.probe_runtime", _skip)
+
+
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     db = config.getoption("--db")
     if db == "sqlite":
         skip_marker = pytest.mark.skip(reason="Skipping Postgres tests (--db sqlite)")
         for item in items:
+            if item.get_closest_marker("postgres_only") is not None:
+                item.add_marker(skip_marker)
+                continue
             if "dialect" in item.fixturenames:
                 if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_marker)
@@ -250,6 +281,31 @@ async def _sqlite_test_conn(
         pass
 
 
+def _serialized(
+    factory: Callable[[], contextlib.AbstractAsyncContextManager[AsyncSession]],
+) -> Callable[[], contextlib.AbstractAsyncContextManager[AsyncSession]]:
+    """Give sessions exclusive use of the connection these fixtures share.
+
+    Tests bind every session to one `AsyncConnection` held open under a
+    transaction and savepoint, so a test rolls back wholesale. Concurrent
+    sessions would then interleave transaction boundaries on a connection none
+    of them owns, and one rollback would remove a savepoint another still
+    needs.
+
+    Production shares nothing: its pool hands out a connection per checkout, so
+    the serialisation belongs to the fixture that creates the sharing.
+    """
+    lock = asyncio.Lock()
+
+    @contextlib.asynccontextmanager
+    async def serialized() -> AsyncIterator[AsyncSession]:
+        async with lock:
+            async with factory() as session:
+                yield session
+
+    return serialized
+
+
 @pytest.fixture(scope="function")
 def db(
     request: SubRequest,
@@ -257,7 +313,7 @@ def db(
 ) -> DbSessionFactory:
     if dialect == "sqlite":
         conn = request.getfixturevalue("_sqlite_test_conn")
-        return DbSessionFactory(db=_db(conn), dialect=dialect)
+        return DbSessionFactory(db=_serialized(_db(conn)), dialect=dialect)
     elif dialect == "postgresql":
         engine = request.getfixturevalue("postgresql_engine")
         return DbSessionFactory(db=_db(engine), dialect=dialect)
@@ -335,6 +391,8 @@ async def patch_grpc_server() -> AsyncIterator[None]:
 
 
 class TestBulkInserter(BulkInserter):
+    __test__ = False
+
     async def __aenter__(
         self,
     ) -> tuple[

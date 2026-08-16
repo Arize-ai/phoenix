@@ -1,0 +1,14 @@
+<tool name="set_dataset_labels">
+  <description>Set the labels on the dataset the user is viewing, by label name. This SETS the dataset's labels to exactly the named labels — it replaces whatever labels were on it. The labels must already exist; to create a new label, use create_dataset_label.</description>
+  <when_to_use>
+    - The user asks to tag/label, or to remove a label from, the dataset they are viewing with one or more existing labels.
+  </when_to_use>
+  <preflight>
+    - Get valid label names from list_labels (the instance-wide vocabulary). Do not guess names.
+    - This replaces the dataset's labels with the named ones. To keep the dataset's current labels and add another, first read what is currently applied with list_dataset_labels and include those names as well. To remove all labels, this tool cannot pass an empty list — say so to the user.
+  </preflight>
+  <rules>
+    - Propose the change by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+    - labelNames must name labels that already exist; if one does not, create it first with create_dataset_label.
+  </rules>
+</tool>

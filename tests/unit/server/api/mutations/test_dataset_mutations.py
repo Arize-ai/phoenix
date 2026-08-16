@@ -51,6 +51,26 @@ async def test_create_dataset(
     }
 
 
+async def test_create_dataset_with_duplicate_name_returns_conflict(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    mutation = """
+      mutation ($name: String!) {
+        createDataset(input: {name: $name, metadata: {}}) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    first = await gql_client.execute(query=mutation, variables={"name": "dupe-dataset"})
+    assert not first.errors
+    second = await gql_client.execute(query=mutation, variables={"name": "dupe-dataset"})
+    assert (errors := second.errors)
+    assert len(errors) == 1
+    assert errors[0].message == "A dataset named 'dupe-dataset' already exists."
+
+
 class TestPatchDatasetMutation:
     MUTATION = """
       mutation ($datasetId: ID!, $name: String, $description: String, $metadata: JSON) {
@@ -336,6 +356,53 @@ class TestPatchDatasetExamples:
         actual_examples = data["patchDatasetExamples"]["dataset"]["examples"]["edges"]
         assert actual_examples == expected_examples
 
+    async def test_matching_dataset_scope_is_accepted(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "patches": [
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                            ),
+                            "input": {"input": "patched-example-1-input"},
+                        }
+                    ],
+                }
+            },
+        )
+        assert not response.errors
+
+    async def test_mismatched_dataset_scope_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", str(999))),
+                    "patches": [
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                            ),
+                            "input": {"input": "patched-example-1-input"},
+                        }
+                    ],
+                }
+            },
+        )
+        assert response.errors
+        assert "not the specified dataset" in response.errors[0].message
+
     @pytest.mark.parametrize(
         "mutation_input, expected_error_message",
         [
@@ -448,6 +515,55 @@ class TestPatchDatasetExamples:
         assert (errors := response.errors)
         assert len(errors) == 1
         assert errors[0].message == expected_error_message
+
+
+class TestDeleteDatasetExamplesScope:
+    MUTATION = """
+      mutation ($input: DeleteDatasetExamplesInput!) {
+        deleteDatasetExamples(input: $input) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+
+    async def test_matching_dataset_scope_is_accepted(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "exampleIds": [
+                        str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1)))
+                    ],
+                }
+            },
+        )
+        assert not response.errors
+
+    async def test_mismatched_dataset_scope_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", str(999))),
+                    "exampleIds": [
+                        str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1)))
+                    ],
+                }
+            },
+        )
+        assert response.errors
+        assert "not the specified dataset" in response.errors[0].message
 
 
 async def test_delete_a_dataset(

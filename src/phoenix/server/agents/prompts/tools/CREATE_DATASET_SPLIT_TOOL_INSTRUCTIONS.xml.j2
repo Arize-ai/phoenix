@@ -1,0 +1,15 @@
+<tool name="create_dataset_split">
+  <description>Create a new split, optionally seeded with rows from the dataset the user is viewing. A split is a named slice of dataset rows (e.g. train/validation/test). Split names are unique across this Phoenix instance; if the name is taken the call fails and you should pick a different name. To put existing rows into a split that already exists, use set_dataset_example_splits instead.</description>
+  <when_to_use>
+    - The user asks to create a new split, or to organize some rows into a new named split.
+  </when_to_use>
+  <preflight>
+    - Pick a clear, unique name (deciding the name is a content question and is fine to ask about). Split names are unique instance-wide, so check existing splits with list_splits first; if one already exists, assign rows to it with set_dataset_example_splits rather than creating a duplicate.
+    - To seed the split with rows, pass their example ids (obtained from list_dataset_examples). A split with no rows will not show up under the dataset until rows are assigned to it.
+  </preflight>
+  <rules>
+    - Propose the split by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and creates the split only when the user accepts; in bypass mode it is created immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+    - Names are unique. If creation fails because the name already exists, choose a different name.
+    - color is optional (a hex value like #33c5e8); omit it for a default.
+  </rules>
+</tool>

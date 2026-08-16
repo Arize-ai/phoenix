@@ -43,6 +43,13 @@ GET_SPANS_TRACE_IDS = ParameterRequirement(
     min_server_version=Version(13, 9, 0),
 )
 
+GET_SPANS_SPAN_IDS = ParameterRequirement(
+    parameter_name="span_id",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/spans",
+    min_server_version=Version(19, 6, 0),
+)
+
 GET_SPANS_FILTERS = ParameterRequirement(
     parameter_name="span_kind",
     parameter_location="query",
@@ -82,4 +89,10 @@ DATASET_UPLOAD_SPLIT_KEY = ParameterRequirement(
     parameter_location="form",
     route="POST /v1/datasets/upload",
     min_server_version=Version(15, 0, 0),
+)
+
+PATCH_PROMPT = RouteRequirement(
+    method="PATCH",
+    path="/v1/prompts/{prompt_identifier}",
+    min_server_version=Version(19, 18, 0),
 )

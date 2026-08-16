@@ -16,6 +16,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
@@ -38,6 +39,7 @@ from phoenix.server.api.types.SortDir import SortDir
 
 if TYPE_CHECKING:
     from .ExperimentJob import ExperimentJob
+    from .User import User
 
 
 @strawberry.type
@@ -100,6 +102,35 @@ class Dataset(Node):
                 (self.id, models.Dataset.created_at),
             )
         return val
+
+    @strawberry.field(description="The user that created the dataset.")  # type: ignore
+    async def created_by(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        if self.db_record:
+            user_id = self.db_record.user_id
+        else:
+            user_id = await info.context.data_loaders.dataset_fields.load(
+                (self.id, models.Dataset.user_id),
+            )
+        if user_id is None:
+            return None
+        from .User import to_gql_user
+
+        return to_gql_user(await info.context.data_loaders.users.load(user_id))
+
+    @strawberry.field(
+        description="The user that last updated the dataset, i.e. the author of its latest version."
+    )  # type: ignore
+    async def updated_by(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
+        authors = await info.context.data_loaders.dataset_authors.load(self.id)
+        from .User import to_gql_user
+
+        return to_gql_user(authors.updated_by)
 
     @strawberry.field
     async def updated_at(
@@ -178,54 +209,13 @@ class Dataset(Node):
                 except Exception:
                     raise BadRequest(f"Invalid split ID: {split_id}")
 
-        revision_ids = (
-            select(func.max(models.DatasetExampleRevision.id))
-            .join(models.DatasetExample)
-            .where(models.DatasetExample.dataset_id == dataset_id)
-            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        return await info.context.data_loaders.dataset_example_counts.load(
+            (
+                dataset_id,
+                version_id,
+                tuple(sorted(set(split_rowids))) if split_rowids else (),
+            )
         )
-        if version_id:
-            version_id_subquery = (
-                select(models.DatasetVersion.id)
-                .where(models.DatasetVersion.dataset_id == dataset_id)
-                .where(models.DatasetVersion.id == version_id)
-                .scalar_subquery()
-            )
-            revision_ids = revision_ids.where(
-                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
-            )
-
-        # Build the count query
-        if split_rowids:
-            # When filtering by splits, count distinct examples that belong to those splits
-            stmt = (
-                select(count(models.DatasetExample.id.distinct()))
-                .join(
-                    models.DatasetExampleRevision,
-                    onclause=(
-                        models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id
-                    ),
-                )
-                .join(
-                    models.DatasetSplitDatasetExample,
-                    onclause=(
-                        models.DatasetExample.id
-                        == models.DatasetSplitDatasetExample.dataset_example_id
-                    ),
-                )
-                .where(models.DatasetExampleRevision.id.in_(revision_ids))
-                .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-                .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
-            )
-        else:
-            stmt = (
-                select(count(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.id.in_(revision_ids))
-                .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-            )
-
-        async with info.context.db.read() as session:
-            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
     async def examples(
@@ -238,6 +228,14 @@ class Dataset(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter: Optional[str] = UNSET,
+        # filter_ids is a stopgap until a query DSL is implemented
+        filter_ids: Annotated[
+            Optional[list[GlobalID]],
+            strawberry.argument(
+                description="When provided, return only the examples with the given "
+                "IDs — a membership lookup that avoids paging the whole connection."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetExample]:
         args = ConnectionArgs(
             first=first,
@@ -267,12 +265,31 @@ class Dataset(Node):
                 except Exception:
                     raise BadRequest(f"Invalid split ID: {split_id}")
 
+        # Parse filter IDs if provided
+        filter_rowids: Optional[list[int]] = None
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    filter_rowids.append(
+                        from_global_id_with_expected_type(
+                            global_id=filter_id,
+                            expected_type_name=DatasetExample.__name__,
+                        )
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+
         revision_ids = (
             select(func.max(models.DatasetExampleRevision.id))
             .join(models.DatasetExample)
             .where(models.DatasetExample.dataset_id == dataset_id)
             .group_by(models.DatasetExampleRevision.dataset_example_id)
         )
+        if filter_rowids is not None:
+            # Restrict the latest-revision aggregation to the requested rows so
+            # an id-membership lookup doesn't aggregate the whole dataset.
+            revision_ids = revision_ids.where(models.DatasetExample.id.in_(filter_rowids))
         if version_id:
             version_id_subquery = (
                 select(models.DatasetVersion.id)
@@ -322,6 +339,9 @@ class Dataset(Node):
                 func.cast(models.DatasetExampleRevision.metadata_, Text).ilike(f"%{filter}%"),
             )
             query = query.where(filter_condition)
+
+        if filter_rowids is not None:
+            query = query.where(models.DatasetExample.id.in_(filter_rowids))
 
         async with info.context.db.read() as session:
             dataset_examples = [
@@ -428,6 +448,31 @@ class Dataset(Node):
             ]
         return connection_from_list(data=experiments, args=args)
 
+    @strawberry.field(
+        description="The experiment tagged as this dataset's baseline, if one is set."
+    )  # type: ignore
+    async def baseline_experiment(self, info: Info[Context, None]) -> Optional[Experiment]:
+        row_number = func.row_number().over(order_by=models.Experiment.id).label("row_number")
+        numbered = (
+            select(models.Experiment.id.label("experiment_id"), row_number)
+            .where(models.Experiment.dataset_id == self.id)
+            .where(models.Experiment.is_ephemeral.is_(False))
+            .subquery()
+        )
+        query = (
+            select(models.Experiment, numbered.c.row_number)
+            .join(numbered, numbered.c.experiment_id == models.Experiment.id)
+            .join(models.ExperimentTag, models.ExperimentTag.experiment_id == models.Experiment.id)
+            .where(models.ExperimentTag.dataset_id == self.id)
+            .where(models.ExperimentTag.name == BASELINE_EXPERIMENT_TAG_NAME)
+        )
+        async with info.context.db.read() as session:
+            result = (await session.execute(query)).first()
+        if result is None:
+            return None
+        experiment, sequence_number = result
+        return to_gql_experiment(experiment, sequence_number, is_baseline=True)
+
     @strawberry.field
     async def experiment_jobs(
         self,
@@ -458,7 +503,9 @@ class Dataset(Node):
 
     @strawberry.field
     async def experiment_annotation_summaries(
-        self, info: Info[Context, None]
+        self,
+        info: Info[Context, None],
+        include_ephemeral: Optional[bool] = False,
     ) -> list[DatasetExperimentAnnotationSummary]:
         dataset_id = self.id
         query = (
@@ -480,6 +527,8 @@ class Dataset(Node):
             .group_by(models.ExperimentRunAnnotation.name)
             .order_by(models.ExperimentRunAnnotation.name)
         )
+        if not include_ephemeral:
+            query = query.where(models.Experiment.is_ephemeral.is_(False))
         async with info.context.db.read() as session:
             return [
                 DatasetExperimentAnnotationSummary(

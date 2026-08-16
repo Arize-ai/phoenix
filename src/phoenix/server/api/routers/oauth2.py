@@ -1,7 +1,10 @@
+"""OAuth2 relying party: Phoenix logs users in via an external IdP."""
+
 import logging
 import re
 from dataclasses import dataclass, field
 from datetime import timedelta
+from os import getenv
 from random import randrange
 from typing import Any, Optional, TypedDict
 from urllib.parse import unquote, urlparse
@@ -40,6 +43,7 @@ from phoenix.auth import (
     set_refresh_token_cookie,
 )
 from phoenix.config import (
+    ENV_PHOENIX_ROOT_URL,
     AssignableUserRoleName,
     get_env_disable_basic_auth,
     get_env_disable_rate_limit,
@@ -47,7 +51,8 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
-from phoenix.server.oauth2 import DEFAULT_EMAIL_PATH, OAuth2Client
+from phoenix.server.oauth2 import DEFAULT_EMAIL_PATH, OAuth2Client, search_claim_path
+from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -103,15 +108,7 @@ async def login(
     if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
         return _redirect_to_login(request=request, error="unknown_idp")
     secret = request.app.state.get_secret()
-    if (referer := request.headers.get("referer")) is not None:
-        # if the referer header is present, use it as the origin URL
-        parsed_url = urlparse(referer)
-        origin_url = _append_root_path_if_exists(
-            request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
-        )
-    else:
-        # fall back to the base url as the origin URL
-        origin_url = str(request.base_url)
+    origin_url = _login_origin_url(request)
     authorization_url_data = await oauth2_client.create_authorization_url(
         redirect_uri=_get_create_tokens_endpoint(
             request=request, origin_url=origin_url, idp_name=idp_name
@@ -259,6 +256,7 @@ async def create_tokens(
                 user_info=user_info,
                 allow_sign_up=oauth2_client.allow_sign_up,
                 role_name=role_name,
+                role_resync=oauth2_client.role_resync,
             )
     except EmailAlreadyInUse as e:
         logger.error("Email already in use for IDP %s: %s", idp_name, e)
@@ -438,7 +436,7 @@ def _parse_user_info(
         raise InvalidUserInfo("The 'sub' claim cannot be empty.")
 
     # Extract 'email' claim using JMESPath (application requirement)
-    email_value = email_path.search(user_info)
+    email_value = search_claim_path(email_path, user_info, "EMAIL_ATTRIBUTE_PATH")
 
     if not isinstance(email_value, str) or not email_value.strip():
         # Get the expression string for the error message
@@ -499,6 +497,7 @@ async def _process_oauth2_user(
     user_info: UserInfo,
     allow_sign_up: bool,
     role_name: Optional[AssignableUserRoleName],
+    role_resync: bool = True,
 ) -> models.User:
     """
     Processes an OAuth2 user, either signing in an existing user or creating/updating one.
@@ -525,6 +524,9 @@ async def _process_oauth2_user(
         allow_sign_up: Whether to allow creating new users
         role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to preserve
                    existing user roles (backward compatibility when role mapping not configured)
+        role_resync: When False, an existing user's role is never overwritten from IDP claims.
+                   New users are still created with role_name, so role mapping stays active for
+                   provisioning while existing users keep their current Phoenix role on re-login.
 
     Returns:
         The user object
@@ -539,12 +541,14 @@ async def _process_oauth2_user(
             oauth2_client_id=oauth2_client_id,
             user_info=user_info,
             role_name=role_name,
+            role_resync=role_resync,
         )
     return await _create_or_update_user(
         session,
         oauth2_client_id=oauth2_client_id,
         user_info=user_info,
         role_name=role_name,
+        role_resync=role_resync,
     )
 
 
@@ -555,6 +559,7 @@ async def _sign_in_existing_oauth2_user(
     oauth2_client_id: str,
     user_info: UserInfo,
     role_name: Optional[AssignableUserRoleName],
+    role_resync: bool = True,
 ) -> models.User:
     """Signs in an existing user with OAuth2 credentials.
 
@@ -586,6 +591,8 @@ async def _sign_in_existing_oauth2_user(
         user_info: User information from the OAuth2 provider
         role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to preserve
                    existing role (backward compatibility when role mapping not configured)
+        role_resync: When False, the user's role is never overwritten from IDP claims,
+                   preserving the user's current Phoenix role.
 
     Returns:
         The signed-in user
@@ -627,9 +634,10 @@ async def _sign_in_existing_oauth2_user(
     if profile_picture_url != user.profile_picture_url:
         user.profile_picture_url = profile_picture_url
 
-    # Update role ONLY if role mapping is configured (role_name is not None)
-    # This preserves existing user roles when role mapping is not configured
-    if role_name is not None and user.role.name != role_name:
+    # Update role ONLY if role mapping is configured (role_name is not None) and role resync is
+    # enabled. role_resync=False preserves the current Phoenix role; role_name is None preserves
+    # existing roles when role mapping is not configured.
+    if role_resync and role_name is not None and user.role.name != role_name:
         role = await session.scalar(
             select(models.UserRole).where(models.UserRole.name == role_name)
         )
@@ -648,6 +656,7 @@ async def _create_or_update_user(
     oauth2_client_id: str,
     user_info: UserInfo,
     role_name: Optional[AssignableUserRoleName],
+    role_resync: bool = True,
 ) -> models.User:
     """
     Creates a new user or updates an existing one with OAuth2 credentials.
@@ -658,6 +667,8 @@ async def _create_or_update_user(
         user_info: User information from the OAuth2 provider
         role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to use
                    VIEWER for new users and preserve existing users' roles (backward compatibility)
+        role_resync: When False, an existing user's role is never overwritten from IDP claims,
+                   preserving the user's current Phoenix role. New users are unaffected.
 
     Returns:
         The created or updated user
@@ -687,9 +698,10 @@ async def _create_or_update_user(
         if user.profile_picture_url != user_info.profile_picture_url:
             user.profile_picture_url = user_info.profile_picture_url
 
-        # Update role ONLY if role mapping is configured (role_name is not None)
-        # This preserves existing user roles when role mapping is not configured
-        if role_name is not None and user.role.name != role_name:
+        # Update role ONLY if role mapping is configured (role_name is not None) and role resync
+        # is enabled. role_resync=False preserves the current Phoenix role; role_name is None
+        # preserves existing roles when role mapping is not configured.
+        if role_resync and role_name is not None and user.role.name != role_name:
             role = await session.scalar(
                 select(models.UserRole).where(models.UserRole.name == role_name)
             )
@@ -867,6 +879,29 @@ def _append_root_path_if_exists(*, request: Request, base_url: str) -> str:
     if not (root_path := get_root_path(request.scope)):
         return base_url
     return str(URLPath(root_path).make_absolute_url(base_url=base_url))
+
+
+def _login_origin_url(request: Request) -> str:
+    """Return the origin the IdP callback and post-login redirect are built on.
+
+    When the operator has declared the canonical public origin
+    (PHOENIX_ROOT_URL), it is authoritative: the IdP callback must never be
+    derived from request headers in that case. The Referer in particular is
+    whatever page sent the user here — during an /oauth2/authorize login
+    redirect it is the OAuth client's own UI, not Phoenix — and building the
+    callback on it would make the IdP deliver the authorization code to a
+    foreign origin.
+    """
+    if getenv(ENV_PHOENIX_ROOT_URL):
+        return public_origin(request)
+    if (referer := request.headers.get("referer")) is not None:
+        # if the referer header is present, use it as the origin URL
+        parsed_url = urlparse(referer)
+        return _append_root_path_if_exists(
+            request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
+        )
+    # fall back to the base url as the origin URL
+    return str(request.base_url)
 
 
 def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: str) -> str:

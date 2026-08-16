@@ -1,0 +1,14 @@
+<tool name="set_appended_messages_path">
+  <description>Set the dataset message-list path appended to runs for the currently mounted playground.</description>
+  <use_when>
+    - The user asks to append, set, change, or clear the conversational message history used for message-based dataset re-runs.
+    - The user wants playground runs to include a list of messages drawn from a dataset row.
+  </use_when>
+  <rules>
+    - The `path` points at a dataset message-list to append for conversational/message-based re-runs.
+    - The `path` is dot-notation resolved relative to a dataset example's `input` object, not the example as a whole. So if an example stores its messages at `input.messages`, use `messages` (not `input.messages`); only nest deeper (e.g. `payload.messages`) when the list lives under a sub-key of `input`.
+    - Pass an empty string or null for `path` to disable appending.
+    - This tool only updates browser UI state. It does not edit prompt messages or run the playground.
+    - This setting applies to the loaded dataset. If no dataset is loaded, call `load_dataset` first.
+  </rules>
+</tool>

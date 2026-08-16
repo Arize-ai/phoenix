@@ -1,0 +1,14 @@
+<tool name="set_dataset_example_splits">
+  <description>Assign rows of the dataset the user is viewing to one or more existing splits, by split name. This SETS each row's splits to exactly the named splits — it replaces whatever splits those rows were in. The splits must already exist on the dataset; to create a new split, use create_dataset_split.</description>
+  <when_to_use>
+    - The user asks to move, put, or assign specific rows into a split (e.g. "put these in the test split").
+  </when_to_use>
+  <preflight>
+    - Get the example ids from list_dataset_examples and valid split names from list_splits (the instance-wide vocabulary — you can assign rows to any existing split, not only ones already on this dataset). Do not guess ids or names.
+    - This replaces each row's split membership with the named splits. If the user wants to keep a row in its current splits too, include those split names as well.
+  </preflight>
+  <rules>
+    - Propose the assignment by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+    - splitNames must name splits that already exist on this dataset; if one does not, create it first with create_dataset_split.
+  </rules>
+</tool>

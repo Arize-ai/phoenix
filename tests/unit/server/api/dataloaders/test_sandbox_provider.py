@@ -3,7 +3,7 @@ from secrets import token_hex
 import sqlalchemy
 
 from phoenix.db import models
-from phoenix.server.api.dataloaders import SandboxProviderDataLoader
+from phoenix.server.api.dataloaders.sandbox_provider import SandboxProviderDataLoader
 from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 

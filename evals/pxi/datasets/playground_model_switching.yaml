@@ -1,0 +1,129 @@
+dataset_name: playground_model_switching
+description: >-
+  PXI eval suite for lazy playground model discovery and model switching.
+  Covers listing available playground models and resolving ambiguous model
+  switch requests by discovering model targets before applying the selected
+  target on the next agent step.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - tool_call_count_within_limit
+examples:
+  - id: list-available-playground-models
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 1
+              model:
+                type: builtin
+                provider: OPENAI
+                modelName: gpt-5
+      messages:
+        - role: user
+          content: What models are available in this playground?
+    expected:
+      tools:
+        required: [list_playground_model_targets]
+        forbidden: [set_playground_model]
+      budgets:
+        max_tool_calls: 2
+    metadata: {}
+  - id: generic-sonnet-switch-discovers-targets-first
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 1
+              model:
+                type: builtin
+                provider: OPENAI
+                modelName: gpt-5
+      messages:
+        - role: user
+          content: Switch this playground to sonnet.
+    expected:
+      tools:
+        required: [list_playground_model_targets]
+        forbidden: [set_playground_model]
+      budgets:
+        max_tool_calls: 2
+    metadata: {}
+  - id: generic-sonnet-switch-applies-discovered-target
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 1
+              model:
+                type: builtin
+                provider: OPENAI
+                modelName: gpt-5
+      messages:
+        - role: user
+          content: Switch this playground to sonnet.
+        - role: assistant
+          tool_calls:
+            - id: load-playground-skill
+              name: load_skill
+              args: { skill_name: playground }
+        - role: tool
+          tool_call_id: load-playground-skill
+          name: load_skill
+          content: |
+            <skill>
+              <name>playground</name>
+              <description>Author, edit, or iterate on prompts in the Phoenix prompt playground.</description>
+            </skill>
+        - role: assistant
+          tool_calls:
+            - id: list-targets
+              name: list_playground_model_targets
+              args: {}
+        - role: tool
+          tool_call_id: list-targets
+          name: list_playground_model_targets
+          content: |
+            {
+              "builtinModels": [
+                {
+                  "target": {
+                    "type": "builtin",
+                    "provider": "OPENAI",
+                    "modelName": "gpt-5"
+                  }
+                },
+                {
+                  "target": {
+                    "type": "builtin",
+                    "provider": "ANTHROPIC",
+                    "modelName": "claude-3-5-sonnet-20240620"
+                  }
+                },
+                {
+                  "target": {
+                    "type": "builtin",
+                    "provider": "ANTHROPIC",
+                    "modelName": "claude-sonnet-4-6"
+                  }
+                }
+              ],
+              "customProviderModels": [],
+              "message": "Use the returned target payloads when calling set_playground_model."
+            }
+    expected:
+      tools:
+        required: [set_playground_model]
+        forbidden: [list_playground_model_targets]
+      tool_call_args:
+        set_playground_model:
+          target:
+            type: builtin
+            provider: ANTHROPIC
+            modelName: claude-sonnet-4-6
+      budgets:
+        max_tool_calls: 1
+    metadata: {}

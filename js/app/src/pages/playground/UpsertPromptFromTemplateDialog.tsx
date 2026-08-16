@@ -1,0 +1,224 @@
+import { Suspense, useCallback, useState } from "react";
+import { graphql, useMutation } from "react-relay";
+import { useNavigate } from "react-router";
+
+import { Alert, Dialog, Loading } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/core/dialog";
+import { useNotifySuccess } from "@phoenix/contexts";
+import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import type { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import type { UpsertPromptFromTemplateDialogUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
+import {
+  getInstancePromptParamsFromStore,
+  toPromptVersionTagInputs,
+} from "@phoenix/pages/playground/playgroundPromptUtils";
+import type { SavePromptFormParams } from "@phoenix/pages/playground/SavePromptForm";
+import { SavePromptForm } from "@phoenix/pages/playground/SavePromptForm";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+
+type UpsertPromptFromTemplateProps = {
+  instanceId: number;
+  selectedPromptId?: string;
+};
+
+export const UpsertPromptFromTemplateDialog = ({
+  instanceId,
+  selectedPromptId,
+}: UpsertPromptFromTemplateProps) => {
+  const navigate = useNavigate();
+  const notifySuccess = useNotifySuccess();
+  const [error, setError] = useState<string | null>(null);
+  const store = usePlaygroundStore();
+  const [createPrompt, isCreatePending] =
+    useMutation<UpsertPromptFromTemplateDialogCreateMutation>(graphql`
+      mutation UpsertPromptFromTemplateDialogCreateMutation(
+        $input: CreateChatPromptInput!
+      ) {
+        createChatPrompt(input: $input) {
+          id
+          name
+          version {
+            id
+          }
+        }
+      }
+    `);
+  const [updatePrompt, isUpdatePending] =
+    useMutation<UpsertPromptFromTemplateDialogUpdateMutation>(graphql`
+      mutation UpsertPromptFromTemplateDialogUpdateMutation(
+        $input: CreateChatPromptVersionInput!
+      ) {
+        createChatPromptVersion(input: $input) {
+          id
+          name
+          version {
+            id
+          }
+        }
+      }
+    `);
+  // tasks to complete after either mutation completes successfully
+  const onSuccess = useCallback(
+    (
+      promptId: string,
+      promptName: string,
+      promptVersion: string,
+      tag: string | null
+    ) => {
+      const state = store.getState();
+      const instance = state.instances.find(
+        (instance) => instance.id === instanceId
+      );
+      if (!instance) {
+        return;
+      }
+      state.updateInstance({
+        instanceId,
+        patch: {
+          prompt: {
+            id: promptId,
+            name: promptName,
+            version: promptVersion,
+            tag,
+          },
+        },
+        dirty: false,
+      });
+    },
+    [store, instanceId]
+  );
+  const onCreate = useCallback(
+    (params: SavePromptFormParams, close: () => void) => {
+      const { promptInput } = getInstancePromptParamsFromStore(
+        instanceId,
+        store
+      );
+      // Parse metadata, or set to null to clear if empty
+      let metadata: unknown = null;
+      if (params.metadata && params.metadata.trim() !== "") {
+        try {
+          metadata = JSON.parse(params.metadata);
+        } catch (_error) {
+          setError("Failed to parse metadata as JSON");
+          return;
+        }
+      }
+
+      const tags = params.tags ?? [];
+      createPrompt({
+        variables: {
+          input: {
+            name: params.name,
+            description: params.description,
+            metadata,
+            promptVersion: {
+              ...promptInput,
+            },
+            tags: toPromptVersionTagInputs(tags),
+          },
+        },
+        onCompleted: (response) => {
+          const versionId = response.createChatPrompt.version.id;
+          notifySuccess({
+            title: `Prompt successfully created`,
+            action: {
+              text: "View Prompt",
+              onClick: () => {
+                navigate(`/prompts/${response.createChatPrompt.id}`);
+              },
+            },
+          });
+          onSuccess(
+            response.createChatPrompt.id,
+            response.createChatPrompt.name,
+            versionId,
+            tags[0] ?? null
+          );
+          close();
+        },
+        onError: (error) => {
+          const message = getErrorMessagesFromRelayMutationError(error);
+          setError(message?.[0] ?? "Error creating prompt");
+        },
+      });
+    },
+    [createPrompt, instanceId, navigate, notifySuccess, onSuccess, store]
+  );
+  const onUpdate = useCallback(
+    (params: SavePromptFormParams, close: () => void) => {
+      if (!params.promptId) {
+        throw new Error("Prompt ID is required");
+      }
+      const { promptInput } = getInstancePromptParamsFromStore(
+        instanceId,
+        store
+      );
+      const tags = params.tags ?? [];
+      updatePrompt({
+        variables: {
+          input: {
+            promptId: params.promptId,
+            promptVersion: {
+              ...promptInput,
+              description: params.description,
+            },
+            tags: toPromptVersionTagInputs(tags),
+          },
+        },
+        onCompleted: (response) => {
+          notifySuccess({
+            title: `Prompt successfully updated`,
+            action: {
+              text: "View Prompt",
+              onClick: () => {
+                navigate(`/prompts/${response.createChatPromptVersion.id}`);
+              },
+            },
+          });
+          onSuccess(
+            response.createChatPromptVersion.id,
+            response.createChatPromptVersion.name,
+            response.createChatPromptVersion.version.id,
+            tags[0] ?? null
+          );
+          close();
+        },
+        onError: (error) => {
+          const message = getErrorMessagesFromRelayMutationError(error);
+          setError(message?.[0] ?? "Error updating prompt");
+        },
+      });
+    },
+    [instanceId, navigate, notifySuccess, store, updatePrompt, onSuccess]
+  );
+  return (
+    <Dialog>
+      {({ close }) => (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Prompt from Template</DialogTitle>
+            <DialogTitleExtra>
+              <DialogCloseButton />
+            </DialogTitleExtra>
+          </DialogHeader>
+          {error && <Alert variant="danger">{error}</Alert>}
+          <Suspense fallback={<Loading />}>
+            <SavePromptForm
+              onClose={close}
+              onCreate={onCreate}
+              onUpdate={onUpdate}
+              isSubmitting={isCreatePending || isUpdatePending}
+              defaultSelectedPromptId={selectedPromptId}
+            />
+          </Suspense>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+};

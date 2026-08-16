@@ -19,6 +19,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     compose_secret_values,
     compute_config_fingerprint,
 )
@@ -193,9 +194,11 @@ class DaytonaSandboxBackend(SandboxBackend):
 
     async def _list_sandboxes_for_key(self, session_key: str) -> list[AsyncSandbox]:
         """Return all Daytona sandboxes tagged with ``session_key`` (server-side filter)."""
+        from daytona_sdk import ListSandboxesQuery
+
         client = self._get_client()
-        response = await client.list(labels={_LABEL_SESSION_KEY: session_key})
-        return response.items
+        query = ListSandboxesQuery(labels={_LABEL_SESSION_KEY: session_key})
+        return [sandbox async for sandbox in client.list(query)]
 
     @override
     async def find_or_create_session(self, session_key: str) -> object:
@@ -377,7 +380,9 @@ class DaytonaAdapter(SandboxAdapter[DaytonaConfig, DaytonaCredentials, DaytonaDe
         credentials: DaytonaCredentials,
         deployment: DaytonaDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
+        del runtime
         # Fail-closed: empty api_key would let the SDK silently fall back to
         # os.getenv("DAYTONA_API_KEY"), bypassing Phoenix's credential resolution.
         lang = config.language

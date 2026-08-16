@@ -28,13 +28,18 @@ import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo.js";
+import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
 import {
   logExperimentResumeSummary,
   logLinks,
   PROGRESS_PREFIX,
 } from "./logging";
 import { resumeEvaluation } from "./resumeEvaluation";
-import { cleanupOwnedTracerProvider } from "./tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Error thrown when task is aborted due to a failure in stopOnFirstError mode.
@@ -181,14 +186,15 @@ async function handleFetchError(
  */
 function setupTracer({
   projectName,
-  baseUrl,
+  traceExportUrl,
   headers,
   useBatchSpanProcessor,
   diagLogLevel,
   setGlobalTracerProvider,
 }: {
   projectName: string | null;
-  baseUrl: string;
+  /** Where spans are exported; omit to let `register()` read the environment. */
+  traceExportUrl?: string;
   headers?: Record<string, string>;
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
@@ -204,7 +210,7 @@ function setupTracer({
 
   const provider = register({
     projectName,
-    url: baseUrl,
+    url: traceExportUrl,
     headers,
     batch: useBatchSpanProcessor,
     diagLogLevel,
@@ -306,15 +312,12 @@ export async function resumeExperiment({
 
   // Get base URL for tracing and URL generation
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
 
   // Initialize tracer (only if experiment has a project_name)
   const tracerSetup = setupTracer({
     projectName: experiment.projectName,
-    baseUrl,
+    traceExportUrl: getTraceExportUrl(client.config),
     headers: client.config.headers
       ? toObjectHeaders(client.config.headers)
       : undefined,
@@ -488,7 +491,7 @@ export async function resumeExperiment({
     }
 
     // Start concurrent execution
-    // Wrap in try-finally to ensure channel is always closed, even if Promise.all throws
+    // Wrap in try-finally to ensure channel is always closed, even if a task throws
     let executionError: Error | null = null;
     try {
       const producerTask = fetchIncompleteRuns();
@@ -496,31 +499,63 @@ export async function resumeExperiment({
         processTasksFromChannel()
       );
 
-      // Wait for producer and all workers to finish
-      await Promise.all([producerTask, ...workerTasks]);
-    } catch (error) {
-      // Classify and handle errors based on their nature
-      const err = error instanceof Error ? error : new Error(String(error));
+      // Wait for the producer AND every worker to settle before continuing.
+      // Using allSettled (rather than Promise.all) is important: on the first
+      // worker error, Promise.all rejects immediately while the remaining
+      // workers keep running detached, logging and hitting the API after this
+      // function has already returned/thrown. Draining all tasks guarantees no
+      // background work outlives the call (and avoids teardown races in tests
+      // where late console output is flushed after the test completes).
+      const settled = await Promise.allSettled([producerTask, ...workerTasks]);
+      const rejections = settled
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected"
+        )
+        .map((result) => result.reason);
 
-      // Always surface producer/infrastructure errors
-      if (error instanceof TaskFetchError) {
-        // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-        logger.error(`Critical: Failed to fetch incomplete runs from server`);
-        executionError = err;
-      } else if (error instanceof ChannelError && signal.aborted) {
-        // Channel closed due to intentional abort - wrap in semantic error
-        executionError = new TaskAbortedError(
-          "Task execution stopped due to error in concurrent worker",
-          err
+      if (rejections.length > 0) {
+        // Classify and handle errors based on their nature. When multiple tasks
+        // reject, prefer the most meaningful error over incidental fallout
+        // (e.g. a ChannelError raised in a blocked worker when the channel
+        // closes on abort).
+        const fetchError = rejections.find(
+          (reason) => reason instanceof TaskFetchError
         );
-      } else if (stopOnFirstError) {
-        // Worker error in stopOnFirstError mode - already logged by worker
-        executionError = err;
-      } else {
-        // Unexpected error (not from worker, not from producer fetch)
-        // This could be a bug in our code or infrastructure failure
-        logger.error(`Unexpected error during task execution: ${err.message}`);
-        executionError = err;
+        const taskError = rejections.find(
+          (reason) =>
+            reason instanceof Error &&
+            !(reason instanceof TaskFetchError) &&
+            !(reason instanceof ChannelError)
+        );
+        const channelError = rejections.find(
+          (reason) => reason instanceof ChannelError
+        );
+
+        if (fetchError) {
+          // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
+          logger.error(`Critical: Failed to fetch incomplete runs from server`);
+          executionError = fetchError;
+        } else if (taskError) {
+          // Worker error in stopOnFirstError mode - already logged by worker
+          executionError = taskError;
+        } else if (channelError && signal.aborted) {
+          // Channel closed due to intentional abort - wrap in semantic error
+          executionError = new TaskAbortedError(
+            "Task execution stopped due to error in concurrent worker",
+            channelError
+          );
+        } else {
+          // Unexpected error (not from worker, not from producer fetch)
+          // This could be a bug in our code or infrastructure failure
+          const reason = rejections[0];
+          const err =
+            reason instanceof Error ? reason : new Error(String(reason));
+          logger.error(
+            `Unexpected error during task execution: ${err.message}`
+          );
+          executionError = err;
+        }
       }
     } finally {
       // Ensure channel is closed even if there are unexpected errors
@@ -619,7 +654,7 @@ async function recordTaskResult({
         },
       },
       body: {
-        dataset_example_id: example.nodeId,
+        dataset_example_id: getExampleGlobalId(example),
         repetition_number: repetitionNumber,
         output: output as Record<string, unknown>,
         start_time: startTime.toISOString(),
@@ -695,7 +730,7 @@ async function runSingleTask({
         [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
         ...objectAsAttributes({
           experiment_id: experimentId,
-          dataset_example_id: example.nodeId,
+          dataset_example_id: getExampleGlobalId(example),
           repetition_number: repetitionNumber,
         }),
       });

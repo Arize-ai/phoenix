@@ -11,7 +11,7 @@ export type Variables = Record<string, string | { toString: () => string }>;
 /**
  * Base parameters for an SDK conversion function
  */
-export type toSDKParamsBase<V extends Variables = Variables> = {
+export type toSDKParamsBase<PromptVariables extends Variables = Variables> = {
   /**
    * The Phoenix prompt to convert
    */
@@ -19,7 +19,7 @@ export type toSDKParamsBase<V extends Variables = Variables> = {
   /**
    * The variables to use in the prompt
    */
-  variables?: V;
+  variables?: PromptVariables;
 };
 
 /**

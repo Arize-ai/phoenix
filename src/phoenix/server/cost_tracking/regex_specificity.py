@@ -22,11 +22,16 @@ Scoring Weights:
     - Alternation (|): -300 points
 
 Examples:
-    >>> score("^abc$")      # Exact match: 12002
-    >>> score("abc")        # Literal: 3002
-    >>> score(".*")         # Wildcard: -198
-    >>> score("[a-z]+")     # Class + multiple: 350
-    >>> score("\\d{3}")     # Shorthand + exact quantifier: 350
+    >>> score("^abc$")      # Exact match
+    13010
+    >>> score("abc")        # Literal
+    3006
+    >>> score(".*")         # Wildcard
+    1
+    >>> score("[a-z]+")     # Class + multiple
+    362
+    >>> score(r"\\d{3}")     # Shorthand + exact quantifier
+    360
 """
 
 import re
@@ -57,7 +62,7 @@ META_CHARS = "()^$"  # Regex metacharacters that don't affect scoring
 
 
 def score(regex: Union[str, re.Pattern[str]]) -> int:
-    """
+    r"""
     Score a regex pattern for specificity.
 
     Calculates a specificity score for a regex pattern where higher scores
@@ -83,17 +88,17 @@ def score(regex: Union[str, re.Pattern[str]]) -> int:
 
     Examples:
         >>> score("^abc$")
-        12002
+        13010
         >>> score("abc")
-        3002
+        3006
         >>> score(".*")
-        -198
+        1
         >>> score("")
         1
         >>> score("[a-z]+")
-        350
-        >>> score("\\d{3}")
-        350
+        362
+        >>> score(r"\d{3}")
+        360
 
     Note:
         The scoring algorithm is designed for cost tracking scenarios

@@ -2,6 +2,15 @@
 
 Typescript packages for interfacing with Phoenix and evaluating LLM applications.
 
+## App
+
+### [app](./app/)
+
+The Phoenix web application (workspace package `phoenix-ui`). It consumes
+`@arizeai/phoenix-client` and `@arizeai/phoenix-evals` via `workspace:*`. See
+[app/README.md](./app/README.md) and the repo-root [DEVELOPMENT.md](../DEVELOPMENT.md)
+for frontend development workflows.
+
 ## Packages
 
 ### [phoenix-client](./packages/phoenix-client/)

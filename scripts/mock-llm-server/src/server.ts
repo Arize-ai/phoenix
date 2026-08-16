@@ -1,8 +1,7 @@
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import express, { type Express } from "express";
-import type { Request, Response } from "express";
+import express, { type Express, type Request, type Response } from "express";
 
 import { adminRoutes, adminWebSocket } from "./admin/index.js";
 import { getConfig } from "./config.js";

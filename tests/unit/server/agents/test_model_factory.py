@@ -39,9 +39,8 @@ class TestBuildModel:
             model_name="gpt-4o-mini",
         )
 
-        async with db() as session:
-            with pytest.raises(ProviderNotFoundError) as exc_info:
-                await build_model(params, session=session, decrypt=lambda value: value)
+        with pytest.raises(ProviderNotFoundError) as exc_info:
+            await build_model(params, db=db, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 404
         assert str(exc_info.value) == "Custom provider not found."
@@ -59,9 +58,8 @@ class TestBuildModel:
             model_name="gpt-4o-mini",
         )
 
-        async with db() as session:
-            with pytest.raises(ProviderCredentialsError) as exc_info:
-                await build_model(params, session=session, decrypt=lambda value: value)
+        with pytest.raises(ProviderCredentialsError) as exc_info:
+            await build_model(params, db=db, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)
@@ -194,9 +192,8 @@ class TestSecretResolutionErrorTranslation:
         def _decrypt_fails(_: bytes) -> bytes:
             raise ValueError("decrypt failed")
 
-        async with db() as session:
-            with pytest.raises(ProviderConfigError) as exc_info:
-                await build_model(params, session=session, decrypt=_decrypt_fails)
+        with pytest.raises(ProviderConfigError) as exc_info:
+            await build_model(params, db=db, decrypt=_decrypt_fails)
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)

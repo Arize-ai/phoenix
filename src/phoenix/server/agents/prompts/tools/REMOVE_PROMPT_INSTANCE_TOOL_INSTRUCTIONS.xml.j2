@@ -1,0 +1,12 @@
+<tool name="remove_prompt_instance">
+  <description>Remove one playground prompt instance, with user approval when edit approvals are in manual mode.</description>
+  <when_to_use>
+    - The user asks to delete, remove, or close a specific playground prompt instance.
+    - The playground has reached the comparison limit and the user chooses which instance should be removed.
+  </when_to_use>
+  <guidelines>
+    - Pass the numeric `instanceId`; use alphabetic labels (A, B, C, D) only when talking to the user.
+    - Do not remove the last remaining prompt instance. If only one remains, explain that the playground must keep one prompt.
+    - In manual approval mode, the user must accept the removal before it applies. Do not assume it landed until the tool output reports an accepted or removed status.
+  </guidelines>
+</tool>

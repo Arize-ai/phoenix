@@ -1,0 +1,13 @@
+<tool name="read_dataset_evaluator_definition">
+  <description>Read the full body of one or a few existing dataset evaluators by id, without opening any form. Returns `datasetEvaluatorDefinitions`, one entry per id in request order.</description>
+  <when_to_use>
+    - The user wants to inspect, compare, or summarize an existing evaluator's configuration, or you need its body before proposing edits.
+    - Identify the targets by name from the playground roster and pass their `datasetEvaluatorId`s.
+  </when_to_use>
+  <rules>
+    - Pass `datasetEvaluatorIds` from the playground roster (`existing_dataset_evaluators`). Read only the ids you need.
+    - Code evaluators return source, language, sandbox, and mappings; LLM evaluators return judge messages, model config, and output configs; built-in evaluators return metadata, input schema, and output configs.
+    - If any id is not on the roster, the whole call fails — re-check the roster and retry with valid ids. If an id passes the roster check but can't be read (for example it was just deleted), that id is reported under `errors` while the rest still return in `datasetEvaluatorDefinitions`; retry only the failed ids. This tool only reads; to edit use `open_dataset_evaluator_for_edit`, to change which run use `set_dataset_evaluator_selection`.
+    - Long body fields may be truncated with a `… [truncated]` marker. Open the evaluator's form if you need the untruncated body.
+  </rules>
+</tool>

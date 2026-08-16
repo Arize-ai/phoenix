@@ -1,0 +1,12 @@
+<tool name="list_splits">
+  <description>List the dataset splits that exist across this Phoenix instance, returning each split's id, name, description, and color. Read-only. A split is a named slice of dataset examples; splits are global, so one split can hold examples from more than one dataset. Paginated.</description>
+  <when_to_use>
+    - To discover what splits exist before assigning examples with set_dataset_example_splits, editing one with patch_dataset_split, or deleting one with delete_dataset_splits.
+    - The user asks what splits exist (instance-wide), not which splits a specific dataset is using (use list_dataset_splits for that).
+  </when_to_use>
+  <rules>
+    - Prefer this over hand-writing GraphQL to read the split vocabulary.
+    - The list is paginated: if the result reports more pages (`hasNextPage`), call again with the returned cursor in `after` before concluding a split does not exist. The set/patch/delete split tools already resolve names against the full split set.
+    - If a split the user wants does not exist yet, create it with create_dataset_split.
+  </rules>
+</tool>

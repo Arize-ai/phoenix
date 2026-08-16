@@ -134,13 +134,13 @@ This table only shows actions that a **Member** or **Viewer** is not permitted t
 
 For programmatic access via REST API endpoints (paths beginning with `/v1/`), permissions are determined by both the user's role and the HTTP method used:
 
-<table><thead><tr><th>Endpoint Category</th><th width="120" align="center">Admin</th><th width="120" align="center">Member</th><th width="120" align="center">Viewer</th></tr></thead><tbody><tr><td><strong>GET requests</strong> (read operations)<br />Projects, datasets, experiments, prompts, spans, traces, annotations, annotation configs</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td><strong>POST/PUT/DELETE requests</strong> (write operations)<br />Creating, updating, or deleting resources</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>User management endpoints</strong><br /><code>GET /v1/users</code><br /><code>POST /v1/users</code><br /><code>DELETE /v1/users/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Project management endpoints</strong><br /><code>PUT /v1/projects/{id}</code><br /><code>DELETE /v1/projects/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Secrets management endpoints</strong><br /><code>PUT /v1/secrets</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr></tbody></table>
+<table><thead><tr><th>Endpoint Category</th><th width="120" align="center">Admin</th><th width="120" align="center">Member</th><th width="120" align="center">Viewer</th></tr></thead><tbody><tr><td><strong>GET requests</strong> (read operations)<br />Projects, datasets, experiments, prompts, spans, traces, annotations, annotation configs</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td><strong>POST/PUT/DELETE requests</strong> (write operations)<br />Creating, updating, or deleting resources</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Personal API-key self-service</strong><br /><code>GET /v1/user/api_keys</code><br /><code>POST /v1/user/api_keys</code><br /><code>DELETE /v1/user/api_keys/{id}</code></td><td align="center">✅ Yes</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td><strong>API-key administration</strong><br /><code>GET /v1/users/api_keys</code><br /><code>GET/POST/DELETE /v1/system/api_keys</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>User management endpoints</strong><br /><code>GET /v1/users</code><br /><code>POST /v1/users</code><br /><code>DELETE /v1/users/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Project management endpoints</strong><br /><code>PUT /v1/projects/{id}</code><br /><code>DELETE /v1/projects/{id}</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr><tr><td><strong>Secrets management endpoints</strong><br /><code>PUT /v1/secrets</code></td><td align="center">✅ Yes</td><td align="center">❌ No<br />(403 Forbidden)</td><td align="center">❌ No<br />(403 Forbidden)</td></tr></tbody></table>
 
 <Warning>
 **Viewer role restrictions for REST API:**
 * Viewers have **read-only access** to v1/ endpoints
 * All GET requests are allowed (viewing projects, datasets, experiments, traces, spans, etc.)
-* All write operations (POST, PUT, DELETE) return **403 Forbidden**
+* Write operations (POST, PUT, DELETE) return **403 Forbidden**, except that viewers may create and revoke their own user API keys
 * User management and project CRUD operations are also blocked
 
 **Examples of blocked operations for Viewers:**
@@ -159,9 +159,13 @@ There are two kinds of API keys in Phoenix: `system` and `user`.
 
 System keys act on behalf of the system as a whole rather than any particular user. They can only be created by admins, are not meaningfully associated with the admin who creates them except for auditing purposes, and do not disappear if that admin is deleted. A system key would be the recommended kind of key to use in programmatic interactions with Phoenix that do not involve a user (e.g., automated flows querying our REST APIs).
 
+Creating a system key requires an admin access-token session or `PHOENIX_ADMIN_SECRET`, on both REST and GraphQL. API keys cannot mint additional keys.
+
 ### User Keys
 
 User API keys are associated with and act on behalf of the user to which they are issued. That user has the ability to view and delete their own user keys, and if the user is deleted, so are all of their associated user keys. A user might create their own user key into order to run an experiment in a notebook, for example.
+
+Creating a user key requires an access-token session, on both REST and GraphQL; an existing API key cannot mint a replacement. Through Phoenix 18, GraphQL allowed API-key-authenticated issuance for backward compatibility; as of Phoenix 19 both surfaces enforce the same non-transitive policy. Workflows that used an API key for unattended key creation must instead provision keys from a logged-in session (for example, the Settings page or a script that authenticates with user credentials).
 
 ### Setting and Using API Keys with Environment Variables
 
@@ -206,6 +210,34 @@ tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
 <Info>
 If setting `authorization` headers explicitly, ensure that the header field is **lowercased** to ensure compatibility with sending traces via gRPC
 </Info>
+
+## Agent Authentication Discovery
+
+Phoenix serves two discovery endpoints so AI agents can learn how to authenticate against a deployed instance. Both are always available and require no configuration:
+
+- `GET /auth.md` — a human- and agent-readable Markdown guide describing this deployment's auth model. When authentication is disabled it states that all endpoints are public; when enabled it directs the caller to create an API key under **Settings → API Keys** and send an `Authorization: Bearer <token>` header. It follows the [auth.md convention](https://workos.com/auth-md/docs/apps).
+- `GET /.well-known/oauth-protected-resource` — [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) Protected Resource Metadata (JSON), advertising the resource, that bearer tokens are sent in the header, and a link to `/auth.md`.
+
+When authentication is enabled, `401 Unauthorized` responses include a `WWW-Authenticate` header pointing at the Protected Resource Metadata endpoint, giving agents a stable entry point for discovering how to authenticate. When the [OAuth2 authorization server](#oauth2-authorization-server) is enabled, the metadata also advertises it, so OAuth-capable clients (such as MCP clients) can log in interactively; other clients are provisioned out of band with [API keys](#api-keys), and access is always governed by the role of the user the credential belongs to.
+
+## OAuth2 Authorization Server
+
+When authentication is enabled, Phoenix also acts as its own **OAuth2 authorization server** so that interactive clients — MCP clients like Claude Code and Cursor connecting to the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp), and the Phoenix CLI — can log in through the browser instead of handling long-lived API keys. The flow is standard authorization code with PKCE: clients register via [RFC 7591](https://www.rfc-editor.org/rfc/rfc7591) dynamic client registration, discover endpoints via [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) server metadata, and a token is minted only after a logged-in user approves the consent page. Tokens are audience-bound to the resource they were minted for and carry the permissions of the approving user.
+
+<Note>
+Don't confuse this with [Configuring OAuth2 Identity Providers](#configuring-oauth2-identity-providers) below, where Phoenix is the *client* logging your users in against Google, Okta, etc. (`PHOENIX_OAUTH2_<IDP>_*` variables). Here Phoenix is the *server*, issuing its own tokens to MCP and CLI clients.
+</Note>
+
+Registration alone grants no authority: an authorization code is delivered only to the exact registered redirect URI, PKCE binds the exchange to the flow's initiator, and nothing is issued without a logged-in user's consent. The defaults are designed to work out of the box with MCP clients in the wild; the variables below let you tighten or disable the surface.
+
+| Variable | Description |
+|---|---|
+| **PHOENIX\_ENABLE\_OAUTH2\_AUTHORIZATION\_SERVER** | Whether Phoenix serves the built-in authorization server. Defaults to `true`. When `false`, the `/oauth2/*` endpoints and the RFC 8414 discovery document respond 404, and the protected-resource metadata stops advertising an authorization server. Previously minted access tokens remain valid until they expire, but grants can no longer be refreshed. API keys and browser login are unaffected. Has no effect unless authentication is enabled. |
+| **PHOENIX\_OAUTH2\_GRANT\_EXPIRY\_DAYS** | How long, in days, an OAuth2 grant lives. Refresh-token rotation never extends a token's life past its grant's expiry, so this is the hard ceiling on how long a consent lasts before the user must log in again. Defaults to `90`. |
+| **PHOENIX\_OAUTH2\_DYNAMIC\_CLIENT\_REGISTRATION** | Which redirect URI mechanisms public clients may register. One of `enabled`, `local_only`, `disabled`. Defaults to `enabled` — MCP clients in the wild (e.g., Cursor) register HTTPS redirect URIs alongside loopback and private-use-scheme ones, and rejecting HTTPS breaks those clients out of the box. Set to `local_only` to accept only loopback and private-use-scheme redirects, or `disabled` to turn off dynamic registration entirely. |
+| **PHOENIX\_OAUTH2\_ALLOWED\_REDIRECT\_HOSTS** | A comma-separated list of hosts allowed as HTTPS redirect targets for dynamic client registration, e.g. `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS=cursor.com,example.com`. When unset, all HTTPS redirect hosts are accepted while dynamic client registration is `enabled`. Use this to keep browser-based clients working while pinning exactly which services may receive authorization codes. |
+| **PHOENIX\_OAUTH2\_CONSENT\_ORIGIN\_CHECK** | Origin-header enforcement on consent-page decisions, a defense against cross-site consent forgery. One of `strict`, `off`. Defaults to `strict`. Only relax this if a reverse proxy strips the `Origin` header and consent approvals fail. |
+| **PHOENIX\_OAUTH2\_DCR\_RATE\_LIMIT\_PER\_HOUR** | Maximum dynamic client registrations accepted per IP address each hour. Defaults to `10`. |
 
 ## Password Recovery
 
@@ -261,7 +293,7 @@ Phoenix uses the OAuth2 authorization code flow for web applications, which requ
     </tr>
     <tr>
       <td><strong>PHOENIX\_OAUTH2\_\<IDP\>\_CLIENT\_SECRET</strong></td>
-      <td>The client secret generated by the IDP when registering the application. Required by default for confidential clients. Only optional when <code>TOKEN_ENDPOINT_AUTH_METHOD</code> is explicitly set to <code>none</code> (for public clients without client authentication).</td>
+      <td>The client secret generated by the IDP when registering the application. Required by default for confidential clients. Only optional when <code>TOKEN_ENDPOINT_AUTH_METHOD</code> is explicitly set to <code>none</code> (for public clients without client authentication) or <code>client_assertion_jwt</code> (where a platform-minted JWT is sent instead).</td>
     </tr>
     <tr>
       <td><strong>PHOENIX\_OAUTH2\_\<IDP\>\_OIDC\_CONFIG\_URL</strong></td>
@@ -280,14 +312,17 @@ The following optional environment variables provide additional control over OAu
 | **PHOENIX\_OAUTH2\_\<IDP\>\_ALLOW\_SIGN\_UP** | Whether to allow new user registration via this OAuth2 provider. Defaults to `True`. When set to `False`, only existing users can sign in. The system will check if the user exists in the database by their email address. If the user does not exist or has a password set (local auth), they will be redirected to the login page with an error message. |
 | **PHOENIX\_OAUTH2\_\<IDP\>\_AUTO\_LOGIN** | Automatically redirect to this provider's login page, skipping the Phoenix login screen. Defaults to `False`. Useful for single sign-on deployments. Note: Only one provider should have `AUTO_LOGIN` enabled if you configure multiple IDPs. |
 | **PHOENIX\_OAUTH2\_\<IDP\>\_USE\_PKCE** | Enable PKCE (Proof Key for Code Exchange) with S256 code challenge method for enhanced security. PKCE protects the authorization code from interception and can be used with both public clients and confidential clients. This setting is orthogonal to client authentication—whether `CLIENT_SECRET` is required is determined solely by `TOKEN_ENDPOINT_AUTH_METHOD`, not by `USE_PKCE`. Defaults to `False`. |
-| **PHOENIX\_OAUTH2\_\<IDP\>\_TOKEN\_ENDPOINT\_AUTH\_METHOD** | OAuth2 token endpoint authentication method. This setting determines how the client authenticates with the token endpoint and whether `CLIENT_SECRET` is required. If not set, defaults to requiring `CLIENT_SECRET` (confidential client). Options:<br />• `client_secret_basic`: Send credentials in HTTP Basic Auth header (most common). `CLIENT_SECRET` is required. This is the assumed default behavior if not set.<br />• `client_secret_post`: Send credentials in POST body (required by some providers). `CLIENT_SECRET` is required.<br />• `none`: No client authentication (for public clients). `CLIENT_SECRET` is not required. Use this for public clients that cannot securely store a client secret, typically in combination with `PKCE`.<br /><br />Most providers work with the default behavior. Set this explicitly only if your provider requires a specific method or if you're configuring a public client. |
+| **PHOENIX\_OAUTH2\_\<IDP\>\_TOKEN\_ENDPOINT\_AUTH\_METHOD** | OAuth2 token endpoint authentication method. This setting determines how the client authenticates with the token endpoint and whether `CLIENT_SECRET` is required. If not set, defaults to requiring `CLIENT_SECRET` (confidential client). Options:<br />• `client_secret_basic`: Send credentials in HTTP Basic Auth header (most common). `CLIENT_SECRET` is required. This is the assumed default behavior if not set.<br />• `client_secret_post`: Send credentials in POST body (required by some providers). `CLIENT_SECRET` is required.<br />• `none`: No client authentication (for public clients). `CLIENT_SECRET` is not required. Use this for public clients that cannot securely store a client secret, typically in combination with `PKCE`.<br />• `client_assertion_jwt`: Authenticate with a JWT minted by the platform and sent as a client assertion (RFC 7523 §2.2), instead of a secret. `CLIENT_SECRET` is not required; exactly one of `CLIENT_ASSERTION_FILE` or `CLIENT_ASSERTION_FILE_ENV_VAR` is. Requires a provider that maps an external issuer onto the client — Microsoft Entra ID calls this a federated credential. See [Workload identity without a client secret](#workload-identity-without-a-client-secret).<br /><br />Most providers work with the default behavior. Set this explicitly only if your provider requires a specific method or if you're configuring a public client. |
 | **PHOENIX\_OAUTH2\_\<IDP\>\_SCOPES** | Additional OAuth2 scopes to request (space-separated). These are added to the required baseline scopes `openid email profile`. For example, set to `offline_access groups` to request refresh tokens and group information. The baseline scopes are always included and cannot be removed. |
 | **PHOENIX\_OAUTH2\_\<IDP\>\_EMAIL\_ATTRIBUTE\_PATH** | JMESPath expression to extract email from the OIDC ID token or userinfo endpoint response. Defaults to `email` (standard OIDC claim). See [jmespath.org](https://jmespath.org) for full syntax.<br /><br />**When to use:** Some identity providers (notably Microsoft Entra ID/Azure AD) may not populate the `email` claim for users who don't have the `mail` attribute in their directory. In these cases, you can extract the User Principal Name (UPN) from `preferred_username` instead.<br /><br />Common patterns:<br />• `email` (default) - standard OIDC email claim<br />• `preferred_username` - Azure AD/Entra ID UPN (recommended when email is null)<br />• `upn` - Azure AD UPN (requires optional claim configuration in Azure Portal)<br />• `attributes.email` - nested email structure<br /><br />Values are automatically lowercased and trimmed before storage for consistent matching. |
 | **PHOENIX\_OAUTH2\_\<IDP\>\_GROUPS\_ATTRIBUTE\_PATH** | JMESPath expression to extract group/role claims from the OIDC ID token or userinfo endpoint response. The path navigates nested JSON structures to find group/role information. This claim is checked from both the ID token and userinfo endpoint (if available). The result is normalized to a list of strings for group matching. See [jmespath.org](https://jmespath.org) for full syntax.<br /><br />**⚠️ IMPORTANT:** Claim keys with special characters (colons, dots, slashes, hyphens, etc.) MUST be enclosed in double quotes.<br /><br />Common JMESPath patterns:<br />• Simple keys: groups - extracts top-level array<br />• Nested keys: resource_access.phoenix.roles - dot notation for nested objects<br />• Array projection: teams[*].name - extracts 'name' field from each object in array<br />• Array indexing: groups[0] - gets first element<br /><br />Common provider examples:<br />• Google Workspace: `groups`<br />• Azure AD/Entra ID: `roles` or `groups`<br />• Keycloak: `resource_access.phoenix.roles` (nested structure)<br />• AWS Cognito: `"cognito:groups"` (use quotes for colon)<br />• Okta: `groups`<br />• Auth0 (custom namespace): `"https://myapp.com/groups"` (use quotes for special chars)<br />• Custom objects: `teams[*].name` (extract field from array of objects)<br /><br />If not set, group-based access control is disabled for this provider. |
 | **PHOENIX\_OAUTH2\_\<IDP\>\_ALLOWED\_GROUPS** | Comma-separated list of group names that are permitted to sign in. Users must belong to at least one of these groups (extracted via `GROUPS_ATTRIBUTE_PATH`) to authenticate successfully. Works together with `GROUPS_ATTRIBUTE_PATH` to implement group-based access control. If not set, all authenticated users can sign in (subject to `ALLOW_SIGN_UP` restrictions).<br /><br />Example: `PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="admin,developers,viewers"`<br /><br />Note: Both `GROUPS_ATTRIBUTE_PATH` and `ALLOWED_GROUPS` must be configured together. If one is set, the other is required. |
 | **PHOENIX\_OAUTH2\_\<IDP\>\_ROLE\_ATTRIBUTE\_PATH** | JMESPath expression to extract user role claim from the OIDC ID token or userinfo endpoint response. Similar to `GROUPS_ATTRIBUTE_PATH` but for extracting a single role value. See [jmespath.org](https://jmespath.org) for full syntax.<br /><br />**⚠️ IMPORTANT:** Claim keys with special characters MUST be enclosed in double quotes.<br />Examples: `"https://myapp.com/role"`, `"custom:role"`, `user.profile."app-role"`<br /><br />Common patterns:<br />• Simple key: `role` - extracts top-level string<br />• Nested key: `user.organization.role` - dot notation for nested objects<br />• Array element: `roles[0]` - gets first role from array<br />• Constant value: `'MEMBER'` - assigns a fixed role to all users from this IDP (notice the single quotes)<br />• Conditional logic: `contains(groups[*], 'admin') && 'ADMIN' \|\| 'VIEWER'` - compute role from group membership using logical operators (returns Phoenix role directly, no mapping needed)<br /><br />This claim is used with `ROLE_MAPPING` to automatically assign Phoenix roles (ADMIN, MEMBER, VIEWER) based on the user's role in your identity provider. The extracted role value is matched against keys in `ROLE_MAPPING` to determine the Phoenix role.<br /><br />**Advanced:** If the JMESPath expression returns a valid Phoenix role name (ADMIN, MEMBER, VIEWER) directly, `ROLE_MAPPING` is optional - the value will be used as-is after case-insensitive validation.<br /><br />**⚠️ Role Update Behavior:**<br />• When `ROLE_ATTRIBUTE_PATH` IS configured: User roles are synchronized from the IDP on EVERY login. This ensures Phoenix roles stay in sync with your IDP's role assignments.<br />• When `ROLE_ATTRIBUTE_PATH` is NOT configured: User roles are preserved as-is (backward compatibility). New users get VIEWER role (least privilege), existing users keep their current roles. |
 | **PHOENIX\_OAUTH2\_\<IDP\>\_ROLE\_MAPPING** | Maps identity provider role values to Phoenix roles. Format: `IdpRole1:PhoenixRole1,IdpRole2:PhoenixRole2`<br /><br />Phoenix roles (case-insensitive):<br />• **ADMIN**: Full system access, can manage users and settings<br />• **MEMBER**: Standard user access, can create and manage own resources<br />• **VIEWER**: Read-only access, cannot create or modify resources<br /><br />Example mappings:<br />•`PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER,Guest:VIEWER"`<br />•`PHOENIX_OAUTH2_KEYCLOAK_ROLE_MAPPING="admin:ADMIN,user:MEMBER"`<br /><br />**⚠️ Security:** The SYSTEM role cannot be assigned via OAuth2. Attempts to map to SYSTEM will be rejected.<br /><br />**Optional Behavior (no mapping required):**<br />If `ROLE_MAPPING` is not configured but `ROLE_ATTRIBUTE_PATH` is set, the system will use the IDP role value directly if it exactly matches "ADMIN", "MEMBER", or "VIEWER" (case-insensitive). This allows IDPs that already use Phoenix's role names to work without explicit mapping.<br /><br />IDP role keys are case-sensitive and must match exactly. Phoenix role values are case-insensitive but will be normalized to uppercase (ADMIN, MEMBER, VIEWER). If a user's IDP role is not in the mapping, behavior depends on `ROLE_ATTRIBUTE_STRICT`:<br />• strict=false (default): User gets VIEWER role (least privilege)<br />• strict=true: User is denied access<br /><br />Works together with `ROLE_ATTRIBUTE_PATH`. If `ROLE_ATTRIBUTE_PATH` is set but `ROLE_MAPPING` is not, the IDP role value is used directly if it matches a valid Phoenix role (ADMIN, MEMBER, VIEWER). If the IDP role doesn't match a valid Phoenix role, behavior depends on `ROLE_ATTRIBUTE_STRICT`. |
-| **PHOENIX\_OAUTH2\_\<IDP\>\_ROLE\_ATTRIBUTE\_STRICT** | Controls behavior when role cannot be determined from identity provider claims. Defaults to `false`.<br /><br />When `true`:<br />• Missing role claim → access denied<br />• Role not in ROLE_MAPPING → access denied<br />• Empty/invalid role value → access denied<br /><br />When `false` (default):<br />• Missing/unmapped/invalid role → user gets VIEWER role (least privilege, fail-safe)<br /><br />Strict mode is recommended for high-security environments where all users must have explicitly assigned roles. Non-strict mode (default) is more forgiving and suitable for gradual rollout of role mapping.<br /><br />Example: `PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true`<br /><br />Note: This setting only applies when `ROLE_ATTRIBUTE_PATH` is configured. If `ROLE_ATTRIBUTE_PATH` is not set, this setting is ignored. |
+| **PHOENIX\_OAUTH2\_\<IDP\>\_ROLE\_ATTRIBUTE\_STRICT** | Controls behavior when role cannot be determined from identity provider claims. Defaults to `false`.<br /><br />When `true`:<br />• Missing role claim → access denied<br />• Role not in ROLE_MAPPING → access denied<br />• Empty/invalid role value → access denied<br /><br />When `false` (default):<br />• Missing/unmapped/invalid role → user gets VIEWER role (least privilege, fail-safe)<br /><br />Note: this VIEWER fail-safe applies to new users and to existing users whose roles are synced. If `ROLE_RESYNC=false`, existing users keep their current role even when their IDP role claim is missing or invalid, so the fail-safe downgrade does not apply to them.<br /><br />Strict mode is recommended for high-security environments where all users must have explicitly assigned roles. Non-strict mode (default) is more forgiving and suitable for gradual rollout of role mapping.<br /><br />Example: `PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true`<br /><br />Note: This setting only applies when `ROLE_ATTRIBUTE_PATH` is configured. If `ROLE_ATTRIBUTE_PATH` is not set, this setting is ignored. |
+| **PHOENIX\_OAUTH2\_\<IDP\>\_ROLE\_RESYNC** | Controls whether existing users' roles are re-synchronized from the IDP on every login. Defaults to `true`.<br /><br />When `true` (default): If `ROLE_ATTRIBUTE_PATH` is configured, an existing user's role is overwritten from IDP claims on every login (the IDP is the source of truth).<br /><br />When `false`: An existing user's role is **never** overwritten from IDP claims. New users are still created with their IDP-mapped role, so role mapping stays active for provisioning, but existing users keep their current Phoenix role on re-login.<br /><br />Set this to `false` when you want IDP-based role mapping to provision new users while still being able to promote or demote specific users from within Phoenix. Example: `PHOENIX_OAUTH2_OKTA_ROLE_RESYNC=false`<br /><br />**⚠️ Security:** With this disabled (`false`), Phoenix becomes the source of truth for existing users' roles. Revoking a user's role at the IDP (removing the role claim or the group that maps to it) will **not** automatically demote them in Phoenix — including the non-strict VIEWER fail-safe. You must deprovision or downgrade such users manually in the Phoenix admin UI.<br /><br />Note: This setting only applies when `ROLE_ATTRIBUTE_PATH` is configured. Setting it to `false` without `ROLE_ATTRIBUTE_PATH` is rejected at startup, since there is no role sync to disable. |
+| **PHOENIX\_OAUTH2\_\<IDP\>\_CLIENT\_ASSERTION\_FILE** | Absolute path to a file holding the JWT sent as the client assertion. Only used when `TOKEN_ENDPOINT_AUTH_METHOD` is `client_assertion_jwt`, where exactly one of this and `CLIENT_ASSERTION_FILE_ENV_VAR` is required — setting both is an error.<br /><br />The file is re-read on every token request, so a platform that rotates the token needs no restart. Relative paths are rejected, since they would resolve against a working directory the deployment does not pin. |
+| **PHOENIX\_OAUTH2\_\<IDP\>\_CLIENT\_ASSERTION\_FILE\_ENV\_VAR** | The *name* of an environment variable holding that path — not the path, and not the assertion. Use this when the platform owns the location and may move it.<br /><br />On AKS set it to `AZURE_FEDERATED_TOKEN_FILE`, which the Azure Workload Identity webhook exports alongside the token it projects. Naming the variable rather than the path keeps the deployment working if the webhook relocates it, which it has done between releases.<br /><br />The variable is named per provider rather than discovered automatically: it is process-global, so reading it implicitly would send the same assertion to every configured provider, including ones it was not issued for. |
 
 
 <Warning>
@@ -298,10 +333,34 @@ The following optional environment variables provide additional control over OAu
 
 **Role mapping configuration:**
 * `ROLE_ATTRIBUTE_PATH` and `ROLE_MAPPING` work together to automatically assign Phoenix roles based on IDP roles.
-* If `ROLE_ATTRIBUTE_PATH` is configured, user roles are synchronized from the IDP on every login.
+* If `ROLE_ATTRIBUTE_PATH` is configured, user roles are synchronized from the IDP on every login — unless `ROLE_RESYNC` is disabled (`false`), in which case existing users keep their current Phoenix roles (new users are still provisioned with their mapped role).
 * If `ROLE_ATTRIBUTE_PATH` is not configured, new OAuth2 users get the VIEWER role by default and existing users keep their current roles.
+* Set `ROLE_RESYNC=false` to keep role mapping active for provisioning while letting admins manage individual users' roles from the Phoenix UI without being overwritten on the next login.
 * Groups control **access** (who can sign in), while roles control **permissions** (what users can do).
 </Warning>
+
+### Where Phoenix Reads Group and Role Claims
+
+`GROUPS_ATTRIBUTE_PATH` and `ROLE_ATTRIBUTE_PATH` are evaluated against the claims Phoenix receives at login as an OpenID Connect client: the **verified ID token** and the **UserInfo response**. Phoenix checks the ID token first and, when a configured claim is missing there, fetches the UserInfo endpoint and checks the response.
+
+<Warning>
+**The group/role claim must be present on the ID token or the UserInfo response.** This is an identity-provider setting, not a Phoenix one. If your IdP places authorization data (groups, roles) only on the **OAuth2 access token**, Phoenix will not see it. What happens then depends on your configuration: when group-based access control (`GROUPS_ATTRIBUTE_PATH` + `ALLOWED_GROUPS`) is enabled, a missing group claim **denies sign-in**; for role mapping, a missing role claim falls back to `VIEWER` in non-strict mode (the default) but **denies sign-in** when `ROLE_ATTRIBUTE_STRICT=true`.
+
+Phoenix uses the access token solely as a bearer credential to call the UserInfo endpoint; it does not decode the access token to read claims. Per [RFC 9068 §6](https://datatracker.ietf.org/doc/html/rfc9068#section-6), OAuth2 clients are directed to treat access tokens as opaque, so the supported claim surfaces for a sign-in application are the ID token and UserInfo.
+</Warning>
+
+**Keeping authorization claims off the ID token.** If your security policy is to keep authorization data out of the ID token, the **UserInfo response is a fully supported target**. Configure your IdP to return the group/role claim from UserInfo (rather than embedding it in every ID token), request the appropriate scope, and point `GROUPS_ATTRIBUTE_PATH` / `ROLE_ATTRIBUTE_PATH` at the claim. When a configured claim is absent from the ID token, Phoenix fetches UserInfo with the access token during login, so a claim exposed only through UserInfo is still picked up — with no access-token decoding involved.
+
+**Provider claim configuration.** Exposing the claim is done in your IdP's console. Common starting points (consult each provider's current docs for exact steps):
+
+* **Okta** — request the `groups` scope from Phoenix (`PHOENIX_OAUTH2_OKTA_SCOPES=groups`) and add a `groups` claim. On the **org authorization server**, configure the app's Groups claim and filter; on a **custom authorization server**, add the claim under **Security → API → Authorization Servers → (your server) → Claims**. To return the claim through UserInfo (instead of forcing it into every ID token), choose the **Userinfo/id_token request** option. See Okta's [groups claim guide](https://developer.okta.com/docs/guides/customize-tokens-groups-claim/main/) and [custom claims docs](https://help.okta.com/en-us/Content/Topics/Security/api-config-claims.htm).
+* **Auth0** — add a namespaced custom claim to the ID token from a Post-Login Action with `api.idToken.setCustomClaim(...)`.
+* **Microsoft Entra ID (Azure AD)** — configure the optional `groups` claim (or app-role `roles`) in the app registration's **Token configuration**, with handling for group overage on large group lists.
+* **Keycloak** — add a Group Membership or role mapper to the client or client scope with **Add to ID token** and/or **Add to userinfo** enabled.
+
+<Tip>
+**Troubleshooting: unexpected `VIEWER` role or denied sign-in.** Both symptoms usually mean the configured claim isn't reaching the ID token or UserInfo response — a missing role claim falls back to `VIEWER` in non-strict mode, while a missing group claim denies sign-in when group access control is enabled (as does a missing role claim under `ROLE_ATTRIBUTE_STRICT=true`). Check that (1) Phoenix requests the scope that releases the claim (e.g. `groups` for Okta), (2) the claim is configured for the ID token or UserInfo on the IdP side, and (3) your JMESPath path matches the claim's actual key and shape. A claim that exists only on the access token will not be visible to Phoenix.
+</Tip>
 
 ### Multiple Identity Providers
 
@@ -429,10 +488,19 @@ export PHOENIX_OAUTH2_OKTA_ALLOWED_GROUPS="engineering,platform-team"
 export PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH="'ADMIN'"
 ```
 
+**With role mapping for provisioning, but admin-managed roles thereafter**
+```bash
+# New users are provisioned from their Okta group, but a role set in the Phoenix
+# UI is never overwritten on subsequent logins.
+export PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_PATH=role
+export PHOENIX_OAUTH2_OKTA_ROLE_MAPPING="Owner:ADMIN,Developer:MEMBER,Guest:VIEWER"
+export PHOENIX_OAUTH2_OKTA_ROLE_RESYNC=false
+```
+
 <Info>
 **Default role behavior:**
 * If `ROLE_ATTRIBUTE_PATH` is **not configured**: New OAuth2 users are initially added as VIEWER (least privilege). Their role can be changed after their first login by a Phoenix admin. Existing users keep their current roles.
-* If `ROLE_ATTRIBUTE_PATH` **is configured**: User roles are automatically synchronized from the IDP on every login based on the role mapping configuration.
+* If `ROLE_ATTRIBUTE_PATH` **is configured**: User roles are automatically synchronized from the IDP on every login based on the role mapping configuration, unless `ROLE_RESYNC=false`, which preserves existing users' current Phoenix roles while still provisioning new users from the IDP.
 </Info>
 
 Detailed instructions for common IDPs are provided below.
@@ -488,6 +556,48 @@ Detailed instructions for common IDPs are provided below.
 <Tip>
 **Missing email claim?** If your users see "Missing or invalid 'email' claim" errors, their directory entries may not have the `mail` attribute populated. Set `PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_EMAIL_ATTRIBUTE_PATH=preferred_username` to use the User Principal Name (UPN) instead, which is always available and in email format.
 </Tip>
+
+#### Workload identity without a client secret
+
+On Kubernetes, Phoenix can authenticate to Entra ID with the pod's projected service account token instead of a client secret, so no long-lived credential exists to store or rotate. Entra trusts the cluster's OIDC issuer through a *federated credential*, and Phoenix relays the projected token as a client assertion (RFC 7523 §2.2).
+
+This replaces step 6 above — create no client secret.
+
+1. Install the [Azure Workload Identity webhook](https://azure.github.io/azure-workload-identity/docs/installation.html) on the cluster.
+2. On the app registration, under **Certificates & secrets → Federated credentials**, add a credential of scenario **Kubernetes accessing Azure resources**:
+   * **Cluster issuer URL** — your AKS OIDC issuer, from `az aks show --query oidcIssuerProfile.issuerUrl`.
+   * **Namespace** and **Service account name** — where Phoenix runs.
+   * **Subject identifier** — `system:serviceaccount:<namespace>:<serviceAccountName>`.
+3. Label the Phoenix pods so the webhook projects a token into them. With the Helm chart:
+
+   ```yaml
+   deployment:
+     podLabels:
+       azure.workload.identity/use: "true"
+   ```
+
+4. Configure the provider with no secret:
+
+   ```bash
+   export PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_CLIENT_ID=entra_client_id
+   export PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_OIDC_CONFIG_URL=https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration
+   export PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_TOKEN_ENDPOINT_AUTH_METHOD=client_assertion_jwt
+   export PHOENIX_OAUTH2_MICROSOFT_ENTRA_ID_CLIENT_ASSERTION_FILE_ENV_VAR=AZURE_FEDERATED_TOKEN_FILE
+   ```
+
+   `AZURE_FEDERATED_TOKEN_FILE` is exported by the webhook and holds the path to the projected token. Phoenix is given the variable's *name* rather than the path, because the webhook owns that location and has moved it between releases.
+
+At startup Phoenix logs which variable each provider resolved through:
+
+```text
+OAuth2 IDP microsoft_entra_id: client assertion path resolved from AZURE_FEDERATED_TOKEN_FILE
+```
+
+If the pod label is missing the webhook projects nothing, and startup fails with a message naming both the variable and the label.
+
+<Note>
+This is not limited to Entra ID or to Azure — any provider that maps an external issuer onto a client, and any platform that writes a JWT to a file, works the same way. Set `CLIENT_ASSERTION_FILE` to an absolute path instead of naming a variable when the location is fixed and you control it. A provider implementing only plain RFC 7523, where the assertion must be signed with the client's own registered key, will reject a cluster-minted token.
+</Note>
 
 ### Keycloak
 

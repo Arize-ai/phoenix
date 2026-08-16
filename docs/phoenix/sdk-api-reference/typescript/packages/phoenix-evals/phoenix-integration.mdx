@@ -19,14 +19,15 @@ description: "Use @arizeai/phoenix-evals with Phoenix experiments"
 ```ts
 import { openai } from "@ai-sdk/openai";
 import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
-import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
 import {
   asExperimentEvaluator,
   runExperiment,
 } from "@arizeai/phoenix-client/experiments";
 
-await createOrGetDataset({
+await createDataset({
   name: "support-eval",
+  description: "Support questions with expected answers",
   examples: [
     {
       input: {

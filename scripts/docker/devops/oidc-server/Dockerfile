@@ -11,8 +11,8 @@ WORKDIR /app
 # lockfile being absent — lock files under ``scripts/docker/devops/`` are
 # untracked per the SBOM-scanner directive, and pnpm install falls back to a
 # fresh resolve when no lockfile is present.
-COPY package*.json pnpm-lock.yaml* ./
-COPY frontend/package*.json frontend/pnpm-lock.yaml* ./frontend/
+COPY package*.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+COPY frontend/package*.json frontend/pnpm-lock.yaml* frontend/pnpm-workspace.yaml ./frontend/
 
 # Install dependencies
 RUN pnpm install
@@ -41,9 +41,6 @@ RUN pnpm install --prod
 # Final runtime stage
 FROM node:22-slim AS runtime
 
-# Enable pnpm
-RUN corepack enable
-
 # Create app user for security
 RUN groupadd --gid 1001 nodejs && \
     useradd --uid 1001 --gid nodejs --shell /bin/bash --create-home nodejs
@@ -69,4 +66,4 @@ EXPOSE 9000
 ENV NODE_ENV=production
 
 # Start server
-CMD ["pnpm", "start"]
+CMD ["node", "dist/server.js"]

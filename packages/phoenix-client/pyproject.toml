@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "2.7.0"
+version = "3.2.0"
 dependencies = [
   "httpx",
   "tqdm",
@@ -31,6 +31,26 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-exporter-otlp",
 ]
+
+[project.optional-dependencies]
+# The pytest plugin is opt-in: pytest stays OUT of base deps and is only required when a user
+# installs this extra (or already has pytest). The pytest11 entry point below is inert unless
+# pytest is importable, so importing arize-phoenix-client never pulls pytest in.
+pytest = [
+  "pytest>=7",
+]
+# Optional adapter for `phoenix.evals` evaluators used via @pytest.mark.phoenix(evaluators=...)
+# and px.evaluate(...). Kept separate so the base client never depends on arize-phoenix-evals.
+evals = [
+  "arize-phoenix-evals",
+]
+
+[project.entry-points.pytest11]
+phoenix = "phoenix.client.pytest.plugin"
+
+# Harbor is opt-in and only imported when selected with ``--plugin phoenix``.
+[project.entry-points."harbor.plugins"]
+phoenix = "phoenix.client.harbor:PhoenixJobPlugin"
 
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"
@@ -80,6 +100,14 @@ exclude = [
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
 ]
+
+# `harbor` is a type-only import in phoenix.client.harbor. It is not installed in most
+# environments (it requires Python >=3.12), and even where it is installed it ships no
+# py.typed. This override covers both cases (import-not-found and import-untyped) so the
+# annotations degrade to Any rather than failing the strict type check.
+[[tool.mypy.overrides]]
+module = ["harbor.*"]
+ignore_missing_imports = true
 
 [tool.pyright]
 typeCheckingMode = "strict"

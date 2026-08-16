@@ -33,3 +33,9 @@ class PatchDatasetExamplesInput:
     patches: list[DatasetExamplePatch]
     version_description: Optional[str] = UNSET
     version_metadata: Optional[JSON] = UNSET
+    dataset_id: Optional[GlobalID] = strawberry.field(
+        default=UNSET,
+        description="When provided, every patched example must belong to this dataset "
+        "or the whole mutation is rejected — lets callers scope the write to the "
+        "dataset they believe they are editing.",
+    )

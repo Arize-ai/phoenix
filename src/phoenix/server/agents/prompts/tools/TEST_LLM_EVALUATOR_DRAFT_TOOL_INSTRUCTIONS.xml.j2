@@ -1,0 +1,14 @@
+<tool name="test_llm_evaluator_draft">
+  <description>Run the current LLM-evaluator draft's judge against its test payload in the mounted form preview path and return the preview result to PXI.</description>
+  <when_to_use>
+    - After reading the draft and the user asks for or agrees to a preview test.
+    - When you need judge output before deciding whether to revise the judge prompt, model, output configs, or test payload again.
+  </when_to_use>
+  <preflight>
+    - Call `read_llm_evaluator_draft` first if you want to confirm the current draft before testing.
+  </preflight>
+  <guidelines>
+    - The preview result reports the judge's label and `explanation` on success, or an `error` when the judge run fails (for example a missing model-provider credential). Treat an error as an iteration signal: inspect it, revise the judge prompt or `testPayload`, and test again.
+    - This tool does not create or update an evaluator. The user must still click Create or Update from the form when they are satisfied.
+  </guidelines>
+</tool>

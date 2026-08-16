@@ -13,6 +13,7 @@
  * |  3   | Invalid argument | Bad CLI flags, missing required args, invalid input |
  * |  4   | Auth required    | Not authenticated or insufficient permissions       |
  * |  5   | Network error    | Failed to connect to server or network request      |
+ * |  6   | Not verified     | The command ran, but could not confirm its effect   |
  */
 export const ExitCode = {
   /** Command completed successfully */
@@ -27,6 +28,13 @@ export const ExitCode = {
   AUTH_REQUIRED: 4,
   /** Failed to connect to server or network request failed */
   NETWORK_ERROR: 5,
+  /**
+   * The command did the work it was asked to do, but could not verify the
+   * result it exists to produce. Distinct from FAILURE so a caller can tell
+   * "ran, no effect observed" from "did not run" — `px setup --instrument`
+   * returns it when no trace ever arrived.
+   */
+  NOT_VERIFIED: 6,
 } as const;
 
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
@@ -35,6 +43,20 @@ export class InvalidArgumentError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "InvalidArgumentError";
+  }
+}
+
+export class AuthRequiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthRequiredError";
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NetworkError";
   }
 }
 
@@ -50,6 +72,14 @@ export class InvalidArgumentError extends Error {
 export function getExitCodeForError(error: unknown): ExitCode {
   if (error instanceof InvalidArgumentError) {
     return ExitCode.INVALID_ARGUMENT;
+  }
+
+  if (error instanceof AuthRequiredError) {
+    return ExitCode.AUTH_REQUIRED;
+  }
+
+  if (error instanceof NetworkError) {
+    return ExitCode.NETWORK_ERROR;
   }
 
   // TypeError is thrown by the Fetch API for network-level failures

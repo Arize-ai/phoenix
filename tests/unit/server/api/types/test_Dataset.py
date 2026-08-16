@@ -4,7 +4,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -23,6 +23,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -208,6 +209,71 @@ class TestDatasetExampleCountResolver:
         )
         assert not response.errors
         assert response.data == {"node": {"exampleCount": 1}}
+
+    async def test_count_is_zero_when_version_belongs_to_another_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(2))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"exampleCount": 0}}
+
+    async def test_bulk_query_returns_count_for_every_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        query = """
+          query {
+            datasets(first: 50) {
+              edges {
+                node {
+                  id
+                  exampleCount
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(query=query)
+        assert not response.errors
+        assert response.data
+        counts = {
+            edge["node"]["id"]: edge["node"]["exampleCount"]
+            for edge in response.data["datasets"]["edges"]
+        }
+        assert counts == dict(many_datasets_with_examples)
+
+    async def test_count_with_split_filter(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        query = """
+          query ($datasetId: ID!, $splitIds: [ID!]) {
+            node(id: $datasetId) {
+              ... on Dataset {
+                exampleCount(splitIds: $splitIds)
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(3))),
+                "splitIds": [str(GlobalID("DatasetSplit", str(1)))],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"exampleCount": 2}}
 
 
 class TestDatasetExamplesResolver:
@@ -495,6 +561,69 @@ class TestDatasetExamplesResolver:
         assert not response.errors
         assert response.data == {"node": {"examples": {"edges": []}}}
 
+    FILTER_IDS_QUERY = """
+      query ($datasetId: ID!, $filterIds: [ID!]) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            examples(filterIds: $filterIds) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    async def test_filter_ids_returns_only_requested_examples(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        example_id = str(GlobalID("DatasetExample", str(2)))
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [example_id],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"examples": {"edges": [{"node": {"id": example_id}}]}}}
+
+    async def test_filter_ids_excludes_examples_from_other_datasets(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        # An example ID that exists nowhere (or in another dataset) yields no edges
+        # rather than leaking rows from outside the dataset in view.
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [str(GlobalID("DatasetExample", str(999)))],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"examples": {"edges": []}}}
+
+    async def test_filter_ids_rejects_ids_of_wrong_type(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [str(GlobalID("Dataset", str(1)))],
+            },
+        )
+        assert response.errors
+
 
 @pytest.mark.parametrize(
     "sort_direction, expected_versions",
@@ -721,6 +850,154 @@ class TestDatasetExperimentsResolver:
             {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
         ]
         assert response.data == {"node": {"experiments": {"edges": edges}}}
+
+
+class TestDatasetBaselineExperimentResolver:
+    QUERY = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            baselineExperiment {
+              id
+              name
+              sequenceNumber
+              isBaseline
+            }
+          }
+        }
+      }
+    """
+
+    async def test_returns_null_when_no_baseline_is_set(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=3)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {"node": {"baselineExperiment": None}}
+
+    async def test_returns_baseline_experiment_with_sequence_number(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, experiment_ids = await _create_dataset_with_experiments(
+            db,
+            experiment_count=4,
+            baseline_experiment_index=3,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "node": {
+                "baselineExperiment": {
+                    "id": str(GlobalID(Experiment.__name__, str(experiment_ids[2]))),
+                    "name": "experiment-3",
+                    "sequenceNumber": 3,
+                    "isBaseline": True,
+                }
+            }
+        }
+
+    async def test_sequence_number_skips_ephemeral_experiments(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, experiment_ids = await _create_dataset_with_experiments(
+            db,
+            experiment_count=3,
+            baseline_experiment_index=2,
+            create_ephemeral_experiment_first=True,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "node": {
+                "baselineExperiment": {
+                    "id": str(GlobalID(Experiment.__name__, str(experiment_ids[1]))),
+                    "name": "experiment-2",
+                    "sequenceNumber": 2,
+                    "isBaseline": True,
+                }
+            }
+        }
+
+
+async def _create_dataset_with_experiments(
+    db: DbSessionFactory,
+    *,
+    experiment_count: int,
+    baseline_experiment_index: int | None = None,
+    create_ephemeral_experiment_first: bool = False,
+) -> tuple[int, list[int]]:
+    async with db() as session:
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(name="baseline-test-dataset", metadata_={})
+        )
+        assert dataset_id is not None
+        dataset_version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(dataset_id=dataset_id, metadata_={})
+        )
+        assert dataset_version_id is not None
+
+        if create_ephemeral_experiment_first:
+            await session.execute(
+                insert(models.Experiment).values(
+                    dataset_id=dataset_id,
+                    dataset_version_id=dataset_version_id,
+                    name="playground",
+                    is_ephemeral=True,
+                    repetitions=1,
+                    metadata_={},
+                )
+            )
+
+        experiment_ids = list(
+            await session.scalars(
+                insert(models.Experiment).returning(models.Experiment.id),
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": dataset_version_id,
+                        "name": f"experiment-{index + 1}",
+                        "repetitions": 1,
+                        "metadata_": {},
+                    }
+                    for index in range(experiment_count)
+                ],
+            )
+        )
+
+        if baseline_experiment_index is not None:
+            await session.execute(
+                insert(models.ExperimentTag).values(
+                    experiment_id=experiment_ids[baseline_experiment_index - 1],
+                    dataset_id=dataset_id,
+                    name=BASELINE_EXPERIMENT_TAG_NAME,
+                    description=None,
+                )
+            )
+
+    return dataset_id, experiment_ids
 
 
 @pytest.fixture
@@ -1320,6 +1597,100 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
 
 
 @pytest.fixture
+async def many_datasets_with_examples(db: DbSessionFactory) -> Mapping[str, int]:
+    """
+    Twelve datasets where dataset i contains i active examples plus one deleted
+    example that must not be counted. The first two examples of dataset 3 are
+    assigned to dataset split 1. Returns a mapping from dataset global ID to its
+    expected active example count.
+    """
+    expected_counts: dict[str, int] = {}
+    async with db() as session:
+        split = models.DatasetSplit(
+            id=1,
+            name="train",
+            description=None,
+            color="#0000FF",
+            metadata_={},
+        )
+        session.add(split)
+        example_id = 0
+        revision_id = 0
+        for dataset_index in range(1, 13):
+            session.add(
+                models.Dataset(
+                    id=dataset_index,
+                    name=f"dataset-{dataset_index}",
+                    description=None,
+                    metadata_={},
+                )
+            )
+            await session.flush()
+            session.add(
+                models.DatasetVersion(
+                    id=dataset_index,
+                    dataset_id=dataset_index,
+                    description=None,
+                    metadata_={},
+                )
+            )
+            await session.flush()
+            for example_index in range(dataset_index):
+                example_id += 1
+                session.add(models.DatasetExample(id=example_id, dataset_id=dataset_index))
+                await session.flush()
+                revision_id += 1
+                session.add(
+                    models.DatasetExampleRevision(
+                        id=revision_id,
+                        dataset_example_id=example_id,
+                        dataset_version_id=dataset_index,
+                        input={},
+                        output={},
+                        metadata_={},
+                        revision_kind="CREATE",
+                    )
+                )
+                if dataset_index == 3 and example_index < 2:
+                    session.add(
+                        models.DatasetSplitDatasetExample(
+                            dataset_split_id=1,
+                            dataset_example_id=example_id,
+                        )
+                    )
+            session.add(
+                models.DatasetVersion(
+                    id=dataset_index + 100,
+                    dataset_id=dataset_index,
+                    description=None,
+                    metadata_={},
+                )
+            )
+            example_id += 1
+            session.add(models.DatasetExample(id=example_id, dataset_id=dataset_index))
+            await session.flush()
+            for version_id, revision_kind in (
+                (dataset_index, "CREATE"),
+                (dataset_index + 100, "DELETE"),
+            ):
+                revision_id += 1
+                session.add(
+                    models.DatasetExampleRevision(
+                        id=revision_id,
+                        dataset_example_id=example_id,
+                        dataset_version_id=version_id,
+                        input={},
+                        output={},
+                        metadata_={},
+                        revision_kind=revision_kind,
+                    )
+                )
+            await session.flush()
+            expected_counts[str(GlobalID("Dataset", str(dataset_index)))] = dataset_index
+    return expected_counts
+
+
+@pytest.fixture
 async def dataset_with_deletion(db: DbSessionFactory) -> None:
     """
     A dataset with a single example and two versions. In the first version, the
@@ -1565,3 +1936,81 @@ async def test_dataset_filter_and_sort(
     datasets = data["datasets"]
     dataset_names = [edge["node"]["name"] for edge in datasets["edges"]]
     assert dataset_names == expected_names
+
+
+@pytest.fixture
+async def dataset_created_and_updated_by_different_users(db: DbSessionFactory) -> dict[str, str]:
+    """
+    A dataset owned by one user whose latest version was authored by another, plus a dataset with
+    no owner and an unattributed version. Returns the expected creator and last editor usernames.
+    """
+    async with db() as session:
+        user_role_id = await session.scalar(
+            select(models.UserRole.id).where(models.UserRole.name == "MEMBER")
+        )
+        assert user_role_id is not None
+
+        def _user(username: str) -> models.User:
+            return models.User(
+                user_role_id=user_role_id,
+                username=username,
+                email=f"{token_hex(4)}@test.com",
+                password_hash=b"hash",
+                password_salt=b"salt",
+                reset_password=False,
+                auth_method="LOCAL",
+            )
+
+        owner, editor = _user("owner"), _user("editor")
+        session.add_all([owner, editor])
+        await session.flush()
+
+        collaborative = models.Dataset(name="collaborative-dataset", metadata_={})
+        collaborative.user_id = owner.id
+        unattributed = models.Dataset(name="unattributed-dataset", metadata_={})
+        session.add_all([collaborative, unattributed])
+        await session.flush()
+
+        # The latest version's author is the editor, not the dataset's owner.
+        for author_id in (owner.id, editor.id):
+            session.add(
+                models.DatasetVersion(dataset_id=collaborative.id, metadata_={}, user_id=author_id)
+            )
+            await session.flush()
+
+        session.add(models.DatasetVersion(dataset_id=unattributed.id, metadata_={}))
+        await session.commit()
+
+        return {"createdBy": "owner", "updatedBy": "editor"}
+
+
+async def test_dataset_created_by_is_its_owner_and_updated_by_is_its_latest_version_author(
+    gql_client: AsyncGraphQLClient,
+    dataset_created_and_updated_by_different_users: dict[str, str],
+) -> None:
+    query = """
+      query {
+        datasets {
+          edges {
+            node {
+              name
+              createdBy { username }
+              updatedBy { username }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data
+    nodes = {edge["node"]["name"]: edge["node"] for edge in response.data["datasets"]["edges"]}
+
+    expected = dataset_created_and_updated_by_different_users
+    collaborative = nodes["collaborative-dataset"]
+    assert collaborative["createdBy"]["username"] == expected["createdBy"]
+    assert collaborative["updatedBy"]["username"] == expected["updatedBy"]
+
+    unattributed = nodes["unattributed-dataset"]
+    assert unattributed["createdBy"] is None
+    assert unattributed["updatedBy"] is None

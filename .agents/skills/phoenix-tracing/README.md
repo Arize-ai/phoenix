@@ -8,7 +8,7 @@ Start with `SKILL.md` for the index and quick reference.
 
 ## File Organization
 
-All files in flat `rules/` directory with semantic prefixes:
+All files in flat `references/` directory with semantic prefixes:
 
 - `span-*` - Span kinds (LLM, CHAIN, TOOL, etc.)
 - `setup-*`, `instrumentation-*` - Getting started guides

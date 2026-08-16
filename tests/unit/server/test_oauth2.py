@@ -1,11 +1,26 @@
 """Unit tests for OAuth2Client."""
 
+import logging
+import os
+from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
+import httpx
+import jmespath
 import pytest
+from authlib.integrations.base_client import OAuthError
+from authlib.oauth2.auth import ClientAuth
 
-from phoenix.config import OAuth2ClientConfig
-from phoenix.server.oauth2 import OAuth2Client, OAuth2Clients
+from phoenix.config import CLIENT_ASSERTION_JWT_AUTH_METHOD, OAuth2ClientConfig
+from phoenix.server.api.routers.oauth2 import MissingEmailScope, _parse_user_info
+from phoenix.server.oauth2 import (
+    AssertionFile,
+    ClientAssertionJWT,
+    OAuth2Client,
+    OAuth2Clients,
+    search_claim_path,
+)
 
 # Common test configuration constants
 # Note: Optional features (groups, roles) are excluded - tests add them explicitly
@@ -1024,6 +1039,50 @@ class TestOAuth2ClientRoleMapping:
         assert client_non_strict.extract_and_map_role(claims_normal) == "VIEWER"
         assert client_strict.extract_and_map_role(claims_normal) == "VIEWER"
 
+    def test_conditional_role_expression_with_groups_claim_absent(self) -> None:
+        """Regression: a contains()-based role expression must not crash when the
+        referenced claim is entirely absent (e.g. a thin ID token whose groups arrive
+        only via UserInfo).
+
+        ``contains(groups[*], 'admin')`` raises JMESPathTypeError when ``groups`` is
+        missing, because ``groups[*]`` projects to null and ``contains`` rejects a null
+        subject. Extraction must treat that as "claim absent" rather than propagating the
+        error and failing login.
+        """
+        expr = (
+            "contains(groups[*], 'admin') && 'ADMIN' || "
+            "contains(groups[*], 'editor') && 'MEMBER' || 'VIEWER'"
+        )
+
+        # Non-strict: an absent claim degrades to the default VIEWER instead of crashing.
+        client_non_strict = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path=expr,
+            role_mapping={},
+            role_attribute_strict=False,
+        )
+        claims_thin = {"email": "user@example.com"}  # no "groups" claim at all
+        assert client_non_strict.extract_and_map_role(claims_thin) == "VIEWER"
+
+        # Strict: an absent claim is treated as "no role determined" -> deny, not crash.
+        client_strict = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path=expr,
+            role_mapping={},
+            role_attribute_strict=True,
+        )
+        with pytest.raises(PermissionError, match="Role claim not found"):
+            client_strict.extract_and_map_role(claims_thin)
+
+
+class TestOAuth2ClientRoleResync:
+    """Test the role_resync property on OAuth2Client."""
+
+    def test_role_resync_property(self) -> None:
+        """role_resync defaults to True and reflects the configured value."""
+        assert OAuth2Client(**_OAUTH2_CLIENT_DEFAULTS).role_resync is True
+        assert OAuth2Client(**_OAUTH2_CLIENT_DEFAULTS, role_resync=False).role_resync is False
+
 
 class TestHasSufficientClaimsWithRoles:
     """Test has_sufficient_claims method with role mapping."""
@@ -1241,3 +1300,531 @@ class TestOAuth2ClientRoleValidation:
         # Should raise - group validation fails even though role is valid
         with pytest.raises(PermissionError, match="Access denied"):
             client.validate_access(claims)
+
+
+class TestRuntimeJMESPathErrorHandling:
+    """Claim extraction must tolerate runtime JMESPath errors (claim absent / wrong shape).
+
+    Compilation validates syntax at startup, but a syntactically valid expression can still
+    raise when evaluated against claims that lack the referenced key. Such an outcome means
+    the claim is simply not present, so it is treated as None rather than failing login.
+    """
+
+    def test_search_claim_path_passes_through_normal_result(self) -> None:
+        compiled = jmespath.compile("groups")
+        result = search_claim_path(compiled, {"groups": ["a", "b"]}, "GROUPS_ATTRIBUTE_PATH")
+        assert result == ["a", "b"]
+
+    def test_search_claim_path_returns_none_on_runtime_type_error(self) -> None:
+        # contains() over a projection of an absent claim raises JMESPathTypeError.
+        compiled = jmespath.compile("contains(groups[*], 'admin')")
+        result = search_claim_path(compiled, {"email": "user@example.com"}, "ROLE_ATTRIBUTE_PATH")
+        assert result is None
+
+    def test_search_claim_path_softens_unknown_function_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # A typo'd function name passes compilation (function names are resolved only at
+        # evaluation) and raises UnknownFunctionError on search. This is config-shaped, not
+        # claim-shaped, but it must degrade to None with a warning rather than 500 the login.
+        compiled = jmespath.compile("contians(groups[*], 'admin')")
+        with caplog.at_level(logging.WARNING, logger="phoenix.server.oauth2"):
+            result = search_claim_path(compiled, {"groups": ["admin"]}, "ROLE_ATTRIBUTE_PATH")
+        assert result is None
+        assert "ROLE_ATTRIBUTE_PATH" in caplog.text
+        assert "UnknownFunctionError" in caplog.text
+
+    def test_search_claim_path_softens_arity_error(self, caplog: pytest.LogCaptureFixture) -> None:
+        # Arity errors also surface only at evaluation; like other config-shaped failures they
+        # now degrade to None with a warning instead of propagating and failing login.
+        compiled = jmespath.compile("contains(groups[*])")
+        with caplog.at_level(logging.WARNING, logger="phoenix.server.oauth2"):
+            result = search_claim_path(compiled, {"groups": ["admin"]}, "GROUPS_ATTRIBUTE_PATH")
+        assert result is None
+        assert "GROUPS_ATTRIBUTE_PATH" in caplog.text
+
+    def test_has_sufficient_claims_false_when_conditional_email_claim_absent(self) -> None:
+        """Regression: email expressions can raise the same runtime type errors as roles.
+
+        A thin ID token should trigger UserInfo fetching instead of failing the callback.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            email_attribute_path="contains(email_aliases[*], 'primary') && email || alternate_email",
+        )
+
+        claims = {"sub": "user123"}  # no "email_aliases" claim
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_parse_user_info_treats_conditional_email_runtime_error_as_missing_email(self) -> None:
+        """Regression: final email parsing should raise the normal missing-email error."""
+        email_path = jmespath.compile(
+            "contains(email_aliases[*], 'primary') && email || alternate_email"
+        )
+
+        with pytest.raises(MissingEmailScope, match="Missing or invalid"):
+            _parse_user_info({"sub": "user123"}, email_path=email_path)
+
+    def test_has_sufficient_claims_false_when_conditional_role_claim_absent(self) -> None:
+        """Regression: with a contains()-based role expression and the referenced claim
+        absent from the ID token, has_sufficient_claims must report False (so Phoenix
+        fetches UserInfo) instead of raising JMESPathTypeError and failing login.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="contains(groups[*], 'admin') && 'ADMIN' || 'VIEWER'",
+            role_mapping={},
+        )
+
+        # Thin ID token: groups claim not present yet (would arrive via UserInfo).
+        claims = {"sub": "user123", "email": "user@example.com"}
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_group_extraction_tolerates_runtime_error_for_sign_in_gating(self) -> None:
+        """Regression: a groups expression that errors at evaluation time yields no groups,
+        producing a clean access denial rather than an unhandled exception during login.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            # contains() returns a boolean and raises when 'groups' is absent; an unusual
+            # but valid path chosen here to exercise the runtime-error guard.
+            groups_attribute_path="contains(groups[*], 'admin')",
+            allowed_groups=["admin"],
+        )
+
+        claims = {"email": "user@example.com"}  # no "groups" claim
+        with pytest.raises(PermissionError, match="Access denied"):
+            client.validate_access(claims)
+
+
+class TestClientAssertionJWT:
+    """Test the client assertion that ClientAssertionJWT puts on the wire."""
+
+    _CONFIG_DEFAULTS: dict[str, Any] = {
+        **_OAUTH2_CONFIG_DEFAULTS,
+        "idp_name": "entra",
+        "client_secret": None,
+        "token_endpoint_auth_method": CLIENT_ASSERTION_JWT_AUTH_METHOD,
+        "groups_attribute_path": None,
+        "allowed_groups": [],
+        "role_attribute_path": None,
+        "role_mapping": {},
+        "role_attribute_strict": False,
+    }
+
+    @staticmethod
+    def _prepare(assertion_file: Path, client_id: str = "entra-client-id") -> dict[str, list[str]]:
+        """Run the token request through authlib's client auth and return the form body."""
+        auth = ClientAuth(
+            client_id=client_id,
+            client_secret=None,
+            auth_method=ClientAssertionJWT(AssertionFile(assertion_file)),
+        )
+        _, _, body = auth.prepare("POST", "https://idp/token", {}, "grant_type=authorization_code")
+        return parse_qs(body)
+
+    def test_assertion_is_sent_in_token_request(self, tmp_path: Path) -> None:
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+
+        body = self._prepare(assertion_file)
+
+        assert body["client_assertion"] == ["header.payload.sig"]
+        assert body["client_assertion_type"] == [
+            "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        ]
+
+    def test_client_id_is_sent_alongside_the_assertion(self, tmp_path: Path) -> None:
+        # The assertion's `sub` is the workload identity, not the client, so the IDP cannot
+        # resolve the client without an explicit client_id.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+
+        body = self._prepare(assertion_file, client_id="entra-client-id")
+
+        assert body["client_id"] == ["entra-client-id"]
+
+    def test_assertion_is_reread_on_each_token_request(self, tmp_path: Path) -> None:
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("first.token.value")
+
+        assert self._prepare(assertion_file)["client_assertion"] == ["first.token.value"]
+
+        assertion_file.write_text("rotated.token.value")
+        assert self._prepare(assertion_file)["client_assertion"] == ["rotated.token.value"]
+
+    def test_unreadable_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # OAuthError is what the login route translates into a redirect rather than a 500.
+        with pytest.raises(OAuthError):
+            self._prepare(tmp_path / "does-not-exist")
+
+    def test_undecodable_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # UnicodeDecodeError is a ValueError, not an OSError, so a path pointing at a binary
+        # would otherwise escape the route's handler as a 500.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_bytes(b"\xff\xfe\x00\x01")
+
+        with pytest.raises(OAuthError, match="cannot decode"):
+            self._prepare(assertion_file)
+
+    def test_client_id_is_not_duplicated_when_already_correct(self, tmp_path: Path) -> None:
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(AssertionFile(assertion_file)),
+        )
+
+        _, _, body = auth.prepare(
+            "POST",
+            "https://idp/token",
+            {},
+            "grant_type=authorization_code&client_id=entra-client-id",
+        )
+
+        assert parse_qs(body)["client_id"] == ["entra-client-id"]
+
+    @pytest.mark.parametrize(
+        "supplied",
+        [
+            pytest.param("client_id=", id="blank"),
+            pytest.param("client_id=other-client", id="different_client"),
+            pytest.param("client_id=entra-client-id&client_id=other", id="multiple"),
+        ],
+    )
+    def test_conflicting_client_id_is_rejected(self, tmp_path: Path, supplied: str) -> None:
+        # The body's client_id selects which application the assertion is presented for, so a
+        # blank or differing value would authenticate as the wrong one.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(AssertionFile(assertion_file)),
+        )
+
+        with pytest.raises(OAuthError, match="does not match"):
+            auth.prepare("POST", "https://idp/token", {}, f"grant_type=x&{supplied}")
+
+    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="mkfifo is POSIX-only")
+    def test_fifo_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # A FIFO blocks until a writer appears, which would stall the event loop.
+        fifo = tmp_path / "azure-identity-token"
+        os.mkfifo(fifo)
+
+        with pytest.raises(OAuthError, match="not a regular file"):
+            self._prepare(fifo)
+
+    def test_directory_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        with pytest.raises(OAuthError, match="cannot read|not a regular file"):
+            self._prepare(tmp_path)
+
+    def test_oversized_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # A regular file can still be arbitrarily large; the value is copied again by strip()
+        # and once more by form encoding.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("x" * (64 * 1024 + 1))
+
+        with pytest.raises(OAuthError, match="exceeds"):
+            self._prepare(assertion_file)
+
+    def test_server_metadata_cannot_replace_the_auth_method(self, tmp_path: Path) -> None:
+        # BaseApp merges the discovery document over client_kwargs, so a provider advertising
+        # token_endpoint_auth_method would otherwise strip the assertion from token requests.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS, client_assertion_file=str(assertion_file)
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+        client = clients.get_client("entra")
+        assert client is not None
+
+        session = client._get_oauth_client(token_endpoint_auth_method="none")
+
+        assert isinstance(session.token_endpoint_auth_method, ClientAssertionJWT)
+
+    def test_revocation_uses_the_same_auth_method(self, tmp_path: Path) -> None:
+        # authlib selects revocation auth separately; without this it falls back to "none".
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS,
+            client_assertion_file=str(assertion_file),
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        client = clients.get_client("entra")
+        assert client is not None
+        assert (
+            client.client_kwargs["revocation_endpoint_auth_method"]
+            is client.client_kwargs["token_endpoint_auth_method"]
+        )
+
+    def test_indirect_path_is_named_by_its_variable_not_echoed(self, tmp_path: Path) -> None:
+        # The value came from a variable the provider config chose, so it must not reach a
+        # message; naming the variable is both safe and more useful.
+        secret_shaped_path = tmp_path / "s3cr3t-value"
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(
+                AssertionFile(secret_shaped_path, variable="SOME_VARIABLE")
+            ),
+        )
+
+        with pytest.raises(OAuthError) as exc_info:
+            auth.prepare("POST", "https://idp/token", {}, "grant_type=x")
+
+        assert "named by SOME_VARIABLE" in str(exc_info.value)
+        assert str(secret_shaped_path) not in str(exc_info.value)
+
+    def test_indirect_path_is_withheld_from_repr(self, tmp_path: Path) -> None:
+        # repr is what tracebacks, debuggers and structured loggers reach for, so the
+        # dataclass-generated one would defeat the redaction that __str__ provides.
+        secret_shaped_path = tmp_path / "s3cr3t-value"
+        assertion_file = AssertionFile(secret_shaped_path, variable="SOME_VARIABLE")
+
+        assert str(secret_shaped_path) not in repr(assertion_file)
+        assert str(secret_shaped_path) not in repr([assertion_file])
+        assert "SOME_VARIABLE" in repr(assertion_file)
+
+    def test_short_reads_are_accumulated(self, tmp_path: Path, monkeypatch: Any) -> None:
+        # A regular-file read may legally return fewer bytes than asked before EOF; taking the
+        # first result for the whole value would send a truncated assertion.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        real_read = os.read
+
+        def short_read(fd: int, n: int) -> bytes:
+            return real_read(fd, min(n, 4))
+
+        monkeypatch.setattr(os, "read", short_read)
+
+        assert self._prepare(assertion_file)["client_assertion"] == ["header.payload.sig"]
+
+    def test_indirect_path_is_withheld_from_the_exception_chain(self, tmp_path: Path) -> None:
+        # __str__ and __repr__ redact, but a chained cause carries OSError.filename, which
+        # any traceback logger prints.
+        import traceback
+
+        secret_shaped_path = tmp_path / "s3cr3t-value"
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(
+                AssertionFile(secret_shaped_path, variable="SOME_VARIABLE")
+            ),
+        )
+
+        with pytest.raises(OAuthError) as exc_info:
+            auth.prepare("POST", "https://idp/token", {}, "grant_type=x")
+
+        rendered = "".join(traceback.format_exception(exc_info.value))
+        assert str(secret_shaped_path) not in rendered
+
+    def test_direct_path_keeps_its_exception_chain(self, tmp_path: Path) -> None:
+        # Already in the operator's own config, so the cause is worth keeping for diagnosis.
+        missing = tmp_path / "azure-identity-token"
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(AssertionFile(missing)),
+        )
+
+        with pytest.raises(OAuthError) as exc_info:
+            auth.prepare("POST", "https://idp/token", {}, "grant_type=x")
+
+        assert isinstance(exc_info.value.__cause__, FileNotFoundError)
+
+    def test_direct_path_is_shown(self, tmp_path: Path) -> None:
+        # Written into the config verbatim, so repeating it discloses nothing.
+        missing = tmp_path / "azure-identity-token"
+        auth = ClientAuth(
+            client_id="entra-client-id",
+            client_secret=None,
+            auth_method=ClientAssertionJWT(AssertionFile(missing)),
+        )
+
+        with pytest.raises(OAuthError) as exc_info:
+            auth.prepare("POST", "https://idp/token", {}, "grant_type=x")
+
+        assert str(missing) in str(exc_info.value)
+
+    def test_startup_warning_names_the_variable_for_an_indirect_path(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        secret_shaped_path = tmp_path / "s3cr3t-value"
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS,
+            client_assertion_file=str(secret_shaped_path),
+            client_assertion_file_env_var="SOME_VARIABLE",
+        )
+        clients = OAuth2Clients()
+        with caplog.at_level(logging.WARNING):
+            clients.add_client(config)
+
+        assert "named by SOME_VARIABLE" in caplog.text
+        assert str(secret_shaped_path) not in caplog.text
+
+    @staticmethod
+    def _client_through_base_app(assertion_file: Path, handler: Any) -> "OAuth2Client":
+        """Build a client whose requests are served by `handler`, with no discovery call."""
+        auth_method = ClientAssertionJWT(AssertionFile(assertion_file))
+        return OAuth2Client(
+            name="entra",
+            client_id="entra-client-id",
+            client_secret=None,
+            access_token_url="https://idp.example.com/token",
+            display_name="Entra",
+            allow_sign_up=True,
+            auto_login=False,
+            client_kwargs={
+                "token_endpoint_auth_method": auth_method,
+                "revocation_endpoint_auth_method": auth_method,
+                "transport": httpx.MockTransport(handler),
+            },
+        )
+
+    async def test_token_request_carries_the_assertion_through_authlib(
+        self, tmp_path: Path
+    ) -> None:
+        # Driven through BaseApp rather than ClientAuth: this is the surface an authlib
+        # upgrade would change, and a signature or encoding change here would not show up in
+        # tests that call prepare() directly.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = request.content.decode()
+            return httpx.Response(200, json={"access_token": "at", "token_type": "Bearer"})
+
+        client = self._client_through_base_app(assertion_file, handler)
+        await client.fetch_access_token(
+            grant_type="authorization_code",
+            code="auth-code",
+            redirect_uri="https://phoenix.example.com/oauth2/entra/tokens",
+        )
+
+        body = parse_qs(captured["body"])
+        assert body["client_assertion"] == ["header.payload.sig"]
+        assert body["client_assertion_type"] == [
+            "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        ]
+        assert body["client_id"] == ["entra-client-id"]
+
+    async def test_revocation_request_carries_the_assertion_through_authlib(
+        self, tmp_path: Path
+    ) -> None:
+        # authlib selects revocation auth separately, so this cannot be inferred from the
+        # token request passing.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["body"] = request.content.decode()
+            return httpx.Response(200, json={})
+
+        client = self._client_through_base_app(assertion_file, handler)
+        async with client._get_oauth_client() as session:
+            session.token = {"access_token": "at", "token_type": "Bearer"}
+            await session.revoke_token("https://idp.example.com/revoke", token="at")
+
+        body = parse_qs(captured["body"])
+        assert body["client_assertion"] == ["header.payload.sig"]
+        assert body["client_id"] == ["entra-client-id"]
+
+    def test_add_client_registers_the_auth_method(self, tmp_path: Path) -> None:
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS,
+            client_assertion_file=str(assertion_file),
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        client = clients.get_client("entra")
+        assert client is not None
+        assert isinstance(client.client_kwargs["token_endpoint_auth_method"], ClientAssertionJWT)
+
+    def test_empty_assertion_file_raises_oauth_error(self, tmp_path: Path) -> None:
+        # An empty value is sent as `client_assertion=` and comes back as a generic
+        # invalid_client, with nothing pointing at the file.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("   \n")
+
+        with pytest.raises(OAuthError, match="empty"):
+            self._prepare(assertion_file)
+
+    def test_add_client_tolerates_an_assertion_file_that_does_not_exist_yet(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # The file is written by the platform, so it may appear after startup. One provider's
+        # mount must not stop the server from serving the others.
+        config = OAuth2ClientConfig(
+            **self._CONFIG_DEFAULTS,
+            client_assertion_file=str(tmp_path / "not-yet"),
+        )
+        clients = OAuth2Clients()
+        with caplog.at_level(logging.WARNING):
+            clients.add_client(config)
+
+        assert clients.get_client("entra") is not None
+        assert "does not exist" in caplog.text
+
+    def test_assertion_is_reread_through_a_swapped_symlink(self, tmp_path: Path) -> None:
+        # Kubernetes rotates a projected volume by atomically swapping the symlink the
+        # configured path resolves through, not by rewriting the file in place.
+        first, second = tmp_path / "..data1", tmp_path / "..data2"
+        first.mkdir()
+        second.mkdir()
+        (first / "token").write_text("first.token.value")
+        (second / "token").write_text("rotated.token.value")
+        link = tmp_path / "azure-identity-token"
+        link.symlink_to(first / "token")
+
+        assert self._prepare(link)["client_assertion"] == ["first.token.value"]
+
+        link.unlink()
+        link.symlink_to(second / "token")
+        assert self._prepare(link)["client_assertion"] == ["rotated.token.value"]
+
+    def test_any_idp_name_is_accepted(self, tmp_path: Path) -> None:
+        # IDP names are operator-chosen, so the mechanism cannot be gated on one.
+        assertion_file = tmp_path / "azure-identity-token"
+        assertion_file.write_text("header.payload.sig")
+
+        config = OAuth2ClientConfig(
+            **{**self._CONFIG_DEFAULTS, "idp_name": "company_sso"},
+            client_assertion_file=str(assertion_file),
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        assert clients.get_client("company_sso") is not None
+
+    def test_other_auth_methods_are_left_alone(self) -> None:
+        config = OAuth2ClientConfig(
+            **{
+                **_OAUTH2_CONFIG_DEFAULTS,
+                "groups_attribute_path": None,
+                "allowed_groups": [],
+                "role_attribute_path": None,
+                "role_mapping": {},
+                "role_attribute_strict": False,
+            },
+        )
+        clients = OAuth2Clients()
+        clients.add_client(config)
+
+        client = clients.get_client("test")
+        assert client is not None
+        assert "token_endpoint_auth_method" not in client.client_kwargs

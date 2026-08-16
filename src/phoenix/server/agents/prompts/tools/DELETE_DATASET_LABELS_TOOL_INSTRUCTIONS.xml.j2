@@ -1,0 +1,12 @@
+<tool name="delete_dataset_labels">
+  <description>Delete dataset labels, identified by name. This removes the label entirely (across the instance), detaching it from every dataset it was on. The datasets themselves are not deleted.</description>
+  <when_to_use>
+    - The user asks to delete or remove a label.
+  </when_to_use>
+  <preflight>
+    - Get the label names from list_labels. Do not guess names. To remove a label from this dataset without deleting the label itself, use set_dataset_labels instead.
+  </preflight>
+  <rules>
+    - Propose the deletion by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and deletes only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+  </rules>
+</tool>

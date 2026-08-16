@@ -17,6 +17,7 @@
 
     /* If transpiling with TypeScript: */
     "module": "NodeNext",
+    "rootDir": ".",
     "outDir": "dist",
     "sourceMap": true,
 

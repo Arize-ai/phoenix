@@ -1,0 +1,14 @@
+<tool name="add_spans_to_dataset">
+  <description>Add the span the user is viewing (or specific spans by id) to a dataset, identified by dataset name. Each span becomes a new dataset row, built from the span's input, output, and metadata. The dataset must already exist.</description>
+  <when_to_use>
+    - The user is looking at a span (or trace) and asks to add/save it to a dataset, or to use it as a dataset example.
+  </when_to_use>
+  <preflight>
+    - Resolve the target dataset by name. If you are unsure it exists or which one the user means, check with list_datasets first; if it does not exist, create it with create_dataset (then add the span).
+    - By default the span currently in view is added. To add other spans, pass their ids in `spanIds` (e.g. ids you obtained from a spans query).
+  </preflight>
+  <rules>
+    - Propose the addition by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and adds the span(s) only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+    - The dataset must already exist; if the name does not resolve to exactly one dataset, this fails and you should disambiguate (list_datasets) or create it (create_dataset).
+  </rules>
+</tool>

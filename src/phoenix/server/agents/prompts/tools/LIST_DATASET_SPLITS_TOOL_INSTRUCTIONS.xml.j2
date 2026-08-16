@@ -1,0 +1,11 @@
+<tool name="list_dataset_splits">
+  <description>List the splits the dataset the user is currently viewing is using, returning each split's id, name, description, and color. Read-only. A split is a named slice of dataset examples (e.g. train/validation/test, or easy/hard). This shows only the splits this dataset's rows belong to.</description>
+  <when_to_use>
+    - The user asks what splits this dataset is using.
+    - Before list_dataset_examples with a split filter, to learn the split names this dataset actually uses.
+  </when_to_use>
+  <rules>
+    - Prefer this over hand-writing GraphQL to read the dataset's splits.
+    - A dataset only "has" a split once some of its rows belong to it, so a brand-new empty split will not appear here. To see every split that exists in the instance (e.g. to assign rows to one not yet on this dataset), use list_splits.
+  </rules>
+</tool>

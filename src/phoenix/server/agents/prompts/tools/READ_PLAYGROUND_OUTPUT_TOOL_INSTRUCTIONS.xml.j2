@@ -1,0 +1,14 @@
+<tool name="read_playground_output">
+  <description>Read raw output and trace metadata from the mounted playground's latest run.</description>
+  <when_to_use>
+    - After `run_playground` completes and the user wants to inspect or compare the output.
+    - When you need the playground run `traceId` to analyze why a response behaved a certain way.
+  </when_to_use>
+  <guidelines>
+    - Omit arguments to read every visible comparison instance and repetition.
+    - Pass `instanceId` when the user asks about a specific comparison instance.
+    - Pass `repetitionNumber` when the playground has multiple repetitions and the user asks about one run.
+    - The returned `rawOutput` is the playground's stored model output. Use `traceId` for trace analysis when it is present.
+    - If the run is still pending or streaming, wait for it to finish before drawing conclusions from the output.
+  </guidelines>
+</tool>

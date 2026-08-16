@@ -35,10 +35,6 @@
       "canonical": "https://arize.com"
     }
   },
-  "banner": {
-      "content": "[**Registration is open for Arize:Observe 2026**](https://arize.com/observe)",
-      "dismissible": true
-  },
   "navigation": {
     "tabs": [
       {
@@ -80,12 +76,21 @@
                 "group": "Coding Agents",
                 "pages": [
                   "docs/phoenix/integrations/developer-tools/coding-agents",
-                  "docs/phoenix/integrations/phoenix-mcp-server",
                   "docs/phoenix/agent-assisted-setup"
                 ]
               },
+              {
+                "group": "MCP",
+                "pages": [
+                  "docs/phoenix/integrations/mcp",
+                  "docs/phoenix/integrations/remote-mcp",
+                  "docs/phoenix/integrations/docs-mcp",
+                  "docs/phoenix/integrations/phoenix-mcp-server"
+                ]
+              },
               "docs/phoenix/end-to-end-features-notebook",
-              "docs/phoenix/phoenix-demo"
+              "docs/phoenix/phoenix-demo",
+              "docs/phoenix/pxi"
             ]
           },
           {
@@ -156,6 +161,7 @@
                     ]
                   },
                   "docs/phoenix/tracing/how-to-tracing/cost-tracking",
+                  "docs/phoenix/tracing/how-to-tracing/filter-expressions",
                   {
                     "group": "Advanced",
                     "pages": [
@@ -205,6 +211,7 @@
                     "pages": [
                       "docs/phoenix/evaluation/pre-built-metrics",
                       "docs/phoenix/evaluation/pre-built-metrics/faithfulness",
+                      "docs/phoenix/evaluation/pre-built-metrics/hallucination",
                       "docs/phoenix/evaluation/pre-built-metrics/conciseness",
                       "docs/phoenix/evaluation/pre-built-metrics/correctness",
                       "docs/phoenix/evaluation/pre-built-metrics/document-relevance",
@@ -212,17 +219,17 @@
                       "docs/phoenix/evaluation/pre-built-metrics/tool-invocation",
                       "docs/phoenix/evaluation/pre-built-metrics/tool-response-handling",
                       "docs/phoenix/evaluation/pre-built-metrics/refusal",
+                      "docs/phoenix/evaluation/pre-built-metrics/toxicity",
+                      "docs/phoenix/evaluation/pre-built-metrics/user-friction",
                       "docs/phoenix/evaluation/pre-built-metrics/exact-match",
                       "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
                       "docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore",
                       {
                         "group": "Legacy",
                         "pages": [
-                          "docs/phoenix/evaluation/pre-built-metrics/hallucination",
                           "docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data",
                           "docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance",
                           "docs/phoenix/evaluation/pre-built-metrics/summarization-eval",
-                          "docs/phoenix/evaluation/pre-built-metrics/toxicity",
                           "docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval",
                           "docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval"
                         ]
@@ -280,6 +287,13 @@
                     ]
                   }
                 ]
+              },
+              {
+                "group": "Integrations",
+                "pages": [
+                  "docs/phoenix/evaluation/integrations/pytest",
+                  "docs/phoenix/evaluation/integrations/vitest-jest"
+                ]
               }
             ]
           },
@@ -303,7 +317,8 @@
                   "docs/phoenix/datasets-and-experiments/how-to-datasets",
                   "docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets",
                   "docs/phoenix/datasets-and-experiments/how-to-datasets/updating-datasets",
-                  "docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets"
+                  "docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets",
+                  "docs/phoenix/datasets-and-experiments/how-to-datasets/linking-examples-to-spans"
                 ]
               },
               {
@@ -315,7 +330,8 @@
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/splits"
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/splits",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest"
                 ]
               }
             ]
@@ -397,6 +413,25 @@
                   "docs/phoenix/tracing/concepts-tracing/how-tracing-works",
                   "docs/phoenix/tracing/concepts-tracing/annotations-concepts",
                   "docs/phoenix/tracing/concepts-tracing/translating-conventions",
+                  {
+                    "group": "OpenTelemetry and OpenInference",
+                    "pages": [
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/overview",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/signals",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/resource",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector"
+                    ]
+                  },
                   "docs/phoenix/tracing/concepts-tracing/faqs-tracing"
                 ]
               },
@@ -425,9 +460,6 @@
                   "docs/phoenix/resources/frequently-asked-questions",
                   "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
                   "docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint",
-                  "docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud",
-                  "docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version",
-                  "docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-use-phoenix-locally-from-a-remote-jupyter-instance",
@@ -464,7 +496,16 @@
             "group": "Developer Tools",
             "icon": "code",
             "pages": [
-              "docs/phoenix/integrations/developer-tools/coding-agents",
+              "docs/phoenix/integrations/developer-tools/coding-agents"
+            ]
+          },
+          {
+            "group": "MCP",
+            "icon": "plug",
+            "pages": [
+              "docs/phoenix/integrations/mcp",
+              "docs/phoenix/integrations/remote-mcp",
+              "docs/phoenix/integrations/docs-mcp",
               "docs/phoenix/integrations/phoenix-mcp-server"
             ]
           },
@@ -487,14 +528,23 @@
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/anthropic",
                   "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing",
-                  "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript"
+                  "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript",
+                  "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go"
+                ]
+              },
+              {
+                "group": "Cohere",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/cohere",
+                  "docs/phoenix/integrations/llm-providers/cohere/cohere-tracing"
                 ]
               },
               {
                 "group": "Google",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/google-gen-ai",
-                  "docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing"
+                  "docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing",
+                  "docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk"
                 ]
               },
               {
@@ -519,12 +569,20 @@
                 ]
               },
               {
+                "group": "Ollama",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/ollama",
+                  "docs/phoenix/integrations/llm-providers/ollama/ollama-tracing"
+                ]
+              },
+              {
                 "group": "OpenAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/openai",
                   "docs/phoenix/integrations/llm-providers/openai/openai-tracing",
                   "docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing",
-                  "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk"
+                  "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk",
+                  "docs/phoenix/integrations/llm-providers/openai/openai-go-sdk"
                 ]
               },
               {
@@ -532,6 +590,20 @@
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/openrouter",
                   "docs/phoenix/integrations/llm-providers/openrouter/openai-tracing"
+                ]
+              },
+              {
+                "group": "OrcaRouter",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/orcarouter",
+                  "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing"
+                ]
+              },
+              {
+                "group": "Together AI",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/together",
+                  "docs/phoenix/integrations/llm-providers/together/together-tracing"
                 ]
               },
               {
@@ -576,6 +648,7 @@
                   "docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript"
                 ]
               },
+              "docs/phoenix/integrations/typescript/openai-agents",
               {
                 "group": "TanStack AI",
                 "pages": [
@@ -587,7 +660,8 @@
                 "group": "Vercel",
                 "pages": [
                   "docs/phoenix/integrations/typescript/vercel",
-                  "docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js"
+                  "docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js",
+                  "docs/phoenix/integrations/typescript/vercel/eve-tracing"
                 ]
               }
             ]
@@ -596,6 +670,13 @@
             "group": "Python",
             "icon": "python",
             "pages": [
+              {
+                "group": "AG2",
+                "pages": [
+                  "docs/phoenix/integrations/python/ag2",
+                  "docs/phoenix/integrations/python/ag2/ag2-tracing"
+                ]
+              },
               {
                 "group": "Agent Spec",
                 "pages": [
@@ -823,6 +904,20 @@
               "docs/phoenix/integrations/evaluation-integrations/ragas",
               "docs/phoenix/integrations/evaluation-integrations/uqlm"
             ]
+          },
+          {
+            "group": "Coding Agents",
+            "icon": "terminal",
+            "pages": [
+              "docs/phoenix/integrations/coding-agents/claude-code",
+              "docs/phoenix/integrations/coding-agents/codex",
+              "docs/phoenix/integrations/coding-agents/copilot",
+              "docs/phoenix/integrations/coding-agents/cursor",
+              "docs/phoenix/integrations/coding-agents/gemini",
+              "docs/phoenix/integrations/coding-agents/kiro",
+              "docs/phoenix/integrations/coding-agents/oh-my-pi",
+              "docs/phoenix/integrations/coding-agents/opencode"
+            ]
           }
         ]
       },
@@ -859,7 +954,16 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments"
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
+                  {
+                    "group": "CI eval tests",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations"
+                    ]
+                  }
                 ]
               },
               {
@@ -869,6 +973,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification-metrics",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration"
@@ -904,7 +1009,11 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration",
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration"
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations-assigned-to-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/assign-an-annotation-configuration-to-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/unassign-an-annotation-configuration-from-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/replace-the-set-of-annotation-configurations-assigned-to-a-project"
                     ]
                   },
                   {
@@ -916,6 +1025,24 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-span-annotations-by-filter",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-trace-annotations-by-filter",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-session-annotations-by-filter"
+                    ]
+                  },
+                  {
+                    "group": "API Keys",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-the-authenticated-users-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-an-api-key-for-the-authenticated-user",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-user-api-key",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-all-user-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/list-system-api-keys",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/create-a-system-api-key",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/api-keys/delete-a-system-api-key"
+                    ]
+                  },
+                  {
+                    "group": "Chat Completions",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/chat-completions/openai-compatible-chat-completions"
                     ]
                   },
                   {
@@ -934,12 +1061,30 @@
                     ]
                   },
                   {
+                    "group": "Dataset Labels",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-dataset-labels",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/create-a-dataset-label",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/get-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/update-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/delete-a-dataset-label-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/list-the-labels-applied-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/replace-the-set-of-labels-applied-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/apply-a-label-to-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/dataset-labels/remove-a-label-from-a-dataset"
+                    ]
+                  },
+                  {
                     "group": "Experiments",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/update-an-experiment-by-id",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/delete-experiment-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-the-tags-applied-to-an-experiment",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/assign-a-tag-to-an-experiment",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/remove-a-tag-from-an-experiment",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-runs-for-an-experiment",
@@ -1066,7 +1211,10 @@
               "docs/phoenix/self-hosting/deployment-options/kubernetes",
               "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",
               "docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation",
-              "docs/phoenix/self-hosting/deployment-options/railway"
+              "docs/phoenix/self-hosting/deployment-options/railway",
+              "docs/phoenix/self-hosting/deployment-options/render",
+              "docs/phoenix/self-hosting/deployment-options/google-cloud-run",
+              "docs/phoenix/self-hosting/deployment-options/azure"
             ]
           },
           {
@@ -1096,21 +1244,16 @@
             ]
           },
           {
+            "group": "Advanced",
+            "icon": "gears",
+            "pages": ["docs/phoenix/self-hosting/advanced/encryption"]
+          },
+          {
             "group": "Misc",
             "icon": "boxes-stacked",
             "pages": [
               "docs/phoenix/self-hosting/misc/frequently-asked-questions"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "Phoenix Cloud",
-        "icon": "cloud",
-        "groups": [
-          {
-            "group": "Phoenix Cloud",
-            "pages": ["docs/phoenix/phoenix-cloud"]
           }
         ]
       },
@@ -1142,7 +1285,6 @@
             "pages": [
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
               "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
               "docs/phoenix/cookbook/prompt-engineering/prompt-optimization",
               "docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments"
@@ -1152,10 +1294,12 @@
             "group": "Tracing",
             "icon": "telescope",
             "pages": [
+              "docs/phoenix/cookbook/tracing/identify-high-signal-traces",
               "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
               "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
               "docs/phoenix/cookbook/tracing/structured-data-extraction",
               "docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph",
+              "docs/phoenix/cookbook/tracing/openinference-best-practices",
               "docs/phoenix/cookbook/tracing/cookbooks"
             ]
           },
@@ -1164,8 +1308,7 @@
             "icon": "user-plus",
             "pages": [
               "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
+              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript"
             ]
           },
           {
@@ -1185,13 +1328,24 @@
             "group": "Evaluation",
             "icon": "clipboard-check",
             "pages": [
+              "docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
               "docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
               "docs/phoenix/cookbook/evaluation/evaluate-an-agent",
+              "docs/phoenix/cookbook/evaluation/trace-level-evaluation",
+              "docs/phoenix/cookbook/evaluation/session-level-evaluation",
               "docs/phoenix/cookbook/evaluation/evaluate-rag",
               "docs/phoenix/cookbook/evaluation/code-readability-evaluation",
               "docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
               "docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent",
               "docs/phoenix/cookbook/evaluation/cookbooks"
+            ]
+          },
+          {
+            "group": "Guardrails & Safety",
+            "icon": "shield-halved",
+            "pages": [
+              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense",
+              "docs/phoenix/cookbook/guardrails/designing-realtime-guardrails"
             ]
           },
           {
@@ -1203,6 +1357,7 @@
               "docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
               "docs/phoenix/cookbook/datasets-and-experiments/summarization",
               "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
+              "docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness",
               "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
             ]
           }
@@ -1217,8 +1372,40 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "08.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config",
+                  "docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions",
+                  "docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts"
+                ]
+              },
+              {
+                "group": "07.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters",
+                  "docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals",
+                  "docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server",
+                  "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",
+                  "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
+                ]
+              },
+              {
+                "group": "06.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary",
+                  "docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest",
+                  "docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools",
+                  "docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing",
+                  "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",
+                  "docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update",
+                  "docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent"
+                ]
+              },
+              {
                 "group": "05.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom",
+                  "docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators",
                   "docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion",
                   "docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif",
                   "docs/phoenix/release-notes/05-2026/05-13-2026-playground-thinking-controls",
@@ -1376,7 +1563,6 @@
                 "group": "06.2025",
                 "pages": [
                   "docs/phoenix/release-notes/06-2025/06-25-2025-cost-tracking",
-                  "docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
                   "docs/phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground",
                   "docs/phoenix/release-notes/06-2025/06-13-2025-session-filtering",
                   "docs/phoenix/release-notes/06-2025/06-13-2025-enhanced-span-creation-and-logging",
@@ -1448,7 +1634,6 @@
                   "docs/phoenix/release-notes/2024/11-18-2024-prompt-playground",
                   "docs/phoenix/release-notes/2024/09-26-2024-authentication-and-rbac",
                   "docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations",
-                  "docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace",
                   "docs/phoenix/release-notes/2024/07-03-2024-datasets-and-experiments",
                   "docs/phoenix/release-notes/2024/07-02-2024-function-call-evaluations"
                 ]
@@ -1504,12 +1689,7 @@
         "title": "GitHub",
         "icon": "github"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Phoenix Cloud",
-      "href": "https://app.phoenix.arize.com/login"
-    }
+    ]
   },
   "footer": {
     "links": [
@@ -1533,6 +1713,34 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
+      "destination": "/docs/phoenix/release-notes"
+    },
+    {
+      "source": "/docs/phoenix/release-notes/2024/07-11-2024-hosted-phoenix-and-llamatrace",
+      "destination": "/docs/phoenix/release-notes"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
+    },
+    {
+      "source": "/docs/phoenix/phoenix-cloud",
+      "destination": "/docs/phoenix/self-hosting"
+    },
+    {
+      "source": "/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
+      "destination": "/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
+    },
     {
       "source": "/docs/phoenix/phoenix-deployment-options",
       "destination": "/docs/phoenix/self-hosting/architecture"
@@ -1879,15 +2087,15 @@
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/what-is-llamatrace-vs-phoenix-cloud",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/will-phoenix-cloud-be-on-the-latest-version-of-phoenix",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/phoenix-cloud-migration-guide-legacy-to-new-version",
-      "destination": "/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version"
+      "destination": "/docs/phoenix/resources/frequently-asked-questions"
     },
     {
       "source": "/docs/phoenix/learn/resources/faqs/can-i-add-other-users-to-my-phoenix-instance",

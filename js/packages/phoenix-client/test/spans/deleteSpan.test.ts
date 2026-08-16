@@ -1,129 +1,135 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { HttpError } from "../../src/errors";
 import { deleteSpan } from "../../src/spans/deleteSpan";
+import { createTestClient } from "../testUtils";
 
-// Mock the fetch module
-const mockDelete = vi.fn();
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    DELETE: mockDelete,
-    use: () => {},
-  }),
-}));
+const http = createHttp();
+
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
 
 describe("deleteSpan", () => {
-  beforeEach(() => {
-    // Clear all mocks before each test
-    vi.clearAllMocks();
-  });
-
   it("should delete a span successfully", async () => {
-    mockDelete.mockResolvedValue({
-      data: null,
-      error: null,
-    });
+    let receivedSpanIdentifier: string | undefined;
+
+    server.use(
+      http.delete("/v1/spans/{span_identifier}", ({ params, response }) => {
+        receivedSpanIdentifier = params.span_identifier;
+        return response(204).empty();
+      })
+    );
 
     await expect(
       deleteSpan({
+        client: createTestClient(),
         spanIdentifier: "test-span-123",
       })
     ).resolves.toBeUndefined();
 
-    expect(mockDelete).toHaveBeenCalledWith("/v1/spans/{span_identifier}", {
-      params: {
-        path: {
-          span_identifier: "test-span-123",
-        },
-      },
-    });
+    expect(receivedSpanIdentifier).toBe("test-span-123");
   });
 
   it("should delete a span by OpenTelemetry span_id", async () => {
-    mockDelete.mockResolvedValue({
-      data: null,
-      error: null,
-    });
+    let receivedSpanIdentifier: string | undefined;
+
+    server.use(
+      http.delete("/v1/spans/{span_identifier}", ({ params, response }) => {
+        receivedSpanIdentifier = params.span_identifier;
+        return response(204).empty();
+      })
+    );
 
     await expect(
       deleteSpan({
+        client: createTestClient(),
         spanIdentifier: "abc123def456",
       })
     ).resolves.toBeUndefined();
 
-    expect(mockDelete).toHaveBeenCalledWith("/v1/spans/{span_identifier}", {
-      params: {
-        path: {
-          span_identifier: "abc123def456",
-        },
-      },
-    });
+    expect(receivedSpanIdentifier).toBe("abc123def456");
   });
 
   it("should delete a span by Phoenix Global ID", async () => {
-    mockDelete.mockResolvedValue({
-      data: null,
-      error: null,
-    });
+    let receivedSpanIdentifier: string | undefined;
+
+    server.use(
+      http.delete("/v1/spans/{span_identifier}", ({ params, response }) => {
+        receivedSpanIdentifier = params.span_identifier;
+        return response(204).empty();
+      })
+    );
 
     await expect(
       deleteSpan({
+        client: createTestClient(),
         spanIdentifier: "U3BhbjoyMzQ1Njc4OQ==",
       })
     ).resolves.toBeUndefined();
 
-    expect(mockDelete).toHaveBeenCalledWith("/v1/spans/{span_identifier}", {
-      params: {
-        path: {
-          span_identifier: "U3BhbjoyMzQ1Njc4OQ==",
-        },
-      },
-    });
+    expect(receivedSpanIdentifier).toBe("U3BhbjoyMzQ1Njc4OQ==");
   });
 
   it("should throw error when span is not found (404)", async () => {
-    mockDelete.mockResolvedValue({
-      data: null,
-      error: {
-        status: 404,
-        message: "Not Found",
-      },
+    // The client middleware surfaces non-2xx responses as HttpError.
+    server.use(
+      http.delete("/v1/spans/{span_identifier}", ({ response }) =>
+        response(404).text("Not Found")
+      )
+    );
+
+    const deletePromise = deleteSpan({
+      client: createTestClient(),
+      spanIdentifier: "nonexistent-span",
     });
 
-    await expect(
-      deleteSpan({
-        spanIdentifier: "nonexistent-span",
-      })
-    ).rejects.toThrow("Span not found: nonexistent-span");
+    await expect(deletePromise).rejects.toThrow(HttpError);
+    await expect(deletePromise).rejects.toMatchObject({ status: 404 });
   });
 
   it("should throw error for other API errors", async () => {
-    mockDelete.mockResolvedValue({
-      data: null,
-      error: {
-        status: 500,
-        message: "Internal Server Error",
-      },
+    server.use(
+      http.delete("/v1/spans/{span_identifier}", ({ response }) =>
+        response.untyped(new Response("Internal Server Error", { status: 500 }))
+      )
+    );
+
+    const deletePromise = deleteSpan({
+      client: createTestClient(),
+      spanIdentifier: "test-span-123",
     });
 
-    await expect(
-      deleteSpan({
-        spanIdentifier: "test-span-123",
-      })
-    ).rejects.toThrow("Failed to delete span:");
+    await expect(deletePromise).rejects.toThrow(HttpError);
+    await expect(deletePromise).rejects.toMatchObject({ status: 500 });
   });
 
   it("should handle errors without message", async () => {
-    mockDelete.mockResolvedValue({
-      data: null,
-      error: {
-        status: 400,
-      },
+    server.use(
+      http.delete("/v1/spans/{span_identifier}", ({ response }) =>
+        response.untyped(new Response(null, { status: 400 }))
+      )
+    );
+
+    const deletePromise = deleteSpan({
+      client: createTestClient(),
+      spanIdentifier: "test-span-123",
     });
 
-    await expect(
-      deleteSpan({
-        spanIdentifier: "test-span-123",
-      })
-    ).rejects.toThrow("Failed to delete span:");
+    await expect(deletePromise).rejects.toThrow(HttpError);
+    await expect(deletePromise).rejects.toMatchObject({ status: 400 });
   });
 });

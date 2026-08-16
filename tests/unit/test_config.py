@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from typing import Any, Optional, get_args
 from unittest.mock import MagicMock
@@ -9,10 +10,6 @@ from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
 from phoenix.config import (
-    ENV_PHOENIX_ADMINS,
-    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
-    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
-    ENV_PHOENIX_SQL_DATABASE_URL,
     AssignableUserRoleName,
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
@@ -123,8 +120,8 @@ class TestGetEnvDatabaseSchema:
 
     @staticmethod
     def _clear_db_env(monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_URL, raising=False)
-        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, raising=False)
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
         for key in (
             "PHOENIX_POSTGRES_USER",
             "PHOENIX_POSTGRES_PASSWORD",
@@ -138,28 +135,28 @@ class TestGetEnvDatabaseSchema:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         self._clear_db_env(monkeypatch)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, "sqlite:////tmp/phoenix.db")
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "custom")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "sqlite:////tmp/phoenix.db")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "custom")
         assert get_env_database_schema() is None
 
     def test_postgres_unset_schema_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self._clear_db_env(monkeypatch)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
-        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, raising=False)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
         assert get_env_database_schema() is None
 
     def test_postgres_empty_string_schema_returns_none(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         self._clear_db_env(monkeypatch)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "")
         assert get_env_database_schema() is None
 
     def test_postgres_non_empty_schema_returned(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self._clear_db_env(monkeypatch)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "phoenix_app")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "phoenix_app")
         assert get_env_database_schema() == "phoenix_app"
 
 
@@ -246,9 +243,9 @@ class TestGetEnvStartupAdmins:
         expected_result: dict[str, str],
     ) -> None:
         if env_value:
-            monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
+            monkeypatch.setenv("PHOENIX_ADMINS", env_value)
         else:
-            monkeypatch.delenv(ENV_PHOENIX_ADMINS, raising=False)
+            monkeypatch.delenv("PHOENIX_ADMINS", raising=False)
         result = get_env_admins()
         assert result == expected_result
 
@@ -312,7 +309,7 @@ class TestGetEnvStartupAdmins:
         env_value: str,
         expected_error_msg: str,
     ) -> None:
-        monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
+        monkeypatch.setenv("PHOENIX_ADMINS", env_value)
         with pytest.raises(ValueError) as e:
             get_env_admins()
         assert expected_error_msg in str(e.value)
@@ -844,38 +841,33 @@ def test_ensure_working_dir_if_needed_skips_when_no_local_storage(
     mkdir_spy.assert_not_called()
 
 
-def test_allow_external_resources_env_var_exists() -> None:
-    """Test that the ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES constant is properly defined."""
-    assert ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES == "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
-
-
 def test_allow_external_resources_env_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that the environment variable parsing logic works correctly."""
     import os
 
     # Test default (env var not set) - should be True
-    monkeypatch.delenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, raising=False)
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.delenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", raising=False)
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit True
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit true (lowercase)
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "true")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "true")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit False
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "False")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "False")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "false"
 
     # Test explicit false (lowercase)
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "false")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "false"
 
     # Test invalid value - should be false (not "true")
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "invalid")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() != "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "invalid")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() != "true"
 
 
 class TestOAuth2ClientConfigFromEnv:
@@ -1310,6 +1302,47 @@ class TestOAuth2ClientConfigFromEnv:
         assert config.role_attribute_path == "roles"
         assert config.role_mapping == {"Owner": "ADMIN"}
         assert config.role_attribute_strict is False
+
+    def test_role_resync_defaults_true(self, monkeypatch: MonkeyPatch) -> None:
+        """role_resync defaults to True."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_resync is True
+
+    def test_role_resync_disabled(self, monkeypatch: MonkeyPatch) -> None:
+        """ROLE_RESYNC is parsed as a boolean."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_RESYNC", "false")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_resync is False
+
+    def test_role_resync_disabled_without_role_attribute_path_raises(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """ROLE_RESYNC=false without ROLE_ATTRIBUTE_PATH is a no-op and is rejected at startup."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_RESYNC", "false")
+
+        with pytest.raises(ValueError, match="ROLE_RESYNC is set to"):
+            OAuth2ClientConfig.from_env("test")
 
     def test_role_mapping_multiple(self, monkeypatch: MonkeyPatch) -> None:
         """Test multiple role mappings configuration."""
@@ -2307,6 +2340,48 @@ class TestValidateEnvAllowedSandboxProviders:
             validate_env_allowed_sandbox_providers()
 
 
+class TestValidateEnvWasmBinaryPath:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        from phoenix.config import validate_env_wasm_binary_path
+
+        validate_env_wasm_binary_path()
+
+    def test_set_to_existing_file_does_not_raise(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
+        binary = tmp_path / "python-3.12.0.wasm"
+        binary.write_bytes(b"fake wasm")
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(binary))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        validate_env_wasm_binary_path()
+
+    def test_set_to_missing_file_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        missing = tmp_path / "does-not-exist.wasm"
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(missing))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="PHOENIX_WASM_BINARY_PATH"):
+            validate_env_wasm_binary_path()
+
+    def test_set_to_directory_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(tmp_path))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="PHOENIX_WASM_BINARY_PATH"):
+            validate_env_wasm_binary_path()
+
+    def test_set_to_empty_file_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        empty = tmp_path / "empty.wasm"
+        empty.touch()
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(empty))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="empty"):
+            validate_env_wasm_binary_path()
+
+
 class TestPostgresConnectionStringManagedIdentity:
     """Tests for Azure managed identity path in get_env_postgres_connection_str()."""
 
@@ -2458,3 +2533,133 @@ class TestGetEnvPostgresAzureScope:
         assert (
             get_env_postgres_azure_scope() == "https://ossrdbms-aad.database.windows.net/.default"
         )
+
+
+class TestClientAssertionJWTFromEnv:
+    """Tests for TOKEN_ENDPOINT_AUTH_METHOD=client_assertion_jwt in OAuth2ClientConfig.from_env."""
+
+    _BASE_ENVS = {
+        "PHOENIX_OAUTH2_ENTRA_CLIENT_ID": "entra-client-id",
+        "PHOENIX_OAUTH2_ENTRA_OIDC_CONFIG_URL": (
+            "https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration"
+        ),
+        "PHOENIX_OAUTH2_ENTRA_TOKEN_ENDPOINT_AUTH_METHOD": "client_assertion_jwt",
+    }
+
+    @staticmethod
+    def _abs(*parts: str) -> str:
+        """An absolute path on every platform: Windows needs a drive, and >=3.13 enforces it."""
+        return str(Path(tempfile.gettempdir(), *parts))
+
+    @pytest.fixture(autouse=True)
+    def _base_envs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for k, v in self._BASE_ENVS.items():
+            monkeypatch.setenv(k, v)
+        monkeypatch.delenv("AZURE_FEDERATED_TOKEN_FILE", raising=False)
+
+    def test_explicit_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", self._abs("explicit", "token")
+        )
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == self._abs("explicit", "token")
+        assert config.client_secret is None
+        assert config.token_endpoint_auth_method == "client_assertion_jwt"
+
+    def test_path_resolved_from_named_variable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == self._abs("webhook", "token")
+
+    def test_named_variable_is_not_read_implicitly(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The variable is set but this provider never named it, so it must not be picked up.
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
+        with pytest.raises(ValueError, match="client_assertion_file is required"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_one_provider_naming_the_variable_does_not_bind_another(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The crossover this design exists to prevent: a global variable reaching a provider
+        # that never asked for it.
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "azure-token"))
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_OKTA_CLIENT_ID", "okta-client")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_OKTA_OIDC_CONFIG_URL",
+            "https://acme.okta.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_OKTA_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt")
+
+        assert OAuth2ClientConfig.from_env("entra").client_assertion_file == self._abs(
+            "webhook", "azure-token"
+        )
+        with pytest.raises(ValueError, match="client_assertion_file is required"):
+            OAuth2ClientConfig.from_env("okta")
+
+    def test_both_settings_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", self._abs("explicit", "token")
+        )
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_named_variable_unset_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        with pytest.raises(ValueError, match="unset or empty"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_relative_direct_path_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Same rule whichever setting supplied it: a relative path resolves against a working
+        # directory nothing about the deployment pins.
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "secrets/token")
+        with pytest.raises(ValueError, match="must be an absolute path"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_relative_indirect_path_does_not_echo_the_value(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SOME_VARIABLE", "not-a-path-secret")
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "SOME_VARIABLE")
+        with pytest.raises(ValueError) as exc_info:
+            OAuth2ClientConfig.from_env("entra")
+
+        assert "not-a-path-secret" not in str(exc_info.value)
+        assert "SOME_VARIABLE" in str(exc_info.value)
+
+    def test_any_idp_name_is_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # IDP names are operator-chosen, so the mechanism cannot be gated on one.
+        monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ID", "some-id")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_COMPANY_SSO_OIDC_CONFIG_URL",
+            "https://sso.example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_COMPANY_SSO_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt"
+        )
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ASSERTION_FILE", self._abs("spiffe", "jwt-svid")
+        )
+        config = OAuth2ClientConfig.from_env("company_sso")
+        assert config.client_assertion_file == self._abs("spiffe", "jwt-svid")
+
+    def test_assertion_file_unset_for_other_methods(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "some-id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", "some-secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL",
+            "https://accounts.google.com/.well-known/openid-configuration",
+        )
+        config = OAuth2ClientConfig.from_env("google")
+        assert config.client_assertion_file is None

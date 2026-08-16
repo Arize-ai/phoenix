@@ -1,5 +1,10 @@
-import type { FunctionDeclaration, Tool, Content, Part } from "@google/genai";
-import type { GenerateContentParameters } from "@google/genai";
+import type {
+  Content,
+  FunctionDeclaration,
+  GenerateContentParameters,
+  Part,
+  Tool,
+} from "@google/genai";
 import type { Response } from "express";
 
 import { generateFakeData } from "../fake-data.js";

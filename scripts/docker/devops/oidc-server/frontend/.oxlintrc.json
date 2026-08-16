@@ -1,10 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "import",
-    "react",
-    "typescript"
-  ],
+  "plugins": ["import", "react", "typescript"],
   "env": {
     "browser": true
   },
@@ -25,12 +21,9 @@
     "typescript/consistent-return": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-unsafe-type-assertion": "error",
-    "eqeqeq": [
-      "error",
-      "smart"
-    ],
+    "eqeqeq": ["error", "smart"],
     "eslint/prefer-const": "error",
-    "eslint/no-implicit-conversion": [
+    "eslint/no-implicit-coercion": [
       "error",
       {
         "boolean": false,
@@ -48,8 +41,5 @@
       }
     ]
   },
-  "ignorePatterns": [
-    "dist/**",
-    "node_modules/**"
-  ]
+  "ignorePatterns": ["dist/**", "node_modules/**"]
 }

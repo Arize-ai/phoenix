@@ -90,6 +90,42 @@ const weatherTool = async (city: string) => {
 const tracedWeatherTool = traceTool(weatherTool, { name: "weather-api" });
 ```
 
+### Additional Span-Kind Wrappers
+
+The remaining OpenInference span kinds each have a matching wrapper. Like `traceChain`/`traceAgent`/`traceTool`, each is a shorthand for `withSpan(fn, { ...options, kind })` and accepts the same options minus `kind`. These wrappers are marked `@experimental` and may change in a future release.
+
+| Wrapper | Span kind | Use it for |
+| ------- | --------- | ---------- |
+| `traceLLM` | `LLM` | Language-model invocations — chat/text completions and other inference calls |
+| `traceRetriever` | `RETRIEVER` | Fetching documents from a knowledge base, vector store, or search index (RAG) |
+| `traceReranker` | `RERANKER` | Reordering or scoring candidate documents by relevance |
+| `traceEmbedding` | `EMBEDDING` | Converting text or data into vector representations |
+| `traceGuardrail` | `GUARDRAIL` | Safety, validation, or policy checks (moderation, PII, compliance) |
+| `traceEvaluator` | `EVALUATOR` | Scoring output quality — relevance, correctness, or LLM-as-a-judge |
+| `tracePrompt` | `PROMPT` | Constructing, rendering, or templating a prompt before a model call |
+
+```typescript
+import {
+  traceEmbedding,
+  traceEvaluator,
+  traceGuardrail,
+  traceLLM,
+  tracePrompt,
+  traceReranker,
+  traceRetriever,
+} from "@arizeai/openinference-core";
+
+const retrieveDocuments = traceRetriever(
+  async (query: string) => vectorStore.similaritySearch(query, 5),
+  { name: "vector-search" }
+);
+
+const evaluateAnswer = traceEvaluator(
+  async (question: string, answer: string) => judge.score({ question, answer }),
+  { name: "answer-evaluation" }
+);
+```
+
 ---
 
 ## Decorators

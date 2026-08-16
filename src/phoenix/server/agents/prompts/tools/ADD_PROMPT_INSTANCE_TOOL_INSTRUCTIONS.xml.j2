@@ -1,0 +1,13 @@
+<tool name="add_prompt_instance">
+  <description>Add a fresh chat prompt instance with the default prompt messages to the mounted playground so the user can compare a new variant without copying existing prompt messages.</description>
+  <when_to_use>
+    - The user asks to add a new prompt instance, fresh comparison, default-content variant, or another prompt slot.
+    - You need a prompt candidate that starts from the playground default messages before proposing edits and the user did not ask to preserve the current prompt content.
+  </when_to_use>
+  <guidelines>
+    - This creates a prompt instance with the playground default chat messages, fresh message IDs, and no saved prompt association, while inheriting runnable model and tool configuration from the playground.
+    - Use `clone_prompt_instance` instead when the user wants to keep the existing prompt content as the starting point for a variant.
+    - The playground supports at most 4 comparison instances; if the limit is reached, ask the user which instance to remove before retrying.
+    - After adding, use the returned `addedInstance` snapshot for the instance ID, message IDs, and revision needed by `edit_prompt_instance`.
+  </guidelines>
+</tool>

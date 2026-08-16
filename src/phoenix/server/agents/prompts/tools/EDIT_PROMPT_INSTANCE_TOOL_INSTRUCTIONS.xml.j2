@@ -21,6 +21,7 @@
     - Required fields by operation: `update_message` requires `messageId` and at least one of `role`/`content`/`toolCalls`; `insert_message` requires `role` and optionally `afterMessageId`/`content`/`toolCalls`; `delete_message` requires `messageId`; `reorder_messages` requires `messageIds`.
   </operations>
   <guidelines>
+    - Message content can reference template variables whose names resolve relative to the active template-variables path (default `input`); a name's first segment must be a key at that path — e.g. `question` under `input`, or `input.question` / `reference.answer` at the example root. To pull a field from a different root, the name and the path must agree; set the root with `set_template_variables_path`.
     - Keep edits small and focused so the user can read the diff. If the user asked for several conceptually distinct changes, group them by intent rather than dumping every operation at once.
     - After proposing the edit, briefly summarize what the diff will show so the user knows what they are accepting or rejecting.
   </guidelines>

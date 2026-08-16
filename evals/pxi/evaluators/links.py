@@ -24,6 +24,10 @@ def _expected_links(expected: Any) -> dict[str, Any]:
     return _as_dict(_as_dict(expected).get("links", {}))
 
 
+def _expects_route_info_before_in_app_links(expected: Any) -> bool:
+    return bool(_expected_links(expected).get("route_info_before_in_app_links", False))
+
+
 def _required_in_app_links(expected: Any) -> list[str]:
     required = _expected_links(expected).get("required_in_app", [])
     return [link for link in required if isinstance(link, str)]
@@ -69,6 +73,36 @@ def _invalid_in_app_hrefs(hrefs: list[str], required_paths: list[str]) -> list[s
     return invalid
 
 
+def _is_root_relative_app_href(href: str) -> bool:
+    return href.startswith("/") and not href.startswith("//")
+
+
+def _in_app_hrefs_before_tool(output: Any, tool_name: str) -> list[str]:
+    messages = _as_dict(output).get("messages", [])
+    if not isinstance(messages, list):
+        return []
+    hrefs_before_tool: list[str] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        parts = message.get("parts", [])
+        if not isinstance(parts, list):
+            continue
+        for part in parts:
+            if not isinstance(part, dict):
+                continue
+            if part.get("part_kind") == "tool-call" and part.get("tool_name") == tool_name:
+                return hrefs_before_tool
+            if part.get("part_kind") != "text":
+                continue
+            content = part.get("content")
+            if not isinstance(content, str):
+                continue
+            hrefs, _ = _markdown_href_spans(content)
+            hrefs_before_tool.extend(href for href in hrefs if _is_root_relative_app_href(href))
+    return hrefs_before_tool
+
+
 def _failure(explanation: str, metadata: dict[str, Any]) -> dict[str, Any]:
     return {
         "score": 0.0,
@@ -78,10 +112,41 @@ def _failure(explanation: str, metadata: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _success(explanation: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "score": 1.0,
+        "label": "pass",
+        "explanation": explanation,
+        "metadata": metadata,
+    }
+
+
 def evaluate_in_app_links(output: Any, expected: Any) -> dict[str, Any]:
     """Evaluate PXI answer links against root-relative in-app link expectations."""
-    text = _assistant_text(output)
+    route_info_before_links = _expects_route_info_before_in_app_links(expected)
     required = _required_in_app_links(expected)
+    if route_info_before_links:
+        pre_tool_hrefs = _in_app_hrefs_before_tool(output, "get_route_info")
+        if pre_tool_hrefs:
+            return _failure(
+                "Assistant output included in-app links before calling get_route_info.",
+                {
+                    "observed_in_app_hrefs_before_get_route_info": pre_tool_hrefs,
+                },
+            )
+        if not required:
+            return _success(
+                "Assistant output did not include in-app links before get_route_info.",
+                {"observed_in_app_hrefs_before_get_route_info": []},
+            )
+
+    if not required:
+        return _success(
+            "No in-app link expectations were configured for this example.",
+            {"required_in_app": []},
+        )
+
+    text = _assistant_text(output)
     if text is None:
         return _failure(
             "Assistant output did not include text.",
@@ -112,12 +177,10 @@ def evaluate_in_app_links(output: Any, expected: Any) -> dict[str, Any]:
     if invalid_in_app:
         return _failure("Assistant output included non-root-relative app links.", metadata)
 
-    return {
-        "score": 1.0,
-        "label": "pass",
-        "explanation": "All required in-app links were emitted as root-relative markdown links.",
-        "metadata": metadata,
-    }
+    return _success(
+        "All required in-app links were emitted as root-relative markdown links.",
+        metadata,
+    )
 
 
 @create_evaluator(name="in_app_links_valid", kind="code")

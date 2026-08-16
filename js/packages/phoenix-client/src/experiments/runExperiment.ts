@@ -47,13 +47,18 @@ import {
 } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
+import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
 import {
   logEvalSummary,
   logLinks,
   logTaskSummary,
   PROGRESS_PREFIX,
 } from "./logging";
-import { cleanupOwnedTracerProvider } from "./tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Validate that a repetition is valid
@@ -269,14 +274,11 @@ export async function runExperiment({
     };
     // Initialize the tracer, now that we have a project name
     const baseUrl = client.config.baseUrl;
-    invariant(
-      baseUrl,
-      "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-    );
+    invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
 
     taskProvider = register({
       projectName,
-      url: baseUrl,
+      url: getTraceExportUrl(client.config),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,
@@ -485,7 +487,7 @@ function runTaskWithExamples({
         id: localId(), // initialized with local id, will be replaced with server-assigned id when dry run is false
         traceId,
         experimentId,
-        datasetExampleId: example.id,
+        datasetExampleId: getExampleGlobalId(example),
         startTime: new Date(),
         endTime: new Date(), // will get replaced with actual end time
         output: null,
@@ -509,7 +511,7 @@ function runTaskWithExamples({
             },
           },
           body: {
-            dataset_example_id: example.nodeId,
+            dataset_example_id: getExampleGlobalId(example),
             output: thisRun.output,
             repetition_number: repetitionNumber,
             start_time: thisRun.startTime.toISOString(),
@@ -620,10 +622,7 @@ export async function evaluateExperiment({
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
   let provider: NodeTracerProvider;
   let globalRegistration: GlobalTracerProviderRegistration | null = null;
   const ownsProvider = !paramsTracerProvider;
@@ -634,7 +633,7 @@ export async function evaluateExperiment({
   } else if (!isDryRun) {
     provider = register({
       projectName: "evaluators",
-      url: baseUrl,
+      url: getTraceExportUrl(client.config),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,
@@ -681,9 +680,11 @@ export async function evaluateExperiment({
     type EvaluationId = string;
     const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
 
+    // Index examples by node GlobalID, matching how runs record
+    // datasetExampleId.
     const examplesById: Record<string, Example> = {};
     for (const example of dataset.examples) {
-      examplesById[example.id] = example;
+      examplesById[getExampleGlobalId(example)] = example;
     }
 
     const onEvaluationComplete = (run: ExperimentEvaluationRun) => {

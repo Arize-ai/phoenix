@@ -1,0 +1,15 @@
+<tool name="create_dataset_label">
+  <description>Create a new dataset label and, by default, attach it to the dataset the user is viewing. A label is a tag used to organize and find datasets. Label names are unique across this Phoenix instance; if the name is taken the call fails and you should pick a different name. To attach an existing label, use set_dataset_labels instead.</description>
+  <when_to_use>
+    - The user asks to label/tag the dataset with a new label that does not exist yet.
+  </when_to_use>
+  <preflight>
+    - Check existing labels with list_labels first; if the label already exists, attach it with set_dataset_labels rather than creating a duplicate.
+    - Pick a clear, unique name (deciding the name is a content question and is fine to ask about).
+  </preflight>
+  <rules>
+    - Propose the label by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and creates it only when the user accepts; in bypass mode it is created immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+    - Names are unique. If creation fails because the name already exists, choose a different name.
+    - color is optional (a hex value like #33c5e8); omit it for a default. Set attachToDataset to false to create the label without tagging the current dataset.
+  </rules>
+</tool>

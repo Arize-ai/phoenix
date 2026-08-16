@@ -48,6 +48,18 @@ Supported Context Attributes include:
 
   </Tab>
 
+  <Tab title="Go" icon="golang">
+
+    ```bash
+    go get github.com/Arize-ai/openinference/go/openinference-instrumentation
+    ```
+
+    <Note>
+    Phoenix does not ship a `phoenix-otel-go` wrapper. Use the OpenInference Go `instrumentation` package directly to store context attributes on `context.Context`. See [Go integrations](/docs/phoenix/integrations) for tracer-provider setup.
+    </Note>
+
+  </Tab>
+
 </Tabs>
 
 ### Specifying a session
@@ -97,6 +109,20 @@ Supported Context Attributes include:
 
   </Tab>
 
+  <Tab title="Go" icon="golang">
+
+    Use `instrumentation.WithSession` to attach a session ID to the context. OpenInference Go auto-instrumentors (OpenAI Go, Anthropic Go) automatically read this from `context.Context` and add `session.id` to every LLM span descended from it.
+
+    ```go
+    import "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+
+    ctx = instrumentation.WithSession(ctx, "my-session-id")
+    // Calls within this context will generate spans with the attributes:
+    // "session.id" = "my-session-id"
+    ```
+
+  </Tab>
+
 </Tabs>
 
 ### Specifying users
@@ -141,6 +167,20 @@ Supported Context Attributes include:
         // "user.id" = "user-id"
       }
     )
+    ```
+
+  </Tab>
+
+  <Tab title="Go" icon="golang">
+
+    Use `instrumentation.WithUser` to attach a user ID to the context. OpenInference Go auto-instrumentors automatically read this from `context.Context` and add `user.id` to every LLM span descended from it.
+
+    ```go
+    import "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+
+    ctx = instrumentation.WithUser(ctx, "my-user-id")
+    // Calls within this context will generate spans with the attributes:
+    // "user.id" = "my-user-id"
     ```
 
   </Tab>
@@ -198,6 +238,27 @@ Supported Context Attributes include:
 
   </Tab>
 
+  <Tab title="Go" icon="golang">
+
+    Use `instrumentation.WithMetadata` to attach a JSON-encoded metadata string to the context. OpenInference Go auto-instrumentors automatically read this from `context.Context` and add `metadata` to every LLM span descended from it.
+
+    ```go
+    import (
+        "encoding/json"
+
+        "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+    )
+
+    metadata := map[string]any{"key1": "value1", "key2": "value2"}
+    metadataJSON, _ := json.Marshal(metadata)
+
+    ctx = instrumentation.WithMetadata(ctx, string(metadataJSON))
+    // Calls within this context will generate spans with the attributes:
+    // "metadata" = '{"key1": "value1", "key2": "value2"}'
+    ```
+
+  </Tab>
+
 </Tabs>
 
 ### Specifying Tags
@@ -243,6 +304,20 @@ Supported Context Attributes include:
         // "tag.tags" = '["value1", "value2"]'
       }
     )
+    ```
+
+  </Tab>
+
+  <Tab title="Go" icon="golang">
+
+    Use `instrumentation.WithTags` (variadic strings) to attach a list of tags to the context. OpenInference Go auto-instrumentors automatically read this from `context.Context` and add `tag.tags` to every LLM span descended from it.
+
+    ```go
+    import "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+
+    ctx = instrumentation.WithTags(ctx, "tag_1", "tag_2")
+    // Calls within this context will generate spans with the attributes:
+    // "tag.tags" = '["tag_1","tag_2"]'
     ```
 
   </Tab>
@@ -388,6 +463,35 @@ Supported Context Attributes include:
       }
     )
     ```
+
+  </Tab>
+
+  <Tab title="Go" icon="golang">
+
+    Go has no single-shot equivalent of `using_attributes` — compose the `With*` helpers instead. Each returns a new context; chain them to attach session, user, metadata, and tags together. Auto-instrumentors pick up all four from `context.Context`.
+
+    ```go
+    import (
+        "encoding/json"
+
+        "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+    )
+
+    metadata := map[string]any{"key-1": "value_1", "key-2": "value_2"}
+    metadataJSON, _ := json.Marshal(metadata)
+
+    ctx = instrumentation.WithSession(ctx, "my-session-id")
+    ctx = instrumentation.WithUser(ctx, "my-user-id")
+    ctx = instrumentation.WithMetadata(ctx, string(metadataJSON))
+    ctx = instrumentation.WithTags(ctx, "tag_1", "tag_2")
+    // Calls within this context will generate spans with the attributes:
+    // "session.id"  = "my-session-id"
+    // "user.id"     = "my-user-id"
+    // "metadata"    = '{"key-1":"value_1","key-2":"value_2"}'
+    // "tag.tags"    = '["tag_1","tag_2"]'
+    ```
+
+    For prompt-template attributes (`llm.prompt_template.*`), set them directly on the LLM span using `semconv.LLMPromptTemplate` / `LLMPromptTemplateVersion` / `LLMPromptTemplateVariables` from `github.com/Arize-ai/openinference/go/openinference-semantic-conventions` — see [Prompt Templates](/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables).
 
   </Tab>
 

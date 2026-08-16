@@ -6,8 +6,8 @@ from typing import Any, Optional
 import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from pydantic import Field
-from sqlalchemy import and_, case, func, select
+from pydantic import Field, model_validator
+from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
@@ -21,6 +21,7 @@ from phoenix.db.helpers import (
     insert_experiment_with_examples_snapshot,
 )
 from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
@@ -58,6 +59,8 @@ class Experiment(V1RoutesBaseModel):
     dataset_version_id: str = Field(
         description="The ID of the dataset version associated with the experiment"
     )
+    name: str = Field(description="The name of the experiment")
+    description: Optional[str] = Field(description="The description of the experiment")
     repetitions: int = Field(description="Number of times the experiment is repeated", gt=0)
     metadata: dict[str, Any] = Field(description="Metadata of the experiment")
     project_name: Optional[str] = Field(
@@ -267,6 +270,8 @@ async def create_experiment(
             id=str(experiment_globalid),
             dataset_id=str(dataset_globalid),
             dataset_version_id=str(dataset_version_globalid),
+            name=experiment.name,
+            description=experiment.description,
             repetitions=experiment.repetitions,
             metadata=experiment.metadata_,
             project_name=experiment.project_name,
@@ -364,6 +369,169 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
             id=str(experiment_globalid),
             dataset_id=str(dataset_globalid),
             dataset_version_id=str(dataset_version_globalid),
+            name=experiment.name,
+            description=experiment.description,
+            repetitions=experiment.repetitions,
+            metadata=experiment.metadata_,
+            project_name=experiment.project_name,
+            created_at=experiment.created_at,
+            updated_at=experiment.updated_at,
+            example_count=example_count or 0,
+            successful_run_count=successful_run_count or 0,
+            failed_run_count=failed_run_count or 0,
+            missing_run_count=missing_run_count,
+        )
+    )
+
+
+class UpdateExperimentRequestBody(V1RoutesBaseModel):
+    """
+    Fields to update on an experiment. Omit a field to leave it unchanged.
+    """
+
+    name: Optional[str] = Field(
+        default=UNDEFINED,
+        description="New name for the experiment (null is rejected; name is required)",
+    )
+    description: Optional[str] = Field(
+        default=UNDEFINED,
+        description="New description for the experiment (null clears the description)",
+    )
+    metadata: Optional[dict[str, Any]] = Field(
+        default=UNDEFINED,
+        description=(
+            "New metadata object for the experiment (replaces the existing metadata as a "
+            "whole; null is rejected)"
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _reject_explicit_null_name_and_metadata(self) -> "UpdateExperimentRequestBody":
+        # `name` and `metadata` are non-nullable: an omitted field stays UNDEFINED, but an
+        # explicit JSON `null` arrives as None and must be rejected (422) rather than silently
+        # dropped — otherwise `{"name": null, "description": "x"}` would 200 and ignore the name.
+        if self.name is None:
+            raise ValueError("name cannot be null")
+        if self.metadata is None:
+            raise ValueError("metadata cannot be null")
+        return self
+
+
+class UpdateExperimentResponseBody(ResponseBody[Experiment]):
+    pass
+
+
+@router.patch(
+    "/experiments/{experiment_id}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="updateExperiment",
+    summary="Update an experiment by ID",
+    description=(
+        "Partially update an experiment's name, description, and/or metadata. Only the "
+        "fields included in the request body are changed; omitted fields are left as-is. "
+        "Patching an ephemeral experiment refreshes its last-update timestamp, which "
+        "extends the window before it is swept away."
+    ),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Experiment not found"},
+            {"status_code": 422, "description": "Invalid experiment ID or request body"},
+        ]
+    ),
+    response_description="Experiment updated successfully",
+)
+async def update_experiment(
+    request: Request,
+    request_body: UpdateExperimentRequestBody,
+    experiment_id: str = Path(..., title="Experiment ID"),
+) -> UpdateExperimentResponseBody:
+    try:
+        experiment_globalid = GlobalID.from_id(experiment_id)
+    except Exception as e:
+        raise HTTPException(
+            detail=f"Invalid experiment ID format: {experiment_id}",
+            status_code=422,
+        ) from e
+    try:
+        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Experiment with ID {experiment_globalid} does not exist",
+            status_code=404,
+        )
+
+    patch = {
+        column.key: patch_value
+        for column, patch_value, column_is_nullable in (
+            (models.Experiment.name, request_body.name, False),
+            (models.Experiment.description, request_body.description, True),
+            (models.Experiment.metadata_, request_body.metadata, False),
+        )
+        if patch_value is not UNDEFINED and (patch_value is not None or column_is_nullable)
+    }
+    if not patch:
+        raise HTTPException(
+            detail="No fields to update",
+            status_code=422,
+        )
+
+    async with request.app.state.db() as session:
+        experiment = await session.scalar(
+            update(models.Experiment)
+            .where(models.Experiment.id == experiment_rowid)
+            .values(**patch)
+            .returning(models.Experiment)
+        )
+        if experiment is None:
+            raise HTTPException(
+                detail=f"Experiment with ID {experiment_globalid} does not exist",
+                status_code=404,
+            )
+
+        dataset_globalid = GlobalID("Dataset", str(experiment.dataset_id))
+        dataset_version_globalid = GlobalID("DatasetVersion", str(experiment.dataset_version_id))
+
+        run_counts_subq = (
+            select(
+                func.sum(case((models.ExperimentRun.error.is_(None), 1), else_=0)).label(
+                    "successful_run_count"
+                ),
+                func.sum(case((models.ExperimentRun.error.is_not(None), 1), else_=0)).label(
+                    "failed_run_count"
+                ),
+            )
+            .select_from(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_rowid)
+            .subquery()
+        )
+
+        counts_result = await session.execute(
+            select(
+                select(func.count())
+                .select_from(models.ExperimentDatasetExample)
+                .where(models.ExperimentDatasetExample.experiment_id == experiment_rowid)
+                .scalar_subquery()
+                .label("example_count"),
+                run_counts_subq.c.successful_run_count,
+                run_counts_subq.c.failed_run_count,
+            ).select_from(run_counts_subq)
+        )
+        counts = counts_result.one()
+        example_count = counts.example_count
+        successful_run_count = counts.successful_run_count
+        failed_run_count = counts.failed_run_count
+
+        total_expected_runs = (example_count or 0) * experiment.repetitions
+        missing_run_count = (
+            total_expected_runs - (successful_run_count or 0) - (failed_run_count or 0)
+        )
+    return UpdateExperimentResponseBody(
+        data=Experiment(
+            id=str(experiment_globalid),
+            dataset_id=str(dataset_globalid),
+            dataset_version_id=str(dataset_version_globalid),
+            name=experiment.name,
+            description=experiment.description,
             repetitions=experiment.repetitions,
             metadata=experiment.metadata_,
             project_name=experiment.project_name,
@@ -740,6 +908,8 @@ async def list_experiments(
                     dataset_version_id=str(
                         GlobalID("DatasetVersion", str(experiment.dataset_version_id))
                     ),
+                    name=experiment.name,
+                    description=experiment.description,
                     repetitions=experiment.repetitions,
                     metadata=experiment.metadata_,
                     project_name=experiment.project_name,

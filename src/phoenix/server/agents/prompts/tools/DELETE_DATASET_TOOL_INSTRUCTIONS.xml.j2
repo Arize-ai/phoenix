@@ -1,0 +1,10 @@
+<tool name="delete_dataset">
+  <description>Permanently delete the dataset the user is viewing, including all of its rows, splits associations, experiments, and history. This cannot be undone.</description>
+  <when_to_use>
+    - The user explicitly asks to delete the dataset they are viewing.
+  </when_to_use>
+  <rules>
+    - This is destructive and irreversible. Only call it when the user has clearly asked to delete this dataset.
+    - Propose the deletion by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and deletes only when the user accepts; in bypass mode it deletes immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+  </rules>
+</tool>

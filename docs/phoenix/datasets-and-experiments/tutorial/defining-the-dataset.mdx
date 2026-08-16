@@ -153,9 +153,9 @@ dataset = px_client.datasets.create_dataset(
 ```
 
 ```typescript TypeScript
-import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
 
-await createOrGetDataset({
+await createDataset({
   name: "support-ticket-queries",
   description: "Support ticket queries with ground truth categories",
   examples: datasetExamples.map((item) => ({

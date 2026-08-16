@@ -1,0 +1,148 @@
+dataset_name: playground_experiment_recording
+description: >-
+  PXI eval suite for mounted playground experiment-recording changes. Covers
+  requests to persist dataset-backed playground runs as experiments, explicitly
+  run without recording, and negative cases where the agent should run normally
+  or save the prompt rather than changing run persistence.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - tool_call_count_within_limit
+examples:
+  - id: record-next-run
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: false
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Record the next playground run as an experiment, then run it.
+    expected:
+      tools:
+        required: [set_playground_experiment_recording]
+      tool_call_args:
+        set_playground_experiment_recording:
+          recordExperiments: true
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: explicit_record_next_run
+      difficulty: obvious
+      polarity: positive
+
+  - id: persist-dataset-results
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: false
+          instances:
+            - instanceId: 102
+      messages:
+        - role: user
+          content: Persist this dataset-backed playground run so we can compare the experiment later.
+    expected:
+      tools:
+        required: [set_playground_experiment_recording]
+      tool_call_args:
+        set_playground_experiment_recording:
+          recordExperiments: true
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: persist_dataset_results
+      difficulty: obvious
+      polarity: positive
+
+  - id: unrecorded-throwaway-run
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: true
+          instances:
+            - instanceId: 103
+      messages:
+        - role: user
+          content: Do a throwaway run without recording an experiment.
+    expected:
+      tools:
+        required: [set_playground_experiment_recording]
+      tool_call_args:
+        set_playground_experiment_recording:
+          recordExperiments: false
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: explicit_unrecorded_run
+      difficulty: obvious
+      polarity: positive
+
+  - id: normal-run-no-recording-change
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: true
+          instances:
+            - instanceId: 201
+      messages:
+        - role: user
+          content: Run the playground on the current dataset.
+    expected:
+      tools:
+        required: [run_playground]
+        forbidden: [set_playground_experiment_recording]
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: negative_normal_run
+      difficulty: obvious
+      polarity: negative
+
+  - id: save-prompt-not-run
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: false
+          instances:
+            - instanceId: 202
+      messages:
+        - role: user
+          content: Save this prompt so I can reuse it later.
+    expected:
+      tools:
+        required: [save_prompt]
+        forbidden: [set_playground_experiment_recording]
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: negative_save_prompt
+      difficulty: moderate
+      polarity: negative
+
+  - id: already-recording-run
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: true
+          instances:
+            - instanceId: 203
+      messages:
+        - role: user
+          content: Run it and keep the experiment results.
+    expected:
+      tools:
+        required: [run_playground]
+        forbidden: [set_playground_experiment_recording]
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: negative_already_recording
+      difficulty: moderate
+      polarity: negative

@@ -1,0 +1,60 @@
+---
+title: "05.21.2026: Code Evaluators"
+description: "Write Python or TypeScript evaluation functions directly in the Phoenix UI — no SDK, local runtime, or deploy step — and run them server-side on every experiment."
+---
+
+**Available in arize-phoenix 16.0.0+**
+
+Write your own evaluation logic in the Phoenix UI and run it server-side on experiment results. Author a Python or TypeScript `evaluate()` function that returns a label, score, and explanation, attach it to a dataset, and Phoenix runs it in an isolated sandbox on every experiment run.
+
+## Writing a code evaluator
+
+Open a dataset, go to the **Evaluators** tab, and click **Add evaluator → Code evaluator**. Pick a language, write `evaluate()`, map dataset fields to its parameters, and click **Test** to dry-run against a real example before saving.
+
+```python
+# Python — weighted composite score
+def evaluate(output, reference=None, input=None, metadata=None):
+    exact = str(output).strip() == str(reference).strip()
+    length_ok = 10 <= len(str(output)) <= 500
+
+    score = (0.7 if exact else 0.0) + (0.3 if length_ok else 0.0)
+
+    return {
+        "label": "pass" if score >= 0.7 else "fail",
+        "score": score,
+        "explanation": f"exact={exact}, length_ok={length_ok}",
+    }
+```
+
+```typescript
+// TypeScript — regex check
+function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
+  const pattern = /^\d{4}-\d{2}-\d{2}$/;
+  const matched = pattern.test(String(output));
+  return {
+    label: matched ? "valid_date" : "invalid_date",
+    score: matched ? 1 : 0,
+    explanation: `Output ${matched ? "matches" : "does not match"} ISO date pattern.`,
+  };
+}
+```
+
+- **Field mapping** — bind `output`, `reference`, `input`, and `metadata` to dataset columns or literal values
+- **Versioned** — every save creates a new version, so historical runs always link back to the exact code that produced each score
+- **Traced** — each evaluator execution appears as a span, so you can debug it like any other LLM call
+
+## Sandboxes
+
+Code evaluators run in isolated sandboxes, configured by admins under **Settings → Sandboxes**:
+
+- **Local** (no credentials) — WebAssembly for Python, Deno for TypeScript. Ship with Phoenix and are suitable for self-contained, deterministic checks.
+- **Hosted** (credentials required) — E2B, Daytona, Vercel, and Modal. Support environment variables, outbound network access, and third-party packages.
+
+To restrict which providers are available on your deployment, set `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` to a comma-separated list of `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`, or `NONE` to disable all. When unset, all providers are available.
+
+```bash
+# Local sandboxes only
+PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
+```
+
+For role permissions, see [Access Control RBAC](/docs/phoenix/settings/access-control-rbac#sandbox-management). For provider setup details, see [Sandboxes](/docs/phoenix/settings/sandboxes).

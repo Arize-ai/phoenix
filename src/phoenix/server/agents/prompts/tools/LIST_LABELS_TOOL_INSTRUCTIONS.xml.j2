@@ -1,0 +1,12 @@
+<tool name="list_labels">
+  <description>List the dataset labels that exist across this Phoenix instance, returning each label's id, name, description, and color. Read-only. A label is a tag attached to datasets to organize and find them. Paginated.</description>
+  <when_to_use>
+    - To discover what labels exist before applying one with set_dataset_labels or filtering datasets with list_datasets.
+    - The user asks what labels exist (instance-wide), not which labels are on a specific dataset (use list_dataset_labels for that).
+  </when_to_use>
+  <rules>
+    - Prefer this over hand-writing GraphQL to read the label vocabulary.
+    - The list is paginated: if the result reports more pages (`hasNextPage`), call again with the returned cursor in `after` before concluding a label does not exist. The set/delete label tools already resolve names against the full label set.
+    - If a label the user wants does not exist yet, create it with create_dataset_label.
+  </rules>
+</tool>

@@ -1,0 +1,59 @@
+<tool name="edit_code_evaluator_draft">
+  <description>Propose edits to the open code-evaluator draft. The browser renders an inline diff and the user accepts or rejects it — this tool does not change the form immediately.</description>
+  <when_to_use>
+    - The user asks to modify the draft's source code, name, description, language, sandbox selection, input mapping, output configs, or test payload.
+    - You want to suggest a concrete change rather than describing it in chat.
+  </when_to_use>
+  <preflight>
+    - Call `read_code_evaluator_draft` first to see the current draft before proposing edits.
+  </preflight>
+  <operations>
+    - `operations` must always be an array, even for a single edit. Operations apply in order.
+    - Use camelCase field names exactly as shown.
+    - Common shapes:
+      - `{"type":"set_source_code","sourceCode":"def evaluate(output):\n    return 1.0"}`
+      - `{"type":"set_language","language":"PYTHON"}` — only valid in `create` mode.
+      - `{"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}` — pass `null` only in `edit` mode to clear. In `create` mode, the sandbox config ID must be non-null and its language must match the draft language.
+      - `{"type":"set_input_mapping","inputMapping":{"pathMapping":{"input":"attributes.input.value"},"literalMapping":{}}}`
+      - `{"type":"set_description","description":"Scores hallucination risk"}`
+      - `{"type":"set_name","name":"hallucination-v2"}`
+      - `{"type":"set_output_configs","outputConfigs":[{"kind":"freeform","name":"hallucination-v2","optimizationDirection":"MAXIMIZE","threshold":0.5,"lowerBound":0,"upperBound":1}]}` — whole-list replace. Other valid `kind`s: `classification` (with a `values` list of `{label, score?}`) and `continuous` (with `lowerBound`/`upperBound`). Use the draft evaluator name on each entry unless the evaluator clearly returns multiple independent outputs. Propose output configs whenever you can infer them from the source rather than leaving the draft's defaults in place.
+      - `{"type":"set_test_payload","testPayload":{"input":{},"output":{"messages":[{"role":"assistant","content":"Final answer"}]},"reference":{},"metadata":{}}}` — whole-value replacement for the JSON mapping source used by the preview/test section.
+  </operations>
+  <invariants>
+    - Never rename or remove the `evaluate` function. The runtime calls it by name.
+    - Only declare parameters from `{input, output, reference, metadata}` on `evaluate` — additional parameters will fail at execution.
+    - For dataset-backed evaluators, `output` is the new experiment run output at runtime. The dataset `output` shape is evidence for what future run outputs may look like. Phoenix passes the dataset example `output` as `reference` when evaluating a new run.
+    - Prefer direct `evaluate` arguments and parse nested dicts, lists, or stringified JSON inside the function rather than relying on custom input mapping. The simplest evaluator usually declares only `output`. Add `reference` for relational checks that compare the new run output against expected/golden/subset data from the dataset example output.
+    - Treat the dataset example shape as evidence. Write helper functions that normalize JSON strings and traverse the actual structure, especially chat-style `messages` arrays, assistant content parts, `tool_calls`/`toolCalls`, or `function_call`; do not assume the signal is at a top-level key.
+    - In `edit` mode, `set_language` is rejected (language is immutable post-create).
+    - In `create` mode, switching `set_language` may clear an incompatible `sandboxConfigId`; include a compatible `set_sandbox_config` operation in the same proposal. Create-mode proposals that leave `sandboxConfigId` null are rejected.
+  </invariants>
+  <sample_shape_parsing>
+    - If the dataset examples use a message transcript shape, propose `sourceCode` with explicit traversal of that transcript shape rather than a generic top-level field check.
+    - If comparing the new run output to the dataset reference, apply equivalent normalization/traversal to both `output` and `reference` so the evaluator respects the actual message structure. Otherwise, prefer deriving the score from `output`.
+  </sample_shape_parsing>
+  <input_mapping>
+    - Keep `inputMapping` at the safe default (`{"literalMapping": {}, "pathMapping": {}}`) unless the user explicitly asks for custom mapping or the current draft already uses mapping intentionally.
+    - If you need a nested value from the dataset example, read it from the direct argument in `sourceCode` instead of proposing a path-mapping edit.
+  </input_mapping>
+  <test_payload>
+    - `testPayload` is the JSON mapping source the form preview uses while the user is authoring the evaluator. It has `input`, `output`, `reference`, and `metadata` object fields.
+    - Shape `testPayload.output` from the dataset `output` shape or from the user's concrete target case; treat it as representative evidence, not a fixed schema guarantee.
+    - For relational evaluators that compare `output` to `reference`, keep `testPayload.output` as the candidate new run output and put expected/golden/subset data in `testPayload.reference`, not in input mapping.
+    - Use `set_test_payload` when preview failures show the test case is missing the signal the evaluator is supposed to score, or when the user asks to try the evaluator against a different representative output.
+  </test_payload>
+  <sandbox_config>
+    - Before emitting `set_sandbox_config`, fetch the selectable inventory on-demand with the `bash` tool's `phoenix-gql` command — it is not inlined in this prompt. Query `sandboxBackends { backendType status }` and `sandboxProviders { backendType enabled configs { id name language enabled config { envVars { name } internetAccess { mode } dependencies { packages } } } }`, then keep only configs where the provider `enabled` is true, the config `enabled` is true, and the config's backend has `status` `AVAILABLE`. Request only `envVars { name }` — never `secretKey`. Pick `sandboxConfigId` from the filtered set; do NOT invent or guess an ID.
+    - The chosen config's `language` must match the draft language.
+    - If the latest `read_code_evaluator_draft` snapshot already has a non-null `sandboxConfigId`, you are not changing `language`, and the user did not ask to change sandboxes, leave the sandbox untouched. Do NOT emit `set_sandbox_config` just to restate an existing compatible draft selection.
+    - Emit `set_sandbox_config` only when the current `sandboxConfigId` is null, the user asks to change the sandbox, or you are changing `language`.
+    - In `create` mode, never pass `sandboxConfigId: null`. If you emit `set_language`, include a compatible non-null `set_sandbox_config` operation in the same proposal.
+  </sandbox_config>
+  <guidelines>
+    - Emit operations ONLY for fields you intend to change. If a field already has the value you want, do not include an op for it — redundant ops produce noisy diff previews and waste tokens.
+    - Keep edits small and focused so the user can read the diff. Group related field changes together when they form one logical intent.
+    - After proposing the edit, briefly summarize what the diff will show so the user knows what they are accepting or rejecting.
+    - After the user accepts relevant edits, offer to run `test_code_evaluator_draft` so they can inspect the preview result before clicking Create or Update.
+  </guidelines>
+</tool>

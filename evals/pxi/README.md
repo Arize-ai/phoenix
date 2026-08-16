@@ -7,16 +7,184 @@ live-model PXI server-side evals as Phoenix experiments.
 
 - `harness/` runs live PXI agent experiments against Phoenix datasets.
 - `datasets/` stores YAML datasets shared by harness and CI workflows.
-- `evaluators/` stores code evaluators for PXI tool behavior.
+- `evaluators/` stores experiment evaluators over `(output, expected)` pairs.
+- `online_evals/` evaluates already-ingested PXI traces and annotates them.
 - `trace_ingest/` is reserved for future trace-to-dataset tooling.
 
 Fast unit coverage for the harness and evaluators lives under
 `tests/unit/pxi/evals/`.
 
+## Online production evals
+
+The online runner evaluates recent PXI spans after ingestion. It uses
+annotations as checkpoints: before hydrating a trace or invoking an evaluator,
+it skips targets that already carry the evaluator's annotation name and
+identifier. The default 48-hour overlap recovers missed scheduled runs without
+evaluating the same target twice.
+
+Trace evaluators live in `evals/pxi/online_evals/evaluators/`; run the CLI
+with `--help` to list what is currently registered. They remain separate from
+`evals.pxi.evaluators` because the latter implements the experiment contract
+over `(output, expected)` pairs, while online evaluators consume a hydrated
+`(target_span, trace_spans)` pair and annotate the target span.
+
+Each evaluator declares a `SpanSelector`; evaluators with the same selector
+share a discovery query:
+
+- **Root targets** — `tool_count_per_turn` and `user_friction` select
+  `names=("pxi.turn",)`, `span_kinds=("AGENT",)`, `parent_id="null"`, so they
+  score and annotate one turn root per trace. They share a single query.
+- **TOOL targets** — `suggestion_accepted` selects on the approval attribute
+  `pxi.approval.source="user"` with `span_kinds=("TOOL",)` and no parent
+  restriction, so it annotates individual tool spans anywhere inside a turn.
+  It names no tools at all.
+
+Sampling is keyed on `trace_id`, so all targets within a turn are sampled
+together.
+
+All LLM evaluators share one judge configuration:
+`PHOENIX_AGENTS_EVALS_PROVIDER` / `PHOENIX_AGENTS_EVALS_MODEL`, defaulting to
+OpenAI `gpt-5.5`. Supported providers are `openai` (`OPENAI_API_KEY`),
+`anthropic` (`ANTHROPIC_API_KEY`), and `google`
+(`GOOGLE_GENERATIVE_AI_API_KEY`). Unknown provider names and a missing
+matching API key fail once at startup, before trace discovery.
+
+Evaluators consume a trace-shaped input and attach their result as a span
+annotation on their target span. The runner does not create or update project
+annotation configs; configure display or optimization metadata in Phoenix
+separately when needed.
+
+### `suggestion_accepted`
+
+A deterministic CODE evaluator that records manual decisions on approval-gated
+PXI suggestions. It annotates each TOOL span separately because a turn can
+contain multiple decisions.
+
+| Recorded outcome | Annotation |
+|---|---|
+| `pxi.approval.decision = "rejected"` | `rejected` / `0.0` |
+| `pxi.approval.decision = "accepted"` | `accepted` / `1.0` |
+| anything else | *no annotation* |
+
+Approval-gated tools add `approval: {decision, source}` to their output. The
+server promotes it to `pxi.approval.decision` and `pxi.approval.source`, which
+the evaluator uses for discovery and classification.
+
+The evaluator does not annotate:
+
+- automatic accepts (`pxi.approval.source: "auto"`, i.e. bypass edit permission);
+- still-pending approvals, cancellations, and errored tools — all unmarked;
+- unknown or malformed decisions.
+
+Annotations contain only `{"tool_name": ...}`. Discovery does not depend on a
+tool-name allowlist, so new tools are covered when they emit the marker.
+
+Spans recorded before the marker shipped cannot be discovered or backfilled.
+
+`submit_code_evaluator_draft` and `submit_llm_evaluator_draft` remain
+unmeasured because their dialog decisions are not written to tool output.
+Accept/reject rates therefore exclude them until
+[#15033](https://github.com/Arize-ai/phoenix/issues/15033) is resolved.
+
+Preview it without writing anything:
+
+```bash
+PHOENIX_PROJECT=pxi_dev \
+uv run python -m evals.pxi.online_evals.run --eval suggestion_accepted --dry-run
+```
+
+Annotation identifiers are evaluator-specific versioned checkpoints. Increment
+an evaluator's `vN` identifier whenever its scoring semantics or rubric
+changes; the next overlapping run then backfills recent targets under the new
+identity without overwriting the previous series. The runner appends
+`provider:model` to every LLM evaluator's identifier, so a judge change
+creates a distinct result series automatically. Only the runner's own
+evaluator annotation names are consulted for checkpointing — human feedback
+and other annotations never suppress a run.
+
+Sampling is deterministic and keyed on the trace alone: evaluators with equal
+sample rates select exactly the same traces, and a lower-rate evaluator's
+selection is a strict subset of a higher-rate one's, so sampled traces are
+never partially annotated.
+
+Run them locally against the standard Phoenix client environment variables:
+
+```bash
+PHOENIX_PROJECT=pxi_dev \
+uv run python -m evals.pxi.online_evals.run --dry-run
+```
+
+The runner waits five minutes before considering a target settled and evaluates
+all applicable targets by default, running evaluations concurrently (bounded at
+8 in flight) so LLM judge calls are not serialized. An evaluator exception is
+contained to that target: it is logged, counted in the summary's `errors`, and
+the run continues (the process exits non-zero so scheduled runs surface the
+failure). Structural trace anomalies (a tool span that does not descend from
+the turn root, missing ancestors, cycles) are deliberately loud: post-settle
+traces are expected to be complete, so an anomaly signals dropped spans or a
+tracing regression rather than a skippable turn. Revisit and downgrade to
+skip-with-warning if these prove noisy in practice.
+
+The scheduled workflow runs twice daily at 00:17 and 12:17 UTC and can also be
+started manually. The CLI entrypoint above supports local runs at any time.
+Workflow logs contain aggregate counts, not trace inputs or outputs.
+
+Scheduled judge configuration comes from the
+`PHOENIX_AGENTS_EVALS_PROVIDER` and `PHOENIX_AGENTS_EVALS_MODEL` GitHub
+repository variables, defaulting to `openai` and `gpt-5.5`. Store the matching
+provider credential in the correspondingly named Actions secret (the workflow
+currently maps `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`; add the mapping when
+onboarding another provider). Phoenix and provider credentials are exposed
+only to the final evaluation step.
+
+The initial scheduled project is `pxi_dev`. The Phoenix Cloud production PXI
+traces are in `pxi_phoenix_cloud`; add that project only after validating the
+runner on new-format development traces.
+
+### Adding an online evaluator
+
+An evaluator is an async function that receives one target span and every
+hydrated span in its trace. It returns a `phoenix.evals` `Score`, or `None`
+when the target is not applicable:
+
+```python
+from collections.abc import Sequence
+
+from phoenix.client.__generated__ import v1
+from phoenix.evals.evaluators import Score
+
+
+async def evaluate(target: v1.Span, spans: Sequence[v1.Span]) -> Score | None:
+    if not spans:
+        return None
+    return Score(score=1.0, label="example", explanation="why")
+```
+
+Declare an `EvaluatorSpec` with a name, selector, evaluate function, annotator
+kind, sampling rate, and versioned identifier. Use `PXI_TURN_ROOT_SELECTOR` for
+turn-level evaluators. The annotator kind controls judge credential validation
+and model-specific checkpointing.
+LLM evaluators (`annotator_kind="LLM"`) automatically share the judge
+configuration from `evals/pxi/online_evals/judge.py`: the runner validates
+the judge credentials at startup and appends `provider:model` to their
+checkpoint identifier.
+
+Register the spec in `evals/pxi/online_evals/evaluators/__init__.py` and add
+focused coverage under `tests/unit/pxi/evals/online_evals/`. Runner-level tests
+should assert the exact persisted annotation shape as well as failure,
+not-applicable, sampling, and checkpoint behavior relevant to the evaluator.
+
 ## Run Locally
 
-The canonical entrypoint is `evals/pxi/harness/run_experiment.py`. Start
-Phoenix, then run:
+There are two ways to run the evals:
+
+- The **pytest suite** (`pytest evals/pxi -c evals/pxi/pytest.ini`) is what CI
+  runs and gates on — see [Pytest Harness and Aggregate Gate](#pytest-harness-and-aggregate-gate).
+- `evals/pxi/harness/run_experiment.py` is the single-dataset runner with the
+  richest local failure output (full per-example report to your terminal). It
+  remains the best way to debug one dataset by hand.
+
+To run a single dataset through `run_experiment.py`, start Phoenix, then:
 
 ```bash
 uv run python evals/pxi/harness/run_experiment.py --dataset set_spans_filter
@@ -39,6 +207,62 @@ uv run python -m evals.pxi.harness.run_experiment --dataset set_spans_filter --s
 `regression` example. The runner prints a stdout summary and the Phoenix
 experiment URL.
 
+## Failure Reports
+
+The console summary keeps its compact, truncated tables -- that is the
+glance tier. For full-fidelity output there are two flags:
+
+### `--print-report` (local use)
+
+Pass `--print-report` to dump the full Markdown failure report to stdout at
+the end of the run. No-op when all examples pass.
+
+```bash
+uv run python -m evals.pxi.harness.run_experiment \
+  --dataset set_spans_filter --print-report
+```
+
+This is the recommended way to see full failure details locally: inputs,
+expected outputs, the agent's actual tool calls, per-evaluator
+scores/labels/explanations, and a Phoenix trace link -- all in one place in
+your terminal without writing any files.
+
+### `--report-dir DIR` (artifact use)
+
+Pass `--report-dir` to write two files per dataset run:
+
+- **`<dataset>.report.json`** -- machine-readable: run metadata (experiment
+  name and URL, git sha/branch, model, provider, splits, timestamp) plus one
+  record per *failed or errored* example with the full untruncated `input`,
+  `expected`, `actual_output` (including every tool call the agent made),
+  per-evaluator score/label/explanation/error, any `task_error`, and a
+  per-example trace URL (`<base-url>/redirects/traces/<trace_id>`) when the
+  run was traced. Passing examples contribute to counts only.
+- **`<dataset>.report.md`** -- the same content as agent-friendly Markdown:
+  a digest table up top, one section per failed example (message histories
+  collapsed under `<details>`), and a repro footer with the exact local
+  command. The whole report is wrapped in sentinel markers
+  (`===== BEGIN PXI EVAL REPORT: <dataset> =====` / `===== END ... =====`)
+  so it can be grepped out of a CI log. Paste this into a coding agent to
+  diagnose and fix the failure -- it is self-sufficient context.
+
+These files are the richest local artifact for a single dataset. CI itself no
+longer drives `run_experiment.py`; it runs the pytest suite and gate (see
+[CI](#ci)) and renders its own report. Both paths embed log content the same
+way: GitHub Actions interprets any line starting with `::` as a workflow
+command (e.g. `::endgroup::` closes a log group, `::error::` creates an
+annotation), so the workflow writes the report to a file and `cat`s it inside a
+`::stop-commands::` block to suspend command processing while it logs. See
+`.github/workflows/pxi-evals.yml` for the full pattern.
+
+If a report would exceed GitHub's embedding limits (~1 MiB for step
+summaries, ~64 KiB per log line), the Markdown tier falls back to its digest
+plus a pointer at the JSON artifact; the JSON file never truncates example
+data. The one deliberate redaction in both tiers: the static system prompt
+that pydantic_ai repeats under `messages[].instructions` (~55 KB per model
+request) is replaced with a placeholder -- it is product prompt, not example
+data, and the full text is always viewable via the trace URL.
+
 The runner checks `/healthz` against whichever Phoenix URL is configured
 (default `http://localhost:6006`, or `PHOENIX_COLLECTOR_ENDPOINT` /
 `OTEL_EXPORTER_OTLP_ENDPOINT` if set) before uploading anything. To use a
@@ -59,6 +283,140 @@ run. Tool evaluators read `tool-call` parts from those messages, so tool
 selection and tool-argument checks cover every tool call emitted during the
 turn.
 
+## Pytest Harness and Aggregate Gate
+
+The whole dataset tree also runs as parametrized pytest tests, each example a
+`@pytest.mark.phoenix` item recorded to a Phoenix experiment. The tests never
+assert: they record one datapoint per `(example, evaluator)` to a
+schema-4 JSON artifact, and a standalone gate decides pass/fail against
+`thresholds.yaml`. Raw rows retain the stable pytest node ID and evaluator
+evidence. Aggregate `scored`/`assessed` counts include only numeric evaluator
+verdicts; provider, setup, and evaluator errors are counted separately as
+`infra`. A task error (the agent run itself never produced output) gets the
+same one retry as a clean miss, since it carries no reliable signal either
+way; if it recurs, it's reported as a recurring task error and still never
+enters the pass-rate denominator. This is what CI runs.
+
+```bash
+# Run the regression split and write pxi-eval-results.json
+uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression
+
+# Decide pass/fail (exit nonzero on a breach or an invalid/partial run)
+uv run python -m evals.pxi.gate pxi-eval-results.json --thresholds evals/pxi/thresholds.yaml
+```
+
+CI's two-attempt flow plans exact node IDs, reruns only those into a second
+artifact, then reconciles the same evaluator verdict across both attempts. Run
+it end to end exactly as CI does — the initial artifact is written to its own
+path, node IDs are re-rooted onto pytest's rootdir before the retry, and the
+retry only happens when planning actually emitted node IDs:
+
+```bash
+# 1. Initial run -> its own artifact.
+PXI_EVAL_RESULTS_PATH=pxi-eval-results-initial.json \
+  uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression
+
+# 2. Plan: write the node IDs of assessable misses in gating cells (empty file
+#    if there are none, or if the run is unmeasurable).
+uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+  --thresholds evals/pxi/thresholds.yaml \
+  --retry-nodeids-out pxi-eval-retry-nodeids.txt
+
+# 3. Retry only those nodes (if any) into a second artifact, then reconcile.
+#    gate.py emits node IDs relative to evals/pxi (pytest's rootdir under
+#    `-c evals/pxi/pytest.ini`); re-root them onto that path before running
+#    pytest from the repo root, or pytest collects zero items.
+if [[ -s pxi-eval-retry-nodeids.txt ]]; then
+  mapfile -t bare_nodeids < pxi-eval-retry-nodeids.txt
+  retry_nodeids=("${bare_nodeids[@]/#/evals/pxi/}")
+  PXI_EVAL_RESULTS_PATH=pxi-eval-results-retry.json \
+    uv run pytest -c evals/pxi/pytest.ini "${retry_nodeids[@]}"
+  uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+    --thresholds evals/pxi/thresholds.yaml \
+    --retry-artifact pxi-eval-results-retry.json
+else
+  # No retry needed: the initial run already decided pass/fail.
+  uv run python -m evals.pxi.gate pxi-eval-results-initial.json \
+    --thresholds evals/pxi/thresholds.yaml
+fi
+```
+
+`--retry-nodeids-out` (planning) and `--retry-artifact` (reconciliation) are the
+two mutually exclusive phases of that flow — passing both is an error, so a
+reproduced miss can never slip through by accidentally re-entering planning
+mode. Pass `--decision-out decision.json` to any invocation to also get the
+structured verdict (`kind`, `label`, `exit_code`, `retry_nodeids`, counts) as
+JSON; CI reads that instead of scraping the Markdown digest.
+
+`pytest.ini` is a complete, self-contained config: `pytest -c <file>` replaces
+the root config rather than inheriting it, so it declares everything the eval
+run needs (async mode, session loop scope, import mode, the split markers) and
+omits the root suite's `--doctest-modules`. Set `PXI_EVAL_RESULTS_PATH` to
+control where the artifact is written (default: `pxi-eval-results.json` in the
+current directory).
+
+### Thresholds
+
+`thresholds.yaml` sets a per-split minimum pass-rate, with optional
+per-dataset/per-evaluator overrides. Every split a dataset can carry
+(`regression`, `dev`, `holdout`, `val`) is enumerated: a `(evaluator, split)`
+datapoint with no matching policy and no explicit `gating: false` is treated as
+a breach, not a silent pass. Regression must hold at 100%; `dev`/`holdout` are
+lenient; `val` is recorded but non-gating. Relaxing a threshold lowers the
+gate's bar, so call it out in the PR description rather than bundling it with
+unrelated edits.
+
+The gate also **fails closed on an unmeasurable run** with exit 2: a missing,
+malformed, partial, or dirty artifact; a targeted retry that omitted or added a
+node ID; a gating cell with zero assessable rows; or a gating cell where a code
+**evaluator itself raised** (an `evaluator_error` — a defect in the scoring
+apparatus, which is never retried and never silently excluded into a green
+pass). These outcomes are labeled unmeasurable, not regression. When
+`PHOENIX_API_KEY` is set (i.e. CI), the gate also fails closed if the plugin
+recorded nothing — bootstrap failure degrades to a warning in the plugin, so
+without this a green gate could mean "recorded nothing to Phoenix". Local runs
+with no key skip this check, since recording is optional there.
+
+Past `--retry-cap` examples needing a retry (default 15), the gate skips
+confirm-on-retry entirely and gates on attempt 1 alone: at that scale the
+failure is structural, and confirming each example individually would just
+delay a result that was never in doubt. A cap tripped by behavioral **misses**
+that breach a threshold is reported as **too many failures to confirm** (exit 1,
+distinct from a per-example confirmed regression). A cap tripped by unresolved
+**task errors** — where most examples never produced an assessable result — is
+**unmeasurable** (exit 2), never a pass: a surviving passing row cannot carry a
+run that mostly never ran.
+
+Two more outcomes keep a reproduced miss from hiding behind a green headline. A
+miss that reproduces on both attempts but stays at or above a sub-1.0 override
+threshold is **passed with tolerated misses** (exit 0) rather than a bare pass,
+so the tolerated miss stays visible. A miss where attempt 1 was a task error and
+only the retry produced a miss is **not** a confirmed regression — that is one
+assessable attempt, not the same miss twice, and the single retry is already
+spent, so it is recorded as unassessable and never reddens the gate. These
+sub-1.0 regression overrides are a deliberate interim stopgap (see
+`thresholds.yaml`); the planned end state ratchets them back to the strict
+`1.0` default once the corpus is re-baselined (k≥3 on the shipped default
+model) and every consistent failure is dispositioned — confirm-on-retry
+absorbs wobble at the measurement layer, and persistent flake is quarantined
+explicitly to a non-gating split rather than tolerated by numeric headroom.
+The threshold system itself stays: it remains the policy layer for split
+defaults, dev/holdout leniency, and `gating: false` quarantine. That ratchet
+is a later corpus/policy step, not part of this measurement-semantics change.
+
+### Regression gate vs. full-collection sync
+
+The marker you pass picks the trade-off:
+
+- **`-m regression`** runs only the regression split. The phoenix-client plugin
+  treats a marker-filtered run as a partial collection and **appends** to the
+  Phoenix dataset without pruning removed examples. This is the cheap PR gate.
+- **No marker** (`pytest evals/pxi -c evals/pxi/pytest.ini`) is a full
+  collection: the plugin update-syncs the dataset and **prunes** examples that
+  no longer exist in the YAML. Run this against `main` after merge to keep the
+  Phoenix dataset authoritative — it runs every split's live-model examples, so
+  it costs more than the regression gate.
+
 ## Model Configuration
 
 The task uses Phoenix agent env vars for model selection:
@@ -72,13 +430,14 @@ Provider credentials are read from the normal provider env vars, such as
 `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
 
 The docs MCP toolset follows the same production gates as the Phoenix server:
+the agent assistant must not be disabled, and external resources must be
+allowed. The assistant is on by default; external resources must be opted in:
 
 ```bash
-export PHOENIX_DANGEROUSLY_ENABLE_AGENTS=true
 export PHOENIX_ALLOW_EXTERNAL_RESOURCES=true
 ```
 
-If either gate is disabled, the experiment still runs but the agent does not
+If either gate fails, the experiment still runs but the agent does not
 receive docs MCP tools.
 
 ## Datasets
@@ -93,7 +452,7 @@ Datasets live in `evals/pxi/datasets/*.yaml`. Each file has:
 Each example needs a stable `id`, exactly one split in a list-shaped `splits`
 field, and whatever `input`, `expected`, and `metadata` shape its evaluators
 consume. For the current tool-call evaluators, examples commonly use
-`input.query`, `expected.tools`, and expected tool arguments under
+`input.messages`, `expected.tools`, and expected tool arguments under
 `expected.tool_call_args`.
 
 Example IDs must be unique because the runner uses them for stable upserts.
@@ -107,7 +466,9 @@ examples:
   - id: llm-spans
     splits: [regression]
     input:
-      query: Show me only LLM spans.
+      messages:
+        - role: user
+          content: Show me only LLM spans.
 ```
 
 Split meanings:
@@ -122,13 +483,121 @@ Split meanings:
 Each example belongs to exactly one split. The runner passes the YAML `splits`
 list through to the Phoenix client upload payload.
 
+## Inputs
+
+Every example declares `input.messages` as a single ordered conversation
+prefix. The trailing entry decides which step of the agent loop the harness
+scores:
+
+- **Last entry is `role: user`.** That turn becomes the user prompt; everything
+  before it is replayed as message history. The default case -- "user asks,
+  what does the agent do?"
+- **Last entry is `role: tool`.** The harness runs the agent with `user_prompt
+  = None` and the full list as message history, so the agent picks up
+  mid-loop from a primed tool return. Lets a dataset isolate one step of
+  behavior ("given the bash output below, what does the agent emit next?")
+  without a synthetic user follow-up.
+- **Last entry is `role: assistant`.** Rejected -- nothing remains to score.
+
+Examples may also include `input.contexts`, which uses the same camelCase
+shape as the browser agent API (`app`, `project`, `graphql`, etc.) so
+server-side evals can exercise realistic page state without launching
+Playwright.
+
+A plain example -- user asks, agent decides:
+
+```yaml
+input:
+  contexts:
+    - type: project
+      projectNodeId: UHJvamVjdDoxMg==
+      spanFilter: "status_code == 'ERROR'"
+  messages:
+    - role: user
+      content: Keep the error filter, but only show root spans.
+```
+
+A primed-tool-history example -- the agent has already issued a `bash` call
+to inspect recent traces, and the harness scores whatever action it emits
+next (typically a `set_spans_filter` call referencing the dates that came
+back in the tool return):
+
+```yaml
+input:
+  contexts:
+    - type: project
+      projectNodeId: UHJvamVjdDoxMg==
+      spanFilter: "span_kind == 'LLM'"
+  messages:
+    - role: user
+      content: Show me only the latest traces in this project.
+    - role: assistant
+      tool_calls:
+        - id: t1
+          name: bash
+          args:
+            command: "phoenix-gql --query '...recent spans by startTime desc...'"
+    - role: tool
+      tool_call_id: t1
+      name: bash
+      content: |
+        {"data":{"node":{"spans":{"edges":[
+          {"node":{"startTime":"2026-04-03T18:42:11Z"}},
+          {"node":{"startTime":"2026-04-03T18:41:58Z"}}
+        ]}}}}
+```
+
+Schema notes:
+
+- An assistant turn may carry `content`, `tool_calls`, or both. Real PXI
+  traces show no assistant text between tool calls, so primed-tool examples
+  should omit narration unless you're deliberately testing narration
+  behavior.
+- Each tool call needs a local string `id` (any value; not interpreted by
+  the agent) plus `name` and `args`. Every assistant `tool_calls` entry
+  MUST be followed later by a `role: tool` entry whose `tool_call_id` and
+  `name` match. `tool_call_id` values must be unique across the whole list.
+- Primed messages are fed to the model verbatim via pydantic_ai's message
+  types; the model cannot distinguish a primed tool call from one that
+  was actually executed.
+
+## Matcher Vocabulary
+
+The `tool_call_args_match` evaluator compares expected args to observed args
+with subset semantics (extra observed keys are ignored). Each expected value
+is either a literal (compared by `==`) or a **matcher object** -- a dict
+whose top-level keys are all in this vocabulary:
+
+| Matcher | Meaning |
+|---|---|
+| `equals: <value>` | Explicit equality (same as a bare literal). |
+| `contains_all: [<str>, ...]` | Observed must be a string containing every substring. Use this for clause-order-invariant DSL matching (`["span_kind == 'LLM'", "latency_ms >= 5000"]` matches either ordering). |
+| `contains_any: [<str>, ...]` | Observed must be a string containing at least one substring. |
+| `not_contains: [<str>, ...]` | Observed must be a string containing none of the substrings. |
+| `any: true` | The key must be present in observed args; value is unconstrained. |
+| `non_empty: true` | The key must be present and contain non-whitespace text. |
+| `absent: true` | The key must not be present in observed args. |
+
+To leave an arg entirely unconstrained, just omit it from `expected` --
+subset matching ignores observed keys you don't mention. Use `any: true`
+only when presence itself matters, and `non_empty: true` when required string
+content matters. Use `absent: true` when omission itself is the behavior under
+test.
+
+For efficiency-focused examples, add `expected.budgets.max_tool_calls` and
+enable the `tool_call_count_within_limit` evaluator. Bash-first examples can
+use `bash_command_substrings_match` to check command intent without requiring
+exact shell syntax.
+
+## Manual CI
+
 `expected.tools` may also include `exact_match: true`, which switches
 `correct_tools_called` from "all required tools must be called" to "the
 observed tool sequence must equal the required sequence" (no extras, no
 duplicates, same order).
 
-`expected.tool_call_args` holds at most one expected arg map per tool name. The
-match is intentionally permissive in two ways:
+`expected.tool_call_args` holds either one expected arg map per tool name or a
+list of acceptable arg maps. The match is intentionally permissive in three ways:
 
 1. **Subset match per call.** A call passes when *all* expected `(key, value)`
    pairs are present; the observed call may carry extra arg keys that the
@@ -136,14 +605,19 @@ match is intentionally permissive in two ways:
 2. **Any-of match across multiple calls.** When a tool is called more than once
    in a turn, the check passes if *any* of those calls satisfies the expected
    pairs.
+3. **Variant match across expected shapes.** When a tool has a list of expected
+   arg maps, any variant can satisfy the expectation.
 
-String values that contain ` and ` are normalized as order-independent
-conjunctions, so `latency_ms >= 5000 and span_kind == 'LLM'` matches
-`span_kind == 'LLM' and latency_ms >= 5000`.
+Literal values compare with `==`. For order-invariant string matching, use the
+matcher vocabulary above. For example, `contains_all: ["span_kind == 'LLM'",
+"latency_ms >= 5000"]` accepts either clause order without making every string
+literal order-insensitive. Use `absent: true` for keys that must be omitted
+despite subset matching otherwise allowing extra observed keys.
 
 Tool arg keys must match the tool's exact JSON schema, including camelCase. For
-`set_spans_filter` that means `condition` and `rootSpansOnly`;
-`root_spans_only` will silently fail arg-match.
+`set_spans_filter` that means `condition` -- and only `condition`, since
+root-span scoping is expressed inside the filter DSL (`parent_id is None`)
+rather than as a separate argument.
 
 ## Evaluators
 
@@ -167,9 +641,52 @@ Phoenix Cloud. It runs on PRs that change `evals/**` or
 `src/phoenix/server/agents/**`, and maintainers can also run it manually from
 the Actions tab.
 
-The workflow invokes the runner for every YAML file in
-`evals/pxi/datasets/*.yaml` with `--splits regression` and
-`--fail-on-regression`. The runner skips datasets when the requested split has
-no regression examples. Each dataset run is printed as its own log group with
-the dataset file and CI experiment name. The workflow keeps going after
-individual dataset failures, and the final status is red if any dataset fails.
+On a PR the job runs `pytest evals/pxi -c evals/pxi/pytest.ini -m regression`
+to record the initial artifact. The gate then emits the exact node IDs for
+assessable misses and task errors in gating cells. Only those nodes run once
+more into a separate retry artifact, and the final gate reconciles both
+artifacts. A retry pass is a green **flaky recovery**. Exit 1 requires the
+same evaluator miss to remain assessable on both attempts and the reconciled
+cell to breach its fixed threshold; a task error that recurs is reported as
+unmeasurable, never as a regression. The gate runs even when pytest exits
+nonzero, so a crashed or partial run exits 2 rather than passing or
+masquerading as agent regression.
+
+A manual `workflow_dispatch` run takes a `mode` input:
+
+- `regression` (default) — the same regression gate the PR job runs.
+- `full` — a full-collection run (no split filter) that prune-syncs the Phoenix
+  dataset, dropping examples no longer in the YAML. Dispatch this against `main`
+  after a dataset change merges; it runs every split's live-model examples, so
+  it costs more than the regression gate.
+
+### Reading a CI failure
+
+Failure output is published through three channels, ranked by how you (or a
+coding agent) consume it:
+
+1. **Job log (primary, agents).** When the gate fails, the report is embedded
+   in the log under a collapsed `PXI EVAL REPORT (agent-readable)` group and a
+   `::stop-commands::` block. It names every confirmed, flaky, and infrastructure
+   example; includes both attempts' evaluator labels, scores, and explanations;
+   preserves the pytest node ID; and links the initial and retry Phoenix
+   experiments. It also carries the reconciled per-cell denominator and policy.
+   Retrieval from a red check is two commands:
+
+   ```bash
+   gh pr checks <pr-number>           # find the failing run id from its URL
+   gh run view <run-id> --log-failed  # the agent-readable report
+   ```
+
+   Follow either Phoenix link in the digest for the full input, agent output,
+   tool calls, annotations, and traces. The digest itself is sufficient to hand
+   to a coding agent without reconstructing attempt membership from raw logs.
+2. **Step summary (humans).** The run's summary page shows the gate verdict and
+   the same report inside a `<details>` block for browser copy-paste.
+3. **Artifact (programmatic).** The initial artifact, optional retry artifact,
+   exact retry-node list, and rendered digest are uploaded as the
+   `pxi-eval-reports-<run-id>` artifact on every run:
+
+   ```bash
+   gh run download <run-id> -n pxi-eval-reports-<run-id>
+   ```

@@ -931,7 +931,7 @@ class _RoleConversion:
     @staticmethod
     def from_anthropic(
         obj: MessageParam,
-    ) -> Literal["user", "assistant", "tool"]:
+    ) -> Literal["user", "assistant", "tool", "system"]:
         if obj["role"] == "assistant":
             return "assistant"
         if obj["role"] == "user":
@@ -942,6 +942,8 @@ class _RoleConversion:
                     else:
                         continue
             return "user"
+        if obj["role"] == "system":
+            return "system"
         if TYPE_CHECKING:
             assert_never(obj["role"])
         return obj["role"]

@@ -1,0 +1,20 @@
+<tool name="open_dataset_evaluator_for_edit">
+  <description>Open an existing dataset evaluator's edit form in the mounted playground in place. The browser stays on the current playground route and keeps the playground/dataset state intact.</description>
+  <when_to_use>
+    - The user wants to change an existing code or LLM evaluator's configuration (prompt, code, mapping, or output config).
+    - Identify the target evaluator by name from the playground roster and pass its `datasetEvaluatorId`.
+  </when_to_use>
+  <user_facing_language>
+    - The tool name is internal. In replies to users, call the opened surface the evaluator form.
+    - Do not describe saving as approving a diff. Saving is the form's Save action; whether you drive that save or the user clicks it is governed by the mounted evaluator context's permission-aware guidance.
+  </user_facing_language>
+  <workflow>
+    - Call `open_dataset_evaluator_for_edit` first, then wait for the evaluator context and draft tools to appear.
+    - After the form is mounted, call the matching `read_*_evaluator_draft`, then propose changes with `edit_*_evaluator_draft`.
+    - For testing and saving, follow the mounted `<phoenix_code_evaluator_context>` or `<phoenix_llm_evaluator_context>` guidance — it is permission-aware and, under auto-accept, drives the populated draft through the matching `test_*_evaluator_draft` and `submit_*_evaluator_draft` automatically. Do not prescribe a manual Save step here or claim the evaluator was updated until that save's success result comes back; let the mounted context govern persistence.
+  </workflow>
+  <rules>
+    - Only code and LLM evaluators can be opened here. If the user asks to edit a built-in evaluator, tell them built-in evaluators are not yet editable via the assistant.
+    - If another evaluator form is already open (a create or edit form), this call is rejected. Ask the user to close the open form, then retry — do not try to discard their in-progress draft yourself.
+  </rules>
+</tool>

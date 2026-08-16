@@ -1,0 +1,29 @@
+<tool name="batch_span_annotate">
+  <description>Write structured feedback to Phoenix spans. Use this only when the user wants annotations saved, not for ordinary analysis or recommendations.</description>
+  <guidelines>
+    - Send one `annotations` array. Batch related annotations in one call instead of calling the tool repeatedly.
+    - Target the most specific relevant span: LLM spans for model output, tool spans for tool behavior, retriever spans for retrieval quality, and root agent/chain spans only for end-to-end judgments.
+    - Each annotation must include either `spanId` or `spanNodeId`, a stable `name`, and at least one of `label`, `score`, or `explanation`.
+    - Use IDs from the available context or prior tool results. Do not guess span IDs.
+    - Include an `explanation` for any score, failed check, unclear label, or judgment the user may want to audit later.
+  </guidelines>
+  <naming>
+    - Use lowercase `snake_case` annotation names that are easy to read and filter, such as `code_quality`, `answer_relevance`, `tool_correctness`, or `retrieval_quality`.
+    - Treat `name` as the metric or rubric dimension, not the result. Put outcomes in `label` or `score`; for example `name: "code_quality"`, `label: "pass"` is better than `name: "passed_code_quality"`.
+    - Keep names stable across runs. Do not add suffixes like `_2`, `_new`, or `_v2` to avoid overwrites.
+    - Do not use `note` as an annotation name; span notes are separate from structured annotations.
+  </naming>
+  <values>
+    - Use short, consistent labels that are easy to filter, preferably lowercase values like `pass`, `fail`, `relevant`, `irrelevant`, `correct`, or `incorrect`.
+    - Use numeric `score` only when the scale is clear. Put the rubric, scale, threshold, evaluator version, or confidence in `metadata` when useful.
+    - Set `annotatorKind` to `LLM` for your own judgment, `HUMAN` when recording explicit user feedback, or `CODE` for deterministic checks. It defaults to `LLM`.
+  </values>
+  <updates>
+    - Annotations are keyed by `(name, span, identifier)`.
+    - Reuse the same `name` and `identifier` on a span to update that annotation.
+    - Use distinct identifiers, such as `reviewer:pxi`, `evaluator:v1`, or `run:2026-05-28`, when you need multiple annotations with the same name on the same span.
+  </updates>
+  <filtering_example>
+    - A good annotation name makes later filters readable, for example `annotations['code_quality'].label == 'fail'` or `annotations['answer_relevance'].score` below `0.8`.
+  </filtering_example>
+</tool>

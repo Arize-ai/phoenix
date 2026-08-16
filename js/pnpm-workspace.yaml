@@ -1,10 +1,40 @@
 packages:
+  - app
   - packages/*
   - examples/apps/*
   - benchmarks/*
-onlyBuiltDependencies:
-  - esbuild
-  - protobufjs
-minimumReleaseAge: 4320
+
+managePackageManagerVersions: true
+
+minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
-  - "@arizeai/openinference-core"
+  - "@arizeai/*"
+
+# @browser-ai/core imports @ai-sdk/provider at runtime without declaring it,
+# so it only resolves when some other package happens to hoist it — declare
+# the dependency it forgot so dependency-graph shifts can't break it.
+packageExtensions:
+  "@browser-ai/core":
+    dependencies:
+      "@ai-sdk/provider": "*"
+
+allowBuilds:
+  "@mongodb-js/zstd": false
+  # Only has a "use pnpm" preinstall guard; no build output needed.
+  autoevals: false
+  esbuild: true
+  msw: false
+  node-liblzma: false
+  protobufjs: true
+  # napi-postinstall binding fixup for jest 30's resolver.
+  unrs-resolver: true
+
+overrides:
+  # Pre-existing exact pin: forces peer-dep alignment across @mastra/* packages
+  # that each declare narrow hono ranges. Pinned to latest to pick up the fix
+  # for CVE-2026-54290 (hono <4.12.25).
+  "hono": "4.12.31"
+  # Still load-bearing: @langchain/core and @braintrust/core pin uuid 9.x/10.x.
+  "uuid@<11.1.1": ">=11.1.1"
+  # Still load-bearing: some transitive still pulls in vulnerable ip-address.
+  "ip-address@<10.1.1": ">=10.1.1"

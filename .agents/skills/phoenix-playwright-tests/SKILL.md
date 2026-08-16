@@ -7,12 +7,12 @@ metadata:
 
 # Phoenix Playwright Test Writing
 
-Write end-to-end tests for Phoenix using Playwright. Tests live in `app/tests/` and follow established patterns.
+Write end-to-end tests for Phoenix using Playwright. Tests live in `js/app/tests/` and follow established patterns.
 
 ## Timeout Policy
 
-- Do not pass timeout args in test code under `app/tests`.
-- Tune timing centrally in `app/playwright.config.ts` (global `timeout`, `expect.timeout`, `use.navigationTimeout`, and `webServer.timeout`).
+- Do not pass timeout args in test code under `js/app/tests`.
+- Tune timing centrally in `js/app/playwright.config.ts` (global `timeout`, `expect.timeout`, `use.navigationTimeout`, and `webServer.timeout`).
 
 ## Quick Start
 
@@ -86,7 +86,7 @@ test.describe("Feature Name", () => {
    **constant regardless of state** — state is exposed via a sibling `data-*`
    attribute (`data-mode`, `data-state`, …), so never key a `getByTestId` off a value
    that only exists in one mode. If you need a `data-testid` that doesn't exist yet,
-   add it following `rules/test-ids.md` in the `phoenix-frontend` skill (pattern:
+   add it following `references/test-ids.md` in the `phoenix-frontend` skill (pattern:
    `<scope>-<subject>-<role>`).
 
 5. **CSS locators** (last resort):
@@ -389,7 +389,7 @@ When tests are flaky:
 
 2. **Look for `waitForTimeout` usage** - replace with proper waits:
    ```bash
-   grep -r "waitForTimeout" app/tests/
+   grep -r "waitForTimeout" js/app/tests/
    ```
 
 3. **Check for race conditions** in element interactions:

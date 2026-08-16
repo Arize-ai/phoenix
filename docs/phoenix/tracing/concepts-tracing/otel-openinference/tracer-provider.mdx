@@ -1,0 +1,120 @@
+---
+title: "Tracer Provider and Tracer"
+sidebarTitle: "Tracer provider and tracer"
+description: "The central configuration object for OpenTelemetry tracing — what the Tracer Provider owns, how to configure it, and the Lambda and Node.js shutdown gotchas to know about."
+keywords: ['tracer provider', 'tracer', 'OpenTelemetry', 'TracerProvider', 'force_flush', 'shutdown', 'AWS Lambda', 'Node.js']
+---
+
+The **Tracer Provider** is the central configuration point for tracing in your application. It owns the [Resource](/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource), holds the [Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor) pipeline, and hands out **Tracer** instances on request.
+
+It's a singleton. Set up once during application initialization, then ask it for tracers wherever you need to create spans.
+
+# Tracer vs Tracer Provider
+
+| | Tracer Provider | Tracer |
+| :--- | :--- | :--- |
+| **What it is** | The stateful runtime component that holds references to span processors, exporters, and the resource. | The object used to create spans. |
+| **How many** | Usually one per application (global singleton). | One per library, module, or component — name it after the thing it traces. |
+| **How you get it** | Constructed during app init: `TracerProvider(...)`. | Asked from the provider: `trace.get_tracer(__name__)`. |
+| **Lifetime** | The full process. | Whatever scope you keep the reference. |
+
+Trace hierarchy — parent/child relationships between spans — is usually managed automatically by creating *active* spans with `tracer.start_as_current_span(...)`. You can also manage hierarchy manually by explicitly setting the context for spans, but that's rare. See [Context Propagation](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation) for the manual path.
+
+# Configuring the Tracer Provider
+
+```python
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider, SpanLimits
+from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
+from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
+
+tracer_provider = TracerProvider(
+    resource=resource,                              # Resource reference
+    active_span_processor=span_processor,           # Span processor reference
+    sampler=ParentBased(TraceIdRatioBased(0.2)),    # Sampling 20%
+    shutdown_on_exit=True,                          # Default
+    id_generator=RandomIdGenerator(),               # Default
+    span_limits=SpanLimits(
+        max_attributes=64,
+        max_events=128,
+        max_links=32,
+        max_attribute_length=256,
+    ),
+)
+
+trace.set_tracer_provider(tracer_provider)
+tracer = trace.get_tracer(__name__)
+```
+
+Each option:
+
+| Parameter | What it controls |
+| :--- | :--- |
+| `resource` | The [Resource](/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource) describing the producer of telemetry. |
+| `active_span_processor` | The [Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor) pipeline that handles spans. |
+| `sampler` | Which spans get recorded. See [Sampling](/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling). |
+| `shutdown_on_exit` | Whether to automatically flush spans on process exit. |
+| `id_generator` | How span IDs and trace IDs are generated. |
+| `span_limits` | Caps on attributes, events, links, and attribute length per span. |
+
+For the full API surface, see the [TracerProvider API reference](https://opentelemetry-python.readthedocs.io/en/latest/sdk/trace.html#opentelemetry.sdk.trace.TracerProvider).
+
+# Getting a Tracer
+
+Once the provider is registered as the global, ask it for a tracer wherever you need to create spans:
+
+```python
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+with tracer.start_as_current_span("my-operation") as span:
+    span.set_attribute("input.value", "User input")
+    # ... do work ...
+```
+
+The convention is to pass `__name__` (the Python module name) so spans are tagged with where they came from.
+
+# Lambda and Node.js: The Two Critical Gotchas
+
+The Tracer Provider is where two of the most common "no traces" failures live, both rooted in process lifecycle:
+
+<Warning>
+**AWS Lambda — you must call `force_flush()`.**
+
+When a Lambda handler returns, the OS freezes the process. The background export thread of a `BatchSpanProcessor` doesn't get a chance to export any queued spans. They sit in memory until the next invocation, and on cold starts they're lost entirely. Always call `tracer_provider.force_flush()` before returning from the handler.
+
+Do **not** call `shutdown()` in Lambda. Warm starts reuse the process, and a shut-down Tracer Provider can't be reused.
+</Warning>
+
+<Warning>
+**Node.js — you must call `shutdown()`.**
+
+A Node.js process can exit on normal completion *before* the BatchSpanProcessor's schedule-delay timer fires. The queued spans are dropped. Call `tracerProvider.shutdown()` on process exit (typically in a `SIGTERM` or `beforeExit` handler) to force a final flush.
+</Warning>
+
+These same patterns apply to any short-lived execution environment — CI jobs, one-off scripts, serverless functions. If your process doesn't run long enough for the next batch interval to elapse, you need to flush manually.
+
+For the API surface on both methods, see the [TracerProvider API reference](https://opentelemetry-python.readthedocs.io/en/latest/sdk/trace.html#opentelemetry.sdk.trace.TracerProvider).
+
+# How They Compose
+
+The Tracer Provider is what brings the previous components together:
+
+```
+TracerProvider
+├── Resource              (who is sending — see /concepts/.../resource)
+├── Span Processor(s)     (when to export — see /concepts/.../span-processor)
+│   └── Exporter          (where to send — see /concepts/.../exporter)
+└── Tracer instances      (used in your code to create spans)
+```
+
+Configuring all of this by hand is verbose. The next page covers Phoenix `register()` helper, which handles the wiring for you.
+
+---
+
+## Next step
+
+You've seen the four OTel tracing components separately. Now see them collapsed into a single function call:
+
+<Card title="Next: The phoenix.otel Helpers" icon="arrow-right" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers" />

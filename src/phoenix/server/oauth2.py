@@ -1,20 +1,238 @@
 import logging
+import os
+import stat
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from functools import cached_property
+from pathlib import Path
 from typing import Any, Iterator, Optional, get_args
+from urllib.parse import parse_qs
 
 import jmespath
-from authlib.integrations.base_client import BaseApp
+from authlib.common.urls import add_params_to_qs
+from authlib.integrations.base_client import BaseApp, OAuthError
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
 from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAuth2Client
+from authlib.oauth2.rfc7523 import ClientSecretJWT
+from jmespath.exceptions import JMESPathError, ParseError
 
-from phoenix.config import AssignableUserRoleName, OAuth2ClientConfig
+from phoenix.config import (
+    CLIENT_ASSERTION_JWT_AUTH_METHOD,
+    AssignableUserRoleName,
+    OAuth2ClientConfig,
+)
 
 logger = logging.getLogger(__name__)
 
+_MAX_CLIENT_ASSERTION_BYTES = 64 * 1024
+"""Generous for a JWT; small enough that a wrong path cannot exhaust the process."""
+
+_ASSERTION_OPEN_FLAGS = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+"""Each flag is present on only one platform, so both are optional.
+
+O_NONBLOCK is POSIX-only and naming it directly is an AttributeError on Windows — which
+`except OSError` would not catch, turning a login into a 500. O_BINARY is Windows-only and
+suppresses the newline translation that would corrupt an assertion there.
+"""
+
 # Pre-compiled default JMESPath for email extraction (standard OIDC "email" claim)
 DEFAULT_EMAIL_PATH = jmespath.compile("email")
+
+
+def search_claim_path(
+    compiled: jmespath.parser.ParsedResult,
+    claims: dict[str, Any],
+    attribute_name: str,
+) -> Any:
+    """Evaluate a compiled JMESPath expression against claims, tolerating evaluation errors.
+
+    A syntactically valid expression can still raise at evaluation time. The common case is a
+    type mismatch when a claim is absent or has an unexpected shape: ``contains(groups[*], 'x')``
+    raises JMESPathTypeError when the ``groups`` claim is missing, because ``groups[*]`` projects
+    to null and ``contains`` rejects a null subject. Other evaluation-time failures are
+    config-shaped rather than claim-shaped — most notably a typo'd function name, which raises
+    UnknownFunctionError only at evaluation (function names are not resolved at compile time, so
+    such expressions pass the startup validation in ``_compile_jmespath_expression``).
+
+    All of these are caught here: rather than 500-ing the login, the claim is treated as None so
+    the caller falls back (fetch UserInfo, or apply the default/strict role behavior). A warning is
+    logged so an operator can spot a silently degrading role/group mapping (e.g. SSO users landing
+    as VIEWER instead of ADMIN) that previously surfaced as a loud login failure.
+    """
+    try:
+        return compiled.search(claims)
+    except JMESPathError as e:
+        logger.warning(
+            "JMESPath expression for %s could not be evaluated against the current "
+            "claims (%s); treating the claim as absent. If this is unexpected, the "
+            "configured expression or the claim shape may be misconfigured.",
+            attribute_name,
+            type(e).__name__,
+        )
+        return None
+
+
+@dataclass(frozen=True, repr=False)
+class AssertionFile:
+    """The client assertion's location, carrying whether it may be repeated in messages.
+
+    This exists to keep a privilege boundary, not to phrase messages nicely.
+    CLIENT_ASSERTION_FILE_ENV_VAR lets provider config name any environment variable in the process,
+    so an indirect path is a value the config selected but did not write. Repeating it anywhere
+    an operator can read converts rights over the non-secret provider config into a read of any
+    secret-bearing
+    variable — an escalation wherever those privileges differ, as they do for a Kubernetes
+    ConfigMap versus a Secret. An indirect path is therefore named by its source and never
+    echoed. A direct path was typed into the config verbatim, so repeating it discloses
+    nothing and is the useful half of a missing-file message.
+
+    Both __str__ and __repr__ redact, because repr is what tracebacks, debuggers and structured
+    loggers reach for and is the likelier disclosure route of the two. Filesystem calls take the
+    real path through __fspath__, so the safe form is what every message gets without any call
+    site opting in — which is the point: the redaction cannot be forgotten at a site added later.
+    """
+
+    path: Path
+    variable: Optional[str] = None
+
+    def __fspath__(self) -> str:
+        return str(self.path)
+
+    def __str__(self) -> str:
+        return f"named by {self.variable}" if self.variable else str(self.path)
+
+    def __repr__(self) -> str:
+        # The generated repr would print the path regardless of __str__, and repr is what
+        # tracebacks, debuggers and structured loggers reach for.
+        return f"{type(self).__name__}({self})"
+
+
+class ClientAssertionJWT(ClientSecretJWT):  # type:ignore[misc]
+    """Client authentication with a platform-minted JWT (RFC 7523 §2.2).
+
+    Unlike `private_key_jwt`, the assertion is not signed here: the platform writes it to the
+    file (Azure Workload Identity webhook, SPIFFE, and similar all project a Kubernetes
+    service account token this way) and Phoenix relays it verbatim. Which is why the file is
+    an AssertionFile rather than a Path — see there for what may be said about it.
+
+    Registered as the auth method instance rather than applied per call site, so authlib
+    attaches the assertion to token endpoint requests — fetch, refresh, introspect — on its
+    own. Revocation is selected by a separate `revocation_endpoint_auth_method`, which
+    add_client sets to the same instance.
+    """
+
+    name = CLIENT_ASSERTION_JWT_AUTH_METHOD
+
+    def __init__(self, assertion_file: AssertionFile) -> None:
+        super().__init__()
+        self._assertion_file = assertion_file
+
+    def _cause(self, error: Exception) -> Optional[Exception]:
+        """Drop the cause when it would carry an indirect path a traceback would print.
+
+        OSError keeps the filename and UnicodeDecodeError keeps the offending bytes, so
+        chaining hands a traceback logger what the message withheld. A direct path may be
+        chained normally, since it is already in the operator's own config.
+        """
+        return None if self._assertion_file.variable else error
+
+    def sign(self, auth: Any, token_endpoint: str) -> str:
+        # Re-read per request, because the platform rotates the token — Kubernetes by
+        # swapping the symlink the configured path resolves through, which also means the
+        # path can point somewhere new between any two calls. Hence one open and an fstat on
+        # the descriptor rather than a stat followed by a separate open: the latter leaves a
+        # window in which the target changes after being checked. O_NONBLOCK keeps a FIFO
+        # from blocking on open, and the fstat rejects anything not a regular file — a FIFO
+        # waits for a writer and a character device never reaches EOF, either of which would
+        # stall the event loop, since this read is synchronous inside the async auth flow.
+        try:
+            fd = os.open(self._assertion_file, _ASSERTION_OPEN_FLAGS)
+        except OSError as e:
+            # OAuthError is the only failure the login route translates into a redirect;
+            # anything else surfaces as a 500. strerror rather than the exception: OSError
+            # embeds the filename, which would reintroduce the value AssertionFile withholds.
+            raise OAuthError(
+                description=(
+                    f"cannot read client assertion file {self._assertion_file}: "
+                    f"{e.strerror or type(e).__name__}"
+                )
+            ) from self._cause(e)
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise OAuthError(
+                    description=(
+                        f"client assertion file is not a regular file: {self._assertion_file}"
+                    )
+                )
+            # Bounded: a regular file can still be arbitrarily large, and the value is copied
+            # again by strip() and once more by form encoding. Reading one byte past the limit
+            # distinguishes "at the limit" from "over it" without trusting st_size, which
+            # pseudo-files misreport. Looped because a regular-file read may legally return
+            # fewer bytes than asked before EOF, which a single call would take for the whole
+            # assertion — truncating it, or letting an oversized file slip under the limit.
+            chunks = []
+            remaining = _MAX_CLIENT_ASSERTION_BYTES + 1
+            while remaining > 0:
+                chunk = os.read(fd, remaining)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            raw = b"".join(chunks)
+        except OSError as e:
+            raise OAuthError(
+                description=(
+                    f"cannot read client assertion file {self._assertion_file}: "
+                    f"{e.strerror or type(e).__name__}"
+                )
+            ) from self._cause(e)
+        finally:
+            os.close(fd)
+        if len(raw) > _MAX_CLIENT_ASSERTION_BYTES:
+            raise OAuthError(
+                description=(
+                    f"client assertion file exceeds {_MAX_CLIENT_ASSERTION_BYTES} bytes: "
+                    f"{self._assertion_file}"
+                )
+            )
+        try:
+            assertion = raw.decode().strip()
+        except UnicodeDecodeError as e:
+            # A ValueError, not an OSError, and what a path pointing at a binary produces.
+            # Its `object` holds the offending bytes, so it is dropped for an indirect file
+            # along with the rest.
+            raise OAuthError(
+                description=f"cannot decode client assertion file {self._assertion_file}"
+            ) from self._cause(e)
+        if not assertion:
+            # An empty value would be sent as `client_assertion=`, which IDPs reject as a
+            # generic invalid_client with nothing pointing back at the file.
+            raise OAuthError(description=f"client assertion file is empty: {self._assertion_file}")
+        return assertion
+
+    def __call__(
+        self, auth: Any, method: str, uri: str, headers: Any, body: Any
+    ) -> tuple[str, Any, Any]:
+        uri, headers, body = super().__call__(auth, method, uri, headers, body)
+        # RFC 7523 §3 lets the server identify the client from the assertion's `sub`, which
+        # holds for private_key_jwt but not here: the platform sets `sub` to the workload
+        # identity (e.g. system:serviceaccount:<ns>:<sa>), so client_id must be explicit.
+        # Appending unconditionally would emit it twice for a caller that already supplied
+        # one, which strict endpoints reject as invalid_request. Anything already present must
+        # be exactly this client: the body's client_id selects which application the assertion
+        # is presented for, so a blank or differing value authenticates as the wrong one where
+        # a workload is federated to more than one.
+        existing = parse_qs(body or "", keep_blank_values=True).get("client_id")
+        if existing is None:
+            body = add_params_to_qs(body or "", [("client_id", auth.client_id)])
+            if "Content-Length" in headers:
+                headers["Content-Length"] = str(len(body))
+        elif existing != [auth.client_id]:
+            raise OAuthError(
+                description="client_id in the token request does not match the configured client"
+            )
+        return uri, headers, body
 
 
 class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[misc]
@@ -26,6 +244,18 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
     """
 
     client_cls = AsyncHttpxOAuth2Client
+
+    #: Keys BaseApp must not take from server metadata. It merges the discovery document
+    #: over client_kwargs, so a provider advertising one of these would replace locally
+    #: configured client authentication — a document setting "none" strips the assertion
+    #: from the token request entirely. Standard OIDC advertises the plural
+    #: token_endpoint_auth_methods_supported, so this only bites on nonstandard fields.
+    _METADATA_RESERVED_KEYS = ("token_endpoint_auth_method", "revocation_endpoint_auth_method")
+
+    def _get_oauth_client(self, **metadata: Any) -> Any:
+        for key in self._METADATA_RESERVED_KEYS:
+            metadata.pop(key, None)
+        return super()._get_oauth_client(**metadata)
 
     def __init__(
         self,
@@ -39,6 +269,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         role_attribute_path: Optional[str] = None,
         role_mapping: Optional[Mapping[str, AssignableUserRoleName]] = None,
         role_attribute_strict: bool = False,
+        role_resync: bool = True,
         email_attribute_path: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
@@ -83,6 +314,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         )
         self._role_mapping = role_mapping
         self._role_attribute_strict = role_attribute_strict
+        self._role_resync = role_resync
         self._compiled_role_path = self._compile_jmespath_expression(
             self._role_attribute_path, "ROLE_ATTRIBUTE_PATH"
         )
@@ -111,7 +343,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
 
         try:
             return jmespath.compile(path)
-        except (jmespath.exceptions.JMESPathError, jmespath.exceptions.ParseError) as e:
+        except (JMESPathError, ParseError) as e:
             raise ValueError(
                 f"Invalid JMESPath expression in {attribute_name}: '{path}'. Error: {e}. "
                 "Hint: Claim keys with special characters (colons, dots, slashes, hyphens) "
@@ -134,6 +366,11 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
     @cached_property
     def use_pkce(self) -> bool:
         return self._use_pkce
+
+    @cached_property
+    def role_resync(self) -> bool:
+        """When False, existing users' roles are preserved on login instead of re-synced."""
+        return self._role_resync
 
     @cached_property
     def email_path(self) -> jmespath.parser.ParsedResult:
@@ -165,7 +402,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         """
         # Check for email claim (required by application)
         # Use configured email_path (defaults to "email" claim)
-        email = self._compiled_email_path.search(claims)
+        email = search_claim_path(self._compiled_email_path, claims, "EMAIL_ATTRIBUTE_PATH")
         if not email or not isinstance(email, str) or not email.strip():
             # Email missing or invalid, need UserInfo
             return False
@@ -181,7 +418,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         if self._compiled_role_path:
             # Check if role claim EXISTS (not whether it maps successfully)
             # Optimization: If the claim exists but doesn't map, UserInfo won't help
-            result = self._compiled_role_path.search(claims)
+            result = search_claim_path(self._compiled_role_path, claims, "ROLE_ATTRIBUTE_PATH")
             role_value = self._normalize_to_single_string(result)
             if not role_value:
                 # Role claim missing - UserInfo might have a mappable role
@@ -223,7 +460,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         if not self._compiled_groups_path:
             return []
 
-        result = self._compiled_groups_path.search(claims)
+        result = search_claim_path(self._compiled_groups_path, claims, "GROUPS_ATTRIBUTE_PATH")
         return self._normalize_to_string_list(result)
 
     @staticmethod
@@ -298,7 +535,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
             return None
 
         # Extract role from claims
-        result = self._compiled_role_path.search(user_claims)
+        result = search_claim_path(self._compiled_role_path, user_claims, "ROLE_ATTRIBUTE_PATH")
         role_value = self._normalize_to_single_string(result)
 
         # If role claim is missing or empty
@@ -393,12 +630,43 @@ class OAuth2Clients:
     def add_client(self, config: OAuth2ClientConfig) -> None:
         if (idp_name := config.idp_name) in self._clients:
             raise ValueError(f"oauth client already registered: {idp_name}")
-        # RFC 6749 §3.3: scope parameter (space-delimited list of scopes)
-        client_kwargs = {"scope": config.scopes}
+        # scope: RFC 6749 §3.3 (space-delimited list of scopes)
+        # http2: offers "h2" via TLS ALPN alongside "http/1.1" — negotiated, not
+        # forced, so HTTP/1.1-only IDPs are unaffected (needed for IDPs behind
+        # proxies requiring end-to-end HTTP/2, e.g. ZITADEL)
+        client_kwargs = {"scope": config.scopes, "http2": True}
 
-        if config.token_endpoint_auth_method:
+        if config.token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD:
+            # authlib accepts an auth method instance here, not just one of its built-in
+            # names (authlib >=0.15).
+            assert config.client_assertion_file is not None  # enforced by OAuth2ClientConfig
+            assertion_file = AssertionFile(
+                path=Path(config.client_assertion_file),
+                variable=config.client_assertion_file_env_var,
+            )
+            if not assertion_file.path.is_file():
+                # Warn rather than raise: the file is written by the platform, not by the
+                # operator, so it can legitimately appear after startup (an init or sidecar
+                # container that mints it). Failing here would take the whole server down —
+                # including other IDPs and password login — over one provider's mount. The
+                # login route reports the missing file per attempt.
+                logger.warning(
+                    "OAuth2 IDP %s: client assertion file %s does not exist; logins via this "
+                    "provider will fail until it appears. On AKS it is projected by the Azure "
+                    "Workload Identity webhook, which requires the pod label "
+                    "azure.workload.identity/use=true.",
+                    config.idp_name,
+                    assertion_file,
+                )
+            auth_method = ClientAssertionJWT(assertion_file)
+            client_kwargs["token_endpoint_auth_method"] = auth_method
+            # Revocation is selected separately and would otherwise fall back to "none",
+            # since there is no client secret to imply a method.
+            client_kwargs["revocation_endpoint_auth_method"] = auth_method
+        elif config.token_endpoint_auth_method:
             # OIDC Core §9: Client authentication method at token endpoint
             client_kwargs["token_endpoint_auth_method"] = config.token_endpoint_auth_method
+
         if config.use_pkce:
             # Always use S256 for PKCE (RFC 7636 §4.2: SHA-256 code challenge method)
             client_kwargs["code_challenge_method"] = "S256"
@@ -418,6 +686,7 @@ class OAuth2Clients:
             role_attribute_path=config.role_attribute_path,
             role_mapping=config.role_mapping,
             role_attribute_strict=config.role_attribute_strict,
+            role_resync=config.role_resync,
             email_attribute_path=config.email_attribute_path,
         )
 

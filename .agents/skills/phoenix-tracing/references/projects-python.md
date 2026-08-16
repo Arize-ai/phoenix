@@ -13,15 +13,18 @@ Projects group traces for a single application or experiment.
 ### Environment Variable (Recommended)
 
 ```bash
-export PHOENIX_PROJECT_NAME="my-app-prod"
+export PHOENIX_PROJECT="my-app-prod"  # PHOENIX_PROJECT_NAME is a supported alias
 ```
 
 ```python
 import os
-os.environ["PHOENIX_PROJECT_NAME"] = "my-app-prod"
+os.environ["PHOENIX_PROJECT"] = "my-app-prod"
 from phoenix.otel import register
 register()  # Uses "my-app-prod"
 ```
+
+`PHOENIX_PROJECT` is canonical and takes precedence over the `PHOENIX_PROJECT_NAME`
+alias when both are set.
 
 ### Code
 
@@ -56,6 +59,29 @@ register(project_name="chatbot-claude")
 register(project_name="my-app-v1")
 register(project_name="my-app-v2")
 ```
+
+## Listing Projects Programmatically
+
+`arize-phoenix-client` exposes a `projects` resource with full CRUD. `list()`
+pages through the REST API for you:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+projects = client.projects.list()
+for project in projects:
+    print(f"Project name: {project['name']}")
+
+# Filter server-side on a case-insensitive substring of the name
+agent_projects = client.projects.list(name_contains="agent")
+```
+
+`list()` is keyword-only: `list(*, name_contains: Optional[str] = None) -> list[v1.Project]`.
+Each project is a `TypedDict`, so read fields with `project["name"]`, not
+`project.name`. `client.projects` also offers `get`, `create`, `update`, and
+`delete`.
 
 ## Via HTTP Header (OTEL Collector / config-based tools)
 

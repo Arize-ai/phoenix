@@ -1,13 +1,15 @@
 import json
+import logging
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Iterable, Iterator, Literal, Optional
+from typing import Annotated, Any, Iterable, Iterator, Literal, Optional
 from typing import cast as type_cast
 
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
+from sqlalchemy.sql.expression import tuple_
 from starlette.authentication import UnauthenticatedUser
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -16,12 +18,7 @@ from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
-    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     get_env_database_allocated_storage_capacity_gibibytes,
-    get_env_phoenix_agents_assistant_project_name,
-    get_env_phoenix_agents_collector_endpoint,
-    get_env_phoenix_agents_web_access_enabled,
-    getenv,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
@@ -29,10 +26,13 @@ from phoenix.db.helpers import (
     SupportedSQLDialect,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
+    pg_table_sizes_stmt,
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.prompts import PromptMessageRole
+from phoenix.server.agents.config import AgentsEnvConfig
+from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -55,6 +55,7 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.input_types.AvailableAgentSkillsInput import AvailableAgentSkillsInput
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -67,6 +68,8 @@ from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AgentsConfig import AgentsConfig
+from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
+from phoenix.server.api.types.AgentSkill import AgentSkill
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
 from phoenix.server.api.types.Dataset import Dataset
@@ -90,6 +93,7 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     parse_experiment_repeated_run_group_node_id,
 )
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.ExperimentTag import ExperimentTag
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
@@ -99,9 +103,12 @@ from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
 )
+from phoenix.server.api.types.OAuth2Grant import OAuth2Grant
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
     connection_from_list,
@@ -132,6 +139,7 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxProvider,
     get_sandbox_backend_info,
 )
+from phoenix.server.api.types.SearchResult import SearchResult
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -146,6 +154,8 @@ from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
+
+logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
@@ -419,6 +429,17 @@ class Query:
         return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    async def oauth2_grants(self, info: Info[Context, None]) -> list[OAuth2Grant]:
+        async with info.context.db.read() as session:
+            grants = await session.scalars(
+                select(models.OAuth2Grant)
+                .where(models.OAuth2Grant.revoked_at.is_(None))
+                .options(joinedload(models.OAuth2Grant.client))
+                .order_by(models.OAuth2Grant.last_used_at.desc().nullslast())
+            )
+        return [OAuth2Grant(id=grant.id, db_record=grant) for grant in grants]
+
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
         stmt = (
             select(models.ApiKey)
@@ -454,12 +475,15 @@ class Query:
             # The end_time comes from the Trace model, and we need to get the max end_time for
             # each project
             end_time_subq = (
-                select(func.max(models.Trace.end_time))
+                select(func.max(models.Trace.start_time))
                 .where(models.Trace.project_rowid == models.Project.id)
                 .scalar_subquery()
             )
             projects_query = projects_query.order_by(
-                end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
+                end_time_subq.desc().nullslast()
+                if sort.dir is SortDir.desc
+                else end_time_subq.asc().nullslast(),
+                models.Project.id.desc(),
             )
         elif sort:
             sort_col = getattr(models.Project, sort.col.value)
@@ -1019,8 +1043,14 @@ class Query:
             backend_type = global_id.node_id
             if backend_type not in SANDBOX_BACKEND_TYPES:
                 raise NotFound(f"Unknown sandbox backend type: {backend_type}")
-            return SandboxProvider(id=type_cast(models.SandboxBackendType, backend_type))
-        node_id = int(global_id.node_id)
+            return SandboxProvider(id=backend_type)
+        try:
+            node_id = int(global_id.node_id)
+        except ValueError:
+            raise BadRequest(
+                f"Invalid node id: {id}. The id of a {type_name} node must be an integer, "
+                f"but got: {global_id.node_id}"
+            ) from None
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")
         if type_name == Project.__name__:
@@ -1041,12 +1071,18 @@ class Query:
             return ExperimentRun(id=node_id)
         elif type_name == ExperimentJob.__name__:
             return ExperimentJob(id=node_id)
+        elif type_name == ExperimentTag.__name__:
+            return ExperimentTag(id=node_id)
         elif type_name == User.__name__:
             if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)
             return User(id=node_id)
         elif type_name == ProjectSession.__name__:
             return ProjectSession(id=node_id)
+        elif type_name == OAuth2Grant.__name__:
+            return OAuth2Grant(id=node_id)
+        elif type_name == AgentSession.__name__:
+            return AgentSession(id=node_id)
         elif type_name == Prompt.__name__:
             return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:
@@ -1111,15 +1147,16 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Prompt)
+        stmt = select(models.Prompt).order_by(
+            models.Prompt.created_at.desc(),
+            models.Prompt.id.desc(),
+        )
         if filter:
             column = getattr(models.Prompt, filter.col.value)
             # Cast Identifier columns to String for ilike operations
             if filter.col.value == "name":
                 column = cast(column, String)
-            stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
-                models.Prompt.updated_at.desc()
-            )
+            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
         if labelIds:
             stmt = stmt.join(models.PromptPromptLabel).where(
                 models.PromptPromptLabel.prompt_label_id.in_(
@@ -1139,6 +1176,108 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Search top-level resources (projects, datasets, experiments, and prompts) "
+            "by name or description."
+        )
+    )
+    async def search_resources(
+        self,
+        info: Info[Context, None],
+        query: str,
+        limit_per_type: int = 5,
+    ) -> list[SearchResult]:
+        search_term = query.strip()
+        if not search_term:
+            return []
+        if limit_per_type < 1:
+            raise BadRequest("limitPerType must be a positive integer")
+        limit_per_type = min(limit_per_type, 25)
+
+        # icontains(autoescape=True) matches a case-insensitive substring while
+        # escaping LIKE metacharacters (% and _) so they match literally rather
+        # than acting as wildcards.
+        projects_stmt = (
+            exclude_dataset_evaluator_projects(
+                exclude_experiment_projects(
+                    select(models.Project).where(
+                        or_(
+                            models.Project.name.icontains(search_term, autoescape=True),
+                            models.Project.description.icontains(search_term, autoescape=True),
+                        )
+                    )
+                )
+            )
+            .order_by(
+                case((models.Project.name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Project.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        datasets_stmt = (
+            select(models.Dataset)
+            .where(
+                or_(
+                    models.Dataset.name.icontains(search_term, autoescape=True),
+                    models.Dataset.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case((models.Dataset.name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Dataset.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        experiments_stmt = (
+            select(models.Experiment)
+            .where(models.Experiment.is_ephemeral.is_(False))
+            .where(
+                or_(
+                    models.Experiment.name.icontains(search_term, autoescape=True),
+                    models.Experiment.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case(
+                    (models.Experiment.name.icontains(search_term, autoescape=True), 0),
+                    else_=1,
+                ),
+                models.Experiment.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        # Prompt.name is an Identifier column and must be cast to String for matching
+        prompt_name = cast(models.Prompt.name, String)
+        prompts_stmt = (
+            select(models.Prompt)
+            .where(
+                or_(
+                    prompt_name.icontains(search_term, autoescape=True),
+                    models.Prompt.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case((prompt_name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Prompt.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+
+        results: list[SearchResult] = []
+        async with info.context.db.read() as session:
+            projects = await session.scalars(projects_stmt)
+            results.extend(Project(id=project.id, db_record=project) for project in projects)
+            datasets = await session.scalars(datasets_stmt)
+            results.extend(Dataset(id=dataset.id, db_record=dataset) for dataset in datasets)
+            experiments = await session.scalars(experiments_stmt)
+            results.extend(
+                Experiment(id=experiment.id, db_record=experiment) for experiment in experiments
+            )
+            prompts = await session.scalars(prompts_stmt)
+            results.extend(Prompt(id=prompt.id, db_record=prompt) for prompt in prompts)
+        return results
 
     @strawberry.field
     async def prompt_labels(
@@ -1174,6 +1313,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only labels whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetLabel]:
         args = ConnectionArgs(
             first=first,
@@ -1181,10 +1328,13 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        stmt = select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
+        if names:
+            # Exact-match lookup so callers can resolve names to ids without
+            # paging through the entire instance-wide vocabulary.
+            stmt = stmt.where(models.DatasetLabel.name.in_(names))
         async with info.context.db.read() as session:
-            dataset_labels = await session.scalars(
-                select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
-            )
+            dataset_labels = await session.scalars(stmt)
         data = [
             DatasetLabel(id=dataset_label.id, db_record=dataset_label)
             for dataset_label in dataset_labels
@@ -1199,6 +1349,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only splits whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetSplit]:
         args = ConnectionArgs(
             first=first,
@@ -1206,8 +1364,13 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        stmt = select(models.DatasetSplit)
+        if names:
+            # Exact-match lookup so callers can resolve names to ids without
+            # paging through the entire instance-wide vocabulary.
+            stmt = stmt.where(models.DatasetSplit.name.in_(names))
         async with info.context.db.read() as session:
-            splits = await session.stream_scalars(select(models.DatasetSplit))
+            splits = await session.stream_scalars(stmt)
             data = [DatasetSplit(id=split.id, db_record=split) async for split in splits]
             return connection_from_list(
                 data=data,
@@ -1450,19 +1613,15 @@ class Query:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
-            stmt = text("""\
-                SELECT c.relname, pg_total_relation_size(c.oid)
-                FROM pg_class as c
-                INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
-                WHERE c.relkind = 'r'
-                AND n.nspname = :nspname;
-            """).bindparams(nspname=nspname)
             try:
                 async with info.context.db.read() as session:
-                    stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                    stats = type_cast(
+                        Iterable[tuple[str, int]],
+                        await session.execute(pg_table_sizes_stmt()),
+                    )
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
+                logger.exception("Failed to query PostgreSQL table sizes for db table stats")
                 return []
         else:
             assert_never(info.context.db.dialect)
@@ -1480,13 +1639,104 @@ class Query:
             insufficient_storage=info.context.db.should_not_insert_or_update,
         )
 
-    @strawberry.field
-    def agents_config(self) -> AgentsConfig:
-        return AgentsConfig(
-            collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
-            assistant_project_name=get_env_phoenix_agents_assistant_project_name(),
-            web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
+    @strawberry.field(
+        description=(
+            "Persisted assistant chat sessions, most recently active first. By default, "
+            "users see their own sessions. Admins can pass viewerOnly: false to see all "
+            "sessions. When authentication is disabled, all sessions are returned."
+        ),
+    )  # type: ignore
+    async def agent_sessions(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 20,
+        after: Optional[CursorString] = UNSET,
+        viewer_only: bool = True,
+    ) -> Connection[AgentSession]:
+        page_size = first or 20
+        stmt = select(models.AgentSession).where(models.AgentSession.is_ephemeral.is_(False))
+        owner_filter = get_agent_session_owner_filter(info.context, viewer_only=viewer_only)
+        if owner_filter is not None:
+            stmt = stmt.where(owner_filter)
+        after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
+        if after_cursor is not None and after_cursor.sort_column is not None:
+            stmt = stmt.where(
+                tuple_(models.AgentSession.updated_at, models.AgentSession.id)
+                < (after_cursor.sort_column.value, after_cursor.rowid)
+            )
+        stmt = stmt.order_by(
+            models.AgentSession.updated_at.desc(),
+            models.AgentSession.id.desc(),
+        ).limit(page_size + 1)
+        async with info.context.db.read() as session:
+            agent_sessions = list((await session.scalars(stmt)).all())
+        has_next_page = len(agent_sessions) > page_size
+        if has_next_page:
+            agent_sessions = agent_sessions[:page_size]
+        cursors_and_nodes = [
+            (
+                Cursor(
+                    rowid=agent_session.id,
+                    sort_column=CursorSortColumn(
+                        type=CursorSortColumnDataType.DATETIME,
+                        value=agent_session.updated_at,
+                    ),
+                ),
+                to_gql_agent_session(agent_session),
+            )
+            for agent_session in agent_sessions
+        ]
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=after_cursor is not None,
+            has_next_page=has_next_page,
         )
+
+    @strawberry.field
+    def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
+        agent_assistant_enabled = info.context.settings.agent_assistant_enabled
+        trace_recording = info.context.settings.agent_trace_recording
+        env = AgentsEnvConfig.from_env()
+        session_retention = info.context.settings.agent_session_retention
+        return AgentsConfig(
+            collector_endpoint=env.collector_endpoint,
+            assistant_project_name=env.assistant_project_name,
+            force_tracing=env.force_tracing,
+            web_access_enabled=env.web_access_enabled,
+            assistant_enabled=agent_assistant_enabled.enabled,
+            allow_local_traces=env.allows_local_traces(trace_recording),
+            allow_remote_export=env.allows_remote_export(trace_recording),
+            session_retention_max_idle_days=session_retention.max_idle_days or None,
+            session_retention_max_count_per_user=session_retention.max_count_per_user or None,
+        )
+
+    @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore
+    def available_agent_skills(
+        self,
+        info: Info[Context, None],
+        input: Optional[AvailableAgentSkillsInput] = UNSET,
+    ) -> list[AgentSkill]:
+        from phoenix.server.agents.skills import get_skills
+
+        resolved_input = input if input is not UNSET and input is not None else None
+        skills = get_skills(
+            has_playground_context=bool(resolved_input and resolved_input.has_playground_context),
+            has_dataset_context=bool(resolved_input and resolved_input.has_dataset_context),
+            has_llm_evaluator_context=bool(
+                resolved_input and resolved_input.has_llm_evaluator_context
+            ),
+            has_code_evaluator_context=bool(
+                resolved_input and resolved_input.has_code_evaluator_context
+            ),
+        )
+        return [
+            AgentSkill(
+                name=skill.name,
+                description=skill.description,
+                summary=skill.summary,
+            )
+            for skill in skills
+        ]
 
     @strawberry.field
     def validate_regular_expression(self, regex: str) -> ValidationResult:
@@ -1707,6 +1957,7 @@ class Query:
         async with info.context.db.read() as session:
             return await get_sandbox_backend_info(
                 secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
+                runtime=info.context.sandbox_runtime,
             )
 
     @strawberry.field

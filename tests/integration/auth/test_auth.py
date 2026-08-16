@@ -40,8 +40,11 @@ from .._helpers import (
     _MEMBER,
     _OK,
     _OK_OR_DENIED,
+    _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS,
     _SYSTEM_USER_GID,
     _VIEWER,
+    _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+    _VIEWER_ALLOWED_WRITE_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
     _AdminSecret,
@@ -932,112 +935,6 @@ class TestDeleteUsers:
         logged_in_user.visit(_app, 401)
 
 
-class TestCreateApiKey:
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _OK),
-            (_MEMBER, _OK),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_create_user_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        with expectation:
-            logged_in_user.create_api_key(_app)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_create_system_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        with expectation:
-            logged_in_user.create_api_key(_app, "System")
-
-
-class TestDeleteApiKey:
-    @pytest.mark.parametrize("role_or_user", [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN])
-    def test_delete_user_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        api_key = logged_in_user.create_api_key(_app)
-        logged_in_user.delete_api_key(_app, api_key)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
-    def test_only_admin_can_delete_user_api_key_for_non_self(
-        self,
-        role_or_user: _RoleOrUser,
-        role: UserRoleInput,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        non_self = _get_user(_app, role).log_in(_app)
-        assert non_self.gid != logged_in_user.gid
-        api_key = non_self.create_api_key(_app)
-        with expectation:
-            logged_in_user.delete_api_key(_app, api_key)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_delete_system_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System")
-        with expectation:
-            logged_in_user.delete_api_key(_app, api_key)
-
-
 class TestGraphQLQuery:
     @pytest.mark.parametrize(
         "role_or_user,expectation",
@@ -1048,18 +945,9 @@ class TestGraphQLQuery:
             (_DEFAULT_ADMIN, _OK),
         ],
     )
-    @pytest.mark.parametrize(
-        "query",
-        [
-            "query{users{edges{node{id}}}}",
-            "query{userApiKeys{id}}",
-            "query{systemApiKeys{id}}",
-        ],
-    )
-    def test_only_admin_can_list_users_and_api_keys(
+    def test_only_admin_can_list_users(
         self,
         role_or_user: _RoleOrUser,
-        query: str,
         expectation: _OK_OR_DENIED,
         _get_user: _GetUser,
         _app: _AppInfo,
@@ -1067,7 +955,7 @@ class TestGraphQLQuery:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with expectation:
-            logged_in_user.gql(_app, query)
+            logged_in_user.gql(_app, "query{users{edges{node{id}}}}")
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_can_query_user_node_for_self(
@@ -1247,6 +1135,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
                     "name": f"auth_code_evaluator_{token_hex(8)}",
                     "language": "PYTHON",
                     "sourceCode": self._SOURCE,
+                    "sandboxConfigId": sandbox_config_id,
                     "inputMapping": self._INPUT_MAPPING,
                 }
             },
@@ -1298,8 +1187,6 @@ class TestSandboxAndCodeEvaluatorPermissions:
             "UpdateSandboxProvider",
             {"input": {"id": provider_id, "enabled": True}},
         )
-        # Delete runs last so admins remove the already-exercised setup config.
-        check(is_admin, "DeleteSandboxConfig", {"input": {"id": sandbox_config_id}})
 
         # Tier 2 — member-allowed code-evaluator writes & previews
         members_allowed = not is_viewer
@@ -1311,6 +1198,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
                     "name": f"auth_code_evaluator_{token_hex(8)}",
                     "language": "PYTHON",
                     "sourceCode": self._SOURCE,
+                    "sandboxConfigId": sandbox_config_id,
                     "inputMapping": self._INPUT_MAPPING,
                 }
             },
@@ -1372,6 +1260,11 @@ class TestSandboxAndCodeEvaluatorPermissions:
             if edge["node"].get("currentVersion")
         ]
         assert code_nodes and code_nodes[0]["currentVersion"]["sourceCode"]
+
+        # Delete the setup sandbox config last — after every evaluator write that
+        # references it. Deleting it earlier makes those creates fail the
+        # config-exists check for admins (who are allowed to delete it).
+        check(is_admin, "DeleteSandboxConfig", {"input": {"id": sandbox_config_id}})
 
 
 class TestGenerativeModelCustomProviderMutations:
@@ -2056,9 +1949,8 @@ class TestSecretsCRUDAndValueVisibility:
 class TestApiAccessViaCookiesOrApiKeys:
     """Tests REST API v1 access control using both cookie and API key authentication.
 
-    This test suite verifies that access restrictions are enforced consistently across
-    all user roles (Admin, Member, Viewer, Default Admin) at the v1 router level,
-    regardless of authentication method:
+    This test suite verifies access restrictions across all user roles (Admin, Member,
+    Viewer, Default Admin) and both supported authentication methods:
     - Cookie-based authentication (access tokens from login)
     - API key authentication (Bearer tokens)
 
@@ -2087,6 +1979,129 @@ class TestApiAccessViaCookiesOrApiKeys:
     - Resource not found: Returns 404
     - Dynamic test IDs using token_hex(4) for test isolation
     """
+
+    def test_agent_sessions_are_scoped_to_api_key_owner(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        member = _get_user(_app, UserRoleInput.MEMBER).log_in(_app)
+        admin = _get_user(_app, UserRoleInput.ADMIN).log_in(_app)
+        member_client = _httpx_client(_app, member.tokens)
+        admin_client = _httpx_client(_app, admin.tokens)
+        member_session_response = member_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Member session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        member_session_response.raise_for_status()
+        member_session_id = member_session_response.json()["data"]["id"]
+        admin_session_response = admin_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Admin session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        admin_session_response.raise_for_status()
+        admin_session_id = admin_session_response.json()["data"]["id"]
+
+        member_api_client = _httpx_client(_app, member.create_api_key(_app))
+        list_response = member_api_client.get("v1/agent_sessions")
+
+        assert list_response.status_code == 200
+        session_ids = {session["id"] for session in list_response.json()["data"]}
+        assert member_session_id in session_ids
+        assert admin_session_id not in session_ids
+        assert member_api_client.get(f"v1/agent_sessions/{member_session_id}").status_code == 200
+        assert member_api_client.get(f"v1/agent_sessions/{admin_session_id}").status_code == 404
+        assert (
+            member_api_client.get(f"v1/agent_sessions/{member_session_id}/messages").status_code
+            == 200
+        )
+        assert (
+            member_api_client.get(f"v1/agent_sessions/{admin_session_id}/messages").status_code
+            == 404
+        )
+
+    def test_agent_sessions_default_to_admins_own_sessions(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        member = _get_user(_app, UserRoleInput.MEMBER).log_in(_app)
+        admin = _get_user(_app, UserRoleInput.ADMIN).log_in(_app)
+        member_client = _httpx_client(_app, member.tokens)
+        admin_client = _httpx_client(_app, admin.tokens)
+        member_session_response = member_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Member session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        member_session_response.raise_for_status()
+        member_session_id = member_session_response.json()["data"]["id"]
+        admin_session_response = admin_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Admin session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        admin_session_response.raise_for_status()
+        admin_session_id = admin_session_response.json()["data"]["id"]
+
+        query = """
+          query ($viewerOnly: Boolean!) {
+            agentSessions(first: 100, viewerOnly: $viewerOnly) {
+              edges { node { id } }
+            }
+          }
+        """
+        all_sessions_response, _ = admin.gql(_app, query=query, variables={"viewerOnly": False})
+        all_session_ids = {
+            edge["node"]["id"] for edge in all_sessions_response["data"]["agentSessions"]["edges"]
+        }
+        assert {member_session_id, admin_session_id} <= all_session_ids
+
+        own_sessions_response, _ = admin.gql(
+            _app,
+            query="""
+              query {
+                agentSessions(first: 100) {
+                  edges { node { id } }
+                }
+              }
+            """,
+        )
+        own_session_ids = {
+            edge["node"]["id"] for edge in own_sessions_response["data"]["agentSessions"]["edges"]
+        }
+        assert admin_session_id in own_session_ids
+        assert member_session_id not in own_session_ids
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_role_based_access_control(
@@ -2122,9 +2137,8 @@ class TestApiAccessViaCookiesOrApiKeys:
         - Covers: Datasets, Experiments, Prompts, Annotations, Evaluations,
           Spans, Traces, and Project creation (POST /v1/projects)
 
-        This verifies that authorization is enforced consistently regardless of
-        authentication method. Each role maintains the same permissions whether
-        using cookies or API keys.
+        Role-based authority is consistent across authentication methods except for
+        credential issuance, which requires a human session.
         """
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
@@ -2133,7 +2147,10 @@ class TestApiAccessViaCookiesOrApiKeys:
         is_admin = user.role is UserRoleInput.ADMIN or role_or_user is _DEFAULT_ADMIN
         is_viewer = user.role is UserRoleInput.VIEWER
 
-        for client in (_httpx_client(_app, tokens), _httpx_client(_app, api_key)):
+        for is_api_key, client in (
+            (False, _httpx_client(_app, tokens)),
+            (True, _httpx_client(_app, api_key)),
+        ):
             # Test 1: Common read resources - all roles should have identical access
             for expected_status_code, method, endpoint in _COMMON_RESOURCE_ENDPOINTS:
                 assert expected_status_code not in (401, 403), (
@@ -2148,6 +2165,15 @@ class TestApiAccessViaCookiesOrApiKeys:
 
             # Test 2: Admin-only endpoints - only admins should have access
             for expected_status_code, method, endpoint in _ADMIN_ONLY_ENDPOINTS:
+                if (
+                    is_api_key
+                    and (
+                        method,
+                        endpoint,
+                    )
+                    in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
+                ):
+                    expected_status_code = 403
                 endpoint = endpoint.format(token_hex(4))
                 response = client.request(method, endpoint)
                 if is_admin:
@@ -2175,6 +2201,29 @@ class TestApiAccessViaCookiesOrApiKeys:
                         f"for {method} {endpoint}"
                     )
 
+            # Test 4: Operations available to every role — credential
+            # self-service and viewer-allowed writes (e.g. the LLM proxy) —
+            # except session-only credential issuance, which API keys cannot use.
+            for expected_status_code, method, endpoint in (
+                *_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+                *_VIEWER_ALLOWED_WRITE_OPERATIONS,
+            ):
+                if (
+                    is_api_key
+                    and (
+                        method,
+                        endpoint,
+                    )
+                    in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
+                ):
+                    expected_status_code = 403
+                endpoint = endpoint.format(token_hex(4))
+                response = client.request(method, endpoint)
+                assert response.status_code == expected_status_code, (
+                    f"Expected {expected_status_code} but got {response.status_code} "
+                    f"for {method} {endpoint}"
+                )
+
 
 class TestVercelChatStreamRouterAuth:
     @pytest.fixture
@@ -2182,9 +2231,12 @@ class TestVercelChatStreamRouterAuth:
         return {
             "trigger": "submit-message",
             "id": "test-msg-id",
-            "messages": [
-                {"id": "msg-1", "role": "user", "parts": [{"type": "text", "text": "hi"}]}
-            ],
+            "headless": False,
+            "message": {
+                "id": "msg-1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "hi"}],
+            },
             "model": {
                 "providerType": "builtin",
                 "provider": "ANTHROPIC",
@@ -2194,7 +2246,7 @@ class TestVercelChatStreamRouterAuth:
 
     @pytest.fixture
     def _path(self) -> str:
-        return "/agents/assistant/sessions/test-session-id/chat"
+        return "/v1/agent_sessions/test-session-id/chat"
 
     def test_unauthenticated_request_is_rejected(
         self,
@@ -2207,7 +2259,7 @@ class TestVercelChatStreamRouterAuth:
             response.raise_for_status()
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    def test_all_authenticated_roles_can_access_chat(
+    def test_session_token_roles_reach_chat_session_lookup_except_viewers(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -2218,10 +2270,11 @@ class TestVercelChatStreamRouterAuth:
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
         response = _httpx_client(_app, logged_in_user.tokens).post(_path, json=_body)
-        assert response.status_code == 200
+        expected_status_code = 403 if user.role is UserRoleInput.VIEWER else 404
+        assert response.status_code == expected_status_code
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    def test_api_key_authentication_works_for_chat(
+    def test_api_key_roles_reach_chat_session_lookup_except_viewers(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -2233,7 +2286,8 @@ class TestVercelChatStreamRouterAuth:
         logged_in_user = user.log_in(_app)
         api_key = logged_in_user.create_api_key(_app)
         response = _httpx_client(_app, api_key).post(_path, json=_body)
-        assert response.status_code == 200
+        expected_status_code = 403 if user.role is UserRoleInput.VIEWER else 404
+        assert response.status_code == expected_status_code
 
 
 class TestBruteForceLoginProtection:

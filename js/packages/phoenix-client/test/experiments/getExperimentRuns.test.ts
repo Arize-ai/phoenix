@@ -1,17 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { components } from "../../src/__generated__/api/v1";
 import { getExperimentRuns } from "../../src/experiments";
+import { createTestClient } from "../testUtils";
 
-const mockGet = vi.fn();
-
-// Mock the fetch module
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    GET: mockGet,
-    use: () => {},
-  }),
-}));
+const http = createHttp();
 
 const mockExperimentRuns: components["schemas"]["ListExperimentRunsResponseBody"]["data"] =
   [
@@ -26,56 +21,80 @@ const mockExperimentRuns: components["schemas"]["ListExperimentRunsResponseBody"
     },
   ];
 
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
+
 describe("getExperimentRuns", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockGet.mockReset();
-  });
   it("should not paginate if the API doesn't provide a next cursor", async () => {
-    mockGet.mockResolvedValueOnce({
-      data: {
-        data: mockExperimentRuns,
-      },
-    });
-    await getExperimentRuns({ experimentId: "fake" });
-    expect(mockGet).toHaveBeenCalledOnce();
-    expect(mockGet).toHaveBeenCalledWith(
-      "/v1/experiments/{experiment_id}/runs",
-      {
-        params: {
-          path: {
-            experiment_id: "fake",
-          },
-          query: {
-            cursor: null,
-            limit: 100,
-          },
-        },
-      }
+    let requestCount = 0;
+    let receivedExperimentId: string | undefined;
+    let receivedCursor: string | null = null;
+    let receivedLimit: string | null = null;
+
+    server.use(
+      http.get(
+        "/v1/experiments/{experiment_id}/runs",
+        ({ params, request, response }) => {
+          requestCount += 1;
+          receivedExperimentId = params.experiment_id;
+          const searchParams = new URL(request.url).searchParams;
+          receivedCursor = searchParams.get("cursor");
+          receivedLimit = searchParams.get("limit");
+          // Older versions of Phoenix respond without a next_cursor field.
+          return response.untyped(
+            new Response(JSON.stringify({ data: mockExperimentRuns }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            })
+          );
+        }
+      )
     );
+
+    await getExperimentRuns({
+      client: createTestClient(),
+      experimentId: "fake",
+    });
+
+    expect(requestCount).toBe(1);
+    expect(receivedExperimentId).toBe("fake");
+    expect(receivedCursor).toBeNull();
+    expect(receivedLimit).toBe("100");
   });
+
   it("should paginate through records and fetch all", async () => {
-    mockGet
-      .mockResolvedValueOnce({
-        data: {
+    const nextCursors: (string | null)[] = ["c1", "c2", null];
+    let requestCount = 0;
+
+    server.use(
+      http.get("/v1/experiments/{experiment_id}/runs", ({ response }) => {
+        const nextCursor = nextCursors[requestCount] ?? null;
+        requestCount += 1;
+        return response(200).json({
           data: mockExperimentRuns,
-          next_cursor: "c1",
-        },
+          next_cursor: nextCursor,
+        });
       })
-      .mockResolvedValueOnce({
-        data: {
-          data: mockExperimentRuns,
-          next_cursor: "c2",
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          data: mockExperimentRuns,
-          next_cursor: null,
-        },
-      });
-    const { runs } = await getExperimentRuns({ experimentId: "fake" });
-    expect(mockGet).toHaveBeenCalledTimes(3);
+    );
+
+    const { runs } = await getExperimentRuns({
+      client: createTestClient(),
+      experimentId: "fake",
+    });
+
+    expect(requestCount).toBe(3);
     expect(runs.length).toEqual(3);
   });
 });

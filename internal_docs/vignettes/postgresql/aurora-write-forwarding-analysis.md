@@ -43,28 +43,28 @@ Phoenix uses `session.begin_nested()` (which issues `SAVEPOINT` / `RELEASE SAVEP
 **`src/phoenix/db/bulk_inserter.py`** — the primary span/trace ingestion path:
 
 ```python
-async with session.begin_nested():       # ← SAVEPOINT
+async with session.begin_nested():  # ← SAVEPOINT
     await op(session)
 ```
 
 ```python
-async with session.begin_nested():       # ← SAVEPOINT
+async with session.begin_nested():  # ← SAVEPOINT
     result = await insert_span(session, span, project_name)
 ```
 
 ```python
-async with session.begin_nested():       # ← SAVEPOINT
+async with session.begin_nested():  # ← SAVEPOINT
     await insert_evaluation(session, evaluation)
 ```
 
 **`src/phoenix/db/insertion/types.py`** — bulk insert with individual fallback:
 
 ```python
-async with session.begin_nested():       # ← SAVEPOINT (bulk attempt)
+async with session.begin_nested():  # ← SAVEPOINT (bulk attempt)
     events.extend(await self._events(session, *(p.item for p in parcels)))
 # on failure, retries individually:
 for p in parcels:
-    async with session.begin_nested():   # ← SAVEPOINT (individual retry)
+    async with session.begin_nested():  # ← SAVEPOINT (individual retry)
         events.extend(await self._events(session, p.item))
 ```
 
