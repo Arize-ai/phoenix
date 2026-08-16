@@ -8,6 +8,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
@@ -380,6 +381,8 @@ async def set_project_retention_policy(
                 GlobalID.from_id(request_body.policy_id),
                 ProjectTraceRetentionPolicyNodeType.__name__,
             )
+            if policy_rowid == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID:
+                policy_rowid = None
         except ValueError:
             raise HTTPException(
                 status_code=422,

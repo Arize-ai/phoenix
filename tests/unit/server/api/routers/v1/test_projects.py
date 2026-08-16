@@ -12,6 +12,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.trace_retention import (
@@ -1115,6 +1116,29 @@ class TestSetProjectRetentionPolicy:
         assert response.status_code == 200
         assert response.json()["data"]["policy_id"] is None
         # NULL means the project falls back to the default policy.
+        assert await self._policy_id_of(db, project.id) is None
+
+    async def test_default_policy_global_id_resets_to_default(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        project = await self._project(db, policy_id=policy.id)
+        default_policy_id = str(
+            GlobalID(
+                "ProjectTraceRetentionPolicy",
+                str(DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID),
+            )
+        )
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": default_policy_id},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["data"]["policy_id"] is None
         assert await self._policy_id_of(db, project.id) is None
 
     async def test_reassigns_between_policies(
