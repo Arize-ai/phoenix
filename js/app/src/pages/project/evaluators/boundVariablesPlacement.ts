@@ -7,5 +7,4 @@
  */
 export type BoundVariablesPlacement = "mapping-section" | "scope-panel";
 
-export const BOUND_VARIABLES_PLACEMENT: BoundVariablesPlacement =
-  "mapping-section";
+export const BOUND_VARIABLES_PLACEMENT: BoundVariablesPlacement = "scope-panel";

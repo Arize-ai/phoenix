@@ -11,6 +11,35 @@ const GRAIN_NOUN: Record<ProjectEvaluatorMappingSourceGrain, string> = {
   session: "session",
 };
 
+/** Digits a rounded number keeps before the rest moves to the hover title. */
+const DISPLAY_SIGNIFICANT_DIGITS = 4;
+
+/**
+ * What a bound value reads as in the list, plus the exact value to hover for
+ * when rounding hid something.
+ *
+ * A cost arrives with more decimals than a row this narrow can be read at, so
+ * the row is rounded and the full number stays one hover away. Whole numbers
+ * and everything that is not a number are already exact.
+ */
+function toBoundValueDisplay(value: unknown): {
+  text: string | undefined;
+  exact?: string;
+} {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    !Number.isInteger(value)
+  ) {
+    const rounded = Number(value.toPrecision(DISPLAY_SIGNIFICANT_DIGITS));
+    return {
+      text: String(rounded),
+      exact: rounded === value ? undefined : String(value),
+    };
+  }
+  return { text: toContentPreview(value, { maxLength: 64 }) };
+}
+
 /**
  * The values a record offers to an evaluator by name alone.
  *
@@ -43,15 +72,16 @@ export const ProjectEvaluatorBoundVariables = ({
       ) : null}
       <dl css={boundVariablesCSS}>
         {variables.map(({ name, type, description }) => {
-          const preview = hasValues
-            ? toContentPreview(values[name], { maxLength: 64 })
+          const display = hasValues
+            ? toBoundValueDisplay(values[name])
             : undefined;
+          const preview = display?.text;
           return (
             <div className="bound-variables__row" key={name}>
               <dt className="bound-variables__name" title={description}>
                 {name}
               </dt>
-              <dd className="bound-variables__value">
+              <dd className="bound-variables__value" title={display?.exact}>
                 {preview ?? (
                   // Before a record is picked there is nothing to show but the
                   // kind of value; once one is picked, an empty cell means the
