@@ -26,9 +26,9 @@ _DISCOVERY_TOOLS = frozenset(
         "search",
         "get_schema",
         "tags",
-        "list_tools",  # code mode
+        "list_tools",
         "list_tool_groups",
-        "enable_tool_group",  # progressive disclosure
+        "enable_tool_group",
     }
 )
 
@@ -111,13 +111,13 @@ class Transcript:
 
     @property
     def max_tool_result_bytes(self) -> int:
-        """The single largest result. A sum hides whether one call returned 200KB
-        or forty returned 5KB, which is exactly what code mode changes."""
+        """Largest single result. A sum cannot distinguish one huge payload from
+        many small ones."""
         return max((c.result_bytes for c in self.tool_calls), default=0)
 
     @property
     def code_bytes(self) -> int:
-        """Python the model wrote, which is what drives code mode's output tokens."""
+        """Bytes of code passed to sandboxed execution, a driver of output tokens."""
         return sum(c.input_bytes for c in self.tool_calls if c.tool_name.endswith("execute"))
 
     @property
@@ -318,8 +318,7 @@ def run_row(transcript: Transcript, *, expect: dict[str, Any]) -> dict[str, Any]
     row: dict[str, Any] = {
         "num_turns": result.get("num_turns"),
         "duration_ms": result.get("duration_ms"),
-        # Preferred over duration_ms: excludes tracing hook subprocesses, which
-        # spawn per tool call and inflate wall clock without touching API time.
+        # API time only; wall clock also carries per-tool-call hook subprocesses.
         "duration_api_ms": result.get("duration_api_ms"),
         "ttft_ms": result.get("ttft_ms"),
         "total_cost_usd": result.get("total_cost_usd"),

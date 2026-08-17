@@ -20,10 +20,9 @@ _scratch: Optional[Path] = None
 def scratch_cwd() -> Path:
     """A working directory with no repository above it.
 
-    CLAUDE.md is discovered by walking up from the working directory, and
-    ``--setting-sources ""`` does not suppress it. Running a cell inside this
-    repo adds ~390 tokens of CLAUDE.md to every measurement, silently, in every
-    arm at once.
+    CLAUDE.md is discovered by walking up from the working directory and is not
+    suppressed by ``--setting-sources ""``. A directory with no repository above
+    it is the only way to keep it out of the measured context.
     """
     global _scratch
     if _scratch is None:
@@ -32,7 +31,7 @@ def scratch_cwd() -> Path:
 
 
 def mcp_config_document(config: BenchConfig) -> dict[str, Any]:
-    """The MCP config the harness generates for ``arm``.
+    """The MCP config generated for this run's target.
 
     Written fresh rather than read from ``~/.claude.json``: an interactively
     OAuth-authorized server cannot authenticate headlessly (it resolves with zero
@@ -60,11 +59,10 @@ def build_argv(
 ) -> list[str]:
     """Assemble argv for one run.
 
-    ``--setting-sources ""`` and ``--disable-slash-commands`` are load-bearing,
-    not hygiene: without them the harness's own skills, plugins, and memory add
-    roughly 1.5k tokens of context to every measurement, which is larger than the
-    MCP surface being measured. ``--bare`` would strip the same context but never
-    reads OAuth credentials, so it cannot be used on subscription auth.
+    ``--setting-sources ""`` and ``--disable-slash-commands`` exclude the
+    caller's own skills, plugins and memory, which would otherwise outweigh the
+    MCP surface under measurement. ``--bare`` excludes the same context but reads
+    credentials only from ``ANTHROPIC_API_KEY``, so it is unusable under OAuth.
     """
     argv = [
         "claude",
@@ -93,8 +91,8 @@ def build_argv(
         argv += ["--mcp-config", str(mcp_config_path)]
         argv += ["--allowedTools", MCP_TOOL_GRANT]
         if config.bypass_permissions:
-            # Headless runs auto-deny silently; a denied arm would otherwise be
-            # recorded as an expensive session of refusals.
+            # Headless permission prompts resolve to deny without surfacing,
+            # which would record a session of refusals as a measurement.
             argv += ["--permission-mode", "bypassPermissions"]
     if config.tracing.enabled:
         argv += ["--plugin-dir", str(config.tracing.resolved_plugin_dir())]

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from . import store
-from .analyze import meta_row, rows_for_transcript, task_rows
+from .analyze import meta_row, read_annotation, rows_for_transcript, task_rows
 from .config import BenchConfig, Task
 from .invocation import build_argv, build_env, cell_id, scratch_cwd, write_mcp_config
 from .metrics import parse_transcript
@@ -188,7 +188,7 @@ def run_matrix(
     db = out_dir.parent / "bench.db"
     by_name = {t.name: t for t in tasks}
     store.write_tasks(db, task_rows(tasks))
-    store.write_meta(db, meta_row(out_dir.name, meta))
+    store.write_meta(db, meta_row(out_dir.name, meta, read_annotation(out_dir)))
 
     cells = plan_matrix(config, tasks)
     spend = 0.0

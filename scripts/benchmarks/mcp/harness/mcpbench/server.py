@@ -57,6 +57,18 @@ def serve(config: BenchConfig, out_dir: Path, *, host: str = "127.0.0.1", port: 
 
     db = out_dir.parent / "bench.db"
 
+    def _run_meta_row(db: Path, run_id: str, cfg: BenchConfig) -> dict[str, Any]:
+        rows = [r for r in store.read_rows(db, "run_meta") if r["run_id"] == run_id]
+        meta = rows[0] if rows else {}
+        return {
+            "run_id": run_id,
+            "model": meta.get("model") or cfg.model,
+            "label": meta.get("label"),
+            "target": meta.get("target"),
+            "note": meta.get("note"),
+            "created_at": meta.get("created_at"),
+        }
+
     def results() -> dict[str, Any]:
         """Current results, straight from the store.
 
@@ -73,7 +85,7 @@ def serve(config: BenchConfig, out_dir: Path, *, host: str = "127.0.0.1", port: 
             runs,
             store.read_rows(db, "turns", out_dir.name),
             tasks=store.read_rows(db, "tasks") or task_rows(load_tasks(config)),
-            meta={"run_id": out_dir.name, "model": config.model},
+            meta=_run_meta_row(db, out_dir.name, config),
         )
         data["running"] = job.snapshot()["running"]
         return data
@@ -192,8 +204,7 @@ def serve(config: BenchConfig, out_dir: Path, *, host: str = "127.0.0.1", port: 
 
     server = ThreadingHTTPServer((host, port), Handler)
     if host not in ("127.0.0.1", "localhost", "::1"):
-        # This endpoint starts model runs and has no authentication, so off-loopback
-        # it lets anyone who can reach the port spend money against your keys.
+        # Unauthenticated, and starts billable runs: reachable only from loopback.
         print(
             f"WARNING: bound to {host}, not loopback. This endpoint has no auth and can "
             "start runs that cost money. Anyone who can reach this port can spend against "

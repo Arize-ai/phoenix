@@ -1,8 +1,8 @@
 """Command line: ``preflight``, ``run``, ``analyze``.
 
 ``run`` preflights first by default, because both failure modes it catches are
-silent -- an arm that connects with zero tools still answers, and the tracing
-plugin swallows every delivery error.
+silent: a server that connects with zero tools still produces an answer, and the
+tracing plugin discards delivery errors.
 """
 
 from __future__ import annotations
@@ -15,7 +15,15 @@ from pathlib import Path
 from typing import Optional
 
 from . import store
-from .analyze import meta_row, rows_for_run, summarize, task_rows, write_csv
+from .analyze import (
+    meta_row,
+    read_annotation,
+    rows_for_run,
+    summarize,
+    task_rows,
+    write_annotation,
+    write_csv,
+)
 from .config import BenchConfig, ConfigError, apply_overrides, load_config, load_tasks
 from .preflight import run_preflight
 from .report import build_report
@@ -44,6 +52,21 @@ def _results_root(config: BenchConfig, args: argparse.Namespace) -> Path:
     return Path(getattr(args, "out", None) or config.root / "results").resolve()
 
 
+def _report_meta(db: Path, run_id: str, config: BenchConfig) -> dict:
+    """Provenance the report shows beside each label."""
+    rows = [r for r in store.read_rows(db, "run_meta") if r["run_id"] == run_id]
+    meta = rows[0] if rows else {}
+    return {
+        "run_id": run_id,
+        "model": meta.get("model") or config.model,
+        "label": meta.get("label"),
+        "target": meta.get("target"),
+        "note": meta.get("note"),
+        "created_at": meta.get("created_at"),
+        "phoenix_git_sha": meta.get("phoenix_git_sha"),
+    }
+
+
 def _db(root: Path) -> Path:
     """One bench.db beside the per-run directories, shared across runs."""
     return root / "bench.db"
@@ -54,10 +77,12 @@ def _persist(config, tasks, out_dir: Path) -> list[dict]:
     tables = rows_for_run(config, tasks, out_dir)
     db = _db(out_dir.parent)
     store.write_tasks(db, task_rows(tasks))
-    # Provenance was previously written only by `run`, so a run that had only
-    # been analyzed lost its model, git sha, targets and sink.
+    # Provenance belongs with the rows wherever they are written from.
     if (manifest := out_dir / "manifest.json").is_file():
-        store.write_meta(db, meta_row(out_dir.name, json.loads(manifest.read_text())))
+        store.write_meta(
+            db,
+            meta_row(out_dir.name, json.loads(manifest.read_text()), read_annotation(out_dir)),
+        )
 
     def of(rows, cell):
         return [r for r in rows if (r["label"], r["task"], r["trial"]) == cell]
@@ -136,7 +161,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 store.read_rows(db, "turns", out_dir.name),
                 out_dir,
                 tasks=store.read_rows(db, "tasks"),
-                meta={"run_id": out_dir.name, "model": config.model},
+                meta=_report_meta(db, out_dir.name, config),
             )
             print(f"\nreport: {path}")
             print(f"store:  {db}")
@@ -184,7 +209,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         store.read_rows(db, "turns", out_dir.name),
         out_dir,
         tasks=store.read_rows(db, "tasks"),
-        meta={"run_id": out_dir.name, "model": config.model},
+        meta=_report_meta(db, out_dir.name, config),
     )
     print(f"wrote {path}")
     print("Open it directly, or `mcpbench serve` to run the benchmark from the page.")
@@ -195,15 +220,16 @@ def cmd_annotate(args: argparse.Namespace) -> int:
     """Label a run after the fact, so what it meant is recorded where the data is."""
     config = _resolve(load_config(Path(args.config)), args)
     db = _db(_results_root(config, args))
+    out_dir = _results_root(config, args) / args.run_id
+    if not (out_dir / "raw").is_dir():
+        print(f"No run directory at {out_dir}.", file=sys.stderr)
+        return 1
     try:
-        changed = store.annotate_run(db, args.run_id, label=args.label, note=args.note)
+        store.annotate_run(db, args.run_id, label=args.label, note=args.note)
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    if not changed:
-        print(f"No stored run {args.run_id!r}. Try: mcpbench analyze --run-id {args.run_id}")
-        return 1
-    print(f"{args.run_id}: {changed}")
+    print(f"{args.run_id}: {write_annotation(out_dir, label=args.label, note=args.note)}")
     return 0
 
 
