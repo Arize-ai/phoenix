@@ -455,6 +455,10 @@ class SessionEvalSweeper(DaemonTask):
         eligible_pair_count: Optional[int] = None
         renewed: Optional[int] = None
         try:
+            # Reap in its own transaction: taking work-row locks inside the sweep
+            # transaction inverts the global project_evaluators -> session -> work lock order.
+            async with self._db() as session:
+                await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
             async with self._db() as session:
                 database_now = await self._database_now(session)
                 materialized_work_count, eligible_pair_count = await self._sweep(
@@ -551,8 +555,12 @@ class SessionEvalSweeper(DaemonTask):
         session: AsyncSession,
         database_now: datetime,
     ) -> tuple[int, Optional[int]]:
-        """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
+        """Materialize this tick's work, returning (work created, pairs found eligible).
+
+        Lapsed-lease reaping runs in a separate committed transaction before this one
+        (see _materialize_and_renew), so this transaction only ever locks project_evaluators and
+        session rows before inserting work — preserving the global C -> S -> W order.
+        """
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None
