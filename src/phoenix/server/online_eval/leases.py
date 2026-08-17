@@ -25,6 +25,22 @@ class LeaseLost(Exception):
     """The lease is no longer held, so its holder must not commit the work in hand."""
 
 
+async def database_now(session: AsyncSession, dialect: SupportedSQLDialect) -> datetime:
+    """Read the database's current time through ``session``.
+
+    PostgreSQL reads ``statement_timestamp()`` rather than ``now()``, which is the
+    transaction's start time and would not advance as a transaction runs.
+
+    Every timing decision in this subsystem reads the clock here, so a surface that
+    reports on a materializer's decision compares times the way that materializer did.
+    """
+    clock = func.statement_timestamp() if dialect is SupportedSQLDialect.POSTGRESQL else func.now()
+    now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
+    if now is None:
+        raise RuntimeError("Database did not return its current time")
+    return now
+
+
 class DatabaseLease:
     """A single-holder lease on one database row.
 
@@ -73,20 +89,8 @@ class DatabaseLease:
         return (*self._key, self._holder_column == self._holder_id)
 
     async def database_now(self, session: AsyncSession) -> datetime:
-        """Read the database's current time through ``session``.
-
-        PostgreSQL reads ``statement_timestamp()`` rather than ``now()``, which is the
-        transaction's start time and would not advance as a transaction runs.
-        """
-        clock = (
-            func.statement_timestamp()
-            if self._db.dialect is SupportedSQLDialect.POSTGRESQL
-            else func.now()
-        )
-        now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
-        if now is None:
-            raise RuntimeError("Database did not return its current time")
-        return now
+        """Read the database's current time through ``session``."""
+        return await database_now(session, self._db.dialect)
 
     async def acquire(
         self,

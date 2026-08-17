@@ -22,6 +22,10 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.api.dataloaders.evaluation_request_blocking_reasons import (
+    EvaluationRequestBlockingReasonsDataLoader,
+)
+from phoenix.server.api.dataloaders.evaluation_requests import EvaluationRequestBlockingReason
 from phoenix.server.app import create_app
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
@@ -490,4 +494,111 @@ async def test_a_verdict_never_requests_the_criteria_that_authored_it(
         await drain._tick()
 
         assert [request.project_evaluator_id for request in await _requests(db)] == [downstream_project_evaluator_id]
+
+
+async def _add_session_annotation(
+    db: DbSessionFactory,
+    project_session: models.ProjectSession,
+    name: str,
+) -> None:
+    async with db() as session:
+        session.add(
+            models.ProjectSessionAnnotation(
+                project_session_id=project_session.id,
+                name=name,
+                label="yes",
+                score=None,
+                explanation=None,
+                metadata_={},
+                annotator_kind="HUMAN",
+                identifier="",
+                source="APP",
+                user_id=None,
+            )
+        )
+
+
+async def _session_work_units(db: DbSessionFactory) -> list[models.EvalSessionWorkUnit]:
+    async with db() as session:
+        return list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit).order_by(models.EvalSessionWorkUnit.id)
+            )
+        )
+
+
+async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The trigger is the edge and the evaluator's filter is the level; a request is the
+    composite of the two.
+
+    The evaluator asks for sessions carrying both annotations, and triggers on either
+    arriving. After the first one the request is standing demand the session does not yet
+    satisfy — so it stays unfulfilled and says why, rather than being declined. When the
+    second lands the pair evaluates, once.
+    """
+    _enable_online_eval(monkeypatch)
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_grpc_server())
+        app = _create_app(db)
+        runtime = app.state.online_eval_runtime
+        assert isinstance(runtime, OnlineEvalRuntime)
+        await stack.enter_async_context(LifespanManager(app))
+        await runtime.stop()
+        adapter, drain = runtime.annotation_adapter, runtime.signal_drain
+        sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
+        assert adapter is not None and drain is not None
+        assert sweeper is not None and session_consumer is not None
+
+        project, project_session, _ = await _seed_quiet_session(db)
+        _, project_evaluator_id = await _seed_llm_criteria(
+            db,
+            project.id,
+            evaluation_target="SESSION",
+            filter_condition=(
+                "annotations[\"A\"].label == 'yes' and annotations[\"B\"].label == 'yes'"
+            ),
+        )
+        await _add_trigger(db, project_evaluator_id, signal_kind="annotation_upserted")
+
+        await adapter._tick()
+        await _add_session_annotation(db, project_session, "A")
+        await adapter._tick()
+        await drain._tick()
+        await sweeper._tick()
+
+        # The ask was recorded and is being held, not answered and not declined.
+        (request,) = await _requests(db)
+        assert request.project_evaluator_id == project_evaluator_id
+        assert request.materialized_generation < request.requested_generation
+        assert await _session_work_units(db) == []
+        blocking_reasons = EvaluationRequestBlockingReasonsDataLoader(db)
+        assert (
+            await blocking_reasons.load((project_session.id, project_evaluator_id))
+            is EvaluationRequestBlockingReason.SESSION_FILTER_NOT_MATCHED
+        )
+
+        await _add_session_annotation(db, project_session, "B")
+        await adapter._tick()
+        await drain._tick()
+        await sweeper._tick()
+        await session_consumer._cycle()
+
+        # One evaluation for the pair, however many occurrences asked for it.
+        evaluations = [
+            unit for unit in await _session_work_units(db) if unit.project_evaluator_id == project_evaluator_id
+        ]
+        assert len(evaluations) == 1
+        assert evaluations[0].status == "DONE"
+        assert evaluations[0].scheduling_origin == "RULE"
+
+        await sweeper._tick()
+        assert (
+            len([unit for unit in await _session_work_units(db) if unit.project_evaluator_id == project_evaluator_id])
+            == 1
+        )
 

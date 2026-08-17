@@ -300,6 +300,7 @@ async def _seed_llm_criteria(
     criteria_input_mapping: Optional[InputMapping] = None,
     evaluation_target: models.EvaluationTarget = "SPAN",
     custom_provider: bool = False,
+    filter_condition: str = "",
 ) -> tuple[int, int]:
     """Create an LLM evaluator (prompt + version + tools) and an enabled project_evaluator
     row, returning (evaluator_id, project_evaluator_id)."""
@@ -390,7 +391,7 @@ async def _seed_llm_criteria(
             project_id=project_id,
             evaluator_id=evaluator.id,
             name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
-            filter_condition="",
+            filter_condition=filter_condition,
             sampling_rate=1.0,
             evaluation_target=evaluation_target,
             input_mapping=criteria_input_mapping,

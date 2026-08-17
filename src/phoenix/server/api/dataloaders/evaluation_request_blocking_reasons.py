@@ -1,20 +1,33 @@
-"""Why an outstanding evaluation request has not started, per (session, project evaluator)."""
+"""Why an outstanding evaluation request has not started, per (session, project evaluator).
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Iterable, Optional
+Every gate named here is asked through the same expression the sweeper gates on, so the
+reason a user reads is the reason the sweeper acted on. A gate re-derived locally would
+drift the moment the sweeper's changed, and nothing would couple the two.
+"""
+
+from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Iterable, Optional
 
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, with_polymorphic
 from strawberry.dataloader import DataLoader
 
+from phoenix.config import get_env_online_eval_max_session_outstanding
 from phoenix.db import models
-from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.helpers import exclude_project_evaluators_in_trace_projects
 from phoenix.server.api.dataloaders.evaluation_requests import (
     EvaluationRequestBlockingReason,
     Key,
 )
-from phoenix.server.online_eval.session_policy import session_project_evaluator_is_schedulable
+from phoenix.server.online_eval.leases import database_now
+from phoenix.server.online_eval.session_policy import (
+    admitted_session_work_count_statement,
+    session_project_evaluator_is_schedulable,
+    session_matches_project_evaluator_filter,
+    session_work_may_still_produce_a_result,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -30,6 +43,7 @@ class EvaluationRequestBlockingReasonsDataLoader(
     ) -> list[Optional[EvaluationRequestBlockingReason]]:
         # Imported here because project evaluator resolution reaches back into this package
         # through the evaluator registry, and a module-level import would close that loop.
+        from phoenix.server.online_eval.derivation import config_fingerprint
         from phoenix.server.online_eval.project_evaluator_resolution import (
             resolve_project_evaluators_bulk,
         )
@@ -71,10 +85,25 @@ class EvaluationRequestBlockingReasonsDataLoader(
                 project_evaluator.id: project_evaluator.evaluation_delay_seconds
                 for project_evaluator, _ in project_evaluator_rows
             }
-            resolvable_project_evaluator_ids = {
-                project_evaluator.id
+            # The work identity the sweeper excludes on is (session, evaluator,
+            # fingerprint), so this surface has to hold the fingerprint too — reaching
+            # work through the request's own link would miss the unit the sweeper is
+            # deliberately waiting for.
+            work_identity = {
+                project_evaluator.id: (
+                    project_evaluator.evaluator_id,
+                    config_fingerprint(resolution),
+                )
                 for (project_evaluator, _), resolution in zip(project_evaluator_rows, resolved)
                 if resolution is not None
+            }
+            filters = {
+                project_evaluator.id: (
+                    project_evaluator.filter_condition,
+                    project_evaluator.project_id,
+                )
+                for (project_evaluator, _), resolution in zip(project_evaluator_rows, resolved)
+                if resolution is not None and project_evaluator.filter_condition
             }
             quiet_since = {
                 row.id: row.last_span_ingested_at
@@ -85,19 +114,26 @@ class EvaluationRequestBlockingReasonsDataLoader(
                     ).where(models.ProjectSession.id.in_(project_session_rowids))
                 )
             }
-            evaluating = {
-                (row.project_session_rowid, row.project_evaluator_id)
-                for row in await session.execute(_unfinished_stmt(pairs))
-            }
-        now = datetime.now(timezone.utc)
+            evaluating = await _evaluating_pairs(session, pairs, work_identity)
+            filtered_out = await _filtered_out_pairs(session, pairs, filters)
+            # The sweeper reads the database clock, so a delay compared against a
+            # replica's own clock could report a pair as due that the sweeper still
+            # holds back, or the reverse.
+            now = await database_now(session, self._db.dialect)
+            max_outstanding = get_env_online_eval_max_session_outstanding()
+            capacity_reached = (
+                await session.scalar(admitted_session_work_count_statement(max_outstanding)) or 0
+            ) >= max_outstanding
         return [
             _blocking_reason(
                 key,
                 schedulable_project_evaluator_ids=schedulable_project_evaluator_ids,
-                resolvable_project_evaluator_ids=resolvable_project_evaluator_ids,
+                resolvable_project_evaluator_ids=set(work_identity),
                 delay_seconds=delay_seconds,
                 quiet_since=quiet_since,
                 evaluating=evaluating,
+                filtered_out=filtered_out,
+                capacity_reached=capacity_reached,
                 now=now,
             )
             for key in keys
@@ -112,6 +148,8 @@ def _blocking_reason(
     delay_seconds: dict[int, int],
     quiet_since: dict[int, Optional[datetime]],
     evaluating: set[Key],
+    filtered_out: set[Key],
+    capacity_reached: bool,
     now: datetime,
 ) -> Optional[EvaluationRequestBlockingReason]:
     """The first condition holding this pair back, most actionable first."""
@@ -122,34 +160,91 @@ def _blocking_reason(
         return EvaluationRequestBlockingReason.EVALUATOR_VERSION_UNRESOLVED
     if key in evaluating:
         return EvaluationRequestBlockingReason.EVALUATION_IN_PROGRESS
+    # Reported ahead of the quiet delay because it outlives it: the delay passes on its
+    # own, while a session outside the evaluator's filter stays out until its content
+    # changes.
+    if key in filtered_out:
+        return EvaluationRequestBlockingReason.SESSION_FILTER_NOT_MATCHED
     last_span_ingested_at = quiet_since.get(key[0])
     if last_span_ingested_at is None:
         return EvaluationRequestBlockingReason.SESSION_ACTIVE
     due_at = last_span_ingested_at + timedelta(seconds=delay_seconds[project_evaluator_id])
     if now < due_at:
         return EvaluationRequestBlockingReason.SESSION_ACTIVE
+    if capacity_reached:
+        return EvaluationRequestBlockingReason.EVALUATION_CAPACITY_REACHED
     return None
 
 
-def _unfinished_stmt(pairs: list[Key]) -> sa.Select[Any]:
-    """The pairs whose linked evaluation can still run, so a newer ask waits behind it."""
+async def _evaluating_pairs(
+    session: AsyncSession,
+    pairs: list[Key],
+    work_identity: dict[int, tuple[int, str]],
+) -> set[Key]:
+    """The pairs whose evaluation can still run, so a newer ask waits behind it.
+
+    Keyed on (session, evaluator, fingerprint) — the identity the sweep excludes on —
+    rather than on the request's causal link, which names only the unit some earlier ask
+    was answered with and reads as "nothing holding it back" while the sweeper waits.
+    """
+    identities = {
+        (rowid, *work_identity[project_evaluator_id]): (rowid, project_evaluator_id)
+        for rowid, project_evaluator_id in pairs
+        if project_evaluator_id in work_identity
+    }
+    if not identities:
+        return set()
     work = aliased(models.EvalSessionWorkUnit)
-    return (
+    rows = await session.execute(
         sa.select(
-            models.EvaluationRequest.project_session_rowid,
-            models.EvaluationRequest.project_evaluator_id,
+            work.project_session_rowid,
+            work.evaluator_id,
+            work.config_fingerprint,
         )
-        .select_from(models.EvaluationRequest)
-        .join(work, models.EvaluationRequest.materialized_by_session_work_unit_id == work.id)
         .where(
             sa.tuple_(
-                models.EvaluationRequest.project_session_rowid,
-                models.EvaluationRequest.project_evaluator_id,
-            ).in_(pairs),
-            sa.or_(
-                work.status.in_(("PENDING", "RUNNING")),
-                sa.and_(work.status == "ERROR", work.attempts < MAX_ATTEMPTS),
-            ),
+                work.project_session_rowid,
+                work.evaluator_id,
+                work.config_fingerprint,
+            ).in_(list(identities)),
+            session_work_may_still_produce_a_result(work),
         )
+        .distinct()
     )
+    return {
+        identities[(row.project_session_rowid, row.evaluator_id, row.config_fingerprint)]
+        for row in rows
+    }
+
+
+async def _filtered_out_pairs(
+    session: AsyncSession,
+    pairs: list[Key],
+    filters: dict[int, tuple[str, int]],
+) -> set[Key]:
+    """The pairs whose session the project evaluator's own filter excludes.
+
+    A filter compiles into its own shape, so each filtered project_evaluator is asked separately
+    — the same reason the sweeper builds one branch per filtered project_evaluator rather than
+    one predicate over them all.
+    """
+    if not filters:
+        return set()
+    requested: dict[int, set[int]] = defaultdict(set)
+    for rowid, project_evaluator_id in pairs:
+        if project_evaluator_id in filters:
+            requested[project_evaluator_id].add(rowid)
+    filtered_out: set[Key] = set()
+    for project_evaluator_id, rowids in requested.items():
+        filter_condition, project_id = filters[project_evaluator_id]
+        matching = set(
+            await session.scalars(
+                sa.select(models.ProjectSession.id).where(
+                    models.ProjectSession.id.in_(rowids),
+                    session_matches_project_evaluator_filter(filter_condition, project_id),
+                )
+            )
+        )
+        filtered_out.update((rowid, project_evaluator_id) for rowid in rowids - matching)
+    return filtered_out
 

@@ -8,15 +8,17 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
-from sqlalchemy import and_, not_
+from sqlalchemy import and_, func, not_, or_, select
 from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.selectable import Select
 
 from phoenix.config import (
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_transcript_bytes,
 )
+from phoenix.db.eval_work import MAX_ATTEMPTS
 
 if TYPE_CHECKING:
     from phoenix.db import models
@@ -86,6 +88,57 @@ def session_project_evaluator_is_schedulable(
             for condition in SESSION_SCHEDULABILITY_CONDITIONS
         ),
     )
+
+
+def session_matches_project_evaluator_filter(
+    filter_condition: str,
+    project_id: int,
+) -> ColumnElement[bool]:
+    """Whether a session passes a project_evaluators's own filter, as one predicate on the session.
+
+    Both sides of the pair ask through here: the sweeper gates on it when it decides what
+    to materialize, and the row-side blocking-reason surface reads it to say why a
+    requested evaluation is waiting. A second spelling of "does this session match" would
+    let the reason a user reads drift from the decision the sweeper made.
+    """
+    from phoenix.db import models
+    from phoenix.server.session_filters import get_filtered_session_rowids_subquery
+
+    return models.ProjectSession.id.in_(
+        get_filtered_session_rowids_subquery(filter_condition, [project_id])
+    )
+
+
+def session_work_may_still_produce_a_result(work: Any) -> ColumnElement[bool]:
+    """Whether ``work`` can still reach an outcome, so a newer ask waits behind it.
+
+    The sweep excludes such a pair and the blocking-reason surface names the wait, so
+    both read the statuses from here rather than each keeping its own list.
+    """
+    return or_(
+        work.status.in_(("PENDING", "RUNNING")),
+        and_(work.status == "ERROR", work.attempts < MAX_ATTEMPTS),
+    )
+
+
+def admitted_session_work_count_statement(max_outstanding: int) -> "Select[Any]":
+    """How much session work is already admitted, counted no further than the cap.
+
+    The sweeper admits nothing more once this reaches the cap, and the blocking-reason
+    surface says so; both count through here so what a user is told is the gate the
+    sweeper actually applied. The count stops at the cap because nothing above it
+    changes either answer.
+    """
+    from phoenix.db import models
+
+    admitted = (
+        select(1)
+        .select_from(models.EvalSessionWorkUnit)
+        .where(session_work_may_still_produce_a_result(models.EvalSessionWorkUnit))
+        .limit(max_outstanding)
+        .subquery()
+    )
+    return select(func.count()).select_from(admitted)
 
 
 @dataclass(frozen=True)
