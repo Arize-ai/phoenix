@@ -24,6 +24,9 @@ Pipeline (per row):
      or from a local datasets-server preview JSON via ``--input``.
   2. Flatten the nested ``child_spans`` tree and POST every span via
      ``client.spans.log_spans`` into ``trail-gaia`` / ``trail-swebench``.
+     LLM token counts are cast from TRAIL's strings to ints, and swe_bench's
+     ``anthropic/claude-3-7-sonnet-latest`` alias is mapped to the dated model
+     name, so Phoenix computes span costs — it records none otherwise.
   3. Emit annotations (batched per trace, can be disabled with
      ``--no-annotations``):
        - ``labels.errors`` → span annotations on the offending spans
@@ -91,6 +94,19 @@ TRAIL_SCORE_METRICS: tuple[str, ...] = (
     "instruction_adherence",
     "plan_opt",
 )
+
+# TRAIL encodes token counts as JSON strings ("436"). Phoenix's span insertion
+# coerces those into its token-count columns, but the cost calculator type-checks
+# instead (server/cost_tracking/helpers.py), reads a string as 0 tokens, and so
+# writes no span_costs row at all. Cast them on the way in.
+_TOKEN_COUNT_PREFIX = "llm.token_count."
+
+# TRAIL's swe_bench traces name the model "anthropic/claude-3-7-sonnet-latest",
+# a provider-prefixed alias that matches no built-in Phoenix cost model. Map it
+# onto the dated name Phoenix prices, and keep the provider as its own attribute.
+_MODEL_ALIASES: dict[str, tuple[str, str]] = {
+    "anthropic/claude-3-7-sonnet-latest": ("anthropic", "claude-3-7-sonnet-20250219"),
+}
 
 # Per-trace stagger when shift-to-now is enabled.
 _SHIFT_TRACE_SPACING = timedelta(minutes=1)
@@ -169,6 +185,25 @@ def _map_status(raw: str) -> str:
     return code if code in ("OK", "ERROR", "UNSET") else "UNSET"
 
 
+def _normalize_cost_attributes(attrs: dict[str, Any]) -> None:
+    """Make TRAIL's LLM attributes legible to Phoenix cost tracking, in place.
+
+    Without this, spans land with token counts but no cost: the counts arrive as
+    strings, and swe_bench's model name is an alias Phoenix prices nothing for.
+    """
+    for key, value in attrs.items():
+        if key.startswith(_TOKEN_COUNT_PREFIX) and isinstance(value, str):
+            try:
+                attrs[key] = int(value)
+            except ValueError:
+                logger.debug("leaving non-numeric token count %s=%r as-is", key, value)
+
+    if alias := _MODEL_ALIASES.get(str(attrs.get("llm.model_name") or "")):
+        provider, model_name = alias
+        attrs["llm.model_name"] = model_name
+        attrs.setdefault("llm.provider", provider)
+
+
 def _phoenix_span_kind(raw_span: dict[str, Any]) -> str:
     """Prefer the OpenInference kind embedded in span_attributes."""
     attrs = raw_span.get("span_attributes") or {}
@@ -181,6 +216,7 @@ def _to_phoenix_span(raw: dict[str, Any], mapper: IdMapper) -> dict[str, Any]:
     end = start + _parse_iso8601_duration(raw["duration"])
 
     span_attrs = dict(raw.get("span_attributes") or {})
+    _normalize_cost_attributes(span_attrs)
     # Carry resource and scope context into Phoenix attributes for visibility.
     if resource_attrs := raw.get("resource_attributes"):
         span_attrs.setdefault("resource", dict(resource_attrs))
