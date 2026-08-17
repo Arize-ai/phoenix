@@ -1,0 +1,32 @@
+# Benchmark defaults. CLI flags override these; a task file overrides `trials`.
+model: claude-sonnet-5
+effort: medium
+
+trials: 3
+concurrency: 4 # Sandbox contention shows up as n_sandbox_errors; drop to 1 if it does.
+timeout_s: 420 # Longest observed cell is 268s.
+retries: 1 # Harness failures only. Each retry costs a full timeout, so keep it low.
+
+max_budget_usd: 0.50 # Per invocation.
+max_total_usd: 25.00 # Whole matrix; stops cleanly and resumably at the cap.
+
+# A run targets one MCP server and carries a label you choose. Comparison is
+# between labels, so what a run means is your annotation, not a fixed taxonomy.
+# Set per run with --target/--label, or default them here.
+#   --target https://host/mcp --label "with sql"
+#   --target none             --label "no tools"     (the control floor)
+target: "" # from $BENCH_TARGET_URL when blank
+label: "" # defaults to the target host, or "none"
+expect_tools: [] # preflight insists on these, e.g. [execute, search]
+
+tasks_dir: tasks
+
+# Traces must not land in an instance under test: spans one trial ingests are
+# visible to the next, so the database stops being the same between trials.
+# Sink is $PHOENIX_ENDPOINT / $PHOENIX_API_KEY (the plugin hardcodes those names).
+tracing:
+  enabled: false # On, every run needs a second Phoenix + plugin + canary.
+  # Version-pinned plugin cache path: works locally, not portable to teammates.
+  # Swap for a pinned checkout before sharing.
+  plugin_dir: ~/.claude/plugins/cache/arize-claude-plugin/claude-code-tracing/1.0.0
+  project_prefix: mcp-bench

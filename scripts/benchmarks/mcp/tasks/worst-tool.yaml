@@ -1,0 +1,9 @@
+# Needs every TOOL span grouped by name and status before the answer exists --
+# a chain, not a lookup. The >=10 floor stops a 1-of-1 tool winning on noise.
+name: worst-tool
+task_class: multi-call
+prompt: >-
+  In the "trail-gaia" project, which tool has the highest error rate among tools
+  called at least 10 times? Reply with only the tool name, no other words.
+expect:
+  contains: PageDownTool

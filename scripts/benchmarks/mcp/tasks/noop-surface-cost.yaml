@@ -1,0 +1,8 @@
+# Asks for no work at all, so the tokens it spends are the arm's surface: the
+# tool definitions the model is shown before it does anything. Subtract the
+# no-mcp arm from an MCP arm to get that arm's fixed overhead.
+name: noop-surface-cost
+task_class: noop
+prompt: "Reply with exactly: ok"
+expect:
+  equals: "ok"
