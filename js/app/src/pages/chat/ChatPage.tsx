@@ -1,6 +1,5 @@
 import { css, keyframes } from "@emotion/react";
 import { debounce } from "lodash";
-import type { CSSProperties, ReactNode } from "react";
 import { Suspense, useRef, useState } from "react";
 import {
   Group,
@@ -67,33 +66,12 @@ import { useDirectChat } from "./useDirectChat";
 // hundreds. (The sibling model/layout persistence only fires on discrete
 // selections, so it writes synchronously.)
 const storeChatParametersDebounced = debounce(storeChatParameters, 300);
-
-type StarterPrompt = {
-  icon: ReactNode;
-  label: string;
-  prompt: string;
-};
-
-const STARTER_PROMPTS: StarterPrompt[] = [
-  {
-    icon: <Icons.Edit2 />,
-    label: "Draft a system prompt",
-    prompt:
-      "Draft a system prompt for a RAG chatbot that answers questions using only the provided context, cites which passages it used, and says it doesn't know rather than guessing when the context doesn't cover the question.",
-  },
-  {
-    icon: <Icons.Scale />,
-    label: "Write an LLM-as-a-judge eval prompt",
-    prompt:
-      "Write an LLM-as-a-judge evaluation prompt that grades a chatbot answer for hallucination. It should take a question, reference context, and answer as input, and output a label of 'hallucinated' or 'factual' followed by a one-sentence explanation.",
-  },
-  {
-    icon: <Icons.Database />,
-    label: "Generate synthetic test data",
-    prompt:
-      "Generate 10 diverse test questions for a customer-support chatbot, ranging from simple FAQs to ambiguous, multi-part, and adversarial requests. Output them as a JSON array of strings.",
-  },
-];
+// The trailing-only debounce writes nothing during continuous typing, so a
+// hard unload (tab close, refresh) could drop the latest edits entirely —
+// flush the pending write on the way out.
+window.addEventListener("pagehide", () => {
+  storeChatParametersDebounced.flush();
+});
 
 const chatFadeUp = keyframes`
   from {
@@ -227,52 +205,6 @@ const chatPageCSS = css`
     animation: ${chatEmptyFadeUp} 500ms ease-out 300ms forwards;
   }
 
-  .chat-page__starters {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    margin-top: var(--global-dimension-size-200);
-  }
-
-  .chat-page__starter {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-150);
-    width: 100%;
-    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
-    background: transparent;
-    border: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
-    border-radius: var(--global-rounding-medium);
-    color: var(--global-text-color-500);
-    font-size: var(--global-font-size-s);
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-    opacity: 0;
-    animation: ${chatEmptyFadeUp} 500ms ease-out
-      var(--chat-page-starter-delay, 400ms) forwards;
-    transition:
-      background-color 0.15s ease,
-      color 0.15s ease,
-      border-color 0.15s ease;
-
-    &:hover {
-      background: var(--global-color-gray-100);
-      color: var(--global-text-color-900);
-    }
-  }
-
-  .chat-page__starter-icon {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--global-text-color-500);
-    font-size: var(--global-font-size-l);
-  }
-
   .chat-page__thinking {
     padding-block: var(--global-dimension-size-50);
   }
@@ -308,7 +240,6 @@ const chatPageCSS = css`
     .chat-page__empty-glyph,
     .chat-page__empty-title,
     .chat-page__empty-subtext,
-    .chat-page__starter,
     .chat-page__input {
       opacity: 1;
       animation: none;
@@ -492,17 +423,14 @@ function ChatSurface() {
   const handleSubmit = (text: string) => {
     if (!model) {
       // The composer is disabled without a model; if a submit slips through,
-      // put the text back rather than dropping it.
-      setDraft(text);
+      // put the text back rather than dropping it. PromptInput clears its
+      // value right after onSubmit, so the restore must land after that
+      // same-batch clear.
+      queueMicrotask(() => setDraft(text));
       return;
     }
     void scrollToBottom();
     sendMessage(text, model, parametersRef.current);
-  };
-
-  const handleStarterPrompt = (prompt: string) => {
-    setDraft(prompt);
-    textareaRef.current?.focus();
   };
 
   const handleRegenerate = () => {
@@ -548,12 +476,7 @@ function ChatSurface() {
           <div className="chat-page__scroll-frame">
             <div className="chat-page__scroll" ref={scrollRef}>
               <div className="chat-page__messages" ref={contentRef}>
-                {showsEmptyState && (
-                  <ChatEmptyHero
-                    model={model}
-                    onStarterPrompt={handleStarterPrompt}
-                  />
-                )}
+                {showsEmptyState && <ChatEmptyHero model={model} />}
                 {messages.map((message, index) => {
                   const isLast = index === messages.length - 1;
                   if (message.role === "user") {
@@ -664,13 +587,7 @@ function ChatSurface() {
   );
 }
 
-function ChatEmptyHero({
-  model,
-  onStarterPrompt,
-}: {
-  model: ChatModelSelection | null;
-  onStarterPrompt: (prompt: string) => void;
-}) {
+function ChatEmptyHero({ model }: { model: ChatModelSelection | null }) {
   const browserName = getBrowserBuiltInModel()?.browserName;
   return (
     <div className="chat-page__empty">
@@ -685,28 +602,6 @@ function ChatEmptyHero({
             ? `Messages run on-device with ${browserName ?? "your browser"}'s built-in model and never leave this device. Conversations aren't saved when you leave.`
             : "Messages go straight to the model through your configured providers. Conversations aren't saved when you leave."}
       </p>
-      {model ? (
-        <div className="chat-page__starters">
-          {STARTER_PROMPTS.map((starter, index) => (
-            <button
-              key={starter.label}
-              type="button"
-              className="chat-page__starter"
-              style={
-                {
-                  "--chat-page-starter-delay": `${400 + index * 80}ms`,
-                } as CSSProperties
-              }
-              onClick={() => onStarterPrompt(starter.prompt)}
-            >
-              <span className="chat-page__starter-icon">
-                <Icon svg={starter.icon} />
-              </span>
-              <span>{starter.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
