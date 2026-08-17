@@ -92,8 +92,18 @@ def write_manifest(config: BenchConfig, tasks: list[Task], out_dir: Path) -> dic
         "target": config.target if config.uses_mcp else None,
         "uses_mcp": config.uses_mcp,
         "trace_sink": config.tracing.sink_endpoint() if config.tracing.enabled else None,
+        # The full definition, not just the name: results are graded against the
+        # question as it was asked. Without this, editing a prompt silently
+        # re-marks every earlier run against wording it never saw.
         "tasks": [
-            {"name": t.name, "task_class": t.task_class, "trials": config.trials_for(t)}
+            {
+                "name": t.name,
+                "task_class": t.task_class,
+                "trials": config.trials_for(t),
+                "prompt": t.prompt,
+                "expect": t.expect,
+                "json_schema": t.json_schema,
+            }
             for t in tasks
         ],
     }

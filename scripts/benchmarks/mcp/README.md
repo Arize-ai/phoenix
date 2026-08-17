@@ -9,7 +9,7 @@ bench.yaml     suite defaults
 tasks/         the questions — reviewed in git, since editing a prompt
                invalidates comparability with results already collected
 harness/       the Python package
-results/       transcripts, bench.db and reports; gitignored
+results/       transcripts, manifests and reports; gitignored
 ```
 
 ## The idea
@@ -34,13 +34,16 @@ in every summary:
 | `multi-call` | needs a chain of calls |
 | `large-result` | big payload, short answer |
 
-Primary metric is `total_context_tokens` (input + cache_creation + cache_read) —
-everything the model had to read. It is invariant to prompt-cache warmth, where cost
-is not. `peak_context_tokens` is the companion: totals sum, but peak decides whether
-a run still fits in a smaller context window.
+Primary metric is `peak_context_tokens` — how long the conversation had grown by the
+time the agent answered. The model is re-sent the whole conversation every turn, so it
+only grows; its length at the end is what has to fit in the context window. A sum over
+calls is also recorded but not displayed: it counts re-read text once per call that
+follows it, and reads several times larger than the conversation ever was.
 
-Durations are secondary; they move with server warmth and the shared rate limit.
-`duration_api_ms` is the defensible one.
+Cost is split into input, output, cache write and cache read, because cache traffic
+usually dominates and one figure hides it. Two clocks are recorded: `duration_api_ms`
+(the model thinking and writing) and `tool_time_ms` (waiting on the server). Together
+they account for nearly all of a run's wall clock.
 
 ## Setup
 
@@ -82,7 +85,7 @@ and still answers. Preflight catches that.
 mcpbench preflight
 mcpbench run --trials 3
 mcpbench run --trials 10 --run-id 20260816-182817   # adds trials 4-10 only
-mcpbench analyze --all                              # rebuild bench.db from every run
+mcpbench analyze --all                              # re-derive every run from transcripts
 mcpbench annotate --run-id 20260816-182817 --note "what this run was"
 ```
 
@@ -94,10 +97,11 @@ same command.
 Cheapest task classes run first, so a run gives usable signal in seconds rather than
 after the slowest task.
 
-`concurrency` defaults to 4. Parallel runs can contend for the server's sandbox pool;
-that shows up as `n_sandbox_errors`, and `summarize` warns when any land in passing
-runs. If you see that warning, drop to `--concurrency 1` — those numbers measure the
-pool, not the tool surface.
+`concurrency` defaults to **1**, and should stay there. Code mode's sandbox rejects
+concurrent `execute` calls rather than queueing them, so parallel cells collide and the
+client's retry wait dominates: at 4, this matrix spent 85% of its wall clock waiting on
+tools and took nearly twice as long as running serially. Contention shows up as
+`n_sandbox_errors`, which `summarize` warns about.
 
 ## Optional: tracing the benchmark itself
 
@@ -123,33 +127,26 @@ read-only target key.
 
 ## Results
 
-`raw/*.jsonl` and `manifest.json` are the durable truth and are never rewritten.
-`bench.db` is a **disposable index** — delete it any time and `analyze --all` rebuilds
-it from the run folders.
-
-Three tables, keyed by `(run_id, label, task, trial)`:
-
-- `runs` — one row per cell
-- `turns` — one row per API call, for context growth
-- `tool_calls` — `tool_name`, `is_discovery`, `input_bytes`, `result_bytes`,
-  `is_error`, `error_kind`
-
-`tool_calls` explains the token numbers rather than restating them: the discovery tax,
-the volume of code written, and the single largest payload (which a sum hides).
-
-```sql
-SELECT task_class, label, COUNT(*) n, AVG(total_context_tokens)
-FROM runs WHERE passed GROUP BY task_class, label;
-```
+A run directory is self-describing: `raw/*.jsonl` (transcripts), `manifest.json`
+(what produced them, including the questions as asked), and `annotation.json` (anything
+you labelled after the fact). Nothing else is stored — every number is re-derived from
+those files on demand, so there is no index that can fall out of step with them.
 
 ```bash
-mcpbench report   # self-contained results/<run-id>/report.html
-mcpbench serve    # same page plus run controls on 127.0.0.1:8765
+mcpbench report                    # self-contained results/<run-id>/report.html
 ```
 
-Opened from disk the page is a read-only snapshot; served, it polls for updates and
-can start runs. `serve` binds loopback only and never receives a credential — keys
-stay in the server's environment.
+`run` also rewrites the report after every cell, so a run in progress can be watched by
+opening the page and refreshing. `runs.csv` lands beside it for spreadsheets.
+
+**Comparing labels requires one run directory.** Transcript filenames carry the label,
+so a directory can hold several; the report compares whatever it finds. Pass the same
+`--run-id` for each label:
+
+```bash
+mcpbench run --target https://host/mcp --label "with sql" --run-id compare-01
+mcpbench run --target none            --label "no tools"  --run-id compare-01
+```
 
 ## Caveats
 
@@ -168,3 +165,9 @@ retrying it would select for lucky runs. Budget exhaustion is data too.
 **Condition on correctness.** A cheap run that answers wrongly is not cheap.
 
 **Pin the model ID.** `sonnet` is a moving alias; `claude-sonnet-5` is not.
+
+**Editing a prompt does not re-mark earlier runs.** Each run records the questions it
+asked in its manifest and is graded against those. Runs collected before that was
+recorded are graded against the current task files instead, which can turn an answer
+that was right at the time into a failure; `summarize` names those runs and warns. Do
+not aggregate across them.
