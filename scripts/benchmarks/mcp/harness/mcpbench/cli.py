@@ -221,7 +221,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze = sub.add_parser("analyze", help="Rebuild the tables from stored transcripts.")
     analyze.add_argument("--run-id", help="Which run (default: most recent).")
     analyze.add_argument(
-        "--all", action="store_true", help="Drop bench.db and rebuild it from every run folder."
+        "--all", action="store_true", help="Re-derive every run folder from its transcripts."
     )
     analyze.set_defaults(func=cmd_analyze)
 
@@ -231,7 +231,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     annotate = sub.add_parser("annotate", help="Set or change a stored run's label and note.")
     annotate.add_argument("--run-id", required=True)
-    annotate.add_argument("--label", help="Rename the run's label (rewrites its stored rows).")
+    annotate.add_argument("--label", help="Rename the run's label.")
     annotate.add_argument("--note", help="Free-text note kept with the run.")
     annotate.set_defaults(func=cmd_annotate)
 

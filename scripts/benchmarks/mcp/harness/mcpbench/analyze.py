@@ -1,8 +1,9 @@
 """Derivation of result rows from transcripts, and the terminal summary.
 
 Plain lists of dicts rather than dataframes: every metric is already computed in
-``metrics``, so all that remains is grouping and a median. SQLite holds the rows;
-the report computes its own aggregates in the page.
+``metrics``, so all that remains is grouping and a median. Nothing is stored --
+rows are re-derived from the run directory on demand, and the report computes
+its own aggregates in the page.
 """
 
 from __future__ import annotations
@@ -25,8 +26,9 @@ Rows = dict[str, list[dict[str, Any]]]
 def task_hash(task: Task) -> str:
     """Content hash of everything that changes what a task means.
 
-    Stored on both the task and every result row, so results produced under an
-    older wording stay identifiable after the prompt is edited.
+    Identifies the wording a row was graded against. For runs whose manifest
+    records the questions asked, that is the wording the model saw; for older
+    runs it is today's, which is what ``graded_as_run`` flags.
     """
     payload = json.dumps(
         {
@@ -126,16 +128,46 @@ def rows_for_transcript(
     return {"runs": [run], "turns": turns, "tool_calls": calls}
 
 
+def tasks_as_run(manifest: dict[str, Any], current: list[Task]) -> dict[str, Task]:
+    """The questions as they were asked, keyed by name.
+
+    A result is graded against the wording the model actually saw. Reading the
+    current task files instead would re-mark every earlier run whenever a prompt
+    is edited -- turning answers that were right at the time into failures, with
+    nothing to indicate it happened.
+
+    Falls back to the current definition for runs recorded before the manifest
+    carried prompts, which is the old behaviour and the best available.
+    """
+    by_name = {t.name: t for t in current}
+    for entry in manifest.get("tasks") or []:
+        name = entry.get("name")
+        if not name or "expect" not in entry:
+            continue  # older manifest: name only, nothing to recover
+        template = by_name.get(name)
+        by_name[name] = Task(
+            name=name,
+            task_class=entry.get("task_class") or (template.task_class if template else "unknown"),
+            prompt=entry.get("prompt") or (template.prompt if template else ""),
+            expect=entry.get("expect") or {},
+            json_schema=entry.get("json_schema"),
+        )
+    return by_name
+
+
 def rows_for_run(config: BenchConfig, tasks: list[Task], out_dir: Path) -> Rows:
     """Derive every table from the transcripts under ``out_dir/raw``."""
     raw_dir = out_dir / "raw"
     if not raw_dir.is_dir():
         raise FileNotFoundError(f"No transcripts under {raw_dir}.")
 
-    by_name = {t.name: t for t in tasks}
     meta = {}
     if (manifest := out_dir / "manifest.json").is_file():
         meta = json.loads(manifest.read_text())
+    by_name = tasks_as_run(meta, tasks)
+    # Whether this run recorded the questions it asked. Runs predating that are
+    # graded against today's wording, which can mark a right answer wrong.
+    as_run = any("expect" in e for e in (meta.get("tasks") or []))
 
     tables: Rows = {"runs": [], "turns": [], "tool_calls": []}
     for path in sorted(raw_dir.glob("*.jsonl")):
@@ -158,6 +190,8 @@ def rows_for_run(config: BenchConfig, tasks: list[Task], out_dir: Path) -> Rows:
             trial=trial,
             meta=meta,
         )
+        for row in part["runs"]:
+            row["graded_as_run"] = as_run
         for key, rows in part.items():
             tables[key].extend(rows)
     tables["runs"].sort(key=lambda r: (r["label"], r["task"], r["trial"]))
@@ -243,6 +277,16 @@ def summarize(runs: list[dict[str, Any]]) -> str:
     invalid = [r for r in runs if r.get("invalid")]
     usable = [r for r in runs if not r.get("invalid")]
     lines.append(f"runs: {len(runs)}  usable: {len(usable)}  invalid: {len(invalid)}")
+    # Said loudly: these grades may disagree with what the model was actually
+    # marked on at the time, and the direction is not predictable.
+    if stale := [r for r in runs if not r.get("graded_as_run")]:
+        runs_affected = sorted({r["run_id"] for r in stale})
+        lines.append(
+            f"WARNING: {len(stale)} rows graded against the current task files, not the "
+            f"questions as asked ({', '.join(runs_affected)}). These runs predate the "
+            f"manifest recording prompts; a since-edited question makes their pass/fail "
+            f"unreliable. Do not mix them into an aggregate."
+        )
     if invalid:
         reasons: dict[str, int] = {}
         for r in invalid:
