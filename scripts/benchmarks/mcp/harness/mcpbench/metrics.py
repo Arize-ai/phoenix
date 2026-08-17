@@ -66,6 +66,10 @@ class ToolCall:
     #: What the call was about, for the meta-tools whose name alone says nothing:
     #: which operations the sandbox invoked, or which schemas were fetched.
     detail: Optional[str] = None
+    #: Whether an ``executeSql`` result envelope came back, error flag or not.
+    #: A guest with no way to print reaches `raise` to see a value, so a query
+    #: that worked perfectly arrives as a failed call carrying its own answer.
+    returned_sql_rows: bool = False
 
     @property
     def duration_ms(self) -> Optional[int]:
@@ -101,6 +105,16 @@ _CALL_TOOL = re.compile(r"""call_tool\(\s*['"]([A-Za-z_][A-Za-z0-9_]*)['"]""")
 #: the benchmark exists to measure, so whether a run reached them is a result in
 #: its own right rather than a detail of the route.
 _ANALYTICS_TOOLS = {"executeSql": "sql", "describeSqlSchema": "schema"}
+
+#: The shape `executeSql` returns when it worked. Matched in either quoting --
+#: a guest that raises its result stringifies the dict as a Python repr, while
+#: a returned one arrives as JSON. `applied` is required alongside `row_count`
+#: because a query is free to alias a column `row_count`, but nothing a caller
+#: selects lands next to the envelope's own record of what it rewrote.
+_SQL_ENVELOPE = re.compile(
+    r"""['"]row_count['"]\s*:.*?['"]applied['"]\s*:|['"]applied['"]\s*:.*?['"]row_count['"]\s*:""",
+    re.S,
+)
 
 
 def _call_detail(tool_name: str, payload: Any) -> Optional[str]:
@@ -281,11 +295,17 @@ class Transcript:
     def sql_tools(self) -> str:
         """Whether the analytics SQL tools were reached, and how far.
 
-        Being surfaced by discovery and being called are different outcomes: a
-        run that saw ``executeSql`` in a schema listing and paged anyway is the
-        case worth seeing, and it is invisible if only calls are counted.
+        Four outcomes, not two. Being surfaced by discovery and being called are
+        different, and so are calling one and getting an answer out of it: a run
+        whose only ``executeSql`` raised and which then paged for the answer did
+        not use SQL, however much its route mentions it. Counting the attempt as
+        a use reads as adoption and hides the failure that follows it.
+
+        A call carrying several operations cannot say which of them failed, so
+        an errored call credits none of them -- the operation still counts as
+        used if any other call it appears in succeeded.
         """
-        used, found = set(), set()
+        used, tried, found = set(), set(), set()
         for call in self.tool_calls:
             if not call.detail:
                 continue
@@ -293,9 +313,25 @@ class Transcript:
             for op in call.detail.split(","):
                 if op not in _ANALYTICS_TOOLS:
                     continue
-                (used if short == "execute" else found).add(_ANALYTICS_TOOLS[op])
-        if used:
-            return "+".join(sorted(used))
+                name = _ANALYTICS_TOOLS[op]
+                if short != "execute":
+                    found.add(name)
+                elif not call.is_error or (op == "executeSql" and call.returned_sql_rows):
+                    # The call errored but the query behind it did not: the guest
+                    # raised its own result to read it. The route still marks the
+                    # failure; what the run got out of SQL is rows either way.
+                    used.add(name)
+                else:
+                    tried.add(name)
+        # An operation that failed everywhere is reported even when another one
+        # worked: "schema" alone for a run whose every executeSql raised says it
+        # chose not to query, when in fact it tried and could not.
+        tried -= used
+        parts = ["+".join(sorted(used))] if used else []
+        if tried:
+            parts.append("+".join(sorted(tried)) + " failed")
+        if parts:
+            return ", ".join(parts)
         return "found, unused" if found else "–"
 
     @property
@@ -382,6 +418,7 @@ def parse_transcript(path: Path) -> Transcript:
                 # The sandbox reports some failures as ordinary results, so the
                 # content is classified independently of the error flag.
                 call.is_error = bool(block.get("is_error")) or call.error_kind is not None
+                call.returned_sql_rows = bool(_SQL_ENVELOPE.search(content))
     return transcript
 
 

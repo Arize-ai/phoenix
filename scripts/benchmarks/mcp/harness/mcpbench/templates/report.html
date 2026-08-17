@@ -183,9 +183,14 @@
         before any real work</dd>
       <dt>output</dt><dd>tokens the model wrote — its reasoning, plus any SQL</dd>
       <dt>status</dt><dd>whether the reply contained the expected answer</dd>
-      <dt>sql tools</dt><dd>whether the run reached the analytics SQL surface: which of
-        <code>executeSql</code> and <code>describeSqlSchema</code> it actually called, or
-        <i>found, unused</i> when discovery surfaced one and the run paged anyway.</dd>
+      <dt>sql tools</dt><dd>what the run got out of the analytics SQL surface: which of
+        <code>executeSql</code> (<i>sql</i>) and <code>describeSqlSchema</code>
+        (<i>schema</i>) returned it something. <i>failed</i> marks one it called and
+        never got an answer from — <i>sql failed</i> means whatever it answered with
+        came from paging instead. A query counts as answered even when the sandbox
+        call around it errored: with no way to print, a guest raises its own result
+        to read it, so rows can arrive inside a failure. <i>found, unused</i> means
+        discovery surfaced one and the run never called it.</dd>
       <dt>route</dt><dd>the tools it called, in order, with consecutive repeats collapsed to
         <code>x N</code>. The operation is named where the tool alone would not say what
         happened — <code>execute(executeSql)</code>, <code>get_schema(spanSearch)</code> — and
