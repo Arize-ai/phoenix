@@ -230,7 +230,6 @@ async def test_a_request_made_after_the_eligibility_read_survives_the_acknowledg
             criteria_id=pair.criteria_id,
             requested_generation=5,
             materialized_generation=4,
-            count=5,
         )
         session.add(request)
         await session.flush()
