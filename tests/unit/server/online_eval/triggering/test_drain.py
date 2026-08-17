@@ -25,10 +25,10 @@ _NOTICED_AT = datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc)
 
 def _annotation(annotation_id: int, *, label: str = "incorrect") -> AnnotationUpserted:
     return AnnotationUpserted(
-        annotation_kind="span",
+        annotation_target="span",
         annotation_id=annotation_id,
         target_rowid=annotation_id,
-        edge="created",
+        change="created",
         updated_at=_NOTICED_AT + timedelta(minutes=annotation_id),
         name="human-review",
         label=label,

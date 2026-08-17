@@ -2737,9 +2737,9 @@ _SHARED_PREDICATE_COLUMNS = (
 )
 _KIND_SCOPED_PREDICATE_COLUMNS = (
     "annotator_kind",
-    "annotation_edge",
-    "annotation_kind",
-    "source_evaluator_id",
+    "annotation_change",
+    "annotation_target",
+    "source_project_evaluator_id",
     "result_changed_only",
 )
 
@@ -2788,9 +2788,9 @@ def _project_evaluator_trigger_values(
         "score_below": score_below,
         "score_above": score_above,
         "annotator_kind": _enum_value(annotator_kind),
-        "annotation_edge": _enum_value(annotation_change),
-        "annotation_kind": _enum_value(annotation_target),
-        "source_evaluator_id": source_project_evaluator_id,
+        "annotation_change": _enum_value(annotation_change),
+        "annotation_target": _enum_value(annotation_target),
+        "source_project_evaluator_id": source_project_evaluator_id,
         # Clearing this predicate means "do not constrain", which for a flag is false.
         "result_changed_only": False if result_changed_only is None else result_changed_only,
     }

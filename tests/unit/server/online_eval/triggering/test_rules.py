@@ -72,8 +72,8 @@ async def test_a_live_rule_loads_with_its_predicates_and_its_criteria_s_project(
             label="incorrect",
             score_below=0.5,
             annotator_kind="HUMAN",
-            annotation_edge="created",
-            annotation_kind="span",
+            annotation_change="created",
+            annotation_target="span",
         )
 
     async with db() as session:
@@ -87,9 +87,9 @@ async def test_a_live_rule_loads_with_its_predicates_and_its_criteria_s_project(
     assert rule.score_below == 0.5
     assert rule.score_above is None
     assert rule.annotator_kind == "HUMAN"
-    assert rule.annotation_edge == "created"
-    assert rule.annotation_kind == "span"
-    assert rule.source_evaluator_id is None
+    assert rule.annotation_change == "created"
+    assert rule.annotation_target == "span"
+    assert rule.source_project_evaluator_id is None
     assert rule.result_changed_only is False
 
 

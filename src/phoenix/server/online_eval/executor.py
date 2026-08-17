@@ -76,6 +76,13 @@ _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
 _EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
 _SCHEDULING_ORIGIN_METADATA_KEY = "phoenix.online_eval.scheduling_origin"
+# Annotation metadata is rendered verbatim in the app and the REST API, so the column's
+# internal vocabulary is translated on the way out. The stored values stay as they are.
+_SCHEDULING_ORIGIN_METADATA_VALUES: dict[models.SchedulingOrigin, str] = {
+    "AMBIENT": "SCHEDULED",
+    "RULE": "TRIGGERED",
+    "EXPLICIT": "REQUESTED",
+}
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 
 AnnotatorKind = Literal["LLM", "CODE"]
@@ -1013,7 +1020,9 @@ class OnlineEvalExecutor:
                     **result["metadata"],
                     **hydrated.annotation_metadata,
                     **_evaluator_trace_metadata(result),
-                    _SCHEDULING_ORIGIN_METADATA_KEY: unit.scheduling_origin,
+                    _SCHEDULING_ORIGIN_METADATA_KEY: _SCHEDULING_ORIGIN_METADATA_VALUES[
+                        unit.scheduling_origin
+                    ],
                 },
                 "annotator_kind": hydrated.annotator_kind,
                 "identifier": unit.identifier,

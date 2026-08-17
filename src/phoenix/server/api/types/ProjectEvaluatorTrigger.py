@@ -105,7 +105,7 @@ def to_gql_project_evaluator_trigger(
     return ProjectEvaluatorTrigger(
         id=record.id,
         project_evaluator_id=record.project_evaluator_id,
-        source_project_evaluator_id=record.source_evaluator_id,
+        source_project_evaluator_id=record.source_project_evaluator_id,
         signal_kind=EvaluatorSignalKind(record.signal_kind),
         annotation_name=record.annotation_name,
         label=record.label,
@@ -115,10 +115,14 @@ def to_gql_project_evaluator_trigger(
             AnnotatorKind(record.annotator_kind) if record.annotator_kind is not None else None
         ),
         annotation_change=(
-            AnnotationChange(record.annotation_edge) if record.annotation_edge is not None else None
+            AnnotationChange(record.annotation_change)
+            if record.annotation_change is not None
+            else None
         ),
         annotation_target=(
-            AnnotationTarget(record.annotation_kind) if record.annotation_kind is not None else None
+            AnnotationTarget(record.annotation_target)
+            if record.annotation_target is not None
+            else None
         ),
         result_changed_only=record.result_changed_only,
         created_at=record.created_at,

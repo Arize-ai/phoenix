@@ -36,10 +36,10 @@ def _annotation(
     label: str = "incorrect",
 ) -> AnnotationUpserted:
     return AnnotationUpserted(
-        annotation_kind="span",
+        annotation_target="span",
         annotation_id=annotation_id,
         target_rowid=annotation_id,
-        edge="created",
+        change="created",
         updated_at=updated_at,
         name="human-review",
         label=label,

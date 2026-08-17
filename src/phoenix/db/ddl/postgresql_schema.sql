@@ -1566,7 +1566,6 @@ CREATE TABLE public.evaluation_requests (
     materialized_by_session_work_unit_id BIGINT,
     requested_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     requested_by VARCHAR,
-    count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_evaluation_requests PRIMARY KEY (id),
@@ -1604,32 +1603,32 @@ CREATE TABLE public.project_evaluator_triggers (
     score_below DOUBLE PRECISION,
     score_above DOUBLE PRECISION,
     annotator_kind VARCHAR,
-    annotation_edge VARCHAR,
-    annotation_kind VARCHAR,
-    source_evaluator_id BIGINT,
+    annotation_change VARCHAR,
+    annotation_target VARCHAR,
+    source_project_evaluator_id BIGINT,
     result_changed_only BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_edge`"
-        CHECK (((annotation_edge)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_change`"
+        CHECK (((annotation_change)::text = ANY ((ARRAY[
             'created'::character varying,
             'updated'::character varying
         ])::text[]))),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_kind`"
-        CHECK (((annotation_kind)::text = ANY ((ARRAY[
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_predicates`" CHECK ((((signal_kind)::text <> 'annotation_upserted'::text) OR ((source_project_evaluator_id IS NULL) AND (result_changed_only = false)))),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_target`"
+        CHECK (((annotation_target)::text = ANY ((ARRAY[
             'span'::character varying,
             'trace'::character varying,
             'session'::character varying
         ])::text[]))),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_predicates`" CHECK ((((signal_kind)::text <> 'annotation_upserted'::text) OR ((source_evaluator_id IS NULL) AND (result_changed_only = false)))),
     CONSTRAINT "ck_project_evaluator_triggers_`valid_annotator_kind`"
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
             'HUMAN'::character varying
         ])::text[]))),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_evaluation_predicates`" CHECK ((((signal_kind)::text <> 'evaluation_completed'::text) OR ((annotator_kind IS NULL) AND (annotation_edge IS NULL) AND (annotation_kind IS NULL)))),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_evaluation_predicates`" CHECK ((((signal_kind)::text <> 'evaluation_completed'::text) OR ((annotator_kind IS NULL) AND (annotation_change IS NULL) AND (annotation_target IS NULL)))),
     CONSTRAINT "ck_project_evaluator_triggers_`valid_signal_kind`"
         CHECK (((signal_kind)::text = ANY ((ARRAY[
             'annotation_upserted'::character varying,
@@ -1639,16 +1638,16 @@ CREATE TABLE public.project_evaluator_triggers (
         FOREIGN KEY (project_evaluator_id)
         REFERENCES public.project_evaluators (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_project_evaluator_triggers_source_evaluator_id_proje_30d1
-        FOREIGN KEY (source_evaluator_id)
+    CONSTRAINT fk_project_evaluator_triggers_source_project_evaluator_id_projec_30d2
+        FOREIGN KEY (source_project_evaluator_id)
         REFERENCES public.project_evaluators (id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX ix_project_evaluator_triggers_project_evaluator_id ON public.project_evaluator_triggers
     USING btree (project_evaluator_id);
-CREATE INDEX ix_project_evaluator_triggers_source_evaluator_id ON public.project_evaluator_triggers
-    USING btree (source_evaluator_id);
+CREATE INDEX ix_project_evaluator_triggers_source_project_evaluator_id ON public.project_evaluator_triggers
+    USING btree (source_project_evaluator_id);
 
 
 -- Table: project_session_annotations

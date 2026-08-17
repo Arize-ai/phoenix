@@ -33,9 +33,9 @@ class TriggerRule:
     score_below: Optional[float] = None
     score_above: Optional[float] = None
     annotator_kind: Optional[str] = None
-    annotation_edge: Optional[models.AnnotationEdge] = None
-    annotation_kind: Optional[models.AnnotationKind] = None
-    source_evaluator_id: Optional[int] = None
+    annotation_change: Optional[models.AnnotationChange] = None
+    annotation_target: Optional[models.AnnotationTarget] = None
+    source_project_evaluator_id: Optional[int] = None
     result_changed_only: bool = False
 
 
@@ -75,9 +75,9 @@ async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
             score_below=trigger.score_below,
             score_above=trigger.score_above,
             annotator_kind=trigger.annotator_kind,
-            annotation_edge=trigger.annotation_edge,
-            annotation_kind=trigger.annotation_kind,
-            source_evaluator_id=trigger.source_evaluator_id,
+            annotation_change=trigger.annotation_change,
+            annotation_target=trigger.annotation_target,
+            source_project_evaluator_id=trigger.source_project_evaluator_id,
             result_changed_only=trigger.result_changed_only,
         )
         for trigger, project_id in await session.execute(stmt)

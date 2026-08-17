@@ -76,9 +76,12 @@ def _matches(signal: DrainedSignal, rule: TriggerRule) -> bool:
 def _matches_annotation(payload: dict[str, Any], rule: TriggerRule) -> bool:
     if rule.annotator_kind is not None and payload.get("annotator_kind") != rule.annotator_kind:
         return False
-    if rule.annotation_edge is not None and payload.get("edge") != rule.annotation_edge:
+    if rule.annotation_change is not None and payload.get("change") != rule.annotation_change:
         return False
-    if rule.annotation_kind is not None and payload.get("annotation_kind") != rule.annotation_kind:
+    if (
+        rule.annotation_target is not None
+        and payload.get("annotation_target") != rule.annotation_target
+    ):
         return False
     return True
 
@@ -87,8 +90,8 @@ def _matches_evaluation(payload: dict[str, Any], rule: TriggerRule) -> bool:
     # A project_evaluators never re-triggers on its own verdict, whatever the rule's predicates say.
     if payload.get("project_evaluator_id") == rule.project_evaluator_id:
         return False
-    if rule.source_evaluator_id is not None and payload.get("project_evaluator_id") != (
-        rule.source_evaluator_id
+    if rule.source_project_evaluator_id is not None and payload.get("project_evaluator_id") != (
+        rule.source_project_evaluator_id
     ):
         return False
     if rule.result_changed_only and not payload.get("result_changed"):

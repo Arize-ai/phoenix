@@ -249,25 +249,25 @@ def _create_project_evaluator_triggers_table() -> None:
             nullable=True,
         ),
         sa.Column(
-            "annotation_edge",
+            "annotation_change",
             sa.String(),
             sa.CheckConstraint(
-                "annotation_edge IN ('created', 'updated')",
-                name="valid_annotation_edge",
+                "annotation_change IN ('created', 'updated')",
+                name="valid_annotation_change",
             ),
             nullable=True,
         ),
         sa.Column(
-            "annotation_kind",
+            "annotation_target",
             sa.String(),
             sa.CheckConstraint(
-                "annotation_kind IN ('span', 'trace', 'session')",
-                name="valid_annotation_kind",
+                "annotation_target IN ('span', 'trace', 'session')",
+                name="valid_annotation_target",
             ),
             nullable=True,
         ),
         sa.Column(
-            "source_evaluator_id",
+            "source_project_evaluator_id",
             _Integer,
             sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
             nullable=True,
@@ -292,12 +292,12 @@ def _create_project_evaluator_triggers_table() -> None:
         ),
         sa.CheckConstraint(
             "signal_kind != 'annotation_upserted' OR "
-            "(source_evaluator_id IS NULL AND result_changed_only = false)",
+            "(source_project_evaluator_id IS NULL AND result_changed_only = false)",
             name="valid_annotation_predicates",
         ),
         sa.CheckConstraint(
             "signal_kind != 'evaluation_completed' OR "
-            "(annotator_kind IS NULL AND annotation_edge IS NULL AND annotation_kind IS NULL)",
+            "(annotator_kind IS NULL AND annotation_change IS NULL AND annotation_target IS NULL)",
             name="valid_evaluation_predicates",
         ),
     )
@@ -307,9 +307,9 @@ def _create_project_evaluator_triggers_table() -> None:
         ["project_evaluator_id"],
     )
     op.create_index(
-        "ix_project_evaluator_triggers_source_evaluator_id",
+        "ix_project_evaluator_triggers_source_project_evaluator_id",
         "project_evaluator_triggers",
-        ["source_evaluator_id"],
+        ["source_project_evaluator_id"],
     )
 
 
@@ -345,7 +345,6 @@ def _create_evaluation_requests_table() -> None:
             server_default=sa.func.now(),
         ),
         sa.Column("requested_by", sa.String(), nullable=True),
-        sa.Column("count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -699,7 +698,7 @@ def downgrade() -> None:
     op.drop_table("evaluation_requests")
 
     op.drop_index(
-        "ix_project_evaluator_triggers_source_evaluator_id",
+        "ix_project_evaluator_triggers_source_project_evaluator_id",
         table_name="project_evaluator_triggers",
     )
     op.drop_index(

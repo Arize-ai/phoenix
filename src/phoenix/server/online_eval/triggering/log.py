@@ -26,7 +26,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 
 @dataclass(frozen=True)
 class AnnotationUpserted:
-    """An annotation as it stood when it was noticed, with the edge that noticed it.
+    """An annotation as it stood when it was noticed, with the change that noticed it.
 
     `updated_at` carries the occurrence identity: a rescan of the same edit repeats it and
     collapses, while a later edit to the same annotation is a distinct occurrence.
@@ -34,10 +34,10 @@ class AnnotationUpserted:
 
     kind: ClassVar[models.EvaluatorSignalKind] = "annotation_upserted"
 
-    annotation_kind: models.AnnotationKind
+    annotation_target: models.AnnotationTarget
     annotation_id: int
     target_rowid: int
-    edge: models.AnnotationEdge
+    change: models.AnnotationChange
     updated_at: datetime
     name: str
     label: Optional[str] = None
@@ -49,14 +49,14 @@ class AnnotationUpserted:
 
     @property
     def dedup_key(self) -> str:
-        return f"{self.annotation_kind}:{self.annotation_id}:{self.updated_at.isoformat()}"
+        return f"{self.annotation_target}:{self.annotation_id}:{self.updated_at.isoformat()}"
 
     def payload(self) -> dict[str, Any]:
         return {
-            "annotation_kind": self.annotation_kind,
+            "annotation_target": self.annotation_target,
             "annotation_id": self.annotation_id,
             "target_rowid": self.target_rowid,
-            "edge": self.edge,
+            "change": self.change,
             "updated_at": self.updated_at.isoformat(),
             "name": self.name,
             "label": self.label,
@@ -132,7 +132,7 @@ async def append(
     """Log one occurrence of `signal` against a project and the session it resolved to.
 
     Pass the session of the transaction the fact belongs to: the signal then commits or
-    rolls back with the fact, which is what keeps an announced edge from outliving the
+    rolls back with the fact, which is what keeps an announced change from outliving the
     change that announced it. Only a repeat of the same occurrence is tolerated; anything
     else the row violates — an unknown kind, a project or session that is gone — raises and
     leaves the caller's transaction to fail.

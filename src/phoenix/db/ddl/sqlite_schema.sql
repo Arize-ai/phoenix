@@ -1462,7 +1462,6 @@ CREATE TABLE evaluation_requests (
     materialized_by_session_work_unit_id INTEGER,
     requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     requested_by VARCHAR,
-    count INTEGER DEFAULT '0' NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_evaluation_requests PRIMARY KEY (id),
@@ -1513,13 +1512,13 @@ CREATE TABLE project_evaluator_triggers (
     annotator_kind VARCHAR
         CONSTRAINT "ck_project_evaluator_triggers_`valid_annotator_kind`"
         CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
-    annotation_edge VARCHAR
-        CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_edge`"
-        CHECK (annotation_edge IN ('created', 'updated')),
-    annotation_kind VARCHAR
-        CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_kind`"
-        CHECK (annotation_kind IN ('span', 'trace', 'session')),
-    source_evaluator_id INTEGER,
+    annotation_change VARCHAR
+        CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_change`"
+        CHECK (annotation_change IN ('created', 'updated')),
+    annotation_target VARCHAR
+        CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_target`"
+        CHECK (annotation_target IN ('span', 'trace', 'session')),
+    source_project_evaluator_id INTEGER,
     result_changed_only BOOLEAN DEFAULT false NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -1527,31 +1526,31 @@ CREATE TABLE project_evaluator_triggers (
     CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_predicates`"
         CHECK (
             signal_kind != 'annotation_upserted'
-            OR (source_evaluator_id IS NULL AND result_changed_only = false)
+            OR (source_project_evaluator_id IS NULL AND result_changed_only = false)
         ),
     CONSTRAINT "ck_project_evaluator_triggers_`valid_evaluation_predicates`"
         CHECK (
             signal_kind != 'evaluation_completed'
             OR (
                 annotator_kind IS NULL
-                AND annotation_edge IS NULL
-                AND annotation_kind IS NULL
+                AND annotation_change IS NULL
+                AND annotation_target IS NULL
             )
         ),
     CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_project_evaluators
         FOREIGN KEY (project_evaluator_id)
         REFERENCES project_evaluators (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_project_evaluator_triggers_source_evaluator_id_project_evaluators
-        FOREIGN KEY (source_evaluator_id)
+    CONSTRAINT fk_project_evaluator_triggers_source_project_evaluator_id_project_evaluators
+        FOREIGN KEY (source_project_evaluator_id)
         REFERENCES project_evaluators (id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX ix_project_evaluator_triggers_project_evaluator_id ON project_evaluator_triggers
     (project_evaluator_id);
-CREATE INDEX ix_project_evaluator_triggers_source_evaluator_id ON project_evaluator_triggers
-    (source_evaluator_id);
+CREATE INDEX ix_project_evaluator_triggers_source_project_evaluator_id ON project_evaluator_triggers
+    (source_project_evaluator_id);
 
 
 -- Table: project_session_annotations
