@@ -92,6 +92,12 @@ export const traceFilterCases: FrontierFilterEvalCase[] = [
     query: "Find traces where an error occurred after finalization.",
     accepted: [
       "max(s.start_time for s in spans if s.status_code == 'ERROR') > max(s.start_time for s in spans if s.name == 'finalize')",
+      "max(s.start_time for s in spans if s.status_code == 'ERROR') > max(s.start_time for s in spans if s.name == 'finalization')",
+      "any(s.status_code == 'ERROR' and s.start_time > max(x.start_time for x in spans if x.name == 'finalize') for s in spans)",
+      "any(s.status_code == 'ERROR' and s.start_time > max(x.start_time for x in spans if x.name == 'finalization') for s in spans)",
+      "max(s.start_time for s in spans if s.status_code == 'ERROR') > max(s.start_time for s in spans if 'finalize' in s.name)",
+      "max(s.start_time for s in spans if s.status_code == 'ERROR') > max(s.end_time for s in spans if 'finalize' in s.name)",
+      "max(s.start_time for s in spans if s.status_code == 'ERROR') > max(s.end_time for s in spans if 'finalization' in s.name)",
     ],
     failureMode:
       "compares unrelated trace fields or adds unsupported sorting instead of filtered reductions",
@@ -105,6 +111,10 @@ export const traceFilterCases: FrontierFilterEvalCase[] = [
       "token_count_total > 20000 and max(s.cumulative_llm_token_count_total for s in spans if s.parent_span.name is not None) > 0.8 * token_count_total",
       "max(s.cumulative_llm_token_count_total for s in spans if s.parent_span is not None) > 0.8 * token_count_total and token_count_total > 20000",
       "max(s.cumulative_llm_token_count_total for s in spans if s.parent_span.name is not None) > 0.8 * token_count_total and token_count_total > 20000",
+      "token_count_total > 20000 and max(s.cumulative_llm_token_count_total for s in spans if s.parent_id is not None) > 0.8 * token_count_total",
+      "max(s.cumulative_llm_token_count_total for s in spans if s.parent_id is not None) > 0.8 * token_count_total and token_count_total > 20000",
+      "token_count_total > 20000 and max([s.cumulative_llm_token_count_total for s in spans if s.parent_id is not None]) > 0.8 * token_count_total",
+      "token_count_total > 20000 and max([s.cumulative_llm_token_count_total for s in spans if s.parent_span is not None]) > 0.8 * token_count_total",
     ],
     failureMode:
       "uses the stale parent relation name or ignores the requested trace token threshold",
@@ -149,6 +159,9 @@ export const traceFilterCases: FrontierFilterEvalCase[] = [
       "any(s.parent_span.name == 'cron-job' and s.span_kind == 'TOOL' for s in spans)",
       "any(s.span_kind == 'TOOL' and s.parent_span is not None and s.parent_span.name == 'cron-job' for s in spans)",
       "any(s.span_kind == 'TOOL' and s.parent_span.name is not None and s.parent_span.name == 'cron-job' for s in spans)",
+      "any(s.span_kind == 'TOOL' and 'cron-job' in s.parent_span.name for s in spans)",
+      "any('cron-job' in s.parent_span.name and s.span_kind == 'TOOL' for s in spans)",
+      "any(s.span_kind == 'TOOL' and s.parent_span is not None and 'cron-job' in s.parent_span.name for s in spans)",
     ],
     failureMode:
       "uses the stale parent relation name or searches all ancestors instead of the direct parent",
