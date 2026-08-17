@@ -92,6 +92,7 @@ from phoenix.server.online_eval.tracing import (
     PROJECT_EVALUATOR_NAME_ATTRIBUTE,
 )
 from phoenix.server.online_eval.triggering.drain import SignalDrain
+from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
@@ -1323,7 +1324,7 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
     (first_claim,) = await coordinator.claim(claimed_by="attempt-a", limit=1)
     first_hydrated = await executor.hydrate(first_claim)
     assert isinstance(first_hydrated, HydratedWorkUnit)
-    first_completion = await executor.evaluate_and_annotate(first_claim, first_hydrated)
+    (first_completion,) = await executor.evaluate_and_annotate(first_claim, first_hydrated)
 
     async with db() as session:
         second_trace = await _add_trace(
@@ -1354,7 +1355,7 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
     (second_claim,) = await coordinator.claim(claimed_by="attempt-b", limit=1)
     second_hydrated = await executor.hydrate(second_claim)
     assert isinstance(second_hydrated, HydratedWorkUnit)
-    second_completion = await executor.evaluate_and_annotate(second_claim, second_hydrated)
+    (second_completion,) = await executor.evaluate_and_annotate(second_claim, second_hydrated)
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by=second_claim.claimed_by,
@@ -2638,12 +2639,13 @@ async def test_shared_evaluator_limit_applies_across_target_consumers(
     async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
         return hydrated
 
-    async def _evaluate(*_: Any, **__: Any) -> None:
+    async def _evaluate(*_: Any, **__: Any) -> tuple[EvaluationCompleted, ...]:
         nonlocal active, max_active
         active += 1
         max_active = max(max_active, active)
         await asyncio.sleep(0)
         active -= 1
+        return ()
 
     async def _complete(**_: Any) -> bool:
         return True
@@ -2682,8 +2684,8 @@ async def test_complete_retries_after_ambiguous_commit(
     async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
         return hydrated
 
-    async def _evaluate(*_: Any, **__: Any) -> None:
-        return None
+    async def _evaluate(*_: Any, **__: Any) -> tuple[EvaluationCompleted, ...]:
+        return ()
 
     original_complete = consumer._coordinator.complete
     complete_calls = 0
@@ -2998,7 +3000,7 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
     assert unit.scheduling_origin == "RULE"
     executor = _executor(db, evaluation_target="SESSION")
 
-    completion_signal = await executor.evaluate_and_annotate(
+    completion_signals = await executor.evaluate_and_annotate(
         unit,
         _hydrated_stub(
             results=[_evaluation_result("criterion")],
@@ -3009,10 +3011,11 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by="consumer",
-        completion_signal=completion_signal,
+        completion_signals=completion_signals,
     )
     await SignalDrain(db)._tick()
 
+    (completion_signal,) = completion_signals
     assert completion_signal.project_evaluator_id == authoring_project_evaluator_id
     assert completion_signal.result_changed is True
     assert completion_signal.previous_label is None
@@ -3029,4 +3032,38 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
     # Metadata is rendered verbatim to users, so it carries the translated word rather
     # than the column's own vocabulary.
     assert annotation.metadata_["phoenix.online_eval.scheduling_origin"] == "TRIGGERED"
+
+
+async def test_every_evaluator_output_is_announced_as_its_own_occurrence(
+    db: DbSessionFactory,
+) -> None:
+    """A rule authored against a two-output evaluator's second output must be able to
+    fire, so each output is announced separately and keyed separately."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+    coordinator = DbEvalWorkCoordinator(db)
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    executor = _executor(db)
+
+    completions = await executor.evaluate_and_annotate(
+        unit,
+        _hydrated_stub(
+            results=[_evaluation_result("quality"), _evaluation_result("safety")],
+            evaluator_kind="BUILTIN",
+            output_configs=[],
+        ),
+    )
+
+    assert [completion.name for completion in completions] == ["quality", "safety"]
+    assert {completion.dedup_key for completion in completions} == {
+        f"span:{unit_id}:quality",
+        f"span:{unit_id}:safety",
+    }
+    # Each output carries its own verdict history, not the first output's.
+    assert all(completion.previous_label is None for completion in completions)
+    assert all(completion.result_changed for completion in completions)
 

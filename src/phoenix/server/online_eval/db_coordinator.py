@@ -238,18 +238,17 @@ class DbEvalWorkCoordinator:
         *,
         work_unit_id: int,
         claimed_by: str,
-        completion_signal: Optional[EvaluationCompleted] = None,
+        completion_signals: Sequence[EvaluationCompleted] = (),
     ) -> bool:
         """Complete a claimed unit, treating an already-DONE row as success.
 
-        ``completion_signal`` is logged in the same transaction as the transition, so a
-        retry against an already-DONE row completes without announcing it again.
+        ``completion_signals`` are logged in the same transaction as the transition, so a
+        retry against an already-DONE row completes without announcing them again.
         """
 
         async def announce(session: AsyncSession) -> None:
-            if completion_signal is None:
-                return
-            await self._announce_completion(session, work_unit_id, completion_signal)
+            for completion_signal in completion_signals:
+                await self._announce_completion(session, work_unit_id, completion_signal)
 
         return await self._fenced_transition(
             work_unit_id=work_unit_id,

@@ -75,6 +75,7 @@ from phoenix.server.online_eval.leases import DatabaseLease, LeaseLost
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.requests import (
     acknowledge_materialization,
+    is_unfulfilled,
     unfulfilled_requests,
 )
 from phoenix.server.online_eval.session_policy import (
@@ -87,6 +88,7 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS,
     ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS,
+    ONLINE_EVAL_SESSION_SCHEDULING_BACKLOG,
     ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS,
     ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS,
     ONLINE_EVAL_SESSION_SWEEP_FAILURES,
@@ -135,6 +137,53 @@ class _SessionProjectEvaluator:
     sampling_rate: float
 
 
+def _timestamp_sql_type(dialect: SupportedSQLDialect) -> str:
+    return "TIMESTAMP WITH TIME ZONE" if dialect is SupportedSQLDialect.POSTGRESQL else "TEXT"
+
+
+def _values_relation(
+    rows: Sequence[tuple[Any, dict[str, Any]]],
+    sql_types: Sequence[str],
+    columns: Sequence[Any],
+    *,
+    alias: str,
+    name: str,
+    bind_prefix: str,
+) -> Subquery:
+    """Return a portable inline VALUES relation, one row per entry in ``rows``.
+
+    SQLite caps a compound SELECT at 500 branches and PostgreSQL plans one slowly, so
+    configuration rows enter a statement as an inline relation rather than as unioned
+    selects. Only the first row is cast; the rest take their types from it.
+
+    Each entry is ``(identity, values)``, and bind names are keyed off that identity
+    rather than off row position. Several of these relations are unioned into one
+    statement, ``text()`` binds are not unique, and position-keyed names from different
+    relations silently overwrite each other — one relation's row would then carry
+    another's values. Identity must be unique within a relation, and two relations built
+    over overlapping identities in one statement need distinct ``bind_prefix`` values.
+    """
+    values_rows = []
+    parameters: dict[str, Any] = {}
+    for index, (identity, values) in enumerate(rows):
+        prefix = f"{bind_prefix}{identity}"
+        row_parameters = {f"{prefix}_{key}": value for key, value in values.items()}
+        parameters.update(row_parameters)
+        placeholders = [f":{parameter}" for parameter in row_parameters]
+        if index == 0:
+            placeholders = [
+                f"CAST({placeholder} AS {sql_type})"
+                for placeholder, sql_type in zip(placeholders, sql_types, strict=True)
+            ]
+        values_rows.append(f"({', '.join(placeholders)})")
+    select_list = ", ".join(
+        f"{alias}.column{position} AS {selected.name}"
+        for position, selected in enumerate(columns, start=1)
+    )
+    statement = text(f"SELECT {select_list} FROM (VALUES {', '.join(values_rows)}) AS {alias}")
+    return statement.bindparams(**parameters).columns(*columns).subquery(name)
+
+
 def _project_evaluator_relation(
     project_evaluators: Sequence[_SessionProjectEvaluator],
     dialect: SupportedSQLDialect,
@@ -143,55 +192,35 @@ def _project_evaluator_relation(
 ) -> Subquery:
     """Return a portable inline relation for resolved session project evaluators.
 
-    Bind names are keyed off ``project_evaluator_id`` rather than row position: several of these
-    relations are unioned into one statement, and ``text()`` binds are not unique, so
-    position-keyed names from different relations would silently overwrite each other.
     One project_evaluator can appear in both an ambient and a triggered relation of the same
-    statement, so those relations need distinct ``bind_prefix`` values too.
+    statement, so those relations pass distinct ``bind_prefix`` values.
     """
-    rows = []
-    parameters: dict[str, Any] = {}
-    for index, project_evaluator in enumerate(project_evaluators):
-        prefix = f"{bind_prefix}{project_evaluator.project_evaluator_id}"
-        row_parameters = {
-            f"{prefix}_project_evaluator_id": project_evaluator.project_evaluator_id,
-            f"{prefix}_project_id": project_evaluator.project_id,
-            f"{prefix}_evaluator_id": project_evaluator.evaluator_id,
-            f"{prefix}_config_fingerprint": project_evaluator.fingerprint,
-            f"{prefix}_delay_seconds": project_evaluator.delay_seconds,
-            f"{prefix}_created_at": project_evaluator.created_at,
-            f"{prefix}_sampling_rate": project_evaluator.sampling_rate,
-        }
-        parameters.update(row_parameters)
-        placeholders = [f":{name}" for name in row_parameters]
-        if index == 0:
-            created_at_type = (
-                "TIMESTAMP WITH TIME ZONE" if dialect is SupportedSQLDialect.POSTGRESQL else "TEXT"
+    return _values_relation(
+        [
+            (
+                project_evaluator.project_evaluator_id,
+                {
+                    "project_evaluator_id": project_evaluator.project_evaluator_id,
+                    "project_id": project_evaluator.project_id,
+                    "evaluator_id": project_evaluator.evaluator_id,
+                    "config_fingerprint": project_evaluator.fingerprint,
+                    "delay_seconds": project_evaluator.delay_seconds,
+                    "created_at": project_evaluator.created_at,
+                    "sampling_rate": project_evaluator.sampling_rate,
+                },
             )
-            placeholders = [
-                f"CAST({placeholders[0]} AS INTEGER)",
-                f"CAST({placeholders[1]} AS INTEGER)",
-                f"CAST({placeholders[2]} AS INTEGER)",
-                f"CAST({placeholders[3]} AS VARCHAR)",
-                f"CAST({placeholders[4]} AS INTEGER)",
-                f"CAST({placeholders[5]} AS {created_at_type})",
-                f"CAST({placeholders[6]} AS FLOAT)",
-            ]
-        rows.append(f"({', '.join(placeholders)})")
-    statement = text(
-        "SELECT "
-        "sc.column1 AS project_evaluator_id, "
-        "sc.column2 AS project_id, "
-        "sc.column3 AS evaluator_id, "
-        "sc.column4 AS config_fingerprint, "
-        "sc.column5 AS delay_seconds, "
-        "sc.column6 AS created_at, "
-        "sc.column7 AS sampling_rate "
-        f"FROM (VALUES {', '.join(rows)}) AS sc"
-    )
-    return (
-        statement.bindparams(**parameters)
-        .columns(
+            for project_evaluator in project_evaluators
+        ],
+        (
+            "INTEGER",
+            "INTEGER",
+            "INTEGER",
+            "VARCHAR",
+            "INTEGER",
+            _timestamp_sql_type(dialect),
+            "FLOAT",
+        ),
+        (
             column("project_evaluator_id", Integer),
             column("project_id", Integer),
             column("evaluator_id", Integer),
@@ -199,8 +228,10 @@ def _project_evaluator_relation(
             column("delay_seconds", Integer),
             column("created_at", models.UtcTimeStamp()),
             column("sampling_rate", Float),
-        )
-        .subquery("sweep_evaluators")
+        ),
+        alias="sc",
+        name="sweep_project_evaluators",
+        bind_prefix=bind_prefix,
     )
 
 
@@ -243,6 +274,27 @@ def _unfinished_work_exists(project_evaluator_relation: Subquery) -> ColumnEleme
             unfinished.evaluator_id == project_evaluator_relation.c.evaluator_id,
             unfinished.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             session_work_may_still_produce_a_result(unfinished),
+        )
+        .correlate(models.ProjectSession, project_evaluator_relation)
+        .exists()
+    )
+
+
+def _unfulfilled_request_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
+    """Whether an unanswered ask already covers this pair.
+
+    The ambient stratum skips such a pair. The triggered stratum emits its own row for it
+    and outranks ambient anyway, so an ambient twin only spends a slot in the page that
+    yields no decision — halving the sweep's reach under trigger load.
+    """
+    request = aliased(models.EvaluationRequest)
+    return (
+        select(1)
+        .select_from(request)
+        .where(
+            request.project_session_rowid == models.ProjectSession.id,
+            request.project_evaluator_id == project_evaluator_relation.c.project_evaluator_id,
+            is_unfulfilled(request),
         )
         .correlate(models.ProjectSession, project_evaluator_relation)
         .exists()
@@ -502,6 +554,7 @@ def _eligible_pairs_statement(
             due_at <= current_time,
             ~successful_result_exists,
             ~_live_work_exists(project_evaluator_relation),
+            ~_unfulfilled_request_exists(project_evaluator_relation),
             or_(
                 terminal_watermark.is_(None),
                 terminal_watermark < models.ProjectSession.last_span_ingested_at,
@@ -638,50 +691,31 @@ def _decision_relation(
     dialect: SupportedSQLDialect,
 ) -> Subquery:
     """Return a portable inline relation carrying the rows a braked insert may write."""
-    rows = []
-    parameters: dict[str, Any] = {}
-    for index, decision in enumerate(decisions):
-        prefix = f"sd{index}"
-        row_parameters = {
-            f"{prefix}_project_session_rowid": decision.project_session_rowid,
-            f"{prefix}_evaluator_id": decision.evaluator_id,
-            f"{prefix}_project_evaluator_id": decision.project_evaluator_id,
-            f"{prefix}_config_fingerprint": decision.config_fingerprint,
-            f"{prefix}_evaluated_through": decision.evaluated_through,
-        }
-        parameters.update(row_parameters)
-        placeholders = [f":{name}" for name in row_parameters]
-        if index == 0:
-            evaluated_through_type = (
-                "TIMESTAMP WITH TIME ZONE" if dialect is SupportedSQLDialect.POSTGRESQL else "TEXT"
+    return _values_relation(
+        [
+            (
+                f"{decision.project_session_rowid}_{decision.project_evaluator_id}",
+                {
+                    "project_session_rowid": decision.project_session_rowid,
+                    "evaluator_id": decision.evaluator_id,
+                    "project_evaluator_id": decision.project_evaluator_id,
+                    "config_fingerprint": decision.config_fingerprint,
+                    "evaluated_through": decision.evaluated_through,
+                },
             )
-            placeholders = [
-                f"CAST({placeholders[0]} AS INTEGER)",
-                f"CAST({placeholders[1]} AS INTEGER)",
-                f"CAST({placeholders[2]} AS INTEGER)",
-                f"CAST({placeholders[3]} AS VARCHAR)",
-                f"CAST({placeholders[4]} AS {evaluated_through_type})",
-            ]
-        rows.append(f"({', '.join(placeholders)})")
-    statement = text(
-        "SELECT "
-        "sd.column1 AS project_session_rowid, "
-        "sd.column2 AS evaluator_id, "
-        "sd.column3 AS project_evaluator_id, "
-        "sd.column4 AS config_fingerprint, "
-        "sd.column5 AS evaluated_through "
-        f"FROM (VALUES {', '.join(rows)}) AS sd"
-    )
-    return (
-        statement.bindparams(**parameters)
-        .columns(
+            for decision in decisions
+        ],
+        ("INTEGER", "INTEGER", "INTEGER", "VARCHAR", _timestamp_sql_type(dialect)),
+        (
             column("project_session_rowid", Integer),
             column("evaluator_id", Integer),
             column("project_evaluator_id", Integer),
             column("config_fingerprint", String),
             column("evaluated_through", models.UtcTimeStamp()),
-        )
-        .subquery("scheduled_decisions")
+        ),
+        alias="sd",
+        name="scheduled_decisions",
+        bind_prefix="sd",
     )
 
 
@@ -866,7 +900,7 @@ class SessionEvalSweeper(DaemonTask):
         if self._publish_metrics:
             ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS.inc()
         materialized_work_count = 0
-        eligible_pair_count: Optional[int] = None
+        backlog: Optional[dict[str, int]] = None
         try:
             # Reap in its own transaction: taking work-row locks inside the sweep
             # transaction inverts the global project_evaluators -> session -> work lock order.
@@ -874,9 +908,7 @@ class SessionEvalSweeper(DaemonTask):
                 await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
             async with self._db() as session:
                 database_now = await self._database_now(session)
-                materialized_work_count, eligible_pair_count = await self._sweep(
-                    session, database_now
-                )
+                materialized_work_count, backlog = await self._sweep(session, database_now)
                 await self._lease.fence(session)
         except Exception:
             if self._publish_metrics:
@@ -888,7 +920,7 @@ class SessionEvalSweeper(DaemonTask):
         if self._publish_metrics:
             ONLINE_EVAL_SESSION_SWEEP_SUCCESSES.inc()
             ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS.inc(materialized_work_count)
-            await self._publish_eligibility_metrics(eligible_pair_count)
+            await self._publish_eligibility_metrics(backlog)
 
     async def _database_now(self, session: AsyncSession) -> datetime:
         return await self._lease.database_now(session)
@@ -944,8 +976,8 @@ class SessionEvalSweeper(DaemonTask):
         self,
         session: AsyncSession,
         database_now: datetime,
-    ) -> tuple[int, Optional[int]]:
-        """Materialize this tick's work, returning (work created, pairs found eligible).
+    ) -> tuple[int, Optional[dict[str, int]]]:
+        """Materialize this tick's work, returning (work created, pairs waiting by origin).
 
         Lapsed-lease reaping runs in a separate committed transaction before this one
         (see _materialize_and_renew), so this transaction only ever locks project_evaluators and
@@ -969,26 +1001,28 @@ class SessionEvalSweeper(DaemonTask):
         project_evaluators: Sequence[_SessionProjectEvaluator],
         *,
         limit: int,
-    ) -> tuple[int, Optional[int]]:
+    ) -> tuple[int, Optional[dict[str, int]]]:
         if not project_evaluators:
-            return 0, 0 if self._publish_metrics else None
+            return 0, {} if self._publish_metrics else None
         relation = _scheduling_relation(
             project_evaluators,
             database_now,
             self._db.dialect,
         )
-        eligible_pair_count = None
+        backlog: Optional[dict[str, int]] = None
         if self._publish_metrics:
-            eligible_pair_count = (
-                await session.scalar(
-                    select(func.count())
-                    .select_from(relation)
-                    .where(
-                        relation.c.filter_matches.is_(True),
-                        relation.c.scheduling_origin == _AMBIENT,
+            backlog = {
+                row.scheduling_origin: row.pair_count
+                for row in await session.execute(
+                    select(
+                        relation.c.scheduling_origin,
+                        func.count().label("pair_count"),
                     )
+                    .select_from(relation)
+                    .where(relation.c.filter_matches.is_(True))
+                    .group_by(relation.c.scheduling_origin)
                 )
-            ) or 0
+            }
         eligible_page = (
             select(relation)
             .order_by(
@@ -1007,7 +1041,7 @@ class SessionEvalSweeper(DaemonTask):
                 dict.fromkeys(await session.scalars(select(eligible_page.c.project_evaluator_id)))
             )
             if not page_project_evaluator_ids:
-                return 0, eligible_pair_count
+                return 0, backlog
             page_project_evaluator_ids_parameter = bindparam(
                 "page_project_evaluator_ids",
                 page_project_evaluator_ids,
@@ -1024,12 +1058,12 @@ class SessionEvalSweeper(DaemonTask):
                 )
             )
             if len(locked_project_evaluator_ids) != len(page_project_evaluator_ids):
-                return 0, eligible_pair_count
+                return 0, backlog
             page_ids = tuple(
                 dict.fromkeys(await session.scalars(select(eligible_page.c.project_session_rowid)))
             )
             if not page_ids:
-                return 0, eligible_pair_count
+                return 0, backlog
             page_ids_parameter = bindparam(
                 "page_ids",
                 page_ids,
@@ -1047,7 +1081,7 @@ class SessionEvalSweeper(DaemonTask):
                 )
             )
             if not locked_project_session_rowids:
-                return 0, eligible_pair_count
+                return 0, backlog
         selected_page = select(eligible_page)
         if locked_project_evaluator_ids is not None:
             selected_page = selected_page.where(
@@ -1060,13 +1094,13 @@ class SessionEvalSweeper(DaemonTask):
         rows = (await session.execute(selected_page)).all()
         decisions = _resolve_decisions(rows)
         if not decisions:
-            return 0, eligible_pair_count
+            return 0, backlog
         scheduled = [decision for decision in decisions if not decision.coalesces]
         await self._supersede_declined_work(session, scheduled)
         inserted = await self._insert_work(session, scheduled)
         await self._acknowledge_requests(session, decisions, inserted)
         materialized_work_count = sum(1 for _, status in inserted.values() if status == "PENDING")
-        return materialized_work_count, eligible_pair_count
+        return materialized_work_count, backlog
 
     async def _supersede_declined_work(
         self,
@@ -1149,15 +1183,21 @@ class SessionEvalSweeper(DaemonTask):
                 session_work_unit_id=session_work_unit_id,
             )
 
-    async def _publish_eligibility_metrics(self, eligible_pair_count: Optional[int]) -> None:
+    async def _publish_eligibility_metrics(self, backlog: Optional[dict[str, int]]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
 
         Reporting is not materialization: this runs after the work has been committed
         and the lease renewed, over its own read session, so a failing aggregate costs
         a stale gauge rather than the sweep that already succeeded.
         """
-        if eligible_pair_count is not None:
-            ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(eligible_pair_count)
+        if backlog is not None:
+            ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(backlog.get(_AMBIENT, 0))
+            # Every stratum is set every tick, so a burst that ends returns its series to
+            # zero rather than leaving the last non-zero reading standing.
+            for origin in (_AMBIENT, _RULE, _EXPLICIT):
+                ONLINE_EVAL_SESSION_SCHEDULING_BACKLOG.labels(scheduling_origin=origin).set(
+                    backlog.get(origin, 0)
+                )
         try:
             async with self._db.read() as session:
                 database_now = await self._database_now(session)

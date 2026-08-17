@@ -2801,10 +2801,33 @@ def _enum_value(value: Any) -> Any:
     return value.value if isinstance(value, Enum) else value
 
 
+def _raise_if_score_bounds_cannot_match(values: dict[str, Any]) -> None:
+    """Refuse a score window no score can fall inside.
+
+    Both bounds are strict and they are conjoined, so `above` must sit below `below`.
+    Reversed, the rule is accepted, valid, and fires never.
+    """
+    above, below = values.get("score_above"), values.get("score_below")
+    if above is None or below is None or above is UNSET or below is UNSET:
+        return
+    if above >= below:
+        raise BadRequest(
+            f"scoreAbove ({above}) must be less than scoreBelow ({below}); no score is both."
+        )
+
+
 async def _resolve_trigger_source_project_evaluator_id(
     session: AsyncSession,
     source_project_evaluator_id: Any,
+    *,
+    project_id: int,
 ) -> Any:
+    """The project_evaluators a trigger watches, refusing one it could never match.
+
+    Matching requires the watched evaluator and the rule to be in one project, so a
+    source from another project makes a rule that is jointly unsatisfiable — configured,
+    valid-looking, and silently dormant forever.
+    """
     if source_project_evaluator_id is UNSET or source_project_evaluator_id is None:
         return source_project_evaluator_id
     try:
@@ -2813,8 +2836,11 @@ async def _resolve_trigger_source_project_evaluator_id(
         )
     except ValueError as error:
         raise BadRequest(str(error))
-    if await session.get(models.ProjectEvaluator, source_project_evaluator_id) is None:
+    source = await session.get(models.ProjectEvaluator, source_project_evaluator_id)
+    if source is None:
         raise NotFound(f"Project evaluator not found: {source_project_evaluator_id}")
+    if source.project_id != project_id:
+        raise BadRequest("A trigger can only watch a project evaluator in its own project.")
     return source_project_evaluator_id
 
 
@@ -2840,8 +2866,11 @@ async def _raise_on_duplicate_project_evaluator_trigger(
     )
     if exclude_trigger_id is not None:
         stmt = stmt.where(models.ProjectEvaluatorTrigger.id != exclude_trigger_id)
-    if await session.scalar(stmt) is not None:
-        raise Conflict("This project evaluator already has a trigger with these predicates.")
+    if (existing_id := await session.scalar(stmt)) is not None:
+        existing = GlobalID(ProjectEvaluatorTrigger.__name__, str(existing_id))
+        raise Conflict(
+            f"This project evaluator already has a trigger with these predicates: {existing}"
+        )
 
 
 @strawberry.type
@@ -2850,7 +2879,10 @@ class ProjectEvaluatorTriggerMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Add a rule that makes this project evaluator run whenever a matching occurrence "
-            "is recorded. Predicates left out do not constrain the match."
+            "is recorded. Predicates left out do not constrain the match. The rule applies to "
+            "occurrences recorded after it is created and never to earlier ones; to evaluate "
+            "sessions that already carry a matching annotation, ask for those evaluations "
+            "directly with requestProjectSessionEvaluation."
         ),
     )  # type: ignore
     async def create_project_evaluator_trigger(
@@ -2877,7 +2909,9 @@ class ProjectEvaluatorTriggerMutationMixin:
             if project_evaluators.evaluation_target != "SESSION":
                 raise BadRequest(_TRIGGER_TARGET_MISMATCH)
             source_project_evaluator_id = await _resolve_trigger_source_project_evaluator_id(
-                session, input.source_project_evaluator_id
+                session,
+                input.source_project_evaluator_id,
+                project_id=project_evaluator.project_id,
             )
             values = _project_evaluator_trigger_values(
                 annotation_name=input.annotation_name,
@@ -2890,6 +2924,7 @@ class ProjectEvaluatorTriggerMutationMixin:
                 source_project_evaluator_id=source_project_evaluator_id,
                 result_changed_only=input.result_changed_only,
             )
+            _raise_if_score_bounds_cannot_match(values)
             await _raise_on_duplicate_project_evaluator_trigger(
                 session,
                 project_evaluator_id=project_evaluator_id,
@@ -2918,6 +2953,9 @@ class ProjectEvaluatorTriggerMutationMixin:
     async def patch_project_evaluator_trigger(
         self, info: Info[Context, None], input: PatchProjectEvaluatorTriggerInput
     ) -> ProjectEvaluatorTriggerMutationPayload:
+        # Editing a rule is the same act as writing one, so it meets the same gate.
+        # Deletion stays open: removing a rule the arm would never act on is cleanup.
+        raise_if_session_evaluation_unavailable()
         try:
             trigger_id = from_global_id_with_expected_type(
                 input.project_evaluator_trigger_id, ProjectEvaluatorTrigger.__name__
@@ -2939,8 +2977,13 @@ class ProjectEvaluatorTriggerMutationMixin:
                 source_project_evaluator_id=input.source_project_evaluator_id,
                 result_changed_only=input.result_changed_only,
             )
+            project_evaluators = await session.get(models.ProjectEvaluator, trigger.project_evaluator_id)
+            if project_evaluator is None:
+                raise NotFound(f"Trigger not found: {input.project_evaluator_trigger_id}")
             source_project_evaluator_id = await _resolve_trigger_source_project_evaluator_id(
-                session, input.source_project_evaluator_id
+                session,
+                input.source_project_evaluator_id,
+                project_id=project_evaluator.project_id,
             )
             values = _project_evaluator_trigger_values(
                 annotation_name=input.annotation_name,
@@ -2960,6 +3003,7 @@ class ProjectEvaluatorTriggerMutationMixin:
                 )
                 for column in _SHARED_PREDICATE_COLUMNS + _KIND_SCOPED_PREDICATE_COLUMNS
             }
+            _raise_if_score_bounds_cannot_match(patched)
             await _raise_on_duplicate_project_evaluator_trigger(
                 session,
                 project_evaluator_id=trigger.project_evaluator_id,

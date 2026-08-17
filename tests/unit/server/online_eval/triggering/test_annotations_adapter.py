@@ -1,10 +1,12 @@
 from dataclasses import replace
 from datetime import datetime, timedelta
+from secrets import token_hex
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval.derivation import annotation_identifier
 from phoenix.server.online_eval.triggering import annotations_adapter
 from phoenix.server.online_eval.triggering.annotations_adapter import AnnotationDeltaAdapter
@@ -19,6 +21,38 @@ def _adapter(db: DbSessionFactory, *, frontier_lag_seconds: float = 0.0) -> Anno
     adapter = AnnotationDeltaAdapter(db)
     adapter._frontier_lag_seconds = frontier_lag_seconds
     return adapter
+
+
+@pytest.fixture(autouse=True)
+async def annotation_rule(db: DbSessionFactory) -> None:
+    """A live rule that fires on annotations, which is what opens the scan at all."""
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"eval-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        project_evaluators = models.ProjectEvaluator(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target="SESSION",
+        )
+        session.add(project_evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluatorTrigger(
+                project_evaluator_id=project_evaluators.id,
+                signal_kind="annotation_upserted",
+            )
+        )
 
 
 async def _seed_span_in_session(
@@ -315,4 +349,22 @@ async def test_edit_window_larger_than_the_row_cap_completes_over_several_ticks(
 
 async def _updates(db: DbSessionFactory) -> list[models.EvaluatorSignal]:
     return [signal for signal in await _signals(db) if signal.payload["change"] == "updated"]
+
+
+async def test_no_annotation_rule_means_no_signal_and_no_backlog(
+    db: DbSessionFactory,
+) -> None:
+    """Without a rule to fire there is nothing to announce, and the walks hold at the
+    present so a rule created later starts from now rather than replaying a backlog."""
+    _, _, span = await _seed_span_in_session(db)
+    async with db() as session:
+        await session.execute(delete(models.ProjectEvaluatorTrigger))
+    adapter = _adapter(db)
+    await adapter._tick()
+
+    annotation = await _add_span_annotation(db, span)
+    await adapter._tick()
+
+    assert await _signals(db) == []
+    assert (await _cursor(db)).produced_through_id >= annotation.id
 

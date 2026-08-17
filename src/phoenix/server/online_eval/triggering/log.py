@@ -70,10 +70,12 @@ class AnnotationUpserted:
 
 @dataclass(frozen=True)
 class EvaluationCompleted:
-    """The verdict a work unit published, announced as the unit reaches DONE.
+    """One verdict a work unit published, announced as the unit reaches DONE.
 
-    The work unit is the occurrence identity: a unit reaches DONE once, so a retry of that
-    transition repeats the key and collapses.
+    A work unit publishes one verdict per evaluator output, so the occurrence identity is
+    the unit and the output together: a unit reaches DONE once, so a retry of that
+    transition repeats each key and collapses, while a two-output evaluator announces two
+    distinct occurrences a rule can be authored against separately.
     """
 
     kind: ClassVar[models.EvaluatorSignalKind] = "evaluation_completed"
@@ -90,7 +92,7 @@ class EvaluationCompleted:
 
     @property
     def dedup_key(self) -> str:
-        return f"{self.work_unit_kind}:{self.work_unit_id}"
+        return f"{self.work_unit_kind}:{self.work_unit_id}:{self.name}"
 
     def payload(self) -> dict[str, Any]:
         return {

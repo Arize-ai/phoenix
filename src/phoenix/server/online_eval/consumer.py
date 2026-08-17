@@ -318,7 +318,7 @@ class OnlineEvalConsumer(DaemonTask):
         configuration: Optional[ConfigurationSnapshotOutcome] = None,
     ) -> None:
         hydrated_work_unit: Optional[HydratedWorkUnit] = None
-        completion_signal: Optional[EvaluationCompleted] = None
+        completion_signals: tuple[EvaluationCompleted, ...] = ()
         try:
             if configuration is None:
                 hydrated = await self._executor.hydrate(unit)
@@ -353,7 +353,7 @@ class OnlineEvalConsumer(DaemonTask):
             hydrated_work_unit = hydrated
             await self._acquire_with_heartbeat(unit, self._evaluator_semaphore)
             try:
-                completion_signal = await self._evaluate_with_heartbeat(unit, hydrated)
+                completion_signals = await self._evaluate_with_heartbeat(unit, hydrated)
             finally:
                 self._evaluator_semaphore.release()
         except OnlineEvalStoragePaused:
@@ -430,7 +430,7 @@ class OnlineEvalConsumer(DaemonTask):
                 transition=lambda: self._coordinator.complete(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=self._consumer_id,
-                    completion_signal=completion_signal,
+                    completion_signals=completion_signals,
                 ),
             )
             if completed is False:
@@ -477,7 +477,7 @@ class OnlineEvalConsumer(DaemonTask):
         self,
         unit: ClaimedWorkUnit,
         hydrated: HydratedWorkUnit,
-    ) -> EvaluationCompleted:
+    ) -> tuple[EvaluationCompleted, ...]:
         eval_task = asyncio.create_task(self._executor.evaluate_and_annotate(unit, hydrated))
         heartbeat_enabled = True
         deadline_at = asyncio.get_running_loop().time() + self._execution_deadline_seconds

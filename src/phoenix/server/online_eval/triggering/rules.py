@@ -6,9 +6,9 @@ This is the only module that knows a signal can cause an evaluation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
@@ -39,8 +39,8 @@ class TriggerRule:
     result_changed_only: bool = False
 
 
-async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
-    """Read every rule that can fire right now, in one statement.
+def _live_rules(*selected: Any) -> Select[Any]:
+    """Select ``selected`` from the rules that can fire right now.
 
     A trigger is dormant while its project_evaluators is unschedulable, and the dormant ones are
     left out here rather than filtered afterwards. Both exclusions this applies —
@@ -48,22 +48,44 @@ async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
     — already have row-side voices in `session_policy.session_schedulability_reason` and
     `SchedulabilityReason.TARGETS_EVALUATOR_TRACES`, so a surface asking why a trigger
     never fires can answer without re-deriving the rules.
-
-    This statement is the drain's linearization point: a rule committed after it runs
-    does not participate in the tick that ran it.
     """
-    stmt = exclude_project_evaluators_in_trace_projects(
-        select(
-            models.ProjectEvaluatorTrigger,
-            models.ProjectEvaluator.project_id,
-        )
+    return exclude_project_evaluators_in_trace_projects(
+        select(*selected)
         .join(
             models.ProjectEvaluator,
             models.ProjectEvaluatorTrigger.project_evaluator_id == models.ProjectEvaluator.id,
         )
         .where(session_project_evaluator_is_schedulable(models.ProjectEvaluator))
-        .order_by(models.ProjectEvaluatorTrigger.id)
     )
+
+
+async def annotation_rules_exist(session: AsyncSession) -> bool:
+    """Whether any live rule fires on annotations at all.
+
+    The annotation scan runs only when one does. Without the gate, turning session
+    evaluation on also turns on a signal write per annotation write, plus a day of
+    retained payload, drained against an empty rule set — an amplification an operator
+    never asked for and cannot see.
+
+    Like `load_rules`, this read is a linearization point: a rule committed after it
+    does not open the scan for the tick that ran it.
+    """
+    stmt = _live_rules(models.ProjectEvaluatorTrigger.id).where(
+        models.ProjectEvaluatorTrigger.signal_kind == "annotation_upserted"
+    )
+    return await session.scalar(stmt.limit(1)) is not None
+
+
+async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
+    """Read every rule that can fire right now, in one statement.
+
+    This statement is the drain's linearization point: a rule committed after it runs
+    does not participate in the tick that ran it.
+    """
+    stmt = _live_rules(
+        models.ProjectEvaluatorTrigger,
+        models.ProjectEvaluator.project_id,
+    ).order_by(models.ProjectEvaluatorTrigger.id)
     return tuple(
         TriggerRule(
             trigger_id=trigger.id,

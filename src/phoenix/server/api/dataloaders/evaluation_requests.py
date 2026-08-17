@@ -40,12 +40,26 @@ class EvaluationRequestBlockingReason(Enum):
     EVALUATION_CAPACITY_REACHED = "EVALUATION_CAPACITY_REACHED"
 
 
+class EvaluationRequestFailureReason(Enum):
+    """Why a requested evaluation will never produce a result.
+
+    The three collapse into one terminal state but call for different things: asking
+    again works after a configuration change, is futile after the evaluator gave up, and
+    has nothing left to act on once the session's content is gone.
+    """
+
+    EVALUATOR_CHANGED = "EVALUATOR_CHANGED"
+    EVALUATOR_ERROR = "EVALUATOR_ERROR"
+    NO_EVALUATION_RECORDED = "NO_EVALUATION_RECORDED"
+
+
 @dataclass(frozen=True)
 class SessionEvaluationRequest:
     id: int
     project_session_rowid: int
     project_evaluator_id: int
     state: EvaluationRequestState
+    failure_reason: Optional[EvaluationRequestFailureReason]
     requested_at: datetime
 
 
@@ -60,11 +74,13 @@ class EvaluationRequestsDataLoader(DataLoader[Key, Optional[SessionEvaluationReq
         async with self._db.read() as session:
             async for row in await session.stream(_stmt(pairs)):
                 key = (row.project_session_rowid, row.project_evaluator_id)
+                state = _state(row.fulfilled, row.outcome)
                 result[key] = SessionEvaluationRequest(
                     id=row.id,
                     project_session_rowid=row.project_session_rowid,
                     project_evaluator_id=row.project_evaluator_id,
-                    state=_state(row.fulfilled, row.outcome),
+                    state=state,
+                    failure_reason=_failure_reason(state, row),
                     requested_at=row.requested_at,
                 )
         return [result.get(key) for key in keys]
@@ -83,6 +99,26 @@ def _state(fulfilled: bool, outcome: Optional[str]) -> EvaluationRequestState:
     if outcome is None:
         return EvaluationRequestState.FAILED
     return EvaluationRequestState(outcome)
+
+
+def _failure_reason(
+    state: EvaluationRequestState,
+    row: Any,
+) -> Optional[EvaluationRequestFailureReason]:
+    """Which of the three ways this ask ended without a result, in the order they rank.
+
+    A retired-for-configuration-change row is read first because it is the one a user can
+    act on, and the one the evaluator's own health summary deliberately leaves out.
+    """
+    if state is not EvaluationRequestState.FAILED:
+        return None
+    if row.work_unit_id is None:
+        return EvaluationRequestFailureReason.NO_EVALUATION_RECORDED
+    if row.work_status == "EXPIRED" and row.work_error == STALE_FINGERPRINT_ERROR:
+        return EvaluationRequestFailureReason.EVALUATOR_CHANGED
+    if row.gave_up:
+        return EvaluationRequestFailureReason.EVALUATOR_ERROR
+    return EvaluationRequestFailureReason.NO_EVALUATION_RECORDED
 
 
 def _outcome(work: Any) -> sa.Case[Optional[str]]:
@@ -122,6 +158,10 @@ def _stmt(pairs: list[Key]) -> sa.Select[Any]:
                 >= models.EvaluationRequest.requested_generation
             ).label("fulfilled"),
             _outcome(work).label("outcome"),
+            work.id.label("work_unit_id"),
+            work.status.label("work_status"),
+            work.error.label("work_error"),
+            failed_work(work).label("gave_up"),
         )
         .select_from(models.EvaluationRequest)
         .outerjoin(

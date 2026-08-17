@@ -8,6 +8,7 @@ from strawberry.types import Info
 from phoenix.server.api.context import Context
 from phoenix.server.api.dataloaders.evaluation_requests import (
     EvaluationRequestBlockingReason,
+    EvaluationRequestFailureReason,
     EvaluationRequestState,
     SessionEvaluationRequest,
 )
@@ -34,6 +35,15 @@ strawberry.enum(
         "into scope rather than being declined."
     ),
 )
+strawberry.enum(
+    EvaluationRequestFailureReason,
+    description=(
+        "Why a requested evaluation will never produce a result. EVALUATOR_CHANGED means the "
+        "evaluator was edited while the evaluation was queued, so asking again works; "
+        "EVALUATOR_ERROR means it ran and gave up; NO_EVALUATION_RECORDED means the ask was "
+        "closed with no evaluation attached to it."
+    ),
+)
 
 
 @strawberry.type(
@@ -48,6 +58,12 @@ class EvaluationRequest(Node):
     project_session_rowid: strawberry.Private[int]
     project_evaluator_id: strawberry.Private[int]
     state: EvaluationRequestState
+    failure_reason: Optional[EvaluationRequestFailureReason] = strawberry.field(
+        description=(
+            "Why this evaluation will never produce a result, or null when it still might. "
+            "Always null outside the FAILED state."
+        )
+    )
     requested_at: datetime = strawberry.field(
         description="When this session was most recently asked to be evaluated."
     )
@@ -86,6 +102,7 @@ def to_gql_evaluation_request(record: SessionEvaluationRequest) -> EvaluationReq
         project_session_rowid=record.project_session_rowid,
         project_evaluator_id=record.project_evaluator_id,
         state=record.state,
+        failure_reason=record.failure_reason,
         requested_at=record.requested_at,
     )
 

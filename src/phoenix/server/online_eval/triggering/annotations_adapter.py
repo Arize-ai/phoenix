@@ -31,6 +31,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.derivation import ONLINE_EVAL_IDENTIFIER_PREFIX
 from phoenix.server.online_eval.leases import DatabaseLease, LeaseLost
 from phoenix.server.online_eval.triggering.log import AnnotationUpserted, append
+from phoenix.server.online_eval.triggering.rules import annotation_rules_exist
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -265,8 +266,15 @@ class AnnotationDeltaAdapter(DaemonTask):
             if not mutations_allowed:
                 await self._lease.renew()
                 return
+            # Read once per tick, the same linearization the drain documents: a rule
+            # committed after this read does not make this tick's annotations signals.
+            # While nothing can fire, the walks are held at the present instead of
+            # announcing into an empty rule set, and a rule created later starts from now
+            # — which is what a trigger promises anyway.
+            async with self._db() as session:
+                announce = await annotation_rules_exist(session)
             for source in _SOURCES:
-                await self._scan(source)
+                await self._scan(source, announce=announce)
         except LeaseLost:
             logger.warning("Annotation delta adapter tick aborted after losing its lease")
 
@@ -287,12 +295,12 @@ class AnnotationDeltaAdapter(DaemonTask):
         except Exception:
             logger.exception("Failed to release annotation delta adapter lease")
 
-    async def _scan(self, source: _AnnotationSource) -> None:
+    async def _scan(self, source: _AnnotationSource, *, announce: bool = True) -> None:
         async with self._db() as session:
             cursor = await self._cursor(session, source)
             now = await self._lease.database_now(session)
             edits_through = cursor.observed_at
-            if edits_through is None:
+            if not announce or edits_through is None:
                 positions = await self._start_at_the_present(session, source, now)
             else:
                 positions = await self._walk(session, source, cursor, edits_through, now)
@@ -339,7 +347,12 @@ class AnnotationDeltaAdapter(DaemonTask):
         source: _AnnotationSource,
         now: datetime,
     ) -> dict[str, Any]:
-        """Place both walks at the present, so nothing written before now is announced."""
+        """Place both walks at the present, so nothing written before now is announced.
+
+        Also how a tick with no rule to fire leaves the table: holding the position at the
+        present rather than letting it fall behind is what keeps a rule created later from
+        replaying a backlog it never promised to cover.
+        """
         high_water = await session.scalar(select(func.max(source.id_column)))
         latest_edit = await session.scalar(select(func.max(source.updated_at_column)))
         return {
