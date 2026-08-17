@@ -72,6 +72,10 @@
     margin-bottom: 20px;
   }
   .card-note { color: var(--text-muted); font-size: 12.5px; margin: 0 0 16px; }
+  /* Title and its action on one line, so the button reads as belonging to the
+     table rather than floating above the page. */
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .card-head button { min-height: 30px; padding: 4px 10px; font-size: 12.5px; flex: none; }
 
   /* Filters in one row above the charts. */
   .filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
@@ -149,9 +153,15 @@
   <p class="sub" id="meta"></p>
 
   <div class="card">
-    <h2>Every run in detail</h2>
+    <div class="card-head">
+      <h2>Every run in detail</h2>
+      <button id="copy-tsv" type="button">Copy for Excel</button>
+    </div>
     <p class="card-note">Every run, including ones that failed or never produced an answer —
-      the filters below do not apply here. Click a column to sort.</p>
+      the filters below do not apply here. Click a column to sort. Copying gives you
+      tab-separated rows in the order shown, with plain numbers rather than the
+      formatting — <code>0.230</code>, not <code>$0.230</code> — so a spreadsheet can add
+      them up.</p>
     <div class="scroll-x"><table id="table"></table></div>
   </div>
   <div class="card">
@@ -337,11 +347,11 @@ const COLS = [
 // before the first real result.
 let sortKey = "task", sortDir = 1;
 
-function renderTable() {
-  // Deliberately unfiltered: this is the audit view, and the filters that drive
-  // the charts sit below it on the page -- a control downstream of the thing it
-  // governs would silently hide rows.
-  const t = $("table");
+// Deliberately unfiltered: this is the audit view, and the filters that drive
+// the charts sit below it on the page -- a control downstream of the thing it
+// governs would silently hide rows. Shared with the copy button so what lands
+// on the clipboard is what is on screen, in the order it is on screen.
+function detailRows() {
   const rows = DATA.runs.map((r) => ({
     ...r,
     status: r.invalid ? r.invalid_reason : !r.graded ? "ungraded" : r.passed ? "pass" : "FAIL",
@@ -353,6 +363,12 @@ function renderTable() {
     if (y === null || y === undefined) return -1;
     return (x > y ? 1 : -1) * sortDir;
   });
+  return rows;
+}
+
+function renderTable() {
+  const t = $("table");
+  const rows = detailRows();
   t.innerHTML =
     "<thead><tr>" + COLS.map(([k, l, txt]) =>
       `<th class="${txt ? "txt" : ""}" data-k="${k}">${l}${sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr></thead><tbody>" +
@@ -367,6 +383,67 @@ function renderTable() {
     sortKey = k;
     renderTable();
   }));
+}
+
+// The display formats are for reading and paste as text: a spreadsheet cannot
+// sum "$0.230" or "9.1k", and "10s" sorts before "9s". These give the same
+// quantity as a bare number, in the unit the column header names.
+const TSV_VALUE = {
+  peak_context_tokens: (v) => String(Math.round(v)),
+  total_cost_usd: (v) => v.toFixed(3),
+  duration_api_ms: (v) => (v / 1000).toFixed(1),
+  tool_time_ms: (v) => (v / 1000).toFixed(1),
+};
+// Two headers carry their unit only in the formatting, which the copy drops.
+const TSV_HEADER = { duration_api_ms: "api time (s)", tool_time_ms: "tool time (s)" };
+
+function tableTSV() {
+  const head = COLS.map(([k, l]) => TSV_HEADER[k] || l).join("\t");
+  const body = detailRows().map((r) => COLS.map(([k]) => {
+    const v = r[k];
+    if (v === null || v === undefined) return "";
+    if (typeof v === "number") return (TSV_VALUE[k] || String)(v);
+    // A tab or newline inside a value would split it across cells; route is the
+    // only field long enough to plausibly carry one.
+    return String(v).replace(/[\t\r\n]+/g, " ");
+  }).join("\t")).join("\n");
+  return head + "\n" + body;
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (err) { /* fall through */ }
+  // The async clipboard API needs a secure context, and a report opened from
+  // disk is not one, so this branch is the one that usually runs.
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+function wireCopy() {
+  const btn = $("copy-tsv");
+  if (!btn) return;
+  const idle = btn.textContent;
+  btn.addEventListener("click", async () => {
+    const n = DATA.runs.length;
+    const ok = await copyText(tableTSV());
+    // Says what landed, because a silent button is indistinguishable from a
+    // broken one and the clipboard cannot be read back to check.
+    btn.textContent = ok ? `Copied ${n} row${n === 1 ? "" : "s"}` : "Copy failed";
+    setTimeout(() => { btn.textContent = idle; }, 1800);
+  });
 }
 
 // ---- what this is / what happened ------------------------------------------
@@ -432,6 +509,9 @@ function init() {
 
   renderArmsExplained();
   render();
+  // After render: the button is static markup, but the handler reads the sort
+  // state the table owns.
+  wireCopy();
 }
 
 // ---- serve mode ------------------------------------------------------------
