@@ -265,7 +265,7 @@ class Transcript:
                 steps[-1][1] += 1
             else:
                 steps.append([name, 1])
-        return " ⇒ ".join(name if n == 1 else f"{name} x{n}" for name, n in steps)
+        return " → ".join(name if n == 1 else f"{name} x{n}" for name, n in steps)
 
     @property
     def sql_tools(self) -> str:
