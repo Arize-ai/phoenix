@@ -17,7 +17,9 @@ from typing import Any
 
 from phoenix.db.eval_work import MAX_ATTEMPTS as MAX_ATTEMPTS
 
-_IDENTIFIER_PREFIX = "online:"
+# Every annotation online evaluation writes carries an identifier starting with this, so a
+# reader can tell its own output from a user's or an API client's without a join.
+ONLINE_EVAL_IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
 
 # Error recorded when a claimed unit's recomputed fingerprint no longer matches the
@@ -78,7 +80,7 @@ def config_fingerprint(resolved: ResolvedProjectEvaluator) -> str:
 
 def annotation_identifier(fingerprint: str) -> str:
     """Identifier keying the idempotent annotation write for a work unit."""
-    return _IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
+    return ONLINE_EVAL_IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
 
 
 def sample_key(artifact_identity: int | str) -> float:

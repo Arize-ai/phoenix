@@ -54,7 +54,11 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
+from phoenix.db.eval_work import (
+    evaluator_signal_kind_check,
+    live_eval_session_work_index_predicate,
+    undrained_evaluator_signal_predicate,
+)
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -201,6 +205,10 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
+EvaluatorSignalKind: TypeAlias = Literal["annotation_upserted", "evaluation_completed"]
+AnnotationEdge: TypeAlias = Literal["created", "updated"]
+AnnotationKind: TypeAlias = Literal["span", "trace", "session"]
+SchedulingOrigin: TypeAlias = Literal["AMBIENT", "RULE", "EXPLICIT"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
@@ -1346,7 +1354,7 @@ class SpanAnnotation(HasId):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now(), index=True
     )
     identifier: Mapped[str] = mapped_column(
         String,
@@ -1388,7 +1396,7 @@ class TraceAnnotation(HasId):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now(), index=True
     )
     identifier: Mapped[str] = mapped_column(
         String,
@@ -1471,7 +1479,7 @@ class ProjectSessionAnnotation(HasId):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now(), index=True
     )
     identifier: Mapped[str] = mapped_column(
         String,
@@ -3794,6 +3802,15 @@ class EvalSessionWorkUnit(HasId):
         default="PENDING",
         server_default="PENDING",
     )
+    scheduling_origin: Mapped[SchedulingOrigin] = mapped_column(
+        CheckConstraint(
+            "scheduling_origin IN ('AMBIENT', 'RULE', 'EXPLICIT')",
+            name="valid_scheduling_origin",
+        ),
+        nullable=False,
+        default="AMBIENT",
+        server_default="AMBIENT",
+    )
     claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     claimed_by: Mapped[Optional[str]] = mapped_column(String)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
@@ -3844,3 +3861,195 @@ class EvalSessionWorkUnit(HasId):
             sqlite_where=text("status = 'ERROR'"),
         ),
     )
+
+
+class EvaluatorSignal(HasId):
+    """Append-only log of things trigger rules can match on, one row per occurrence.
+
+    Rows are drained by acknowledgement rather than by a scalar position: ids are
+    allocation-ordered, not commit-ordered, so a cursor can permanently skip a signal
+    whose transaction committed late. (kind, dedup_key) is the occurrence identity, so
+    the same signal delivered twice collapses to one row.
+    """
+
+    __tablename__ = "evaluator_signals"
+    kind: Mapped[EvaluatorSignalKind] = mapped_column(
+        CheckConstraint(evaluator_signal_kind_check("kind"), name="valid_signal_kind"),
+        nullable=False,
+    )
+    dedup_key: Mapped[str] = mapped_column(String, nullable=False)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    project_session_rowid: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
+    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    project: Mapped["Project"] = relationship("Project")
+    project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+
+    __table_args__ = (
+        UniqueConstraint("kind", "dedup_key"),
+        Index(
+            "ix_evaluator_signals_undrained",
+            "id",
+            postgresql_where=text(undrained_evaluator_signal_predicate()),
+            sqlite_where=text(undrained_evaluator_signal_predicate()),
+        ),
+    )
+
+
+class ProjectEvaluatorTrigger(HasId):
+    """One rule saying which signals should make its project_evaluators run.
+
+    Every predicate column is nullable and NULL means unconstrained, so a trigger with
+    all of them NULL fires on every signal of its kind. Set-valued intent ("label A or
+    B") is several trigger rows on the same project_evaluators. The columns that only apply to one
+    kind are held NULL for the other by CHECK, because signals are matched by a daemon
+    outside the mutation layer and the schema is the only validator that path passes.
+    """
+
+    __tablename__ = "project_evaluator_triggers"
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    signal_kind: Mapped[EvaluatorSignalKind] = mapped_column(
+        CheckConstraint(evaluator_signal_kind_check("signal_kind"), name="valid_signal_kind"),
+        nullable=False,
+    )
+    annotation_name: Mapped[Optional[str]] = mapped_column(String)
+    label: Mapped[Optional[str]] = mapped_column(String)
+    score_below: Mapped[Optional[float]] = mapped_column(Float)
+    score_above: Mapped[Optional[float]] = mapped_column(Float)
+    annotator_kind: Mapped[Optional[Literal["LLM", "CODE", "HUMAN"]]] = mapped_column(
+        CheckConstraint(
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
+            name="valid_annotator_kind",
+        ),
+    )
+    annotation_edge: Mapped[Optional[AnnotationEdge]] = mapped_column(
+        CheckConstraint(
+            "annotation_edge IN ('created', 'updated')",
+            name="valid_annotation_edge",
+        ),
+    )
+    annotation_kind: Mapped[Optional[AnnotationKind]] = mapped_column(
+        CheckConstraint(
+            "annotation_kind IN ('span', 'trace', 'session')",
+            name="valid_annotation_kind",
+        ),
+    )
+    source_evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        index=True,
+    )
+    result_changed_only: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project_evaluators: Mapped["ProjectEvaluator"] = relationship(
+        "ProjectEvaluator",
+        foreign_keys=[project_evaluator_id],
+    )
+    source_evaluator: Mapped[Optional["ProjectEvaluator"]] = relationship(
+        "ProjectEvaluator",
+        foreign_keys=[source_evaluator_id],
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "signal_kind != 'annotation_upserted' OR "
+            "(source_evaluator_id IS NULL AND result_changed_only = false)",
+            name="valid_annotation_predicates",
+        ),
+        CheckConstraint(
+            "signal_kind != 'evaluation_completed' OR "
+            "(annotator_kind IS NULL AND annotation_edge IS NULL AND annotation_kind IS NULL)",
+            name="valid_evaluation_predicates",
+        ),
+    )
+
+
+class EvaluationRequest(HasId):
+    """Standing state for one (session, project_evaluators) pair, as generation counters.
+
+    There is no status column: a pair is unfulfilled exactly when
+    materialized_generation < requested_generation. A request bumps
+    requested_generation, materialization catches materialized_generation up to what it
+    saw and records the work unit that did it. No index covers a generation column —
+    indexing one would defeat heap-only updates on a small, constantly rewritten table.
+    """
+
+    __tablename__ = "evaluation_requests"
+    project_session_rowid: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    requested_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    materialized_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    force_requested_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    materialized_by_session_work_unit_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("eval_session_work_units.id", ondelete="SET NULL"),
+    )
+    requested_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    requested_by: Mapped[Optional[str]] = mapped_column(String)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+    project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
+    materialized_by_session_work_unit: Mapped[Optional["EvalSessionWorkUnit"]] = relationship(
+        "EvalSessionWorkUnit"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("project_session_rowid", "project_evaluator_id"),
+        CheckConstraint(
+            "requested_generation >= 0",
+            name="valid_requested_generation",
+        ),
+        CheckConstraint(
+            "0 <= materialized_generation AND materialized_generation <= requested_generation",
+            name="valid_materialized_generation",
+        ),
+        CheckConstraint(
+            "0 <= force_requested_generation AND force_requested_generation <= "
+            "requested_generation",
+            name="valid_force_requested_generation",
+        ),
+        # The sweeper reaches rows by project_evaluators, and the leading column also serves the
+        # project_evaluators cascade; the unique constraint leads with project_session_rowid and
+        # serves the session cascade.
+        Index(
+            "ix_evaluation_requests_project_evaluator_id_project_session_rowid",
+            "project_evaluator_id",
+            "project_session_rowid",
+        ),
+    )
+

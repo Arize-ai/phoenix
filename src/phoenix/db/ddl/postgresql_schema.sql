@@ -200,6 +200,43 @@ CREATE INDEX ix_project_sessions_project_id_start_time ON public.project_session
     USING btree (project_id, start_time DESC);
 
 
+-- Table: evaluator_signals
+-- ------------------------
+CREATE TABLE public.evaluator_signals (
+    id bigserial NOT NULL,
+    kind VARCHAR NOT NULL,
+    dedup_key VARCHAR NOT NULL,
+    project_id BIGINT NOT NULL,
+    project_session_rowid BIGINT NOT NULL,
+    payload JSONB NOT NULL,
+    acknowledged_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_evaluator_signals PRIMARY KEY (id),
+    CONSTRAINT uq_evaluator_signals_kind_dedup_key
+        UNIQUE (kind, dedup_key),
+    CONSTRAINT "ck_evaluator_signals_`valid_signal_kind`"
+        CHECK (((kind)::text = ANY ((ARRAY[
+            'annotation_upserted'::character varying,
+            'evaluation_completed'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_evaluator_signals_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evaluator_signals_project_session_rowid_project_sessions
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES public.project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_evaluator_signals_project_id ON public.evaluator_signals
+    USING btree (project_id);
+CREATE INDEX ix_evaluator_signals_project_session_rowid ON public.evaluator_signals
+    USING btree (project_session_rowid);
+CREATE INDEX ix_evaluator_signals_undrained ON public.evaluator_signals
+    USING btree (id) WHERE (acknowledged_at IS NULL);
+
+
 -- Table: prompt_labels
 -- --------------------
 CREATE TABLE public.prompt_labels (
@@ -1408,6 +1445,7 @@ CREATE TABLE public.eval_session_work_units (
     evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
     transcript_covered_through TIMESTAMP WITH TIME ZONE,
     status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
+    scheduling_origin VARCHAR NOT NULL DEFAULT 'AMBIENT'::character varying,
     claimed_at TIMESTAMP WITH TIME ZONE,
     claimed_by VARCHAR,
     attempts INTEGER NOT NULL DEFAULT 0,
@@ -1425,6 +1463,12 @@ CREATE TABLE public.eval_session_work_units (
             'EXPIRED'::character varying,
             'FILTERED_OUT'::character varying,
             'SAMPLED_OUT'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_eval_session_work_units_`valid_scheduling_origin`"
+        CHECK (((scheduling_origin)::text = ANY ((ARRAY[
+            'AMBIENT'::character varying,
+            'RULE'::character varying,
+            'EXPLICIT'::character varying
         ])::text[]))),
     CONSTRAINT fk_eval_session_work_units_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
@@ -1509,6 +1553,103 @@ CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
     USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
 
 
+-- Table: evaluation_requests
+-- --------------------------
+CREATE TABLE public.evaluation_requests (
+    id bigserial NOT NULL,
+    project_session_rowid BIGINT NOT NULL,
+    project_evaluator_id BIGINT NOT NULL,
+    requested_generation INTEGER NOT NULL DEFAULT 0,
+    materialized_generation INTEGER NOT NULL DEFAULT 0,
+    force_requested_generation INTEGER NOT NULL DEFAULT 0,
+    materialized_by_session_work_unit_id BIGINT,
+    requested_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    requested_by VARCHAR,
+    count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_evaluation_requests PRIMARY KEY (id),
+    CONSTRAINT uq_evaluation_requests_project_session_rowid_project_evaluator_id
+        UNIQUE (project_session_rowid, project_evaluator_id),
+    CONSTRAINT "ck_evaluation_requests_`valid_force_requested_generation`" CHECK (((0 <= force_requested_generation) AND (force_requested_generation <= requested_generation))),
+    CONSTRAINT "ck_evaluation_requests_`valid_materialized_generation`" CHECK (((0 <= materialized_generation) AND (materialized_generation <= requested_generation))),
+    CONSTRAINT "ck_evaluation_requests_`valid_requested_generation`" CHECK ((requested_generation >= 0)),
+    CONSTRAINT fk_evaluation_requests_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evaluation_requests_materialized_by_session_work_uni_7d59
+        FOREIGN KEY (materialized_by_session_work_unit_id)
+        REFERENCES public.eval_session_work_units (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_evaluation_requests_project_session_rowid_project_sessions
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES public.project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_evaluation_requests_project_evaluator_id_project_session_rowid ON public.evaluation_requests
+    USING btree (project_evaluator_id, project_session_rowid);
+
+
+-- Table: project_evaluator_triggers
+-- ---------------------------------
+CREATE TABLE public.project_evaluator_triggers (
+    id bigserial NOT NULL,
+    project_evaluator_id BIGINT NOT NULL,
+    signal_kind VARCHAR NOT NULL,
+    annotation_name VARCHAR,
+    label VARCHAR,
+    score_below DOUBLE PRECISION,
+    score_above DOUBLE PRECISION,
+    annotator_kind VARCHAR,
+    annotation_edge VARCHAR,
+    annotation_kind VARCHAR,
+    source_evaluator_id BIGINT,
+    result_changed_only BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_edge`"
+        CHECK (((annotation_edge)::text = ANY ((ARRAY[
+            'created'::character varying,
+            'updated'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_kind`"
+        CHECK (((annotation_kind)::text = ANY ((ARRAY[
+            'span'::character varying,
+            'trace'::character varying,
+            'session'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_predicates`" CHECK ((((signal_kind)::text <> 'annotation_upserted'::text) OR ((source_evaluator_id IS NULL) AND (result_changed_only = false)))),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotator_kind`"
+        CHECK (((annotator_kind)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'CODE'::character varying,
+            'HUMAN'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_evaluation_predicates`" CHECK ((((signal_kind)::text <> 'evaluation_completed'::text) OR ((annotator_kind IS NULL) AND (annotation_edge IS NULL) AND (annotation_kind IS NULL)))),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_signal_kind`"
+        CHECK (((signal_kind)::text = ANY ((ARRAY[
+            'annotation_upserted'::character varying,
+            'evaluation_completed'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_project_evalu_acfb
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_triggers_source_evaluator_id_proje_30d1
+        FOREIGN KEY (source_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_project_evaluator_triggers_project_evaluator_id ON public.project_evaluator_triggers
+    USING btree (project_evaluator_id);
+CREATE INDEX ix_project_evaluator_triggers_source_evaluator_id ON public.project_evaluator_triggers
+    USING btree (source_evaluator_id);
+
+
 -- Table: project_session_annotations
 -- ----------------------------------
 CREATE TABLE public.project_session_annotations (
@@ -1551,6 +1692,8 @@ CREATE TABLE public.project_session_annotations (
 
 CREATE INDEX ix_project_session_annotations_project_session_id ON public.project_session_annotations
     USING btree (project_session_id);
+CREATE INDEX ix_project_session_annotations_updated_at ON public.project_session_annotations
+    USING btree (updated_at);
 CREATE INDEX ix_project_session_annotations_user_id ON public.project_session_annotations
     USING btree (user_id);
 
@@ -1948,6 +2091,8 @@ CREATE TABLE public.span_annotations (
 
 CREATE INDEX ix_span_annotations_span_rowid ON public.span_annotations
     USING btree (span_rowid);
+CREATE INDEX ix_span_annotations_updated_at ON public.span_annotations
+    USING btree (updated_at);
 CREATE INDEX ix_span_annotations_user_id ON public.span_annotations
     USING btree (user_id);
 
@@ -2012,5 +2157,7 @@ CREATE TABLE public.trace_annotations (
 
 CREATE INDEX ix_trace_annotations_trace_rowid ON public.trace_annotations
     USING btree (trace_rowid);
+CREATE INDEX ix_trace_annotations_updated_at ON public.trace_annotations
+    USING btree (updated_at);
 CREATE INDEX ix_trace_annotations_user_id ON public.trace_annotations
     USING btree (user_id);

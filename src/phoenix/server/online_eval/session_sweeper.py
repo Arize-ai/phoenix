@@ -1,4 +1,11 @@
-"""Materialize session evaluation work after session activity becomes old enough."""
+"""Materialize session evaluation work after session activity becomes old enough.
+
+Scheduling is one relation with three strata. Ambient sweeping proposes a pair once its
+content is complete and quiet, and it has no terminal evidence yet. On top of that, an
+unfulfilled evaluation request raises the pair into the rule stratum, and an unfulfilled
+forced generation raises it further into the explicit stratum. Precedence runs explicit
+before rule before ambient, and a pair receives at most one decision per sweep.
+"""
 
 from __future__ import annotations
 
@@ -19,14 +26,15 @@ from sqlalchemy import (
     and_,
     any_,
     bindparam,
+    case,
     cast,
     column,
     func,
     literal,
+    null,
     or_,
     select,
     text,
-    type_coerce,
     union_all,
     update,
 )
@@ -42,7 +50,9 @@ from typing_extensions import assert_never
 from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
 from phoenix.db import models
 from phoenix.db.eval_work import (
+    SESSION_CONTENT_INCOMPLETE_ERROR,
     SESSION_DECLINED_STATUSES,
+    SUPERSEDED_BY_REQUEST_ERROR,
     live_eval_session_work_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
@@ -54,7 +64,12 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
+from phoenix.server.online_eval.leases import DatabaseLease, LeaseLost
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
+from phoenix.server.online_eval.requests import (
+    acknowledge_materialization,
+    unfulfilled_requests,
+)
 from phoenix.server.online_eval.session_policy import session_project_evaluator_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
@@ -82,6 +97,20 @@ _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
 _LIVE_WORK_INDEX_PREDICATE = text(live_eval_session_work_index_predicate())
 
+# EXPIRED work carrying one of these was retired for a reason unrelated to its outcome,
+# so it answers no request.
+_UNEVALUATED_EXPIRY_ERRORS = (
+    STALE_FINGERPRINT_ERROR,
+    SESSION_CONTENT_INCOMPLETE_ERROR,
+    SUPERSEDED_BY_REQUEST_ERROR,
+)
+
+_AMBIENT = "AMBIENT"
+_RULE = "RULE"
+_EXPLICIT = "EXPLICIT"
+# Lower rank wins when several strata claim the same pair.
+_EXPLICIT_RANK, _RULE_RANK, _AMBIENT_RANK = 0, 1, 2
+
 
 @dataclass(frozen=True)
 class _SessionProjectEvaluator:
@@ -98,17 +127,21 @@ class _SessionProjectEvaluator:
 def _project_evaluator_relation(
     project_evaluators: Sequence[_SessionProjectEvaluator],
     dialect: SupportedSQLDialect,
+    *,
+    bind_prefix: str = "sc",
 ) -> Subquery:
     """Return a portable inline relation for resolved session project evaluators.
 
     Bind names are keyed off ``project_evaluator_id`` rather than row position: several of these
     relations are unioned into one statement, and ``text()`` binds are not unique, so
     position-keyed names from different relations would silently overwrite each other.
+    One project_evaluator can appear in both an ambient and a triggered relation of the same
+    statement, so those relations need distinct ``bind_prefix`` values too.
     """
     rows = []
     parameters: dict[str, Any] = {}
     for index, project_evaluator in enumerate(project_evaluators):
-        prefix = f"sc{project_evaluator.project_evaluator_id}"
+        prefix = f"{bind_prefix}{project_evaluator.project_evaluator_id}"
         row_parameters = {
             f"{prefix}_project_evaluator_id": project_evaluator.project_evaluator_id,
             f"{prefix}_project_id": project_evaluator.project_id,
@@ -184,6 +217,154 @@ def _live_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[boo
     )
 
 
+def _unfinished_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
+    """Whether work for this pair may still produce a result.
+
+    Declined decisions are excluded on purpose: a request displaces them, while work
+    that can still run is waited for rather than duplicated.
+    """
+    unfinished = aliased(models.EvalSessionWorkUnit)
+    return (
+        select(1)
+        .select_from(unfinished)
+        .where(
+            unfinished.project_session_rowid == models.ProjectSession.id,
+            unfinished.evaluator_id == project_evaluator_relation.c.evaluator_id,
+            unfinished.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
+            or_(
+                unfinished.status.in_(("PENDING", "RUNNING")),
+                and_(
+                    unfinished.status == "ERROR",
+                    unfinished.attempts < MAX_ATTEMPTS,
+                ),
+            ),
+        )
+        .correlate(models.ProjectSession, project_evaluator_relation)
+        .exists()
+    )
+
+
+def _answers_a_request(work: Any) -> ColumnElement[bool]:
+    """Whether ``work`` reached an outcome that a request can be answered with.
+
+    Declined decisions are not outcomes — a rule's own predicate is its filter, so
+    triggered work must not inherit an earlier filter or sampling decision.
+    """
+    return or_(
+        work.status == "DONE",
+        and_(work.status == "ERROR", work.attempts >= MAX_ATTEMPTS),
+        and_(
+            work.status == "EXPIRED",
+            or_(
+                work.error.is_(None),
+                work.error.not_in(_UNEVALUATED_EXPIRY_ERRORS),
+            ),
+        ),
+    )
+
+
+def _quiet_delay_columns(
+    project_evaluator_relation: Subquery,
+    database_now: datetime,
+    dialect: SupportedSQLDialect,
+) -> tuple[ColumnElement[Any], ColumnElement[Any]]:
+    """The pair's due time and the current time, both in epoch seconds."""
+    if dialect is SupportedSQLDialect.SQLITE:
+        due_at = (
+            cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float) * 86_400
+            + project_evaluator_relation.c.delay_seconds
+        )
+        current_time = cast(func.julianday(database_now), Float) * 86_400
+    else:
+        due_at = (
+            func.extract("epoch", models.ProjectSession.last_span_ingested_at)
+            + project_evaluator_relation.c.delay_seconds
+        )
+        current_time = func.extract("epoch", literal(database_now))
+    return due_at, current_time
+
+
+def _triggered_pairs_statement(
+    project_evaluator_relation: Subquery,
+    database_now: datetime,
+    dialect: SupportedSQLDialect,
+) -> Select[Any]:
+    """The pairs an unfulfilled evaluation request is asking for.
+
+    A forced generation raises the pair to the explicit stratum, which carries no
+    terminal brake at all: forcing is the one ask allowed to unsettle a finished
+    evaluation. Everything else is braked by an outcome covering the same configuration
+    and the same session content, and answers the request by linking that outcome
+    instead of scheduling again.
+    """
+    pending = unfulfilled_requests().subquery("pending_requests")
+    due_at, current_time = _quiet_delay_columns(project_evaluator_relation, database_now, dialect)
+    terminal_work = aliased(models.EvalSessionWorkUnit)
+    answering_work_unit_id = (
+        select(func.max(terminal_work.id))
+        .where(
+            terminal_work.project_session_rowid == models.ProjectSession.id,
+            terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
+            terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
+            terminal_work.evaluated_through >= models.ProjectSession.last_span_ingested_at,
+            _answers_a_request(terminal_work),
+        )
+        .correlate(models.ProjectSession, project_evaluator_relation)
+        .scalar_subquery()
+    )
+    declined_work = aliased(models.EvalSessionWorkUnit)
+    # At most one row holds the live key, so this names the single declined holder.
+    declined_work_unit_id = (
+        select(func.max(declined_work.id))
+        .where(
+            declined_work.project_session_rowid == models.ProjectSession.id,
+            declined_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
+            declined_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
+            declined_work.status.in_(SESSION_DECLINED_STATUSES),
+        )
+        .correlate(models.ProjectSession, project_evaluator_relation)
+        .scalar_subquery()
+    )
+    forced = pending.c.forced
+    return (
+        select(
+            models.ProjectSession.id.label("project_session_rowid"),
+            models.ProjectSession.session_id,
+            project_evaluator_relation.c.project_evaluator_id,
+            project_evaluator_relation.c.evaluator_id,
+            project_evaluator_relation.c.config_fingerprint,
+            literal(1.0).label("sampling_rate"),
+            models.ProjectSession.last_span_ingested_at.label("evaluated_through"),
+            due_at.label("effective_due_time"),
+            literal(True).label("filter_matches"),
+            case((forced, literal(_EXPLICIT)), else_=literal(_RULE)).label("scheduling_origin"),
+            case((forced, literal(_EXPLICIT_RANK)), else_=literal(_RULE_RANK)).label("arm_rank"),
+            pending.c.evaluation_request_id,
+            pending.c.observed_generation,
+            case((forced, null()), else_=answering_work_unit_id).label("answering_work_unit_id"),
+            declined_work_unit_id.label("declined_work_unit_id"),
+        )
+        .select_from(models.ProjectSession)
+        .join(
+            project_evaluator_relation,
+            models.ProjectSession.project_id == project_evaluator_relation.c.project_id,
+        )
+        .join(
+            pending,
+            and_(
+                pending.c.project_session_rowid == models.ProjectSession.id,
+                pending.c.project_evaluator_id == project_evaluator_relation.c.project_evaluator_id,
+            ),
+        )
+        .where(
+            models.ProjectSession.content_complete.is_(True),
+            models.ProjectSession.last_span_ingested_at.is_not(None),
+            due_at <= current_time,
+            ~_unfinished_work_exists(project_evaluator_relation),
+        )
+    )
+
+
 def _eligible_pairs_statement(
     project_evaluator_relation: Subquery,
     database_now: datetime,
@@ -230,18 +411,7 @@ def _eligible_pairs_statement(
         .correlate(models.ProjectSession, project_evaluator_relation)
         .exists()
     )
-    if dialect is SupportedSQLDialect.SQLITE:
-        due_at = (
-            cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float) * 86_400
-            + project_evaluator_relation.c.delay_seconds
-        )
-        current_time = cast(func.julianday(database_now), Float) * 86_400
-    else:
-        due_at = (
-            func.extract("epoch", models.ProjectSession.last_span_ingested_at)
-            + project_evaluator_relation.c.delay_seconds
-        )
-        current_time = func.extract("epoch", literal(database_now))
+    due_at, current_time = _quiet_delay_columns(project_evaluator_relation, database_now, dialect)
     return (
         select(
             models.ProjectSession.id.label("project_session_rowid"),
@@ -253,6 +423,12 @@ def _eligible_pairs_statement(
             models.ProjectSession.last_span_ingested_at.label("evaluated_through"),
             due_at.label("effective_due_time"),
             filter_matches.label("filter_matches"),
+            literal(_AMBIENT).label("scheduling_origin"),
+            literal(_AMBIENT_RANK).label("arm_rank"),
+            cast(null(), Integer).label("evaluation_request_id"),
+            cast(null(), Integer).label("observed_generation"),
+            cast(null(), Integer).label("answering_work_unit_id"),
+            cast(null(), Integer).label("declined_work_unit_id"),
         )
         .select_from(models.ProjectSession)
         .join(
@@ -312,37 +488,248 @@ def _eligible_pairs_relation(
     return union_all(*statements).subquery("eligible_pairs")
 
 
+def _scheduling_relation(
+    project_evaluators: Sequence[_SessionProjectEvaluator],
+    database_now: datetime,
+    dialect: SupportedSQLDialect,
+) -> Subquery:
+    """The three strata as one relation, one row per pair per stratum that claims it."""
+    ambient = _eligible_pairs_relation(project_evaluators, database_now, dialect)
+    triggered = _triggered_pairs_statement(
+        _project_evaluator_relation(project_evaluators, dialect, bind_prefix="tc"),
+        database_now,
+        dialect,
+    )
+    return union_all(select(ambient), triggered).subquery("scheduling_pairs")
+
+
+@dataclass(frozen=True)
+class _Decision:
+    """What this sweep does about one pair, and which stratum decided it."""
+
+    project_session_rowid: int
+    session_id: str
+    project_evaluator_id: int
+    evaluator_id: int
+    config_fingerprint: str
+    evaluated_through: datetime
+    status: models.EvalSessionWorkStatus
+    scheduling_origin: models.SchedulingOrigin
+    arm_rank: int
+    evaluation_request_id: Optional[int]
+    observed_generation: Optional[int]
+    answering_work_unit_id: Optional[int]
+    declined_work_unit_id: Optional[int]
+
+    @property
+    def pair(self) -> tuple[int, int]:
+        return self.project_session_rowid, self.project_evaluator_id
+
+    @property
+    def coalesces(self) -> bool:
+        """Whether existing work already answers this request, so none is created."""
+        return self.answering_work_unit_id is not None
+
+    def work_row(self) -> dict[str, Any]:
+        return {
+            "project_session_rowid": self.project_session_rowid,
+            "evaluator_id": self.evaluator_id,
+            "project_evaluator_id": self.project_evaluator_id,
+            "config_fingerprint": self.config_fingerprint,
+            "evaluated_through": self.evaluated_through,
+            "status": self.status,
+            "scheduling_origin": self.scheduling_origin,
+        }
+
+
+def _decision_status(row: Any) -> models.EvalSessionWorkStatus:
+    """The ambient filter and sampling gates; the triggered strata bypass both."""
+    if row.scheduling_origin != _AMBIENT:
+        return "PENDING"
+    if not row.filter_matches:
+        return "FILTERED_OUT"
+    if sample_key(row.session_id) >= row.sampling_rate:
+        return "SAMPLED_OUT"
+    return "PENDING"
+
+
+def _resolve_decisions(rows: Sequence[Any]) -> list[_Decision]:
+    """Collapse the strata to at most one decision per pair, explicit first."""
+    decisions: dict[tuple[int, int], _Decision] = {}
+    for row in rows:
+        decision = _Decision(
+            project_session_rowid=row.project_session_rowid,
+            session_id=row.session_id,
+            project_evaluator_id=row.project_evaluator_id,
+            evaluator_id=row.evaluator_id,
+            config_fingerprint=row.config_fingerprint,
+            evaluated_through=row.evaluated_through,
+            status=_decision_status(row),
+            scheduling_origin=row.scheduling_origin,
+            arm_rank=row.arm_rank,
+            evaluation_request_id=row.evaluation_request_id,
+            observed_generation=row.observed_generation,
+            answering_work_unit_id=row.answering_work_unit_id,
+            declined_work_unit_id=row.declined_work_unit_id,
+        )
+        held = decisions.get(decision.pair)
+        if held is None or decision.arm_rank < held.arm_rank:
+            decisions[decision.pair] = decision
+    return list(decisions.values())
+
+
+def _decision_relation(
+    decisions: Sequence[_Decision],
+    dialect: SupportedSQLDialect,
+) -> Subquery:
+    """Return a portable inline relation carrying the rows a braked insert may write."""
+    rows = []
+    parameters: dict[str, Any] = {}
+    for index, decision in enumerate(decisions):
+        prefix = f"sd{index}"
+        row_parameters = {
+            f"{prefix}_project_session_rowid": decision.project_session_rowid,
+            f"{prefix}_evaluator_id": decision.evaluator_id,
+            f"{prefix}_project_evaluator_id": decision.project_evaluator_id,
+            f"{prefix}_config_fingerprint": decision.config_fingerprint,
+            f"{prefix}_evaluated_through": decision.evaluated_through,
+        }
+        parameters.update(row_parameters)
+        placeholders = [f":{name}" for name in row_parameters]
+        if index == 0:
+            evaluated_through_type = (
+                "TIMESTAMP WITH TIME ZONE" if dialect is SupportedSQLDialect.POSTGRESQL else "TEXT"
+            )
+            placeholders = [
+                f"CAST({placeholders[0]} AS INTEGER)",
+                f"CAST({placeholders[1]} AS INTEGER)",
+                f"CAST({placeholders[2]} AS INTEGER)",
+                f"CAST({placeholders[3]} AS VARCHAR)",
+                f"CAST({placeholders[4]} AS {evaluated_through_type})",
+            ]
+        rows.append(f"({', '.join(placeholders)})")
+    statement = text(
+        "SELECT "
+        "sd.column1 AS project_session_rowid, "
+        "sd.column2 AS evaluator_id, "
+        "sd.column3 AS project_evaluator_id, "
+        "sd.column4 AS config_fingerprint, "
+        "sd.column5 AS evaluated_through "
+        f"FROM (VALUES {', '.join(rows)}) AS sd"
+    )
+    return (
+        statement.bindparams(**parameters)
+        .columns(
+            column("project_session_rowid", Integer),
+            column("evaluator_id", Integer),
+            column("project_evaluator_id", Integer),
+            column("config_fingerprint", String),
+            column("evaluated_through", models.UtcTimeStamp()),
+        )
+        .subquery("scheduled_decisions")
+    )
+
+
+_INSERTED_WORK_COLUMNS = (
+    models.EvalSessionWorkUnit.id,
+    models.EvalSessionWorkUnit.project_session_rowid,
+    models.EvalSessionWorkUnit.project_evaluator_id,
+    models.EvalSessionWorkUnit.status,
+)
+
+_LIVE_KEY_COLUMNS = (
+    models.EvalSessionWorkUnit.project_session_rowid,
+    models.EvalSessionWorkUnit.evaluator_id,
+    models.EvalSessionWorkUnit.config_fingerprint,
+)
+
+
 def _session_work_insert_statement(
     decisions: Sequence[dict[str, Any]],
     dialect: SupportedSQLDialect,
 ) -> Insert:
     """Insert scheduling decisions whose PostgreSQL evaluator and session rows are locked."""
-    index_elements = (
-        models.EvalSessionWorkUnit.project_session_rowid,
-        models.EvalSessionWorkUnit.evaluator_id,
-        models.EvalSessionWorkUnit.config_fingerprint,
-    )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         return (
             insert_postgresql(models.EvalSessionWorkUnit)
             .values(decisions)
             .on_conflict_do_nothing(
-                index_elements=index_elements,
+                index_elements=_LIVE_KEY_COLUMNS,
                 index_where=_LIVE_WORK_INDEX_PREDICATE,
             )
-            .returning(models.EvalSessionWorkUnit.status)
+            .returning(*_INSERTED_WORK_COLUMNS)
         )
     if dialect is SupportedSQLDialect.SQLITE:
         return (
             insert_sqlite(models.EvalSessionWorkUnit)
             .values(decisions)
             .on_conflict_do_nothing(
-                index_elements=index_elements,
+                index_elements=_LIVE_KEY_COLUMNS,
                 index_where=_LIVE_WORK_INDEX_PREDICATE,
             )
-            .returning(models.EvalSessionWorkUnit.status)
+            .returning(*_INSERTED_WORK_COLUMNS)
         )
     assert_never(dialect)
+
+
+def _braked_session_work_insert_statement(
+    decisions: Sequence[_Decision],
+    dialect: SupportedSQLDialect,
+) -> Insert:
+    """Insert rule-stratum work, re-testing the brake as the insert itself runs.
+
+    The eligibility read and this statement take separate snapshots under READ
+    COMMITTED, and the consumers that commit outcomes hold no sweep lease, so an
+    outcome can land in between. Repeating the test here narrows that window to this
+    statement's own execution.
+    """
+    relation = _decision_relation(decisions, dialect)
+    terminal_work = aliased(models.EvalSessionWorkUnit)
+    answered = (
+        select(1)
+        .select_from(terminal_work)
+        .where(
+            terminal_work.project_session_rowid == relation.c.project_session_rowid,
+            terminal_work.evaluator_id == relation.c.evaluator_id,
+            terminal_work.config_fingerprint == relation.c.config_fingerprint,
+            terminal_work.evaluated_through >= relation.c.evaluated_through,
+            _answers_a_request(terminal_work),
+        )
+        .correlate(relation)
+        .exists()
+    )
+    unanswered_rows = select(
+        relation.c.project_session_rowid,
+        relation.c.evaluator_id,
+        relation.c.project_evaluator_id,
+        relation.c.config_fingerprint,
+        relation.c.evaluated_through,
+        literal("PENDING"),
+        literal(_RULE),
+    ).where(~answered)
+    columns = [
+        "project_session_rowid",
+        "evaluator_id",
+        "project_evaluator_id",
+        "config_fingerprint",
+        "evaluated_through",
+        "status",
+        "scheduling_origin",
+    ]
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        insert_statement = insert_postgresql(models.EvalSessionWorkUnit)
+    elif dialect is SupportedSQLDialect.SQLITE:
+        insert_statement = insert_sqlite(models.EvalSessionWorkUnit)  # type: ignore[assignment]
+    else:
+        assert_never(dialect)
+    return (
+        insert_statement.from_select(columns, unanswered_rows)
+        .on_conflict_do_nothing(
+            index_elements=_LIVE_KEY_COLUMNS,
+            index_where=_LIVE_WORK_INDEX_PREDICATE,
+        )
+        .returning(*_INSERTED_WORK_COLUMNS)
+    )
 
 
 class SessionEvalSweeper(DaemonTask):
@@ -363,7 +750,19 @@ class SessionEvalSweeper(DaemonTask):
         self._publish_metrics = get_env_enable_prometheus()
         self._sweeper_id = f"session-sweeper-{token_hex(8)}"
         self._lease_name = f"{_SESSION_SWEEP_LEASE_NAME}:{consumer_group}"
-        self._lease_held = False
+        self._lease = DatabaseLease(
+            db,
+            entity=models.EvalWorkLease,
+            key=(models.EvalWorkLease.name == self._lease_name,),
+            holder_column=models.EvalWorkLease.holder,
+            heartbeat_column=models.EvalWorkLease.heartbeat_at,
+            holder_id=self._sweeper_id,
+            ttl_seconds=SESSION_SWEEP_LEASE_TTL_SECONDS,
+        )
+
+    @property
+    def _lease_held(self) -> bool:
+        return self._lease.held
 
     async def _run(self) -> None:
         try:
@@ -381,79 +780,38 @@ class SessionEvalSweeper(DaemonTask):
         lease_id = await self._acquire_lease(allow_insert=mutations_allowed)
         if lease_id is None:
             return
-        renewed = (
-            await self._materialize_and_renew(lease_id)
-            if mutations_allowed
-            else await self._renew_lease(lease_id)
-        )
-        if not renewed:
-            self._lease_held = False
+        try:
+            if mutations_allowed:
+                await self._materialize_and_renew()
+            else:
+                await self._lease.renew()
+        except LeaseLost:
             logger.warning("Session evaluation sweeper lost its lease")
 
     async def _acquire_lease(self, *, allow_insert: bool = True) -> Optional[int]:
-        for _ in range(2):
-            async with self._db() as session:
-                database_now = await self._database_now(session)
-                lease_id = await session.scalar(
-                    update(models.EvalWorkLease)
-                    .where(
-                        models.EvalWorkLease.name == self._lease_name,
-                        or_(
-                            models.EvalWorkLease.holder.is_(None),
-                            models.EvalWorkLease.holder == self._sweeper_id,
-                            models.EvalWorkLease.heartbeat_at
-                            < database_now - timedelta(seconds=SESSION_SWEEP_LEASE_TTL_SECONDS),
-                        ),
-                    )
-                    .values(holder=self._sweeper_id, heartbeat_at=database_now)
-                    .returning(models.EvalWorkLease.id)
-                )
-            if lease_id is not None:
-                self._lease_held = True
-                return lease_id
-            async with self._db() as session:
-                row_exists = await session.scalar(
-                    select(models.EvalWorkLease.id).where(
-                        models.EvalWorkLease.name == self._lease_name
-                    )
-                )
-                if row_exists is not None:
-                    break
-                if not allow_insert:
-                    break
-                await session.execute(
-                    insert_on_conflict(
-                        {"name": self._lease_name},
-                        table=models.EvalWorkLease,
-                        dialect=self._db.dialect,
-                        unique_by=("name",),
-                        on_conflict=OnConflict.DO_NOTHING,
-                    )
-                )
-        self._lease_held = False
-        return None
+        lease_id: Optional[int] = await self._lease.acquire(
+            models.EvalWorkLease.id,
+            bootstrap=self._insert_lease if allow_insert else None,
+        )
+        return lease_id
 
-    async def _renew_lease(self, lease_id: int) -> bool:
-        async with self._db() as session:
-            renewed_at = await self._database_now(session)
-            renewed = await session.scalar(
-                update(models.EvalWorkLease)
-                .where(
-                    models.EvalWorkLease.id == lease_id,
-                    models.EvalWorkLease.holder == self._sweeper_id,
-                )
-                .values(heartbeat_at=renewed_at)
-                .returning(models.EvalWorkLease.id)
+    async def _insert_lease(self, session: AsyncSession) -> None:
+        await session.execute(
+            insert_on_conflict(
+                {"name": self._lease_name},
+                table=models.EvalWorkLease,
+                dialect=self._db.dialect,
+                unique_by=("name",),
+                on_conflict=OnConflict.DO_NOTHING,
             )
-        return renewed is not None
+        )
 
-    async def _materialize_and_renew(self, lease_id: int) -> bool:
+    async def _materialize_and_renew(self) -> None:
         started_at = time.monotonic()
         if self._publish_metrics:
             ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS.inc()
         materialized_work_count = 0
         eligible_pair_count: Optional[int] = None
-        renewed: Optional[int] = None
         try:
             # Reap in its own transaction: taking work-row locks inside the sweep
             # transaction inverts the global project_evaluators -> session -> work lock order.
@@ -464,18 +822,7 @@ class SessionEvalSweeper(DaemonTask):
                 materialized_work_count, eligible_pair_count = await self._sweep(
                     session, database_now
                 )
-                renewed_at = await self._database_now(session)
-                renewed = await session.scalar(
-                    update(models.EvalWorkLease)
-                    .where(
-                        models.EvalWorkLease.id == lease_id,
-                        models.EvalWorkLease.holder == self._sweeper_id,
-                    )
-                    .values(heartbeat_at=renewed_at)
-                    .returning(models.EvalWorkLease.id)
-                )
-                if renewed is None:
-                    await session.rollback()
+                await self._lease.fence(session)
         except Exception:
             if self._publish_metrics:
                 ONLINE_EVAL_SESSION_SWEEP_FAILURES.inc()
@@ -484,24 +831,12 @@ class SessionEvalSweeper(DaemonTask):
             if self._publish_metrics:
                 ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS.observe(time.monotonic() - started_at)
         if self._publish_metrics:
-            if renewed is None:
-                ONLINE_EVAL_SESSION_SWEEP_FAILURES.inc()
-            else:
-                ONLINE_EVAL_SESSION_SWEEP_SUCCESSES.inc()
-                ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS.inc(materialized_work_count)
-                await self._publish_eligibility_metrics(eligible_pair_count)
-        return renewed is not None
+            ONLINE_EVAL_SESSION_SWEEP_SUCCESSES.inc()
+            ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS.inc(materialized_work_count)
+            await self._publish_eligibility_metrics(eligible_pair_count)
 
     async def _database_now(self, session: AsyncSession) -> datetime:
-        clock = (
-            func.statement_timestamp()
-            if self._db.dialect is SupportedSQLDialect.POSTGRESQL
-            else func.now()
-        )
-        database_now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
-        if database_now is None:
-            raise RuntimeError("Database did not return its current time")
-        return database_now
+        return await self._lease.database_now(session)
 
     async def _load_evaluators(self, session: AsyncSession) -> list[_SessionProjectEvaluator]:
         polymorphic_evaluator = with_polymorphic(
@@ -582,7 +917,7 @@ class SessionEvalSweeper(DaemonTask):
     ) -> tuple[int, Optional[int]]:
         if not project_evaluators:
             return 0, 0 if self._publish_metrics else None
-        relation = _eligible_pairs_relation(
+        relation = _scheduling_relation(
             project_evaluators,
             database_now,
             self._db.dialect,
@@ -593,7 +928,10 @@ class SessionEvalSweeper(DaemonTask):
                 await session.scalar(
                     select(func.count())
                     .select_from(relation)
-                    .where(relation.c.filter_matches.is_(True))
+                    .where(
+                        relation.c.filter_matches.is_(True),
+                        relation.c.scheduling_origin == _AMBIENT,
+                    )
                 )
             ) or 0
         eligible_page = (
@@ -602,6 +940,7 @@ class SessionEvalSweeper(DaemonTask):
                 relation.c.effective_due_time,
                 relation.c.project_session_rowid,
                 relation.c.project_evaluator_id,
+                relation.c.arm_rank,
             )
             .limit(limit)
             .subquery("eligible_pair_page")
@@ -664,35 +1003,96 @@ class SessionEvalSweeper(DaemonTask):
                 eligible_page.c.project_session_rowid.in_(locked_project_session_rowids)
             )
         rows = (await session.execute(selected_page)).all()
-        decisions: list[dict[str, Any]] = []
-        for row in rows:
-            if not row.filter_matches:
-                status: models.EvalSessionWorkStatus = "FILTERED_OUT"
-            elif sample_key(row.session_id) >= row.sampling_rate:
-                status = "SAMPLED_OUT"
-            else:
-                status = "PENDING"
-            decisions.append(
-                {
-                    "project_session_rowid": row.project_session_rowid,
-                    "evaluator_id": row.evaluator_id,
-                    "project_evaluator_id": row.project_evaluator_id,
-                    "config_fingerprint": row.config_fingerprint,
-                    "evaluated_through": row.evaluated_through,
-                    "status": status,
-                }
-            )
+        decisions = _resolve_decisions(rows)
         if not decisions:
             return 0, eligible_pair_count
-        inserted_statuses = (
-            await session.scalars(
+        scheduled = [decision for decision in decisions if not decision.coalesces]
+        await self._supersede_declined_work(session, scheduled)
+        inserted = await self._insert_work(session, scheduled)
+        await self._acknowledge_requests(session, decisions, inserted)
+        materialized_work_count = sum(1 for _, status in inserted.values() if status == "PENDING")
+        return materialized_work_count, eligible_pair_count
+
+    async def _supersede_declined_work(
+        self,
+        session: AsyncSession,
+        decisions: Sequence[_Decision],
+    ) -> None:
+        """Retire the declined decisions a request displaces, freeing their dedup key.
+
+        A rule carries its own predicate, so triggered work must not be held back by an
+        earlier filter or sampling decision for the same pair.
+        """
+        displaced = [
+            decision.declined_work_unit_id
+            for decision in decisions
+            if decision.declined_work_unit_id is not None
+        ]
+        if not displaced:
+            return
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(
+                models.EvalSessionWorkUnit.id.in_(displaced),
+                models.EvalSessionWorkUnit.status.in_(SESSION_DECLINED_STATUSES),
+            )
+            .values(status="EXPIRED", error=SUPERSEDED_BY_REQUEST_ERROR)
+        )
+
+    async def _insert_work(
+        self,
+        session: AsyncSession,
+        decisions: Sequence[_Decision],
+    ) -> dict[tuple[int, int], tuple[int, str]]:
+        """Write the sweep's work, returning (work unit id, status) per pair written."""
+        braked = [decision for decision in decisions if decision.scheduling_origin == _RULE]
+        direct = [decision for decision in decisions if decision.scheduling_origin != _RULE]
+        statements: list[Insert] = []
+        if direct:
+            statements.append(
                 _session_work_insert_statement(
-                    decisions,
+                    [decision.work_row() for decision in direct],
                     self._db.dialect,
                 )
             )
-        ).all()
-        return inserted_statuses.count("PENDING"), eligible_pair_count
+        if braked:
+            statements.append(_braked_session_work_insert_statement(braked, self._db.dialect))
+        inserted: dict[tuple[int, int], tuple[int, str]] = {}
+        for statement in statements:
+            for row in await session.execute(statement):
+                inserted[(row.project_session_rowid, row.project_evaluator_id)] = (
+                    row.id,
+                    row.status,
+                )
+        return inserted
+
+    async def _acknowledge_requests(
+        self,
+        session: AsyncSession,
+        decisions: Sequence[_Decision],
+        inserted: dict[tuple[int, int], tuple[int, str]],
+    ) -> None:
+        """Link each request to the work unit answering it, through its own module.
+
+        Only the generation the eligibility read observed is acknowledged; a request
+        that arrived since then is a later generation and waits for the next sweep. A
+        request that vanished mid-sweep raises, which rolls the whole sweep back — the
+        work insert sharing this transaction must not outlive the request it answers.
+        """
+        for decision in decisions:
+            if decision.evaluation_request_id is None or decision.observed_generation is None:
+                continue
+            session_work_unit_id = decision.answering_work_unit_id
+            if session_work_unit_id is None:
+                if (written := inserted.get(decision.pair)) is None:
+                    continue
+                session_work_unit_id = written[0]
+            await acknowledge_materialization(
+                session,
+                evaluation_request_id=decision.evaluation_request_id,
+                observed_generation=decision.observed_generation,
+                session_work_unit_id=session_work_unit_id,
+            )
 
     async def _publish_eligibility_metrics(self, eligible_pair_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
@@ -771,18 +1171,7 @@ class SessionEvalSweeper(DaemonTask):
         return budget
 
     async def _release_lease(self) -> None:
-        if not self._lease_held:
-            return
-        self._lease_held = False
         try:
-            async with self._db() as session:
-                await session.execute(
-                    update(models.EvalWorkLease)
-                    .where(
-                        models.EvalWorkLease.name == self._lease_name,
-                        models.EvalWorkLease.holder == self._sweeper_id,
-                    )
-                    .values(holder=None, heartbeat_at=None)
-                )
+            await self._lease.release()
         except Exception:
             logger.exception("Failed to release session evaluation sweep lease")

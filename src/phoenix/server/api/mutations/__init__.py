@@ -12,7 +12,10 @@ from phoenix.server.api.mutations.dataset_split_mutations import DatasetSplitMut
 from phoenix.server.api.mutations.document_annotations_mutations import (
     DocumentAnnotationMutationMixin,
 )
-from phoenix.server.api.mutations.evaluator_mutations import EvaluatorMutationMixin
+from phoenix.server.api.mutations.evaluator_mutations import (
+    EvaluatorMutationMixin,
+    ProjectEvaluatorTriggerMutationMixin,
+)
 from phoenix.server.api.mutations.experiment_mutations import ExperimentMutationMixin
 from phoenix.server.api.mutations.generative_model_custom_provider_mutations import (
     GenerativeModelCustomProviderMutationMixin,
@@ -25,6 +28,9 @@ from phoenix.server.api.mutations.project_annotations_mutations import (
 from phoenix.server.api.mutations.project_mutations import ProjectMutationMixin
 from phoenix.server.api.mutations.project_session_annotations_mutations import (
     ProjectSessionAnnotationMutationMixin,
+)
+from phoenix.server.api.mutations.project_session_evaluation_mutations import (
+    ProjectSessionEvaluationMutationMixin,
 )
 from phoenix.server.api.mutations.project_trace_retention_policy_mutations import (
     ProjectTraceRetentionPolicyMutationMixin,
@@ -57,7 +63,9 @@ class Mutation(
     ModelMutationMixin,
     OAuth2GrantMutationMixin,
     ProjectAnnotationMutationMixin,
+    ProjectEvaluatorTriggerMutationMixin,
     ProjectMutationMixin,
+    ProjectSessionEvaluationMutationMixin,
     ProjectTraceRetentionPolicyMutationMixin,
     PromptMutationMixin,
     PromptVersionTagMutationMixin,

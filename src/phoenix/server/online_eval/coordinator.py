@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.server.online_eval.failure_policy import FailureDisposition
+from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
@@ -57,6 +58,7 @@ class ClaimedWorkUnit:
     attempts: int
     claimed_by: str
     lease_expires_at: datetime
+    scheduling_origin: models.SchedulingOrigin = "AMBIENT"
 
 
 @dataclass(frozen=True)
@@ -103,10 +105,15 @@ class EvalWorkCoordinator(Protocol):
         *,
         work_unit_id: int,
         claimed_by: str,
+        completion_signal: Optional[EvaluationCompleted] = None,
     ) -> bool:
         """Transition a claimed unit RUNNING -> DONE. Returns True when the unit is
         already DONE so callers can safely retry an ambiguous commit. Returns False for
-        any other lost claim."""
+        any other lost claim.
+
+        ``completion_signal`` is appended to the signal log in the same transaction as the
+        transition, and only when this call is the one that performs it — a retry against
+        an already-DONE row succeeds without announcing the completion again."""
         ...
 
     async def publish(

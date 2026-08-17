@@ -430,6 +430,24 @@ def exclude_project_evaluator_trace_projects(
     ).where(models.ProjectEvaluator.trace_project_id.is_(None))
 
 
+def exclude_project_evaluators_in_trace_projects(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    """Drop project evaluators whose own project is some evaluator's trace project.
+
+    Evaluating a trace project would feed evaluator output back into the evaluators
+    that produced it. The projects query applies the same exclusion to projects via
+    `exclude_project_evaluator_trace_projects`; this is its voice for statements that
+    select project evaluators.
+    """
+    trace_owner = aliased(models.ProjectEvaluator)
+    return stmt.where(
+        ~select(trace_owner.id)
+        .where(trace_owner.trace_project_id == models.ProjectEvaluator.project_id)
+        .exists()
+    )
+
+
 async def delete_projects_and_evaluator_trace_projects(
     session: AsyncSession,
     project_ids: Iterable[int],
@@ -718,6 +736,11 @@ async def mark_session_content_incomplete(
     which makes a wrong score permanent — every path that destroys session content must
     call this before or with the delete. `delete_traces` and `delete_spans` are how
     deletion paths get that for free.
+
+    Standing down also closes any evaluation the session had been asked for, leaving it
+    fulfilled with no work unit behind it — the state the request surface reports as
+    failed. This is the one place outside `server/online_eval/requests.py` that writes a
+    request row, because deletion runs below the server layer.
     """
     session_rowids_stmt = (
         sa.select(models.ProjectSession.id)
@@ -747,6 +770,14 @@ async def mark_session_content_incomplete(
             claimed_by=None,
             cooldown_until=None,
             error=SESSION_CONTENT_INCOMPLETE_ERROR,
+        )
+    )
+    await session.execute(
+        sa.update(models.EvaluationRequest)
+        .where(models.EvaluationRequest.project_session_rowid.in_(session_rowids))
+        .values(
+            materialized_generation=models.EvaluationRequest.requested_generation,
+            materialized_by_session_work_unit_id=None,
         )
     )
     await session.execute(

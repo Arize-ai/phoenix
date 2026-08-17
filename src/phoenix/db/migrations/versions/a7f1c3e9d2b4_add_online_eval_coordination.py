@@ -14,7 +14,11 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
+from phoenix.db.eval_work import (
+    evaluator_signal_kind_check,
+    live_eval_session_work_index_predicate,
+    undrained_evaluator_signal_predicate,
+)
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -84,6 +88,16 @@ def _create_session_work_units_table() -> None:
             nullable=False,
             server_default="PENDING",
         ),
+        sa.Column(
+            "scheduling_origin",
+            sa.String(),
+            sa.CheckConstraint(
+                "scheduling_origin IN ('AMBIENT', 'RULE', 'EXPLICIT')",
+                name="valid_scheduling_origin",
+            ),
+            nullable=False,
+            server_default="AMBIENT",
+        ),
         sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("claimed_by", sa.String(), nullable=True),
         sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
@@ -146,6 +160,241 @@ def _create_session_work_units_table() -> None:
         "eval_session_work_units",
         ["project_evaluator_id"],
     )
+
+
+def _create_evaluator_signals_table() -> None:
+    op.create_table(
+        "evaluator_signals",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "kind",
+            sa.String(),
+            sa.CheckConstraint(evaluator_signal_kind_check("kind"), name="valid_signal_kind"),
+            nullable=False,
+        ),
+        sa.Column("dedup_key", sa.String(), nullable=False),
+        sa.Column(
+            "project_id",
+            _Integer,
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "project_session_rowid",
+            _Integer,
+            sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("payload", JSON_, nullable=False),
+        sa.Column("acknowledged_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("kind", "dedup_key"),
+    )
+    # Auto-increment ids are allocation-ordered, not commit-ordered, so a scalar cursor can
+    # permanently skip a signal whose transaction committed late. Unacknowledged-ness has no
+    # such hole, and this index holds only the small undrained set.
+    op.create_index(
+        "ix_evaluator_signals_undrained",
+        "evaluator_signals",
+        ["id"],
+        postgresql_where=sa.text(undrained_evaluator_signal_predicate()),
+        sqlite_where=sa.text(undrained_evaluator_signal_predicate()),
+    )
+    op.create_index(
+        "ix_evaluator_signals_project_id",
+        "evaluator_signals",
+        ["project_id"],
+    )
+    op.create_index(
+        "ix_evaluator_signals_project_session_rowid",
+        "evaluator_signals",
+        ["project_session_rowid"],
+    )
+
+
+def _create_project_evaluator_triggers_table() -> None:
+    op.create_table(
+        "project_evaluator_triggers",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "signal_kind",
+            sa.String(),
+            sa.CheckConstraint(
+                evaluator_signal_kind_check("signal_kind"), name="valid_signal_kind"
+            ),
+            nullable=False,
+        ),
+        sa.Column("annotation_name", sa.String(), nullable=True),
+        sa.Column("label", sa.String(), nullable=True),
+        sa.Column("score_below", sa.Float(), nullable=True),
+        sa.Column("score_above", sa.Float(), nullable=True),
+        sa.Column(
+            "annotator_kind",
+            sa.String(),
+            sa.CheckConstraint(
+                "annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
+                name="valid_annotator_kind",
+            ),
+            nullable=True,
+        ),
+        sa.Column(
+            "annotation_edge",
+            sa.String(),
+            sa.CheckConstraint(
+                "annotation_edge IN ('created', 'updated')",
+                name="valid_annotation_edge",
+            ),
+            nullable=True,
+        ),
+        sa.Column(
+            "annotation_kind",
+            sa.String(),
+            sa.CheckConstraint(
+                "annotation_kind IN ('span', 'trace', 'session')",
+                name="valid_annotation_kind",
+            ),
+            nullable=True,
+        ),
+        sa.Column(
+            "source_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "result_changed_only",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.CheckConstraint(
+            "signal_kind != 'annotation_upserted' OR "
+            "(source_evaluator_id IS NULL AND result_changed_only = false)",
+            name="valid_annotation_predicates",
+        ),
+        sa.CheckConstraint(
+            "signal_kind != 'evaluation_completed' OR "
+            "(annotator_kind IS NULL AND annotation_edge IS NULL AND annotation_kind IS NULL)",
+            name="valid_evaluation_predicates",
+        ),
+    )
+    op.create_index(
+        "ix_project_evaluator_triggers_project_evaluator_id",
+        "project_evaluator_triggers",
+        ["project_evaluator_id"],
+    )
+    op.create_index(
+        "ix_project_evaluator_triggers_source_evaluator_id",
+        "project_evaluator_triggers",
+        ["source_evaluator_id"],
+    )
+
+
+def _create_evaluation_requests_table() -> None:
+    op.create_table(
+        "evaluation_requests",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "project_session_rowid",
+            _Integer,
+            sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("requested_generation", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("materialized_generation", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("force_requested_generation", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "materialized_by_session_work_unit_id",
+            _Integer,
+            sa.ForeignKey("eval_session_work_units.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "requested_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column("requested_by", sa.String(), nullable=True),
+        sa.Column("count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("project_session_rowid", "project_evaluator_id"),
+        sa.CheckConstraint(
+            "requested_generation >= 0",
+            name="valid_requested_generation",
+        ),
+        sa.CheckConstraint(
+            "0 <= materialized_generation AND materialized_generation <= requested_generation",
+            name="valid_materialized_generation",
+        ),
+        sa.CheckConstraint(
+            "0 <= force_requested_generation "
+            "AND force_requested_generation <= requested_generation",
+            name="valid_force_requested_generation",
+        ),
+    )
+    # The sweeper reaches rows by project_evaluators, and the leading column serves the project_evaluators
+    # cascade; the unique constraint leads with project_session_rowid and serves the
+    # session cascade.
+    op.create_index(
+        "ix_evaluation_requests_project_evaluator_id_project_session_rowid",
+        "evaluation_requests",
+        ["project_evaluator_id", "project_session_rowid"],
+    )
+    if op.get_bind().dialect.name == "postgresql":
+        # Every row is rewritten on each request and each materialization, and no index
+        # covers a generation column, so leaving free space keeps those updates heap-only.
+        # The table stays small, so the scale factors are lowered to make autovacuum
+        # actually fire on it.
+        op.execute(
+            "ALTER TABLE evaluation_requests SET ("
+            "fillfactor = 80, "
+            "autovacuum_vacuum_scale_factor = 0.02, "
+            "autovacuum_analyze_scale_factor = 0.02, "
+            "autovacuum_vacuum_threshold = 50, "
+            "autovacuum_analyze_threshold = 50"
+            ")"
+        )
 
 
 def upgrade() -> None:
@@ -414,9 +663,50 @@ def upgrade() -> None:
         ["project_evaluator_id"],
     )
     _create_session_work_units_table()
+    _create_evaluator_signals_table()
+    _create_project_evaluator_triggers_table()
+    _create_evaluation_requests_table()
+
+    # The delta adapter finds edited annotations by updated_at; no annotation table carries
+    # an index on it, so without these every tick sequential-scans the annotation tables.
+    op.create_index("ix_span_annotations_updated_at", "span_annotations", ["updated_at"])
+    op.create_index("ix_trace_annotations_updated_at", "trace_annotations", ["updated_at"])
+    op.create_index(
+        "ix_project_session_annotations_updated_at",
+        "project_session_annotations",
+        ["updated_at"],
+    )
 
 
 def downgrade() -> None:
+    op.drop_index(
+        "ix_project_session_annotations_updated_at",
+        table_name="project_session_annotations",
+    )
+    op.drop_index("ix_trace_annotations_updated_at", table_name="trace_annotations")
+    op.drop_index("ix_span_annotations_updated_at", table_name="span_annotations")
+
+    op.drop_index(
+        "ix_evaluation_requests_project_evaluator_id_project_session_rowid",
+        table_name="evaluation_requests",
+    )
+    op.drop_table("evaluation_requests")
+
+    op.drop_index(
+        "ix_project_evaluator_triggers_source_evaluator_id",
+        table_name="project_evaluator_triggers",
+    )
+    op.drop_index(
+        "ix_project_evaluator_triggers_project_evaluator_id",
+        table_name="project_evaluator_triggers",
+    )
+    op.drop_table("project_evaluator_triggers")
+
+    op.drop_index("ix_evaluator_signals_project_session_rowid", table_name="evaluator_signals")
+    op.drop_index("ix_evaluator_signals_project_id", table_name="evaluator_signals")
+    op.drop_index("ix_evaluator_signals_undrained", table_name="evaluator_signals")
+    op.drop_table("evaluator_signals")
+
     op.drop_index(
         "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
     )

@@ -10,10 +10,11 @@ claim as False via the update rowcount.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import and_, case, func, or_, select, type_coerce, update
+from sqlalchemy import and_, case, func, literal, or_, select, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -29,6 +30,8 @@ from phoenix.server.online_eval.coordinator import (
     QueueLag,
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
+from phoenix.server.online_eval.triggering import log as signal_log
+from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
@@ -100,13 +103,17 @@ class DbEvalWorkCoordinator:
         # Only SESSION work carries a coverage watermark: a span is evaluated whole,
         # while a session is evaluated up to the content the transcript actually read.
         self._coverage_column: Optional[InstrumentedAttribute[Optional[datetime]]] = None
+        # Only SESSION work can be scheduled by a trigger; span work is always ambient.
+        self._scheduling_origin_column: Any
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
+            self._scheduling_origin_column = literal("AMBIENT")
         elif evaluation_target == "SESSION":
             self._work_unit_model = models.EvalSessionWorkUnit
             self._target_row_column = models.EvalSessionWorkUnit.project_session_rowid
             self._coverage_column = models.EvalSessionWorkUnit.transcript_covered_through
+            self._scheduling_origin_column = models.EvalSessionWorkUnit.scheduling_origin
         else:
             raise ValueError(
                 "Online evaluation work coordination supports SPAN and SESSION targets"
@@ -186,6 +193,7 @@ class DbEvalWorkCoordinator:
                             work_unit_model.project_evaluator_id,
                             work_unit_model.config_fingerprint,
                             work_unit_model.attempts,
+                            self._scheduling_origin_column.label("scheduling_origin"),
                         )
                         .where(work_unit_model.id.in_(claimed_ids))
                         .order_by(work_unit_model.id)
@@ -208,6 +216,7 @@ class DbEvalWorkCoordinator:
                 attempts=row.attempts,
                 claimed_by=claimed_by,
                 lease_expires_at=lease_expires_at,
+                scheduling_origin=row.scheduling_origin,
             )
             for row in rows
         ]
@@ -229,13 +238,63 @@ class DbEvalWorkCoordinator:
         *,
         work_unit_id: int,
         claimed_by: str,
+        completion_signal: Optional[EvaluationCompleted] = None,
     ) -> bool:
-        """Complete a claimed unit, treating an already-DONE row as success."""
+        """Complete a claimed unit, treating an already-DONE row as success.
+
+        ``completion_signal`` is logged in the same transaction as the transition, so a
+        retry against an already-DONE row completes without announcing it again.
+        """
+
+        async def announce(session: AsyncSession) -> None:
+            if completion_signal is None:
+                return
+            await self._announce_completion(session, work_unit_id, completion_signal)
+
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claim_owner=claimed_by,
             already_status="DONE",
+            on_transition=announce,
             status="DONE",
+        )
+
+    async def _announce_completion(
+        self,
+        session: AsyncSession,
+        work_unit_id: int,
+        completion_signal: EvaluationCompleted,
+    ) -> None:
+        """Log a completion against the session its evaluated target belongs to.
+
+        A completed span outside any session announces nothing — no session-target rule
+        could match it — and that is an ordinary outcome, not a failure.
+        """
+        work_unit_model = self._work_unit_model
+        identity_statement: Any
+        if self._evaluation_target == "SESSION":
+            identity_statement = (
+                select(models.ProjectSession.project_id, models.ProjectSession.id)
+                .select_from(work_unit_model)
+                .join(models.ProjectSession, self._target_row_column == models.ProjectSession.id)
+                .where(work_unit_model.id == work_unit_id)
+            )
+        else:
+            identity_statement = (
+                select(models.Trace.project_rowid, models.Trace.project_session_rowid)
+                .select_from(work_unit_model)
+                .join(models.Span, self._target_row_column == models.Span.id)
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .where(work_unit_model.id == work_unit_id)
+            )
+        project_id, project_session_rowid = (await session.execute(identity_statement)).one()
+        if project_session_rowid is None:
+            return
+        await signal_log.append(
+            session,
+            completion_signal,
+            project_id=project_id,
+            project_session_rowid=project_session_rowid,
         )
 
     async def publish(
@@ -389,6 +448,7 @@ class DbEvalWorkCoordinator:
         work_unit_id: int,
         claim_owner: str,
         already_status: Optional[str] = None,
+        on_transition: Optional[Callable[[AsyncSession], Awaitable[None]]] = None,
         **values: Any,
     ) -> bool:
         work_unit_model = self._work_unit_model
@@ -406,6 +466,10 @@ class DbEvalWorkCoordinator:
             )
             rowcount = result.rowcount  # type: ignore[attr-defined]
             transitioned = bool(rowcount == 1)
+            # Runs only for the call that moved the row, never for one that found the
+            # transition already made.
+            if transitioned and on_transition is not None:
+                await on_transition(session)
             if not transitioned and already_status is not None:
                 status = await session.scalar(
                     select(work_unit_model.status).where(work_unit_model.id == work_unit_id)

@@ -1502,12 +1502,12 @@ async def test_renew_lease_refreshes_claimed_at(db: DbSessionFactory) -> None:
         claimed_by=producer._producer_id,
         claimed_at=old,
     )
-    renewed_at = _now()
 
-    await producer._renew_lease(renewed_at)
+    await producer._lease.renew()
 
     cursor = await _get_cursor(db, cursor_id)
-    assert cursor.claimed_at == renewed_at
+    assert cursor.claimed_at is not None
+    assert cursor.claimed_at > old
 
 
 async def test_producer_publishes_its_own_frontier_and_ingest_gauges(

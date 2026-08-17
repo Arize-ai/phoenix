@@ -1300,3 +1300,190 @@ async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
                 select(models.Project.id).where(models.Project.id == trace_project_id)
             )
         ) is None
+
+
+_TRIGGER_FIELDS = """
+id
+signalKind
+annotationName
+label
+scoreBelow
+scoreAbove
+annotatorKind
+annotationChange
+annotationTarget
+resultChangedOnly
+createdAt
+updatedAt
+projectEvaluator { id }
+sourceProjectEvaluator { id }
+"""
+
+_CREATE_TRIGGER = f"""
+mutation($input: CreateProjectEvaluatorTriggerInput!) {{
+  createProjectEvaluatorTrigger(input: $input) {{
+    trigger {{ {_TRIGGER_FIELDS} }}
+  }}
+}}
+"""
+
+_PATCH_TRIGGER = f"""
+mutation($input: PatchProjectEvaluatorTriggerInput!) {{
+  patchProjectEvaluatorTrigger(input: $input) {{
+    trigger {{ {_TRIGGER_FIELDS} }}
+  }}
+}}
+"""
+
+_DELETE_TRIGGERS = """
+mutation($input: DeleteProjectEvaluatorTriggersInput!) {
+  deleteProjectEvaluatorTriggers(input: $input) {
+    projectEvaluatorTriggerIds
+  }
+}
+"""
+
+_TRIGGERS = f"""
+query($id: ID!) {{
+  node(id: $id) {{
+    ... on ProjectEvaluator {{ triggers {{ {_TRIGGER_FIELDS} }} }}
+  }}
+}}
+"""
+
+
+async def _add_session_project_evaluator(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> str:
+    project = await _add_project(db)
+    result = await gql_client.execute(
+        _CREATE_CODE,
+        {
+            "input": {
+                **_code_create_input(project, sandbox_config),
+                "evaluationTarget": "SESSION",
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    project_evaluator_id = result.data["createProjectCodeEvaluator"]["evaluator"]["id"]
+    assert isinstance(project_evaluator_id, str)
+    return project_evaluator_id
+
+
+async def _trigger_count(db: DbSessionFactory) -> int:
+    async with db() as session:
+        count = await session.scalar(
+            select(func.count()).select_from(models.ProjectEvaluatorTrigger)
+        )
+    assert isinstance(count, int)
+    return count
+
+
+async def test_project_evaluator_trigger_crud(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+    create_input = {
+        "projectEvaluatorId": project_evaluator_id,
+        "signalKind": "ANNOTATION_UPSERTED",
+        "annotationName": "correctness",
+        "label": "incorrect",
+        "annotatorKind": "HUMAN",
+    }
+    create_result = await gql_client.execute(_CREATE_TRIGGER, {"input": create_input})
+    assert create_result.data and not create_result.errors, create_result.errors
+    created = create_result.data["createProjectEvaluatorTrigger"]["trigger"]
+    assert created["signalKind"] == "ANNOTATION_UPSERTED"
+    assert created["annotationName"] == "correctness"
+    assert created["label"] == "incorrect"
+    assert created["annotatorKind"] == "HUMAN"
+    assert created["resultChangedOnly"] is False
+    assert created["sourceProjectEvaluator"] is None
+    assert created["projectEvaluator"]["id"] == project_evaluator_id
+
+    read_result = await gql_client.execute(_TRIGGERS, {"id": project_evaluator_id})
+    assert read_result.data and not read_result.errors, read_result.errors
+    assert read_result.data["node"]["triggers"] == [created]
+
+    duplicate_result = await gql_client.execute(_CREATE_TRIGGER, {"input": create_input})
+    assert duplicate_result.errors
+    assert "already has a trigger" in duplicate_result.errors[0].message
+
+    patch_result = await gql_client.execute(
+        _PATCH_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorTriggerId": created["id"],
+                "label": None,
+                "scoreBelow": 0.5,
+            }
+        },
+    )
+    assert patch_result.data and not patch_result.errors, patch_result.errors
+    patched = patch_result.data["patchProjectEvaluatorTrigger"]["trigger"]
+    assert patched["label"] is None
+    assert patched["scoreBelow"] == 0.5
+    assert patched["annotationName"] == "correctness"
+    assert patched["annotatorKind"] == "HUMAN"
+
+    delete_result = await gql_client.execute(
+        _DELETE_TRIGGERS,
+        {"input": {"projectEvaluatorTriggerIds": [created["id"]]}},
+    )
+    assert delete_result.data and not delete_result.errors, delete_result.errors
+    assert delete_result.data["deleteProjectEvaluatorTriggers"]["projectEvaluatorTriggerIds"] == [
+        created["id"]
+    ]
+    assert await _trigger_count(db) == 0
+
+
+async def test_a_trigger_rejects_predicates_from_the_other_signal_kind(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+    create_result = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": project_evaluator_id,
+                "signalKind": "ANNOTATION_UPSERTED",
+                "resultChangedOnly": True,
+            }
+        },
+    )
+    assert create_result.errors
+    assert "resultChangedOnly cannot be set" in create_result.errors[0].message
+    assert await _trigger_count(db) == 0
+
+    evaluation_result = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": project_evaluator_id,
+                "signalKind": "EVALUATION_COMPLETED",
+                "resultChangedOnly": True,
+            }
+        },
+    )
+    assert evaluation_result.data and not evaluation_result.errors, evaluation_result.errors
+    trigger = evaluation_result.data["createProjectEvaluatorTrigger"]["trigger"]
+
+    patch_result = await gql_client.execute(
+        _PATCH_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorTriggerId": trigger["id"],
+                "annotatorKind": "LLM",
+            }
+        },
+    )
+    assert patch_result.errors
+    assert "annotatorKind cannot be set" in patch_result.errors[0].message
+

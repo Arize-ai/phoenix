@@ -18,7 +18,7 @@ from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Seq
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import with_polymorphic
+from sqlalchemy.orm import InstrumentedAttribute, with_polymorphic
 from strawberry.relay import GlobalID
 
 from phoenix.config import (
@@ -63,6 +63,7 @@ from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
     persist_evaluator_traces,
 )
+from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
@@ -74,6 +75,7 @@ logger = logging.getLogger(__name__)
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
 _EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
+_SCHEDULING_ORIGIN_METADATA_KEY = "phoenix.online_eval.scheduling_origin"
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 
 AnnotatorKind = Literal["LLM", "CODE"]
@@ -910,12 +912,16 @@ class OnlineEvalExecutor:
 
     async def evaluate_and_annotate(
         self, unit: ClaimedWorkUnit, hydrated: HydratedWorkUnit
-    ) -> None:
+    ) -> EvaluationCompleted:
         """Run the eval and publish successful results as target annotations under
         the unit's identifier. Span results are first-write-wins; session results
         replace a prior attempt so the annotation stays paired with its transcript
         coverage. Raises before writing unless the evaluator returns one complete,
-        error-free result set. No DB session is open while the evaluator runs."""
+        error-free result set. No DB session is open while the evaluator runs.
+
+        Returns:
+            The published verdict, for the caller to announce when it completes the unit.
+        """
         tracer = (
             marked_evaluator_tracer(
                 self._tracer_factory(),
@@ -1007,6 +1013,7 @@ class OnlineEvalExecutor:
                     **result["metadata"],
                     **hydrated.annotation_metadata,
                     **_evaluator_trace_metadata(result),
+                    _SCHEDULING_ORIGIN_METADATA_KEY: unit.scheduling_origin,
                 },
                 "annotator_kind": hydrated.annotator_kind,
                 "identifier": unit.identifier,
@@ -1015,54 +1022,87 @@ class OnlineEvalExecutor:
             }
             for result in results
         ]
-        if records:
-            annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
-            if unit.evaluation_target == "SPAN":
-                annotation_table = models.SpanAnnotation
-                unique_by = ("name", "span_rowid", "identifier")
-                on_conflict = OnConflict.DO_NOTHING
-            else:
-                annotation_table = models.ProjectSessionAnnotation
-                unique_by = ("name", "project_session_id", "identifier")
-                on_conflict = OnConflict.DO_UPDATE
-            inserted_ids: Sequence[int] = ()
-
-            async def _write_annotations(session: AsyncSession) -> None:
-                nonlocal inserted_ids
-                inserted_ids = (
-                    await session.scalars(
-                        insert_on_conflict(
-                            *records,
-                            table=annotation_table,
-                            dialect=self._db.dialect,
-                            unique_by=unique_by,
-                            on_conflict=on_conflict,
-                        ).returning(annotation_table.id)
-                    )
-                ).all()
-
-            async with self._db_phase():
-                if self._db.should_not_insert_or_update:
-                    raise OnlineEvalStoragePaused
-                await self._coordinator.publish(
-                    work_unit_id=unit.work_unit_id,
-                    claimed_by=unit.claimed_by,
-                    write=_write_annotations,
-                    coverage_watermark=(
-                        _transcript_coverage_watermark(hydrated)
-                        if unit.evaluation_target == "SESSION"
-                        else None
-                    ),
-                )
-            # Span duplicates return no id and need no cache invalidation. Session
-            # replacements return their id because the annotation genuinely changed.
-            if self._event_queue is not None and inserted_ids:
-                if unit.evaluation_target == "SPAN":
-                    self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
-                else:
-                    self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
         if not records:
             raise EvalExecutionError("evaluator returned no results")
+        published = results[0]
+        annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
+        target_column: InstrumentedAttribute[int]
+        if unit.evaluation_target == "SPAN":
+            annotation_table = models.SpanAnnotation
+            target_column = models.SpanAnnotation.span_rowid
+            unique_by = ("name", "span_rowid", "identifier")
+            on_conflict = OnConflict.DO_NOTHING
+        else:
+            annotation_table = models.ProjectSessionAnnotation
+            target_column = models.ProjectSessionAnnotation.project_session_id
+            unique_by = ("name", "project_session_id", "identifier")
+            on_conflict = OnConflict.DO_UPDATE
+        inserted_ids: Sequence[int] = ()
+        previous_label: Optional[str] = None
+        result_changed = True
+
+        async def _write_annotations(session: AsyncSession) -> None:
+            nonlocal inserted_ids, previous_label, result_changed
+            # The verdict this replaces is only readable before the write lands.
+            previous = (
+                await session.execute(
+                    select(annotation_table.label, annotation_table.score).where(
+                        annotation_table.name == published["name"],
+                        target_column == unit.target_rowid,
+                        annotation_table.identifier == unit.identifier,
+                    )
+                )
+            ).first()
+            previous_label = previous.label if previous is not None else None
+            # A span annotation is first-write-wins, so an existing row is left standing
+            # and nothing changed.
+            result_changed = previous is None or (
+                on_conflict is OnConflict.DO_UPDATE
+                and (previous.label != published["label"] or previous.score != published["score"])
+            )
+            inserted_ids = (
+                await session.scalars(
+                    insert_on_conflict(
+                        *records,
+                        table=annotation_table,
+                        dialect=self._db.dialect,
+                        unique_by=unique_by,
+                        on_conflict=on_conflict,
+                    ).returning(annotation_table.id)
+                )
+            ).all()
+
+        async with self._db_phase():
+            if self._db.should_not_insert_or_update:
+                raise OnlineEvalStoragePaused
+            await self._coordinator.publish(
+                work_unit_id=unit.work_unit_id,
+                claimed_by=unit.claimed_by,
+                write=_write_annotations,
+                coverage_watermark=(
+                    _transcript_coverage_watermark(hydrated)
+                    if unit.evaluation_target == "SESSION"
+                    else None
+                ),
+            )
+        # Span duplicates return no id and need no cache invalidation. Session
+        # replacements return their id because the annotation genuinely changed.
+        if self._event_queue is not None and inserted_ids:
+            if unit.evaluation_target == "SPAN":
+                self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
+            else:
+                self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
+        return EvaluationCompleted(
+            work_unit_kind="span" if unit.evaluation_target == "SPAN" else "session",
+            work_unit_id=unit.work_unit_id,
+            project_evaluator_id=unit.project_evaluator_id,
+            evaluator_name=hydrated.annotation_name,
+            name=published["name"],
+            label=published["label"],
+            score=published["score"],
+            result_changed=result_changed,
+            previous_label=previous_label,
+        )
 
     async def _persist_evaluator_traces(self, tracer: Tracer, project_evaluator_id: int) -> None:
         """Write the evaluator's trace, never failing the evaluation over it."""

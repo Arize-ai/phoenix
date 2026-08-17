@@ -1715,3 +1715,4 @@ class TestPgTableSizeStmts:
             await session.execute(sa.text("INSERT INTO not_phoenix VALUES (1)"))
             assert await session.scalar(pg_total_table_size_stmt()) == 0
             assert (await session.execute(pg_table_sizes_stmt())).all() == []
+
