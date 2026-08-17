@@ -1,0 +1,9 @@
+# Rounding 10% of 117 traces up or down gives the same figure, so the answer
+# does not depend on how the agent breaks the tie.
+name: spend-concentration
+task_class: multi-call
+prompt: >-
+  What share of the total trail-gaia bill comes from the most expensive 10% of
+  traces?
+expect:
+  regex: '4[456](\.\d+)?\s*%|0\.4[456]'
