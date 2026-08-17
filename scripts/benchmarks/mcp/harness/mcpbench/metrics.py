@@ -154,11 +154,20 @@ def _payload_error(content: Any) -> Optional[str]:
     return None
 
 
+#: The sandbox reports a raised exception as plain prose rather than as the
+#: structured error a rejected query gets, so the class name is recovered from
+#: the message. Worth separating: `NameError` here is almost always state lost
+#: between calls, not a mistake in the program.
+_RAISED = re.compile(r"Error calling tool '[^']*':\s*([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))")
+
+
 def _error_kind(text: str) -> Optional[str]:
     lowered = text.lower()
     for needle, kind in _SANDBOX_ERRORS:
         if needle in lowered:
             return kind
+    if raised := _RAISED.search(text):
+        return raised.group(1)
     return None
 
 
@@ -257,8 +266,9 @@ class Transcript:
                 name = f"{name}({call.detail})"
             if call.is_error:
                 # Marks a step the run had to recover from, which is otherwise
-                # indistinguishable from deliberately calling the same tool twice.
-                name += "!"
+                # indistinguishable from deliberately calling the same tool
+                # twice. Named where known, since why it failed is the point.
+                name += f"!({call.error_kind})" if call.error_kind else "!"
             # Keyed on the rendered step: two executes calling different
             # operations are different work and must not merge.
             if steps and steps[-1][0] == name:

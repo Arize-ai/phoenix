@@ -133,9 +133,6 @@
 
   .banner { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); }
   .banner.warn { border-color: var(--critical); color: var(--critical); }
-  #panel { display: none; }
-  #panel.live { display: block; }
-  #joblog { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; padding: 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; margin-top: 12px; }
 
   .tooltip {
     position: fixed; pointer-events: none; z-index: 20; opacity: 0;
@@ -202,60 +199,12 @@
       agent does not take the same path twice.</p>
     <p class="prose">What's measured is <strong>tokens</strong>: the text the model has to read
       and write. Tokens are the bill, and there is a hard limit on how many fit at once, so
-      fewer is better — but only if the answer is still right. Every number below counts only
-      runs that answered correctly.</p>
+      fewer is better — but only if the answer is still right, which the status column
+      reports.</p>
     <div id="labels-explained"></div>
   </div>
-
-  <div class="card">
-    <h2>What happened</h2>
-    <div class="verdict" id="verdict"></div>
-  </div>
-
-  <div id="warnings"></div>
-
-  <div class="card" id="panel">
-    <h2>Run the benchmark</h2>
-    <p class="card-note">Served locally, so runs can be started from here. Keys stay
-      in the server's environment and are never sent to this page.</p>
-    <div class="filters">
-      <label>Arms<select id="p-labels" multiple size="3"></select></label>
-      <label>Tasks<select id="p-tasks" multiple size="3"></select></label>
-      <label>Trials<select id="p-trials"></select></label>
-      <label>Cost cap (USD)<select id="p-cap"></select></label>
-      <button id="p-start">Start run</button>
-      <button id="p-cancel" disabled>Cancel</button>
-    </div>
-    <div id="joblog" hidden></div>
-  </div>
-
-  <div class="kpis" id="kpis"></div>
-
-  <div class="card">
-    <h2>Filters</h2>
-    <p class="card-note">Applies to every chart and the table below.</p>
-    <div class="filters">
-      <label>Label<select id="f-label"></select></label>
-      <label>Task class<select id="f-class"></select></label>
-      <label>Metric<select id="f-metric"></select></label>
-      <label>Runs<select id="f-scope"></select></label>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Cost per question</h2>
-    <p class="card-note" id="c1-note"></p>
-    <div class="legend" id="c1-legend"></div>
-    <div class="scroll-x"><svg id="chart1"></svg></div>
-    <div class="hero" id="c1-hero" hidden></div>
-  </div>
-
-  <div class="card">
-    <h2>How the answers were obtained</h2>
-    <p class="card-note" id="tools-note"></p>
-    <div class="scroll-x"><table id="tools-table"></table></div>
-  </div>
 </div>
+
 <div class="tooltip" id="tip"></div>
 
 <script>
@@ -272,19 +221,6 @@ const labelColor = (label) => {
   return i >= 0 && i < LABEL_SLOTS.length ? LABEL_SLOTS[i] : "var(--series-other)";
 };
 
-const METRICS = [
-  ["peak_context_tokens", "Tokens"],
-  ["output_tokens", "Output tokens"],
-  ["thinking_tokens", "Thinking tokens"],
-  ["num_turns", "Turns"],
-  ["n_tool_calls", "Tool calls"],
-  ["n_discovery_calls", "Discovery calls"],
-  ["tool_result_bytes", "Tool result bytes"],
-  ["max_tool_result_bytes", "Largest single result (bytes)"],
-  ["code_bytes", "Code written (bytes)"],
-  ["duration_api_ms", "API duration (ms)"],
-  ["total_cost_usd", "Cost (USD)"],
-];
 
 // Internal vocabulary, translated once. Everything user-facing uses these.
 const CLASS_LABEL = {
@@ -323,13 +259,6 @@ function fmt(n) {
 // keeps the plot filled — rounding 304k straight up would reach 500k and leave
 // two fifths of the width empty.
 const NICE_STEPS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
-function niceMax(v, divisions = 4) {
-  if (!(v > 0)) return 1;
-  const raw = v / divisions;
-  const exp = Math.pow(10, Math.floor(Math.log10(raw)));
-  const step = (NICE_STEPS.find((s) => raw <= s * exp) || 10) * exp;
-  return step * divisions;
-}
 function emptyNote(svg, message) {
   svg.replaceChildren();
   svg.removeAttribute("width"); svg.removeAttribute("height"); svg.removeAttribute("viewBox");
@@ -359,156 +288,24 @@ function el(tag, attrs = {}, text) {
 }
 
 const tip = $("tip");
-function bindTip(node, html) {
-  node.addEventListener("mousemove", (e) => {
-    tip.innerHTML = html;
-    tip.style.opacity = 1;
-    const pad = 14;
-    let x = e.clientX + pad, y = e.clientY + pad;
-    const r = tip.getBoundingClientRect();
-    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - pad;
-    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - pad;
-    tip.style.left = x + "px"; tip.style.top = y + "px";
-  });
-  node.addEventListener("mouseleave", () => (tip.style.opacity = 0));
-}
 
 // ---- state -----------------------------------------------------------------
-const state = { label: "all", cls: "all", metric: "peak_context_tokens", scope: "passing" };
 
-function scopeFilter(r) {
-  if (state.scope === "all") return true;
-  if (r.invalid) return false;
-  return state.scope === "usable" ? true : !(r.graded && !r.passed);
-}
-function selected() {
-  return DATA.runs.filter(
-    (r) => (state.label === "all" || r.label === state.label) &&
-           (state.cls === "all" || r.task_class === state.cls) && scopeFilter(r)
-  );
-}
-const metricLabel = () => (METRICS.find((m) => m[0] === state.metric) || [, state.metric])[1];
 
 // ---- KPI row ---------------------------------------------------------------
-function renderKpis() {
-  const box = $("kpis");
-  box.innerHTML = "";
-  const rows = selected();
-  const labels = uniq(DATA.runs.map((r) => r.label));
+// The control is the label with the cheapest no-work run: whatever it was
+// called, the surface that costs least before any question is the floor the
+// others are measured against. Keyed on a name, this broke silently when the
+// label changed.
 
-  // Fixed surface cost: the noop task asks for no work, so what it spends is the
-  // tool definitions alone. A single number per label -- a stat tile, not a chart.
-  const noop = {};
-  for (const a of labels) {
-    const v = median(DATA.runs.filter((r) => r.label === a && r.task_class === "noop" && !r.invalid)
-                             .map((r) => r.peak_context_tokens));
-    if (v !== null) noop[a] = v;
-  }
-  const base = noop["no-mcp"];
-  for (const a of labels) {
-    if (a === "no-mcp" || noop[a] === undefined) continue;
-    const over = base === undefined ? null : noop[a] - base;
-    box.appendChild(kpi(`<span class="swatch" style="background:${labelColor(a)}"></span>${a} surface`,
-      over === null ? fmt(noop[a]) : "+" + fmt(over),
-      over === null ? "noop tokens" : `tokens over the ${fmt(base)} control floor`));
-  }
-  const graded = rows.filter((r) => r.graded);
-  box.appendChild(kpi("Runs in view", String(rows.length), `${DATA.runs.length} total`));
-  box.appendChild(kpi("Pass rate",
-    graded.length ? Math.round((graded.filter((r) => r.passed).length / graded.length) * 100) + "%" : "–",
-    graded.length ? `${graded.length} graded` : "no task declared an expectation"));
-}
-function kpi(label, value, foot) {
-  const d = document.createElement("div");
-  d.className = "kpi";
-  d.innerHTML = `<div class="k-label">${label}</div><div class="k-value">${value}</div><div class="k-foot">${foot}</div>`;
-  return d;
-}
 
 // ---- cost per question: one row per task, one dot per trial ------------------
 // Individual trials rather than a class median: this data is bimodal within a
 // class, so a median lands where nothing was observed. A log axis keeps the
 // cheap tasks legible against a range spanning three orders of magnitude.
-function renderChart1() {
-  const svg = $("chart1");
-  const hero = $("c1-hero");
-  hero.hidden = true;
-  resetChart(svg);
-
-  const rows = selected();
-  const labels = uniq(rows.map((r) => r.label));
-  legend($("c1-legend"), labels.length > 1 ? labels : []);
-
-  const tasks = uniq(rows.map((r) => r.task));
-  const points = rows
-    .filter((r) => (r[state.metric] || 0) > 0)
-    .map((r) => ({ task: r.task, label: r.label, v: r[state.metric], cls: r.task_class }));
-  if (!points.length) { emptyNote(svg, "No runs match these filters."); return; }
-
-  const spread = tasks
-    .map((t) => { const v = points.filter((p) => p.task === t).map((p) => p.v); return v.length > 1 ? Math.max(...v) / Math.min(...v) : 1; })
-    .reduce((a, b) => Math.max(a, b), 1);
-  const worst = tasks
-    .map((t) => [t, median(points.filter((p) => p.task === t).map((p) => p.v))])
-    .filter(([, m]) => m !== null).sort((a, b) => b[1] - a[1])[0];
-  $("c1-note").textContent =
-    `Each dot is one trial; the tick is the median. ` +
-    (worst ? `${worst[0]} is the most expensive question, and trials of the same question vary up to ${spread.toFixed(1)}x.` : "");
-
-  const ROW = 30, PADL = 168, PADR = 80, PADT = 12, PADB = 34;
-  const H = tasks.length * ROW + PADT + PADB;
-  const W = Math.max(620, PADL + PADR + 420), plotW = W - PADL - PADR;
-  showChart(svg, W, H);
-
-  const lo = Math.min(...points.map((p) => p.v)), hi = Math.max(...points.map((p) => p.v));
-  const l0 = Math.log10(Math.max(lo * 0.7, 1)), l1 = Math.log10(hi * 1.4);
-  const X = (v) => PADL + ((Math.log10(Math.max(v, 1)) - l0) / (l1 - l0)) * plotW;
-
-  for (let e = Math.ceil(l0); e <= Math.floor(l1); e++) {
-    const gx = X(Math.pow(10, e));
-    svg.appendChild(el("line", { x1: gx, y1: PADT, x2: gx, y2: H - PADB, stroke: "var(--grid)", "stroke-width": 1 }));
-    svg.appendChild(el("text", { x: gx, y: H - PADB + 16, class: "axis-label", "text-anchor": "middle" }, fmt(Math.pow(10, e))));
-  }
-
-  tasks.forEach((task, i) => {
-    const y = PADT + i * ROW + ROW / 2;
-    const mine = points.filter((p) => p.task === task);
-    svg.appendChild(el("text", { x: PADL - 12, y: y + 4, class: "tick-label", "text-anchor": "end" }, task));
-    const m = median(mine.map((p) => p.v));
-    if (m !== null) {
-      svg.appendChild(el("line", { x1: X(m), y1: y - 9, x2: X(m), y2: y + 9, stroke: "var(--text-muted)", "stroke-width": 2 }));
-      svg.appendChild(el("text", { x: X(Math.max(...mine.map((p) => p.v))) + 10, y: y + 4, class: "value-label" }, fmt(m)));
-    }
-    for (const p of mine) {
-      const dot = el("circle", { cx: X(p.v), cy: y, r: 5, fill: labelColor(p.label), stroke: "var(--surface-2)", "stroke-width": 2 });
-      svg.appendChild(dot);
-      bindTip(dot, `<b>${p.task}</b><br>${p.label}<br>${metricLabel()}: ${fmt(p.v)}`);
-    }
-  });
-}
 
 // ---- how the answers were obtained -------------------------------------------
-function renderTools() {
-  const t = DATA.tools || {};
-  const rows = t.by_tool || [];
-  if (!rows.length) { $("tools-note").textContent = "No tool calls recorded."; return; }
-  $("tools-note").innerHTML =
-    `<b>${t.total}</b> tool calls, of which <b>${t.discovery}</b> were spent working out which ` +
-    `tools exist. <b>${t.errors}</b> attempts errored and were retried. The largest single ` +
-    `response was <b>${fmt(t.max_bytes)}</b> bytes, the average <b>${fmt(t.avg_bytes)}</b> — ` +
-    `answers came back as summaries rather than raw records.`;
-  $("tools-table").innerHTML =
-    "<thead><tr><th class='txt'>tool</th><th>calls</th><th>errors</th>" +
-    "<th>avg result B</th><th>largest B</th></tr></thead><tbody>" +
-    rows.map((r) => `<tr><td class="txt">${r.tool}</td><td>${r.calls}</td>` +
-      `<td class="${r.errors ? "fail" : ""}">${r.errors}</td>` +
-      `<td>${fmt(r.avg_bytes)}</td><td>${fmt(r.max_bytes)}</td></tr>`).join("") + "</tbody>";
-}
 
-function legend(node, labels) {
-  node.innerHTML = labels.map((a) =>
-    `<span><span class="swatch" style="background:${labelColor(a)}"></span>${a}</span>`).join("");
-}
 
 // ---- table -----------------------------------------------------------------
 // Always one decimal in thousands. The shared formatter drops the decimal above
@@ -534,7 +331,11 @@ const COLS = [
   ["sql_tools", "sql tools", 1],
   ["tool_sequence", "route", 1],
 ];
-let sortKey = "label", sortDir = 1;
+// Sorted by question, not by label: rows arrive grouped by label, and the sort
+// is stable, so each question's labels end up adjacent. Sorting by label instead
+// opens the page on every row of the control -- correct, but a wall of red
+// before the first real result.
+let sortKey = "task", sortDir = 1;
 
 function renderTable() {
   // Deliberately unfiltered: this is the audit view, and the filters that drive
@@ -586,69 +387,6 @@ function renderArmsExplained() {
 // The plain-language conclusion. Everything here is computed, never asserted:
 // with one label or no control there is nothing to compare, and it says so rather
 // than implying a result that was not measured.
-function renderVerdict() {
-  const runs = DATA.runs;
-  const labels = uniq(runs.map((r) => r.label));
-  const questions = uniq(runs.map((r) => r.task)).length;
-  const graded = runs.filter((r) => !r.invalid && r.graded);
-  const ok = graded.filter((r) => r.passed);
-  const bits = [];
-
-  const rate = graded.length ? Math.round((100 * ok.length) / graded.length) : null;
-  bits.push(
-    `<b>${runs.length}</b> run${runs.length === 1 ? "" : "s"} — ${questions} question` +
-    `${questions === 1 ? "" : "s"} across ${labels.length} label${labels.length === 1 ? "" : "s"}` +
-    (rate === null ? ", none with a checkable answer." :
-     `, of which <b>${rate}%</b> were answered correctly.`));
-
-  // Fixed surface cost, as a subtraction against the no-tools control.
-  const noop = {};
-  for (const a of labels) {
-    const v = median(runs.filter((r) => r.label === a && r.task_class === "noop" && !r.invalid)
-                         .map((r) => r.peak_context_tokens));
-    if (v !== null) noop[a] = v;
-  }
-  const base = noop["no-mcp"];
-  if (base !== undefined) {
-    for (const a of labels) {
-      if (a === "no-mcp" || noop[a] === undefined) continue;
-      bits.push(`Before any question is asked, <b>${a}</b> already puts ` +
-        `<b>${fmt(noop[a] - base)} tokens</b> of tool descriptions in front of the model ` +
-        `(${fmt(noop[a])} versus ${fmt(base)} with no tools at all). That is the fixed price ` +
-        `of the surface, paid on every single request.`);
-    }
-  } else if (Object.keys(noop).length) {
-    bits.push(`The <b>no-mcp</b> control did not run, so the fixed cost of each surface ` +
-      `cannot be separated from the cost of answering. Run that label to get the number.`);
-  }
-
-  // Per-question-type comparison, only where there is something to compare.
-  if (labels.length < 2) {
-    bits.push(`Only one label (<b>${labels[0]}</b>) ran, so there is nothing to compare it ` +
-      `against yet. The chart below shows what it cost on each kind of question.`);
-  } else {
-    for (const c of uniq(ok.map((r) => r.task_class))) {
-      if (c === "noop") continue;
-      const per = labels.map((a) => [a, median(ok.filter((r) => r.task_class === c && r.label === a)
-                                                .map((r) => r.peak_context_tokens))])
-                      .filter(([, v]) => v !== null && v > 0);
-      if (per.length < 2) continue;
-      per.sort((x, y) => x[1] - y[1]);
-      const [lo, hi] = [per[0], per[per.length - 1]];
-      bits.push(`On <b>${clsLabel(c).toLowerCase()}</b> questions (${CLASS_HINT[c] || ""}), ` +
-        `<b>${lo[0]}</b> was cheapest at ${fmt(lo[1])} tokens — ` +
-        `<b>${(hi[1] / lo[1]).toFixed(1)}× less</b> than ${hi[0]} at ${fmt(hi[1])}.`);
-    }
-  }
-
-  const trials = Math.max(...labels.map((a) =>
-    Math.max(...uniq(runs.filter((r) => r.label === a).map((r) => r.trial)))));
-  if (trials < 2) {
-    bits.push(`Each question ran <b>once</b>, so these are single observations with no ` +
-      `sense of how much they vary. Re-run with more trials before trusting a gap.`);
-  }
-  $("verdict").innerHTML = "<ul>" + bits.map((b) => `<li>${b}</li>`).join("") + "</ul>";
-}
 
 // The prompts, verbatim, with what each label actually replied.
 function renderTasks() {
@@ -680,32 +418,10 @@ function renderTasks() {
 }
 
 // ---- warnings --------------------------------------------------------------
-function renderWarnings() {
-  const w = $("warnings");
-  w.innerHTML = "";
-  const sandbox = DATA.runs.reduce((s, r) => s + (r.n_sandbox_errors || 0), 0);
-  const invalid = DATA.runs.filter((r) => r.invalid).length;
-  const ungraded = DATA.runs.filter((r) => !r.invalid && !r.graded).length;
-  const add = (cls, html) => { const d = document.createElement("div"); d.className = "banner " + cls; d.innerHTML = html; w.appendChild(d); };
-  // A recovered transient error is a note; only a run-shaping rate is a warning.
-  if (sandbox) {
-    const share = sandbox / Math.max(DATA.runs.length, 1);
-    const s_ = sandbox === 1 ? "" : "s";
-    add(share > 0.1 ? "warn" : "",
-        share > 0.1
-          ? `<b>${sandbox} sandbox error${s_}</b> across ${DATA.runs.length} runs — that rate measures server capacity, not the tool surface.`
-          : `${sandbox} tool call${s_} hit a transient sandbox error; the runs recovered.`);
-  }
-  if (invalid) add("", `${invalid} invalid run(s) excluded from the default view — harness failures, not model failures.`);
-  if (ungraded) add("", `${ungraded} run(s) ungraded: their task declares no expectation, so token cost for them is unconditioned on correctness.`);
-}
 
 // ---- render ----------------------------------------------------------------
-function render() { renderKpis(); renderChart1(); renderTools(); renderTasks(); renderTable(); }
+function render() { renderTasks(); renderTable(); }
 
-function fillSelect(node, opts, value) {
-  node.innerHTML = opts.map(([v, l]) => `<option value="${v}"${v === value ? " selected" : ""}>${l}</option>`).join("");
-}
 
 function init() {
   const m = DATA.meta;
@@ -713,19 +429,9 @@ function init() {
     `${m.run_id} · ${m.model} · ${DATA.runs.length} runs · ${m.created_at}` + (m.phoenix_git_sha ? ` · phoenix ${m.phoenix_git_sha.slice(0, 8)}` : "");
   document.title = `MCP Benchmark · ${m.run_id}`;
 
-  fillSelect($("f-label"), [["all", "all"], ...uniq(DATA.runs.map((r) => r.label)).map((a) => [a, a])], "all");
-  fillSelect($("f-class"), [["all", "all"], ...uniq(DATA.runs.map((r) => r.task_class)).map((c) => [c, c])], "all");
-  fillSelect($("f-metric"), METRICS, state.metric);
-  fillSelect($("f-scope"), [["passing", "passing only"], ["usable", "usable (incl. failed)"], ["all", "all incl. invalid"]], state.scope);
-
-  const bind = (id, key) => $(id).addEventListener("change", (e) => { state[key] = e.target.value; render(); });
-  bind("f-label", "label"); bind("f-class", "cls"); bind("f-metric", "metric"); bind("f-scope", "scope");
 
   renderArmsExplained();
-  renderVerdict();
-  renderWarnings();
   render();
-  initPanel();
 }
 
 // ---- serve mode ------------------------------------------------------------
@@ -734,72 +440,7 @@ function init() {
 // Live updates: only possible when served. A file:// page has nothing to poll,
 // so it stays the snapshot it was written as.
 let pollTimer = null;
-async function pollResults(always) {
-  try {
-    const res = await fetch("api/results", { cache: "no-store" });
-    if (!res.ok) return false;
-    const fresh = await res.json();
-    const changed = fresh.runs.length !== DATA.runs.length ||
-                    JSON.stringify(fresh.runs) !== JSON.stringify(DATA.runs);
-    if (changed) {
-      DATA.runs = fresh.runs; DATA.iterations = fresh.iterations;
-      DATA.tasks = fresh.tasks; DATA.meta = fresh.meta;
-      renderArmsExplained(); renderVerdict(); renderWarnings(); render();
-    }
-    // Keep polling while a run is in flight; otherwise stop after one refresh.
-    if (fresh.running || always) {
-      clearTimeout(pollTimer);
-      pollTimer = setTimeout(() => pollResults(false), fresh.running ? 3000 : 15000);
-    }
-    return true;
-  } catch { return false; }
-}
 
-async function initPanel() {
-  let cfg;
-  try {
-    const res = await fetch("api/config", { cache: "no-store" });
-    if (!res.ok) return;
-    cfg = await res.json();
-  } catch { return; }
-
-  $("panel").classList.add("live");
-  pollResults(true);
-  const labels = $("p-labels"), tasks = $("p-tasks");
-  labels.innerHTML = cfg.labels.map((a) => `<option value="${a}" selected>${a}</option>`).join("");
-  tasks.innerHTML = cfg.tasks.map((t) => `<option value="${t}" selected>${t}</option>`).join("");
-  fillSelect($("p-trials"), [1, 2, 3, 5, 10].map((n) => [n, n + " trial" + (n > 1 ? "s" : "")]), 3);
-  fillSelect($("p-cap"), cfg.cost_caps.map((c) => [c, "$" + c.toFixed(2)]), cfg.default_cap);
-
-  const log = $("joblog");
-  const start = $("p-start"), cancel = $("p-cancel");
-  const picked = (n) => [...n.selectedOptions].map((o) => o.value);
-
-  start.addEventListener("click", async () => {
-    start.disabled = true; log.hidden = false; log.textContent = "starting…\n";
-    const res = await fetch("api/run", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ labels: picked(labels), tasks: picked(tasks), trials: +$("p-trials").value, max_total_usd: +$("p-cap").value }),
-    });
-    if (!res.ok) { log.textContent += "failed: " + (await res.text()) + "\n"; start.disabled = false; return; }
-    cancel.disabled = false;
-    poll();
-  });
-  cancel.addEventListener("click", () => fetch("api/cancel", { method: "POST" }));
-
-  async function poll() {
-    const res = await fetch("api/status", { cache: "no-store" });
-    const s = await res.json();
-    log.textContent = s.lines.join("\n");
-    log.scrollTop = log.scrollHeight;
-    if (s.running) return setTimeout(poll, 1200);
-    start.disabled = false; cancel.disabled = true;
-    log.textContent += "\ndone — reloading with the new results…";
-    setTimeout(() => location.reload(), 1200);
-  }
-  const s = await (await fetch("api/status", { cache: "no-store" })).json();
-  if (s.running) { start.disabled = true; cancel.disabled = false; log.hidden = false; poll(); }
-}
 
 init();
 </script>
