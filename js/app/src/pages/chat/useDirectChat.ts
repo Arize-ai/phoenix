@@ -6,6 +6,7 @@ import {
   downloadBrowserModel,
   getBrowserModelAvailability,
 } from "@phoenix/components/generative/browserAI";
+import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { ChatModelSelection } from "./chatModel";
 import { createChatModel } from "./chatModel";
@@ -113,6 +114,9 @@ export function useDirectChat() {
     setMessages(history);
     setStatus("submitted");
     setError(null);
+    // A superseded run skips its ownsChatState()-guarded cleanup, so a stale
+    // download fraction from a stopped Browser AI turn is cleared here.
+    setDownloadProgress(null);
     /** True while this run still owns the chat state — a newer run or a reset supersedes it. */
     const ownsChatState = () => abortControllerRef.current === controller;
     try {
@@ -134,11 +138,14 @@ export function useDirectChat() {
         ) {
           setDownloadProgress(0);
           try {
-            await downloadBrowserModel((fraction) => {
-              if (ownsChatState()) {
-                setDownloadProgress(fraction);
-              }
-            });
+            await downloadBrowserModel(
+              (fraction) => {
+                if (ownsChatState()) {
+                  setDownloadProgress(fraction);
+                }
+              },
+              { signal: controller.signal }
+            );
           } finally {
             if (ownsChatState()) {
               setDownloadProgress(null);
@@ -169,7 +176,7 @@ export function useDirectChat() {
           streamError = caughtError;
         },
       });
-      const assistantId = crypto.randomUUID();
+      const assistantId = generateUUID();
       let hasStartedStreaming = false;
       for await (const delta of result.textStream) {
         if (controller.signal.aborted) {
@@ -248,10 +255,7 @@ export function useDirectChat() {
       return;
     }
     void run(
-      [
-        ...messages,
-        { id: crypto.randomUUID(), role: "user", content: trimmed },
-      ],
+      [...messages, { id: generateUUID(), role: "user", content: trimmed }],
       selection,
       parameters
     );

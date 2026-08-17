@@ -27,9 +27,7 @@ const CHAT_MODEL_SELECTION_SCHEMA = z.union([
 ]) satisfies z.ZodType<ChatModelSelection>;
 
 /**
- * Reads and validates the last-used chat model from localStorage. The
- * pre-Browser-AI shape was the bare server model; it is still accepted and
- * normalized to a server selection so an existing preference keeps working.
+ * Reads and validates the last-used chat model from localStorage.
  * Returns `null` if nothing is stored or the value fails validation.
  */
 export function getStoredChatModel(): ChatModelSelection | null {
@@ -38,13 +36,8 @@ export function getStoredChatModel(): ChatModelSelection | null {
     if (!raw) {
       return null;
     }
-    const parsed: unknown = JSON.parse(raw);
-    const selection = CHAT_MODEL_SELECTION_SCHEMA.safeParse(parsed);
-    if (selection.success) {
-      return selection.data;
-    }
-    const legacy = CHAT_MODEL_SCHEMA.safeParse(parsed);
-    return legacy.success ? { kind: "server", model: legacy.data } : null;
+    const selection = CHAT_MODEL_SELECTION_SCHEMA.safeParse(JSON.parse(raw));
+    return selection.success ? selection.data : null;
   } catch {
     return null;
   }
