@@ -4,7 +4,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { Button, Card, Flex, Truncate, View } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { UserCell } from "@phoenix/components/table/UserCell";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { useViewerCanModify } from "@phoenix/contexts/ViewerContext";
 import { useTimeFormatters } from "@phoenix/hooks";
 
@@ -130,7 +130,7 @@ export function SettingsAgentSessionsCard({
               {edges.map(({ node }) => (
                 <tr key={node.id}>
                   <td>
-                    <UserCell user={node.user} />
+                    <UserDisplay user={node.user} />
                   </td>
                   <td className="sessions-table__content">
                     <Truncate

@@ -1,15 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { UserCell } from "@phoenix/components/table/UserCell";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 
-const meta: Meta<typeof UserCell> = {
-  title: "Table/UserCell",
-  component: UserCell,
+const meta: Meta<typeof UserDisplay> = {
+  title: "User/UserDisplay",
+  component: UserDisplay,
 };
 
 export default meta;
 
-type Story = StoryObj<typeof UserCell>;
+type Story = StoryObj<typeof UserDisplay>;
 
 export const Default: Story = {
   args: {

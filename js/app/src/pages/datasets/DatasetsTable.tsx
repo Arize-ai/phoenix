@@ -40,7 +40,6 @@ import {
   ColumnOrderingProvider,
   CompactJSONCell,
   useColumnOrder,
-  UserCell,
 } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
@@ -48,6 +47,7 @@ import {
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { useNotifySuccess, useViewerCanModify } from "@phoenix/contexts";
 import { useDatasetsTableContext } from "@phoenix/contexts/DatasetsTableContext";
 import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
@@ -280,7 +280,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "createdBy",
         enableSorting: false,
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
-          <UserCell user={row.original.createdBy} />
+          <UserDisplay user={row.original.createdBy} />
         ),
       },
       {
@@ -294,7 +294,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "updatedBy",
         enableSorting: false,
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
-          <UserCell user={row.original.updatedBy} />
+          <UserDisplay user={row.original.updatedBy} />
         ),
       },
       {

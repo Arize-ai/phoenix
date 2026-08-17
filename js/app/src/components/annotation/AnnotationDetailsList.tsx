@@ -6,7 +6,7 @@ import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationSc
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
-import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { isAnnotatorKind } from "@phoenix/constants";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -136,7 +136,6 @@ function AnnotationDetailsListItem({
   const modifiedTitle = annotation.updatedAt
     ? `Modified: ${new Date(annotation.updatedAt).toLocaleString()}`
     : undefined;
-  const username = annotation.user?.username ?? "system";
   const annotatorKind = annotation.annotatorKind;
 
   return (
@@ -197,16 +196,12 @@ function AnnotationDetailsListItem({
                 </Text>
               </View>
             ) : null}
-            <UserPicture
-              name={annotation.user?.username}
-              profilePictureUrl={annotation.user?.profilePictureUrl}
-              size={16}
+            <UserDisplay
+              user={annotation.user}
+              profilePictureSize={16}
+              maxWidth="160px"
+              color="text-500"
             />
-            <View minWidth={0} maxWidth="160px" flex="0 1 auto">
-              <Truncate maxWidth="100%" title={username}>
-                <Text color="text-500">{username}</Text>
-              </Truncate>
-            </View>
           </Flex>
         </Flex>
         {annotation.explanation ? (

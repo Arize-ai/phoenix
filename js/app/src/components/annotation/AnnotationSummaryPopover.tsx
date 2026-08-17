@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
 import {
@@ -53,6 +53,7 @@ export function AnnotationSummaryPopover({
   showFilterActions?: boolean;
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const prototypicalAnnotation = annotations[0];
   if (!prototypicalAnnotation) {
     return null;
@@ -60,8 +61,13 @@ export function AnnotationSummaryPopover({
 
   return (
     <StopPropagation>
-      <PreviewTrigger>
-        <AriaButton css={annotationSummaryTriggerCSS}>
+      <PreviewTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+        <AriaButton
+          css={annotationSummaryTriggerCSS}
+          // PreviewTrigger handles hover, focus, and long press; add ordinary
+          // press so mouse and touch users can toggle the same popover.
+          onPress={() => setIsOpen((isOpen) => !isOpen)}
+        >
           {children}
           <VisuallyHidden>View annotation details</VisuallyHidden>
         </AriaButton>
