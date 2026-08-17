@@ -55,7 +55,7 @@ _MAX_EDIT_CATCHUP = timedelta(minutes=5)
 class _AnnotationSource:
     """One annotation table, and where this adapter keeps its two positions in it."""
 
-    annotation_kind: models.AnnotationKind
+    annotation_target: models.AnnotationTarget
     evaluation_target: models.EvaluationTarget
     id_column: InstrumentedAttribute[int]
     updated_at_column: InstrumentedAttribute[datetime]
@@ -180,21 +180,21 @@ def _session_annotation_scan() -> Select[Any]:
 # a trace that is in no session drops out of the scan and announces nothing.
 _SOURCES = (
     _AnnotationSource(
-        annotation_kind="span",
+        annotation_target="span",
         evaluation_target="SPAN",
         id_column=models.SpanAnnotation.id,
         updated_at_column=models.SpanAnnotation.updated_at,
         scan=_span_annotation_scan(),
     ),
     _AnnotationSource(
-        annotation_kind="trace",
+        annotation_target="trace",
         evaluation_target="TRACE",
         id_column=models.TraceAnnotation.id,
         updated_at_column=models.TraceAnnotation.updated_at,
         scan=_trace_annotation_scan(),
     ),
     _AnnotationSource(
-        annotation_kind="session",
+        annotation_target="session",
         evaluation_target="SESSION",
         id_column=models.ProjectSessionAnnotation.id,
         updated_at_column=models.ProjectSessionAnnotation.updated_at,
@@ -231,7 +231,7 @@ class AnnotationDeltaAdapter(DaemonTask):
         # The pending observation is a gate, not a position, so it is not persisted:
         # whoever takes the lease next re-reads the high water mark and waits one lag
         # before its first insert walk, which costs latency and never coverage.
-        self._observations: dict[models.AnnotationKind, _Observation] = {}
+        self._observations: dict[models.AnnotationTarget, _Observation] = {}
         self._lease = DatabaseLease(
             db,
             entity=models.EvalWorkLease,
@@ -330,7 +330,7 @@ class AnnotationDeltaAdapter(DaemonTask):
             )
             cursor = await session.scalar(stmt)
         if cursor is None:
-            raise RuntimeError(f"No {source.annotation_kind} annotation cursor to scan from")
+            raise RuntimeError(f"No {source.annotation_target} annotation cursor to scan from")
         return cursor
 
     async def _start_at_the_present(
@@ -378,7 +378,7 @@ class AnnotationDeltaAdapter(DaemonTask):
                 rows = await self._announce(
                     session,
                     source,
-                    edge="updated",
+                    change="updated",
                     stmt=source.scan.where(
                         source.id_column <= cursor.produced_through_id,
                         _after(source, edits_walked_through, cursor.edits_through_id),
@@ -405,7 +405,7 @@ class AnnotationDeltaAdapter(DaemonTask):
             await self._announce(
                 session,
                 source,
-                edge="created",
+                change="created",
                 stmt=source.scan.where(
                     source.id_column > cursor.produced_through_id,
                     source.id_column <= frontier,
@@ -427,24 +427,24 @@ class AnnotationDeltaAdapter(DaemonTask):
         water mark every tick would reset its age instead, and the gate would then never
         open at any tick interval shorter than the lag.
         """
-        observation = self._observations.get(source.annotation_kind)
+        observation = self._observations.get(source.annotation_target)
         if observation is None:
             high_water = await session.scalar(select(func.max(source.id_column)))
             if high_water is None or high_water <= cursor.produced_through_id:
                 return None
             observation = _Observation(high_water_id=high_water, observed_at=now)
-            self._observations[source.annotation_kind] = observation
+            self._observations[source.annotation_target] = observation
         if (now - observation.observed_at).total_seconds() < self._frontier_lag_seconds:
             return None
         if observation.high_water_id <= cursor.produced_through_id:
-            del self._observations[source.annotation_kind]
+            del self._observations[source.annotation_target]
             return None
         frontier = min(
             observation.high_water_id,
             cursor.produced_through_id + _MAX_ANNOTATION_IDS_PER_TICK,
         )
         if frontier == observation.high_water_id:
-            del self._observations[source.annotation_kind]
+            del self._observations[source.annotation_target]
         return frontier
 
     async def _announce(
@@ -452,7 +452,7 @@ class AnnotationDeltaAdapter(DaemonTask):
         session: AsyncSession,
         source: _AnnotationSource,
         *,
-        edge: models.AnnotationEdge,
+        change: models.AnnotationChange,
         stmt: Select[Any],
     ) -> Sequence[Any]:
         """Log every row `stmt` selects, in the order it selects them."""
@@ -461,10 +461,10 @@ class AnnotationDeltaAdapter(DaemonTask):
             await append(
                 session,
                 AnnotationUpserted(
-                    annotation_kind=source.annotation_kind,
+                    annotation_target=source.annotation_target,
                     annotation_id=row.id,
                     target_rowid=row.target_rowid,
-                    edge=edge,
+                    change=change,
                     updated_at=row.updated_at,
                     name=row.name,
                     label=row.label,

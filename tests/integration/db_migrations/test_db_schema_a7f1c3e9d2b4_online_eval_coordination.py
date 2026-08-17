@@ -432,7 +432,7 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
             "ix_project_evaluator_triggers_criteria_id",
-            "ix_project_evaluator_triggers_source_evaluator_id",
+            "ix_project_evaluator_triggers_source_criteria_id",
         }
         constraint_names = {
             "pk_project_evaluator_triggers",
@@ -446,8 +446,8 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
             ),
             "ck_project_evaluator_triggers_`valid_signal_kind`",
             "ck_project_evaluator_triggers_`valid_annotator_kind`",
-            "ck_project_evaluator_triggers_`valid_annotation_edge`",
-            "ck_project_evaluator_triggers_`valid_annotation_kind`",
+            "ck_project_evaluator_triggers_`valid_annotation_change`",
+            "ck_project_evaluator_triggers_`valid_annotation_target`",
             "ck_project_evaluator_triggers_`valid_annotation_predicates`",
             "ck_project_evaluator_triggers_`valid_evaluation_predicates`",
         }
@@ -469,9 +469,9 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
                     "score_below",
                     "score_above",
                     "annotator_kind",
-                    "annotation_edge",
-                    "annotation_kind",
-                    "source_evaluator_id",
+                    "annotation_change",
+                    "annotation_target",
+                    "source_criteria_id",
                     "result_changed_only",
                     "created_at",
                     "updated_at",
@@ -488,9 +488,9 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
                     "score_below",
                     "score_above",
                     "annotator_kind",
-                    "annotation_edge",
-                    "annotation_kind",
-                    "source_evaluator_id",
+                    "annotation_change",
+                    "annotation_target",
+                    "source_criteria_id",
                 }
             ),
         )
@@ -547,7 +547,6 @@ class TestEvaluationRequests(_OnlineEvalSchemaTest):
                     "materialized_by_session_work_unit_id",
                     "requested_at",
                     "requested_by",
-                    "count",
                     "created_at",
                     "updated_at",
                 }

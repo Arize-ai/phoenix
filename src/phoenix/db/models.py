@@ -206,8 +206,8 @@ EvalSessionWorkStatus: TypeAlias = Literal[
 ]
 EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
 EvaluatorSignalKind: TypeAlias = Literal["annotation_upserted", "evaluation_completed"]
-AnnotationEdge: TypeAlias = Literal["created", "updated"]
-AnnotationKind: TypeAlias = Literal["span", "trace", "session"]
+AnnotationChange: TypeAlias = Literal["created", "updated"]
+AnnotationTarget: TypeAlias = Literal["span", "trace", "session"]
 SchedulingOrigin: TypeAlias = Literal["AMBIENT", "RULE", "EXPLICIT"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
@@ -3937,19 +3937,19 @@ class ProjectEvaluatorTrigger(HasId):
             name="valid_annotator_kind",
         ),
     )
-    annotation_edge: Mapped[Optional[AnnotationEdge]] = mapped_column(
+    annotation_change: Mapped[Optional[AnnotationChange]] = mapped_column(
         CheckConstraint(
-            "annotation_edge IN ('created', 'updated')",
-            name="valid_annotation_edge",
+            "annotation_change IN ('created', 'updated')",
+            name="valid_annotation_change",
         ),
     )
-    annotation_kind: Mapped[Optional[AnnotationKind]] = mapped_column(
+    annotation_target: Mapped[Optional[AnnotationTarget]] = mapped_column(
         CheckConstraint(
-            "annotation_kind IN ('span', 'trace', 'session')",
-            name="valid_annotation_kind",
+            "annotation_target IN ('span', 'trace', 'session')",
+            name="valid_annotation_target",
         ),
     )
-    source_evaluator_id: Mapped[Optional[int]] = mapped_column(
+    source_criteria_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
         index=True,
     )
@@ -3965,20 +3965,20 @@ class ProjectEvaluatorTrigger(HasId):
         "ProjectEvaluatorCriteria",
         foreign_keys=[criteria_id],
     )
-    source_evaluator: Mapped[Optional["ProjectEvaluatorCriteria"]] = relationship(
+    source_criteria: Mapped[Optional["ProjectEvaluatorCriteria"]] = relationship(
         "ProjectEvaluatorCriteria",
-        foreign_keys=[source_evaluator_id],
+        foreign_keys=[source_criteria_id],
     )
 
     __table_args__ = (
         CheckConstraint(
             "signal_kind != 'annotation_upserted' OR "
-            "(source_evaluator_id IS NULL AND result_changed_only = false)",
+            "(source_criteria_id IS NULL AND result_changed_only = false)",
             name="valid_annotation_predicates",
         ),
         CheckConstraint(
             "signal_kind != 'evaluation_completed' OR "
-            "(annotator_kind IS NULL AND annotation_edge IS NULL AND annotation_kind IS NULL)",
+            "(annotator_kind IS NULL AND annotation_change IS NULL AND annotation_target IS NULL)",
             name="valid_evaluation_predicates",
         ),
     )
@@ -4017,7 +4017,6 @@ class EvaluationRequest(HasId):
     )
     requested_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     requested_by: Mapped[Optional[str]] = mapped_column(String)
-    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

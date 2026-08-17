@@ -3014,4 +3014,6 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
         )
     assert [request.criteria_id for request in requests] == [downstream_criteria_id]
     (annotation,) = await _session_annotations(db)
-    assert annotation.metadata_["phoenix.online_eval.scheduling_origin"] == "RULE"
+    # Metadata is rendered verbatim to users, so it carries the translated word rather
+    # than the column's own vocabulary.
+    assert annotation.metadata_["phoenix.online_eval.scheduling_origin"] == "TRIGGERED"

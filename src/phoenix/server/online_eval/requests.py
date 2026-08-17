@@ -387,7 +387,6 @@ async def _upsert(
             "requested_generation": pair.count,
             "materialized_generation": 0,
             "force_requested_generation": pair.count if pair.force else 0,
-            "count": pair.count,
             "requested_at": func.now(),
             "requested_by": pair.requested_by,
         }
@@ -445,7 +444,6 @@ def _upsert_set(dialect: SupportedSQLDialect) -> dict[str, Any]:
     return {
         "requested_generation": requested_generation,
         "force_requested_generation": force_requested_generation,
-        "count": models.EvaluationRequest.count + excluded.count,
         "requested_at": excluded.requested_at,
         "requested_by": excluded.requested_by,
         "updated_at": func.now(),

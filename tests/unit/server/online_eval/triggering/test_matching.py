@@ -36,15 +36,15 @@ def _annotation(
     label: Optional[str] = "incorrect",
     score: Optional[float] = None,
     annotator_kind: Optional[str] = "HUMAN",
-    edge: models.AnnotationEdge = "created",
-    annotation_kind: models.AnnotationKind = "span",
+    change: models.AnnotationChange = "created",
+    annotation_target: models.AnnotationTarget = "span",
 ) -> DrainedSignal:
     return _drained(
         AnnotationUpserted(
-            annotation_kind=annotation_kind,
+            annotation_target=annotation_target,
             annotation_id=signal_id,
             target_rowid=signal_id,
-            edge=edge,
+            change=change,
             updated_at=_NOTICED_AT,
             name=name,
             label=label,
@@ -147,11 +147,11 @@ def test_score_bounds_conjoin_and_a_null_score_matches_neither() -> None:
 
 
 def test_annotation_predicates_match_the_edge_the_signal_carries() -> None:
-    signal = _annotation(edge="updated", annotation_kind="session", annotator_kind="LLM")
-    assert match_signals([signal], [_rule(annotation_edge="updated")]) != ()
-    assert match_signals([signal], [_rule(annotation_edge="created")]) == ()
-    assert match_signals([signal], [_rule(annotation_kind="session")]) != ()
-    assert match_signals([signal], [_rule(annotation_kind="span")]) == ()
+    signal = _annotation(change="updated", annotation_target="session", annotator_kind="LLM")
+    assert match_signals([signal], [_rule(annotation_change="updated")]) != ()
+    assert match_signals([signal], [_rule(annotation_change="created")]) == ()
+    assert match_signals([signal], [_rule(annotation_target="session")]) != ()
+    assert match_signals([signal], [_rule(annotation_target="span")]) == ()
     assert match_signals([signal], [_rule(annotator_kind="LLM")]) != ()
     assert match_signals([signal], [_rule(annotator_kind="HUMAN")]) == ()
 
@@ -163,7 +163,7 @@ def test_a_rule_declines_the_verdict_its_own_criteria_authored() -> None:
 
 
 def test_evaluation_predicates_select_the_author_and_the_changed_result() -> None:
-    rule = _rule(criteria_id=100, signal_kind="evaluation_completed", source_evaluator_id=101)
+    rule = _rule(criteria_id=100, signal_kind="evaluation_completed", source_criteria_id=101)
     assert match_signals([_completion(criteria_id=101)], [rule]) != ()
     assert match_signals([_completion(criteria_id=102)], [rule]) == ()
 

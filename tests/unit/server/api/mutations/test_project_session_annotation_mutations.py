@@ -1028,9 +1028,7 @@ async def test_create_session_annotation_refuses_a_reserved_identifier(
         _CREATE_SESSION_ANNOTATION,
         {
             "input": {
-                "projectSessionId": str(
-                    GlobalID("ProjectSession", str(project_session_data.id))
-                ),
+                "projectSessionId": str(GlobalID("ProjectSession", str(project_session_data.id))),
                 "name": "correctness",
                 "label": "correct",
                 "annotatorKind": "HUMAN",

@@ -33,10 +33,10 @@ def session_evaluation_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _annotation(annotation_id: int, *, label: str = "incorrect") -> AnnotationUpserted:
     return AnnotationUpserted(
-        annotation_kind="span",
+        annotation_target="span",
         annotation_id=annotation_id,
         target_rowid=annotation_id,
-        edge="created",
+        change="created",
         updated_at=_NOTICED_AT + timedelta(minutes=annotation_id),
         name="human-review",
         label=label,

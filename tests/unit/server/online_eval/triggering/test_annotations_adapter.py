@@ -105,10 +105,10 @@ async def test_tick_announces_an_upserted_annotation_against_its_session(
     assert signal.project_id == project.id
     assert signal.project_session_rowid == project_session.id
     assert signal.payload == {
-        "annotation_kind": "span",
+        "annotation_target": "span",
         "annotation_id": annotation.id,
         "target_rowid": span.id,
-        "edge": "created",
+        "change": "created",
         "updated_at": (await _updated_at(db, annotation.id)).isoformat(),
         "name": "human-review",
         "label": "incorrect",
@@ -192,7 +192,7 @@ async def test_both_walks_reaching_one_annotation_leave_one_occurrence(
     annotation = await _add_span_annotation(db, span)
     await adapter._tick()
     (announced,) = await _signals(db)
-    assert announced.payload["edge"] == "created"
+    assert announced.payload["change"] == "created"
 
     # Rewind the edit walk behind the annotation so it reaches a row the insert walk has
     # already announced.
@@ -208,7 +208,7 @@ async def test_both_walks_reaching_one_annotation_leave_one_occurrence(
 
     (still_one,) = await _signals(db)
     assert still_one.id == announced.id
-    assert still_one.payload["edge"] == "created"
+    assert still_one.payload["change"] == "created"
 
 
 async def _add_session_annotation(
@@ -253,7 +253,7 @@ async def test_session_annotation_written_by_online_evaluation_is_never_announce
     await adapter._tick()
 
     (signal,) = await _signals(db)
-    assert signal.payload["annotation_kind"] == "session"
+    assert signal.payload["annotation_target"] == "session"
     assert signal.payload["annotation_id"] == user_written.id
     assert signal.project_session_rowid == project_session.id
     # The walk passed the online-eval row rather than leaving it for a later tick, so its
@@ -283,7 +283,7 @@ async def test_edit_window_larger_than_the_row_cap_completes_over_several_ticks(
     await adapter._tick()
     created = await _signals(db)
     assert len(created) == 3
-    assert {signal.payload["edge"] for signal in created} == {"created"}
+    assert {signal.payload["change"] for signal in created} == {"created"}
 
     # One tick can no longer drain the window, so the walk has to resume inside it. The
     # edits share a stamp, which is the ordinary case rather than a contrived one: on
@@ -314,4 +314,4 @@ async def test_edit_window_larger_than_the_row_cap_completes_over_several_ticks(
 
 
 async def _updates(db: DbSessionFactory) -> list[models.EvaluatorSignal]:
-    return [signal for signal in await _signals(db) if signal.payload["edge"] == "updated"]
+    return [signal for signal in await _signals(db) if signal.payload["change"] == "updated"]
