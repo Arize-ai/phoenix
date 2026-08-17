@@ -65,6 +65,27 @@ describe("DSLFilterConditionField validation outcomes", () => {
     expect(onValidationFailed).toHaveBeenLastCalledWith("transport");
   });
 
+  it("keeps the validation error indicator from covering the input", async () => {
+    const errorMessage = "')' was never closed at character 42";
+
+    await renderField({
+      root,
+      value: "condition-invalid",
+      validateCondition: vi.fn().mockResolvedValue({
+        isValid: false,
+        errorMessage,
+      }),
+      onValidationFailed: vi.fn(),
+      validationRetryKey: 0,
+    });
+
+    const badge = container.querySelector(".error-badge");
+    expect(badge?.querySelector(".error-badge__message")).toBeNull();
+    expect(badge?.getAttribute("aria-label")).toBe(
+      `Filter condition error: ${errorMessage}`
+    );
+  });
+
   it("revalidates unchanged text when the retry key advances", async () => {
     const onValidationFailed = vi.fn();
     const validateCondition = vi

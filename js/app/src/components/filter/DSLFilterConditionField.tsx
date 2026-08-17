@@ -444,7 +444,9 @@ export function DSLFilterErrorBadge({
           aria-label={ariaLabel}
         >
           <Icon svg={<Icons.AlertCircle />} color={severity} />
-          <span className="error-badge__message">{badgeMessage}</span>
+          {badgeMessage ? (
+            <span className="error-badge__message">{badgeMessage}</span>
+          ) : null}
         </div>
       </Pressable>
       <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
@@ -470,12 +472,11 @@ export function DSLFilterErrorBadge({
  * `snippets`, `loadCompletions`, and `validateCondition`.
  *
  * The typeahead is the only floating surface the field opens on its own.
- * Validation errors surface passively — an in-field danger badge previewing
- * the (truncated) error once the typed text has settled and been confirmed
- * invalid (intermediate keystrokes are not flagged), whose tooltip shows the
- * full error on hover or focus, plus a red border once the user leaves the
- * field — so an error can never fight the suggestions dropdown for the same
- * space.
+ * Validation errors surface passively — a compact in-field danger indicator
+ * once the typed text has settled and been confirmed invalid (intermediate
+ * keystrokes are not flagged), whose tooltip shows the full error on hover or
+ * focus, plus a red border once the user leaves the field — so an error can
+ * never fight the suggestions dropdown for the same space.
  *
  * The field knows nothing beyond the DSL. Richer behaviors compose in from
  * outside through `extensions` (keymaps), `variant` (prose input in the same
@@ -860,13 +861,13 @@ export function DSLFilterConditionField<
             <DSLFilterErrorBadge
               severity={hasError ? "danger" : "warning"}
               ariaLabel={
-                hasError ? "Filter condition error" : "Filter condition warning"
-              }
-              badgeMessage={
                 hasError
-                  ? errorMessage || "Invalid filter condition"
-                  : warnings[0]
+                  ? `Filter condition error${
+                      errorMessage ? `: ${errorMessage}` : ""
+                    }`
+                  : "Filter condition warning"
               }
+              badgeMessage={hasError ? "" : warnings[0]}
               title={
                 hasError
                   ? "Invalid filter condition"
