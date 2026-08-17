@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d42d8cc34ff0ea40ca15726bcb104da5>>
+ * @generated SignedSource<<98e09211ff7ece1c811bbc1a4dc49736>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
-export type ProjectAnnotationMetricsConfigFragment$data = {
+export type ProjectAnnotationConfigsByNameFragment$data = {
   readonly annotationConfigs: {
     readonly edges: ReadonlyArray<{
       readonly config: {
@@ -28,11 +28,11 @@ export type ProjectAnnotationMetricsConfigFragment$data = {
       };
     }>;
   };
-  readonly " $fragmentType": "ProjectAnnotationMetricsConfigFragment";
+  readonly " $fragmentType": "ProjectAnnotationConfigsByNameFragment";
 };
-export type ProjectAnnotationMetricsConfigFragment$key = {
-  readonly " $data"?: ProjectAnnotationMetricsConfigFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
+export type ProjectAnnotationConfigsByNameFragment$key = {
+  readonly " $data"?: ProjectAnnotationConfigsByNameFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
 };
 
 const node: ReaderFragment = (function(){
@@ -72,7 +72,7 @@ return {
   ],
   "kind": "Fragment",
   "metadata": null,
-  "name": "ProjectAnnotationMetricsConfigFragment",
+  "name": "ProjectAnnotationConfigsByNameFragment",
   "selections": [
     {
       "alias": null,
@@ -205,6 +205,6 @@ return {
 };
 })();
 
-(node as any).hash = "a82fff4a15e2352c9d60726e3b112b63";
+(node as any).hash = "b1c00003a8bedaa32abff3d944e1d7f6";
 
 export default node;

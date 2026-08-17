@@ -7,8 +7,9 @@ import {
   SummaryValueLabelPreview,
   SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
-import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
+import { hasAnnotationValue } from "./annotationUtils";
+import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 import type { Annotation } from "./types";
 
 const annotationLabelCSS = css`
@@ -32,26 +33,26 @@ type AnnotationSummary = {
 export function AnnotationSummaryTokens({
   summaries,
   annotationsByName,
-  categoricalAnnotationConfigsByName,
+  annotationConfigsByName,
   showFilterActions = false,
   renderFilterActions,
 }: {
   summaries: readonly AnnotationSummary[];
   /** Every annotation behind a summary, newest first, keyed by summary name */
   annotationsByName: Record<string, readonly Annotation[] | undefined>;
-  categoricalAnnotationConfigsByName: Record<
-    string,
-    AnnotationConfigCategorical | undefined
-  >;
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
-  /** Grain-specific filter actions rendered in the popover's filters column */
+  /** Grain-specific filter actions rendered for each annotation. */
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   return (
     <>
       {summaries.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name]?.[0];
+        // Explanation-only entries belong in details but cannot represent a token.
+        const latestAnnotation =
+          annotationsByName[summary.name]?.find(hasAnnotationValue);
         const meanScore = summary?.meanScore;
+        const annotationConfig = annotationConfigsByName.get(summary.name);
         if (!latestAnnotation) {
           return null;
         }
@@ -59,7 +60,7 @@ export function AnnotationSummaryTokens({
           <AnnotationSummaryPopover
             key={latestAnnotation.id}
             annotations={annotationsByName[summary.name] ?? []}
-            width="500px"
+            annotationConfig={annotationConfig}
             meanScore={meanScore}
             showFilterActions={showFilterActions}
             renderFilterActions={renderFilterActions}
@@ -68,7 +69,6 @@ export function AnnotationSummaryTokens({
               annotation={latestAnnotation}
               annotationDisplayPreference="none"
               css={annotationLabelCSS}
-              clickable
             >
               {meanScore != null ? (
                 <SummaryValuePreview
@@ -76,9 +76,7 @@ export function AnnotationSummaryTokens({
                   meanScore={meanScore}
                   size="S"
                   disableAnimation
-                  annotationConfig={
-                    categoricalAnnotationConfigsByName[latestAnnotation.name]
-                  }
+                  annotationConfig={annotationConfig}
                 />
               ) : (
                 <SummaryValueLabelPreview

@@ -8,11 +8,11 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   PreformattedTextCell,
   ResizableTable,
-  UserCell,
 } from "@phoenix/components/table";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationDeleteButton } from "@phoenix/components/trace/SpanAnnotationDeleteButton";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { NOTE_ANNOTATION_NAME } from "@phoenix/constants/annotationConstants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import type { NotificationHookParams } from "@phoenix/contexts/NotificationContext";
@@ -88,7 +88,7 @@ function AnnotationsTable({
         // the column actually shows
         accessorFn: (annotation) => annotation.user?.username ?? "",
         size: 140,
-        cell: ({ row }) => <UserCell user={row.original.user} />,
+        cell: ({ row }) => <UserDisplay user={row.original.user} />,
       },
       {
         header: "source",

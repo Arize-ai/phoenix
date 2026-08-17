@@ -41,6 +41,7 @@ import {
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -319,6 +320,7 @@ export function TracesTable(props: TracesTableProps) {
         ) {
           id
           name
+          ...ProjectAnnotationConfigsByNameFragment
           ...SpanColumnSelector_annotations
           ...SpanColumnSelector_traceAnnotations
           rootSpans: spans(
@@ -441,6 +443,7 @@ export function TracesTable(props: TracesTableProps) {
       `,
       props.project
     );
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
@@ -643,6 +646,7 @@ export function TracesTable(props: TracesTableProps) {
             <OverflowRow isExpanded={areRowsExpanded}>
               <AnnotationSummaryGroupTokens
                 span={row.original}
+                annotationConfigsByName={annotationConfigsByName}
                 showFilterActions
                 renderFilterActions={(annotation) => (
                   <TraceSpanAnnotationTooltipFilterActions
@@ -705,6 +709,7 @@ export function TracesTable(props: TracesTableProps) {
               <TraceAnnotationSummaryGroupTokens
                 trace={row.original.trace as RootSpanTrace}
                 showFilterActions
+                annotationConfigsByName={annotationConfigsByName}
               />
             </OverflowRow>
           );
@@ -713,7 +718,12 @@ export function TracesTable(props: TracesTableProps) {
       ...dynamicAnnotationColumns,
       ...dynamicTraceAnnotationColumns,
     ],
-    [areRowsExpanded, dynamicAnnotationColumns, dynamicTraceAnnotationColumns]
+    [
+      annotationConfigsByName,
+      areRowsExpanded,
+      dynamicAnnotationColumns,
+      dynamicTraceAnnotationColumns,
+    ]
   );
 
   const columns: ColumnDef<TableRow>[] = useMemo(

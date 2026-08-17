@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e855df899bc076c32d77250e7ab7ca96>>
+ * @generated SignedSource<<c6661a06ef57ebf69d0f72d354859e78>>
  * @lightSyntaxTransform
  */
 
@@ -87,7 +87,7 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -259,6 +259,11 @@ return {
       "kind": "ScalarField",
       "name": "spanAnnotationNames",
       "storageKey": null
+    },
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "ProjectAnnotationConfigsByNameFragment"
     },
     {
       "args": null,
@@ -629,6 +634,6 @@ return {
 };
 })();
 
-(node as any).hash = "21f75435b9fbc436a63612580f7ceec5";
+(node as any).hash = "170311ad8e4ffb461895c59f263619ae";
 
 export default node;

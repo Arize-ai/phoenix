@@ -36,6 +36,7 @@ import {
 } from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import {
@@ -226,6 +227,7 @@ export function SessionsTable(props: SessionsTableProps) {
         ) {
           id
           name
+          ...ProjectAnnotationConfigsByNameFragment
           ...SessionColumnSelector_annotations
           sessions(
             first: $first
@@ -258,17 +260,6 @@ export function SessionsTable(props: SessionsTableProps) {
                     cost
                   }
                 }
-                sessionAnnotations {
-                  id
-                  name
-                  label
-                  score
-                  annotatorKind
-                  user {
-                    username
-                    profilePictureUrl
-                  }
-                }
                 sessionAnnotationSummaries {
                   labelFractions {
                     fraction
@@ -276,27 +267,6 @@ export function SessionsTable(props: SessionsTableProps) {
                   }
                   meanScore
                   name
-                }
-                project {
-                  id
-                  annotationConfigs {
-                    edges {
-                      node {
-                        ... on AnnotationConfigBase {
-                          annotationType
-                        }
-                        ... on CategoricalAnnotationConfig {
-                          id
-                          name
-                          optimizationDirection
-                          values {
-                            label
-                            score
-                          }
-                        }
-                      }
-                    }
-                  }
                 }
                 ...SessionAnnotationSummaryGroup
               }
@@ -306,6 +276,7 @@ export function SessionsTable(props: SessionsTableProps) {
       `,
       props.project
     );
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const tableData = useMemo(() => {
     return data.sessions.edges.map(({ session }) => ({
       ...session,
@@ -396,7 +367,6 @@ export function SessionsTable(props: SessionsTableProps) {
         </Flex>
       ),
       id: "annotations",
-      accessorKey: "sessionAnnotations",
       enableSorting: false,
       ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {
@@ -405,6 +375,7 @@ export function SessionsTable(props: SessionsTableProps) {
             <SessionAnnotationSummaryGroupTokens
               session={row.original}
               showFilterActions
+              annotationConfigsByName={annotationConfigsByName}
             />
           </OverflowRow>
         );

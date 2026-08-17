@@ -18,7 +18,6 @@ export * from "./PaddedCell";
 export * from "./RowExpandToggleButton";
 export * from "./useTableRowsExpanded";
 export * from "./IndeterminateCheckboxCell";
-export * from "./UserCell";
 
 // Column ordering + selection
 export * from "./columnOrdering";

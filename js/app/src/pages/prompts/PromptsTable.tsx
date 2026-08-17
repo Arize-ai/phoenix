@@ -36,13 +36,13 @@ import {
   ColumnOrderingProvider,
   TextCell,
   useColumnOrder,
-  UserCell,
 } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { useViewerCanModify } from "@phoenix/contexts";
 import { usePromptsTableContext } from "@phoenix/contexts/PromptsTableContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
@@ -370,13 +370,13 @@ export function PromptsTable(props: PromptsTableProps) {
         header: "created by",
         accessorKey: "createdBy",
         enableSorting: false,
-        cell: ({ row }) => <UserCell user={row.original.createdBy} />,
+        cell: ({ row }) => <UserDisplay user={row.original.createdBy} />,
       },
       {
         header: "last updated by",
         accessorKey: "updatedBy",
         enableSorting: false,
-        cell: ({ row }) => <UserCell user={row.original.updatedBy} />,
+        cell: ({ row }) => <UserDisplay user={row.original.updatedBy} />,
       },
       {
         header: "last updated",

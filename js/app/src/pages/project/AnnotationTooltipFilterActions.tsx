@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Token } from "@phoenix/components";
+import { Flex, Icon, Icons, Token } from "@phoenix/components";
 
 import {
   type AnnotationFilterDefinition,
@@ -41,29 +41,39 @@ export function AnnotationTooltipFilterActions(
   }
 
   return (
-    <ul
+    <Flex
       className={className}
-      css={css`
-        display: flex;
-        height: 100%;
-        flex-direction: row;
-        gap: var(--global-dimension-size-100);
-
-        flex-wrap: wrap;
-      `}
+      direction="row"
+      alignItems="center"
+      gap="size-100"
     >
-      {filters.map((filter) => (
-        <li key={filter.filterName}>
-          <Token
-            onPress={() => {
-              onAppendFilterCondition(filter.filterCondition);
-            }}
-          >
-            {filter.filterName}
-          </Token>
-        </li>
-      ))}
-    </ul>
+      <Icon aria-hidden svg={<Icons.ListFilter />} />
+      <ul
+        aria-label="Annotation filters"
+        css={css`
+          display: flex;
+          min-width: 0;
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: var(--global-dimension-size-100);
+          list-style: none;
+          margin: 0;
+          padding: 0;
+        `}
+      >
+        {filters.map((filter) => (
+          <li key={filter.filterName}>
+            <Token
+              onPress={() => {
+                onAppendFilterCondition(filter.filterCondition);
+              }}
+            >
+              {filter.filterName}
+            </Token>
+          </li>
+        ))}
+      </ul>
+    </Flex>
   );
 }
 
