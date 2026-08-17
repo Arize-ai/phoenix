@@ -28,7 +28,11 @@ strawberry.enum(
 )
 strawberry.enum(
     EvaluationRequestBlockingReason,
-    description="Why a requested evaluation has not started yet.",
+    description=(
+        "Why a requested evaluation has not started yet. SESSION_FILTER_NOT_MATCHED means the "
+        "session is outside the evaluator's own filter, so the ask waits for the session to come "
+        "into scope rather than being declined."
+    ),
 )
 
 

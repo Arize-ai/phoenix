@@ -1469,3 +1469,42 @@ async def test_result_committed_during_a_sweep_suppresses_the_requested_insert(
     request = await _request_row(db)
     assert [unit.status for unit in units] == ["DONE"]
     assert request.materialized_generation == 0
+
+
+@pytest.mark.parametrize(
+    "force,expected_work",
+    [(False, []), (True, ["PENDING"])],
+)
+async def test_a_forced_request_passes_the_filter_a_rule_request_waits_behind(
+    db: DbSessionFactory,
+    session_evaluation_enabled: None,
+    force: bool,
+    expected_work: list[str],
+) -> None:
+    """The filter scopes standing demand; forcing overrides scope.
+
+    A rule request for a session the evaluator's filter excludes waits for the session to
+    come into scope, leaving no decision behind. An explicit request is a person naming
+    this session, so it runs regardless.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        filter_condition="session_id == 'no-such-session'",
+    )
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    # The ambient arm declines the pair outright; the request arrives afterwards.
+    assert await _work_statuses(db) == ["FILTERED_OUT"]
+
+    await _request(db, project_session_id, criteria_id, force=force)
+    await sweeper._tick()
+
+    request = await _request_row(db)
+    assert [unit.status for unit in (await _work_units(db))[1:]] == expected_work
+    if force:
+        assert request.materialized_generation == request.requested_generation
+    else:
+        assert request.materialized_generation < request.requested_generation

@@ -1870,12 +1870,16 @@ type EvaluationRequest implements Node {
   projectEvaluator: ProjectEvaluator!
 }
 
-"""Why a requested evaluation has not started yet."""
+"""
+Why a requested evaluation has not started yet. SESSION_FILTER_NOT_MATCHED means the session is outside the evaluator's own filter, so the ask waits for the session to come into scope rather than being declined.
+"""
 enum EvaluationRequestBlockingReason {
   SESSION_ACTIVE
   EVALUATION_IN_PROGRESS
   EVALUATOR_NOT_SCHEDULABLE
   EVALUATOR_VERSION_UNRESOLVED
+  SESSION_FILTER_NOT_MATCHED
+  EVALUATION_CAPACITY_REACHED
 }
 
 """

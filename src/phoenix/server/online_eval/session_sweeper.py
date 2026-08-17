@@ -5,6 +5,13 @@ content is complete and quiet, and it has no terminal evidence yet. On top of th
 unfulfilled evaluation request raises the pair into the rule stratum, and an unfulfilled
 forced generation raises it further into the explicit stratum. Precedence runs explicit
 before rule before ambient, and a pair receives at most one decision per sweep.
+
+Both the ambient and the rule stratum gate on the criteria's own session filter, through
+the same compiled branches: a trigger says when to look and the filter says what is in
+scope. They differ in what a miss means. Ambient sweeping is a scan, so a miss is a
+decision it records and moves on from. A request is standing demand, so a miss leaves it
+unfulfilled with nothing written — the session may satisfy the filter later, and the next
+sweep asks again. The explicit stratum skips the filter: forcing names a session outright.
 """
 
 from __future__ import annotations
@@ -73,7 +80,12 @@ from phoenix.server.online_eval.requests import (
     acknowledge_materialization,
     unfulfilled_requests,
 )
-from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
+from phoenix.server.online_eval.session_policy import (
+    admitted_session_work_count_statement,
+    session_criteria_is_schedulable,
+    session_matches_criteria_filter,
+    session_work_may_still_produce_a_result,
+)
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS,
@@ -83,7 +95,6 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_SWEEP_FAILURES,
     ONLINE_EVAL_SESSION_SWEEP_SUCCESSES,
 )
-from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -234,13 +245,7 @@ def _unfinished_work_exists(criteria_relation: Subquery) -> ColumnElement[bool]:
             unfinished.project_session_rowid == models.ProjectSession.id,
             unfinished.evaluator_id == criteria_relation.c.evaluator_id,
             unfinished.config_fingerprint == criteria_relation.c.config_fingerprint,
-            or_(
-                unfinished.status.in_(("PENDING", "RUNNING")),
-                and_(
-                    unfinished.status == "ERROR",
-                    unfinished.attempts < MAX_ATTEMPTS,
-                ),
-            ),
+            session_work_may_still_produce_a_result(unfinished),
         )
         .correlate(models.ProjectSession, criteria_relation)
         .exists()
@@ -291,6 +296,8 @@ def _triggered_pairs_statement(
     criteria_relation: Subquery,
     database_now: datetime,
     dialect: SupportedSQLDialect,
+    *,
+    filter_matches: Optional[ColumnElement[bool]] = None,
 ) -> Select[Any]:
     """The pairs an unfulfilled evaluation request is asking for.
 
@@ -299,6 +306,14 @@ def _triggered_pairs_statement(
     evaluation. Everything else is braked by an outcome covering the same configuration
     and the same session content, and answers the request by linking that outcome
     instead of scheduling again.
+
+    ``filter_matches`` is the criteria's own session filter, compiled by the caller for
+    the one criterion this statement covers. A rule fires on an occurrence; the filter
+    says which sessions are in scope at all, and a request is the composite of the two.
+    A pair the filter excludes is simply absent here, so its request stays unfulfilled
+    and is re-tested next sweep — a request is intent, not a scan decision, and writing
+    a declined row for it would settle a question the session may yet answer. The
+    explicit stratum passes the gate unconditionally: forcing means forcing.
     """
     pending = unfulfilled_requests().subquery("pending_requests")
     due_at, current_time = _quiet_delay_columns(criteria_relation, database_now, dialect)
@@ -364,8 +379,53 @@ def _triggered_pairs_statement(
             models.ProjectSession.last_span_ingested_at.is_not(None),
             due_at <= current_time,
             ~_unfinished_work_exists(criteria_relation),
+            *(() if filter_matches is None else (or_(forced, filter_matches),)),
         )
     )
+
+
+def _triggered_pairs_relation(
+    criteria: Sequence[_SessionCriteria],
+    database_now: datetime,
+    dialect: SupportedSQLDialect,
+) -> Optional[Select[Any]]:
+    """The rule and explicit strata, batched where they can be and compiled where not.
+
+    Filter conditions compile into structurally different SQL, so a filtered criterion
+    cannot ride the shared relation as a predicate on it. Unfiltered criteria batch into
+    one branch and each filtered criterion gets its own compiled branch, exactly as the
+    ambient arm does; the branches union into one relation the page then orders and
+    limits as a whole.
+    """
+    statements: list[Select[Any]] = []
+    unfiltered = [criterion for criterion in criteria if not criterion.filter_condition]
+    if unfiltered:
+        statements.append(
+            _triggered_pairs_statement(
+                _criteria_relation(unfiltered, dialect, bind_prefix="tc"),
+                database_now,
+                dialect,
+            )
+        )
+    for criterion in criteria:
+        if not criterion.filter_condition:
+            continue
+        statements.append(
+            _triggered_pairs_statement(
+                _criteria_relation([criterion], dialect, bind_prefix="tc"),
+                database_now,
+                dialect,
+                filter_matches=session_matches_criteria_filter(
+                    criterion.filter_condition,
+                    criterion.project_id,
+                ),
+            )
+        )
+    if not statements:
+        return None
+    if len(statements) == 1:
+        return statements[0]
+    return select(union_all(*statements).subquery("triggered_pairs"))
 
 
 def _eligible_pairs_statement(
@@ -472,18 +532,15 @@ def _eligible_pairs_relation(
     for criterion in criteria:
         if not criterion.filter_condition:
             continue
-        filter_matches = models.ProjectSession.id.in_(
-            get_filtered_session_rowids_subquery(
-                criterion.filter_condition,
-                [criterion.project_id],
-            )
-        )
         statements.append(
             _eligible_pairs_statement(
                 _criteria_relation([criterion], dialect),
                 database_now,
                 dialect,
-                filter_matches=filter_matches,
+                filter_matches=session_matches_criteria_filter(
+                    criterion.filter_condition,
+                    criterion.project_id,
+                ),
             )
         )
     if len(statements) == 1:
@@ -497,13 +554,11 @@ def _scheduling_relation(
     dialect: SupportedSQLDialect,
 ) -> Subquery:
     """The three strata as one relation, one row per pair per stratum that claims it."""
-    ambient = _eligible_pairs_relation(criteria, database_now, dialect)
-    triggered = _triggered_pairs_statement(
-        _criteria_relation(criteria, dialect, bind_prefix="tc"),
-        database_now,
-        dialect,
-    )
-    return union_all(select(ambient), triggered).subquery("scheduling_pairs")
+    ambient = select(_eligible_pairs_relation(criteria, database_now, dialect))
+    triggered = _triggered_pairs_relation(criteria, database_now, dialect)
+    if triggered is None:
+        return ambient.subquery("scheduling_pairs")
+    return union_all(ambient, triggered).subquery("scheduling_pairs")
 
 
 @dataclass(frozen=True)
@@ -1145,22 +1200,9 @@ class SessionEvalSweeper(DaemonTask):
         )
 
     async def _admission_budget(self, session: AsyncSession) -> int:
-        outstanding = (
-            select(1)
-            .select_from(models.EvalSessionWorkUnit)
-            .where(
-                or_(
-                    models.EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING")),
-                    and_(
-                        models.EvalSessionWorkUnit.status == "ERROR",
-                        models.EvalSessionWorkUnit.attempts < MAX_ATTEMPTS,
-                    ),
-                )
-            )
-            .limit(self._max_outstanding)
-            .subquery()
+        outstanding_count = (
+            await session.scalar(admitted_session_work_count_statement(self._max_outstanding)) or 0
         )
-        outstanding_count = await session.scalar(select(func.count()).select_from(outstanding)) or 0
         budget = max(0, self._max_outstanding - outstanding_count)
         if budget == 0:
             logger.warning(
