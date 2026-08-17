@@ -1069,26 +1069,29 @@ class OnlineEvalExecutor:
                     )
                 )
             }
-            completions = tuple(
-                EvaluationCompleted(
-                    work_unit_kind="span" if unit.evaluation_target == "SPAN" else "session",
-                    work_unit_id=unit.work_unit_id,
-                    project_evaluator_id=unit.project_evaluator_id,
-                    evaluator_name=hydrated.annotation_name,
-                    name=result["name"],
-                    label=result["label"],
-                    score=result["score"],
-                    # A span annotation is first-write-wins, so an existing row is left
-                    # standing and nothing changed.
-                    result_changed=(previous := previous_by_name.get(result["name"])) is None
-                    or (
-                        on_conflict is OnConflict.DO_UPDATE
-                        and (previous.label != result["label"] or previous.score != result["score"])
-                    ),
-                    previous_label=previous.label if previous is not None else None,
+            announced = []
+            for result in results:
+                previous = previous_by_name.get(result["name"])
+                # A span annotation is first-write-wins, so an existing row is left
+                # standing and nothing changed.
+                changed = previous is None or (
+                    on_conflict is OnConflict.DO_UPDATE
+                    and (previous.label != result["label"] or previous.score != result["score"])
                 )
-                for result in results
-            )
+                announced.append(
+                    EvaluationCompleted(
+                        work_unit_kind="span" if unit.evaluation_target == "SPAN" else "session",
+                        work_unit_id=unit.work_unit_id,
+                        project_evaluator_id=unit.project_evaluator_id,
+                        evaluator_name=hydrated.annotation_name,
+                        name=result["name"],
+                        label=result["label"],
+                        score=result["score"],
+                        result_changed=changed,
+                        previous_label=previous.label if previous is not None else None,
+                    )
+                )
+            completions = tuple(announced)
             inserted_ids = (
                 await session.scalars(
                     insert_on_conflict(

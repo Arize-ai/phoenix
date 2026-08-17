@@ -444,7 +444,7 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
                 db_backend,
             ),
             _constraint_name(
-                "fk_project_evaluator_triggers_source_evaluator_id_project_evaluators",
+                "fk_project_evaluator_triggers_source_project_evaluator_id_project_evaluators",
                 db_backend,
             ),
             "ck_project_evaluator_triggers_`valid_signal_kind`",
