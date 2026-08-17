@@ -13,7 +13,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select, tuple_, update
+from sqlalchemy import delete, insert, literal, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -120,14 +120,14 @@ def _to_trace_data(
 _CURSOR_SEP = "|"
 
 
-def _encode_cursor(trace: models.Trace, sort: str) -> str:
-    """Encode ``trace``'s position under ``sort`` as an opaque token.
+def _encode_cursor(sort_value: Any, rowid: int) -> str:
+    """Encode a row's position in the sort order as an opaque token.
 
-    Carries the sort value and the row id: together, the query's full ordering key.
+    ``sort_value`` must be the value the database emitted for the sort column, not
+    one recomputed in Python: `latency_ms` is rounded in SQL and the two differ.
     """
-    value = trace.latency_ms if sort == "latency_ms" else trace.start_time
-    raw = f"{value.isoformat() if isinstance(value, datetime) else value}{_CURSOR_SEP}{trace.id}"
-    return urlsafe_b64encode(raw.encode()).decode()
+    value = sort_value.isoformat() if isinstance(sort_value, datetime) else sort_value
+    return urlsafe_b64encode(f"{value}{_CURSOR_SEP}{rowid}".encode()).decode()
 
 
 def _decode_cursor(cursor: str, sort: str) -> tuple[Any, int]:
@@ -198,10 +198,12 @@ async def list_project_traces(
         project = await get_project_by_identifier(session, project_identifier)
         project_rowid = project.id
 
-        # Build query with sort order
-        stmt = select(models.Trace).filter(models.Trace.project_rowid == project_rowid)
-
+        # Build query with sort order. The sort column is selected alongside the
+        # entity so the cursor can carry the value the database emitted for it.
         sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
+        stmt = select(models.Trace, sort_col.label("sort_value")).filter(
+            models.Trace.project_rowid == project_rowid
+        )
         if order == "asc":
             stmt = stmt.order_by(sort_col.asc(), models.Trace.id.asc())
         else:
@@ -249,24 +251,25 @@ async def list_project_traces(
             # Keyset predicate over the query's full ordering key: `sort_col` is
             # not unique and the row id does not order the result, so the pair is
             # compared as a tuple.
-            row = tuple_(sort_col, models.Trace.id)
-            bound = tuple_(sort_value, cursor_rowid)
-            stmt = stmt.where(row < bound if order == "desc" else row > bound)
+            key = tuple_(sort_col, models.Trace.id)
+            bound = tuple_(literal(sort_value, sort_col.type), literal(cursor_rowid))
+            stmt = stmt.where(key < bound if order == "desc" else key > bound)
 
         stmt = stmt.limit(limit + 1)
-        traces = (await session.scalars(stmt)).all()
+        rows = (await session.execute(stmt)).all()
 
-        if not traces:
+        if not rows:
             return GetTracesResponseBody(next_cursor=None, data=[])
 
         next_cursor: Optional[str] = None
-        if len(traces) == limit + 1:
+        if len(rows) == limit + 1:
             # `limit + 1` rows were fetched; the extra one belongs to the next
             # page, so the cursor marks the last row of this one.
-            last_trace = traces[-2]
-            next_cursor = _encode_cursor(last_trace, sort)
-            traces = traces[:-1]
+            last_trace, last_sort_value = rows[-2]
+            next_cursor = _encode_cursor(last_sort_value, last_trace.id)
+            rows = rows[:-1]
 
+        traces = [trace for trace, _ in rows]
         trace_rowids = [t.id for t in traces]
 
         # Batch-fetch leaf-LLM token counts (one query per page, not per row)

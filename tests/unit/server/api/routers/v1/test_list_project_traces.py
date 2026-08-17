@@ -577,7 +577,13 @@ class TestListProjectTraces:
         assert trace_data["token_count_total"] == 150
 
 
-async def _insert_traces_out_of_order(db: DbSessionFactory, num_traces: int = 6) -> models.Project:
+#: Trace durations in microseconds, one per inserted trace. Sub-millisecond parts
+#: differ from the rounded `latency_ms` the database emits, and the last two agree
+#: once rounded so the row id has to break the tie.
+_DURATIONS_US = (60_234_567, 120_245_678, 180_267_900, 240_279_011, 300_279_040, 300_279_010)
+
+
+async def _insert_traces_out_of_order(db: DbSessionFactory) -> models.Project:
     """Insert traces whose row ids ascend while their start times descend.
 
     Ingestion order is independent of event time, so row id and a time-based sort
@@ -589,14 +595,14 @@ async def _insert_traces_out_of_order(db: DbSessionFactory, num_traces: int = 6)
         )
         assert project_rowid is not None
         base = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        for i in range(num_traces):
-            start = base + timedelta(hours=num_traces - i)
+        for i, duration_us in enumerate(_DURATIONS_US):
+            start = base + timedelta(hours=len(_DURATIONS_US) - i)
             await session.execute(
                 insert(models.Trace).values(
                     trace_id=token_hex(16),
                     project_rowid=project_rowid,
                     start_time=start,
-                    end_time=start + timedelta(minutes=1 + i),
+                    end_time=start + timedelta(microseconds=duration_us),
                 )
             )
         project = await session.get(models.Project, project_rowid)
@@ -606,12 +612,12 @@ async def _insert_traces_out_of_order(db: DbSessionFactory, num_traces: int = 6)
 
 class TestListProjectTracesKeysetPagination:
     async def _page_all(
-        self, client: httpx.AsyncClient, project: models.Project, **params: object
+        self, client: httpx.AsyncClient, project: models.Project, **params: str | int
     ) -> list[str]:
         seen: list[str] = []
         cursor: Optional[str] = None
         for _ in range(20):  # Bounded so a cursor that fails to advance fails the test.
-            query = {"limit": 2, **params}
+            query: dict[str, str | int] = {"limit": 2, **params}
             if cursor:
                 query["cursor"] = cursor
             response = await client.get(f"v1/projects/{project.name}/traces", params=query)
@@ -626,17 +632,22 @@ class TestListProjectTracesKeysetPagination:
     async def test_pages_do_not_repeat_or_skip_when_id_order_opposes_sort_order(
         self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
     ) -> None:
-        project = await _insert_traces_out_of_order(db, num_traces=6)
+        project = await _insert_traces_out_of_order(db)
+        expected = len(_DURATIONS_US)
         for sort in ("start_time", "latency_ms"):
             for order in ("asc", "desc"):
-                seen = await self._page_all(httpx_client, project, sort=sort, order=order)
-                assert len(seen) == len(set(seen)), f"repeated rows with {sort}/{order}"
-                assert len(seen) == 6, f"skipped rows with {sort}/{order}: got {len(seen)}"
+                for limit in (1, 2):  # limit=1 makes every row a page boundary.
+                    seen = await self._page_all(
+                        httpx_client, project, sort=sort, order=order, limit=limit
+                    )
+                    label = f"{sort}/{order}/limit={limit}"
+                    assert len(seen) == len(set(seen)), f"repeated rows with {label}"
+                    assert len(seen) == expected, f"skipped rows with {label}: got {len(seen)}"
 
     async def test_paged_order_matches_unpaged_order(
         self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
     ) -> None:
-        project = await _insert_traces_out_of_order(db, num_traces=6)
+        project = await _insert_traces_out_of_order(db)
         for sort in ("start_time", "latency_ms"):
             for order in ("asc", "desc"):
                 response = await httpx_client.get(
@@ -652,7 +663,7 @@ class TestListProjectTracesKeysetPagination:
     async def test_cursor_from_another_sort_field_is_rejected(
         self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
     ) -> None:
-        project = await _insert_traces_out_of_order(db, num_traces=6)
+        project = await _insert_traces_out_of_order(db)
         response = await httpx_client.get(
             f"v1/projects/{project.name}/traces", params={"limit": 2, "sort": "start_time"}
         )
