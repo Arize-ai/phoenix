@@ -23,8 +23,8 @@ import {
   Input,
   Label,
   ListBox,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Popover,
   Select,
   SelectItem,
@@ -63,11 +63,11 @@ export function NewProjectButton({
         >
           New Project
         </Button>
-        <ModalOverlay>
-          <Modal>
+        <ViewportModalOverlay>
+          <ViewportModal>
             <NewProjectDialog onProjectCreated={onProjectCreated} />
-          </Modal>
-        </ModalOverlay>
+          </ViewportModal>
+        </ViewportModalOverlay>
       </DialogTrigger>
     </div>
   );

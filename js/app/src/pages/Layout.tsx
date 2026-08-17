@@ -8,9 +8,20 @@ import {
   AgentChatPanel,
   AgentChatTopNavButton,
   AgentChatWidget,
+  ASSISTANT_RAIL_PANEL_ID,
   FloatingAgentChatPanel,
   useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
+import {
+  DrawerPlane,
+  OverlayFrameProvider,
+  useOverlayFrame,
+  ViewportModalPlane,
+  viewportModalInteractionExemptProps,
+  ViewportPortal,
+} from "@phoenix/components/core/overlay";
+import { ToastRegion } from "@phoenix/components/core/toast/ToastRegion";
+import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import {
   AccountMenu,
   Brand,
@@ -29,40 +40,64 @@ import {
 import { GlobalSearch } from "@phoenix/components/search";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
-import {
-  useActiveDrawerWidth,
-  useHasOpenDrawer,
-  useHasOpenModal,
-} from "@phoenix/hooks/useHasOpenModal";
 
 import type { layoutLoaderQuery } from "./__generated__/layoutLoaderQuery.graphql";
 import type { LayoutLoaderData } from "./layoutLoader";
 import { layoutLoaderGql } from "./layoutLoader";
 
 const layoutCSS = css`
-  display: flex;
-  direction: row;
   height: 100vh;
-  overflow: hidden;
+  width: 100vw;
+
+  &[data-has-pinned-rail="false"] {
+    min-width: 400px;
+  }
+
+  &[data-has-pinned-rail="true"] {
+    min-width: 841px;
+  }
 `;
 
-const mainViewCSS = css`
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
+const applicationViewportCSS = css`
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   height: 100%;
   overflow: hidden;
 `;
 
 const layoutContentPanelCSS = css`
-  display: flex;
-  flex-direction: column;
   min-width: 0;
   overflow: hidden;
 `;
 
+const sideNavCellCSS = css`
+  grid-column: 1;
+  grid-row: 1 / 3;
+  min-height: 0;
+`;
+
+const topNavCellCSS = css`
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+`;
+
+const topNavPageControlsCSS = css`
+  display: contents;
+`;
+
+const topNavAssistantControlCSS = css`
+  position: relative;
+  z-index: ${APP_FLOATING_Z_INDEX};
+  flex: none;
+`;
+
 const contentCSS = css`
+  grid-column: 2;
+  grid-row: 2;
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
@@ -74,6 +109,16 @@ const contentCSS = css`
   border-left: 1px solid var(--global-border-color-default);
   border-top: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium) 0 0 0;
+`;
+
+const drawerPlaneCellCSS = css`
+  grid-column: 1 / 3;
+  grid-row: 2;
+`;
+
+const viewportModalPlaneCellCSS = css`
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
 `;
 
 const bottomLinksCSS = css`
@@ -92,7 +137,16 @@ const sideLinksCSS = css`
 `;
 
 export function Layout() {
+  return (
+    <OverlayFrameProvider>
+      <ApplicationFrame />
+    </OverlayFrameProvider>
+  );
+}
+
+function ApplicationFrame() {
   const contentRef = useRef<HTMLDivElement>(null);
+  const frame = useOverlayFrame();
   const { isSideNavExpanded, isSideNavExpansionAllowed, setIsSideNavExpanded } =
     useResponsiveSideNav();
   const isAgentAssistantEnabled = useAssistantAgentEnabled();
@@ -101,70 +155,103 @@ export function Layout() {
   const isAgentFabFloating = useAgentContext(
     (state) => state.fabMode === "floating"
   );
-  const hasOpenModal = useHasOpenModal();
-  const hasOpenDrawer = useHasOpenDrawer();
-  const activeDrawerWidth = useActiveDrawerWidth();
-  const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
   const shouldShowDockedAgentPanel =
-    isAgentAssistantEnabled &&
-    isAgentPanelOpen &&
-    agentPosition === "pinned" &&
-    !shouldForceFloatingAgentPanel;
+    isAgentAssistantEnabled && isAgentPanelOpen && agentPosition === "pinned";
   const shouldShowFloatingAgentPanel =
-    isAgentAssistantEnabled &&
-    isAgentPanelOpen &&
-    (agentPosition === "detached" || shouldForceFloatingAgentPanel);
+    isAgentAssistantEnabled && isAgentPanelOpen && agentPosition === "detached";
   const panelIds = shouldShowDockedAgentPanel
-    ? ["layout-content", "agent-chat"]
+    ? ["layout-content", ASSISTANT_RAIL_PANEL_ID]
     : ["layout-content"];
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "layout-panels",
+    id: "application-frame-panels",
     panelIds,
     storage: localStorage,
   });
 
   return (
     <TopNavActionsProvider>
-      <div css={layoutCSS} data-testid="layout">
+      <div
+        data-testid="layout"
+        data-has-pinned-rail={shouldShowDockedAgentPanel ? "true" : "false"}
+        css={layoutCSS}
+      >
         <NavTitle />
-        <SideNav isExpanded={isSideNavExpanded} />
-        <div css={mainViewCSS}>
-          <Group
-            id="layout-panels"
-            orientation="horizontal"
-            defaultLayout={defaultLayout}
-            onLayoutChanged={onLayoutChanged}
+        <Group
+          id="application-frame-panels"
+          orientation="horizontal"
+          defaultLayout={defaultLayout}
+          onLayoutChanged={onLayoutChanged}
+        >
+          <Panel
+            id="layout-content"
+            css={layoutContentPanelCSS}
+            minSize="400px"
           >
-            <Panel id="layout-content" css={layoutContentPanelCSS}>
-              <TopNavbar rightInset={activeDrawerWidth}>
-                <SideNavToggleButton
-                  isExpanded={isSideNavExpanded}
-                  isDisabled={!isSideNavExpansionAllowed}
-                  onExpandedChange={setIsSideNavExpanded}
-                />
-                <NavBreadcrumb />
-                <TopNavActionsSlot />
-                {isAgentFabFloating ? null : <AgentChatTopNavButton />}
-              </TopNavbar>
-              <div data-testid="content" css={contentCSS} ref={contentRef}>
-                {isAgentFabFloating ? (
-                  <AgentChatWidget boundaryRef={contentRef} />
-                ) : null}
-                {shouldShowFloatingAgentPanel ? (
-                  <FloatingAgentChatPanel
-                    boundaryRef={contentRef}
-                    isForcedFloating={shouldForceFloatingAgentPanel}
-                    layer={hasOpenModal ? "modal" : "content"}
-                  />
-                ) : null}
+            <div
+              data-testid="application-viewport"
+              css={applicationViewportCSS}
+              ref={frame?.setApplicationViewportElement}
+            >
+              <ViewportPortal>
+                <ToastRegion />
+              </ViewportPortal>
+              <div
+                data-testid="application-side-navigation"
+                css={sideNavCellCSS}
+                inert={frame?.isViewportBlocked || undefined}
+                ref={frame?.setSideNavigationElement}
+              >
+                <SideNav isExpanded={isSideNavExpanded} />
+              </div>
+              <div data-testid="application-top-navigation" css={topNavCellCSS}>
+                <TopNavbar>
+                  <div
+                    className="top-navbar__page-controls"
+                    css={topNavPageControlsCSS}
+                    data-testid="application-top-navigation-page-controls"
+                    inert={frame?.isViewportBlocked || undefined}
+                  >
+                    <SideNavToggleButton
+                      isExpanded={isSideNavExpanded}
+                      isDisabled={!isSideNavExpansionAllowed}
+                      onExpandedChange={setIsSideNavExpanded}
+                    />
+                    <NavBreadcrumb />
+                    <TopNavActionsSlot />
+                  </div>
+                  {isAgentFabFloating ? null : (
+                    <div
+                      className="top-navbar__assistant-control"
+                      css={topNavAssistantControlCSS}
+                      {...viewportModalInteractionExemptProps}
+                    >
+                      <AgentChatTopNavButton />
+                    </div>
+                  )}
+                </TopNavbar>
+              </div>
+              <div
+                data-testid="content"
+                css={contentCSS}
+                inert={frame?.isViewportBlocked || undefined}
+                ref={contentRef}
+              >
                 <Suspense fallback={<Loading />}>
                   <Outlet />
                 </Suspense>
               </div>
-            </Panel>
-            {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
-          </Group>
-        </div>
+              <DrawerPlane css={drawerPlaneCellCSS} />
+              <ViewportModalPlane css={viewportModalPlaneCellCSS} />
+            </div>
+            {isAgentFabFloating ? (
+              <AgentChatWidget boundaryRef={contentRef} />
+            ) : null}
+            {shouldShowFloatingAgentPanel ? (
+              <FloatingAgentChatPanel boundaryRef={contentRef} />
+            ) : null}
+          </Panel>
+          {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
+        </Group>
       </div>
     </TopNavActionsProvider>
   );

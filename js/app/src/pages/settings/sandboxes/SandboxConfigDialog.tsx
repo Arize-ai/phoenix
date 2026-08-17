@@ -24,8 +24,8 @@ import {
   Label,
   ListBox,
   ListBoxItem,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   NumberField,
   Popover,
   Select,
@@ -100,8 +100,8 @@ export function SandboxConfigDialogTrigger(
           leadingVisual={<Icon svg={<Icons.Edit />} />}
         />
       )}
-      <ModalOverlay>
-        <Modal size="M">
+      <ViewportModalOverlay>
+        <ViewportModal size="M">
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -132,8 +132,8 @@ export function SandboxConfigDialogTrigger(
               )}
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

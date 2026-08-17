@@ -1,10 +1,31 @@
 import { css, keyframes } from "@emotion/react";
-import type { Ref } from "react";
-import type { PopoverProps } from "react-aria-components";
-import { Popover as AriaPopover } from "react-aria-components";
+import { clsx } from "clsx";
+import type { CSSProperties, MouseEvent, Ref } from "react";
+import { useCallback, useContext } from "react";
+import { mergeProps } from "react-aria";
+import type {
+  PopoverProps as AriaPopoverProps,
+  PopoverRenderProps,
+} from "react-aria-components";
+import {
+  Popover as AriaPopover,
+  OverlayTriggerStateContext,
+  PopoverContext,
+  useSlottedContext,
+} from "react-aria-components";
 
-import { PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
-import { classNames } from "@phoenix/utils/classNames";
+import {
+  OverlayTreeContext,
+  useConsumeOutsidePress,
+  useOverlayTreeNode,
+} from "./outsideInteraction";
+import type { OverlayStackingBand } from "./stacking";
+import {
+  OVERLAY_STACKING_BAND_Z_INDEX,
+  OverlayStackingContext,
+  resolveStackingBand,
+} from "./stacking";
+import { popoverSurfaceCSS } from "./styles";
 
 const popoverSlideKeyframes = keyframes`
  100% {
@@ -21,23 +42,24 @@ const popoverSlideKeyframes = keyframes`
 `;
 
 const popoverCSS = css`
-  box-sizing: border-box;
-  --background-color: var(--global-popover-background-color);
+  ${popoverSurfaceCSS}
+
   transition:
     transform 200ms,
     opacity 200ms;
-  border: 1px solid var(--global-popover-border-color);
-  box-shadow: 0px 8px 16px var(--global-overlay-shadow-color);
-  border-radius: var(--global-rounding-small);
-  background: var(--background-color);
-  color: var(--global-text-color-900);
-  outline: none;
-  z-index: ${PORTALED_OVERLAY_Z_INDEX};
 
   &[data-entering],
   &[data-exiting] {
     transform: var(--origin);
     opacity: 0;
+  }
+
+  &[data-entering] {
+    animation: ${popoverSlideKeyframes} 200ms;
+  }
+
+  &[data-exiting] {
+    animation: ${popoverSlideKeyframes} 200ms reverse ease-in;
   }
 
   .react-aria-OverlayArrow svg {
@@ -95,14 +117,6 @@ const popoverCSS = css`
     }
   }
 
-  &[data-entering] {
-    animation: ${popoverSlideKeyframes} 200ms;
-  }
-
-  &[data-exiting] {
-    animation: ${popoverSlideKeyframes} 200ms reverse ease-in;
-  }
-
   .react-aria-Dialog {
     outline: none;
   }
@@ -112,17 +126,110 @@ const popoverCSS = css`
   }
 `;
 
+type PopoverProps = AriaPopoverProps & {
+  /**
+   * Stacking band for the popover surface, named after the global
+   * `--global-z-index-app-*` tokens. Stacking is orthogonal to modality
+   * (`isNonModal`): pick the band from where the surface belongs in the app's
+   * stacking order, never from its interaction contract. A nested popover is
+   * clamped to at least its parent's band, so a child overlay cannot paint
+   * beneath the overlay that spawned it.
+   */
+  stacking?: OverlayStackingBand;
+  /**
+   * Close this non-modal popover when a pointer interaction starts outside
+   * it, consuming that interaction so the dismissing press cannot also
+   * activate whatever sits beneath. See `useConsumeOutsidePress` for the
+   * full contract (trigger toggling, descendant overlays, consumer
+   * exemptions). Has no effect on modal popovers, which already own outside
+   * interactions.
+   */
+  closeOnInteractOutside?: boolean;
+};
+
+const popoverInteractionBoundaryProps = {
+  // React events bubble through the component tree even when a popover is
+  // portaled. Keep clicks within the overlay from activating trigger ancestors
+  // such as clickable table rows.
+  onClick: (event: MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+  },
+} satisfies Pick<AriaPopoverProps, "onClick">;
+
 function Popover({
   ref,
+  stacking = "app-portaled-overlay",
+  closeOnInteractOutside = false,
+  children,
   ...props
 }: PopoverProps & { ref?: Ref<HTMLDivElement> }) {
+  const inherited = useContext(OverlayStackingContext);
+  const band = resolveStackingBand({ requested: stacking, inherited });
+  const zIndex = OVERLAY_STACKING_BAND_Z_INDEX[band];
+
+  const { tree, elementRef, registerRef } = useOverlayTreeNode(ref);
+
+  const state = useContext(OverlayTriggerStateContext);
+  const popoverContext = useSlottedContext(PopoverContext, props.slot);
+  const triggerRef = props.triggerRef ?? popoverContext?.triggerRef;
+  const consumerShouldCloseOnInteractOutside =
+    props.shouldCloseOnInteractOutside;
+  // React Aria's non-modal popovers close when focus moves outside
+  // (`shouldCloseOnBlur`), and focus returns to the trigger as part of the
+  // very gesture that opens the popover — without a trigger exclusion the
+  // popover can dismiss itself before its opening press completes. Default
+  // the exclusion here; a consumer-provided policy replaces it wholesale.
+  const shouldCloseOnInteractOutside = useCallback(
+    (element: Element) => {
+      if (consumerShouldCloseOnInteractOutside) {
+        return consumerShouldCloseOnInteractOutside(element);
+      }
+      return !triggerRef?.current?.contains(element);
+    },
+    [consumerShouldCloseOnInteractOutside, triggerRef]
+  );
+  // Pointer policy, distinct from the blur policy above: a press on the
+  // popover's own trigger IS consumed (and closes), because that is how a
+  // modal underlay behaves and it is the only close path for triggers that
+  // open on pointerdown (MenuTrigger only ever opens — its toggle-close
+  // came from the modal machinery eating the press). The next press reopens
+  // through the trigger's own handlers since the popover is closed by then.
+  useConsumeOutsidePress({
+    elementRef,
+    isDisabled:
+      !closeOnInteractOutside || props.isNonModal !== true || !state?.isOpen,
+    shouldCloseOnInteractOutside: consumerShouldCloseOnInteractOutside,
+    state,
+    tree,
+  });
+
+  const popoverStyle = props.style;
+  const style =
+    typeof popoverStyle === "function"
+      ? (
+          renderProps: PopoverRenderProps & { defaultStyle: CSSProperties }
+        ) => ({
+          ...popoverStyle(renderProps),
+          zIndex,
+        })
+      : { ...popoverStyle, zIndex };
   return (
     <AriaPopover
-      {...props}
-      ref={ref}
-      className={classNames("popover react-aria-Popover", props.className)}
+      {...mergeProps(props, popoverInteractionBoundaryProps)}
+      shouldCloseOnInteractOutside={shouldCloseOnInteractOutside}
+      ref={registerRef}
+      style={style}
+      className={clsx("popover react-aria-Popover", props.className)}
       css={popoverCSS}
-    />
+    >
+      {(renderProps) => (
+        <OverlayTreeContext.Provider value={tree}>
+          <OverlayStackingContext.Provider value={band}>
+            {typeof children === "function" ? children(renderProps) : children}
+          </OverlayStackingContext.Provider>
+        </OverlayTreeContext.Provider>
+      )}
+    </AriaPopover>
   );
 }
 

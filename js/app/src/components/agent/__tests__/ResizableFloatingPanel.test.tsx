@@ -112,17 +112,13 @@ describe("ResizableFloatingPanel", () => {
   });
 
   function renderResizablePanel({
-    anchorToViewport = false,
     boundaryBounds,
     boundaryRef: providedBoundaryRef,
-    layer = "content",
     onSizeChange = vi.fn(),
     placement = "bottom-end",
   }: {
-    anchorToViewport?: boolean;
     boundaryBounds?: Bounds;
     boundaryRef?: RefObject<HTMLElement | null>;
-    layer?: "content" | "modal";
     onSizeChange?: (size: Size) => void;
     placement?: AgentFabPlacement;
   } = {}) {
@@ -134,9 +130,7 @@ describe("ResizableFloatingPanel", () => {
       const [size, setSize] = useState(() => ({ ...DEFAULT_SIZE }));
       return (
         <ResizableFloatingPanel
-          anchorToViewport={anchorToViewport}
           boundaryRef={boundaryRef}
-          layer={layer}
           minSize={MIN_SIZE}
           placement={placement}
           size={size}
@@ -193,13 +187,6 @@ describe("ResizableFloatingPanel", () => {
     ]);
   });
 
-  it("uses fixed positioning in the modal layer", () => {
-    const { panel } = renderResizablePanel({ layer: "modal" });
-
-    expect(panel.getAttribute("data-layer")).toBe("modal");
-    expect(getComputedStyle(panel).position).toBe("fixed");
-  });
-
   it("places content-layer geometry inside the content boundary", () => {
     const { panel } = renderResizablePanel({
       boundaryBounds: {
@@ -221,56 +208,6 @@ describe("ResizableFloatingPanel", () => {
         "--resizable-floating-panel-y"
       )
     ).toBe("88px");
-  });
-
-  it("uses viewport geometry in the modal layer", () => {
-    const { panel } = renderResizablePanel({
-      boundaryBounds: {
-        height: 850,
-        left: 128,
-        top: 64,
-        width: 960,
-      },
-      layer: "modal",
-      placement: "top-start",
-    });
-
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("24px");
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-y"
-      )
-    ).toBe("24px");
-  });
-
-  it("can anchor content-layer geometry to the viewport when requested", () => {
-    // This escape hatch intentionally ignores a provided boundary. Production
-    // callers should use it only when the matching FAB is also viewport-bound.
-    const { panel } = renderResizablePanel({
-      anchorToViewport: true,
-      boundaryBounds: {
-        height: 850,
-        left: 128,
-        top: 64,
-        width: 960,
-      },
-      placement: "top-start",
-    });
-
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("24px");
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-y"
-      )
-    ).toBe("24px");
   });
 
   it("re-clamps the panel when the viewport changes", () => {

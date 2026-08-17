@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
 
 import {
@@ -16,10 +15,10 @@ import {
   Menu,
   MenuItem,
   MenuTrigger,
-  Modal,
-  ModalOverlay,
   Popover,
   Text,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
@@ -28,19 +27,6 @@ import {
 } from "@phoenix/pages/datasets/DatasetFromFileForm";
 
 import { AddExampleFromScratchForm } from "./AddExampleFromScratchForm";
-
-const dialogCSS = css`
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  height: 100%;
-`;
-
-const contentCSS = css`
-  height: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-`;
 
 enum ExamplesAction {
   UPDATE_FROM_FILE = "update-from-file",
@@ -145,16 +131,19 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
         </Popover>
       </MenuTrigger>
       <DialogTrigger isOpen={isFromFileOpen} onOpenChange={setIsFromFileOpen}>
-        <ModalOverlay isOpen={isFromFileOpen} onOpenChange={setIsFromFileOpen}>
-          <Modal variant="slideover" size="fullscreen">
-            <Dialog css={dialogCSS}>
+        <ViewportModalOverlay
+          isOpen={isFromFileOpen}
+          onOpenChange={setIsFromFileOpen}
+        >
+          <ViewportModal size="fullscreen">
+            <Dialog>
               <DialogHeader>
                 <DialogTitle>Update Dataset From File</DialogTitle>
                 <DialogTitleExtra>
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
-              <DialogContent css={contentCSS}>
+              <DialogContent>
                 <DatasetFromFileForm
                   mode="append"
                   datasetName={datasetName}
@@ -163,13 +152,16 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
                 />
               </DialogContent>
             </Dialog>
-          </Modal>
-        </ModalOverlay>
+          </ViewportModal>
+        </ViewportModalOverlay>
       </DialogTrigger>
       <DialogTrigger isOpen={isManualOpen} onOpenChange={setIsManualOpen}>
-        <ModalOverlay isOpen={isManualOpen} onOpenChange={setIsManualOpen}>
-          <Modal variant="slideover" size="L">
-            <Dialog css={dialogCSS}>
+        <ViewportModalOverlay
+          isOpen={isManualOpen}
+          onOpenChange={setIsManualOpen}
+        >
+          <ViewportModal size="L">
+            <Dialog>
               {({ close }) => (
                 <>
                   <DialogHeader>
@@ -178,7 +170,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
                       <DialogCloseButton slot="close" />
                     </DialogTitleExtra>
                   </DialogHeader>
-                  <DialogContent css={contentCSS}>
+                  <DialogContent>
                     <AddExampleFromScratchForm
                       datasetId={datasetId}
                       onExampleAdded={handleManualExampleAdded}
@@ -188,8 +180,8 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
                 </>
               )}
             </Dialog>
-          </Modal>
-        </ModalOverlay>
+          </ViewportModal>
+        </ViewportModalOverlay>
       </DialogTrigger>
     </>
   );

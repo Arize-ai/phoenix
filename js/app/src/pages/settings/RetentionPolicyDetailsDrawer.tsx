@@ -12,8 +12,10 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
-import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
+import {
+  DRAWER_DEFAULT_MIN_SIZE,
+  useDefaultDrawerSize,
+} from "@phoenix/components/core/overlay";
 import { DEFAULT_RETENTION_POLICY_NAME } from "@phoenix/constants";
 import { useViewerCanManageRetentionPolicy } from "@phoenix/contexts/ViewerContext";
 import type { RetentionPolicyDetailsDrawerQuery } from "@phoenix/pages/settings/__generated__/RetentionPolicyDetailsDrawerQuery.graphql";

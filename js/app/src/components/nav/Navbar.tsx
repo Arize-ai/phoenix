@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { CSSProperties, PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { Pressable } from "react-aria-components";
 import { Link, NavLink as RRNavLink } from "react-router";
 
@@ -16,11 +16,8 @@ import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
 import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
-  --top-nav-right-inset: 0px;
   padding: var(--global-dimension-size-100);
-  padding-right: calc(
-    var(--global-dimension-size-200) + var(--top-nav-right-inset)
-  );
+  padding-right: var(--global-dimension-size-200);
   background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
@@ -38,7 +35,8 @@ const topNavCSS = css`
      crumb links can compress to their ellipsis and right-aligned controls
      (page actions, the PXI button) stay visible when the nav narrows —
      e.g. beside a detail drawer or docked assistant panel. */
-  & > ol {
+  & > ol,
+  & > .top-navbar__page-controls > ol {
     flex: 0 1 auto;
     min-width: 0;
 
@@ -209,22 +207,9 @@ export function Brand() {
   );
 }
 
-type TopNavbarStyle = CSSProperties & {
-  "--top-nav-right-inset": string;
-};
-
-export function TopNavbar({
-  children,
-  rightInset = 0,
-}: {
-  children: ReactNode;
-  rightInset?: number;
-}) {
-  const style: TopNavbarStyle = {
-    "--top-nav-right-inset": `${rightInset}px`,
-  };
+export function TopNavbar({ children }: { children: ReactNode }) {
   return (
-    <nav css={topNavCSS} style={style}>
+    <nav className="top-navbar" css={topNavCSS}>
       {children}
     </nav>
   );
