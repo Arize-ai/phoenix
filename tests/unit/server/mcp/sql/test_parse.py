@@ -474,10 +474,9 @@ class TestCastTargetsAreRestrictedToDataTypes:
     published an index spelling under a heading telling the caller to reproduce
     it exactly, and admission then refused it.
 
-    The `#>>` case is written here with the cast parenthesised, which is the
-    spelling this surface asks for. The unparenthesised form is refused for
-    being ambiguous rather than for its cast target, and is pinned in
-    `TestPathCastAmbiguityIsRefused`.
+    The `#>>` case is written here with the cast parenthesised. The
+    unparenthesised form is admitted too, as a cast of the path rather than of
+    the extraction, and is pinned in `TestPathCastBindsToTheOperandItFollows`.
     """
 
     @pytest.mark.parametrize(
