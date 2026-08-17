@@ -29,6 +29,7 @@ _RUN_KEYS = (
     "thinking_tokens",
     "num_turns",
     "n_tool_calls",
+    "tool_sequence",
     "tool_time_ms",
     "max_tool_time_ms",
     "n_discovery_calls",

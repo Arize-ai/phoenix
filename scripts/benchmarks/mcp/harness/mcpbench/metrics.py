@@ -63,6 +63,9 @@ class ToolCall:
     #: wait in front of it.
     started_at: Optional[float] = None
     ended_at: Optional[float] = None
+    #: What the call was about, for the meta-tools whose name alone says nothing:
+    #: which operations the sandbox invoked, or which schemas were fetched.
+    detail: Optional[str] = None
 
     @property
     def duration_ms(self) -> Optional[int]:
@@ -88,6 +91,30 @@ def _event_time(event: dict[str, Any]) -> Optional[float]:
         return datetime.fromisoformat(stamp.replace("Z", "+00:00")).timestamp()
     except ValueError:
         return None
+
+
+#: Operations the sandbox invokes from inside `execute`. The tool name is always
+#: "execute", so the operation is the only thing that says what a call did.
+_CALL_TOOL = re.compile(r"""call_tool\(\s*['"]([A-Za-z_][A-Za-z0-9_]*)['"]""")
+
+
+def _call_detail(tool_name: str, payload: Any) -> Optional[str]:
+    """What a meta-tool call was about, or ``None`` when the name suffices.
+
+    ``execute`` and ``get_schema`` are pass-throughs: every run is a row of
+    identical names unless the operation underneath is named too.
+    """
+    if not isinstance(payload, dict):
+        return None
+    short = tool_name.split("__")[-1]
+    if short == "execute":
+        names = dict.fromkeys(_CALL_TOOL.findall(str(payload.get("code") or "")))
+        return ",".join(names) or None
+    if short == "get_schema":
+        tools = payload.get("tools")
+        if isinstance(tools, list):
+            return ",".join(str(t) for t in tools) or None
+    return None
 
 
 def _error_kind(text: str) -> Optional[str]:
@@ -178,6 +205,28 @@ class Transcript:
         return max((c.duration_ms or 0 for c in self.tool_calls), default=0)
 
     @property
+    def tool_sequence(self) -> str:
+        """The route the run took, as an ordered list of tool names.
+
+        Consecutive repeats are collapsed to ``name xN``: a run that pages four
+        times reads as one step rather than four identical ones, and the shape
+        of the route -- how much discovery came before the first real call, and
+        whether it went back for more -- stays visible.
+        """
+        steps: list[list[Any]] = []
+        for call in self.tool_calls:
+            name = call.tool_name.split("__")[-1]
+            if call.detail:
+                name = f"{name}({call.detail})"
+            # Keyed on the rendered step: two executes calling different
+            # operations are different work and must not merge.
+            if steps and steps[-1][0] == name:
+                steps[-1][1] += 1
+            else:
+                steps.append([name, 1])
+        return " ⇒ ".join(name if n == 1 else f"{name} x{n}" for name, n in steps)
+
+    @property
     def n_tool_errors(self) -> int:
         return sum(1 for c in self.tool_calls if c.is_error)
 
@@ -239,6 +288,7 @@ def parse_transcript(path: Path) -> Transcript:
                     turn_idx=turn_of_message[message_id],
                     tool_name=str(block.get("name", "")),
                     input_bytes=len(json.dumps(block.get("input"), default=str)),
+                    detail=_call_detail(str(block.get("name", "")), block.get("input")),
                 )
                 transcript.tool_calls.append(call)
                 if use_id := block.get("id"):
@@ -404,6 +454,7 @@ def run_row(transcript: Transcript, *, expect: dict[str, Any]) -> dict[str, Any]
         "total_cost_usd": result.get("total_cost_usd"),
         "thinking_tokens": details.get("thinking_tokens"),
         "n_tool_calls": transcript.n_tool_calls,
+        "tool_sequence": transcript.tool_sequence,
         "n_execute_calls": transcript.n_execute_calls,
         "n_discovery_calls": transcript.n_discovery_calls,
         "tool_time_ms": transcript.tool_time_ms,
@@ -516,6 +567,7 @@ def tool_call_rows(transcript: Transcript) -> list[dict[str, Any]]:
             "is_error": call.is_error,
             "error_kind": call.error_kind,
             "duration_ms": call.duration_ms,
+            "detail": call.detail,
         }
         for call in transcript.tool_calls
     ]

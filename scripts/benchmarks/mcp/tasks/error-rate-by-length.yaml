@@ -1,0 +1,11 @@
+# Buckets are named in the prompt so the answer is reproducible; an agent that
+# chose its own would land on different percentages. Graded on the long-trace
+# rate, which is the half that carries the finding.
+name: error-rate-by-length
+task_class: multi-call
+prompt: >-
+  In trail-gaia, do longer agent runs go wrong more often? Compare traces with
+  fewer than 15 spans against traces with 40 or more, and give each group's
+  error rate as a percentage of its spans.
+expect:
+  regex: '1[45](\.\d+)?\s*%|0\.14\d'
