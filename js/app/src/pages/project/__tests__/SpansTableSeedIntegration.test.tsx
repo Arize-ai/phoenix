@@ -55,7 +55,7 @@ vi.mock("@phoenix/components/datetime", async (importOriginal) => ({
 }));
 
 vi.mock(
-  "@phoenix/pages/project/metrics/useProjectAnnotationConfigsByName",
+  "@phoenix/components/annotation/useProjectAnnotationConfigsByName",
   () => ({
     useProjectAnnotationConfigsByName: () => new Map(),
   })

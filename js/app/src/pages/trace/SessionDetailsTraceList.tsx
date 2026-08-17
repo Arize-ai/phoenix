@@ -37,6 +37,7 @@ import { MessageCopyAction } from "@phoenix/components/ai/message/MessageCopyAct
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -52,7 +53,6 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { useProjectAnnotationConfigsByName } from "@phoenix/pages/project/metrics/useProjectAnnotationConfigsByName";
 import type {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,
@@ -633,7 +633,7 @@ export function SessionDetailsTraceList({
       ) {
         numTraces
         project {
-          ...ProjectAnnotationMetricsConfigFragment
+          ...ProjectAnnotationConfigsByNameFragment
         }
         traces(first: $first, after: $after)
           @connection(key: "SessionDetailsTraceList_traces") {

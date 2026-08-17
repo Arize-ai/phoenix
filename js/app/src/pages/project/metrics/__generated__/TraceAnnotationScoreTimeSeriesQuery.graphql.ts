@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<263d21d22b811533b113258a0418f665>>
+ * @generated SignedSource<<77ea9ac3ab4be0858f3f268da9763c96>>
  * @lightSyntaxTransform
  */
 
@@ -35,7 +35,7 @@ export type TraceAnnotationScoreTimeSeriesQuery$data = {
       }>;
       readonly names: ReadonlyArray<string>;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   };
 };
 export type TraceAnnotationScoreTimeSeriesQuery = {
@@ -199,7 +199,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "ProjectAnnotationMetricsConfigFragment"
+                "name": "ProjectAnnotationConfigsByNameFragment"
               },
               (v5/*:: as any*/)
             ],
@@ -361,16 +361,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9a57817f79539e35d7657f6e890cc1ff",
+    "cacheID": "dc7afcb82421394dc005ad5c690c8024",
     "id": null,
     "metadata": {},
     "name": "TraceAnnotationScoreTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query TraceAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationMetricsConfigFragment\n      traceAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query TraceAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment\n      traceAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "39985f776facb94014cc04426d2580df";
+(node as any).hash = "d2630cbbe15f997266de8e68a5e165ac";
 
 export default node;

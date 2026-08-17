@@ -25,15 +25,8 @@ export function AnnotationLabel({
   annotationDisplayPreference = "score",
   className,
   children,
-  clickable: _clickable,
 }: PropsWithChildren<{
   annotation: Annotation;
-  /**
-   * Override "clickable" detection. By default, clickable will only be true if onClick is provided.
-   * However, you may manually want to set this to true in cases where the annotation is wrapped in a
-   * clickable element (e.g. a dialog trigger, a link, etc).
-   */
-  clickable?: boolean;
   onClick?: () => void;
   /**
    * The preferred value to display in the annotation label.
@@ -46,18 +39,14 @@ export function AnnotationLabel({
   annotationDisplayPreference?: AnnotationDisplayPreference;
   className?: string;
 }>) {
-  const clickable = _clickable ?? typeof onClick == "function";
+  const clickable = typeof onClick === "function";
   return (
     <div
       role={clickable ? "button" : undefined}
       data-clickable={clickable}
       className={className}
       css={css(baseAnnotationLabelCSS)}
-      aria-label={
-        clickable
-          ? "Click to view the annotation trace"
-          : `Annotation: ${annotation.name}`
-      }
+      aria-label={clickable ? "Click to view the annotation trace" : undefined}
       onClick={(e) => {
         if (onClick) {
           e.stopPropagation();

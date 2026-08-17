@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba3412995c291194bc52e0fbaa3ab8c2>>
+ * @generated SignedSource<<df6c98fcdbd689ad35874c7373806592>>
  * @lightSyntaxTransform
  */
 
@@ -292,8 +292,20 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": null,
-                        "args": null,
+                        "alias": "summarySessionAnnotationSummaries",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "filter",
+                            "value": {
+                              "exclude": {
+                                "names": [
+                                  "note"
+                                ]
+                              }
+                            }
+                          }
+                        ],
                         "concreteType": "AnnotationSummary",
                         "kind": "LinkedField",
                         "name": "sessionAnnotationSummaries",
@@ -348,7 +360,7 @@ return {
                           },
                           (v4/*:: as any*/)
                         ],
-                        "storageKey": null
+                        "storageKey": "sessionAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                       }
                     ],
                     "type": "ProjectSession",
@@ -366,12 +378,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d0f2694e5357297bcddbc8aec7f41f26",
+    "cacheID": "2b6738945d90b06fe4896700322bf73c",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationsEditorCreateAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation SessionAnnotationsEditorCreateAnnotationMutation(\n  $input: CreateProjectSessionAnnotationInput!\n  $sessionId: ID!\n) {\n  createProjectSessionAnnotations(input: $input) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SessionAnnotationsEditorCreateAnnotationMutation(\n  $input: CreateProjectSessionAnnotationInput!\n  $sessionId: ID!\n) {\n  createProjectSessionAnnotations(input: $input) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f2318542f7b7d0370a05d606ae18348>>
+ * @generated SignedSource<<4d9ed469de7933134f703f33380a2801>>
  * @lightSyntaxTransform
  */
 
@@ -8,24 +8,8 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type SessionAnnotationSummaryValueFragment$data = {
-  readonly annotationConfigs: {
-    readonly edges: ReadonlyArray<{
-      readonly node: {
-        readonly annotationType?: AnnotationType;
-        readonly id?: string;
-        readonly name?: string;
-        readonly optimizationDirection?: OptimizationDirection;
-        readonly values?: ReadonlyArray<{
-          readonly label: string;
-          readonly score: number | null;
-        }>;
-      };
-    }>;
-  };
   readonly id: string;
   readonly sessionAnnotationSummary: {
     readonly count: number;
@@ -38,6 +22,7 @@ export type SessionAnnotationSummaryValueFragment$data = {
     readonly name: string;
     readonly scoreCount: number;
   } | null;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   readonly " $fragmentType": "SessionAnnotationSummaryValueFragment";
 };
 export type SessionAnnotationSummaryValueFragment$key = {
@@ -47,36 +32,7 @@ export type SessionAnnotationSummaryValueFragment$key = {
 
 import SessionAnnotationSummaryValueQuery_graphql from './SessionAnnotationSummaryValueQuery.graphql';
 
-const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "annotationType",
-  "storageKey": null
-},
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "label",
-  "storageKey": null
-};
-return {
+const node: ReaderFragment = {
   "argumentDefinitions": [
     {
       "defaultValue": null,
@@ -111,81 +67,26 @@ return {
   "name": "SessionAnnotationSummaryValueFragment",
   "selections": [
     {
-      "alias": null,
-      "args": null,
-      "concreteType": "AnnotationConfigConnection",
-      "kind": "LinkedField",
-      "name": "annotationConfigs",
-      "plural": false,
-      "selections": [
+      "args": [
         {
-          "alias": null,
-          "args": null,
-          "concreteType": "AnnotationConfigEdge",
-          "kind": "LinkedField",
-          "name": "edges",
-          "plural": true,
-          "selections": [
+          "items": [
             {
-              "alias": null,
-              "args": null,
-              "concreteType": null,
-              "kind": "LinkedField",
-              "name": "node",
-              "plural": false,
-              "selections": [
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v0/*:: as any*/)
-                  ],
-                  "type": "AnnotationConfigBase",
-                  "abstractKey": "__isAnnotationConfigBase"
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v0/*:: as any*/),
-                    (v1/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "optimizationDirection",
-                      "storageKey": null
-                    },
-                    (v2/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "CategoricalAnnotationValue",
-                      "kind": "LinkedField",
-                      "name": "values",
-                      "plural": true,
-                      "selections": [
-                        (v3/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "score",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "CategoricalAnnotationConfig",
-                  "abstractKey": null
-                }
-              ],
-              "storageKey": null
+              "kind": "Variable",
+              "name": "annotationConfigNames.0",
+              "variableName": "annotationName"
             }
           ],
-          "storageKey": null
+          "kind": "ListValue",
+          "name": "annotationConfigNames"
+        },
+        {
+          "kind": "Literal",
+          "name": "first",
+          "value": 1
         }
       ],
-      "storageKey": null
+      "kind": "FragmentSpread",
+      "name": "ProjectAnnotationConfigsByNameFragment"
     },
     {
       "alias": null,
@@ -211,7 +112,13 @@ return {
       "name": "sessionAnnotationSummary",
       "plural": false,
       "selections": [
-        (v2/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        },
         {
           "alias": null,
           "args": null,
@@ -241,7 +148,13 @@ return {
           "name": "labelFractions",
           "plural": true,
           "selections": [
-            (v3/*:: as any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "label",
+              "storageKey": null
+            },
             {
               "alias": null,
               "args": null,
@@ -262,13 +175,18 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*:: as any*/)
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
+    }
   ],
   "type": "Project",
   "abstractKey": null
 };
-})();
 
-(node as any).hash = "93b73a746a593b64f93a918940c33105";
+(node as any).hash = "8a5673e6c928514bf1d150f1ce5d2e07";
 
 export default node;

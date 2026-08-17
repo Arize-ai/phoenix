@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4d128bfd72320e1170ab5906e0f54823>>
+ * @generated SignedSource<<d51a335758a798482bde60635c88db23>>
  * @lightSyntaxTransform
  */
 
@@ -179,7 +179,33 @@ v20 = [
     "name": "truncatedValue",
     "storageKey": null
   }
-];
+],
+v21 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "LabelFraction",
+  "kind": "LinkedField",
+  "name": "labelFractions",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "fraction",
+      "storageKey": null
+    },
+    (v15/*:: as any*/)
+  ],
+  "storageKey": null
+},
+v22 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "meanScore",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -520,6 +546,20 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "AnnotationSummary",
+                            "kind": "LinkedField",
+                            "name": "sessionAnnotationSummaries",
+                            "plural": true,
+                            "selections": [
+                              (v21/*:: as any*/),
+                              (v22/*:: as any*/),
+                              (v13/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "ProjectSessionAnnotation",
                             "kind": "LinkedField",
                             "name": "sessionAnnotations",
@@ -553,6 +593,13 @@ return {
                               {
                                 "alias": null,
                                 "args": null,
+                                "kind": "ScalarField",
+                                "name": "updatedAt",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
                                 "concreteType": "User",
                                 "kind": "LinkedField",
                                 "name": "user",
@@ -575,52 +622,30 @@ return {
                                   (v12/*:: as any*/)
                                 ],
                                 "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "updatedAt",
-                                "storageKey": null
                               }
                             ],
                             "storageKey": null
                           },
                           {
-                            "alias": null,
-                            "args": null,
+                            "alias": "summarySessionAnnotationSummaries",
+                            "args": [
+                              {
+                                "kind": "Literal",
+                                "name": "filter",
+                                "value": {
+                                  "exclude": {
+                                    "names": [
+                                      "note"
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
                             "concreteType": "AnnotationSummary",
                             "kind": "LinkedField",
                             "name": "sessionAnnotationSummaries",
                             "plural": true,
                             "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "LabelFraction",
-                                "kind": "LinkedField",
-                                "name": "labelFractions",
-                                "plural": true,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "fraction",
-                                    "storageKey": null
-                                  },
-                                  (v15/*:: as any*/)
-                                ],
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "meanScore",
-                                "storageKey": null
-                              },
-                              (v13/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -641,9 +666,12 @@ return {
                                 "kind": "ScalarField",
                                 "name": "labelCount",
                                 "storageKey": null
-                              }
+                              },
+                              (v21/*:: as any*/),
+                              (v22/*:: as any*/),
+                              (v13/*:: as any*/)
                             ],
-                            "storageKey": null
+                            "storageKey": "sessionAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                           }
                         ],
                         "storageKey": null
@@ -722,16 +750,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d334058db60390c9f63c56a5736d3169",
+    "cacheID": "110937b40054d54b5aad56c2c9d494f6",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $sessionFilterCondition: String = null\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2tSkrj\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_2tSkrj on Project {\n  id\n  name\n  ...ProjectAnnotationMetricsConfigFragment\n  ...SessionColumnSelector_annotations\n  sessions(first: $first, after: $after, sort: $sort, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        sessionAnnotations {\n          id\n          name\n          label\n          score\n          explanation\n          annotatorKind\n          createdAt\n          user {\n            username\n            profilePictureUrl\n            id\n          }\n        }\n        sessionAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $sessionFilterCondition: String = null\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2tSkrj\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionColumnSelector_annotations on Project {\n  sessionAnnotationNames\n}\n\nfragment SessionsTable_sessions_2tSkrj on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SessionColumnSelector_annotations\n  sessions(first: $first, after: $after, sort: $sort, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        userId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value: truncatedValue\n        }\n        lastOutput {\n          value: truncatedValue\n        }\n        tokenUsage {\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n        costSummary {\n          total {\n            cost\n          }\n        }\n        sessionAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        ...SessionAnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8bb998a55d17befc2a3f9f7ec64ade0b";
+(node as any).hash = "f33ec2c199cfb4626662d26d4e020f3a";
 
 export default node;

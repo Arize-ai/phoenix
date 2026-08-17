@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f4fc844cd9046b03463a5f7d35415427>>
+ * @generated SignedSource<<822783fe6ff84f7d44b72a9be64cdab1>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,6 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type SessionsTable_sessions$data = {
   readonly id: string;
@@ -38,19 +37,6 @@ export type SessionsTable_sessions$data = {
           readonly meanScore: number | null;
           readonly name: string;
         }>;
-        readonly sessionAnnotations: ReadonlyArray<{
-          readonly annotatorKind: AnnotatorKind;
-          readonly createdAt: string;
-          readonly explanation: string | null;
-          readonly id: string;
-          readonly label: string | null;
-          readonly name: string;
-          readonly score: number | null;
-          readonly user: {
-            readonly profilePictureUrl: string | null;
-            readonly username: string;
-          } | null;
-        }>;
         readonly sessionId: string;
         readonly startTime: string;
         readonly tokenUsage: {
@@ -63,7 +49,7 @@ export type SessionsTable_sessions$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment" | "SessionColumnSelector_annotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SessionColumnSelector_annotations">;
   readonly " $fragmentType": "SessionsTable_sessions";
 };
 export type SessionsTable_sessions$key = {
@@ -99,14 +85,7 @@ v3 = [
     "name": "truncatedValue",
     "storageKey": null
   }
-],
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "label",
-  "storageKey": null
-};
+];
 return {
   "argumentDefinitions": [
     {
@@ -173,7 +152,7 @@ return {
     {
       "args": null,
       "kind": "FragmentSpread",
-      "name": "ProjectAnnotationMetricsConfigFragment"
+      "name": "ProjectAnnotationConfigsByNameFragment"
     },
     {
       "args": null,
@@ -352,73 +331,6 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "ProjectSessionAnnotation",
-                  "kind": "LinkedField",
-                  "name": "sessionAnnotations",
-                  "plural": true,
-                  "selections": [
-                    (v1/*:: as any*/),
-                    (v2/*:: as any*/),
-                    (v4/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "score",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "explanation",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "annotatorKind",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "createdAt",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "User",
-                      "kind": "LinkedField",
-                      "name": "user",
-                      "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "username",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "profilePictureUrl",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
                   "concreteType": "AnnotationSummary",
                   "kind": "LinkedField",
                   "name": "sessionAnnotationSummaries",
@@ -439,7 +351,13 @@ return {
                           "name": "fraction",
                           "storageKey": null
                         },
-                        (v4/*:: as any*/)
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "label",
+                          "storageKey": null
+                        }
                       ],
                       "storageKey": null
                     },
@@ -524,6 +442,6 @@ return {
 };
 })();
 
-(node as any).hash = "8bb998a55d17befc2a3f9f7ec64ade0b";
+(node as any).hash = "f33ec2c199cfb4626662d26d4e020f3a";
 
 export default node;

@@ -36,6 +36,7 @@ import {
 } from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
 import {
@@ -49,7 +50,6 @@ import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
-import { useProjectAnnotationConfigsByName } from "@phoenix/pages/project/metrics/useProjectAnnotationConfigsByName";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -227,7 +227,7 @@ export function SessionsTable(props: SessionsTableProps) {
         ) {
           id
           name
-          ...ProjectAnnotationMetricsConfigFragment
+          ...ProjectAnnotationConfigsByNameFragment
           ...SessionColumnSelector_annotations
           sessions(
             first: $first
@@ -258,19 +258,6 @@ export function SessionsTable(props: SessionsTableProps) {
                 costSummary {
                   total {
                     cost
-                  }
-                }
-                sessionAnnotations {
-                  id
-                  name
-                  label
-                  score
-                  explanation
-                  annotatorKind
-                  createdAt
-                  user {
-                    username
-                    profilePictureUrl
                   }
                 }
                 sessionAnnotationSummaries {
@@ -380,7 +367,6 @@ export function SessionsTable(props: SessionsTableProps) {
         </Flex>
       ),
       id: "annotations",
-      accessorKey: "sessionAnnotations",
       enableSorting: false,
       ...ANNOTATION_COLUMN_SIZING,
       cell: ({ row }) => {

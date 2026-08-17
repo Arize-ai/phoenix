@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c7480b4f07f1d7393601c51ac529bec3>>
+ * @generated SignedSource<<2168b1370e5fcd40b17af20f198cb370>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,7 @@ export type SpanAnnotationsCardSummaryQuery$variables = {
 export type SpanAnnotationsCardSummaryQuery$data = {
   readonly span: {
     readonly project?: {
-      readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
+      readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
     };
     readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
   };
@@ -95,7 +95,20 @@ v9 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v10 = [
+  {
+    "kind": "Literal",
+    "name": "filter",
+    "value": {
+      "exclude": {
+        "names": [
+          "note"
+        ]
+      }
+    }
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -125,7 +138,7 @@ return {
                   {
                     "args": null,
                     "kind": "FragmentSpread",
-                    "name": "ProjectAnnotationMetricsConfigFragment"
+                    "name": "ProjectAnnotationConfigsByNameFragment"
                   }
                 ],
                 "storageKey": null
@@ -288,8 +301,8 @@ return {
                 "storageKey": null
               },
               {
-                "alias": null,
-                "args": null,
+                "alias": "summarySpanAnnotations",
+                "args": (v10/*:: as any*/),
                 "concreteType": "SpanAnnotation",
                 "kind": "LinkedField",
                 "name": "spanAnnotations",
@@ -354,11 +367,11 @@ return {
                     "storageKey": null
                   }
                 ],
-                "storageKey": null
+                "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
               },
               {
-                "alias": null,
-                "args": null,
+                "alias": "summarySpanAnnotationSummaries",
+                "args": (v10/*:: as any*/),
                 "concreteType": "AnnotationSummary",
                 "kind": "LinkedField",
                 "name": "spanAnnotationSummaries",
@@ -392,7 +405,7 @@ return {
                   },
                   (v3/*:: as any*/)
                 ],
-                "storageKey": null
+                "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
               }
             ],
             "type": "Span",
@@ -405,16 +418,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2fabff2a058c484691892931c117fd65",
+    "cacheID": "14624c3a54d5ecbbae799f6e28b636c1",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsCardSummaryQuery",
     "operationKind": "query",
-    "text": "query SpanAnnotationsCardSummaryQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      project {\n        ...ProjectAnnotationMetricsConfigFragment\n        id\n      }\n      ...AnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query SpanAnnotationsCardSummaryQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      project {\n        ...ProjectAnnotationConfigsByNameFragment\n        id\n      }\n      ...AnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "40bc733913ec6447ab6e6fb3affc8fb3";
+(node as any).hash = "dedda6fafb615a4907590454bfb2d9fc";
 
 export default node;

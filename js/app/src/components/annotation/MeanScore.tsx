@@ -25,13 +25,13 @@ export const MeanScore = ({
   }
   return (
     <Text {...props}>
-      <span aria-label="mean score">μ&nbsp;</span>
       <AnnotationScoreText
         elementType="span"
         fontFamily="mono"
         positiveOptimization={positiveOptimization}
         size={props.size}
       >
+        <span aria-label="mean score">μ</span>&nbsp;
         {formatFloat(value)}
       </AnnotationScoreText>
     </Text>

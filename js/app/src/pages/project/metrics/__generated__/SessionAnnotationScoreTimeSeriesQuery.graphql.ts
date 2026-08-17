@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8c1134f1a2fd5bbae47f3c73eddbe901>>
+ * @generated SignedSource<<3754079def46bbb676fe3917614686f1>>
  * @lightSyntaxTransform
  */
 
@@ -35,7 +35,7 @@ export type SessionAnnotationScoreTimeSeriesQuery$data = {
       }>;
       readonly names: ReadonlyArray<string>;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   };
 };
 export type SessionAnnotationScoreTimeSeriesQuery = {
@@ -199,7 +199,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "ProjectAnnotationMetricsConfigFragment"
+                "name": "ProjectAnnotationConfigsByNameFragment"
               },
               (v5/*:: as any*/)
             ],
@@ -361,16 +361,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f54b8c8630396df7377c073e20872551",
+    "cacheID": "14dd47c618923099664cce642b4ac61a",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationScoreTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query SessionAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationMetricsConfigFragment\n      sessionAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query SessionAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment\n      sessionAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e35b9c1d8f44bc2c65f9ffed502fbbd5";
+(node as any).hash = "e180239afdea4e648eba774d7d084424";
 
 export default node;

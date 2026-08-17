@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b4c02931002fd3d3e60a789b37f9ea2c>>
+ * @generated SignedSource<<2cf3639f931a56df8302b9da5f11e712>>
  * @lightSyntaxTransform
  */
 
@@ -11,17 +11,6 @@ import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type SessionAnnotationSummaryGroup$data = {
-  readonly sessionAnnotationSummaries: ReadonlyArray<{
-    readonly count: number;
-    readonly labelCount: number;
-    readonly labelFractions: ReadonlyArray<{
-      readonly fraction: number;
-      readonly label: string;
-    }>;
-    readonly meanScore: number | null;
-    readonly name: string;
-    readonly scoreCount: number;
-  }>;
   readonly sessionAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
     readonly createdAt: string;
@@ -35,6 +24,17 @@ export type SessionAnnotationSummaryGroup$data = {
       readonly profilePictureUrl: string | null;
       readonly username: string;
     } | null;
+  }>;
+  readonly summarySessionAnnotationSummaries: ReadonlyArray<{
+    readonly count: number;
+    readonly labelCount: number;
+    readonly labelFractions: ReadonlyArray<{
+      readonly fraction: number;
+      readonly label: string;
+    }>;
+    readonly meanScore: number | null;
+    readonly name: string;
+    readonly scoreCount: number;
   }>;
   readonly " $fragmentType": "SessionAnnotationSummaryGroup";
 };
@@ -145,8 +145,20 @@ return {
       "storageKey": null
     },
     {
-      "alias": null,
-      "args": null,
+      "alias": "summarySessionAnnotationSummaries",
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "filter",
+          "value": {
+            "exclude": {
+              "names": [
+                "note"
+              ]
+            }
+          }
+        }
+      ],
       "concreteType": "AnnotationSummary",
       "kind": "LinkedField",
       "name": "sessionAnnotationSummaries",
@@ -201,7 +213,7 @@ return {
         },
         (v0/*:: as any*/)
       ],
-      "storageKey": null
+      "storageKey": "sessionAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
     }
   ],
   "type": "ProjectSession",
@@ -209,6 +221,6 @@ return {
 };
 })();
 
-(node as any).hash = "bd1cd3f4fe3d1d6c64c6c28cf66ab768";
+(node as any).hash = "19fb26edfe1a8946e5bf6d29a85e482f";
 
 export default node;

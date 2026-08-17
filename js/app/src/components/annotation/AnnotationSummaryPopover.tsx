@@ -2,7 +2,12 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
-import { Popover, PopoverArrow, PreviewTrigger } from "@phoenix/components";
+import {
+  Popover,
+  PopoverArrow,
+  PreviewTrigger,
+  VisuallyHidden,
+} from "@phoenix/components";
 import { AnnotationDetailsList } from "@phoenix/components/annotation/AnnotationDetailsList";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { SpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
@@ -36,6 +41,7 @@ export function AnnotationSummaryPopover({
   annotations,
   children,
   annotationConfig,
+  meanScore,
   showFilterActions,
   renderFilterActions,
 }: {
@@ -43,6 +49,7 @@ export function AnnotationSummaryPopover({
   annotations: Annotation[] | readonly Annotation[];
   children: ReactNode;
   annotationConfig?: AnnotationOptimizationConfig;
+  meanScore?: number | null;
   showFilterActions?: boolean;
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
@@ -54,11 +61,9 @@ export function AnnotationSummaryPopover({
   return (
     <StopPropagation>
       <PreviewTrigger>
-        <AriaButton
-          css={annotationSummaryTriggerCSS}
-          aria-label={`View ${prototypicalAnnotation.name} annotation details`}
-        >
+        <AriaButton css={annotationSummaryTriggerCSS}>
           {children}
+          <VisuallyHidden>View annotation details</VisuallyHidden>
         </AriaButton>
         <Popover
           css={annotationSummaryPopoverCSS}
@@ -69,6 +74,7 @@ export function AnnotationSummaryPopover({
           <AnnotationDetailsList
             annotations={annotations}
             annotationConfig={annotationConfig}
+            meanScore={meanScore}
             renderFilterActions={
               showFilterActions
                 ? (annotation) =>

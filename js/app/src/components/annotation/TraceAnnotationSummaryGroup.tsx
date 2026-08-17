@@ -11,7 +11,7 @@ import {
 import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { useTraceFilters } from "@phoenix/pages/project/TraceFiltersContext";
 
-import { hasAnnotationValue } from "./annotationUtils";
+import { groupAnnotationsByName, hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 
 const useTraceAnnotationSummaryGroup = (
@@ -20,7 +20,9 @@ const useTraceAnnotationSummaryGroup = (
   const data = useFragment<TraceAnnotationSummaryGroup$key>(
     graphql`
       fragment TraceAnnotationSummaryGroup on Trace {
-        traceAnnotations {
+        summaryTraceAnnotations: traceAnnotations(
+          filter: { exclude: { names: ["note"] } }
+        ) {
           id
           name
           label
@@ -34,7 +36,9 @@ const useTraceAnnotationSummaryGroup = (
             profilePictureUrl
           }
         }
-        traceAnnotationSummaries {
+        summaryTraceAnnotationSummaries: traceAnnotationSummaries(
+          filter: { exclude: { names: ["note"] } }
+        ) {
           count
           scoreCount
           labelCount
@@ -49,31 +53,13 @@ const useTraceAnnotationSummaryGroup = (
     `,
     trace
   );
-  const { traceAnnotations, traceAnnotationSummaries } = data;
-  const sortedSummariesByName = traceAnnotationSummaries
-    // Note annotations are not displayed in summary groups
-    .filter((summary) => summary.name !== "note")
-    .sort((a, b) => {
+  const { summaryTraceAnnotations, summaryTraceAnnotationSummaries } = data;
+  const sortedSummariesByName = [...summaryTraceAnnotationSummaries].sort(
+    (a, b) => {
       return a.name.localeCompare(b.name);
-    });
-  // newest first
-  const annotationsByName = traceAnnotations.reduce<
-    Partial<Record<string, typeof traceAnnotations>>
-  >((acc, annotation) => {
-    const annotationsForName = acc[annotation.name];
-    if (annotationsForName == null) {
-      acc[annotation.name] = [annotation];
-    } else {
-      acc[annotation.name] = [annotation, ...annotationsForName].sort(
-        (a, b) => {
-          return (
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-        }
-      );
     }
-    return acc;
-  }, {});
+  );
+  const annotationsByName = groupAnnotationsByName(summaryTraceAnnotations);
   return {
     sortedSummariesByName,
     annotationsByName,

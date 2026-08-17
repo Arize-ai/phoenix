@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a576176fc58b8ed9ab678e07a2f0ce8d>>
+ * @generated SignedSource<<36b199c501eb74d4c9d8db9c24044f2a>>
  * @lightSyntaxTransform
  */
 
@@ -78,45 +78,80 @@ v5 = {
   "storageKey": null
 },
 v6 = {
+  "names": [
+    "note"
+  ]
+},
+v7 = [
+  {
+    "kind": "Literal",
+    "name": "filter",
+    "value": {
+      "exclude": (v6/*:: as any*/)
+    }
+  }
+],
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v7 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v8 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v9 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "explanation",
   "storageKey": null
 },
-v10 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotatorKind",
   "storageKey": null
 },
-v11 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "profilePictureUrl",
   "storageKey": null
 };
 return {
@@ -241,27 +276,21 @@ return {
                     "kind": "InlineFragment",
                     "selections": [
                       {
-                        "alias": null,
-                        "args": null,
+                        "alias": "summarySpanAnnotations",
+                        "args": (v7/*:: as any*/),
                         "concreteType": "SpanAnnotation",
                         "kind": "LinkedField",
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
                           (v5/*:: as any*/),
-                          (v6/*:: as any*/),
-                          (v7/*:: as any*/),
                           (v8/*:: as any*/),
                           (v9/*:: as any*/),
                           (v10/*:: as any*/),
                           (v11/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "updatedAt",
-                            "storageKey": null
-                          },
+                          (v12/*:: as any*/),
+                          (v13/*:: as any*/),
+                          (v14/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -270,51 +299,18 @@ return {
                             "name": "user",
                             "plural": false,
                             "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "username",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "profilePictureUrl",
-                                "storageKey": null
-                              },
+                              (v15/*:: as any*/),
+                              (v16/*:: as any*/),
                               (v5/*:: as any*/)
                             ],
                             "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "metadata",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "identifier",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "source",
-                            "storageKey": null
                           }
                         ],
-                        "storageKey": null
+                        "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                       },
                       {
-                        "alias": null,
-                        "args": null,
+                        "alias": "summarySpanAnnotationSummaries",
+                        "args": (v7/*:: as any*/),
                         "concreteType": "AnnotationSummary",
                         "kind": "LinkedField",
                         "name": "spanAnnotationSummaries",
@@ -335,7 +331,7 @@ return {
                                 "name": "fraction",
                                 "storageKey": null
                               },
-                              (v7/*:: as any*/)
+                              (v9/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -346,9 +342,9 @@ return {
                             "name": "meanScore",
                             "storageKey": null
                           },
-                          (v6/*:: as any*/)
+                          (v8/*:: as any*/)
                         ],
-                        "storageKey": null
+                        "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                       },
                       {
                         "alias": "filteredSpanAnnotations",
@@ -358,11 +354,7 @@ return {
                               {
                                 "kind": "Literal",
                                 "name": "exclude",
-                                "value": {
-                                  "names": [
-                                    "note"
-                                  ]
-                                }
+                                "value": (v6/*:: as any*/)
                               },
                               {
                                 "fields": [
@@ -386,12 +378,66 @@ return {
                         "plural": true,
                         "selections": [
                           (v5/*:: as any*/),
-                          (v6/*:: as any*/),
-                          (v10/*:: as any*/),
                           (v8/*:: as any*/),
-                          (v7/*:: as any*/),
+                          (v12/*:: as any*/),
+                          (v10/*:: as any*/),
                           (v9/*:: as any*/),
-                          (v11/*:: as any*/)
+                          (v11/*:: as any*/),
+                          (v13/*:: as any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "SpanAnnotation",
+                        "kind": "LinkedField",
+                        "name": "spanAnnotations",
+                        "plural": true,
+                        "selections": [
+                          (v5/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
+                          (v10/*:: as any*/),
+                          (v11/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "metadata",
+                            "storageKey": null
+                          },
+                          (v12/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "identifier",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "source",
+                            "storageKey": null
+                          },
+                          (v13/*:: as any*/),
+                          (v14/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "User",
+                            "kind": "LinkedField",
+                            "name": "user",
+                            "plural": false,
+                            "selections": [
+                              (v5/*:: as any*/),
+                              (v15/*:: as any*/),
+                              (v16/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          }
                         ],
                         "storageKey": null
                       }
@@ -411,12 +457,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2b9c3fcafc54ab88d060c666b8a87260",
+    "cacheID": "015e59925a50a91db9453deaa6278f55",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationDeleteButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID]\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...AnnotationSummaryGroup\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAnnotationsTable_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SpanAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID]\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...AnnotationSummaryGroup\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAnnotationsTable_annotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAnnotationsTable_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();

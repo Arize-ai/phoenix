@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<295cf9c0b4ef2f44fa6bb44ce57e0aa1>>
+ * @generated SignedSource<<674400daff6f33721ae562e1c4b84a63>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type TraceAnnotationSummaryGroup$data = {
-  readonly traceAnnotationSummaries: ReadonlyArray<{
+  readonly summaryTraceAnnotationSummaries: ReadonlyArray<{
     readonly count: number;
     readonly labelCount: number;
     readonly labelFractions: ReadonlyArray<{
@@ -22,7 +22,7 @@ export type TraceAnnotationSummaryGroup$data = {
     readonly name: string;
     readonly scoreCount: number;
   }>;
-  readonly traceAnnotations: ReadonlyArray<{
+  readonly summaryTraceAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
     readonly createdAt: string;
     readonly explanation: string | null;
@@ -44,14 +44,27 @@ export type TraceAnnotationSummaryGroup$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
+var v0 = [
+  {
+    "kind": "Literal",
+    "name": "filter",
+    "value": {
+      "exclude": {
+        "names": [
+          "note"
+        ]
+      }
+    }
+  }
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v1 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -65,8 +78,8 @@ return {
   "name": "TraceAnnotationSummaryGroup",
   "selections": [
     {
-      "alias": null,
-      "args": null,
+      "alias": "summaryTraceAnnotations",
+      "args": (v0/*:: as any*/),
       "concreteType": "TraceAnnotation",
       "kind": "LinkedField",
       "name": "traceAnnotations",
@@ -79,8 +92,8 @@ return {
           "name": "id",
           "storageKey": null
         },
-        (v0/*:: as any*/),
         (v1/*:: as any*/),
+        (v2/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -142,11 +155,11 @@ return {
           "storageKey": null
         }
       ],
-      "storageKey": null
+      "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
     },
     {
-      "alias": null,
-      "args": null,
+      "alias": "summaryTraceAnnotationSummaries",
+      "args": (v0/*:: as any*/),
       "concreteType": "AnnotationSummary",
       "kind": "LinkedField",
       "name": "traceAnnotationSummaries",
@@ -188,7 +201,7 @@ return {
               "name": "fraction",
               "storageKey": null
             },
-            (v1/*:: as any*/)
+            (v2/*:: as any*/)
           ],
           "storageKey": null
         },
@@ -199,9 +212,9 @@ return {
           "name": "meanScore",
           "storageKey": null
         },
-        (v0/*:: as any*/)
+        (v1/*:: as any*/)
       ],
-      "storageKey": null
+      "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
     }
   ],
   "type": "Trace",
@@ -209,6 +222,6 @@ return {
 };
 })();
 
-(node as any).hash = "aa8a0f14f520d8cfde7180ebb6676be7";
+(node as any).hash = "a56c33b5183d0bdf9f6002c9b58e3216";
 
 export default node;

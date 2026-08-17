@@ -9,10 +9,7 @@ import {
 } from "@phoenix/pages/project/AnnotationSummary";
 
 import { hasAnnotationValue } from "./annotationUtils";
-import {
-  getPositiveOptimizationFromConfig,
-  type AnnotationOptimizationConfig,
-} from "./optimizationUtils";
+import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 import type { Annotation } from "./types";
 
 const annotationLabelCSS = css`
@@ -64,6 +61,7 @@ export function AnnotationSummaryTokens({
             key={latestAnnotation.id}
             annotations={annotationsByName[summary.name] ?? []}
             annotationConfig={annotationConfig}
+            meanScore={meanScore}
             showFilterActions={showFilterActions}
             renderFilterActions={renderFilterActions}
           >
@@ -78,10 +76,7 @@ export function AnnotationSummaryTokens({
                   meanScore={meanScore}
                   size="S"
                   disableAnimation
-                  positiveOptimization={getPositiveOptimizationFromConfig({
-                    config: annotationConfig,
-                    score: meanScore,
-                  })}
+                  annotationConfig={annotationConfig}
                 />
               ) : (
                 <SummaryValueLabelPreview

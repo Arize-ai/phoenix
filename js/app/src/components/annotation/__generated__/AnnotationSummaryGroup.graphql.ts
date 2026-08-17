@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f0d27b3462db7b51721035c58ea5d5e>>
+ * @generated SignedSource<<4f7e319878331f74e406dfdcbdab3b26>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSummaryGroup$data = {
-  readonly spanAnnotationSummaries: ReadonlyArray<{
+  readonly summarySpanAnnotationSummaries: ReadonlyArray<{
     readonly labelFractions: ReadonlyArray<{
       readonly fraction: number;
       readonly label: string;
@@ -19,7 +19,7 @@ export type AnnotationSummaryGroup$data = {
     readonly meanScore: number | null;
     readonly name: string;
   }>;
-  readonly spanAnnotations: ReadonlyArray<{
+  readonly summarySpanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
     readonly createdAt: string;
     readonly explanation: string | null;
@@ -41,14 +41,27 @@ export type AnnotationSummaryGroup$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
+var v0 = [
+  {
+    "kind": "Literal",
+    "name": "filter",
+    "value": {
+      "exclude": {
+        "names": [
+          "note"
+        ]
+      }
+    }
+  }
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v1 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -62,8 +75,8 @@ return {
   "name": "AnnotationSummaryGroup",
   "selections": [
     {
-      "alias": null,
-      "args": null,
+      "alias": "summarySpanAnnotations",
+      "args": (v0/*:: as any*/),
       "concreteType": "SpanAnnotation",
       "kind": "LinkedField",
       "name": "spanAnnotations",
@@ -76,8 +89,8 @@ return {
           "name": "id",
           "storageKey": null
         },
-        (v0/*:: as any*/),
         (v1/*:: as any*/),
+        (v2/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -139,11 +152,11 @@ return {
           "storageKey": null
         }
       ],
-      "storageKey": null
+      "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
     },
     {
-      "alias": null,
-      "args": null,
+      "alias": "summarySpanAnnotationSummaries",
+      "args": (v0/*:: as any*/),
       "concreteType": "AnnotationSummary",
       "kind": "LinkedField",
       "name": "spanAnnotationSummaries",
@@ -164,7 +177,7 @@ return {
               "name": "fraction",
               "storageKey": null
             },
-            (v1/*:: as any*/)
+            (v2/*:: as any*/)
           ],
           "storageKey": null
         },
@@ -175,9 +188,9 @@ return {
           "name": "meanScore",
           "storageKey": null
         },
-        (v0/*:: as any*/)
+        (v1/*:: as any*/)
       ],
-      "storageKey": null
+      "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
     }
   ],
   "type": "Span",
@@ -185,6 +198,6 @@ return {
 };
 })();
 
-(node as any).hash = "894a8f8a79b8c67e452f89e788d4b372";
+(node as any).hash = "870e926a25a877d6d32b576307cb813b";
 
 export default node;

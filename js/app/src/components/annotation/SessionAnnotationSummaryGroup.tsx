@@ -11,7 +11,7 @@ import {
 import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { useSessionFilters } from "@phoenix/pages/project/SessionFiltersContext";
 
-import { hasAnnotationValue } from "./annotationUtils";
+import { groupAnnotationsByName, hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 
 const useSessionAnnotationSummaryGroup = (
@@ -34,7 +34,9 @@ const useSessionAnnotationSummaryGroup = (
             profilePictureUrl
           }
         }
-        sessionAnnotationSummaries {
+        summarySessionAnnotationSummaries: sessionAnnotationSummaries(
+          filter: { exclude: { names: ["note"] } }
+        ) {
           count
           scoreCount
           labelCount
@@ -49,31 +51,13 @@ const useSessionAnnotationSummaryGroup = (
     `,
     session
   );
-  const { sessionAnnotations, sessionAnnotationSummaries } = data;
-  const sortedSummariesByName = sessionAnnotationSummaries
-    // Note annotations are not displayed in summary groups
-    .filter((summary) => summary.name !== "note")
-    .sort((a, b) => {
+  const { sessionAnnotations, summarySessionAnnotationSummaries } = data;
+  const sortedSummariesByName = [...summarySessionAnnotationSummaries].sort(
+    (a, b) => {
       return a.name.localeCompare(b.name);
-    });
-  // newest first
-  const annotationsByName = sessionAnnotations.reduce<
-    Partial<Record<string, typeof sessionAnnotations>>
-  >((acc, annotation) => {
-    const annotationsForName = acc[annotation.name];
-    if (annotationsForName == null) {
-      acc[annotation.name] = [annotation];
-    } else {
-      acc[annotation.name] = [annotation, ...annotationsForName].sort(
-        (a, b) => {
-          return (
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-        }
-      );
     }
-    return acc;
-  }, {});
+  );
+  const annotationsByName = groupAnnotationsByName(sessionAnnotations);
   return {
     sortedSummariesByName,
     annotationsByName,

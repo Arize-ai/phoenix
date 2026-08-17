@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8ef733ad7e9489d70e3dbcf5020e11ee>>
+ * @generated SignedSource<<dd452f2885fb0f0b4d1111e5dea38ff7>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ export type SessionDetailsTraceList_traces$data = {
   readonly id: string;
   readonly numTraces: number;
   readonly project: {
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   };
   readonly traces: {
     readonly edges: ReadonlyArray<{
@@ -162,7 +162,7 @@ return {
         {
           "args": null,
           "kind": "FragmentSpread",
-          "name": "ProjectAnnotationMetricsConfigFragment"
+          "name": "ProjectAnnotationConfigsByNameFragment"
         }
       ],
       "storageKey": null
@@ -414,6 +414,6 @@ return {
 };
 })();
 
-(node as any).hash = "23873e2daa1342d9a85668202b016cf2";
+(node as any).hash = "dd466658a3841327050505e5f6591bab";
 
 export default node;

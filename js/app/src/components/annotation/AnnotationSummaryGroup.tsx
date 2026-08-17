@@ -7,14 +7,16 @@ import { AnnotationSummaryTokens } from "@phoenix/components/annotation/Annotati
 import type { Annotation } from "@phoenix/components/annotation/types";
 import { Divider } from "@phoenix/components/core/layout";
 
-import { hasAnnotationValue } from "./annotationUtils";
+import { groupAnnotationsByName, hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 
 const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
   const data = useFragment<AnnotationSummaryGroup$key>(
     graphql`
       fragment AnnotationSummaryGroup on Span {
-        spanAnnotations {
+        summarySpanAnnotations: spanAnnotations(
+          filter: { exclude: { names: ["note"] } }
+        ) {
           id
           name
           label
@@ -28,7 +30,9 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
             profilePictureUrl
           }
         }
-        spanAnnotationSummaries {
+        summarySpanAnnotationSummaries: spanAnnotationSummaries(
+          filter: { exclude: { names: ["note"] } }
+        ) {
           labelFractions {
             fraction
             label
@@ -40,33 +44,13 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
     `,
     span
   );
-  const { spanAnnotations, spanAnnotationSummaries } = data;
-  const sortedSummariesByName = spanAnnotationSummaries
-    // Note annotations are not displayed in summary groups
-    .filter((summary) => summary.name !== "note")
-    .sort((firstSummary, secondSummary) => {
+  const { summarySpanAnnotations, summarySpanAnnotationSummaries } = data;
+  const sortedSummariesByName = [...summarySpanAnnotationSummaries].sort(
+    (firstSummary, secondSummary) => {
       return firstSummary.name.localeCompare(secondSummary.name);
-    });
-  // newest first
-  const annotationsByName = spanAnnotations.reduce<
-    Partial<Record<string, typeof spanAnnotations>>
-  >((annotationsByName, annotation) => {
-    const annotationsForName = annotationsByName[annotation.name];
-    if (annotationsForName == null) {
-      annotationsByName[annotation.name] = [annotation];
-    } else {
-      annotationsByName[annotation.name] = [
-        annotation,
-        ...annotationsForName,
-      ].sort((firstAnnotation, secondAnnotation) => {
-        return (
-          new Date(secondAnnotation.createdAt).getTime() -
-          new Date(firstAnnotation.createdAt).getTime()
-        );
-      });
     }
-    return annotationsByName;
-  }, {});
+  );
+  const annotationsByName = groupAnnotationsByName(summarySpanAnnotations);
   return {
     sortedSummariesByName,
     annotationsByName,

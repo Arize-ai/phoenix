@@ -19,11 +19,11 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { RowExpandToggleButton } from "@phoenix/components/table";
 import { EDIT_ANNOTATION_HOTKEY } from "@phoenix/constants/annotationConstants";
 import { usePreferencesContext } from "@phoenix/contexts";
-import { useProjectAnnotationConfigsByName } from "@phoenix/pages/project/metrics/useProjectAnnotationConfigsByName";
 
 import { SpanAnnotationsTable } from "../SpanAnnotationsTable";
 import { useOpenSpanAside } from "../SpanAsideContext";
@@ -60,7 +60,7 @@ function SpanAnnotationSummaryTokens({
         span: node(id: $id) {
           ... on Span {
             project {
-              ...ProjectAnnotationMetricsConfigFragment
+              ...ProjectAnnotationConfigsByNameFragment
             }
             ...AnnotationSummaryGroup
           }

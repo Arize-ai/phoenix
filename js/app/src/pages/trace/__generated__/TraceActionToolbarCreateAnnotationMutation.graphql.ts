@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6065b68e53ab3b7b825120c470961829>>
+ * @generated SignedSource<<d34efd952fbc3207251ac3aa0c5dfab0>>
  * @lightSyntaxTransform
  */
 
@@ -118,14 +118,27 @@ v6 = {
   "name": "id",
   "storageKey": null
 },
-v7 = {
+v7 = [
+  {
+    "kind": "Literal",
+    "name": "filter",
+    "value": {
+      "exclude": {
+        "names": [
+          "note"
+        ]
+      }
+    }
+  }
+],
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -245,16 +258,16 @@ return {
                     "kind": "InlineFragment",
                     "selections": [
                       {
-                        "alias": null,
-                        "args": null,
+                        "alias": "summaryTraceAnnotations",
+                        "args": (v7/*:: as any*/),
                         "concreteType": "TraceAnnotation",
                         "kind": "LinkedField",
                         "name": "traceAnnotations",
                         "plural": true,
                         "selections": [
                           (v6/*:: as any*/),
-                          (v7/*:: as any*/),
                           (v8/*:: as any*/),
+                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -317,11 +330,11 @@ return {
                             "storageKey": null
                           }
                         ],
-                        "storageKey": null
+                        "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                       },
                       {
-                        "alias": null,
-                        "args": null,
+                        "alias": "summaryTraceAnnotationSummaries",
+                        "args": (v7/*:: as any*/),
                         "concreteType": "AnnotationSummary",
                         "kind": "LinkedField",
                         "name": "traceAnnotationSummaries",
@@ -363,7 +376,7 @@ return {
                                 "name": "fraction",
                                 "storageKey": null
                               },
-                              (v8/*:: as any*/)
+                              (v9/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -374,9 +387,9 @@ return {
                             "name": "meanScore",
                             "storageKey": null
                           },
-                          (v7/*:: as any*/)
+                          (v8/*:: as any*/)
                         ],
-                        "storageKey": null
+                        "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                       },
                       {
                         "alias": "viewerUserFeedbackAnnotations",
@@ -399,7 +412,7 @@ return {
                         "plural": true,
                         "selections": [
                           (v6/*:: as any*/),
-                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -426,12 +439,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e930e331e071dc0e4a2fd43b280bb134",
+    "cacheID": "8a6948f9dd526969cd5cc256491eb8d9",
     "id": null,
     "metadata": {},
     "name": "TraceActionToolbarCreateAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation TraceActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
+    "text": "mutation TraceActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();

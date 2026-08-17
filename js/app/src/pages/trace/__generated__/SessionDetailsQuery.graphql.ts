@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9844c368f1224bd261309b5838c02d4e>>
+ * @generated SignedSource<<18049ee7091b4930aefd3860fa4cd2fb>>
  * @lightSyntaxTransform
  */
 
@@ -32,7 +32,7 @@ export type SessionDetailsQuery$data = {
     readonly numTraces?: number;
     readonly project?: {
       readonly id: string;
-      readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
+      readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
     };
     readonly sessionId?: string;
     readonly tokenUsage?: {
@@ -249,7 +249,7 @@ return {
                   {
                     "args": null,
                     "kind": "FragmentSpread",
-                    "name": "ProjectAnnotationMetricsConfigFragment"
+                    "name": "ProjectAnnotationConfigsByNameFragment"
                   }
                 ],
                 "storageKey": null
@@ -491,8 +491,20 @@ return {
                 "storageKey": null
               },
               {
-                "alias": null,
-                "args": null,
+                "alias": "summarySessionAnnotationSummaries",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "filter",
+                    "value": {
+                      "exclude": {
+                        "names": [
+                          "note"
+                        ]
+                      }
+                    }
+                  }
+                ],
                 "concreteType": "AnnotationSummary",
                 "kind": "LinkedField",
                 "name": "sessionAnnotationSummaries",
@@ -547,7 +559,7 @@ return {
                   },
                   (v10/*:: as any*/)
                 ],
-                "storageKey": null
+                "storageKey": "sessionAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
               }
             ],
             "type": "ProjectSession",
@@ -560,16 +572,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "98cb33318c024f1d4548ac04c7fe6c2d",
+    "cacheID": "c773b29833e54a89bc6f1ff64bebbcc0",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      project {\n        id\n        ...ProjectAnnotationMetricsConfigFragment\n      }\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n        prompt {\n          cost\n          tokens\n        }\n        completion {\n          cost\n          tokens\n        }\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      ...SessionAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: ID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      project {\n        id\n        ...ProjectAnnotationConfigsByNameFragment\n      }\n      numTraces\n      tokenUsage {\n        total\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n        prompt {\n          cost\n          tokens\n        }\n        completion {\n          cost\n          tokens\n        }\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      ...SessionAnnotationSummaryGroup\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a6cfbdffe17c965ea71457ba7bdbebec";
+(node as any).hash = "7a0d2f675dcf9353069c3882681d5bfa";
 
 export default node;

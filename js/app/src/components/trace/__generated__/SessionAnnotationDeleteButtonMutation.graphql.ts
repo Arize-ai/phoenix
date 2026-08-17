@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e3b7ceb2a0afd5ff938e41cbcd2cc9d8>>
+ * @generated SignedSource<<59e84c7133aa6e490eab2b1d88a8e907>>
  * @lightSyntaxTransform
  */
 
@@ -279,8 +279,20 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": null,
-                        "args": null,
+                        "alias": "summarySessionAnnotationSummaries",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "filter",
+                            "value": {
+                              "exclude": {
+                                "names": [
+                                  "note"
+                                ]
+                              }
+                            }
+                          }
+                        ],
                         "concreteType": "AnnotationSummary",
                         "kind": "LinkedField",
                         "name": "sessionAnnotationSummaries",
@@ -335,7 +347,7 @@ return {
                           },
                           (v4/*:: as any*/)
                         ],
-                        "storageKey": null
+                        "storageKey": "sessionAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                       }
                     ],
                     "type": "ProjectSession",
@@ -353,12 +365,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "59212ee5e88e37e7e145b7b4bd60ec74",
+    "cacheID": "f0b1e2820cd281ec4373f3098fdd82b0",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationDeleteButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation SessionAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $sessionId: ID!\n) {\n  deleteProjectSessionAnnotation(id: $annotationId) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SessionAnnotationDeleteButtonMutation(\n  $annotationId: ID!\n  $sessionId: ID!\n) {\n  deleteProjectSessionAnnotation(id: $annotationId) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();

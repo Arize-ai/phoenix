@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ac8fdf87b7fa09dee1b0eae79bbabab3>>
+ * @generated SignedSource<<ed18de60052e3f603f9fd26977f06b66>>
  * @lightSyntaxTransform
  */
 
@@ -283,8 +283,20 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": null,
-                        "args": null,
+                        "alias": "summarySessionAnnotationSummaries",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "filter",
+                            "value": {
+                              "exclude": {
+                                "names": [
+                                  "note"
+                                ]
+                              }
+                            }
+                          }
+                        ],
                         "concreteType": "AnnotationSummary",
                         "kind": "LinkedField",
                         "name": "sessionAnnotationSummaries",
@@ -339,7 +351,7 @@ return {
                           },
                           (v5/*:: as any*/)
                         ],
-                        "storageKey": null
+                        "storageKey": "sessionAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                       }
                     ],
                     "type": "ProjectSession",
@@ -357,12 +369,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b054e6b4353358d9467dfcbbd319b16d",
+    "cacheID": "4b58b86e76e43366281936ec673aa25d",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationsEditorDeleteAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation SessionAnnotationsEditorDeleteAnnotationMutation(\n  $sessionId: ID!\n  $annotationId: ID!\n) {\n  deleteProjectSessionAnnotation(id: $annotationId) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  sessionAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SessionAnnotationsEditorDeleteAnnotationMutation(\n  $sessionId: ID!\n  $annotationId: ID!\n) {\n  deleteProjectSessionAnnotation(id: $annotationId) {\n    query {\n      node(id: $sessionId) {\n        __typename\n        ... on ProjectSession {\n          ...SessionAnnotationsEditor_sessionAnnotations\n          ...SessionAnnotationsTable_annotations\n          ...SessionAnnotationSummaryGroup\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment SessionAnnotationSummaryGroup on ProjectSession {\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySessionAnnotationSummaries: sessionAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SessionAnnotationsEditor_sessionAnnotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SessionAnnotationsTable_annotations on ProjectSession {\n  id\n  sessionAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
