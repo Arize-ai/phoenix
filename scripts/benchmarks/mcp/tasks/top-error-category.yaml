@@ -1,10 +1,7 @@
-# The answer is in span annotations rather than spans, so the agent has to find a
-# different table than the tool and cost tasks use.
 name: top-error-category
 task_class: multi-call
 prompt: >-
-  In the "trail-gaia" project, spans carry annotations named "trail_error" whose
-  label is an error category. Which category label is most common?
-  Reply with only the label, no other words.
+  Our annotators labelled agent mistakes in trail-gaia with trail_error
+  annotations. What kind of mistake did they flag most often?
 expect:
   contains: Formatting Errors

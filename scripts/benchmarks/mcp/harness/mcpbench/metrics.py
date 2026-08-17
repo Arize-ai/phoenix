@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -57,10 +58,36 @@ class ToolCall:
     result_bytes: int = 0
     is_error: bool = False
     error_kind: Optional[str] = None
+    #: Epoch seconds bracketing the call: the model emitting it, and its result
+    #: arriving. The span covers the server's own work plus any queueing or retry
+    #: wait in front of it.
+    started_at: Optional[float] = None
+    ended_at: Optional[float] = None
+
+    @property
+    def duration_ms(self) -> Optional[int]:
+        if self.started_at is None or self.ended_at is None:
+            return None
+        return max(0, round((self.ended_at - self.started_at) * 1000))
 
     @property
     def is_discovery(self) -> bool:
         return self.tool_name.split("__")[-1] in _DISCOVERY_TOOLS
+
+
+def _event_time(event: dict[str, Any]) -> Optional[float]:
+    """Epoch seconds for a transcript event, or ``None`` if it carries no clock.
+
+    Only assistant and user events are stamped, which is enough to time a tool
+    call: it is issued on one and answered on the other.
+    """
+    stamp = event.get("timestamp")
+    if not isinstance(stamp, str):
+        return None
+    try:
+        return datetime.fromisoformat(stamp.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
 
 
 def _error_kind(text: str) -> Optional[str]:
@@ -121,6 +148,36 @@ class Transcript:
         return sum(c.input_bytes for c in self.tool_calls if c.tool_name.endswith("execute"))
 
     @property
+    def tool_time_ms(self) -> int:
+        """Wall time the run spent waiting on tool calls.
+
+        One assistant message can issue several calls at once, and those run
+        concurrently -- summing their durations would charge the same seconds
+        twice -- so overlapping spans are merged before totalling. This is the
+        bulk of the gap between wall clock and time inside the model.
+        """
+        spans = sorted(
+            (c.started_at, c.ended_at)
+            for c in self.tool_calls
+            if c.started_at is not None and c.ended_at is not None
+        )
+        total = 0.0
+        merged: list[list[float]] = []
+        for start, end in spans:
+            if merged and start <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1], end)
+            else:
+                merged.append([start, end])
+        for start, end in merged:
+            total += end - start
+        return round(total * 1000)
+
+    @property
+    def max_tool_time_ms(self) -> int:
+        """Slowest single call -- a sum hides one long stall among many quick ones."""
+        return max((c.duration_ms or 0 for c in self.tool_calls), default=0)
+
+    @property
     def n_tool_errors(self) -> int:
         return sum(1 for c in self.tool_calls if c.is_error)
 
@@ -139,6 +196,7 @@ def parse_transcript(path: Path) -> Transcript:
     """
     transcript = Transcript()
     pending: dict[str, ToolCall] = {}
+    issued_at: dict[str, Optional[float]] = {}
     turn_of_message: dict[str, int] = {}
 
     for line in path.read_text(errors="replace").splitlines():
@@ -185,14 +243,18 @@ def parse_transcript(path: Path) -> Transcript:
                 transcript.tool_calls.append(call)
                 if use_id := block.get("id"):
                     pending[str(use_id)] = call
+                    issued_at[str(use_id)] = _event_time(event)
         elif kind == "user":
             for block in event.get("message", {}).get("content", []) or []:
                 if not isinstance(block, dict) or block.get("type") != "tool_result":
                     continue
                 content = json.dumps(block.get("content"), default=str)
-                call = pending.pop(str(block.get("tool_use_id", "")), None)
+                use_id = str(block.get("tool_use_id", ""))
+                call = pending.pop(use_id, None)
                 if call is None:
                     continue
+                call.started_at = issued_at.pop(use_id, None)
+                call.ended_at = _event_time(event)
                 call.result_bytes = len(content)
                 call.error_kind = _error_kind(content)
                 # The sandbox reports some failures as ordinary results, so the
@@ -211,11 +273,16 @@ def iteration_rows(transcript: Transcript) -> list[dict[str, Any]]:
 
 
 def token_totals(transcript: Transcript) -> dict[str, int]:
-    """Token totals, summed across API calls.
+    """Token totals for one run.
 
-    ``total_context_tokens`` is the primary metric because it is invariant to
-    prompt-cache warmth, which shifts tokens between the cached and uncached
-    fields (and therefore moves cost) without changing the work done.
+    ``peak_context_tokens`` is the reported metric: the conversation only grows,
+    so it is the length at the point of answering, and what has to fit in the
+    window. The summed totals are kept because cost is derived from them, but a
+    sum over calls counts re-read text once per call and reads as inflated.
+
+    Both are invariant to prompt-cache warmth, which shifts tokens between the
+    cached and uncached fields (and therefore moves cost) without changing the
+    work done.
     """
     keys = (
         "input_tokens",
@@ -229,6 +296,19 @@ def token_totals(transcript: Transcript) -> dict[str, int]:
     # were truncated.
     usage = transcript.result.get("usage") or {}
     totals = {key: int(usage.get(key) or 0) for key in keys}
+    # How large the conversation actually grew, as distinct from the summed
+    # figure: every call re-reads the whole conversation, so a token near the
+    # front is counted once per call that follows it. Both are real -- one is
+    # what gets billed, the other is what has to fit in the window.
+    totals["peak_context_tokens"] = max(
+        (
+            turn["input_tokens"]
+            + turn["cache_creation_input_tokens"]
+            + turn["cache_read_input_tokens"]
+            for turn in transcript.turns
+        ),
+        default=0,
+    )
     rows = iteration_rows(transcript) or [totals]
     totals["total_context_tokens"] = (
         totals["input_tokens"]
@@ -326,6 +406,8 @@ def run_row(transcript: Transcript, *, expect: dict[str, Any]) -> dict[str, Any]
         "n_tool_calls": transcript.n_tool_calls,
         "n_execute_calls": transcript.n_execute_calls,
         "n_discovery_calls": transcript.n_discovery_calls,
+        "tool_time_ms": transcript.tool_time_ms,
+        "max_tool_time_ms": transcript.max_tool_time_ms,
         "n_tool_errors": transcript.n_tool_errors,
         "n_sandbox_errors": transcript.n_sandbox_errors,
         "code_bytes": transcript.code_bytes,
@@ -345,12 +427,80 @@ def run_row(transcript: Transcript, *, expect: dict[str, Any]) -> dict[str, Any]
         "answer": answer[:2000],
     }
     row.update(token_totals(transcript))
+    row.update(cost_breakdown(result))
     # Explains cost variance that the cache-invariant primary metric hides.
     total_context = row["total_context_tokens"]
     row["cache_read_ratio"] = (
         row["cache_read_input_tokens"] / total_context if total_context else None
     )
     return row
+
+
+#: Cache multipliers on base input price. A 1h entry costs more to write than a
+#: 5m one; both read back at a tenth of base.
+_CACHE_WRITE_1H, _CACHE_WRITE_5M, _CACHE_READ = 2.0, 1.25, 0.1
+
+
+def cost_breakdown(result: dict[str, Any]) -> dict[str, Any]:
+    """Split the reported cost into the four things that are priced separately.
+
+    ``total_cost_usd`` is a single figure covering every model a run touched,
+    including the ones the client spends on its own bookkeeping. Splitting it
+    shows which component dominates: for a run that re-reads a long context,
+    cache traffic exceeds generation several times over.
+    """
+    per_model = result.get("modelUsage") or {}
+    out: dict[str, Any] = {
+        "cost_input_usd": None,
+        "cost_output_usd": None,
+        "cost_cache_write_usd": None,
+        "cost_cache_read_usd": None,
+        "cost_other_models_usd": 0.0,
+    }
+    usage = result.get("usage") or {}
+    creation = usage.get("cache_creation") or {}
+    # The task model is whichever one the run's own usage totals describe; any
+    # other entry is client overhead, not work the question asked for.
+    task_out = usage.get("output_tokens")
+    for name, m in per_model.items():
+        if task_out is not None and m.get("outputTokens") == task_out:
+            unit = _unit_prices(m, creation)
+            if unit is None:
+                continue
+            price_in, price_out = unit
+            out["cost_input_usd"] = m["inputTokens"] * price_in
+            out["cost_output_usd"] = m["outputTokens"] * price_out
+            out["cost_cache_read_usd"] = m["cacheReadInputTokens"] * price_in * _CACHE_READ
+            out["cost_cache_write_usd"] = price_in * (
+                creation.get("ephemeral_1h_input_tokens", 0) * _CACHE_WRITE_1H
+                + creation.get("ephemeral_5m_input_tokens", 0) * _CACHE_WRITE_5M
+            )
+            out["cost_model"] = name
+        else:
+            out["cost_other_models_usd"] += m.get("costUSD") or 0.0
+    return out
+
+
+def _unit_prices(m: dict[str, Any], creation: dict[str, Any]) -> tuple[float, float] | None:
+    """Recover per-token input and output prices from one model's reported cost.
+
+    Solving for them rather than hardcoding a rate card keeps the split correct
+    when prices change, and keeps it summing to the figure actually reported.
+    """
+    weighted_in = (
+        m.get("inputTokens", 0)
+        + m.get("cacheReadInputTokens", 0) * _CACHE_READ
+        + creation.get("ephemeral_1h_input_tokens", 0) * _CACHE_WRITE_1H
+        + creation.get("ephemeral_5m_input_tokens", 0) * _CACHE_WRITE_5M
+    )
+    out_tokens = m.get("outputTokens", 0)
+    cost = m.get("costUSD")
+    if cost is None or not weighted_in or not out_tokens:
+        return None
+    # Output is priced at 5x input across the current model line; that ratio is
+    # the one extra equation needed to split a single total into two unknowns.
+    price_in = cost / (weighted_in + out_tokens * 5.0)
+    return price_in, price_in * 5.0
 
 
 def tool_call_rows(transcript: Transcript) -> list[dict[str, Any]]:
@@ -365,6 +515,7 @@ def tool_call_rows(transcript: Transcript) -> list[dict[str, Any]]:
             "result_bytes": call.result_bytes,
             "is_error": call.is_error,
             "error_kind": call.error_kind,
+            "duration_ms": call.duration_ms,
         }
         for call in transcript.tool_calls
     ]

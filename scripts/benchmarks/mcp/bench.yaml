@@ -3,11 +3,12 @@ model: claude-sonnet-5
 effort: medium
 
 trials: 3
-concurrency: 4 # Sandbox contention shows up as n_sandbox_errors; drop to 1 if it does.
+concurrency: 1 # Was 4: the code-mode sandbox rejects concurrent execute calls
+               # ("sandbox is busy"), and the retry wait dominated wall clock.
 timeout_s: 420 # Longest observed cell is 268s.
 retries: 1 # Harness failures only. Each retry costs a full timeout, so keep it low.
 
-max_budget_usd: 0.50 # Per invocation.
+max_budget_usd: 1.50 # Per invocation. Below the cost of the heaviest task it censors it.
 max_total_usd: 25.00 # Whole matrix; stops cleanly and resumably at the cap.
 
 # A run targets one MCP server and carries a label you choose. Comparison is

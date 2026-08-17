@@ -29,6 +29,8 @@ _RUN_KEYS = (
     "thinking_tokens",
     "num_turns",
     "n_tool_calls",
+    "tool_time_ms",
+    "max_tool_time_ms",
     "n_discovery_calls",
     "n_execute_calls",
     "n_sandbox_errors",
@@ -49,11 +51,43 @@ def _pick(rows: list[dict[str, Any]], keys: tuple[str, ...]) -> list[dict[str, A
     return [{k: row.get(k) for k in keys} for row in rows]
 
 
+def tool_summary(calls: list[dict[str, Any]]) -> dict[str, Any]:
+    """Per-tool totals: how the answers were actually obtained.
+
+    Result sizes are the point of an aggregate query surface, so they are
+    reported alongside the counts.
+    """
+    by_tool: dict[str, dict[str, Any]] = {}
+    for call in calls:
+        name = call.get("short_name") or "?"
+        row = by_tool.setdefault(
+            name, {"tool": name, "calls": 0, "errors": 0, "bytes": 0, "max_bytes": 0}
+        )
+        row["calls"] += 1
+        row["errors"] += 1 if call.get("is_error") else 0
+        size = call.get("result_bytes") or 0
+        row["bytes"] += size
+        row["max_bytes"] = max(row["max_bytes"], size)
+    for row in by_tool.values():
+        row["avg_bytes"] = round(row["bytes"] / row["calls"]) if row["calls"] else 0
+    return {
+        "by_tool": sorted(by_tool.values(), key=lambda r: -r["calls"]),
+        "total": len(calls),
+        "discovery": sum(1 for c in calls if c.get("is_discovery")),
+        "errors": sum(1 for c in calls if c.get("is_error")),
+        "max_bytes": max((c.get("result_bytes") or 0 for c in calls), default=0),
+        "avg_bytes": round(sum(c.get("result_bytes") or 0 for c in calls) / len(calls))
+        if calls
+        else 0,
+    }
+
+
 def payload(
     runs: list[dict[str, Any]],
     turns: list[dict[str, Any]],
     *,
     tasks: Optional[list[dict[str, Any]]] = None,
+    tool_calls: Optional[list[dict[str, Any]]] = None,
     meta: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """The JSON the page renders from — also what ``serve`` returns when polling."""
@@ -92,6 +126,7 @@ def payload(
             for t in (tasks or [])
         ],
         "labels": sorted({r["label"] for r in runs}),
+        "tools": tool_summary(tool_calls or []),
     }
 
 
@@ -109,11 +144,19 @@ def build_report(
     out_dir: Path,
     *,
     tasks: Optional[list[dict[str, Any]]] = None,
+    tool_calls: Optional[list[dict[str, Any]]] = None,
     meta: Optional[dict[str, Any]] = None,
 ) -> Path:
-    """Write ``report.html`` into ``out_dir`` and return its path."""
+    """Write ``report.html`` into ``out_dir`` and return its path.
+
+    Written via a temporary file and renamed, because this is rewritten after
+    every cell while a run is in progress: a reader refreshing the page must
+    never catch a half-written file.
+    """
     if not runs:
         raise ValueError("No runs to report on.")
     path = out_dir / "report.html"
-    path.write_text(render(payload(runs, turns, tasks=tasks, meta=meta)))
+    tmp = path.with_suffix(".html.tmp")
+    tmp.write_text(render(payload(runs, turns, tasks=tasks, tool_calls=tool_calls, meta=meta)))
+    tmp.replace(path)
     return path
