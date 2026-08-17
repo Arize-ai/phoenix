@@ -45,16 +45,16 @@ Usage:
     # load both sub-corpora into Phoenix (the client reads PHOENIX_HOST /
     # PHOENIX_PORT / PHOENIX_COLLECTOR_ENDPOINT / PHOENIX_API_KEY from the env,
     # falling back to http://localhost:6006).
-    uv run scripts/load_trail.py
+    uv run scripts/load_patronus_trail.py
 
     # dev loop on a subset
-    uv run scripts/load_trail.py --source gaia --limit 3
+    uv run scripts/load_patronus_trail.py --source gaia --limit 3
 
     # spans only, no annotations
-    uv run scripts/load_trail.py --no-annotations
+    uv run scripts/load_patronus_trail.py --no-annotations
 
     # keep original IDs and 2025 timestamps (and post scores at trace level)
-    uv run scripts/load_trail.py \\
+    uv run scripts/load_patronus_trail.py \\
         --no-regenerate-ids --no-shift-to-now --scores-on-trace
 """
 
