@@ -16,8 +16,13 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import type { AnnotationConfig } from "@phoenix/components/annotation";
+import {
+  getPositiveOptimizationFromConfig,
+  type AnnotationOptimizationConfig,
+} from "@phoenix/components/annotation";
+import type { ProjectAnnotationConfigsByNameFragment$key } from "@phoenix/components/annotation/__generated__/ProjectAnnotationConfigsByNameFragment.graphql";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import {
   ChartTooltipDivider,
   ChartTooltipItem,
@@ -106,25 +111,8 @@ function AnnotationSummaryValue(props: {
         timeRange: { type: "TimeRange!" }
         filterCondition: { type: "String", defaultValue: null }
       ) {
-        annotationConfigs {
-          edges {
-            node {
-              ... on AnnotationConfigBase {
-                annotationType
-              }
-              ... on CategoricalAnnotationConfig {
-                annotationType
-                id
-                optimizationDirection
-                name
-                values {
-                  label
-                  score
-                }
-              }
-            }
-          }
-        }
+        ...ProjectAnnotationConfigsByNameFragment
+          @arguments(annotationConfigNames: [$annotationName], first: 1)
         spanAnnotationSummary(
           annotationName: $annotationName
           timeRange: $timeRange
@@ -155,7 +143,7 @@ function AnnotationSummaryValue(props: {
     <AnnotationSummaryValueView
       name={annotationName}
       summary={data?.spanAnnotationSummary}
-      annotationConfigs={data?.annotationConfigs}
+      project={data}
     />
   );
 }
@@ -189,16 +177,13 @@ type AnnotationSummaryData = {
 export function AnnotationSummaryValueView({
   name,
   summary,
-  annotationConfigs,
+  project,
 }: {
   name: string;
   summary?: AnnotationSummaryData | null;
-  annotationConfigs?: {
-    readonly edges: readonly {
-      readonly node: { readonly name?: string | null };
-    }[];
-  } | null;
+  project: ProjectAnnotationConfigsByNameFragment$key | null | undefined;
 }) {
+  const annotationConfigsByName = useProjectAnnotationConfigsByName(project);
   return (
     <SummaryValue
       name={name}
@@ -207,10 +192,7 @@ export function AnnotationSummaryValueView({
       count={summary?.count}
       scoreCount={summary?.scoreCount}
       labelCount={summary?.labelCount}
-      annotationConfig={
-        annotationConfigs?.edges.find((edge) => edge.node.name === name)
-          ?.node as AnnotationConfig | undefined
-      }
+      annotationConfig={annotationConfigsByName.get(name)}
     />
   );
 }
@@ -296,7 +278,7 @@ function getStableColor(
   colors: string[],
   fallbackIndex: number,
   label: string,
-  annotationConfig?: AnnotationConfig
+  annotationConfig?: AnnotationOptimizationConfig
 ) {
   if (
     !annotationConfig ||
@@ -316,9 +298,12 @@ function getStableColor(
         (aScore - bScore)
       );
     })
-    .map((v) => v.label);
+    .map((v) => v.label)
+    .filter((label): label is string => label != null);
   const index = sortedLabels.indexOf(label);
-  return colors[index % colors.length];
+  return colors[
+    index === -1 ? fallbackIndex % colors.length : index % colors.length
+  ];
 }
 
 function useAnnotationSummaryChartColors(name: string) {
@@ -401,7 +386,7 @@ type SummaryValuePreviewProps = {
   /**
    * The annotation config for the annotation, if available.
    */
-  annotationConfig?: AnnotationConfig;
+  annotationConfig?: AnnotationOptimizationConfig;
 } & SizingProps;
 
 export function SummaryValuePreview({
@@ -421,6 +406,10 @@ export function SummaryValuePreview({
   }
   const chartDimensions = SizesMap[size].chart;
   const pieDimensions = SizesMap[size].pie;
+  const positiveOptimization = getPositiveOptimizationFromConfig({
+    config: annotationConfig,
+    score: meanScore,
+  });
   return (
     <Flex direction="row" alignItems="center" gap="size-100">
       {hasLabelFractions ? (
@@ -455,6 +444,7 @@ export function SummaryValuePreview({
           fallback={meanScoreFallback}
           value={meanScore}
           size={size === "S" ? size : "L"}
+          positiveOptimization={positiveOptimization}
         />
       ) : (
         // When there is no mean score, a "--" mean score next to the pie chart
@@ -526,7 +516,7 @@ export function SummaryValueBreakdown({
   annotationName: string;
   labelFractions?: readonly { label: string; fraction: number }[];
   meanScore?: number | null;
-  annotationConfig?: AnnotationConfig;
+  annotationConfig?: AnnotationOptimizationConfig;
   count?: number | null;
   scoreCount?: number | null;
   labelCount?: number | null;
@@ -534,6 +524,10 @@ export function SummaryValueBreakdown({
   const colors = useAnnotationSummaryChartColors(annotationName);
   const hasMeanScore = typeof meanScore === "number" && !isNaN(meanScore);
   const hasLabelFractions = labelFractions && labelFractions.length > 0;
+  const positiveOptimization = getPositiveOptimizationFromConfig({
+    config: annotationConfig,
+    score: meanScore,
+  });
   // Only surface coverage when some — but not all — values are present. A count
   // of 0 means the annotation simply isn't scored/labeled, so "0 of N" would be
   // misleading rather than informative.
@@ -574,7 +568,10 @@ export function SummaryValueBreakdown({
         {hasMeanScore ? (
           <Flex direction="row" justifyContent="space-between">
             <Text>mean score</Text>
-            <MeanScore value={meanScore} />
+            <MeanScore
+              value={meanScore}
+              positiveOptimization={positiveOptimization}
+            />
           </Flex>
         ) : null}
         {hasCoverage && (hasLabelFractions || hasMeanScore) ? (
@@ -609,7 +606,7 @@ export function SummaryValueLabels({
 }: {
   name: string;
   labelFractions: readonly { label: string; fraction: number }[];
-  annotationConfig?: AnnotationConfig;
+  annotationConfig?: AnnotationOptimizationConfig;
 }) {
   if (labelFractions.length === 0) {
     return null;

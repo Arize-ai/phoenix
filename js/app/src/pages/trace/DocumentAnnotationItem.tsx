@@ -4,6 +4,7 @@ import type { TokenProps, ViewProps } from "@phoenix/components";
 import { Flex, Text, Token, View } from "@phoenix/components";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { isAnnotatorKind } from "@phoenix/constants";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { DocumentAnnotationActionMenu } from "./DocumentAnnotationActionMenu";
@@ -13,12 +14,6 @@ import {
 } from "./DocumentAnnotationForm";
 
 const DANGER_ANNOTATION_LABELS = ["irrelevant", "unrelated"];
-const ANNOTATOR_KINDS = new Set(["HUMAN", "LLM", "CODE"] as const);
-type AnnotatorKind = "HUMAN" | "LLM" | "CODE";
-
-function isAnnotatorKind(value: string): value is AnnotatorKind {
-  return ANNOTATOR_KINDS.has(value as AnnotatorKind);
-}
 
 export type DocumentAnnotation = {
   id: string;

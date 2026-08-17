@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c6644a163338746ac3e039cf3113b738>>
+ * @generated SignedSource<<2e043eb6f64eda90c5dd066d6b683502>>
  * @lightSyntaxTransform
  */
 
@@ -35,7 +35,7 @@ export type SpanAnnotationScoreTimeSeriesQuery$data = {
       }>;
       readonly names: ReadonlyArray<string>;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   };
 };
 export type SpanAnnotationScoreTimeSeriesQuery = {
@@ -199,7 +199,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "ProjectAnnotationMetricsConfigFragment"
+                "name": "ProjectAnnotationConfigsByNameFragment"
               },
               (v5/*:: as any*/)
             ],
@@ -361,16 +361,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b2927fbb4a4dd0208088350d584a1ea9",
+    "cacheID": "99b2841957df3815a093bf8bb126efa3",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationScoreTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query SpanAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationMetricsConfigFragment\n      spanAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query SpanAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment\n      spanAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "877e411302cdc632c3638b5e1176003b";
+(node as any).hash = "92f85f8b3f80dfbe28406c34679bc81c";
 
 export default node;

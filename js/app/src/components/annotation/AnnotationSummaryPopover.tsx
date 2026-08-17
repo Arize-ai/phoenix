@@ -1,205 +1,101 @@
 import { css } from "@emotion/react";
-import type { CSSProperties, ReactNode } from "react";
-import { useMemo } from "react";
-import { FocusScope, Pressable } from "react-aria";
+import { type ReactNode, useState } from "react";
+import { Button as AriaButton } from "react-aria-components";
 
 import {
-  Dialog,
-  DialogTrigger,
-  Flex,
   Popover,
   PopoverArrow,
-  Text,
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-  TriggerWrap,
-  View,
+  PreviewTrigger,
+  VisuallyHidden,
 } from "@phoenix/components";
-import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { AnnotationDetailsList } from "@phoenix/components/annotation/AnnotationDetailsList";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { tableCSS } from "@phoenix/components/table/styles";
-import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { SpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
+import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 import type { Annotation } from "./types";
 
-const customTableCSS = css`
-  & thead tr th {
-    background-color: transparent;
+const annotationSummaryTriggerCSS = css`
+  all: unset;
+  display: inline-flex;
+  border-radius: var(--global-rounding-small);
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &[data-hovered] {
+    background-color: var(--global-color-gray-300);
   }
+
+  &[data-focus-visible] {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+`;
+
+const annotationSummaryPopoverCSS = css`
+  width: min(520px, calc(100vw - var(--global-dimension-size-400)));
+  max-width: 100%;
 `;
 
 export function AnnotationSummaryPopover({
   annotations,
   children,
-  width,
+  annotationConfig,
   meanScore,
   showFilterActions,
   renderFilterActions,
 }: {
-  /** Annotations of the same name */
+  /** Annotations of the same name, newest first. */
   annotations: Annotation[] | readonly Annotation[];
   children: ReactNode;
-  width?: CSSProperties["width"];
+  annotationConfig?: AnnotationOptimizationConfig;
   meanScore?: number | null;
   showFilterActions?: boolean;
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
-  const filteredAnnotations = useMemo(
-    () =>
-      annotations.filter(
-        (annotation) => annotation.label != null || annotation.score != null
-      ),
-    [annotations]
-  );
-  const prototypicalAnnotation = filteredAnnotations[0];
+  const [isOpen, setIsOpen] = useState(false);
+  const prototypicalAnnotation = annotations[0];
   if (!prototypicalAnnotation) {
     return null;
   }
+
   return (
-    <DialogTrigger>
-      <Pressable>
-        <span role="button">{children}</span>
-      </Pressable>
-      <StopPropagation>
+    <StopPropagation>
+      <PreviewTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+        <AriaButton
+          css={annotationSummaryTriggerCSS}
+          // PreviewTrigger handles hover, focus, and long press; add ordinary
+          // press so mouse and touch users can toggle the same popover.
+          onPress={() => setIsOpen((isOpen) => !isOpen)}
+        >
+          {children}
+          <VisuallyHidden>View annotation details</VisuallyHidden>
+        </AriaButton>
         <Popover
-          shouldCloseOnInteractOutside={() => true}
-          isKeyboardDismissDisabled={false}
-          style={{ minWidth: width }}
+          css={annotationSummaryPopoverCSS}
+          placement="right top"
+          aria-label={`${prototypicalAnnotation.name} annotation details`}
         >
           <PopoverArrow />
-          <Dialog
-            css={css`
-              border-radius: var(--global-radius-200);
-            `}
-          >
-            <FocusScope autoFocus contain restoreFocus>
-              <View>
-                <Flex direction="column">
-                  <View
-                    borderBottomWidth="thin"
-                    borderColor="default"
-                    paddingX="size-200"
-                    paddingY="size-100"
-                  >
-                    <Flex width="100%" justifyContent="space-between">
-                      <Flex direction="row" gap="size-100" alignItems="center">
-                        <AnnotationColorSwatch
-                          size="M"
-                          annotationName={prototypicalAnnotation.name}
-                        />
-                        <Text
-                          weight="heavy"
-                          title={prototypicalAnnotation.name}
-                          size="M"
-                        >
-                          <Truncate maxWidth="300px">
-                            {prototypicalAnnotation.name}
-                          </Truncate>
-                        </Text>
-                      </Flex>
-                      <TooltipTrigger delay={0}>
-                        <TriggerWrap>
-                          <MeanScore
-                            size="L"
-                            value={meanScore}
-                            fallback={null}
-                          />
-                        </TriggerWrap>
-                        <Tooltip placement="top">
-                          <TooltipArrow />
-                          <Text>Mean Score</Text>
-                        </Tooltip>
-                      </TooltipTrigger>
-                    </Flex>
-                  </View>
-                  <View overflow="auto" maxHeight="300px" position="relative">
-                    <table css={css(tableCSS, customTableCSS)}>
-                      <thead>
-                        <tr>
-                          <th>author</th>
-                          <th>label</th>
-                          <th>score</th>
-                          {showFilterActions ? <th>filters</th> : null}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredAnnotations.map((annotation) => (
-                          <tr
-                            css={css`
-                              padding-left: var(--global-dimension-size-200);
-                            `}
-                            key={annotation.id}
-                          >
-                            {
-                              <td>
-                                <Flex
-                                  wrap="nowrap"
-                                  gap="size-100"
-                                  alignItems="center"
-                                >
-                                  <UserPicture
-                                    name={annotation?.user?.username}
-                                    profilePictureUrl={
-                                      annotation?.user?.profilePictureUrl
-                                    }
-                                    size={16}
-                                  />
-                                  <Text>
-                                    {annotation?.user?.username ?? "system"}
-                                  </Text>
-                                </Flex>
-                              </td>
-                            }
-                            <td>
-                              {annotation.label ? (
-                                <Text title={annotation.label}>
-                                  <Truncate
-                                    maxWidth={
-                                      showFilterActions ? "150px" : "200px"
-                                    }
-                                  >
-                                    {annotation.label}
-                                  </Truncate>
-                                </Text>
-                              ) : (
-                                "--"
-                              )}
-                            </td>
-                            <td>
-                              {annotation.score != null
-                                ? formatFloat(annotation.score)
-                                : "--"}
-                            </td>
-
-                            {showFilterActions ? (
-                              <td>
-                                <Flex justifyContent="end" flexGrow={1}>
-                                  {renderFilterActions ? (
-                                    renderFilterActions(annotation)
-                                  ) : (
-                                    <SpanAnnotationTooltipFilterActions
-                                      annotation={annotation}
-                                    />
-                                  )}
-                                </Flex>
-                              </td>
-                            ) : null}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </View>
-                </Flex>
-              </View>
-            </FocusScope>
-          </Dialog>
+          <AnnotationDetailsList
+            annotations={annotations}
+            annotationConfig={annotationConfig}
+            meanScore={meanScore}
+            renderFilterActions={
+              showFilterActions
+                ? (annotation) =>
+                    renderFilterActions ? (
+                      renderFilterActions(annotation)
+                    ) : (
+                      <SpanAnnotationTooltipFilterActions
+                        annotation={annotation}
+                      />
+                    )
+                : undefined
+            }
+          />
         </Popover>
-      </StopPropagation>
-    </DialogTrigger>
+      </PreviewTrigger>
+    </StopPropagation>
   );
 }
