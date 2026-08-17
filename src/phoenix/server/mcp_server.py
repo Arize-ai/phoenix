@@ -336,6 +336,28 @@ def _read_only(
     return build
 
 
+#: Handed to `CodeMode` so the sandbox's limits are stated before they are hit
+#: rather than discovered by hitting them. Each one costs a full round trip to
+#: learn: the program is written, the data is fetched, and the failure arrives
+#: after the work is paid for. The state note is the most expensive of them --
+#: fetching into a variable and reading it in the next call is the single most
+#: common failure in benchmarking, and the usual recovery is to paste the fetched
+#: rows back in as literals, which spends the context the sandbox exists to save.
+_EXECUTE_DESCRIPTION = """Run Python in a sandbox. `call_tool(name, params)` is the only \
+function in scope; import nothing.
+
+Nothing survives between calls: each `execute` starts empty, so a variable set in \
+one call does not exist in the next. Do the fetching and the reducing in the same \
+program and return only the result.
+
+The standard library is unavailable -- no `collections`, no `json`, no `datetime`. \
+Use built-in types: a dict for counting, `sorted(...)` for ranking.
+
+Limits, per call: 100 MB of memory, 50 `call_tool` invocations, 30 seconds of \
+execution. Paging a whole project reaches all three; for counting, grouping or \
+averaging, one `executeSql` query returns the answer instead of the records."""
+
+
 class _CodeModeWithDirectSkillTools(CodeMode):
     """Code mode that leaves the skill tools on ``tools/list`` but hides them from inside code mode.
 
@@ -381,6 +403,7 @@ def _build_code_mode(
     sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
     return (
         _CodeModeWithDirectSkillTools(
+            execute_description=_EXECUTE_DESCRIPTION,
             discovery_tools=[
                 _read_only(Search()),
                 _read_only(GetSchemas()),

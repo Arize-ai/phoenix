@@ -198,7 +198,14 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         detail: DetailLevel = "brief",
         search: Optional[str] = None,
     ) -> str:
-        """Return the allowlisted analytics SQL schema for telemetry, datasets, and experiments."""
+        """List the tables, columns and join keys available to analytics SQL.
+
+        Read this before writing a query against traces, spans, annotations,
+        experiments, datasets or costs. Joins are by row id rather than the
+        public identifier -- `spans.trace_rowid`, `traces.project_rowid` -- so a
+        query written from the names alone will be rejected. Pair it with
+        `executeSql`, which runs the statement.
+        """
         if detail not in {"brief", "detailed", "full"}:
             raise ToolError("detail must be one of: brief, detailed, full")
 
@@ -264,7 +271,23 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         validate_only: bool = False,
         row_limit: Optional[int] = None,
     ) -> ExecuteSqlOutput:
-        """Execute read-only analytics SQL against allowlisted Phoenix tables.
+        """Count, sum, average, rank, or group anything in Phoenix with one query.
+
+        Read-only SQL over projects, traces, spans, annotations, experiments,
+        datasets, costs and latency. Use it for any question whose answer is
+        smaller than the data behind it: how many traces, total cost, error rate
+        by model, slowest spans, most common annotation label, cost per project,
+        percentiles, counts per group.
+
+        Prefer this to listing or searching records and reducing them yourself.
+        One aggregate returns a few rows; paging the same question moves every
+        matching record through the server and into context, and a project of
+        any size will exhaust the sandbox's memory before it finishes.
+
+        Call `describeSqlSchema` first for tables, columns and join keys --
+        guessing a column name costs a round trip that the schema would have
+        saved. Note the joins are by row id: `spans.trace_rowid`,
+        `traces.project_rowid`.
 
         Returns either the columns, rows, and applied limits, or an error
         envelope when the SQL cannot be accepted.
