@@ -35,6 +35,7 @@ query($id: ID!, $projectEvaluatorId: ID!) {
         id
         state
         blockingReason
+        failureReason
       }
     }
   }
@@ -111,13 +112,19 @@ async def _link_evaluation(
     status: str,
     error: Optional[str] = None,
     attempts: int = 0,
+    fingerprint: Optional[str] = None,
 ) -> models.EvalSessionWorkUnit:
-    """Attach a running or finished evaluation to the pair's outstanding request."""
+    """Attach a running or finished evaluation to the pair's outstanding request.
+
+    The fingerprint defaults to one of its own: most callers only need a row to link,
+    and work under a configuration the scheduler no longer recognizes is deliberately
+    not what it waits for. Pass the pair's current fingerprint to make it so.
+    """
     evaluation = models.EvalSessionWorkUnit(
         project_session_rowid=pair.project_session_rowid,
         evaluator_id=pair.evaluator_id,
         criteria_id=pair.criteria_id,
-        config_fingerprint=token_hex(8),
+        config_fingerprint=fingerprint or token_hex(8),
         evaluated_through=datetime.now(timezone.utc),
         status=status,
         error=error,
@@ -222,6 +229,8 @@ async def test_a_request_whose_evaluation_is_retired_by_a_configuration_change_r
     assert failed is not None
     assert failed["state"] == "FAILED"
     assert failed["blockingReason"] is None
+    # Asking again works after a configuration change, so it is worth distinguishing.
+    assert failed["failureReason"] == "EVALUATOR_CHANGED"
 
 
 async def test_a_request_closed_without_an_evaluation_reports_failed(
@@ -243,6 +252,9 @@ async def test_a_request_closed_without_an_evaluation_reports_failed(
     assert failed is not None
     assert failed["state"] == "FAILED"
     assert failed["blockingReason"] is None
+    # Nothing was ever attached to this ask, which is a different thing from an
+    # evaluator that ran and gave up.
+    assert failed["failureReason"] == "NO_EVALUATION_RECORDED"
 
 
 async def test_a_continuously_active_session_stays_requested_and_says_why(
@@ -309,3 +321,77 @@ async def test_requesting_an_evaluation_is_refused_while_session_evaluation_is_o
     assert result.errors
     assert "Session evaluation is turned off" in result.errors[0].message
     assert await _request_count(db) == 0
+
+
+async def _current_fingerprint(db: DbSessionFactory, pair: _Pair) -> str:
+    """The fingerprint the scheduler would compute for this pair right now."""
+    from sqlalchemy.orm import with_polymorphic
+
+    from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
+    from phoenix.server.online_eval.derivation import config_fingerprint
+
+    polymorphic_evaluator = with_polymorphic(
+        models.Evaluator,
+        [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+    )
+    async with db() as session:
+        row = (
+            await session.execute(
+                select(models.ProjectEvaluatorCriteria, polymorphic_evaluator)
+                .join(
+                    polymorphic_evaluator,
+                    models.ProjectEvaluatorCriteria.evaluator_id == polymorphic_evaluator.id,
+                )
+                .where(models.ProjectEvaluatorCriteria.id == pair.criteria_id)
+            )
+        ).one()
+        (resolved,) = await resolve_criteria_bulk(session, [tuple(row)])
+    assert resolved is not None
+    return config_fingerprint(resolved)
+
+
+async def test_a_request_made_while_an_unlinked_evaluation_runs_says_it_is_waiting(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """An ambient evaluation the request never linked to still holds the request back.
+
+    The sweep excludes this pair on the work identity — session, evaluator and
+    configuration — so the field has to read the same identity. Reaching work only
+    through the request's own link reports nothing is holding the ask back for as long as
+    that evaluation lives, which under error backoff is minutes.
+    """
+    pair = await _quiet_pair(db)
+    fingerprint = await _current_fingerprint(db, pair)
+    async with db() as session:
+        session.add(
+            models.EvalSessionWorkUnit(
+                project_session_rowid=pair.project_session_rowid,
+                evaluator_id=pair.evaluator_id,
+                criteria_id=pair.criteria_id,
+                config_fingerprint=fingerprint,
+                evaluated_through=datetime.now(timezone.utc),
+                status="PENDING",
+            )
+        )
+
+    requested = await _request(gql_client, pair)
+
+    assert requested["state"] == "REQUESTED"
+    assert requested["blockingReason"] == "EVALUATION_IN_PROGRESS"
+
+
+async def test_an_evaluation_request_is_reachable_as_a_node(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    pair = await _quiet_pair(db)
+    requested = await _request(gql_client, pair)
+
+    read = await gql_client.execute(
+        "query($id: ID!) { node(id: $id) { ... on EvaluationRequest { id state } } }",
+        {"id": requested["id"]},
+    )
+
+    assert read.data and not read.errors, read.errors
+    assert read.data["node"] == {"id": requested["id"], "state": "REQUESTED"}

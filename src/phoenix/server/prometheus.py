@@ -195,7 +195,17 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
 ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG = Gauge(
     namespace="phoenix",
     name="online_eval_session_eligible_pair_backlog",
-    documentation="Current number of session and evaluator pairs eligible for work",
+    documentation="Current number of session and evaluator pairs eligible for ambient work",
+)
+# Companion to the gauge above, which covers only ambient sweeping. Without this one a
+# trigger burst is invisible: an operator cannot tell triggers keeping up from a drain or
+# a sweep that has become the bottleneck.
+ONLINE_EVAL_SESSION_SCHEDULING_BACKLOG = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_scheduling_backlog",
+    documentation="Current number of session and evaluator pairs a sweep would decide, "
+    "by what raised them",
+    labelnames=("scheduling_origin",),
 )
 ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS = Gauge(
     namespace="phoenix",

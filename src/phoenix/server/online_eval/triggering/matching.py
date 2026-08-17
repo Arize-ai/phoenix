@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -27,8 +28,17 @@ def match_signals(
     signals: Iterable[DrainedSignal],
     rules: Iterable[TriggerRule],
 ) -> tuple[RequestKey, ...]:
-    """Resolve which pairs these signals demand, in a deterministic order."""
-    rules = tuple(rules)
+    """Resolve which pairs these signals demand, in a deterministic order.
+
+    Rules are indexed by the two things a signal must agree with before any predicate is
+    worth testing — its project and its kind — so a page is compared against the rules
+    that could match it rather than against every rule in the deployment. Nothing caps
+    how many rules a deployment holds, and the comparison runs between awaits: the whole
+    cross-product would land as an event-loop stall on the API process.
+    """
+    by_project_and_kind: dict[tuple[int, str], list[TriggerRule]] = defaultdict(list)
+    for rule in rules:
+        by_project_and_kind[(rule.project_id, rule.signal_kind)].append(rule)
     keys = {
         RequestKey(
             signal_id=signal.signal_id,
@@ -36,7 +46,7 @@ def match_signals(
             criteria_id=rule.criteria_id,
         )
         for signal in signals
-        for rule in rules
+        for rule in by_project_and_kind.get((signal.project_id, signal.kind), ())
         if _matches(signal, rule)
     }
     return tuple(
@@ -45,13 +55,11 @@ def match_signals(
 
 
 def _matches(signal: DrainedSignal, rule: TriggerRule) -> bool:
-    if rule.signal_kind != signal.kind:
-        return False
-    # The other two legs of signal.project == criteria.project == session.project: the
-    # session's project is checked against the criteria's by `requests.request_evaluations`,
-    # which rejects the pair rather than writing a cross-project request.
-    if rule.project_id != signal.project_id:
-        return False
+    # Project and kind are settled by the index `match_signals` matches through: a rule
+    # only ever meets a signal that already agrees with it on both. The other two legs of
+    # signal.project == criteria.project == session.project: the session's project is
+    # checked against the criteria's by `requests.request_evaluations`, which rejects the
+    # pair rather than writing a cross-project request.
     payload = signal.payload
     if rule.annotation_name is not None and payload.get("name") != rule.annotation_name:
         return False

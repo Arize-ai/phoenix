@@ -173,12 +173,13 @@ async def test_completing_a_unit_announces_its_verdict_against_the_target_sessio
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        completion_signal=_completion_signal(unit_id, claimed.criteria_id),
+        completion_signals=[_completion_signal(unit_id, claimed.criteria_id)],
     )
 
     (signal,) = await _signals(db)
     assert signal.kind == "evaluation_completed"
-    assert signal.dedup_key == f"span:{unit_id}"
+    # One occurrence per output, so the key names the output too.
+    assert signal.dedup_key == f"span:{unit_id}:criterion"
     async with db() as session:
         span_session_rowid = await session.scalar(
             select(models.Trace.project_session_rowid)
@@ -209,7 +210,7 @@ async def test_completing_an_already_done_unit_announces_nothing(db: DbSessionFa
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        completion_signal=_completion_signal(unit_id, claimed.criteria_id),
+        completion_signals=[_completion_signal(unit_id, claimed.criteria_id)],
     )
 
     assert await _signals(db) == []
@@ -225,7 +226,7 @@ async def test_completing_a_span_outside_any_session_announces_nothing(
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        completion_signal=_completion_signal(unit_id, claimed.criteria_id),
+        completion_signals=[_completion_signal(unit_id, claimed.criteria_id)],
     )
 
     assert (await _get_unit(db, unit_id)).status == "DONE"
@@ -249,7 +250,7 @@ async def test_a_failed_announcement_leaves_the_unit_uncompleted(
         await coordinator.complete(
             work_unit_id=unit_id,
             claimed_by="consumer-1",
-            completion_signal=_completion_signal(unit_id, claimed.criteria_id),
+            completion_signals=[_completion_signal(unit_id, claimed.criteria_id)],
         )
 
     assert (await _get_unit(db, unit_id)).status == "RUNNING"

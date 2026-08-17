@@ -152,14 +152,14 @@ async def test_materialization_rechecks_eligibility_at_write_time(
             .where(models.ProjectSession.id == project_session_id)
             .values(last_span_ingested_at=database_now)
         )
-        inserted_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+        inserted_count, backlog = await sweeper._load_eligible_pairs(
             session,
             database_now,
             [criterion],
             limit=1,
         )
         assert inserted_count == 0
-        assert eligible_pair_count is None
+        assert backlog is None
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
@@ -308,7 +308,7 @@ async def test_materialization_waits_for_publication_criteria_lock_before_sessio
     materialization_started = asyncio.Event()
     materialization_backend_pid: int | None = None
 
-    async def materialize() -> tuple[int, int | None]:
+    async def materialize() -> tuple[int, dict[str, int] | None]:
         nonlocal materialization_backend_pid
         async with db() as session:
             materialization_backend_pid = await session.scalar(select(func.pg_backend_pid()))
@@ -369,7 +369,7 @@ async def test_materialization_waits_for_retention_session_lock(
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvalSweeper(db)
 
-    async def materialize() -> tuple[int, int | None]:
+    async def materialize() -> tuple[int, dict[str, int] | None]:
         async with db() as session:
             database_now = await sweeper._database_now(session)
             return await sweeper._sweep(session, database_now)
@@ -971,7 +971,7 @@ async def test_session_filter_decisions_are_persisted_before_sampling(
     async with db() as session:
         criteria = await sweeper._load_criteria(session)
         database_now = await sweeper._database_now(session)
-        materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+        materialized_count, backlog = await sweeper._load_eligible_pairs(
             session,
             database_now,
             criteria,
@@ -991,7 +991,7 @@ async def test_session_filter_decisions_are_persisted_before_sampling(
             ).all()
         }
     assert materialized_count == 1
-    assert eligible_pair_count == 1
+    assert backlog == {"AMBIENT": 1}
     assert statuses == {
         matching_session_id: "PENDING",
         declined_session_id: "FILTERED_OUT",

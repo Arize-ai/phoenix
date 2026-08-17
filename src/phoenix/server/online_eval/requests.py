@@ -170,6 +170,19 @@ async def request_evaluations(
     return BatchRequestOutcome(granted, tuple(rejected_asks))
 
 
+def is_unfulfilled(request: Any) -> ColumnElement[bool]:
+    """Whether this request row is still waiting to be answered.
+
+    There is no status column, so being unfulfilled is a comparison between two counters.
+    Every reader spells it through here — the pending read below, and the sweep's ambient
+    stratum, which skips a pair a request already covers.
+    """
+    unfulfilled: ColumnElement[bool] = (
+        request.materialized_generation < request.requested_generation
+    )
+    return unfulfilled
+
+
 def unfulfilled_requests() -> Select[Any]:
     """The pairs whose asks have not been answered, with the generations to acknowledge.
 
@@ -187,10 +200,7 @@ def unfulfilled_requests() -> Select[Any]:
         models.EvaluationRequest.requested_generation.label("observed_generation"),
         models.EvaluationRequest.materialized_generation,
         forced.label("forced"),
-    ).where(
-        models.EvaluationRequest.materialized_generation
-        < models.EvaluationRequest.requested_generation
-    )
+    ).where(is_unfulfilled(models.EvaluationRequest))
 
 
 async def select_pending_requests(

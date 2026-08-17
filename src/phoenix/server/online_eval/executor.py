@@ -915,7 +915,7 @@ class OnlineEvalExecutor:
 
     async def evaluate_and_annotate(
         self, unit: ClaimedWorkUnit, hydrated: HydratedWorkUnit
-    ) -> EvaluationCompleted:
+    ) -> tuple[EvaluationCompleted, ...]:
         """Run the eval and publish successful results as target annotations under
         the unit's identifier. Span results are first-write-wins; session results
         replace a prior attempt so the annotation stays paired with its transcript
@@ -923,7 +923,9 @@ class OnlineEvalExecutor:
         error-free result set. No DB session is open while the evaluator runs.
 
         Returns:
-            The published verdict, for the caller to announce when it completes the unit.
+            One published verdict per evaluator output, for the caller to announce when it
+            completes the unit. A multi-output evaluator produces several: each output is
+            a fact of its own, and a rule may be authored against any of them.
         """
         tracer = (
             marked_evaluator_tracer(
@@ -1027,7 +1029,6 @@ class OnlineEvalExecutor:
         ]
         if not records:
             raise EvalExecutionError("evaluator returned no results")
-        published = results[0]
         annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
         target_column: InstrumentedAttribute[int]
         if unit.evaluation_target == "SPAN":
@@ -1041,27 +1042,46 @@ class OnlineEvalExecutor:
             unique_by = ("name", "project_session_id", "identifier")
             on_conflict = OnConflict.DO_UPDATE
         inserted_ids: Sequence[int] = ()
-        previous_label: Optional[str] = None
-        result_changed = True
+        completions: tuple[EvaluationCompleted, ...] = ()
 
         async def _write_annotations(session: AsyncSession) -> None:
-            nonlocal inserted_ids, previous_label, result_changed
-            # The verdict this replaces is only readable before the write lands.
-            previous = (
-                await session.execute(
-                    select(annotation_table.label, annotation_table.score).where(
-                        annotation_table.name == published["name"],
+            nonlocal inserted_ids, completions
+            # The verdicts these replace are only readable before the write lands, and
+            # each output is its own verdict: a rule authored against the second output
+            # of a two-output evaluator asks about that output's label, not the first's.
+            previous_by_name = {
+                row.name: row
+                for row in await session.execute(
+                    select(
+                        annotation_table.name,
+                        annotation_table.label,
+                        annotation_table.score,
+                    ).where(
+                        annotation_table.name.in_([result["name"] for result in results]),
                         target_column == unit.target_rowid,
                         annotation_table.identifier == unit.identifier,
                     )
                 )
-            ).first()
-            previous_label = previous.label if previous is not None else None
-            # A span annotation is first-write-wins, so an existing row is left standing
-            # and nothing changed.
-            result_changed = previous is None or (
-                on_conflict is OnConflict.DO_UPDATE
-                and (previous.label != published["label"] or previous.score != published["score"])
+            }
+            completions = tuple(
+                EvaluationCompleted(
+                    work_unit_kind="span" if unit.evaluation_target == "SPAN" else "session",
+                    work_unit_id=unit.work_unit_id,
+                    criteria_id=unit.criteria_id,
+                    evaluator_name=hydrated.annotation_name,
+                    name=result["name"],
+                    label=result["label"],
+                    score=result["score"],
+                    # A span annotation is first-write-wins, so an existing row is left
+                    # standing and nothing changed.
+                    result_changed=(previous := previous_by_name.get(result["name"])) is None
+                    or (
+                        on_conflict is OnConflict.DO_UPDATE
+                        and (previous.label != result["label"] or previous.score != result["score"])
+                    ),
+                    previous_label=previous.label if previous is not None else None,
+                )
+                for result in results
             )
             inserted_ids = (
                 await session.scalars(
@@ -1095,17 +1115,7 @@ class OnlineEvalExecutor:
                 self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
             else:
                 self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
-        return EvaluationCompleted(
-            work_unit_kind="span" if unit.evaluation_target == "SPAN" else "session",
-            work_unit_id=unit.work_unit_id,
-            criteria_id=unit.criteria_id,
-            evaluator_name=hydrated.annotation_name,
-            name=published["name"],
-            label=published["label"],
-            score=published["score"],
-            result_changed=result_changed,
-            previous_label=previous_label,
-        )
+        return completions
 
     async def _persist_evaluator_traces(self, tracer: Tracer) -> None:
         """Write the evaluator's trace, never failing the evaluation over it."""

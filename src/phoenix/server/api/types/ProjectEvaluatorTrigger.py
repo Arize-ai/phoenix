@@ -38,7 +38,9 @@ class AnnotationTarget(Enum):
         "A rule saying which occurrences should make its project evaluator run. Every "
         "predicate is optional, and leaving one null means it does not constrain the match, "
         "so a trigger with all of them null fires on every occurrence of its signal kind in "
-        "the project. To match a set of values ('label A or B'), add one trigger per value."
+        "the project. To match a set of values ('label A or B'), add one trigger per value. "
+        "A trigger applies to occurrences recorded after it is created and never to earlier "
+        "ones; use requestProjectSessionEvaluation to evaluate sessions that already match."
     )
 )
 class ProjectEvaluatorTrigger(Node):

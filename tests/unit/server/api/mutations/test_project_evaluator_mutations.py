@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any, Optional
 
@@ -11,6 +12,9 @@ from phoenix.config import (
     EVALUATORS_PROJECT_NAME,
 )
 from phoenix.db import models
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.online_eval.triggering.drain import SignalDrain
+from phoenix.server.online_eval.triggering.log import EvaluationCompleted, append
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -1306,8 +1310,9 @@ async def _add_session_project_evaluator(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
+    project: Optional[models.Project] = None,
 ) -> str:
-    project = await _add_project(db)
+    project = project or await _add_project(db)
     result = await gql_client.execute(
         _CREATE_CODE,
         {
@@ -1493,3 +1498,152 @@ async def test_create_project_evaluator_trigger_refuses_a_non_session_evaluator(
     assert refusal.errors
     assert "does not evaluate sessions" in refusal.errors[0].message
     assert await _trigger_count(db) == 0
+
+
+async def test_source_scoped_trigger_reaches_a_request_from_the_named_evaluator(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    session_evaluation_enabled: None,
+) -> None:
+    """The authoring path end to end: GraphQL id, stored column, matcher, request.
+
+    A global id and a criteria id are the same integer, so reading the trigger back
+    proves nothing about whether the matcher can use what was stored. Only driving a
+    completion from the named evaluator through to a request does.
+    """
+    project = await _add_project(db)
+    watcher_id = await _add_session_project_evaluator(gql_client, db, sandbox_config, project)
+    source_id = await _add_session_project_evaluator(gql_client, db, sandbox_config, project)
+    create = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": watcher_id,
+                "signalKind": "EVALUATION_COMPLETED",
+                "sourceProjectEvaluatorId": source_id,
+            }
+        },
+    )
+    assert create.data and not create.errors, create.errors
+    assert (
+        create.data["createProjectEvaluatorTrigger"]["trigger"]["sourceProjectEvaluator"]["id"]
+        == source_id
+    )
+
+    watcher_criteria_id = from_global_id_with_expected_type(
+        GlobalID.from_id(watcher_id), "ProjectEvaluator"
+    )
+    source_criteria_id = from_global_id_with_expected_type(
+        GlobalID.from_id(source_id), "ProjectEvaluator"
+    )
+    async with db() as session:
+        project_session = models.ProjectSession(
+            session_id=token_hex(8),
+            project_id=project.id,
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
+            last_span_ingested_at=datetime.now(timezone.utc),
+            content_complete=True,
+        )
+        session.add(project_session)
+        await session.flush()
+        await append(
+            session,
+            EvaluationCompleted(
+                work_unit_kind="session",
+                work_unit_id=1,
+                criteria_id=source_criteria_id,
+                evaluator_name="source",
+                name="quality",
+                label="bad",
+            ),
+            project_id=project.id,
+            project_session_rowid=project_session.id,
+        )
+
+    await SignalDrain(db)._tick()
+
+    async with db() as session:
+        requests = list(await session.scalars(select(models.EvaluationRequest)))
+    assert [request.criteria_id for request in requests] == [watcher_criteria_id]
+
+
+async def test_create_project_evaluator_trigger_refuses_a_source_in_another_project(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    session_evaluation_enabled: None,
+) -> None:
+    # Matching requires both evaluators to be in one project, so a cross-project source
+    # is a rule that looks configured and fires never.
+    watcher_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+    elsewhere_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+
+    refusal = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": watcher_id,
+                "signalKind": "EVALUATION_COMPLETED",
+                "sourceProjectEvaluatorId": elsewhere_id,
+            }
+        },
+    )
+    assert refusal.errors
+    assert "its own project" in refusal.errors[0].message
+    assert await _trigger_count(db) == 0
+
+
+async def test_create_project_evaluator_trigger_refuses_a_score_window_nothing_falls_in(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    session_evaluation_enabled: None,
+) -> None:
+    # Both bounds are strict and conjoined, so a reversed pair matches no score at all.
+    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+
+    refusal = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": project_evaluator_id,
+                "signalKind": "ANNOTATION_UPSERTED",
+                "scoreAbove": 0.9,
+                "scoreBelow": 0.1,
+            }
+        },
+    )
+    assert refusal.errors
+    assert "must be less than" in refusal.errors[0].message
+    assert await _trigger_count(db) == 0
+
+
+async def test_a_trigger_is_reachable_as_a_node(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    session_evaluation_enabled: None,
+) -> None:
+    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+    created = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": project_evaluator_id,
+                "signalKind": "ANNOTATION_UPSERTED",
+                "annotationName": "correctness",
+            }
+        },
+    )
+    assert created.data and not created.errors, created.errors
+    trigger_id = created.data["createProjectEvaluatorTrigger"]["trigger"]["id"]
+
+    read = await gql_client.execute(
+        "query($id: ID!) { node(id: $id) { ... on ProjectEvaluatorTrigger { id annotationName } } }",
+        {"id": trigger_id},
+    )
+
+    assert read.data and not read.errors, read.errors
+    assert read.data["node"] == {"id": trigger_id, "annotationName": "correctness"}

@@ -1859,6 +1859,11 @@ type EvaluationRequest implements Node {
   id: ID!
   state: EvaluationRequestState!
 
+  """
+  Why this evaluation will never produce a result, or null when it still might. Always null outside the FAILED state.
+  """
+  failureReason: EvaluationRequestFailureReason
+
   """When this session was most recently asked to be evaluated."""
   requestedAt: DateTime!
 
@@ -1880,6 +1885,15 @@ enum EvaluationRequestBlockingReason {
   EVALUATOR_VERSION_UNRESOLVED
   SESSION_FILTER_NOT_MATCHED
   EVALUATION_CAPACITY_REACHED
+}
+
+"""
+Why a requested evaluation will never produce a result. EVALUATOR_CHANGED means the evaluator was edited while the evaluation was queued, so asking again works; EVALUATOR_ERROR means it ran and gave up; NO_EVALUATION_RECORDED means the ask was closed with no evaluation attached to it.
+"""
+enum EvaluationRequestFailureReason {
+  EVALUATOR_CHANGED
+  EVALUATOR_ERROR
+  NO_EVALUATION_RECORDED
 }
 
 """
@@ -2870,7 +2884,7 @@ type Mutation {
   deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
 
   """
-  Add a rule that makes this project evaluator run whenever a matching occurrence is recorded. Predicates left out do not constrain the match.
+  Add a rule that makes this project evaluator run whenever a matching occurrence is recorded. Predicates left out do not constrain the match. The rule applies to occurrences recorded after it is created and never to earlier ones; to evaluate sessions that already carry a matching annotation, ask for those evaluations directly with requestProjectSessionEvaluation.
   """
   createProjectEvaluatorTrigger(input: CreateProjectEvaluatorTriggerInput!): ProjectEvaluatorTriggerMutationPayload!
 
@@ -3533,7 +3547,7 @@ enum ProjectEvaluatorSchedulabilityStatus {
 }
 
 """
-A rule saying which occurrences should make its project evaluator run. Every predicate is optional, and leaving one null means it does not constrain the match, so a trigger with all of them null fires on every occurrence of its signal kind in the project. To match a set of values ('label A or B'), add one trigger per value.
+A rule saying which occurrences should make its project evaluator run. Every predicate is optional, and leaving one null means it does not constrain the match, so a trigger with all of them null fires on every occurrence of its signal kind in the project. To match a set of values ('label A or B'), add one trigger per value. A trigger applies to occurrences recorded after it is created and never to earlier ones; use requestProjectSessionEvaluation to evaluate sessions that already match.
 """
 type ProjectEvaluatorTrigger implements Node {
   """The Globally Unique ID of this object"""
