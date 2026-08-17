@@ -235,13 +235,7 @@ class DatasetContext(_ChatContextBase):
 
 
 class GraphQLContext(_ChatContextBase):
-    """Deprecated GraphQL mutations opt-in.
-
-    Mutations are enabled by default (gated per-call by user approval in
-    manual edit mode), so clients no longer need to send this context. It is
-    still accepted so older clients can opt out explicitly; sending it logs a
-    deprecation warning and it will be removed in a future release.
-    """
+    """Deprecated GraphQL mutations opt-in."""
 
     model_config = ConfigDict(json_schema_extra={"deprecated": True})
 
@@ -306,12 +300,7 @@ class ResolvedContexts:
 
     @property
     def graphql_mutations_enabled(self) -> bool:
-        """Whether the client allows GraphQL mutations.
-
-        Absence of the deprecated ``graphql`` context means enabled; an
-        explicit ``mutationsEnabled`` value from an older client is honored.
-        Callers still apply the server-side env kill switch on top.
-        """
+        """Whether the client allows GraphQL mutations."""
         return self.graphql is None or self.graphql.mutations_enabled
 
 
