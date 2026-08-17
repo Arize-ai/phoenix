@@ -14,10 +14,19 @@ MAX_ATTEMPTS = 3
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
 
+# Signal kinds the trigger pipeline understands. Adding a kind is an edit here plus the
+# code that emits and matches it; the CHECK domains are rendered from this tuple.
+EVALUATOR_SIGNAL_KINDS = ("annotation_upserted", "evaluation_completed")
+
 # Stamped on session work units retired because their session lost content. Like the
 # subsystem's other error markers it is read by operators and matched in tests, so it
 # is spelled once here rather than at the deletion path that writes it.
 SESSION_CONTENT_INCOMPLETE_ERROR = "session content incomplete"
+
+# Stamped on a declined decision that a request displaced. It has to be distinct from
+# every other terminal marker: if it read as evidence that the pair had been evaluated,
+# superseding a declined row would immediately brake the request that displaced it.
+SUPERSEDED_BY_REQUEST_ERROR = "superseded by evaluation request"
 
 
 def live_eval_work_index_predicate() -> str:
@@ -36,3 +45,23 @@ def live_eval_session_work_index_predicate() -> str:
     """SQL text selecting session work and decisions that hold their dedup key."""
     declined = ", ".join(f"'{status}'" for status in SESSION_DECLINED_STATUSES)
     return f"{live_eval_work_index_predicate()} OR status IN ({declined})"
+
+
+def evaluator_signal_kind_check(column: str) -> str:
+    """SQL text constraining ``column`` to ``EVALUATOR_SIGNAL_KINDS``.
+
+    The signal log and the trigger rules that discriminate on kind both spell the
+    vocabulary through this, so a new kind cannot reach one table without the other.
+    """
+    kinds = ", ".join(f"'{kind}'" for kind in EVALUATOR_SIGNAL_KINDS)
+    return f"{column} IN ({kinds})"
+
+
+def undrained_evaluator_signal_predicate() -> str:
+    """SQL text selecting signals the drain has not acknowledged yet.
+
+    Postgres only uses a partial index for a query whose WHERE clause it can prove
+    implies the index predicate, so the drain query, the model's index, and the
+    migration that creates it must all spell this the same way.
+    """
+    return "acknowledged_at IS NULL"

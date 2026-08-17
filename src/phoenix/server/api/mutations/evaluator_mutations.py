@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
+from enum import Enum
 from secrets import token_hex
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 import strawberry
 from fastapi import Request
@@ -48,7 +49,11 @@ from phoenix.server.api.input_types.AnnotationConfigInput import (
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.mutations.project_session_evaluation_mutations import (
+    raise_if_session_evaluation_unavailable,
+)
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
@@ -60,6 +65,13 @@ from phoenix.server.api.types.Evaluator import (
 )
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.ProjectEvaluatorTrigger import (
+    AnnotationChange,
+    AnnotationTarget,
+    EvaluatorSignalKind,
+    ProjectEvaluatorTrigger,
+    to_gql_project_evaluator_trigger,
+)
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.api.types.SandboxConfig import (
     Language,
@@ -2608,5 +2620,348 @@ class EvaluatorMutationMixin:
         return CreateCodeEvaluatorVersionPayload(
             evaluator=CodeEvaluator(id=row.id, db_record=row),
             was_created=was_created,
+            query=Query(),
+        )
+
+
+@strawberry.input
+class CreateProjectEvaluatorTriggerInput:
+    project_evaluator_id: GlobalID
+    signal_kind: EvaluatorSignalKind
+    annotation_name: Optional[str] = UNSET
+    label: Optional[str] = UNSET
+    score_below: Optional[float] = UNSET
+    score_above: Optional[float] = UNSET
+    annotator_kind: Optional[AnnotatorKind] = UNSET
+    annotation_change: Optional[AnnotationChange] = UNSET
+    annotation_target: Optional[AnnotationTarget] = UNSET
+    source_project_evaluator_id: Optional[GlobalID] = UNSET
+    result_changed_only: Optional[bool] = UNSET
+
+
+@strawberry.input(
+    description=(
+        "Fields left out are unchanged; fields set to null stop constraining the match. The "
+        "signal kind is fixed when the trigger is created, since the predicates that apply "
+        "follow from it."
+    )
+)
+class PatchProjectEvaluatorTriggerInput:
+    project_evaluator_trigger_id: GlobalID
+    annotation_name: Optional[str] = UNSET
+    label: Optional[str] = UNSET
+    score_below: Optional[float] = UNSET
+    score_above: Optional[float] = UNSET
+    annotator_kind: Optional[AnnotatorKind] = UNSET
+    annotation_change: Optional[AnnotationChange] = UNSET
+    annotation_target: Optional[AnnotationTarget] = UNSET
+    source_project_evaluator_id: Optional[GlobalID] = UNSET
+    result_changed_only: Optional[bool] = UNSET
+
+
+@strawberry.input
+class DeleteProjectEvaluatorTriggersInput:
+    project_evaluator_trigger_ids: list[GlobalID]
+
+
+@strawberry.type
+class ProjectEvaluatorTriggerMutationPayload:
+    trigger: ProjectEvaluatorTrigger
+    query: Query
+
+
+@strawberry.type
+class DeleteProjectEvaluatorTriggersPayload:
+    project_evaluator_trigger_ids: list[GlobalID]
+    query: Query
+
+
+_ANNOTATION_ONLY_FIELDS = ("annotatorKind", "annotationChange", "annotationTarget")
+_EVALUATION_ONLY_FIELDS = ("sourceProjectEvaluatorId", "resultChangedOnly")
+
+_SHARED_PREDICATE_COLUMNS = (
+    "annotation_name",
+    "label",
+    "score_below",
+    "score_above",
+)
+_KIND_SCOPED_PREDICATE_COLUMNS = (
+    "annotator_kind",
+    "annotation_edge",
+    "annotation_kind",
+    "source_evaluator_id",
+    "result_changed_only",
+)
+
+
+def _validate_project_evaluator_trigger_predicates(
+    signal_kind: EvaluatorSignalKind,
+    *,
+    annotator_kind: Any,
+    annotation_change: Any,
+    annotation_target: Any,
+    source_project_evaluator_id: Any,
+    result_changed_only: Any,
+) -> None:
+    """Refuse predicates that do not apply to the declared signal kind.
+
+    The same split the schema enforces, restated here so the mutation answers with a
+    message naming the offending fields instead of a constraint violation.
+    """
+    if signal_kind is EvaluatorSignalKind.ANNOTATION_UPSERTED:
+        provided = zip(_EVALUATION_ONLY_FIELDS, (source_project_evaluator_id, result_changed_only))
+    else:
+        provided = zip(
+            _ANNOTATION_ONLY_FIELDS, (annotator_kind, annotation_change, annotation_target)
+        )
+    offending = [name for name, value in provided if value is not UNSET]
+    if offending:
+        raise BadRequest(f"{', '.join(offending)} cannot be set on a {signal_kind.name} trigger.")
+
+
+def _project_evaluator_trigger_values(
+    *,
+    annotation_name: Any,
+    label: Any,
+    score_below: Any,
+    score_above: Any,
+    annotator_kind: Any,
+    annotation_change: Any,
+    annotation_target: Any,
+    source_criteria_id: Any,
+    result_changed_only: Any,
+) -> dict[str, Any]:
+    """The column values an input asks for, leaving out the fields it did not mention."""
+    provided = {
+        "annotation_name": annotation_name,
+        "label": label,
+        "score_below": score_below,
+        "score_above": score_above,
+        "annotator_kind": _enum_value(annotator_kind),
+        "annotation_edge": _enum_value(annotation_change),
+        "annotation_kind": _enum_value(annotation_target),
+        "source_evaluator_id": source_criteria_id,
+        # Clearing this predicate means "do not constrain", which for a flag is false.
+        "result_changed_only": False if result_changed_only is None else result_changed_only,
+    }
+    return {column: value for column, value in provided.items() if value is not UNSET}
+
+
+def _enum_value(value: Any) -> Any:
+    return value.value if isinstance(value, Enum) else value
+
+
+async def _resolve_trigger_source_criteria_id(
+    session: AsyncSession,
+    source_project_evaluator_id: Any,
+) -> Any:
+    if source_project_evaluator_id is UNSET or source_project_evaluator_id is None:
+        return source_project_evaluator_id
+    try:
+        source_criteria_id = from_global_id_with_expected_type(
+            source_project_evaluator_id, ProjectEvaluator.__name__
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
+    if await session.get(models.ProjectEvaluatorCriteria, source_criteria_id) is None:
+        raise NotFound(f"Project evaluator not found: {source_project_evaluator_id}")
+    return source_criteria_id
+
+
+async def _raise_on_duplicate_project_evaluator_trigger(
+    session: AsyncSession,
+    *,
+    criteria_id: int,
+    signal_kind: str,
+    values: dict[str, Any],
+    exclude_trigger_id: Optional[int] = None,
+) -> None:
+    """Refuse a second trigger identical to one the evaluator already carries."""
+    columns = _SHARED_PREDICATE_COLUMNS + _KIND_SCOPED_PREDICATE_COLUMNS
+    stmt = select(models.ProjectEvaluatorTrigger.id).where(
+        models.ProjectEvaluatorTrigger.criteria_id == criteria_id,
+        models.ProjectEvaluatorTrigger.signal_kind == signal_kind,
+        *(
+            getattr(models.ProjectEvaluatorTrigger, column).is_not_distinct_from(
+                values.get(column, False if column == "result_changed_only" else None)
+            )
+            for column in columns
+        ),
+    )
+    if exclude_trigger_id is not None:
+        stmt = stmt.where(models.ProjectEvaluatorTrigger.id != exclude_trigger_id)
+    if await session.scalar(stmt) is not None:
+        raise Conflict("This project evaluator already has a trigger with these predicates.")
+
+
+@strawberry.type
+class ProjectEvaluatorTriggerMutationMixin:
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Add a rule that makes this project evaluator run whenever a matching occurrence "
+            "is recorded. Predicates left out do not constrain the match."
+        ),
+    )  # type: ignore
+    async def create_project_evaluator_trigger(
+        self, info: Info[Context, None], input: CreateProjectEvaluatorTriggerInput
+    ) -> ProjectEvaluatorTriggerMutationPayload:
+        raise_if_session_evaluation_unavailable()
+        try:
+            criteria_id = from_global_id_with_expected_type(
+                input.project_evaluator_id, ProjectEvaluator.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        _validate_project_evaluator_trigger_predicates(
+            input.signal_kind,
+            annotator_kind=input.annotator_kind,
+            annotation_change=input.annotation_change,
+            annotation_target=input.annotation_target,
+            source_project_evaluator_id=input.source_project_evaluator_id,
+            result_changed_only=input.result_changed_only,
+        )
+        async with info.context.db() as session:
+            if await session.get(models.ProjectEvaluatorCriteria, criteria_id) is None:
+                raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
+            source_criteria_id = await _resolve_trigger_source_criteria_id(
+                session, input.source_project_evaluator_id
+            )
+            values = _project_evaluator_trigger_values(
+                annotation_name=input.annotation_name,
+                label=input.label,
+                score_below=input.score_below,
+                score_above=input.score_above,
+                annotator_kind=input.annotator_kind,
+                annotation_change=input.annotation_change,
+                annotation_target=input.annotation_target,
+                source_criteria_id=source_criteria_id,
+                result_changed_only=input.result_changed_only,
+            )
+            await _raise_on_duplicate_project_evaluator_trigger(
+                session,
+                criteria_id=criteria_id,
+                signal_kind=input.signal_kind.value,
+                values=values,
+            )
+            trigger = models.ProjectEvaluatorTrigger(
+                criteria_id=criteria_id,
+                signal_kind=input.signal_kind.value,
+                **values,
+            )
+            session.add(trigger)
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                raise Conflict(f"Could not create trigger: {error}")
+            # The timestamps are database-side, so read them back before the row detaches.
+            await session.refresh(trigger)
+            payload = to_gql_project_evaluator_trigger(trigger)
+        return ProjectEvaluatorTriggerMutationPayload(trigger=payload, query=Query())
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description="Change the predicates of an existing trigger.",
+    )  # type: ignore
+    async def patch_project_evaluator_trigger(
+        self, info: Info[Context, None], input: PatchProjectEvaluatorTriggerInput
+    ) -> ProjectEvaluatorTriggerMutationPayload:
+        try:
+            trigger_id = from_global_id_with_expected_type(
+                input.project_evaluator_trigger_id, ProjectEvaluatorTrigger.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        async with info.context.db() as session:
+            trigger = await session.get(models.ProjectEvaluatorTrigger, trigger_id)
+            if trigger is None:
+                raise NotFound(
+                    f"Trigger not found: {input.project_evaluator_trigger_id}",
+                )
+            signal_kind = EvaluatorSignalKind(trigger.signal_kind)
+            _validate_project_evaluator_trigger_predicates(
+                signal_kind,
+                annotator_kind=input.annotator_kind,
+                annotation_change=input.annotation_change,
+                annotation_target=input.annotation_target,
+                source_project_evaluator_id=input.source_project_evaluator_id,
+                result_changed_only=input.result_changed_only,
+            )
+            source_criteria_id = await _resolve_trigger_source_criteria_id(
+                session, input.source_project_evaluator_id
+            )
+            values = _project_evaluator_trigger_values(
+                annotation_name=input.annotation_name,
+                label=input.label,
+                score_below=input.score_below,
+                score_above=input.score_above,
+                annotator_kind=input.annotator_kind,
+                annotation_change=input.annotation_change,
+                annotation_target=input.annotation_target,
+                source_criteria_id=source_criteria_id,
+                result_changed_only=input.result_changed_only,
+            )
+            patched = {
+                column: values.get(
+                    column,
+                    getattr(trigger, column),
+                )
+                for column in _SHARED_PREDICATE_COLUMNS + _KIND_SCOPED_PREDICATE_COLUMNS
+            }
+            await _raise_on_duplicate_project_evaluator_trigger(
+                session,
+                criteria_id=trigger.criteria_id,
+                signal_kind=trigger.signal_kind,
+                values=patched,
+                exclude_trigger_id=trigger_id,
+            )
+            for column, value in values.items():
+                setattr(trigger, column, value)
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                raise Conflict(f"Could not update trigger: {error}")
+            await session.refresh(trigger)
+            payload = to_gql_project_evaluator_trigger(trigger)
+        return ProjectEvaluatorTriggerMutationPayload(trigger=payload, query=Query())
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description="Remove triggers, leaving the evaluators they belong to in place.",
+    )  # type: ignore
+    async def delete_project_evaluator_triggers(
+        self, info: Info[Context, None], input: DeleteProjectEvaluatorTriggersInput
+    ) -> DeleteProjectEvaluatorTriggersPayload:
+        trigger_ids: list[int] = []
+        for global_id in input.project_evaluator_trigger_ids:
+            try:
+                trigger_ids.append(
+                    from_global_id_with_expected_type(global_id, ProjectEvaluatorTrigger.__name__)
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid trigger id: {global_id}")
+        if not trigger_ids:
+            return DeleteProjectEvaluatorTriggersPayload(
+                project_evaluator_trigger_ids=[], query=Query()
+            )
+        async with info.context.db() as session:
+            deleted = list(
+                await session.scalars(
+                    select(models.ProjectEvaluatorTrigger.id).where(
+                        models.ProjectEvaluatorTrigger.id.in_(trigger_ids)
+                    )
+                )
+            )
+            if deleted:
+                await session.execute(
+                    delete(models.ProjectEvaluatorTrigger).where(
+                        models.ProjectEvaluatorTrigger.id.in_(deleted)
+                    )
+                )
+        return DeleteProjectEvaluatorTriggersPayload(
+            project_evaluator_trigger_ids=[
+                GlobalID(ProjectEvaluatorTrigger.__name__, str(trigger_id))
+                for trigger_id in deleted
+            ],
             query=Query(),
         )

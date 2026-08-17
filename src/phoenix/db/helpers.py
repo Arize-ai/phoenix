@@ -704,6 +704,11 @@ async def mark_session_content_incomplete(
     which makes a wrong score permanent — every path that destroys session content must
     call this before or with the delete. `delete_traces` and `delete_spans` are how
     deletion paths get that for free.
+
+    Standing down also closes any evaluation the session had been asked for, leaving it
+    fulfilled with no work unit behind it — the state the request surface reports as
+    failed. This is the one place outside `server/online_eval/requests.py` that writes a
+    request row, because deletion runs below the server layer.
     """
     session_rowids_stmt = (
         sa.select(models.ProjectSession.id)
@@ -733,6 +738,14 @@ async def mark_session_content_incomplete(
             claimed_by=None,
             cooldown_until=None,
             error=SESSION_CONTENT_INCOMPLETE_ERROR,
+        )
+    )
+    await session.execute(
+        sa.update(models.EvaluationRequest)
+        .where(models.EvaluationRequest.project_session_rowid.in_(session_rowids))
+        .values(
+            materialized_generation=models.EvaluationRequest.requested_generation,
+            materialized_by_session_work_unit_id=None,
         )
     )
     await session.execute(

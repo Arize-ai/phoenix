@@ -16,7 +16,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Optional
 
@@ -46,6 +46,7 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
+from phoenix.server.online_eval.leases import DatabaseLease, LeaseLost
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
@@ -62,10 +63,6 @@ _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
 _CONSUMER_GROUP = "default"
 _PENDING_TTL_EXCEEDED_ERROR = "pending ttl exceeded"
-
-
-class _CursorLeaseLost(Exception):
-    pass
 
 
 @dataclass(frozen=True)
@@ -152,9 +149,24 @@ class OnlineEvalProducer(DaemonTask):
         self._retention_seconds = get_env_online_eval_retention_seconds()
         self._max_outstanding = get_env_online_eval_max_outstanding()
         self._last_backstop_at = time.monotonic()
-        self._lease_held = False
         self._publish_metrics = get_env_enable_prometheus()
-        self._last_ingest_sample: Optional[tuple[int, datetime]] = None
+        self._last_ingest_sample: Optional[tuple[int, float]] = None
+        self._lease = DatabaseLease(
+            db,
+            entity=models.EvalWorkCursor,
+            key=(
+                models.EvalWorkCursor.evaluation_target == self._evaluation_target,
+                models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
+            ),
+            holder_column=models.EvalWorkCursor.claimed_by,
+            heartbeat_column=models.EvalWorkCursor.claimed_at,
+            holder_id=self._producer_id,
+            ttl_seconds=CURSOR_LEASE_TTL_SECONDS,
+        )
+
+    @property
+    def _lease_held(self) -> bool:
+        return self._lease.held
 
     async def _run(self) -> None:
         try:
@@ -169,14 +181,18 @@ class OnlineEvalProducer(DaemonTask):
 
     async def _tick(self) -> None:
         try:
-            now = datetime.now(timezone.utc)
             mutations_allowed = not self._db.should_not_insert_or_update
-            cursor = await self._acquire_cursor(now, allow_insert=mutations_allowed)
+            cursor: Optional[models.EvalWorkCursor] = await self._lease.acquire(
+                models.EvalWorkCursor,
+                bootstrap=self._insert_cursor if mutations_allowed else None,
+            )
             if cursor is None:
                 return
+            async with self._db() as session:
+                now = await self._lease.database_now(session)
             if not mutations_allowed:
                 await self._reap(now, cursor.produced_through_id, mutations_allowed=False)
-                await self._renew_lease(datetime.now(timezone.utc))
+                await self._lease.renew()
                 return
             cursor = await self._clamp_cursor(cursor)
             if cursor is None:
@@ -184,7 +200,7 @@ class OnlineEvalProducer(DaemonTask):
             produced_through_id = cursor.produced_through_id
 
             await self._reap(now, produced_through_id, mutations_allowed=True)
-            await self._renew_lease(datetime.now(timezone.utc))
+            await self._lease.renew()
 
             observed_high_water_id = cursor.observed_high_water_id
             pending_observation = (
@@ -209,7 +225,7 @@ class OnlineEvalProducer(DaemonTask):
 
             advanced = False
             if budget > 0 and frontier is not None:
-                await self._renew_lease(datetime.now(timezone.utc))
+                await self._lease.renew()
                 advanced, budget = await self._materialize_and_advance(
                     active,
                     produced_through_id,
@@ -226,65 +242,27 @@ class OnlineEvalProducer(DaemonTask):
             if budget > 0 and time.monotonic() - self._last_backstop_at >= (
                 self._backstop_interval_seconds
             ):
-                await self._renew_lease(datetime.now(timezone.utc))
+                await self._lease.renew()
                 await self._backstop_sweep(active, produced_through_id, budget)
                 self._last_backstop_at = time.monotonic()
-        except _CursorLeaseLost:
+        except LeaseLost:
             logger.warning("Online-eval producer tick aborted after losing its lease")
 
-    async def _acquire_cursor(
-        self,
-        now: datetime,
-        *,
-        allow_insert: bool = True,
-    ) -> Optional[models.EvalWorkCursor]:
-        stale = now - timedelta(seconds=CURSOR_LEASE_TTL_SECONDS)
-        for _ in range(2):
-            async with self._db() as session:
-                cursor: Optional[models.EvalWorkCursor] = await session.scalar(
-                    update(models.EvalWorkCursor)
-                    .where(
-                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                        or_(
-                            models.EvalWorkCursor.claimed_by.is_(None),
-                            models.EvalWorkCursor.claimed_by == self._producer_id,
-                            models.EvalWorkCursor.claimed_at < stale,
-                        ),
-                    )
-                    .values(claimed_by=self._producer_id, claimed_at=now)
-                    .returning(models.EvalWorkCursor)
-                )
-            if cursor is not None:
-                self._lease_held = True
-                return cursor
-            async with self._db() as session:
-                row_exists = await session.scalar(
-                    select(models.EvalWorkCursor.id).where(
-                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    )
-                )
-                if row_exists is not None:
-                    break
-                if not allow_insert:
-                    break
-                produced_through_id = await session.scalar(select(func.max(models.Span.id))) or 0
-                await session.execute(
-                    insert_on_conflict(
-                        {
-                            "evaluation_target": self._evaluation_target,
-                            "consumer_group": _CONSUMER_GROUP,
-                            "produced_through_id": produced_through_id,
-                        },
-                        table=models.EvalWorkCursor,
-                        dialect=self._db.dialect,
-                        unique_by=("evaluation_target", "consumer_group"),
-                        on_conflict=OnConflict.DO_NOTHING,
-                    )
-                )
-        self._lease_held = False
-        return None
+    async def _insert_cursor(self, session: AsyncSession) -> None:
+        produced_through_id = await session.scalar(select(func.max(models.Span.id))) or 0
+        await session.execute(
+            insert_on_conflict(
+                {
+                    "evaluation_target": self._evaluation_target,
+                    "consumer_group": _CONSUMER_GROUP,
+                    "produced_through_id": produced_through_id,
+                },
+                table=models.EvalWorkCursor,
+                dialect=self._db.dialect,
+                unique_by=("evaluation_target", "consumer_group"),
+                on_conflict=OnConflict.DO_NOTHING,
+            )
+        )
 
     async def _clamp_cursor(self, cursor: models.EvalWorkCursor) -> Optional[models.EvalWorkCursor]:
         async with self._db() as session:
@@ -293,10 +271,7 @@ class OnlineEvalProducer(DaemonTask):
                 return cursor
             clamped: Optional[models.EvalWorkCursor] = await session.scalar(
                 update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.id == cursor.id,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
-                )
+                .where(*self._lease.held_by_me)
                 .values(
                     produced_through_id=max_span_id,
                     observed_high_water_id=None,
@@ -305,43 +280,15 @@ class OnlineEvalProducer(DaemonTask):
                 .returning(models.EvalWorkCursor)
             )
         if clamped is None:
-            self._lease_held = False
+            self._lease.record_loss()
             logger.warning("Online-eval producer lost its lease; cursor not clamped")
         return clamped
 
     async def _release_lease(self) -> None:
-        if not self._lease_held:
-            return
-        self._lease_held = False
         try:
-            async with self._db() as session:
-                await session.execute(
-                    update(models.EvalWorkCursor)
-                    .where(
-                        models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                        models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                        models.EvalWorkCursor.claimed_by == self._producer_id,
-                    )
-                    .values(claimed_by=None, claimed_at=None)
-                )
+            await self._lease.release()
         except Exception:
             logger.exception("Failed to release online-eval producer lease")
-
-    async def _renew_lease(self, now: datetime) -> None:
-        async with self._db() as session:
-            renewed = await session.scalar(
-                update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
-                )
-                .values(claimed_at=now)
-                .returning(models.EvalWorkCursor.id)
-            )
-        if renewed is None:
-            self._lease_held = False
-            raise _CursorLeaseLost
 
     async def _reap(
         self,
@@ -527,21 +474,17 @@ class OnlineEvalProducer(DaemonTask):
                         f"Online-eval producer frontier truncated at insertion budget; "
                         f"{budget} budget remaining"
                     )
-                    await self._fence_mutating_session(session)
+                    await self._lease.fence(session)
                     return False, budget
             advanced = await session.scalar(
                 update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
-                )
+                .where(*self._lease.held_by_me)
                 .values(produced_through_id=frontier)
                 .returning(models.EvalWorkCursor.id)
             )
             if advanced is None:
-                self._lease_held = False
-                raise _CursorLeaseLost
+                self._lease.record_loss()
+                raise LeaseLost
         return True, budget
 
     async def _record_observation(self, produced_through_id: int) -> None:
@@ -557,36 +500,35 @@ class OnlineEvalProducer(DaemonTask):
             # makes the next tick over-age the observation — eroding the
             # commit-visibility guard that is the only defense against the
             # id-vs-commit-order race. A post-read stamp errs conservative.
-            observed_at = datetime.now(timezone.utc)
+            observed_at = await self._lease.database_now(session)
             await session.execute(
                 update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                    models.EvalWorkCursor.claimed_by == self._producer_id,
-                )
+                .where(*self._lease.held_by_me)
                 .values(observed_high_water_id=high_water, observed_at=observed_at)
             )
         self._publish_frontier_gap(high_water - produced_through_id)
-        self._publish_ingest_rate(high_water, observed_at)
+        self._publish_ingest_rate(high_water)
 
     def _publish_frontier_gap(self, gap: int) -> None:
         """How far the arrival log has run ahead of what this producer has materialized."""
         if self._publish_metrics:
             ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS.set(gap)
 
-    def _publish_ingest_rate(self, high_water: int, observed_at: datetime) -> None:
+    def _publish_ingest_rate(self, high_water: int) -> None:
         """Span arrival rate, differenced across this producer's own observations.
 
         Sampled at the producer's tick because the producer is what observes the
         watermark; reading it from a consumer took the sample at the wrong cadence and
-        went dark whenever consumers did.
+        went dark whenever consumers did. The interval comes from the monotonic clock
+        rather than from the observation timestamps, whose resolution is the database's
+        — whole seconds on SQLite, which is coarser than a tick.
         """
-        previous, self._last_ingest_sample = self._last_ingest_sample, (high_water, observed_at)
+        sampled_at = time.monotonic()
+        previous, self._last_ingest_sample = self._last_ingest_sample, (high_water, sampled_at)
         if not self._publish_metrics or previous is None:
             return
-        last_high_water, last_observed_at = previous
-        elapsed = (observed_at - last_observed_at).total_seconds()
+        last_high_water, last_sampled_at = previous
+        elapsed = sampled_at - last_sampled_at
         if elapsed > 0:
             ONLINE_EVAL_INGEST_SPANS_PER_SECOND.set(max(high_water - last_high_water, 0) / elapsed)
 
@@ -617,23 +559,8 @@ class OnlineEvalProducer(DaemonTask):
                         f"{budget} budget remaining"
                     )
                     break
-            await self._fence_mutating_session(session)
+            await self._lease.fence(session)
         return budget
-
-    async def _fence_mutating_session(self, session: AsyncSession) -> None:
-        renewed = await session.scalar(
-            update(models.EvalWorkCursor)
-            .where(
-                models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                models.EvalWorkCursor.claimed_by == self._producer_id,
-            )
-            .values(claimed_at=datetime.now(timezone.utc))
-            .returning(models.EvalWorkCursor.id)
-        )
-        if renewed is None:
-            self._lease_held = False
-            raise _CursorLeaseLost
 
     async def _insert_work_units(
         self,

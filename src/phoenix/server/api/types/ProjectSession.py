@@ -11,16 +11,18 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import select
 from sqlalchemy.sql.expression import tuple_
 from strawberry import UNSET, Info, lazy
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.input_types.AnnotationFilter import AnnotationFilter, satisfies_filter
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.MimeType import MimeType
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     Cursor,
     CursorSortColumn,
@@ -34,6 +36,7 @@ from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.server.api.types.TokenUsage import TokenUsage
 
 if TYPE_CHECKING:
+    from phoenix.server.api.types.EvaluationRequest import EvaluationRequest
     from phoenix.server.api.types.Project import Project
     from phoenix.server.api.types.ProjectSessionAnnotation import ProjectSessionAnnotation
     from phoenix.server.api.types.Trace import Trace
@@ -319,6 +322,28 @@ class ProjectSession(Node):
             )
             for entry in summary
         ]
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "How far this session's evaluation by the given project evaluator has got, or "
+            "null if it has never been asked for."
+        )
+    )
+    async def evaluation_request(
+        self,
+        info: Info[Context, None],
+        project_evaluator_id: GlobalID,
+    ) -> Optional[Annotated["EvaluationRequest", lazy(".EvaluationRequest")]]:
+        from .EvaluationRequest import to_gql_evaluation_request
+
+        try:
+            criteria_id = from_global_id_with_expected_type(
+                project_evaluator_id, "ProjectEvaluator"
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        record = await info.context.data_loaders.evaluation_requests.load((self.id, criteria_id))
+        return to_gql_evaluation_request(record) if record is not None else None
 
     @strawberry.field
     async def session_annotations(

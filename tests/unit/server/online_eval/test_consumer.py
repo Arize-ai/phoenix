@@ -14,7 +14,11 @@ from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
+from phoenix.config import (
+    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
+    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
+    EVALUATORS_PROJECT_NAME,
+)
 from phoenix.db import models
 from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.db.types.annotation_configs import (
@@ -92,6 +96,7 @@ from phoenix.server.online_eval.tracing import (
     PROJECT_EVALUATOR_ID_ATTRIBUTE,
     PROJECT_EVALUATOR_NAME_ATTRIBUTE,
 )
+from phoenix.server.online_eval.triggering.drain import SignalDrain
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
@@ -541,6 +546,7 @@ async def _materialize_session_unit(
     project_session_rowid: int,
     evaluator_id: int,
     criteria_id: int,
+    scheduling_origin: models.SchedulingOrigin = "AMBIENT",
 ) -> tuple[int, str]:
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
@@ -566,6 +572,7 @@ async def _materialize_session_unit(
             criteria_id=criteria_id,
             config_fingerprint=fingerprint,
             evaluated_through=evaluated_through,
+            scheduling_origin=scheduling_origin,
         )
         session.add(unit)
         await session.flush()
@@ -1314,7 +1321,7 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
     (first_claim,) = await coordinator.claim(claimed_by="attempt-a", limit=1)
     first_hydrated = await executor.hydrate(first_claim)
     assert isinstance(first_hydrated, HydratedWorkUnit)
-    await executor.evaluate_and_annotate(first_claim, first_hydrated)
+    first_completion = await executor.evaluate_and_annotate(first_claim, first_hydrated)
 
     async with db() as session:
         second_trace = await _add_trace(
@@ -1345,12 +1352,18 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
     (second_claim,) = await coordinator.claim(claimed_by="attempt-b", limit=1)
     second_hydrated = await executor.hydrate(second_claim)
     assert isinstance(second_hydrated, HydratedWorkUnit)
-    await executor.evaluate_and_annotate(second_claim, second_hydrated)
+    second_completion = await executor.evaluate_and_annotate(second_claim, second_hydrated)
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by=second_claim.claimed_by,
     )
 
+    # Re-evaluating a session overwrites its annotation, so the verdict it replaced is
+    # only readable at publication — and an unchanged verdict is not a change.
+    assert first_completion.previous_label is None
+    assert first_completion.result_changed is True
+    assert second_completion.previous_label == first_completion.label
+    assert second_completion.result_changed is False
     unit = await _get_session_unit(db, unit_id)
     (annotation,) = await _session_annotations(db)
     policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
@@ -2926,3 +2939,79 @@ async def test_session_stand_down_is_visible_on_the_expired_gauge(
 
     expired_gauge.labels.assert_called_once_with(evaluation_target="SESSION")
     expired_gauge.labels.return_value.set.assert_called_once_with(1)
+
+
+async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
+    ingested_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        project_session.last_span_ingested_at = ingested_at
+        trace = await _add_trace(session, project, project_session, start_time=ingested_at)
+        await _add_span(session, trace, start_time=ingested_at)
+    evaluator_id, authoring_criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    _, downstream_criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    async with db() as session:
+        # Both rules fire on any completed evaluation in the project; only the one owned
+        # by the criteria that authored the verdict has to decline it.
+        session.add_all(
+            [
+                models.ProjectEvaluatorTrigger(
+                    criteria_id=criteria_id,
+                    signal_kind="evaluation_completed",
+                )
+                for criteria_id in (authoring_criteria_id, downstream_criteria_id)
+            ]
+        )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        authoring_criteria_id,
+        scheduling_origin="RULE",
+    )
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    assert unit.scheduling_origin == "RULE"
+    executor = _executor(db, evaluation_target="SESSION")
+
+    completion_signal = await executor.evaluate_and_annotate(
+        unit,
+        _hydrated_stub(
+            results=[_evaluation_result("criterion")],
+            evaluator_kind="BUILTIN",
+            output_configs=[],
+        ),
+    )
+    assert await coordinator.complete(
+        work_unit_id=unit_id,
+        claimed_by="consumer",
+        completion_signal=completion_signal,
+    )
+    await SignalDrain(db)._tick()
+
+    assert completion_signal.criteria_id == authoring_criteria_id
+    assert completion_signal.result_changed is True
+    assert completion_signal.previous_label is None
+    async with db() as session:
+        requests = list(
+            await session.scalars(
+                select(models.EvaluationRequest).order_by(models.EvaluationRequest.id)
+            )
+        )
+    assert [request.criteria_id for request in requests] == [downstream_criteria_id]
+    (annotation,) = await _session_annotations(db)
+    assert annotation.metadata_["phoenix.online_eval.scheduling_origin"] == "RULE"

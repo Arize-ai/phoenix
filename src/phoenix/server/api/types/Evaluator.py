@@ -38,6 +38,10 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.ProjectEvaluatorTrigger import (
+    ProjectEvaluatorTrigger,
+    to_gql_project_evaluator_trigger,
+)
 from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.online_eval.session_policy import (
     DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
@@ -1328,6 +1332,17 @@ class ProjectEvaluator(Node):
     async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
         counts = await info.context.data_loaders.project_evaluator_run_counts.load(self.id)
         return _project_evaluator_run_summary(counts)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Rules that make this evaluator run when a matching occurrence is recorded, in "
+            "addition to whatever its own schedule already runs. Only SESSION evaluators act "
+            "on them."
+        )
+    )
+    async def triggers(self, info: Info[Context, None]) -> list[ProjectEvaluatorTrigger]:
+        records = await info.context.data_loaders.project_evaluator_triggers.load(self.id)
+        return [to_gql_project_evaluator_trigger(record) for record in records]
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(

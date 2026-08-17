@@ -37,6 +37,10 @@ from .document_evaluation_summaries import (
 )
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
+from .evaluation_request_blocking_reasons import (
+    EvaluationRequestBlockingReasonsDataLoader,
+)
+from .evaluation_requests import EvaluationRequestsDataLoader
 from .evaluator_by_id import EvaluatorByIdDataLoader
 from .experiment_annotation_label_fractions import ExperimentAnnotationLabelFractionsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
@@ -66,6 +70,7 @@ from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
 from .project_evaluator_criteria_by_id import ProjectEvaluatorCriteriaByIdDataLoader
 from .project_evaluator_run_counts import ProjectEvaluatorRunCountsDataLoader
+from .project_evaluator_triggers import ProjectEvaluatorTriggersDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .projects_by_evaluator import ProjectsByEvaluatorDataLoader
@@ -193,6 +198,8 @@ class DataLoaders:
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
+    evaluation_request_blocking_reasons: EvaluationRequestBlockingReasonsDataLoader
+    evaluation_requests: EvaluationRequestsDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_label_fractions: ExperimentAnnotationLabelFractionsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
@@ -228,6 +235,7 @@ class DataLoaders:
     project_fields: TableFieldsDataLoader
     project_evaluator_criteria_by_id: ProjectEvaluatorCriteriaByIdDataLoader
     project_evaluator_run_counts: ProjectEvaluatorRunCountsDataLoader
+    project_evaluator_triggers: ProjectEvaluatorTriggersDataLoader
     project_trace_retention_policy_fields: TableFieldsDataLoader
     projects_by_evaluator: ProjectsByEvaluatorDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
@@ -357,6 +365,8 @@ def build_data_loaders(
         document_annotation_fields=TableFieldsDataLoader(db, models.DocumentAnnotation),
         document_evaluations=DocumentEvaluationsDataLoader(db),
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+        evaluation_request_blocking_reasons=EvaluationRequestBlockingReasonsDataLoader(db),
+        evaluation_requests=EvaluationRequestsDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
         experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
         annotation_summaries=AnnotationSummaryDataLoader(
@@ -408,6 +418,7 @@ def build_data_loaders(
         project_fields=TableFieldsDataLoader(db, models.Project),
         project_evaluator_criteria_by_id=ProjectEvaluatorCriteriaByIdDataLoader(db),
         project_evaluator_run_counts=ProjectEvaluatorRunCountsDataLoader(db),
+        project_evaluator_triggers=ProjectEvaluatorTriggersDataLoader(db),
         projects_by_evaluator=ProjectsByEvaluatorDataLoader(db),
         projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(db),
         prompt_fields=TableFieldsDataLoader(db, models.Prompt),

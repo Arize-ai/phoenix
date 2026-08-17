@@ -192,6 +192,38 @@ CREATE INDEX ix_project_sessions_project_id_start_time ON project_sessions
     (project_id, start_time DESC);
 
 
+-- Table: evaluator_signals
+-- ------------------------
+CREATE TABLE evaluator_signals (
+    id INTEGER NOT NULL,
+    kind VARCHAR NOT NULL
+        CONSTRAINT "ck_evaluator_signals_`valid_signal_kind`"
+        CHECK (kind IN ('annotation_upserted', 'evaluation_completed')),
+    dedup_key VARCHAR NOT NULL,
+    project_id INTEGER NOT NULL,
+    project_session_rowid INTEGER NOT NULL,
+    payload JSONB NOT NULL,
+    acknowledged_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_evaluator_signals PRIMARY KEY (id),
+    CONSTRAINT uq_evaluator_signals_kind_dedup_key UNIQUE (kind, dedup_key),
+    CONSTRAINT fk_evaluator_signals_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES projects (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evaluator_signals_project_session_rowid_project_sessions
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_evaluator_signals_project_id ON evaluator_signals (project_id);
+CREATE INDEX ix_evaluator_signals_project_session_rowid ON evaluator_signals
+    (project_session_rowid);
+CREATE INDEX ix_evaluator_signals_undrained ON evaluator_signals (id)
+    WHERE acknowledged_at IS NULL;
+
+
 -- Table: prompt_labels
 -- --------------------
 CREATE TABLE prompt_labels (
@@ -1322,6 +1354,9 @@ CHECK (status IN (
             'FILTERED_OUT',
             'SAMPLED_OUT'
         )),
+    scheduling_origin VARCHAR DEFAULT 'AMBIENT' NOT NULL
+        CONSTRAINT "ck_eval_session_work_units_`valid_scheduling_origin`"
+        CHECK (scheduling_origin IN ('AMBIENT', 'RULE', 'EXPLICIT')),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     attempts INTEGER DEFAULT '0' NOT NULL,
@@ -1408,6 +1443,110 @@ CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
     WHERE status IN ('DONE', 'EXPIRED');
 
 
+-- Table: evaluation_requests
+-- --------------------------
+CREATE TABLE evaluation_requests (
+    id INTEGER NOT NULL,
+    project_session_rowid INTEGER NOT NULL,
+    criteria_id INTEGER NOT NULL,
+    requested_generation INTEGER DEFAULT '0' NOT NULL,
+    materialized_generation INTEGER DEFAULT '0' NOT NULL,
+    force_requested_generation INTEGER DEFAULT '0' NOT NULL,
+    materialized_by_session_work_unit_id INTEGER,
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    requested_by VARCHAR,
+    count INTEGER DEFAULT '0' NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_evaluation_requests PRIMARY KEY (id),
+    CONSTRAINT uq_evaluation_requests_project_session_rowid_criteria_id
+        UNIQUE (project_session_rowid, criteria_id),
+    CONSTRAINT "ck_evaluation_requests_`valid_force_requested_generation`"
+        CHECK (
+            0 <= force_requested_generation
+            AND force_requested_generation <= requested_generation
+        ),
+    CONSTRAINT "ck_evaluation_requests_`valid_materialized_generation`"
+        CHECK (
+            0 <= materialized_generation
+            AND materialized_generation <= requested_generation
+        ),
+    CONSTRAINT "ck_evaluation_requests_`valid_requested_generation`"
+        CHECK (requested_generation >= 0),
+    CONSTRAINT fk_evaluation_requests_criteria_id_project_evaluator_criteria
+        FOREIGN KEY (criteria_id)
+        REFERENCES project_evaluator_criteria (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evaluation_requests_materialized_by_session_work_unit_id_eval_session_work_units
+        FOREIGN KEY (materialized_by_session_work_unit_id)
+        REFERENCES eval_session_work_units (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_evaluation_requests_project_session_rowid_project_sessions
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_evaluation_requests_criteria_id_project_session_rowid ON evaluation_requests
+    (criteria_id, project_session_rowid);
+
+
+-- Table: project_evaluator_triggers
+-- ---------------------------------
+CREATE TABLE project_evaluator_triggers (
+    id INTEGER NOT NULL,
+    criteria_id INTEGER NOT NULL,
+    signal_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluator_triggers_`valid_signal_kind`"
+        CHECK (signal_kind IN ('annotation_upserted', 'evaluation_completed')),
+    annotation_name VARCHAR,
+    label VARCHAR,
+    score_below FLOAT,
+    score_above FLOAT,
+    annotator_kind VARCHAR
+        CONSTRAINT "ck_project_evaluator_triggers_`valid_annotator_kind`"
+        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
+    annotation_edge VARCHAR
+        CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_edge`"
+        CHECK (annotation_edge IN ('created', 'updated')),
+    annotation_kind VARCHAR
+        CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_kind`"
+        CHECK (annotation_kind IN ('span', 'trace', 'session')),
+    source_evaluator_id INTEGER,
+    result_changed_only BOOLEAN DEFAULT false NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_predicates`"
+        CHECK (
+            signal_kind != 'annotation_upserted'
+            OR (source_evaluator_id IS NULL AND result_changed_only = false)
+        ),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_evaluation_predicates`"
+        CHECK (
+            signal_kind != 'evaluation_completed'
+            OR (
+                annotator_kind IS NULL
+                AND annotation_edge IS NULL
+                AND annotation_kind IS NULL
+            )
+        ),
+    CONSTRAINT fk_project_evaluator_triggers_criteria_id_project_evaluator_criteria
+        FOREIGN KEY (criteria_id)
+        REFERENCES project_evaluator_criteria (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_triggers_source_evaluator_id_project_evaluator_criteria
+        FOREIGN KEY (source_evaluator_id)
+        REFERENCES project_evaluator_criteria (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_project_evaluator_triggers_criteria_id ON project_evaluator_triggers
+    (criteria_id);
+CREATE INDEX ix_project_evaluator_triggers_source_evaluator_id ON project_evaluator_triggers
+    (source_evaluator_id);
+
+
 -- Table: project_session_annotations
 -- ----------------------------------
 CREATE TABLE project_session_annotations (
@@ -1443,6 +1582,8 @@ CREATE TABLE project_session_annotations (
 
 CREATE INDEX ix_project_session_annotations_project_session_id ON project_session_annotations
     (project_session_id);
+CREATE INDEX ix_project_session_annotations_updated_at ON project_session_annotations
+    (updated_at);
 CREATE INDEX ix_project_session_annotations_user_id ON project_session_annotations
     (user_id);
 
@@ -1806,6 +1947,7 @@ CREATE TABLE span_annotations (
 );
 
 CREATE INDEX ix_span_annotations_span_rowid ON span_annotations (span_rowid);
+CREATE INDEX ix_span_annotations_updated_at ON span_annotations (updated_at);
 CREATE INDEX ix_span_annotations_user_id ON span_annotations (user_id);
 
 
@@ -1859,4 +2001,5 @@ CREATE TABLE trace_annotations (
 );
 
 CREATE INDEX ix_trace_annotations_trace_rowid ON trace_annotations (trace_rowid);
+CREATE INDEX ix_trace_annotations_updated_at ON trace_annotations (updated_at);
 CREATE INDEX ix_trace_annotations_user_id ON trace_annotations (user_id);

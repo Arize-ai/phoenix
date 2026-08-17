@@ -327,6 +327,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                 db_backend,
             ),
             "ck_eval_session_work_units_`valid_eval_work_status`",
+            "ck_eval_session_work_units_`valid_scheduling_origin`",
         }
         if db_backend == "postgresql":
             index_names.add("pk_eval_session_work_units")
@@ -346,6 +347,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                     "evaluated_through",
                     "transcript_covered_through",
                     "status",
+                    "scheduling_origin",
                     "claimed_at",
                     "claimed_by",
                     "attempts",
@@ -367,6 +369,231 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                 }
             ),
         )
+
+
+class TestEvaluatorSignals(_OnlineEvalSchemaTest):
+    table_name = "evaluator_signals"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
+        index_names = {
+            "ix_evaluator_signals_undrained",
+            "ix_evaluator_signals_project_id",
+            "ix_evaluator_signals_project_session_rowid",
+        }
+        constraint_names = {
+            "pk_evaluator_signals",
+            "uq_evaluator_signals_kind_dedup_key",
+            "fk_evaluator_signals_project_id_projects",
+            _constraint_name(
+                "fk_evaluator_signals_project_session_rowid_project_sessions",
+                db_backend,
+            ),
+            "ck_evaluator_signals_`valid_signal_kind`",
+        }
+        if db_backend == "postgresql":
+            index_names.update(
+                {
+                    "pk_evaluator_signals",
+                    "uq_evaluator_signals_kind_dedup_key",
+                }
+            )
+        elif db_backend == "sqlite":
+            index_names.add("sqlite_autoindex_evaluator_signals_1")
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(
+                {
+                    "id",
+                    "kind",
+                    "dedup_key",
+                    "project_id",
+                    "project_session_rowid",
+                    "payload",
+                    "acknowledged_at",
+                    "created_at",
+                }
+            ),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset({"acknowledged_at"}),
+        )
+
+
+class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
+    table_name = "project_evaluator_triggers"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
+        index_names = {
+            "ix_project_evaluator_triggers_criteria_id",
+            "ix_project_evaluator_triggers_source_evaluator_id",
+        }
+        constraint_names = {
+            "pk_project_evaluator_triggers",
+            _constraint_name(
+                "fk_project_evaluator_triggers_criteria_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_project_evaluator_triggers_source_evaluator_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            "ck_project_evaluator_triggers_`valid_signal_kind`",
+            "ck_project_evaluator_triggers_`valid_annotator_kind`",
+            "ck_project_evaluator_triggers_`valid_annotation_edge`",
+            "ck_project_evaluator_triggers_`valid_annotation_kind`",
+            "ck_project_evaluator_triggers_`valid_annotation_predicates`",
+            "ck_project_evaluator_triggers_`valid_evaluation_predicates`",
+        }
+        if db_backend == "postgresql":
+            index_names.add("pk_project_evaluator_triggers")
+        elif db_backend == "sqlite":
+            index_names.add("sqlite_autoindex_project_evaluator_triggers_1")
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(
+                {
+                    "id",
+                    "criteria_id",
+                    "signal_kind",
+                    "annotation_name",
+                    "label",
+                    "score_below",
+                    "score_above",
+                    "annotator_kind",
+                    "annotation_edge",
+                    "annotation_kind",
+                    "source_evaluator_id",
+                    "result_changed_only",
+                    "created_at",
+                    "updated_at",
+                }
+            ),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            # Every predicate column is nullable: NULL means unconstrained, so a trigger
+            # with all of them NULL fires on every signal of its kind.
+            nullable_column_names=frozenset(
+                {
+                    "annotation_name",
+                    "label",
+                    "score_below",
+                    "score_above",
+                    "annotator_kind",
+                    "annotation_edge",
+                    "annotation_kind",
+                    "source_evaluator_id",
+                }
+            ),
+        )
+
+
+class TestEvaluationRequests(_OnlineEvalSchemaTest):
+    table_name = "evaluation_requests"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
+        index_names = {"ix_evaluation_requests_criteria_id_project_session_rowid"}
+        constraint_names = {
+            "pk_evaluation_requests",
+            "uq_evaluation_requests_project_session_rowid_criteria_id",
+            _constraint_name(
+                "fk_evaluation_requests_project_session_rowid_project_sessions",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_evaluation_requests_criteria_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_evaluation_requests_materialized_by_session_work_unit_id"
+                "_eval_session_work_units",
+                db_backend,
+            ),
+            "ck_evaluation_requests_`valid_requested_generation`",
+            "ck_evaluation_requests_`valid_materialized_generation`",
+            "ck_evaluation_requests_`valid_force_requested_generation`",
+        }
+        if db_backend == "postgresql":
+            index_names.update(
+                {
+                    "pk_evaluation_requests",
+                    "uq_evaluation_requests_project_session_rowid_criteria_id",
+                }
+            )
+        elif db_backend == "sqlite":
+            index_names.add("sqlite_autoindex_evaluation_requests_1")
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(
+                {
+                    "id",
+                    "project_session_rowid",
+                    "criteria_id",
+                    "requested_generation",
+                    "materialized_generation",
+                    "force_requested_generation",
+                    "materialized_by_session_work_unit_id",
+                    "requested_at",
+                    "requested_by",
+                    "count",
+                    "created_at",
+                    "updated_at",
+                }
+            ),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                {"materialized_by_session_work_unit_id", "requested_by"}
+            ),
+        )
+
+
+async def test_annotation_updated_at_indexes(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _db_backend: _DBBackend,
+    _schema: str,
+) -> None:
+    """The annotation tables gain an updated_at index the delta adapter reads edits by."""
+    await _verify_clean_state(_engine, _schema)
+    await _up(_engine, _alembic_config, _DOWN, _schema)
+
+    expected = {
+        "span_annotations": "ix_span_annotations_updated_at",
+        "trace_annotations": "ix_trace_annotations_updated_at",
+        "project_session_annotations": "ix_project_session_annotations_updated_at",
+    }
+
+    def _get(conn: Connection) -> dict[str, frozenset[str]]:
+        info = {}
+        for table_name in expected:
+            table_info = _get_table_schema_info(conn, table_name, _db_backend, _schema)
+            assert table_info is not None
+            info[table_name] = table_info["index_names"]
+        return info
+
+    before = await _run_async(_engine, _get)
+    for table_name, index_name in expected.items():
+        assert index_name not in before[table_name]
+
+    await _up(_engine, _alembic_config, _UP, _schema)
+    after = await _run_async(_engine, _get)
+    for table_name, index_name in expected.items():
+        assert after[table_name] == before[table_name] | {index_name}
+
+    await _down(_engine, _alembic_config, _DOWN, _schema)
+    assert await _run_async(_engine, _get) == before
 
 
 async def test_project_session_liveness_schema(

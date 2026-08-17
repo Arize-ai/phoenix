@@ -291,6 +291,14 @@ interface Annotation {
   user: User
 }
 
+"""
+Whether an annotation was written for the first time or replaced an earlier value.
+"""
+enum AnnotationChange {
+  CREATED
+  UPDATED
+}
+
 union AnnotationConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
 
 interface AnnotationConfigBase {
@@ -377,6 +385,13 @@ type AnnotationSummary {
   meanScore: Float
   scoreCount: Int!
   labelCount: Int!
+}
+
+"""What an annotation is attached to."""
+enum AnnotationTarget {
+  SPAN
+  TRACE
+  SESSION
 }
 
 enum AnnotationTimeRangeField {
@@ -1015,6 +1030,20 @@ input CreateProjectCodeEvaluatorInput {
   evaluationDelaySeconds: Int = null
 }
 
+input CreateProjectEvaluatorTriggerInput {
+  projectEvaluatorId: ID!
+  signalKind: EvaluatorSignalKind!
+  annotationName: String
+  label: String
+  scoreBelow: Float
+  scoreAbove: Float
+  annotatorKind: AnnotatorKind
+  annotationChange: AnnotationChange
+  annotationTarget: AnnotationTarget
+  sourceProjectEvaluatorId: ID
+  resultChangedOnly: Boolean
+}
+
 input CreateProjectInput {
   name: String!
   description: String
@@ -1613,6 +1642,15 @@ input DeleteProjectAnnotationsInput {
   timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
 }
 
+input DeleteProjectEvaluatorTriggersInput {
+  projectEvaluatorTriggerIds: [ID!]!
+}
+
+type DeleteProjectEvaluatorTriggersPayload {
+  projectEvaluatorTriggerIds: [ID!]!
+  query: Query!
+}
+
 input DeleteProjectEvaluatorsInput {
   projectEvaluatorIds: [ID!]!
   deleteAssociatedPrompt: Boolean! = true
@@ -1813,6 +1851,43 @@ type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   error: String
 }
 
+"""
+A standing ask that one session be evaluated by one project evaluator, and how far that ask has got. At most one exists per session and project evaluator: asking again while an earlier ask is outstanding updates the same request.
+"""
+type EvaluationRequest implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  state: EvaluationRequestState!
+
+  """When this session was most recently asked to be evaluated."""
+  requestedAt: DateTime!
+
+  """
+  Why the evaluation has not started, or null when nothing is holding it back. Always null outside the REQUESTED state.
+  """
+  blockingReason: EvaluationRequestBlockingReason
+  projectSession: ProjectSession!
+  projectEvaluator: ProjectEvaluator!
+}
+
+"""Why a requested evaluation has not started yet."""
+enum EvaluationRequestBlockingReason {
+  SESSION_ACTIVE
+  EVALUATION_IN_PROGRESS
+  EVALUATOR_NOT_SCHEDULABLE
+  EVALUATOR_VERSION_UNRESOLVED
+}
+
+"""
+Where a requested evaluation has reached. REQUESTED means it has been asked for but has not started, QUEUED means it is waiting to run or running, EVALUATED means it produced an annotation, and FAILED means it never will.
+"""
+enum EvaluationRequestState {
+  REQUESTED
+  QUEUED
+  EVALUATED
+  FAILED
+}
+
 type EvaluationResult {
   evaluatorName: String!
   annotation: ExperimentRunAnnotation
@@ -1917,6 +1992,12 @@ input EvaluatorPreviewsInput {
 
 type EvaluatorPreviewsPayload {
   results: [EvaluationResult!]!
+}
+
+"""The kind of occurrence a trigger matches on."""
+enum EvaluatorSignalKind {
+  ANNOTATION_UPSERTED
+  EVALUATION_COMPLETED
 }
 
 """The sort key and direction for evaluator connections"""
@@ -2783,10 +2864,26 @@ type Mutation {
   Delete every session annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
   """
   deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Add a rule that makes this project evaluator run whenever a matching occurrence is recorded. Predicates left out do not constrain the match.
+  """
+  createProjectEvaluatorTrigger(input: CreateProjectEvaluatorTriggerInput!): ProjectEvaluatorTriggerMutationPayload!
+
+  """Change the predicates of an existing trigger."""
+  patchProjectEvaluatorTrigger(input: PatchProjectEvaluatorTriggerInput!): ProjectEvaluatorTriggerMutationPayload!
+
+  """Remove triggers, leaving the evaluators they belong to in place."""
+  deleteProjectEvaluatorTriggers(input: DeleteProjectEvaluatorTriggersInput!): DeleteProjectEvaluatorTriggersPayload!
   createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
   patchProject(input: PatchProjectInput!): ProjectMutationPayload!
+
+  """
+  Ask that this session be evaluated by this project evaluator. The evaluation runs asynchronously; the returned request reports how far it has got. Asking again while an earlier ask is outstanding updates the same request rather than creating a second one.
+  """
+  requestProjectSessionEvaluation(input: RequestProjectSessionEvaluationInput!): RequestProjectSessionEvaluationPayload!
   createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   patchProjectTraceRetentionPolicy(input: PatchProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   deleteProjectTraceRetentionPolicy(input: DeleteProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
@@ -3014,6 +3111,22 @@ input PatchGenerativeModelCustomProviderMutationInput {
 type PatchGenerativeModelCustomProviderMutationPayload {
   provider: GenerativeModelCustomProvider!
   query: Query!
+}
+
+"""
+Fields left out are unchanged; fields set to null stop constraining the match. The signal kind is fixed when the trigger is created, since the predicates that apply follow from it.
+"""
+input PatchProjectEvaluatorTriggerInput {
+  projectEvaluatorTriggerId: ID!
+  annotationName: String
+  label: String
+  scoreBelow: Float
+  scoreAbove: Float
+  annotatorKind: AnnotatorKind
+  annotationChange: AnnotationChange
+  annotationTarget: AnnotationTarget
+  sourceProjectEvaluatorId: ID
+  resultChangedOnly: Boolean
 }
 
 input PatchProjectInput {
@@ -3326,6 +3439,11 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
+  Rules that make this evaluator run when a matching occurrence is recorded, in addition to whatever its own schedule already runs. Only SESSION evaluators act on them.
+  """
+  triggers: [ProjectEvaluatorTrigger!]!
+
+  """
   Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
   """
   evaluationDelaySeconds: Int!
@@ -3410,6 +3528,64 @@ enum ProjectEvaluatorSchedulabilityStatus {
   NOT_SCHEDULABLE
 }
 
+"""
+A rule saying which occurrences should make its project evaluator run. Every predicate is optional, and leaving one null means it does not constrain the match, so a trigger with all of them null fires on every occurrence of its signal kind in the project. To match a set of values ('label A or B'), add one trigger per value.
+"""
+type ProjectEvaluatorTrigger implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  signalKind: EvaluatorSignalKind!
+
+  """Match only annotations written under this name."""
+  annotationName: String
+
+  """Match only this annotation label."""
+  label: String
+
+  """
+  Match only scores strictly below this value; unscored results never match.
+  """
+  scoreBelow: Float
+
+  """
+  Match only scores strictly above this value; unscored results never match.
+  """
+  scoreAbove: Float
+
+  """
+  Match only annotations from this kind of annotator. ANNOTATION_UPSERTED only.
+  """
+  annotatorKind: AnnotatorKind
+
+  """Match only new or only replaced annotations. ANNOTATION_UPSERTED only."""
+  annotationChange: AnnotationChange
+
+  """
+  Match only annotations attached to this kind of entity. ANNOTATION_UPSERTED only.
+  """
+  annotationTarget: AnnotationTarget
+
+  """
+  Match only evaluations whose result differs from the previous one for the same target. EVALUATION_COMPLETED only.
+  """
+  resultChangedOnly: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """The project evaluator this trigger runs."""
+  projectEvaluator: ProjectEvaluator!
+
+  """
+  Match only evaluations produced by this project evaluator, or null to match any. A project evaluator never triggers on its own result. EVALUATION_COMPLETED only.
+  """
+  sourceProjectEvaluator: ProjectEvaluator
+}
+
+type ProjectEvaluatorTriggerMutationPayload {
+  trigger: ProjectEvaluatorTrigger!
+  query: Query!
+}
+
 """The filter key and value for project connections"""
 input ProjectFilter {
   col: ProjectFilterColumn!
@@ -3451,6 +3627,11 @@ type ProjectSession implements Node {
   traceLatencyMsQuantile(probability: Float!): Float
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+
+  """
+  How far this session's evaluation by the given project evaluator has got, or null if it has never been asked for.
+  """
+  evaluationRequest(projectEvaluatorId: ID!): EvaluationRequest
   sessionAnnotations: [ProjectSessionAnnotation!]!
 
   """Summarizes each annotation (by name) associated with the session"""
@@ -4173,6 +4354,21 @@ input RemoveAnnotationConfigFromProjectInput {
 type RemoveAnnotationConfigFromProjectPayload {
   query: Query!
   project: Project!
+}
+
+input RequestProjectSessionEvaluationInput {
+  projectSessionId: ID!
+  projectEvaluatorId: ID!
+
+  """
+  Ask for a fresh evaluation even when this session already has one from the same evaluator configuration. Without it, an existing result answers the request.
+  """
+  force: Boolean! = false
+}
+
+type RequestProjectSessionEvaluationPayload {
+  evaluationRequest: EvaluationRequest!
+  query: Query!
 }
 
 union ResolvedSecret = DecryptedSecret | UnparsableSecret
