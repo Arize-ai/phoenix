@@ -172,7 +172,12 @@ def _payload_error(content: Any) -> Optional[str]:
 #: structured error a rejected query gets, so the class name is recovered from
 #: the message. Worth separating: `NameError` here is almost always state lost
 #: between calls, not a mistake in the program.
-_RAISED = re.compile(r"Error calling tool '[^']*':\s*([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))")
+#: Anchored on the colon the sandbox puts after the class rather than on the
+#: name ending in Error or Exception: that spelling cannot match a bare
+#: `Exception` -- it has no room for the leading character the pattern also
+#: requires -- and never matches `SystemExit`, which is what a guest raises to
+#: return a value. Both were reported as an unexplained failure.
+_RAISED = re.compile(r"Error calling tool '[^']*':\s*([A-Z][A-Za-z0-9_]*)(?=:)")
 
 
 def _error_kind(text: str) -> Optional[str]:
