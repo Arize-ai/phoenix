@@ -7,4 +7,14 @@ prompt: >-
   Looking at the tool spans recorded in the trail-gaia project, which tool
   failed the most times?
 expect:
-  contains: PageDownTool
+  # The span is named PageDownTool; the tool.name attribute on it is
+  # page_down. A run that groups by either has found the same tool.
+  regex: '(?i)(PageDownTool|page_down)'
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- PageDownTool failed 109 of 110 calls.
+- '**page_down** is the tool that failed the most, with 109 failures.'
+reject:
+- SearchInformationTool, 28 failures.
+- executeSql

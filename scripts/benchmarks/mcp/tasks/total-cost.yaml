@@ -6,3 +6,13 @@ prompt: >-
   What did the trail-gaia run cost in total?
 expect:
   regex: '\$\s?16\b|\b16\.0\d*\b|\b16 (?:US )?dollars\b'
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- It cost about $16.00 in total.
+- Roughly 16.0022 dollars.
+- '**$16.00** across 117 traces'
+reject:
+- The run used 16,002 tokens.
+- It cost $1.60.
+- I am unable to find a trail-gaia run in the available data.

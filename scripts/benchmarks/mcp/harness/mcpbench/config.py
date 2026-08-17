@@ -50,6 +50,17 @@ class Task:
     trials: Optional[int] = None
     json_schema: Optional[dict[str, Any]] = None
     expect: dict[str, Any] = field(default_factory=dict)
+    #: Answers the expectation must accept, and answers it must not. Every
+    #: mis-grade this suite has produced was a right answer worded differently
+    #: from the one the pattern was written against -- a number without its
+    #: currency, a tool named by its attribute rather than its span, an error
+    #: paraphrased rather than quoted. Each was found by a model that phrases
+    #: things differently, which makes a matcher tuned on one model read as
+    #: that model being better. These cases are how a pattern earns trust:
+    #: `mcpbench check` runs them, and preflight refuses to spend a matrix
+    #: whose grading is already known to be wrong.
+    accept: list[str] = field(default_factory=list)
+    reject: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -193,6 +204,8 @@ def load_tasks(config: BenchConfig, only: Optional[list[str]] = None) -> list[Ta
                 trials=raw.get("trials"),
                 json_schema=raw.get("json_schema"),
                 expect=raw.get("expect") or {},
+                accept=list(raw.get("accept") or []),
+                reject=list(raw.get("reject") or []),
             )
         )
     if not tasks:

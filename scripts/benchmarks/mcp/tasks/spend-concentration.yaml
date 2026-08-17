@@ -8,3 +8,13 @@ prompt: >-
   traces?
 expect:
   regex: '4[3456](\.\d+)?\s*%|0\.4[3456]'
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- the top 10% of traces account for 45.3% of spend
+- the most expensive 10% accounts for 43.05% of the total bill
+- about 44% of the $16 total
+reject:
+- Roughly 10% of the cost.
+- The top decile is 4% of spend.
+- approximately 50.73% of the total

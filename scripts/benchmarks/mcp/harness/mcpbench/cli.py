@@ -84,7 +84,7 @@ def _latest_run(root: Path) -> Path:
 def cmd_preflight(args: argparse.Namespace) -> int:
     config = _resolve(load_config(Path(args.config)), args)
     workdir = _results_root(config, args) / "preflight"
-    checks = run_preflight(config, workdir)
+    checks = run_preflight(config, workdir, load_tasks(config))
     for check in checks:
         print(check.render())
     failed = [c for c in checks if not c.ok]
@@ -102,7 +102,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if not args.skip_preflight:
-        checks = run_preflight(config, out_dir / "preflight")
+        checks = run_preflight(config, out_dir / "preflight", tasks)
         for check in checks:
             print(check.render())
         if failures := [c for c in checks if not c.ok]:

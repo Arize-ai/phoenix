@@ -4,3 +4,12 @@ prompt: >-
   How many traces are in the trail-gaia project?
 expect:
   regex: '\b117\b'
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- The trail-gaia project contains 117 traces.
+- '117'
+- There are **117** traces.
+reject:
+- There are 1170 spans.
+- The project has 11 traces.
