@@ -2,27 +2,16 @@ import { z } from "zod";
 
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
+import { ModelProviders } from "@phoenix/constants/generativeConstants";
 
 import type { ChatModelSelection } from "./chatModel";
 
 export const CHAT_MODEL_LOCAL_STORAGE_KEY = "arize-phoenix-chat-model";
 
-const GENERATIVE_PROVIDER_KEY_SCHEMA = z.enum([
-  "ANTHROPIC",
-  "AWS",
-  "AZURE_OPENAI",
-  "CEREBRAS",
-  "DEEPSEEK",
-  "FIREWORKS",
-  "GOOGLE",
-  "GROQ",
-  "MOONSHOT",
-  "OLLAMA",
-  "OPENAI",
-  "PERPLEXITY",
-  "TOGETHER",
-  "XAI",
-]) satisfies z.ZodType<GenerativeProviderKey>;
+const GENERATIVE_PROVIDER_KEY_SCHEMA = z.custom<GenerativeProviderKey>(
+  (provider) => typeof provider === "string" && provider in ModelProviders,
+  { message: "Invalid model provider." }
+);
 
 const CHAT_MODEL_SCHEMA = z.object({
   provider: GENERATIVE_PROVIDER_KEY_SCHEMA,
