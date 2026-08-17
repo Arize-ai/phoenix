@@ -178,7 +178,7 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _rewrite_sqlite_casts(root, ctx)
     root = _rewrite_sqlite_median(root, ctx)
     root = _canonicalize_json_extract(root, ctx)
-    root = _canonicalize_postgres_dynamic_json_extract(root, ctx)
+    root = _canonicalize_postgres_json_extract_function(root, ctx)
     root = _qualify_schema(root, ctx)
     root = _parenthesize_setop_operands(root, ctx)
     root = _inject_limit(root, ctx)
@@ -485,13 +485,12 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
         return root
     changed = False
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
-        # `->` and `json_extract` parse to the same class, and rewriting both
-        # meant a caller who chose `->` deliberately got the other accessor's
-        # semantics -- a different value and a different type on every JSON
-        # scalar. The parser records which was written: the operator sets
-        # `only_json_types`, the function leaves it absent. Canonicalising is
-        # what stops the generator turning the function back into `->`, so it is
-        # still applied where the marker is missing.
+        # `->` returns JSON text; `json_extract` and `->>` return the SQL value.
+        # Rewriting the operator would therefore change both the value and the
+        # type of every JSON scalar, so only the function form is canonicalised
+        # -- which is also what stops the generator emitting it back as `->`.
+        # `only_json_types` marks the operator spelling. It decides rather than
+        # the node class, which is not stable across parser versions.
         if isinstance(node, exp.JSONExtract) and node.args.get("only_json_types") is not None:
             continue
         keys = _json_path_keys(node.expression)
@@ -540,82 +539,36 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     return root
 
 
-def _canonicalize_postgres_dynamic_json_extract(
+def _canonicalize_postgres_json_extract_function(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
-    """Stop SQLGlot rendering ``jsonb -> expr`` as ``json_extract_path``.
+    """Emit PostgreSQL JSON reads written as a function against the jsonb forms.
 
-    WORKAROUND sqlglot<=30.15.0 -- remove when pin > 30.16.0.
-    Upstream: tobymao/sqlglot#8063 (closes #8035).
+    SQLGlot renders ``json_extract(attributes, '$.llm')`` -- the portable
+    spelling, and the one this surface canonicalises to on SQLite -- as
+    ``json_extract_path``, which PostgreSQL defines over ``json`` and not
+    ``jsonb``, so it refuses the stored column. ``jsonb_extract_path`` and
+    ``jsonb_extract_path_text`` are the jsonb equivalents; both are in the anon
+    allowlist, since callers may also write them directly.
 
-    PostgreSQL's ``json_extract_path`` takes ``json``, not ``jsonb``. A caller
-    who writes ``attributes -> k.key`` -- a dynamic key from ``jsonb_each`` --
-    is parsed as ``JSONExtract`` whose expression is a column, and the generator
-    emits ``JSON_EXTRACT_PATH(attributes, k.key)``, which the engine refuses.
-    Literal keys (``attributes -> 'llm'``) already render as ``->`` and are
-    left alone.
-
-    The replacement is ``jsonb_extract_path`` / ``jsonb_extract_path_text``,
-    which are the functions PostgreSQL defines for jsonb. Callers may also
-    write those names directly; they are in the anon allowlist for that reason.
-
-    30.16.0 renders a single non-literal segment as ``->`` / ``->>`` instead of
-    ``json_extract_path``. The allowlisted function names stay: they are real
-    PostgreSQL, not part of the workaround.
+    Two conditions bound the rewrite. The operand must be a ``JSONPath``, since
+    only a static path supplies the key arguments; any other operand renders as
+    ``->`` whichever spelling produced it -- ``a -> k.key`` and
+    ``json_extract(a, k.key)`` parse to the same tree -- and needs nothing here.
+    ``only_json_types`` then separates the two spellings that do carry a path,
+    marking the operator, which already renders correctly.
     """
     if ctx.dialect != "postgresql":
         return root
     changed = False
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         inner = _strip_parens(node.expression)
-        if inner is None:
+        if not isinstance(inner, exp.JSONPath):
             continue
-        if isinstance(inner, exp.JSONPath):
-            # Operator form (`->` / `->>`) already renders correctly. The
-            # function form `json_extract` is emitted as json_extract_path,
-            # which takes json not jsonb and fails on the stored column.
-            if node.args.get("only_json_types") is not None:
-                continue
-            path_args = _json_path_extract_args(inner)
-            if path_args is None:
-                continue
-            name = (
-                "jsonb_extract_path_text"
-                if isinstance(node, exp.JSONExtractScalar)
-                else "jsonb_extract_path"
-            )
-            node.replace(
-                exp.Anonymous(
-                    this=name,
-                    expressions=[node.this, *path_args],
-                )
-            )
-            changed = True
+        if node.args.get("only_json_types") is not None:
             continue
-        # Array subscripts (`-> 1`, `-> (0)`) are integers. jsonb_extract_path
-        # only accepts text keys, so rewriting them changes a working operator
-        # into a missing function. A parenthesised integer still has to become
-        # a JSONPath subscript: SQLGlot renders `-> (1)` as json_extract_path.
-        if isinstance(inner, exp.Literal) and inner.is_number:
-            if inner is not node.expression:
-                try:
-                    index = int(inner.this)
-                except (TypeError, ValueError):
-                    continue
-                # `only_json_types` is how the generator distinguishes `-> 1`
-                # from json_extract_path. Copying the path without it still
-                # emits the function, and `'1'` is an object key, not index 1.
-                node.set(
-                    "expression",
-                    exp.JSONPath(
-                        expressions=[
-                            exp.JSONPathRoot(),
-                            exp.JSONPathSubscript(this=index),
-                        ]
-                    ),
-                )
-                node.set("only_json_types", True)
-                changed = True
+        path_args = _json_path_extract_args(inner)
+        if path_args is None:
             continue
         name = (
             "jsonb_extract_path_text"
@@ -625,7 +578,7 @@ def _canonicalize_postgres_dynamic_json_extract(
         node.replace(
             exp.Anonymous(
                 this=name,
-                expressions=[node.this, inner],
+                expressions=[node.this, *path_args],
             )
         )
         changed = True

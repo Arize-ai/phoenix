@@ -114,39 +114,9 @@ class EngineInfo:
     extensions: tuple[str, ...] = ()
 
 
-# WORKAROUND sqlglot<=30.15.0 -- remove when pin > 30.16.0
-# Upstream: tobymao/sqlglot#8063 (closes #8035)
-# https://github.com/tobymao/sqlglot/issues/8035
-#
-# Remove when SQLGlot binds a cast to the operand of a JSON operator
-# rather than to the whole extraction. 30.16.0 does.
-#
-# `pg_get_indexdef` renders the operand of `#>>` as `'{a,b}'::text[]`, spelling
-# out a cast PostgreSQL applies implicitly. Publishing it verbatim would be
-# right -- admission allows an array of an allowed element type -- except that
-# SQLGlot's PostgreSQL parser binds `::` to the whole extraction rather than to
-# the literal, so `a #>> b::text[]` becomes `CAST(a #>> b AS TEXT[])`. That is a
-# different statement, and it fails: "malformed array literal".
-#
-# The defect is in the parse, so nothing downstream can recover the meaning, and
-# a caller who reproduces the published spelling -- which the surrounding text
-# tells them to do -- gets an error. Dropping the redundant cast yields a
-# spelling that survives the round trip and reaches the same index: verified
-# with EXPLAIN that the form with both casts, with only the outer one, and with
-# neither all produce `Index Scan using ix_spans_session_id`.
-# Anchored to a JSON operator, because that is the only place the cast is both
-# redundant and mis-parsed. A bare `(?<=')::text\[\]` also stripped casts that
-# resolve a polymorphic argument -- `array_length('{a,b}'::text[], 1)` becomes
-# `array_length('{a,b}', 1)`, which PostgreSQL refuses with "could not determine
-# polymorphic type" -- so the workaround reintroduced the defect it exists to
-# fix, moved from `#>>` to any operator-written index over an array literal.
-_IMPLICIT_ARRAY_CAST = re.compile(r"((?:#>>|#>|->>|->)\s*'[^']*')::text\[\]", re.IGNORECASE)
-
-
 def _body(definition: str) -> str:
     """The parenthesised body of an index definition, as a caller can write it."""
-    body = _DDL_PREAMBLE.sub("", definition.replace("\n", " ")).strip()
-    return _IMPLICIT_ARRAY_CAST.sub(r"\1", body)
+    return _DDL_PREAMBLE.sub("", definition.replace("\n", " ")).strip()
 
 
 def _classify(*, is_expression: bool, is_partial: bool, column_count: int) -> Optional[IndexKind]:
