@@ -966,6 +966,18 @@ POSTGRES_JSON_SURFACE = [
     pytest.param(
         "SELECT json_extract('{\"a\":1}'::jsonb, '$.a') AS v FROM spans", id="json_extract_function"
     ),
+    # A computed key through the function spelling. `->` and `||` share a
+    # precedence class, so the operand has to reach the engine parenthesised or
+    # it is read as `(doc -> 'a') || 'b'`.
+    pytest.param(
+        "SELECT json_extract('{\"ab\":1}'::jsonb, 'a' || 'b') AS v FROM spans",
+        id="computed_key_concat",
+    ),
+    pytest.param(
+        'SELECT json_extract(\'{"k":"a","a":1}\'::jsonb, \'{"k":"a"}\'::jsonb ->> \'k\') AS v '
+        "FROM spans",
+        id="computed_key_nested_accessor",
+    ),
     # The array-constructor spelling of a `#>` path, which reaches the same
     # value as `#> '{a,b}'`.
     pytest.param(
