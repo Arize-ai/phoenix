@@ -128,13 +128,25 @@ def rows_for_transcript(
     return {"runs": [run], "turns": turns, "tool_calls": calls}
 
 
+def _same_prompt(a: str, b: str) -> bool:
+    """Whether two promptings are the same question, ignoring rewrapping."""
+    return " ".join((a or "").split()) == " ".join((b or "").split())
+
+
 def tasks_as_run(manifest: dict[str, Any], current: list[Task]) -> dict[str, Task]:
     """The questions as they were asked, keyed by name.
 
-    A result is graded against the wording the model actually saw. Reading the
-    current task files instead would re-mark every earlier run whenever a prompt
-    is edited -- turning answers that were right at the time into failures, with
-    nothing to indicate it happened.
+    The *question* is what must not change under a run: grading an old answer
+    against a rewritten prompt turns answers that were right at the time into
+    failures, silently. So a run whose recorded prompt differs from today's is
+    graded against the prompt and expectation it was given.
+
+    The *expectation* is the grader, not the question. When the prompt is
+    unchanged, a corrected expectation is applied -- the run answered exactly
+    this question, and an answer wrongly marked should not stay wrong because
+    the mistake was recorded. Both of ours were: one accepted a rounding the
+    question never specified, another pinned a value only correct under a
+    threshold clause.
 
     Falls back to the current definition for runs recorded before the manifest
     carried prompts, which is the old behaviour and the best available.
@@ -145,11 +157,13 @@ def tasks_as_run(manifest: dict[str, Any], current: list[Task]) -> dict[str, Tas
         if not name or "expect" not in entry:
             continue  # older manifest: name only, nothing to recover
         template = by_name.get(name)
+        prompt = entry.get("prompt") or (template.prompt if template else "")
+        asked_today = template is not None and _same_prompt(prompt, template.prompt)
         by_name[name] = Task(
             name=name,
             task_class=entry.get("task_class") or (template.task_class if template else "unknown"),
-            prompt=entry.get("prompt") or (template.prompt if template else ""),
-            expect=entry.get("expect") or {},
+            prompt=prompt,
+            expect=(template.expect if asked_today else entry.get("expect")) or {},
             json_schema=entry.get("json_schema"),
         )
     return by_name

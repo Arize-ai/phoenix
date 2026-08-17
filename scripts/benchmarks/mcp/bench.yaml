@@ -3,8 +3,9 @@ model: claude-sonnet-5
 effort: medium
 
 trials: 3
-concurrency: 1 # Was 4: the code-mode sandbox rejects concurrent execute calls
-               # ("sandbox is busy"), and the retry wait dominated wall clock.
+concurrency: 3 # The sandbox pool is 4 workers, but the MCP consumer is admitted
+               # to max_processes - 1 of them (monty_runtime.py), so a 4th
+               # concurrent execute waits 30s for a slot and then fails.
 timeout_s: 420 # Longest observed cell is 268s.
 retries: 1 # Harness failures only. Each retry costs a full timeout, so keep it low.
 

@@ -8,6 +8,7 @@ tracing plugin discards delivery errors.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +22,7 @@ from .analyze import (
     write_csv,
 )
 from .config import BenchConfig, ConfigError, apply_overrides, load_config, load_tasks
+from .invocation import safe_label
 from .preflight import run_preflight
 from .runner import BudgetExhausted, Cell, plan_matrix, run_matrix
 
@@ -40,6 +42,25 @@ def _resolve(config: BenchConfig, args: argparse.Namespace) -> BenchConfig:
         label=getattr(args, "label", None),
         max_total_usd=getattr(args, "max_total_usd", None),
     )
+
+
+def _default_run_id(config: BenchConfig) -> str:
+    """Timestamp plus what the run was, so a directory listing is readable.
+
+    The timestamp alone is unique but indistinguishable at a glance; the model
+    and label are what someone is actually looking for. Kept a suffix rather
+    than a prefix so listings still sort chronologically, and derived rather
+    than typed so re-running cannot collide with an earlier run -- passing an
+    existing id means resume, which silently skips completed cells.
+    """
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    model = re.sub(r"^claude-", "", config.model)
+    parts = [stamp, model]
+    # Only a label you chose; the fallback is the target host, which makes for a
+    # long directory name and says nothing the manifest does not.
+    if config.label and (label := safe_label(config.label)) and label != model:
+        parts.append(label)
+    return "-".join(parts)
 
 
 def _results_root(config: BenchConfig, args: argparse.Namespace) -> Path:
@@ -76,7 +97,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     tasks = load_tasks(config, args.tasks)
 
     root = _results_root(config, args)
-    run_id = args.run_id or datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_id = args.run_id or _default_run_id(config)
     out_dir = root / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
 

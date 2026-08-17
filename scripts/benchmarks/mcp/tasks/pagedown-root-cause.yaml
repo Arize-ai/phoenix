@@ -1,9 +1,11 @@
-# Graded on text that only appears in the failure messages. The earlier version
-# asked for the exception type, which a model can guess without reading data.
+# "PageDownTool" alone reads as one of the agent's own MCP tools, and a model
+# that takes it that way answers "no such tool" without querying anything.
+# Naming the spans scopes it to the trace data, as most-failing-tool does.
 name: pagedown-root-cause
 task_class: large-result
 prompt: >-
-  PageDownTool is erroring on almost every call in trail-gaia. What is actually
-  going wrong when the agent calls it?
+  In the trail-gaia project, the recorded spans named PageDownTool are erroring
+  on almost every call. Looking at those spans, what is actually going wrong
+  when the agent calls it?
 expect:
   contains: unexpected keyword argument

@@ -21,8 +21,15 @@ into the harness.
 ```bash
 mcpbench run --target https://host/mcp --label "with sql"
 mcpbench run --target https://other/mcp --label "no sql"
-mcpbench run --target none --label "no tools"   # the floor everything else beats
 ```
+
+`--target none` runs with no MCP server, for the rare case where you want it.
+The `noop` task already prices the tool surface at 1,604 tokens; measured against
+no server it is 1,396, and the 208-token difference is not worth a second run.
+Running the whole suite this way measures nothing — the model declines rather
+than guessing, so every data question fails by construction. The one use is
+after editing a question, to check the new wording did not become answerable
+without data; a two-option answer once passed that way.
 
 Each task carries a `task_class` grouping it by shape of work, which is the row axis
 in every summary:
@@ -97,11 +104,12 @@ same command.
 Cheapest task classes run first, so a run gives usable signal in seconds rather than
 after the slowest task.
 
-`concurrency` defaults to **1**, and should stay there. Code mode's sandbox rejects
-concurrent `execute` calls rather than queueing them, so parallel cells collide and the
-client's retry wait dominates: at 4, this matrix spent 85% of its wall clock waiting on
-tools and took nearly twice as long as running serially. Contention shows up as
-`n_sandbox_errors`, which `summarize` warns about.
+`concurrency` defaults to **3**, which is what the server admits. The sandbox pool is
+four workers, but MCP is capped at `max_processes - 1` of them so it cannot starve the
+evaluator, and a fourth concurrent `execute` waits 30s for a slot before failing with
+"the sandbox is busy". At 4 this matrix spent 85% of its wall clock waiting on tools and
+took nearly twice as long as running serially. Contention shows up as `n_sandbox_errors`,
+which `summarize` warns about; if you see it, drop to 1.
 
 ## Optional: tracing the benchmark itself
 
