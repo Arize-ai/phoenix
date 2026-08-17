@@ -11,7 +11,10 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.annotations import get_user_identifier
+from phoenix.server.api.helpers.annotations import (
+    get_user_identifier,
+    raise_if_identifier_is_reserved,
+)
 from phoenix.server.api.input_types.CreateDocumentAnnotationInput import (
     CreateDocumentAnnotationInput,
 )
@@ -63,6 +66,7 @@ class DocumentAnnotationMutationMixin:
                 resolved_identifier = annotation_input.identifier.strip()
             elif annotation_input.source == AnnotationSource.APP and user_id is not None:
                 resolved_identifier = get_user_identifier(user_id)
+            raise_if_identifier_is_reserved(resolved_identifier)
 
             metadata = annotation_input.metadata
             if metadata is not None and not isinstance(metadata, dict):
@@ -231,6 +235,7 @@ class DocumentAnnotationMutationMixin:
                     document_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
                     document_annotation.identifier = (patch.identifier or "").strip()
+                    raise_if_identifier_is_reserved(document_annotation.identifier)
                 if patch.source:
                     document_annotation.source = patch.source.value
 

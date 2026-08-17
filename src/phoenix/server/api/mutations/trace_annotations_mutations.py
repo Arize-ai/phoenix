@@ -9,7 +9,10 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.annotations import get_user_identifier
+from phoenix.server.api.helpers.annotations import (
+    get_user_identifier,
+    raise_if_identifier_is_reserved,
+)
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -78,6 +81,7 @@ class TraceAnnotationMutationMixin:
                     resolved_identifier = annotation_input.identifier
                 elif annotation_input.source == AnnotationSource.APP and user_id is not None:
                     resolved_identifier = get_user_identifier(user_id)
+                raise_if_identifier_is_reserved(resolved_identifier)
                 values = {
                     "trace_rowid": trace_rowid,
                     "name": annotation_input.name,
@@ -202,6 +206,7 @@ class TraceAnnotationMutationMixin:
                     trace_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
                     trace_annotation.identifier = patch.identifier or ""
+                    raise_if_identifier_is_reserved(trace_annotation.identifier)
                 session.add(trace_annotation)
             await session.commit()
 

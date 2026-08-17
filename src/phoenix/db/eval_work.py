@@ -14,6 +14,20 @@ MAX_ATTEMPTS = 3
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
 
+# Every annotation online evaluation writes carries an identifier starting with this, so
+# a reader can tell its own output from a user's or an API client's without a join. It is
+# spelled once here because three sides read it and none of them may drift: the derivation
+# that writes it, the annotation scan that must not announce its own output back into the
+# trigger loop, and the stand-down delete that removes it. The write boundary reserves it
+# so no client can namespace its way into any of the three.
+ONLINE_EVAL_IDENTIFIER_PREFIX = "online:"
+
+
+def is_reserved_annotation_identifier(identifier: str) -> bool:
+    """Whether `identifier` is one only online evaluation may write."""
+    return identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX)
+
+
 # Signal kinds the trigger pipeline understands. Adding a kind is an edit here plus the
 # code that emits and matches it; the CHECK domains are rendered from this tuple.
 EVALUATOR_SIGNAL_KINDS = ("annotation_upserted", "evaluation_completed")

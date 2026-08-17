@@ -119,6 +119,7 @@ class TestEvalWorkCursors(_OnlineEvalSchemaTest):
             "produced_through_id",
             "observed_high_water_id",
             "observed_at",
+            "edits_through_id",
             "claimed_at",
             "claimed_by",
             "created_at",

@@ -16,10 +16,10 @@ from enum import Enum
 from typing import Any
 
 from phoenix.db.eval_work import MAX_ATTEMPTS as MAX_ATTEMPTS
+from phoenix.db.eval_work import (
+    ONLINE_EVAL_IDENTIFIER_PREFIX as ONLINE_EVAL_IDENTIFIER_PREFIX,
+)
 
-# Every annotation online evaluation writes carries an identifier starting with this, so a
-# reader can tell its own output from a user's or an API client's without a join.
-ONLINE_EVAL_IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
 
 # Error recorded when a claimed unit's recomputed fingerprint no longer matches the

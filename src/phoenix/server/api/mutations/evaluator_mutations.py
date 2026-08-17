@@ -2720,6 +2720,15 @@ class DeleteProjectEvaluatorTriggersPayload:
 _ANNOTATION_ONLY_FIELDS = ("annotatorKind", "annotationChange", "annotationTarget")
 _EVALUATION_ONLY_FIELDS = ("sourceProjectEvaluatorId", "resultChangedOnly")
 
+# Only SESSION evaluators are ever loaded as trigger rules, so a trigger on any other
+# target is inert the moment it is written while every surface still reads it as live.
+# Refused at creation, in the same words the evaluate-now mutation refuses the same
+# mistake with.
+_TRIGGER_TARGET_MISMATCH = (
+    "This evaluator does not evaluate sessions. Only an evaluator whose evaluation target "
+    "is SESSION can be given a trigger."
+)
+
 _SHARED_PREDICATE_COLUMNS = (
     "annotation_name",
     "label",
@@ -2862,8 +2871,11 @@ class ProjectEvaluatorTriggerMutationMixin:
             result_changed_only=input.result_changed_only,
         )
         async with info.context.db() as session:
-            if await session.get(models.ProjectEvaluator, project_evaluator_id) is None:
+            project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+            if project_evaluator is None:
                 raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
+            if project_evaluators.evaluation_target != "SESSION":
+                raise BadRequest(_TRIGGER_TARGET_MISMATCH)
             source_project_evaluator_id = await _resolve_trigger_source_project_evaluator_id(
                 session, input.source_project_evaluator_id
             )

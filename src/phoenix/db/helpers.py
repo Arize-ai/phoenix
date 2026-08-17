@@ -34,7 +34,10 @@ from phoenix.config import (
     get_env_database_schema,
 )
 from phoenix.db import models
-from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
+from phoenix.db.eval_work import (
+    ONLINE_EVAL_IDENTIFIER_PREFIX,
+    SESSION_CONTENT_INCOMPLETE_ERROR,
+)
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
 
@@ -783,7 +786,7 @@ async def mark_session_content_incomplete(
     await session.execute(
         sa.delete(models.ProjectSessionAnnotation).where(
             models.ProjectSessionAnnotation.project_session_id.in_(session_rowids),
-            models.ProjectSessionAnnotation.identifier.startswith("online:"),
+            models.ProjectSessionAnnotation.identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX),
         )
     )
 

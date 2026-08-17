@@ -10,6 +10,7 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.eval_work import ONLINE_EVAL_IDENTIFIER_PREFIX
 from phoenix.server.api.routers.v1.sessions import _parse_session_global_id
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
@@ -253,6 +254,34 @@ class TestDeleteSessions:
 
 
 class TestAnnotateSessions:
+    async def test_rest_session_annotation_refuses_a_reserved_identifier(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        # The prefix marks annotations online evaluation wrote itself, and the annotation
+        # scan that feeds triggers skips them; a client able to write it could exempt its
+        # own annotations from every trigger.
+        _, session_model, _ = await _insert_session_with_traces(db)
+        response = await httpx_client.post(
+            "v1/session_annotations?sync=true",
+            json={
+                "data": [
+                    {
+                        "session_id": session_model.session_id,
+                        "name": "reviewer",
+                        "annotator_kind": "HUMAN",
+                        "result": {"label": "pass"},
+                        "metadata": {},
+                        "identifier": f"{ONLINE_EVAL_IDENTIFIER_PREFIX}v2",
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 422
+        assert "reserved" in response.text
+
     async def test_rest_session_annotation_sync_returns_global_ids_and_emits_dml_event(
         self,
         httpx_client: httpx.AsyncClient,

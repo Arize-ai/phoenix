@@ -15,12 +15,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Any, Optional
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import ColumnElement, Select, and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
@@ -40,6 +41,11 @@ TICK_INTERVAL_SECONDS = 10.0
 _LEASE_NAME = "annotation-delta"
 _CONSUMER_GROUP = "annotation-delta"
 _MAX_ANNOTATION_IDS_PER_TICK = 1000
+# How many edited rows one tick may announce. The time slice alone does not bound the
+# work: a bulk re-annotation lands its whole batch inside one window, and a tick that
+# fails rolls back everything it did. With the cap the position advances inside the
+# window, so the next tick resumes rather than repeating.
+_MAX_EDIT_ROWS_PER_TICK = 1000
 # How far the edit walk may advance in one tick. After an outage it is behind by the
 # length of the outage, and stepping it forward in slices keeps any one tick bounded.
 _MAX_EDIT_CATCHUP = timedelta(minutes=5)
@@ -62,6 +68,41 @@ class _Observation:
 
     high_water_id: int
     observed_at: datetime
+
+
+def _window_is_open(
+    walked_through: datetime,
+    walked_through_id: int,
+    through: datetime,
+) -> bool:
+    """Whether the window still holds anything past the edit walk's position.
+
+    The position is a stamp and an id within it, so a walk the row cap parked part way
+    through a run of rows sharing one stamp still has that run's tail to cover, even
+    though the window's end has not moved since.
+    """
+    if walked_through < through:
+        return True
+    return walked_through == through and walked_through_id > 0
+
+
+def _after(
+    source: "_AnnotationSource",
+    updated_at: datetime,
+    annotation_id: int,
+) -> ColumnElement[bool]:
+    """Rows past the edit walk's position, which is a stamp and an id within it.
+
+    Spelled as a disjunction rather than a row-value comparison because both dialects
+    have to plan it against the `updated_at` index.
+    """
+    return or_(
+        source.updated_at_column > updated_at,
+        and_(
+            source.updated_at_column == updated_at,
+            source.id_column > annotation_id,
+        ),
+    )
 
 
 def _span_annotation_scan() -> Select[Any]:
@@ -300,9 +341,15 @@ class AnnotationDeltaAdapter(DaemonTask):
     ) -> dict[str, Any]:
         """Place both walks at the present, so nothing written before now is announced."""
         high_water = await session.scalar(select(func.max(source.id_column)))
+        latest_edit = await session.scalar(select(func.max(source.updated_at_column)))
         return {
             "produced_through_id": high_water or 0,
-            "observed_at": now - timedelta(seconds=self._frontier_lag_seconds),
+            # The table's own newest stamp when it has one, so the starting point sits in
+            # the same clock domain as the values the edit walk compares against. An empty
+            # table has no stamp to start from and nothing to skip past either: the edit
+            # walk sees no row until the insert walk has advanced past it.
+            "observed_at": latest_edit or now - timedelta(seconds=self._frontier_lag_seconds),
+            "edits_through_id": high_water or 0,
         }
 
     async def _walk(
@@ -314,22 +361,44 @@ class AnnotationDeltaAdapter(DaemonTask):
         now: datetime,
     ) -> dict[str, Any]:
         positions: dict[str, Any] = {}
-        edits_through = min(
-            now - timedelta(seconds=self._frontier_lag_seconds),
-            edits_walked_through + _MAX_EDIT_CATCHUP,
-        )
-        if edits_through > edits_walked_through:
-            await self._announce(
-                session,
-                source,
-                edge="updated",
-                stmt=source.scan.where(
-                    source.id_column <= cursor.produced_through_id,
-                    source.updated_at_column > edits_walked_through,
-                    source.updated_at_column <= edits_through,
-                ),
+        # The edit frontier is read from the table the walk reads, not from the database
+        # clock: `updated_at` is stamped by whoever wrote the row, so a frontier taken
+        # from a clock the writers do not share would step past edits whenever the two
+        # drift apart by more than the lag, and the id walk cannot recover them. Waiting
+        # for the table's own newest stamp to clear the lag is the evidence that a window
+        # has closed. A table nobody writes to therefore holds its last edits until the
+        # next write reaches it, which costs latency rather than coverage.
+        latest_edit = await session.scalar(select(func.max(source.updated_at_column)))
+        if latest_edit is not None:
+            edits_through = min(
+                latest_edit - timedelta(seconds=self._frontier_lag_seconds),
+                edits_walked_through + _MAX_EDIT_CATCHUP,
             )
-            positions["observed_at"] = edits_through
+            if _window_is_open(edits_walked_through, cursor.edits_through_id, edits_through):
+                rows = await self._announce(
+                    session,
+                    source,
+                    edge="updated",
+                    stmt=source.scan.where(
+                        source.id_column <= cursor.produced_through_id,
+                        _after(source, edits_walked_through, cursor.edits_through_id),
+                        source.updated_at_column <= edits_through,
+                    )
+                    .order_by(source.updated_at_column, source.id_column)
+                    .limit(_MAX_EDIT_ROWS_PER_TICK),
+                )
+                if len(rows) < _MAX_EDIT_ROWS_PER_TICK:
+                    # The window held no more rows, so the position moves to its end. A
+                    # row stamped exactly there is read again next tick and collapses.
+                    positions["observed_at"] = edits_through
+                    positions["edits_through_id"] = 0
+                else:
+                    # The cap cut the window short. Advancing only to the last row that
+                    # was actually announced leaves the rest of the window for the next
+                    # tick, so a failure repeats one capped slice rather than the whole
+                    # window, forever.
+                    positions["observed_at"] = rows[-1].updated_at
+                    positions["edits_through_id"] = rows[-1].id
 
         frontier = await self._insert_frontier(session, source, cursor, now)
         if frontier is not None:
@@ -340,7 +409,7 @@ class AnnotationDeltaAdapter(DaemonTask):
                 stmt=source.scan.where(
                     source.id_column > cursor.produced_through_id,
                     source.id_column <= frontier,
-                ),
+                ).order_by(source.id_column),
             )
             positions["produced_through_id"] = frontier
         return positions
@@ -385,8 +454,9 @@ class AnnotationDeltaAdapter(DaemonTask):
         *,
         edge: models.AnnotationEdge,
         stmt: Select[Any],
-    ) -> None:
-        rows = (await session.execute(stmt.order_by(source.id_column))).all()
+    ) -> Sequence[Any]:
+        """Log every row `stmt` selects, in the order it selects them."""
+        rows = (await session.execute(stmt)).all()
         for row in rows:
             await append(
                 session,
@@ -407,4 +477,5 @@ class AnnotationDeltaAdapter(DaemonTask):
                 project_id=row.project_id,
                 project_session_rowid=row.project_session_rowid,
             )
+        return rows
 
