@@ -1,9 +1,8 @@
-# Still one lookup, but the answer lives in span_costs rather than a count, so it
-# exercises a different tool than count-traces.
+# Matched with a currency or decimal form so a bare "16" elsewhere in prose --
+# a token count, a row count -- cannot satisfy it.
 name: total-cost
 task_class: trivial
 prompt: >-
-  What is the total cost, in US dollars, of all spans in the "trail-gaia" project?
-  Reply with only the number rounded to the nearest whole dollar, no other words.
+  What did the trail-gaia run cost in total?
 expect:
-  regex: '\b16\b'
+  regex: '\$\s?16\b|\b16\.0\d*\b|\b16 (?:US )?dollars\b'

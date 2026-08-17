@@ -16,6 +16,7 @@ from typing import Any, Optional
 from .config import BenchConfig, Task
 from .invocation import safe_label
 from .metrics import iteration_rows, parse_transcript, run_row, tool_call_rows
+from .report import build_report
 
 #: Tables keyed the way the store expects them.
 Rows = dict[str, list[dict[str, Any]]]
@@ -163,8 +164,32 @@ def rows_for_run(config: BenchConfig, tasks: list[Task], out_dir: Path) -> Rows:
     return tables
 
 
+def report_for_run(config: BenchConfig, tasks: list[Task], out_dir: Path) -> Optional[Path]:
+    """Write ``report.html`` for one run directory. ``None`` if nothing is in it yet.
+
+    Everything is re-derived from the transcripts on each call. That is cheap --
+    a whole run parses in tens of milliseconds -- and it keeps the run directory
+    self-describing: transcripts, the manifest beside them, and the page built
+    from both, with no separate index to fall out of step.
+    """
+    tables = rows_for_run(config, tasks, out_dir)
+    if not tables["runs"]:
+        return None
+    manifest = {}
+    if (path := out_dir / "manifest.json").is_file():
+        manifest = json.loads(path.read_text())
+    return build_report(
+        tables["runs"],
+        tables["turns"],
+        out_dir,
+        tasks=task_rows(tasks),
+        tool_calls=tables["tool_calls"],
+        meta=meta_row(out_dir.name, manifest, read_annotation(out_dir)),
+    )
+
+
 def task_rows(tasks: list[Task]) -> list[dict[str, Any]]:
-    """Task definitions, denormalised so a shared db explains itself."""
+    """Task definitions, denormalised so the report explains itself."""
     return [
         {
             "task_hash": task_hash(t),
@@ -245,12 +270,12 @@ def summarize(runs: list[dict[str, Any]]) -> str:
     classes = sorted({r.get("task_class") or "?" for r in scored})
     width = max(len(c) for c in classes) + 2
     header = "task_class".ljust(width) + "".join(a.rjust(24) for a in labels)
-    lines += ["", "median total_context_tokens (input + cache_creation + cache_read)", header]
+    lines += ["", "median conversation size at the point of answering (tokens)", header]
     for cls in classes:
         cells = []
         for label in labels:
             vals = [
-                r["total_context_tokens"]
+                r["peak_context_tokens"]
                 for r in scored
                 if r.get("task_class") == cls and r["label"] == label
             ]

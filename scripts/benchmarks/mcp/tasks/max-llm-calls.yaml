@@ -1,0 +1,6 @@
+name: max-llm-calls
+task_class: large-result
+prompt: >-
+  What is the largest number of LLM calls any single trace in trail-gaia made?
+expect:
+  regex: '\b78\b'

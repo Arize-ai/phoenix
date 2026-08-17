@@ -1,0 +1,10 @@
+# "Which tool" alone is ambiguous: an agent reads it as its own MCP tools and
+# answers executeSql. Naming the spans scopes the question to the trace data
+# without reintroducing grading scaffolding.
+name: most-failing-tool
+task_class: multi-call
+prompt: >-
+  Looking at the tool spans recorded in the trail-gaia project, which tool
+  failed the most times?
+expect:
+  contains: PageDownTool

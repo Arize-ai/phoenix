@@ -106,9 +106,13 @@
   .answers { font-size: 12.5px; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 8px 18px; }
   .ok { color: var(--good); font-weight: 600; }
   .no { color: var(--critical); font-weight: 600; }
-  dl.glossary { margin: 0; font-size: 13px; }
-  dl.glossary dt { font-weight: 600; margin-top: 10px; }
-  dl.glossary dd { margin: 2px 0 0; color: var(--text-secondary); max-width: 70ch; }
+  dl.legend-grid {
+    display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px;
+    margin: 0; font-size: 12.5px; align-items: baseline;
+  }
+  dl.legend-grid dt { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  dl.legend-grid dd { margin: 0; color: var(--text-secondary); }
+  dl.legend-grid b { color: var(--text-primary); }
   .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 12px; font-size: 12.5px; color: var(--text-secondary); }
   /* One value is a number, not a bar chart. */
   .hero .h-value { font-size: 48px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
@@ -148,15 +152,52 @@
   <p class="sub" id="meta"></p>
 
   <div class="card">
+    <h2>Every run in detail</h2>
+    <p class="card-note">Every run, including ones that failed or never produced an answer —
+      the filters below do not apply here. Click a column to sort.</p>
+    <div class="scroll-x"><table id="table"></table></div>
+  </div>
+  <div class="card">
+    <h2>What the columns mean</h2>
+    <dl class="legend-grid">
+      <dt>label</dt><dd>what you called this run</dd>
+      <dt>task</dt><dd>which question was asked</dd>
+      <dt>trial</dt><dd>which repeat — every question is asked more than once</dd>
+      <dt>tokens</dt><dd>how long the conversation got. The model is re-sent the whole
+        conversation every turn, so it only grows; this is its length at the end.</dd>
+      <dt>usd</dt><dd>what the run cost. Re-sent text is cached — charged once at a premium,
+        then about a tenth of that on every turn after. Most of the bill is carrying the
+        conversation, not writing the answer.</dd>
+      <dt>api time</dt><dd>seconds the model spent thinking and writing</dd>
+      <dt>tool time</dt><dd>seconds spent waiting on Phoenix to answer tool calls</dd>
+      <dt>turns</dt><dd>trips back to the model before it had an answer</dd>
+      <dt>tools</dt><dd>tool calls made</dd>
+      <dt>disc</dt><dd>how many of those were spent working out which tools exist — overhead
+        before any real work</dd>
+      <dt>max result B</dt><dd>size of the largest single tool response. One huge reply is
+        costlier than many small ones, and a total would hide it.</dd>
+      <dt>output</dt><dd>tokens the model wrote — its reasoning, plus any SQL</dd>
+      <dt>status</dt><dd>whether the reply contained the expected answer</dd>
+      <dt>answered</dt><dd>what the model actually replied</dd>
+    </dl>
+  </div>
+  <div class="card">
+    <h2>The questions that were asked</h2>
+    <p class="card-note">Each was posed verbatim to every label, with the expected answer
+      fixed in advance. "Answered" shows what each label actually replied.</p>
+    <div id="tasks"></div>
+  </div>
+
+  <div class="card">
     <h2>What this is</h2>
-    <p class="prose">An AI agent was asked the same questions twice over — once through each
-      way Phoenix can expose its tools over MCP. Everything else was held identical: same
-      model, same questions, no system prompt, no built-in tools. The only thing that
-      differs between labelled runs is the tool surface.</p>
-    <p class="prose">What's measured is <strong>context tokens</strong> — how much text the
-      model had to read to answer. Tokens are what you pay for and what fills the model's
-      limited working memory, so fewer is better, but only if the answer is still right.
-      Every number below counts only runs that answered correctly.</p>
+    <p class="prose">An AI agent was asked questions about real trace data, reaching Phoenix
+      over MCP. Same model, same questions, no system prompt, no built-in tools — so the only
+      thing that varies is the tool surface. Each question is asked several times, because the
+      agent does not take the same path twice.</p>
+    <p class="prose">What's measured is <strong>tokens</strong>: the text the model has to read
+      and write. Tokens are the bill, and there is a hard limit on how many fit at once, so
+      fewer is better — but only if the answer is still right. Every number below counts only
+      runs that answered correctly.</p>
     <div id="labels-explained"></div>
   </div>
 
@@ -196,7 +237,7 @@
   </div>
 
   <div class="card">
-    <h2 id="c1-title"></h2>
+    <h2>Cost per question</h2>
     <p class="card-note" id="c1-note"></p>
     <div class="legend" id="c1-legend"></div>
     <div class="scroll-x"><svg id="chart1"></svg></div>
@@ -204,46 +245,9 @@
   </div>
 
   <div class="card">
-    <h2>Context growth per turn</h2>
-    <p class="card-note">Mean context carried into each API call. Code mode should show
-      A surface that filters before returning shows fewer, fatter turns.</p>
-    <div class="legend" id="c2-legend"></div>
-    <div class="scroll-x"><svg id="chart2"></svg></div>
-  </div>
-
-  <div class="card">
-    <h2>The questions that were asked</h2>
-    <p class="card-note">Each was posed verbatim to every label, with the expected answer
-      fixed in advance. "Answered" shows what each label actually replied.</p>
-    <div id="tasks"></div>
-  </div>
-
-  <div class="card">
-    <h2>What the numbers mean</h2>
-    <dl class="glossary">
-      <dt>Context tokens</dt>
-      <dd>Everything the model had to read to produce its answer — the tool descriptions,
-        the question, and every result handed back to it. This is the headline number: it is
-        what you are billed for and what competes for the model's limited working memory.</dd>
-      <dt>Peak context</dt>
-      <dd>The largest single moment, rather than the total. A run can be cheap overall yet
-        still spike past a smaller model's limit.</dd>
-      <dt>Turns</dt>
-      <dd>How many times the model went back to the server before answering. More turns
-        usually means it was searching, or recovering from a mistake.</dd>
-      <dt>Tool calls / discovery calls</dt>
-      <dd>Tools the model invoked. <em>Discovery</em> calls are the ones spent finding out
-        what tools exist — overhead paid before any real work starts.</dd>
-      <dt>Passed</dt>
-      <dd>Whether the answer matched the expected one. A cheap label that answers wrongly is
-        not cheap, so unpassed runs are excluded from the comparisons.</dd>
-    </dl>
-  </div>
-
-  <div class="card">
-    <h2>Every run in detail</h2>
-    <p class="card-note">Every run, including invalid ones. Click a column to sort.</p>
-    <div class="scroll-x" style="max-height:460px;overflow-y:auto"><table id="table"></table></div>
+    <h2>How the answers were obtained</h2>
+    <p class="card-note" id="tools-note"></p>
+    <div class="scroll-x"><table id="tools-table"></table></div>
   </div>
 </div>
 <div class="tooltip" id="tip"></div>
@@ -263,8 +267,7 @@ const labelColor = (label) => {
 };
 
 const METRICS = [
-  ["total_context_tokens", "Context tokens (input + cache)"],
-  ["peak_context_tokens", "Peak context tokens"],
+  ["peak_context_tokens", "Tokens"],
   ["output_tokens", "Output tokens"],
   ["thinking_tokens", "Thinking tokens"],
   ["num_turns", "Turns"],
@@ -365,7 +368,7 @@ function bindTip(node, html) {
 }
 
 // ---- state -----------------------------------------------------------------
-const state = { label: "all", cls: "all", metric: "total_context_tokens", scope: "passing" };
+const state = { label: "all", cls: "all", metric: "peak_context_tokens", scope: "passing" };
 
 function scopeFilter(r) {
   if (state.scope === "all") return true;
@@ -392,7 +395,7 @@ function renderKpis() {
   const noop = {};
   for (const a of labels) {
     const v = median(DATA.runs.filter((r) => r.label === a && r.task_class === "noop" && !r.invalid)
-                             .map((r) => r.total_context_tokens));
+                             .map((r) => r.peak_context_tokens));
     if (v !== null) noop[a] = v;
   }
   const base = noop["no-mcp"];
@@ -401,7 +404,7 @@ function renderKpis() {
     const over = base === undefined ? null : noop[a] - base;
     box.appendChild(kpi(`<span class="swatch" style="background:${labelColor(a)}"></span>${a} surface`,
       over === null ? fmt(noop[a]) : "+" + fmt(over),
-      over === null ? "noop context tokens" : `tokens over the ${fmt(base)} control floor`));
+      over === null ? "noop tokens" : `tokens over the ${fmt(base)} control floor`));
   }
   const graded = rows.filter((r) => r.graded);
   box.appendChild(kpi("Runs in view", String(rows.length), `${DATA.runs.length} total`));
@@ -416,80 +419,84 @@ function kpi(label, value, foot) {
   return d;
 }
 
-// ---- chart 1: grouped bars, median metric by task class --------------------
+// ---- cost per question: one row per task, one dot per trial ------------------
+// Individual trials rather than a class median: this data is bimodal within a
+// class, so a median lands where nothing was observed. A log axis keeps the
+// cheap tasks legible against a range spanning three orders of magnitude.
 function renderChart1() {
   const svg = $("chart1");
-  svg.innerHTML = "";
-  const rows = selected();
-  const labels = uniq(rows.map((r) => r.label));
-  const classes = uniq(rows.map((r) => r.task_class));
-  $("c1-title").textContent = `Median ${metricLabel().toLowerCase()} by task class`;
   const hero = $("c1-hero");
   hero.hidden = true;
   resetChart(svg);
 
-  const cells = {};
-  let max = 0, filled = 0;
-  for (const c of classes) for (const a of labels) {
-    const v = median(rows.filter((r) => r.task_class === c && r.label === a).map((r) => r[state.metric]));
-    cells[c + "|" + a] = v;
-    if (v !== null) { filled++; max = Math.max(max, v); }
-  }
+  const rows = selected();
+  const labels = uniq(rows.map((r) => r.label));
+  legend($("c1-legend"), labels.length > 1 ? labels : []);
 
-  // The caption and legend describe a comparison, so they only apply when there
-  // is one to make.
-  legend($("c1-legend"), filled > 1 ? labels : []);
+  const tasks = uniq(rows.map((r) => r.task));
+  const points = rows
+    .filter((r) => (r[state.metric] || 0) > 0)
+    .map((r) => ({ task: r.task, label: r.label, v: r[state.metric], cls: r.task_class }));
+  if (!points.length) { emptyNote(svg, "No runs match these filters."); return; }
+
+  const spread = tasks
+    .map((t) => { const v = points.filter((p) => p.task === t).map((p) => p.v); return v.length > 1 ? Math.max(...v) / Math.min(...v) : 1; })
+    .reduce((a, b) => Math.max(a, b), 1);
+  const worst = tasks
+    .map((t) => [t, median(points.filter((p) => p.task === t).map((p) => p.v))])
+    .filter(([, m]) => m !== null).sort((a, b) => b[1] - a[1])[0];
   $("c1-note").textContent =
-    labels.length > 1
-      ? "Where the ordering flips between question types is the result."
-      : `Only ${labels[0] || "one label"} is in view, so this shows its cost per question type rather than a comparison.`;
+    `Each dot is one trial; the tick is the median. ` +
+    (worst ? `${worst[0]} is the most expensive question, and trials of the same question vary up to ${spread.toFixed(1)}x.` : "");
 
-  if (!filled) { emptyNote(svg, "No runs match these filters."); return; }
-  if (filled === 1) {
-    // One value is a stat tile, not a one-bar bar chart.
-    const key = Object.keys(cells).find((k) => cells[k] !== null);
-    const [cls, label] = key.split("|");
-    hero.hidden = false;
-    hero.innerHTML =
-      `<div class="h-value">${fmt(cells[key])}</div><div class="h-label">` +
-      `<span class="swatch" style="background:${labelColor(label)}"></span>${label} · ${cls} · ` +
-      `median ${metricLabel().toLowerCase()}</div>`;
-    return;
-  }
-
-  max = niceMax(max);
-  const BAR = 16, GAP = 2, PADL = 152, PADR = 74, PADT = 8, PADB = 30;
-  const groupH = labels.length * (BAR + GAP) + 20;
-  const H = classes.length * groupH + PADT + PADB;
-  const W = Math.max(560, PADL + PADR + 380);
-  const plotW = W - PADL - PADR;
+  const ROW = 30, PADL = 168, PADR = 80, PADT = 12, PADB = 34;
+  const H = tasks.length * ROW + PADT + PADB;
+  const W = Math.max(620, PADL + PADR + 420), plotW = W - PADL - PADR;
   showChart(svg, W, H);
-  const x = (v) => (v / max) * plotW;
 
-  // Recessive solid hairline grid.
-  for (let i = 0; i <= 4; i++) {
-    const gx = PADL + (plotW * i) / 4;
+  const lo = Math.min(...points.map((p) => p.v)), hi = Math.max(...points.map((p) => p.v));
+  const l0 = Math.log10(Math.max(lo * 0.7, 1)), l1 = Math.log10(hi * 1.4);
+  const X = (v) => PADL + ((Math.log10(Math.max(v, 1)) - l0) / (l1 - l0)) * plotW;
+
+  for (let e = Math.ceil(l0); e <= Math.floor(l1); e++) {
+    const gx = X(Math.pow(10, e));
     svg.appendChild(el("line", { x1: gx, y1: PADT, x2: gx, y2: H - PADB, stroke: "var(--grid)", "stroke-width": 1 }));
-    svg.appendChild(el("text", { x: gx, y: H - PADB + 16, class: "axis-label", "text-anchor": "middle" }, fmt((max * i) / 4)));
+    svg.appendChild(el("text", { x: gx, y: H - PADB + 16, class: "axis-label", "text-anchor": "middle" }, fmt(Math.pow(10, e))));
   }
 
-  classes.forEach((c, ci) => {
-    const top = PADT + ci * groupH;
-    svg.appendChild(el("text", { x: PADL - 12, y: top + (labels.length * (BAR + GAP)) / 2 + 4, class: "tick-label", "text-anchor": "end" }, clsLabel(c)));
-    labels.forEach((a, ai) => {
-      const v = cells[c + "|" + a];
-      if (v === null) return;
-      const y = top + ai * (BAR + GAP);
-      const w = Math.max(x(v), 2);
-      const bar = el("rect", { x: PADL, y, width: w, height: BAR, rx: 4, fill: labelColor(a) });
-      svg.appendChild(bar);
-      // Direct labels are mandatory here, not decorative: aqua sits below 3:1 on
-      // the light surface, so the relief rule requires labels (and the table).
-      svg.appendChild(el("text", { x: PADL + w + 7, y: y + BAR - 3.5, class: "value-label" }, fmt(v)));
-      const n = rows.filter((r) => r.task_class === c && r.label === a).length;
-      bindTip(bar, `<b>${a}</b><br>${c}<br>${metricLabel()}: ${fmt(v)}<br>n = ${n}`);
-    });
+  tasks.forEach((task, i) => {
+    const y = PADT + i * ROW + ROW / 2;
+    const mine = points.filter((p) => p.task === task);
+    svg.appendChild(el("text", { x: PADL - 12, y: y + 4, class: "tick-label", "text-anchor": "end" }, task));
+    const m = median(mine.map((p) => p.v));
+    if (m !== null) {
+      svg.appendChild(el("line", { x1: X(m), y1: y - 9, x2: X(m), y2: y + 9, stroke: "var(--text-muted)", "stroke-width": 2 }));
+      svg.appendChild(el("text", { x: X(Math.max(...mine.map((p) => p.v))) + 10, y: y + 4, class: "value-label" }, fmt(m)));
+    }
+    for (const p of mine) {
+      const dot = el("circle", { cx: X(p.v), cy: y, r: 5, fill: labelColor(p.label), stroke: "var(--surface-2)", "stroke-width": 2 });
+      svg.appendChild(dot);
+      bindTip(dot, `<b>${p.task}</b><br>${p.label}<br>${metricLabel()}: ${fmt(p.v)}`);
+    }
   });
+}
+
+// ---- how the answers were obtained -------------------------------------------
+function renderTools() {
+  const t = DATA.tools || {};
+  const rows = t.by_tool || [];
+  if (!rows.length) { $("tools-note").textContent = "No tool calls recorded."; return; }
+  $("tools-note").innerHTML =
+    `<b>${t.total}</b> tool calls, of which <b>${t.discovery}</b> were spent working out which ` +
+    `tools exist. <b>${t.errors}</b> attempts errored and were retried. The largest single ` +
+    `response was <b>${fmt(t.max_bytes)}</b> bytes, the average <b>${fmt(t.avg_bytes)}</b> — ` +
+    `answers came back as summaries rather than raw records.`;
+  $("tools-table").innerHTML =
+    "<thead><tr><th class='txt'>tool</th><th>calls</th><th>errors</th>" +
+    "<th>avg result B</th><th>largest B</th></tr></thead><tbody>" +
+    rows.map((r) => `<tr><td class="txt">${r.tool}</td><td>${r.calls}</td>` +
+      `<td class="${r.errors ? "fail" : ""}">${r.errors}</td>` +
+      `<td>${fmt(r.avg_bytes)}</td><td>${fmt(r.max_bytes)}</td></tr>`).join("") + "</tbody>";
 }
 
 function legend(node, labels) {
@@ -497,85 +504,36 @@ function legend(node, labels) {
     `<span><span class="swatch" style="background:${labelColor(a)}"></span>${a}</span>`).join("");
 }
 
-// ---- chart 2: context growth per turn --------------------------------------
-function renderChart2() {
-  const svg = $("chart2");
-  resetChart(svg);
-  const keep = new Set(selected().map((r) => r.label + "|" + r.task + "|" + r.trial));
-  const its = DATA.iterations.filter((i) => keep.has(i.label + "|" + i.task + "|" + i.trial));
-  const labels = uniq(its.map((i) => i.label));
-  const plottable = its.length > 0 && Math.max(...its.map((i) => i.turn_idx)) >= 1;
-  legend($("c2-legend"), plottable ? labels : []);
-
-  if (!its.length) { emptyNote(svg, "No iterations match these filters."); return; }
-  // Growth needs at least two points somewhere; one dot in an empty grid says less
-  // than a sentence does.
-  if (!plottable) {
-    emptyNote(svg, "Every run in view finished in a single API call, so there is no growth to plot.");
-    return;
-  }
-
-  const series = {};
-  let maxT = 0, maxY = 0;
-  for (const a of labels) {
-    const turns = uniq(its.filter((i) => i.label === a).map((i) => i.turn_idx));
-    series[a] = turns.map((t) => {
-      const vs = its.filter((i) => i.label === a && i.turn_idx === t).map((i) => i.context_tokens);
-      const mean = vs.reduce((s, v) => s + v, 0) / vs.length;
-      maxT = Math.max(maxT, t); maxY = Math.max(maxY, mean);
-      return { t, v: mean, n: vs.length };
-    });
-  }
-  maxY = niceMax(maxY);
-
-  const PADL = 62, PADR = 20, PADT = 10, PADB = 34;
-  const W = Math.max(560, PADL + PADR + Math.max(maxT, 1) * 70), H = 260;
-  const plotW = W - PADL - PADR, plotH = H - PADT - PADB;
-  showChart(svg, W, H);
-  const X = (t) => PADL + (maxT ? (t / maxT) * plotW : plotW / 2);
-  const Y = (v) => PADT + plotH - (v / maxY) * plotH;
-
-  for (let i = 0; i <= 4; i++) {
-    const gy = PADT + (plotH * i) / 4;
-    svg.appendChild(el("line", { x1: PADL, y1: gy, x2: W - PADR, y2: gy, stroke: "var(--grid)", "stroke-width": 1 }));
-    svg.appendChild(el("text", { x: PADL - 10, y: gy + 4, class: "axis-label", "text-anchor": "end" }, fmt((maxY * (4 - i)) / 4)));
-  }
-  for (let t = 0; t <= maxT; t++) {
-    svg.appendChild(el("text", { x: X(t), y: H - PADB + 18, class: "axis-label", "text-anchor": "middle" }, t + 1));
-  }
-  svg.appendChild(el("text", { x: PADL + plotW / 2, y: H - 4, class: "axis-label", "text-anchor": "middle" }, "API call"));
-
-  for (const a of labels) {
-    const pts = series[a];
-    if (pts.length > 1) {
-      svg.appendChild(el("path", {
-        d: pts.map((p, i) => `${i ? "L" : "M"}${X(p.t)},${Y(p.v)}`).join(" "),
-        fill: "none", stroke: labelColor(a), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round",
-      }));
-    }
-    for (const p of pts) {
-      // 2px surface ring instead of a border, so overlapping markers stay legible.
-      const m = el("circle", { cx: X(p.t), cy: Y(p.v), r: 4.5, fill: labelColor(a), stroke: "var(--surface-2)", "stroke-width": 2 });
-      svg.appendChild(m);
-      bindTip(m, `<b>${a}</b><br>call ${p.t + 1}<br>mean context: ${fmt(p.v)}<br>n = ${p.n}`);
-    }
-  }
-}
-
 // ---- table -----------------------------------------------------------------
+// Always one decimal in thousands. The shared formatter drops the decimal above
+// 10k, which puts "9.1k" beside "29k" in one column and invites reading them at
+// the same precision; a fixed scale keeps the sizes comparable down the column.
+const fmtK1 = (n) => (n === null || n === undefined ? "–" : (n / 1000).toFixed(1) + "k");
+// Milliseconds are reported in the thousands, where the shared formatter renders
+// "25k" -- a duration nobody can size at a glance. Seconds carry their own unit.
+const fmtSec = (n) => (n === null || n === undefined ? "–" : (n / 1000).toFixed(1) + "s");
+// Three places: runs reach down to a fraction of a cent, so two would round the
+// control row to $0.00 and lose the floor the other rows are measured against.
+const fmtUsd = (n) => (n === null || n === undefined ? "–" : "$" + n.toFixed(3));
+
 const COLS = [
   ["label", "label", 1], ["task", "task", 1], ["trial", "trial", 0],
-  ["total_context_tokens", "context", 0], ["peak_context_tokens", "peak", 0],
-  ["output_tokens", "output", 0], ["num_turns", "turns", 0],
-  ["n_tool_calls", "tools", 0], ["n_discovery_calls", "disc", 0],
-  ["max_tool_result_bytes", "max result B", 0], ["duration_api_ms", "api ms", 0],
-  ["total_cost_usd", "usd", 0], ["status", "status", 1], ["answer", "answered", 1],
+  ["peak_context_tokens", "tokens", 0, fmtK1],
+  ["total_cost_usd", "usd", 0, fmtUsd],
+  ["duration_api_ms", "api time", 0, fmtSec],
+  ["tool_time_ms", "tool time", 0, fmtSec],
+  ["num_turns", "turns", 0], ["n_tool_calls", "tools", 0],
+  ["n_discovery_calls", "disc", 0], ["max_tool_result_bytes", "max result B", 0],
+  ["output_tokens", "output", 0], ["status", "status", 1], ["answer", "answered", 1],
 ];
 let sortKey = "label", sortDir = 1;
 
 function renderTable() {
+  // Deliberately unfiltered: this is the audit view, and the filters that drive
+  // the charts sit below it on the page -- a control downstream of the thing it
+  // governs would silently hide rows.
   const t = $("table");
-  const rows = selected().map((r) => ({
+  const rows = DATA.runs.map((r) => ({
     ...r,
     status: r.invalid ? r.invalid_reason : !r.graded ? "ungraded" : r.passed ? "pass" : "FAIL",
   }));
@@ -589,10 +547,10 @@ function renderTable() {
   t.innerHTML =
     "<thead><tr>" + COLS.map(([k, l, txt]) =>
       `<th class="${txt ? "txt" : ""}" data-k="${k}">${l}${sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr></thead><tbody>" +
-    rows.map((r) => "<tr>" + COLS.map(([k, , txt]) => {
+    rows.map((r) => "<tr>" + COLS.map(([k, , txt, format]) => {
       const v = r[k];
       const cls = (txt ? "txt " : "") + (k === "status" && (v === "FAIL" || (r.invalid && v)) ? "fail" : "");
-      return `<td class="${cls.trim()}">${typeof v === "number" ? fmt(v) : v ?? "–"}</td>`;
+      return `<td class="${cls.trim()}">${typeof v === "number" ? (format || fmt)(v) : v ?? "–"}</td>`;
     }).join("") + "</tr>").join("") + "</tbody>";
   t.querySelectorAll("th").forEach((th) => th.addEventListener("click", () => {
     const k = th.dataset.k;
@@ -639,7 +597,7 @@ function renderVerdict() {
   const noop = {};
   for (const a of labels) {
     const v = median(runs.filter((r) => r.label === a && r.task_class === "noop" && !r.invalid)
-                         .map((r) => r.total_context_tokens));
+                         .map((r) => r.peak_context_tokens));
     if (v !== null) noop[a] = v;
   }
   const base = noop["no-mcp"];
@@ -664,7 +622,7 @@ function renderVerdict() {
     for (const c of uniq(ok.map((r) => r.task_class))) {
       if (c === "noop") continue;
       const per = labels.map((a) => [a, median(ok.filter((r) => r.task_class === c && r.label === a)
-                                                .map((r) => r.total_context_tokens))])
+                                                .map((r) => r.peak_context_tokens))])
                       .filter(([, v]) => v !== null && v > 0);
       if (per.length < 2) continue;
       per.sort((x, y) => x[1] - y[1]);
@@ -721,13 +679,21 @@ function renderWarnings() {
   const invalid = DATA.runs.filter((r) => r.invalid).length;
   const ungraded = DATA.runs.filter((r) => !r.invalid && !r.graded).length;
   const add = (cls, html) => { const d = document.createElement("div"); d.className = "banner " + cls; d.innerHTML = html; w.appendChild(d); };
-  if (sandbox) add("warn", `<b>${sandbox} sandbox errors.</b> These runs measured server capacity, not the tool surface — check sandbox pool contention before trusting the comparison.`);
+  // A recovered transient error is a note; only a run-shaping rate is a warning.
+  if (sandbox) {
+    const share = sandbox / Math.max(DATA.runs.length, 1);
+    const s_ = sandbox === 1 ? "" : "s";
+    add(share > 0.1 ? "warn" : "",
+        share > 0.1
+          ? `<b>${sandbox} sandbox error${s_}</b> across ${DATA.runs.length} runs — that rate measures server capacity, not the tool surface.`
+          : `${sandbox} tool call${s_} hit a transient sandbox error; the runs recovered.`);
+  }
   if (invalid) add("", `${invalid} invalid run(s) excluded from the default view — harness failures, not model failures.`);
   if (ungraded) add("", `${ungraded} run(s) ungraded: their task declares no expectation, so token cost for them is unconditioned on correctness.`);
 }
 
 // ---- render ----------------------------------------------------------------
-function render() { renderKpis(); renderChart1(); renderChart2(); renderTasks(); renderTable(); }
+function render() { renderKpis(); renderChart1(); renderTools(); renderTasks(); renderTable(); }
 
 function fillSelect(node, opts, value) {
   node.innerHTML = opts.map(([v, l]) => `<option value="${v}"${v === value ? " selected" : ""}>${l}</option>`).join("");

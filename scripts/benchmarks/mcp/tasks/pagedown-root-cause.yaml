@@ -1,0 +1,9 @@
+# Graded on text that only appears in the failure messages. The earlier version
+# asked for the exception type, which a model can guess without reading data.
+name: pagedown-root-cause
+task_class: large-result
+prompt: >-
+  PageDownTool is erroring on almost every call in trail-gaia. What is actually
+  going wrong when the agent calls it?
+expect:
+  contains: unexpected keyword argument

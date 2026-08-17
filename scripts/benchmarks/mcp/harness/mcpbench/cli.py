@@ -8,27 +8,21 @@ tracing plugin discards delivery errors.
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from . import store
 from .analyze import (
-    meta_row,
-    read_annotation,
+    report_for_run,
     rows_for_run,
     summarize,
-    task_rows,
     write_annotation,
     write_csv,
 )
 from .config import BenchConfig, ConfigError, apply_overrides, load_config, load_tasks
 from .preflight import run_preflight
-from .report import build_report
 from .runner import BudgetExhausted, Cell, plan_matrix, run_matrix
-from .server import serve
 
 #: The suite config sits beside `tasks/`, one level above the harness package, so
 #: the reviewed inputs live together and the harness stays just code.
@@ -52,49 +46,9 @@ def _results_root(config: BenchConfig, args: argparse.Namespace) -> Path:
     return Path(getattr(args, "out", None) or config.root / "results").resolve()
 
 
-def _report_meta(db: Path, run_id: str, config: BenchConfig) -> dict:
-    """Provenance the report shows beside each label."""
-    rows = [r for r in store.read_rows(db, "run_meta") if r["run_id"] == run_id]
-    meta = rows[0] if rows else {}
-    return {
-        "run_id": run_id,
-        "model": meta.get("model") or config.model,
-        "label": meta.get("label"),
-        "target": meta.get("target"),
-        "note": meta.get("note"),
-        "created_at": meta.get("created_at"),
-        "phoenix_git_sha": meta.get("phoenix_git_sha"),
-    }
-
-
-def _db(root: Path) -> Path:
-    """One bench.db beside the per-run directories, shared across runs."""
-    return root / "bench.db"
-
-
 def _persist(config, tasks, out_dir: Path) -> list[dict]:
-    """Re-derive every table from the transcripts and store it. Returns runs."""
+    """Re-derive every row from the transcripts and write the report. Returns runs."""
     tables = rows_for_run(config, tasks, out_dir)
-    db = _db(out_dir.parent)
-    store.write_tasks(db, task_rows(tasks))
-    # Provenance belongs with the rows wherever they are written from.
-    if (manifest := out_dir / "manifest.json").is_file():
-        store.write_meta(
-            db,
-            meta_row(out_dir.name, json.loads(manifest.read_text()), read_annotation(out_dir)),
-        )
-
-    def of(rows, cell):
-        return [r for r in rows if (r["label"], r["task"], r["trial"]) == cell]
-
-    for row in tables["runs"]:
-        cell = (row["label"], row["task"], row["trial"])
-        store.write_cell(
-            db,
-            run=row,
-            turns=of(tables["turns"], cell),
-            tool_calls=of(tables["tool_calls"], cell),
-        )
     write_csv(tables["runs"], out_dir / "runs.csv")
     return tables["runs"]
 
@@ -140,11 +94,35 @@ def cmd_run(args: argparse.Namespace) -> int:
     done = 0
     print(f"run {run_id} [{config.resolved_label()}]: {len(cells)} cells ({len(tasks)} tasks)")
 
+    report_path = out_dir / "report.html"
+    warned_refresh = False
+
+    def refresh_report() -> None:
+        """Rebuild the report from what is stored so far.
+
+        Rows land in the database as each cell finishes, so the report can be
+        open in a browser from the first cell onwards instead of only existing
+        once the whole matrix has been spent. Never allowed to fail the run --
+        the results are already durable by this point.
+        """
+        try:
+            report_for_run(config, tasks, out_dir)
+        except Exception as exc:
+            # Said once: a stale page with no explanation is worse than a line
+            # of noise, and repeating it every cell would bury the progress log.
+            nonlocal warned_refresh
+            if not warned_refresh:
+                warned_refresh = True
+                print(f"       (live report not updating: {exc})")
+
     def progress(cell: Cell, info: dict) -> None:
         nonlocal done
         done += 1
         status = "cached" if info.get("cached") else f"turns={info.get('num_turns')}"
         print(f"  [{done}/{len(cells)}] {cell.cell_id}  {status}  ${info.get('spend', 0.0):.2f}")
+        refresh_report()
+        if done == 1:
+            print(f"       report updating live: {report_path}")
 
     try:
         run_matrix(config, tasks, out_dir, on_cell=progress)
@@ -154,17 +132,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     finally:
         runs = _persist(config, tasks, out_dir)
         if runs:
-            db = _db(out_dir.parent)
             # Emitted here so a run ends with something to open, not a second command.
-            path = build_report(
-                runs,
-                store.read_rows(db, "turns", out_dir.name),
-                out_dir,
-                tasks=store.read_rows(db, "tasks"),
-                meta=_report_meta(db, out_dir.name, config),
-            )
+            path = report_for_run(config, tasks, out_dir)
             print(f"\nreport: {path}")
-            print(f"store:  {db}")
         print()
         print(summarize(runs))
     return 0
@@ -176,21 +146,19 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     root = _results_root(config, args)
 
     if args.all:
-        # bench.db is a disposable index: dropping and rebuilding it from the run
-        # folders is the supported way to clear anything stale.
-        for suffix in ("", "-wal", "-shm"):
-            (root / f"bench.db{suffix}").unlink(missing_ok=True)
         runs = []
         for folder in sorted(p for p in root.glob("*") if (p / "raw").is_dir()):
             runs.extend(_persist(config, tasks, folder))
-        print(f"rebuilt {_db(root)} from {len(runs)} runs")
+            report_for_run(config, tasks, folder)
+        print(f"re-derived {len(runs)} runs from transcripts")
         print()
         print(summarize(runs))
         return 0
 
     out_dir = (root / args.run_id) if args.run_id else _latest_run(root)
     runs = _persist(config, tasks, out_dir)
-    print(f"stored {len(runs)} runs in {_db(out_dir.parent)}")
+    report_for_run(config, tasks, out_dir)
+    print(f"re-derived {len(runs)} runs from transcripts")
     print()
     print(summarize(runs))
     return 0
@@ -202,42 +170,22 @@ def cmd_report(args: argparse.Namespace) -> int:
     root = _results_root(config, args)
     out_dir = (root / args.run_id) if args.run_id else _latest_run(root)
 
-    runs = _persist(config, tasks, out_dir)
-    db = _db(out_dir.parent)
-    path = build_report(
-        runs,
-        store.read_rows(db, "turns", out_dir.name),
-        out_dir,
-        tasks=store.read_rows(db, "tasks"),
-        meta=_report_meta(db, out_dir.name, config),
-    )
-    print(f"wrote {path}")
-    print("Open it directly, or `mcpbench serve` to run the benchmark from the page.")
+    _persist(config, tasks, out_dir)
+    print(f"wrote {report_for_run(config, tasks, out_dir)}")
     return 0
 
 
 def cmd_annotate(args: argparse.Namespace) -> int:
     """Label a run after the fact, so what it meant is recorded where the data is."""
     config = _resolve(load_config(Path(args.config)), args)
-    db = _db(_results_root(config, args))
     out_dir = _results_root(config, args) / args.run_id
     if not (out_dir / "raw").is_dir():
         print(f"No run directory at {out_dir}.", file=sys.stderr)
         return 1
-    try:
-        store.annotate_run(db, args.run_id, label=args.label, note=args.note)
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
-    print(f"{args.run_id}: {write_annotation(out_dir, label=args.label, note=args.note)}")
-    return 0
-
-
-def cmd_serve(args: argparse.Namespace) -> int:
-    config = _resolve(load_config(Path(args.config)), args)
-    root = _results_root(config, args)
-    out_dir = (root / args.run_id) if args.run_id else _latest_run(root)
-    serve(config, out_dir, host=args.host, port=args.port)
+    annotation = write_annotation(out_dir, label=args.label, note=args.note)
+    # The page reads the annotation file, so re-emit it with the new wording.
+    load_tasks(config) and report_for_run(config, load_tasks(config), out_dir)
+    print(f"{args.run_id}: {annotation}")
     return 0
 
 
@@ -287,11 +235,6 @@ def build_parser() -> argparse.ArgumentParser:
     annotate.add_argument("--note", help="Free-text note kept with the run.")
     annotate.set_defaults(func=cmd_annotate)
 
-    serve_cmd = sub.add_parser("serve", help="Serve the report with run controls (localhost).")
-    serve_cmd.add_argument("--run-id", help="Which run (default: most recent).")
-    serve_cmd.add_argument("--host", default="127.0.0.1", help="Bind address; loopback by default.")
-    serve_cmd.add_argument("--port", type=int, default=8765)
-    serve_cmd.set_defaults(func=cmd_serve)
     return parser
 
 

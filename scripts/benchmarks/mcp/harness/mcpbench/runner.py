@@ -18,8 +18,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from . import store
-from .analyze import meta_row, read_annotation, rows_for_transcript, task_rows
 from .config import BenchConfig, Task
 from .invocation import build_argv, build_env, cell_id, scratch_cwd, write_mcp_config
 from .metrics import parse_transcript
@@ -184,11 +182,7 @@ def run_matrix(
     # Written to scratch, never into out_dir: the generated config carries the
     # target's bearer token, and results directories get shared and published.
     mcp_config = write_mcp_config(config, scratch_cwd()) if config.uses_mcp else None
-    meta = write_manifest(config, tasks, out_dir)
-    db = out_dir.parent / "bench.db"
-    by_name = {t.name: t for t in tasks}
-    store.write_tasks(db, task_rows(tasks))
-    store.write_meta(db, meta_row(out_dir.name, meta, read_annotation(out_dir)))
+    write_manifest(config, tasks, out_dir)
 
     cells = plan_matrix(config, tasks)
     spend = 0.0
@@ -210,24 +204,9 @@ def run_matrix(
             spend += cost
             if spend >= config.max_total_usd:
                 stop.set()
-        # Persisted per cell, not at the end: a served report can then show
-        # progress live, and an interrupted run leaves queryable results.
-        try:
-            part = rows_for_transcript(
-                path,
-                run_id=out_dir.name,
-                label=cell.label,
-                task=by_name.get(cell.task.name),
-                task_name=cell.task.name,
-                trial=cell.trial,
-                meta=meta,
-            )
-            store.write_cell(
-                db, run=part["runs"][0], turns=part["turns"], tool_calls=part["tool_calls"]
-            )
-        except Exception as exc:  # storage must never lose a completed cell
-            logger.warning("Could not store cell %s: %s", cell.cell_id, exc)
-
+        # The transcript on disk is the record; the caller rebuilds the report
+        # from the run directory after each cell, so an interrupted run still
+        # leaves a readable page behind.
         if on_cell:
             on_cell(
                 cell,
