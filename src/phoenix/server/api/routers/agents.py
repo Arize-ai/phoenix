@@ -483,9 +483,6 @@ class ChatRequestBody(_CamelBaseModel):
                 "A chat submit request requires a message, toolOutputs, or toolApprovals"
             )
         if self.message is not None and self.tool_approvals:
-            # A new user message starts a new turn, but an approval resumes the
-            # deferred tool call on the open turn's assistant message — the two
-            # cannot share a request.
             raise ValueError("toolApprovals cannot be combined with a new message")
         approval_tool_call_ids = [approval.tool_call_id for approval in self.tool_approvals]
         if len(approval_tool_call_ids) != len(set(approval_tool_call_ids)):
