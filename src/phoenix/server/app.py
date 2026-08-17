@@ -137,6 +137,7 @@ from phoenix.server.middleware.anonymous_cors import (
     anonymous_paths,
 )
 from phoenix.server.middleware.gzip import GZipMiddleware
+from phoenix.server.middleware.ui_script_worker_csp import UiScriptWorkerCSPMiddleware
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
@@ -1369,6 +1370,10 @@ def create_app(
         paths=anonymous_surfaces,
         expose_headers="Mcp-Session-Id, WWW-Authenticate" if mcp_mount_path is not None else "",
     )
+    # Sandboxes execute_ui scripts at the platform level: a worker adopts the
+    # CSP of its script response, so the worker asset gets connect-src 'none'
+    # (see the middleware's docstring).
+    app.add_middleware(UiScriptWorkerCSPMiddleware)
     return app
 
 

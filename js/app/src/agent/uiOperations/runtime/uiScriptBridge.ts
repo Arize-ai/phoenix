@@ -23,6 +23,17 @@ export const DEFAULT_UI_SCRIPT_TIMEOUT_MS = 30_000;
 /** Maximum `ui.*` calls one script may make. */
 export const DEFAULT_MAX_UI_CALLS_PER_SCRIPT = 50;
 
+/**
+ * Cap on the total time one script may spend awaiting timer-pausing
+ * operations (approvals, long-running ops). The execution budget pauses
+ * during those waits so they don't eat the script's execution time, but an
+ * unbounded wait would let a script keep a worker alive — and burning CPU —
+ * forever. The bridge enforces both budgets with a single timer that is
+ * always armed toward the nearer of the two deadlines, bounding every run to
+ * `timeoutMs + maxPausedMs` of wall time.
+ */
+export const DEFAULT_MAX_PAUSED_MS = 300_000;
+
 export type UiScriptRunResult = {
   /** Number of `ui.*` calls the script made (successful or not). */
   callCount: number;
@@ -81,9 +92,13 @@ export function createUiScriptWorker(): UiScriptWorkerLike {
  *
  * All limits are enforced on this side of the boundary so a compromised or
  * runaway script cannot evade them:
- * - wall-clock timeout, hard-killed via `terminate()`;
- * - the timeout clock *pauses* while an `approval`-kind operation awaits the
- *   user's accept/reject decision, then resumes;
+ * - an execution budget (`timeoutMs`) of active wall-clock time, hard-killed
+ *   via `terminate()`;
+ * - the execution clock *pauses* while an `approval`-kind operation awaits
+ *   the user's accept/reject decision (or a `longRunning` operation is in
+ *   flight), then resumes;
+ * - a wait budget (`maxPausedMs`) on total paused time, so chaining
+ *   approvals cannot keep the worker alive forever;
  * - a per-script `ui.*` call budget.
  *
  * @param params.script - agent-authored script body; may `await ui.*` calls,
@@ -92,6 +107,9 @@ export function createUiScriptWorker(): UiScriptWorkerLike {
  * @param params.createWorker - worker factory (injectable for tests)
  * @param params.timeoutMs - wall-clock budget, excluding approval waits
  * @param params.maxCalls - maximum `ui.*` calls before the run is failed
+ * @param params.maxPausedMs - cap on total time the execution clock may
+ *   spend paused for approvals / long-running ops; a run that keeps waiting
+ *   past this budget is hard-killed no matter what it is awaiting
  * @param params.registerAbort - receives a callback that force-fails the run
  *   (chat interrupt / session teardown); the worker is terminated and the
  *   run resolves `ok: false`
@@ -102,6 +120,7 @@ export function runUiScript({
   createWorker = createUiScriptWorker,
   timeoutMs = DEFAULT_UI_SCRIPT_TIMEOUT_MS,
   maxCalls = DEFAULT_MAX_UI_CALLS_PER_SCRIPT,
+  maxPausedMs = DEFAULT_MAX_PAUSED_MS,
   registerAbort,
 }: {
   script: string;
@@ -109,20 +128,31 @@ export function runUiScript({
   createWorker?: () => UiScriptWorkerLike;
   timeoutMs?: number;
   maxCalls?: number;
+  maxPausedMs?: number;
   registerAbort?: (abort: (reason: string) => void) => void;
 }): Promise<UiScriptRunResult> {
   return new Promise((resolveRun) => {
     const logs: string[] = [];
     let callCount = 0;
-    let remainingMs = timeoutMs;
+    // One timer, two budgets: `timeoutMs` of active execution and
+    // `maxPausedMs` of total time spent awaiting timer-pausing operations
+    // (approvals, long-running ops). Every pause/resume transition banks the
+    // budget that was running and re-arms the timer toward the other one, so
+    // exactly one deadline is pending at any moment — the nearer of the two —
+    // and every run is bounded by timeoutMs + maxPausedMs of wall time no
+    // matter how many operations it chains.
+    let remainingActiveMs = timeoutMs;
+    let remainingWaitMs = maxPausedMs;
     let timerStartedAt = 0;
     let timerId: ReturnType<typeof setTimeout> | undefined;
+    let waitStartedAt = 0;
     let isSettled = false;
     // How many timer-pausing operations (approval / long-running) are in
-    // flight right now. The clock is banked while this is > 0 and only
-    // resumes when the last one settles — a plain boolean would let the first
-    // of several concurrent approvals (e.g. a `Promise.all` of `ui.*` calls)
-    // restart the budget while the user is still deciding on the others.
+    // flight right now. The execution budget is banked while this is > 0 and
+    // only resumes when the last one settles — a plain boolean would let the
+    // first of several concurrent approvals (e.g. a `Promise.all` of `ui.*`
+    // calls) restart the execution clock while the user is still deciding on
+    // the others.
     let pauseDepth = 0;
 
     const worker = createWorker();
@@ -144,44 +174,55 @@ export function runUiScript({
       resolveRun(result);
     };
 
-    const armTimer = () => {
+    // Re-arms the single timer toward whichever budget is currently live.
+    // The mode cannot change without going through pauseTimer/resumeTimer,
+    // which re-arm — so reading pauseDepth when the timer fires tells us
+    // which budget was exceeded.
+    const armTimer = (ms: number) => {
       // Clear first: never leak an orphaned timeout when re-arming (a stray
       // one could fire later and time out an already-finished run).
       clearTimer();
       timerStartedAt = Date.now();
-      timerId = setTimeout(
-        () => {
-          settle({
-            ok: false,
-            error: `Script exceeded the ${timeoutMs}ms execution budget and was terminated.`,
-            callCount,
-            logs,
-          });
-        },
-        Math.max(0, remainingMs)
-      );
+      timerId = setTimeout(() => {
+        settle({
+          ok: false,
+          error:
+            pauseDepth > 0
+              ? `Script exceeded the ${maxPausedMs}ms budget for awaiting approvals and long-running operations and was terminated.`
+              : `Script exceeded the ${timeoutMs}ms execution budget and was terminated.`,
+          callCount,
+          logs,
+        });
+      }, Math.max(0, ms));
     };
 
-    // Bank the remaining budget when the first pausing op goes in flight; a
-    // no-op for further concurrent pausing ops (they just deepen the count).
+    // First pausing op in flight: bank the execution budget and start
+    // spending the wait budget. Further concurrent pausing ops just deepen
+    // the count.
     const pauseTimer = () => {
       pauseDepth += 1;
-      if (pauseDepth === 1 && timerId !== undefined) {
-        remainingMs -= Date.now() - timerStartedAt;
-        clearTimer();
+      if (pauseDepth > 1 || isSettled) {
+        return;
       }
+      if (timerId !== undefined) {
+        remainingActiveMs -= Date.now() - timerStartedAt;
+      }
+      waitStartedAt = Date.now();
+      armTimer(remainingWaitMs);
     };
 
-    // Resume only once the last pausing op has settled, so the budget stays
-    // frozen for the whole time any approval is still awaiting the user.
+    // Resume only once the last pausing op has settled: bank the wait budget
+    // and hand the clock back to what is left of the execution budget.
     const resumeTimer = () => {
       if (pauseDepth === 0) {
         return;
       }
       pauseDepth -= 1;
-      if (pauseDepth === 0 && !isSettled) {
-        armTimer();
+      if (pauseDepth > 0 || isSettled) {
+        return;
       }
+      remainingWaitMs -= Date.now() - waitStartedAt;
+      armTimer(remainingActiveMs);
     };
 
     const handleOperationCall = async (message: {
@@ -273,7 +314,7 @@ export function runUiScript({
       settle({ ok: false, error: reason, callCount, logs });
     });
 
-    armTimer();
+    armTimer(remainingActiveMs);
     worker.postMessage({ type: "run", script });
   });
 }
