@@ -83,6 +83,7 @@ import {
   PROMPT_TEMPLATE_VARIABLES_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
+  UNRESOLVED_TOOL_CALLS_PARSING_ERROR,
 } from "./constants";
 import {
   getVisibleInvocationParameterSpecs,
@@ -991,6 +992,45 @@ export function getPromptTemplateVariablesFromAttributes(
 }
 
 /**
+ * Returns the IDs of tool calls on assistant messages that are not paired with a
+ * tool result message later in the conversation. Anthropic's Messages API rejects
+ * conversations where an assistant `tool_use` block is not followed by a matching
+ * `tool_result` block (see #12975), so callers can surface a warning when this
+ * returns a non-empty list for a span being replayed.
+ *
+ * Only assistant-role messages are inspected, since tool_use blocks live on the
+ * model's turn and the matching tool_result lives on the user's turn.
+ *
+ * NB: Only exported for testing
+ */
+export function findUnresolvedToolCallIds(messages: ChatMessage[]): string[] {
+  const resolvedIds = new Set<string>();
+  for (const message of messages) {
+    if (message.toolCallId != null) {
+      resolvedIds.add(message.toolCallId);
+    }
+  }
+
+  const unresolved: string[] = [];
+  for (const message of messages) {
+    if (message.role !== "ai") {
+      continue;
+    }
+    const toolCalls = message.toolCalls;
+    if (toolCalls == null || toolCalls.length === 0) {
+      continue;
+    }
+    for (const toolCall of toolCalls) {
+      const id = findToolCallId(toolCall);
+      if (id != null && id !== "" && !resolvedIds.has(id)) {
+        unresolved.push(id);
+      }
+    }
+  }
+  return unresolved;
+}
+
+/**
  * Takes a  {@link PlaygroundSpan|Span} and attempts to transform it's attributes into various fields on a {@link PlaygroundInstance}.
  * @param span the {@link PlaygroundSpan|Span} to transform into a playground instance
  * @returns a {@link PlaygroundInstance} with certain fields pre-populated from the span attributes
@@ -1124,6 +1164,15 @@ export function transformSpanAttributesToPlaygroundInstance(
     };
   });
 
+  // Flag spans whose input messages contain a tool call that the captured
+  // conversation never resolved with a tool result. The Anthropic Messages API
+  // rejects these requests outright, so replay would fail with a confusing 400
+  // unless the user is warned (see #12975).
+  const unresolvedToolCallErrors =
+    messages != null && findUnresolvedToolCallIds(messages).length > 0
+      ? [UNRESOLVED_TOOL_CALLS_PARSING_ERROR]
+      : [];
+
   // TODO(parker): add support for prompt template variables
   // https://github.com/Arize-ai/phoenix/issues/4886
   return {
@@ -1162,6 +1211,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       ...invocationParametersParsingErrors,
       ...responseFormatParsingErrors,
       ...promptTemplateVariablesParsingErrors,
+      ...unresolvedToolCallErrors,
     ],
   };
 }
