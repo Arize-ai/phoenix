@@ -7,3 +7,11 @@ prompt: >-
   called the most times within a single trace, and say how many times.
 expect:
   contains: FinderTool
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- FinderTool was called 24 times in a single trace.
+- '**FinderTool** - 24 calls'
+reject:
+- SearchInformationTool, 20 times.
+- LiteLLMModel.__call__ is the most repeated.

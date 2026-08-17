@@ -507,6 +507,24 @@ def grade(expect: dict[str, Any], answer: str) -> Optional[bool]:
     return None
 
 
+def check_expectation(expect: dict[str, Any], accept: list[str], reject: list[str]) -> list[str]:
+    """Wordings the expectation gets wrong. Empty means it agrees with all of them.
+
+    A pattern is only ever written against answers already seen, so it encodes
+    one phrasing of a right answer and silently fails the others. These cases
+    are the ones a real run produced; running them is what stops a matcher
+    quietly deciding which model is better.
+    """
+    problems = []
+    for answer in accept:
+        if not grade(expect, answer):
+            problems.append(f"should accept, does not: {answer!r}")
+    for answer in reject:
+        if grade(expect, answer):
+            problems.append(f"should reject, accepts: {answer!r}")
+    return problems
+
+
 def run_row(transcript: Transcript, *, expect: dict[str, Any]) -> dict[str, Any]:
     """The metrics for one run, minus the identifiers the caller supplies."""
     result = transcript.result

@@ -22,9 +22,9 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlsplit
 
-from .config import BenchConfig
+from .config import BenchConfig, Task
 from .invocation import build_argv, build_env, scratch_cwd, write_mcp_config
-from .metrics import parse_transcript
+from .metrics import check_expectation, parse_transcript
 
 _CANARY_NAME = "mcpbench-preflight-canary"
 
@@ -208,8 +208,36 @@ def check_canary_span(config: BenchConfig) -> Optional[Check]:
     )
 
 
-def run_preflight(config: BenchConfig, workdir: Path) -> list[Check]:
+def check_grading(tasks: list[Task]) -> Check:
+    """Every task's expectation agrees with the wordings it declares.
+
+    Cheap and first: a matrix graded by a pattern that is already known to be
+    wrong produces numbers that look like a result. Each mis-grade found so far
+    was a right answer phrased differently from the one the pattern was written
+    against, and each one flattered whichever model the pattern was tuned on.
+    """
+    problems = {t.name: p for t in tasks if (p := check_expectation(t.expect, t.accept, t.reject))}
+    untested = [t.name for t in tasks if not t.accept and not t.reject]
+    if problems:
+        first = next(iter(problems.items()))
+        return Check(
+            "grading",
+            False,
+            f"{len(problems)} task(s) grade their own examples wrongly. {first[0]}: {first[1][0]}",
+        )
+    checked = len(tasks) - len(untested)
+    detail = f"{checked}/{len(tasks)} tasks agree with their accept/reject wordings"
+    if untested:
+        detail += f"; no cases declared for {', '.join(untested)}"
+    return Check("grading", True, detail)
+
+
+def run_preflight(
+    config: BenchConfig, workdir: Path, tasks: Optional[list[Task]] = None
+) -> list[Check]:
     workdir.mkdir(parents=True, exist_ok=True)
     checks = [check_cli(), check_target(config, workdir)]
+    if tasks is not None:
+        checks.insert(0, check_grading(tasks))
     checks += [c for c in (check_sink_distinct(config), check_canary_span(config)) if c]
     return checks

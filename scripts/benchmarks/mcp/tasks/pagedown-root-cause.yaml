@@ -8,4 +8,16 @@ prompt: >-
   on almost every call. Looking at those spans, what is actually going wrong
   when the agent calls it?
 expect:
-  contains: unexpected keyword argument
+  # The finding is that the call passes an argument the signature does not
+  # take. Pinning the verbatim error text failed a run that paraphrased it
+  # and tabulated all five variants -- a better answer than the pinned one.
+  regex: '(?i)(keyword argument|kwarg)'
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- 'It gets a TypeError: unexpected keyword argument.'
+- forward() is receiving keyword arguments its signature does not accept
+- Unexpected kwarg '' (empty string) - 77
+reject:
+- A TypeError.
+- I do not see a PageDownTool in the available Phoenix tools.

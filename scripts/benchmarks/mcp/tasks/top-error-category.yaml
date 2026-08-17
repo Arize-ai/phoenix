@@ -5,3 +5,11 @@ prompt: >-
   annotations. What kind of mistake did they flag most often?
 expect:
   contains: Formatting Errors
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- The most common was **Formatting Errors** (123).
+- Formatting Errors, 72 annotations (most common)
+reject:
+- Goal Deviation
+- Instruction Non-compliance was flagged most often.

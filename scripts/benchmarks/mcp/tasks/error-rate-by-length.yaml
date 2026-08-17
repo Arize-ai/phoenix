@@ -9,3 +9,11 @@ prompt: >-
   error rate as a percentage of its spans.
 expect:
   regex: '1[45](\.\d+)?\s*%|0\.14\d'
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- Short traces (<15 spans) 0.8%; long traces (40+) 14.6%.
+- long ones sit at 14.6% against 0.8% for short
+reject:
+- Long traces average 11.1 errors each.
+- Both groups are around 5%.
