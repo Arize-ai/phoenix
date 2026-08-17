@@ -1,10 +1,9 @@
 import gzip
 import zlib
-from base64 import urlsafe_b64decode, urlsafe_b64encode
 from binascii import Error as BinasciiError
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -13,7 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, literal, or_, select, tuple_, update
+from sqlalchemy import delete, insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -27,6 +26,11 @@ from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+)
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
@@ -115,34 +119,29 @@ def _to_trace_data(
     )
 
 
-#: Separates a cursor's two halves. Neither an ISO timestamp nor a float literal
-#: contains it, so the split is unambiguous.
-_CURSOR_SEP = "|"
+#: Cursor sort-column type per `sort` field, so a cursor minted under one sort
+#: field is rejected rather than compared against the other's column.
+_CURSOR_SORT_TYPES: dict[str, tuple[CursorSortColumnDataType, type]] = {
+    "start_time": (CursorSortColumnDataType.DATETIME, datetime),
+    "latency_ms": (CursorSortColumnDataType.FLOAT, float),
+}
 
 
-def _encode_cursor(sort_value: Any, rowid: int) -> str:
-    """Encode a row's position in the sort order as an opaque token.
-
-    ``sort_value`` must be the value the database emitted for the sort column, not
-    one recomputed in Python: `latency_ms` is rounded in SQL and the two differ.
-    """
-    value = sort_value.isoformat() if isinstance(sort_value, datetime) else sort_value
-    return urlsafe_b64encode(f"{value}{_CURSOR_SEP}{rowid}".encode()).decode()
-
-
-def _decode_cursor(cursor: str, sort: str) -> tuple[Any, int]:
-    """Decode a cursor into its sort value and row id.
-
-    ``sort`` fixes the value's type, so a token minted under a different sort
-    field fails to parse and yields 422.
-    """
+def _parse_cursor(cursor: str, sort: str) -> Cursor:
+    """Decode a pagination cursor, requiring it to carry ``sort``'s value type."""
     try:
-        raw = urlsafe_b64decode(cursor.encode()).decode()
-        value, _, rowid = raw.rpartition(_CURSOR_SEP)
-        parsed = float(value) if sort == "latency_ms" else datetime.fromisoformat(value)
-        return parsed, int(rowid)
-    except (ValueError, TypeError, BinasciiError):
+        parsed = Cursor.from_string(cursor)
+    except (BinasciiError, KeyError, UnicodeDecodeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}") from error
+    expected_type, expected_python_type = _CURSOR_SORT_TYPES[sort]
+    sort_column = parsed.sort_column
+    if (
+        sort_column is None
+        or sort_column.type is not expected_type
+        or not isinstance(sort_column.value, expected_python_type)
+    ):
         raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
+    return parsed
 
 
 @router.get(
@@ -247,12 +246,13 @@ async def list_project_traces(
             stmt = stmt.where(models.Trace.start_time < normalize_datetime(end_time, timezone.utc))
 
         if cursor:
-            sort_value, cursor_rowid = _decode_cursor(cursor, sort)
+            parsed_cursor = _parse_cursor(cursor, sort)
+            assert parsed_cursor.sort_column is not None
             # Keyset predicate over the query's full ordering key: `sort_col` is
             # not unique and the row id does not order the result, so the pair is
             # compared as a tuple.
             key = tuple_(sort_col, models.Trace.id)
-            bound = tuple_(literal(sort_value, sort_col.type), literal(cursor_rowid))
+            bound = (parsed_cursor.sort_column.value, parsed_cursor.rowid)
             stmt = stmt.where(key < bound if order == "desc" else key > bound)
 
         stmt = stmt.limit(limit + 1)
@@ -266,7 +266,15 @@ async def list_project_traces(
             # `limit + 1` rows were fetched; the extra one belongs to the next
             # page, so the cursor marks the last row of this one.
             last_trace, last_sort_value = rows[-2]
-            next_cursor = _encode_cursor(last_sort_value, last_trace.id)
+            next_cursor = str(
+                Cursor(
+                    rowid=last_trace.id,
+                    sort_column=CursorSortColumn(
+                        type=_CURSOR_SORT_TYPES[sort][0],
+                        value=last_sort_value,
+                    ),
+                )
+            )
             rows = rows[:-1]
 
         traces = [trace for trace, _ in rows]

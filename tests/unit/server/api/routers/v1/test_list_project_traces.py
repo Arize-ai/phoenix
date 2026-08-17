@@ -10,6 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import Cursor
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
@@ -673,5 +674,16 @@ class TestListProjectTracesKeysetPagination:
         response = await httpx_client.get(
             f"v1/projects/{project.name}/traces",
             params={"limit": 2, "sort": "latency_ms", "cursor": cursor},
+        )
+        assert response.status_code == 422
+
+    async def test_cursor_without_a_sort_value_is_rejected(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        project = await _insert_traces_out_of_order(db)
+        # A rowid-only cursor cannot place a row in the sort order.
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2, "cursor": str(Cursor(rowid=1))},
         )
         assert response.status_code == 422
