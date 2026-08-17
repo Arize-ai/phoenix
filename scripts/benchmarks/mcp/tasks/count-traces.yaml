@@ -1,0 +1,9 @@
+# One lookup, tiny result. Code mode is expected to lose: it pays discovery
+# round-trips and writes Python for what one direct tool call answers.
+name: count-traces
+task_class: trivial
+prompt: >-
+  How many traces are in the "trail-gaia" project?
+  Reply with only the number, no other words.
+expect:
+  regex: '\b117\b'

@@ -1,0 +1,827 @@
+<title>MCP Benchmark Report</title>
+<style>
+  /* Tokens live on :root, not on .viz-root — body paints the page background and
+     must be able to resolve them, or the page shows an unstyled gutter. */
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --surface-2: #f5f4f1;
+    --border: #e2e1dc;
+    --grid: #edece8;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #7a7975;
+    --series-1: #2a78d6; /* code-mode */
+    --series-2: #eb6834; /* progressive-disclosure */
+    --series-3: #1baf7a; /* no-mcp */
+    --series-other: #8a8983;
+    --critical: #d03b3b;
+    --good: #0ca30c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --surface-2: #232320;
+      --border: #383835;
+      --grid: #2a2a27;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #8f8e86;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-other: #96958d;
+      --critical: #d03b3b;
+      --good: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --surface-2: #232320;
+    --border: #383835;
+    --grid: #2a2a27;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e86;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-other: #96958d;
+    --critical: #d03b3b;
+    --good: #0ca30c;
+  }
+
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .viz-root { max-width: 1180px; margin-inline: auto; padding: 36px 28px 72px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin: 0 0 28px; }
+  .card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .card-note { color: var(--text-muted); font-size: 12.5px; margin: 0 0 16px; }
+
+  /* Filters in one row above the charts. */
+  .filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+  select, button {
+    font: inherit; font-size: 13px; color: var(--text-primary);
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; min-height: 34px;
+  }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--text-muted); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .kpi .k-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .kpi .k-value { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .kpi .k-foot { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: baseline; }
+
+  .prose { color: var(--text-secondary); font-size: 13.5px; line-height: 1.6; max-width: 68ch; margin: 0 0 10px; }
+  .prose strong { color: var(--text-primary); }
+  .verdict { font-size: 15px; line-height: 1.65; max-width: 72ch; }
+  .verdict li { margin-bottom: 8px; }
+  .verdict b { color: var(--text-primary); }
+  .task { border-top: 1px solid var(--border); padding: 14px 0; }
+  .task:first-child { border-top: 0; padding-top: 2px; }
+  .task-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+  .task-name { font-weight: 600; font-size: 13.5px; }
+  .chip { font-size: 11.5px; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px; }
+  .prompt { font-size: 13px; color: var(--text-secondary); background: var(--surface-1); border-left: 2px solid var(--border); padding: 8px 12px; border-radius: 0 6px 6px 0; margin: 6px 0; }
+  .answers { font-size: 12.5px; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .ok { color: var(--good); font-weight: 600; }
+  .no { color: var(--critical); font-weight: 600; }
+  dl.glossary { margin: 0; font-size: 13px; }
+  dl.glossary dt { font-weight: 600; margin-top: 10px; }
+  dl.glossary dd { margin: 2px 0 0; color: var(--text-secondary); max-width: 70ch; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 12px; font-size: 12.5px; color: var(--text-secondary); }
+  /* One value is a number, not a bar chart. */
+  .hero .h-value { font-size: 48px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .hero .h-label { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 8px 0 4px; }
+  .scroll-x { overflow-x: auto; }
+  svg { display: block; max-width: 100%; }
+  .axis-label { fill: var(--text-muted); font-size: 11px; }
+  .tick-label { fill: var(--text-secondary); font-size: 11.5px; }
+  .value-label { fill: var(--text-secondary); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 6px 9px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child, td:first-child, th.txt, td.txt { text-align: left; }
+  th { color: var(--text-secondary); font-weight: 600; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface-2); }
+  tbody tr:hover { background: var(--surface-1); }
+  .fail { color: var(--critical); }
+
+  .banner { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); }
+  .banner.warn { border-color: var(--critical); color: var(--critical); }
+  #panel { display: none; }
+  #panel.live { display: block; }
+  #joblog { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; padding: 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; margin-top: 12px; }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 20; opacity: 0;
+    background: var(--surface-2); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 10px; font-size: 12px; line-height: 1.45;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.14); transition: opacity 90ms;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<div class="viz-root">
+  <h1>MCP surface benchmark</h1>
+  <p class="sub" id="meta"></p>
+
+  <div class="card">
+    <h2>What this is</h2>
+    <p class="prose">An AI agent was asked the same questions twice over — once through each
+      way Phoenix can expose its tools over MCP. Everything else was held identical: same
+      model, same questions, no system prompt, no built-in tools. The only thing that
+      differs between labelled runs is the tool surface.</p>
+    <p class="prose">What's measured is <strong>context tokens</strong> — how much text the
+      model had to read to answer. Tokens are what you pay for and what fills the model's
+      limited working memory, so fewer is better, but only if the answer is still right.
+      Every number below counts only runs that answered correctly.</p>
+    <div id="labels-explained"></div>
+  </div>
+
+  <div class="card">
+    <h2>What happened</h2>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <div id="warnings"></div>
+
+  <div class="card" id="panel">
+    <h2>Run the benchmark</h2>
+    <p class="card-note">Served locally, so runs can be started from here. Keys stay
+      in the server's environment and are never sent to this page.</p>
+    <div class="filters">
+      <label>Arms<select id="p-labels" multiple size="3"></select></label>
+      <label>Tasks<select id="p-tasks" multiple size="3"></select></label>
+      <label>Trials<select id="p-trials"></select></label>
+      <label>Cost cap (USD)<select id="p-cap"></select></label>
+      <button id="p-start">Start run</button>
+      <button id="p-cancel" disabled>Cancel</button>
+    </div>
+    <div id="joblog" hidden></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>Filters</h2>
+    <p class="card-note">Applies to every chart and the table below.</p>
+    <div class="filters">
+      <label>Label<select id="f-label"></select></label>
+      <label>Task class<select id="f-class"></select></label>
+      <label>Metric<select id="f-metric"></select></label>
+      <label>Runs<select id="f-scope"></select></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="c1-title"></h2>
+    <p class="card-note" id="c1-note"></p>
+    <div class="legend" id="c1-legend"></div>
+    <div class="scroll-x"><svg id="chart1"></svg></div>
+    <div class="hero" id="c1-hero" hidden></div>
+  </div>
+
+  <div class="card">
+    <h2>Context growth per turn</h2>
+    <p class="card-note">Mean context carried into each API call. Code mode should show
+      fewer, fatter turns; progressive disclosure a longer, thinner ramp.</p>
+    <div class="legend" id="c2-legend"></div>
+    <div class="scroll-x"><svg id="chart2"></svg></div>
+  </div>
+
+  <div class="card">
+    <h2>The questions that were asked</h2>
+    <p class="card-note">Each was posed verbatim to every label, with the expected answer
+      fixed in advance. "Answered" shows what each label actually replied.</p>
+    <div id="tasks"></div>
+  </div>
+
+  <div class="card">
+    <h2>What the numbers mean</h2>
+    <dl class="glossary">
+      <dt>Context tokens</dt>
+      <dd>Everything the model had to read to produce its answer — the tool descriptions,
+        the question, and every result handed back to it. This is the headline number: it is
+        what you are billed for and what competes for the model's limited working memory.</dd>
+      <dt>Peak context</dt>
+      <dd>The largest single moment, rather than the total. A run can be cheap overall yet
+        still spike past a smaller model's limit.</dd>
+      <dt>Turns</dt>
+      <dd>How many times the model went back to the server before answering. More turns
+        usually means it was searching, or recovering from a mistake.</dd>
+      <dt>Tool calls / discovery calls</dt>
+      <dd>Tools the model invoked. <em>Discovery</em> calls are the ones spent finding out
+        what tools exist — overhead paid before any real work starts.</dd>
+      <dt>Passed</dt>
+      <dd>Whether the answer matched the expected one. A cheap label that answers wrongly is
+        not cheap, so unpassed runs are excluded from the comparisons.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>Every run in detail</h2>
+    <p class="card-note">Every run, including invalid ones. Click a column to sort.</p>
+    <div class="scroll-x" style="max-height:460px;overflow-y:auto"><table id="table"></table></div>
+  </div>
+</div>
+<div class="tooltip" id="tip"></div>
+
+<script>
+const DATA = /*__REPORT_DATA__*/ null;
+
+// Colour follows the label, never its rank: filtering out a series must not
+// repaint the survivors. Unknown labels fold to one neutral rather than a new hue.
+const LABEL_SLOT = {
+  "code-mode": "var(--series-1)",
+  "progressive-disclosure": "var(--series-2)",
+  "no-mcp": "var(--series-3)",
+};
+const labelColor = (a) => LABEL_SLOT[a] || "var(--series-other)";
+
+const METRICS = [
+  ["total_context_tokens", "Context tokens (input + cache)"],
+  ["peak_context_tokens", "Peak context tokens"],
+  ["output_tokens", "Output tokens"],
+  ["thinking_tokens", "Thinking tokens"],
+  ["num_turns", "Turns"],
+  ["n_tool_calls", "Tool calls"],
+  ["n_discovery_calls", "Discovery calls"],
+  ["tool_result_bytes", "Tool result bytes"],
+  ["max_tool_result_bytes", "Largest single result (bytes)"],
+  ["code_bytes", "Code written (bytes)"],
+  ["duration_api_ms", "API duration (ms)"],
+  ["total_cost_usd", "Cost (USD)"],
+];
+
+// Internal vocabulary, translated once. Everything user-facing uses these.
+const CLASS_LABEL = {
+  noop: "No work asked",
+  trivial: "Simple lookup",
+  "multi-call": "Multi-step",
+  "large-result": "Large result",
+};
+const CLASS_HINT = {
+  noop: "measures the tool surface by itself, before any real question",
+  trivial: "a single call answers it — the surface overhead dominates",
+  "multi-call": "needs a chain of calls",
+  "large-result": "a big payload boiled down to a short answer",
+};
+const LABEL_EXPLAIN = {
+  "code-mode": "Phoenix shows only 5 tools; the model writes Python that calls the rest inside a sandbox, so results can be filtered before they reach the model.",
+  "progressive-disclosure": "Phoenix shows a small default set of tools and the model reveals more groups as it needs them. Every result travels through the model's context.",
+  "no-mcp": "Control: no MCP server at all. Its cost is the floor the others are measured against.",
+};
+const clsLabel = (c) => CLASS_LABEL[c] || c;
+
+const $ = (id) => document.getElementById(id);
+const uniq = (xs) => [...new Set(xs)].sort();
+const NS = "http://www.w3.org/2000/svg";
+
+function median(xs) {
+  const v = xs.filter((x) => x !== null && x !== undefined && !Number.isNaN(x)).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+function fmt(n) {
+  if (n === null || n === undefined) return "–";
+  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+  if (Number.isInteger(n)) return String(n);
+  return n < 1 ? n.toFixed(3) : n.toFixed(1);
+}
+// Snap the axis so its gridline step is a round number: ticks read 0/50/100/150
+// rather than 0/46.3/92.5/138.8. Rounding the *step* rather than the maximum
+// keeps the plot filled — rounding 304k straight up would reach 500k and leave
+// two fifths of the width empty.
+const NICE_STEPS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+function niceMax(v, divisions = 4) {
+  if (!(v > 0)) return 1;
+  const raw = v / divisions;
+  const exp = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = (NICE_STEPS.find((s) => raw <= s * exp) || 10) * exp;
+  return step * divisions;
+}
+function emptyNote(svg, message) {
+  svg.replaceChildren();
+  svg.removeAttribute("width"); svg.removeAttribute("height"); svg.removeAttribute("viewBox");
+  const note = document.createElement("div");
+  note.className = "empty";
+  note.textContent = message;
+  svg.after(note);
+}
+function resetChart(svg) {
+  svg.replaceChildren();
+  // An attribute-less <svg> still occupies its default 300x150, which would leave
+  // dead space above a hero or a note. Stay hidden until something is drawn.
+  svg.style.display = "none";
+  svg.closest(".card").querySelectorAll(".empty").forEach((n) => n.remove());
+}
+function showChart(svg, w, h) {
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("width", w);
+  svg.setAttribute("height", h);
+  svg.style.display = "block";
+}
+function el(tag, attrs = {}, text) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+const tip = $("tip");
+function bindTip(node, html) {
+  node.addEventListener("mousemove", (e) => {
+    tip.innerHTML = html;
+    tip.style.opacity = 1;
+    const pad = 14;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    const r = tip.getBoundingClientRect();
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - pad;
+    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - pad;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  });
+  node.addEventListener("mouseleave", () => (tip.style.opacity = 0));
+}
+
+// ---- state -----------------------------------------------------------------
+const state = { label: "all", cls: "all", metric: "total_context_tokens", scope: "passing" };
+
+function scopeFilter(r) {
+  if (state.scope === "all") return true;
+  if (r.invalid) return false;
+  return state.scope === "usable" ? true : !(r.graded && !r.passed);
+}
+function selected() {
+  return DATA.runs.filter(
+    (r) => (state.label === "all" || r.label === state.label) &&
+           (state.cls === "all" || r.task_class === state.cls) && scopeFilter(r)
+  );
+}
+const metricLabel = () => (METRICS.find((m) => m[0] === state.metric) || [, state.metric])[1];
+
+// ---- KPI row ---------------------------------------------------------------
+function renderKpis() {
+  const box = $("kpis");
+  box.innerHTML = "";
+  const rows = selected();
+  const labels = uniq(DATA.runs.map((r) => r.label));
+
+  // Fixed surface cost: the noop task asks for no work, so what it spends is the
+  // tool definitions alone. A single number per label -- a stat tile, not a chart.
+  const noop = {};
+  for (const a of labels) {
+    const v = median(DATA.runs.filter((r) => r.label === a && r.task_class === "noop" && !r.invalid)
+                             .map((r) => r.total_context_tokens));
+    if (v !== null) noop[a] = v;
+  }
+  const base = noop["no-mcp"];
+  for (const a of labels) {
+    if (a === "no-mcp" || noop[a] === undefined) continue;
+    const over = base === undefined ? null : noop[a] - base;
+    box.appendChild(kpi(`<span class="swatch" style="background:${labelColor(a)}"></span>${a} surface`,
+      over === null ? fmt(noop[a]) : "+" + fmt(over),
+      over === null ? "noop context tokens" : `tokens over the ${fmt(base)} control floor`));
+  }
+  const graded = rows.filter((r) => r.graded);
+  box.appendChild(kpi("Runs in view", String(rows.length), `${DATA.runs.length} total`));
+  box.appendChild(kpi("Pass rate",
+    graded.length ? Math.round((graded.filter((r) => r.passed).length / graded.length) * 100) + "%" : "–",
+    graded.length ? `${graded.length} graded` : "no task declared an expectation"));
+}
+function kpi(label, value, foot) {
+  const d = document.createElement("div");
+  d.className = "kpi";
+  d.innerHTML = `<div class="k-label">${label}</div><div class="k-value">${value}</div><div class="k-foot">${foot}</div>`;
+  return d;
+}
+
+// ---- chart 1: grouped bars, median metric by task class --------------------
+function renderChart1() {
+  const svg = $("chart1");
+  svg.innerHTML = "";
+  const rows = selected();
+  const labels = uniq(rows.map((r) => r.label));
+  const classes = uniq(rows.map((r) => r.task_class));
+  $("c1-title").textContent = `Median ${metricLabel().toLowerCase()} by task class`;
+  const hero = $("c1-hero");
+  hero.hidden = true;
+  resetChart(svg);
+
+  const cells = {};
+  let max = 0, filled = 0;
+  for (const c of classes) for (const a of labels) {
+    const v = median(rows.filter((r) => r.task_class === c && r.label === a).map((r) => r[state.metric]));
+    cells[c + "|" + a] = v;
+    if (v !== null) { filled++; max = Math.max(max, v); }
+  }
+
+  // The caption and legend describe a comparison, so they only apply when there
+  // is one to make.
+  legend($("c1-legend"), filled > 1 ? labels : []);
+  $("c1-note").textContent =
+    labels.length > 1
+      ? "Where the ordering flips is the finding: code mode pays a fixed surface cost to save on payloads."
+      : `Only ${labels[0] || "one label"} is in view, so this shows its cost per question type rather than a comparison.`;
+
+  if (!filled) { emptyNote(svg, "No runs match these filters."); return; }
+  if (filled === 1) {
+    // One value is a stat tile, not a one-bar bar chart.
+    const key = Object.keys(cells).find((k) => cells[k] !== null);
+    const [cls, label] = key.split("|");
+    hero.hidden = false;
+    hero.innerHTML =
+      `<div class="h-value">${fmt(cells[key])}</div><div class="h-label">` +
+      `<span class="swatch" style="background:${labelColor(label)}"></span>${label} · ${cls} · ` +
+      `median ${metricLabel().toLowerCase()}</div>`;
+    return;
+  }
+
+  max = niceMax(max);
+  const BAR = 16, GAP = 2, PADL = 152, PADR = 74, PADT = 8, PADB = 30;
+  const groupH = labels.length * (BAR + GAP) + 20;
+  const H = classes.length * groupH + PADT + PADB;
+  const W = Math.max(560, PADL + PADR + 380);
+  const plotW = W - PADL - PADR;
+  showChart(svg, W, H);
+  const x = (v) => (v / max) * plotW;
+
+  // Recessive solid hairline grid.
+  for (let i = 0; i <= 4; i++) {
+    const gx = PADL + (plotW * i) / 4;
+    svg.appendChild(el("line", { x1: gx, y1: PADT, x2: gx, y2: H - PADB, stroke: "var(--grid)", "stroke-width": 1 }));
+    svg.appendChild(el("text", { x: gx, y: H - PADB + 16, class: "axis-label", "text-anchor": "middle" }, fmt((max * i) / 4)));
+  }
+
+  classes.forEach((c, ci) => {
+    const top = PADT + ci * groupH;
+    svg.appendChild(el("text", { x: PADL - 12, y: top + (labels.length * (BAR + GAP)) / 2 + 4, class: "tick-label", "text-anchor": "end" }, clsLabel(c)));
+    labels.forEach((a, ai) => {
+      const v = cells[c + "|" + a];
+      if (v === null) return;
+      const y = top + ai * (BAR + GAP);
+      const w = Math.max(x(v), 2);
+      const bar = el("rect", { x: PADL, y, width: w, height: BAR, rx: 4, fill: labelColor(a) });
+      svg.appendChild(bar);
+      // Direct labels are mandatory here, not decorative: aqua sits below 3:1 on
+      // the light surface, so the relief rule requires labels (and the table).
+      svg.appendChild(el("text", { x: PADL + w + 7, y: y + BAR - 3.5, class: "value-label" }, fmt(v)));
+      const n = rows.filter((r) => r.task_class === c && r.label === a).length;
+      bindTip(bar, `<b>${a}</b><br>${c}<br>${metricLabel()}: ${fmt(v)}<br>n = ${n}`);
+    });
+  });
+}
+
+function legend(node, labels) {
+  node.innerHTML = labels.map((a) =>
+    `<span><span class="swatch" style="background:${labelColor(a)}"></span>${a}</span>`).join("");
+}
+
+// ---- chart 2: context growth per turn --------------------------------------
+function renderChart2() {
+  const svg = $("chart2");
+  resetChart(svg);
+  const keep = new Set(selected().map((r) => r.label + "|" + r.task + "|" + r.trial));
+  const its = DATA.iterations.filter((i) => keep.has(i.label + "|" + i.task + "|" + i.trial));
+  const labels = uniq(its.map((i) => i.label));
+  const plottable = its.length > 0 && Math.max(...its.map((i) => i.turn_idx)) >= 1;
+  legend($("c2-legend"), plottable ? labels : []);
+
+  if (!its.length) { emptyNote(svg, "No iterations match these filters."); return; }
+  // Growth needs at least two points somewhere; one dot in an empty grid says less
+  // than a sentence does.
+  if (!plottable) {
+    emptyNote(svg, "Every run in view finished in a single API call, so there is no growth to plot.");
+    return;
+  }
+
+  const series = {};
+  let maxT = 0, maxY = 0;
+  for (const a of labels) {
+    const turns = uniq(its.filter((i) => i.label === a).map((i) => i.turn_idx));
+    series[a] = turns.map((t) => {
+      const vs = its.filter((i) => i.label === a && i.turn_idx === t).map((i) => i.context_tokens);
+      const mean = vs.reduce((s, v) => s + v, 0) / vs.length;
+      maxT = Math.max(maxT, t); maxY = Math.max(maxY, mean);
+      return { t, v: mean, n: vs.length };
+    });
+  }
+  maxY = niceMax(maxY);
+
+  const PADL = 62, PADR = 20, PADT = 10, PADB = 34;
+  const W = Math.max(560, PADL + PADR + Math.max(maxT, 1) * 70), H = 260;
+  const plotW = W - PADL - PADR, plotH = H - PADT - PADB;
+  showChart(svg, W, H);
+  const X = (t) => PADL + (maxT ? (t / maxT) * plotW : plotW / 2);
+  const Y = (v) => PADT + plotH - (v / maxY) * plotH;
+
+  for (let i = 0; i <= 4; i++) {
+    const gy = PADT + (plotH * i) / 4;
+    svg.appendChild(el("line", { x1: PADL, y1: gy, x2: W - PADR, y2: gy, stroke: "var(--grid)", "stroke-width": 1 }));
+    svg.appendChild(el("text", { x: PADL - 10, y: gy + 4, class: "axis-label", "text-anchor": "end" }, fmt((maxY * (4 - i)) / 4)));
+  }
+  for (let t = 0; t <= maxT; t++) {
+    svg.appendChild(el("text", { x: X(t), y: H - PADB + 18, class: "axis-label", "text-anchor": "middle" }, t + 1));
+  }
+  svg.appendChild(el("text", { x: PADL + plotW / 2, y: H - 4, class: "axis-label", "text-anchor": "middle" }, "API call"));
+
+  for (const a of labels) {
+    const pts = series[a];
+    if (pts.length > 1) {
+      svg.appendChild(el("path", {
+        d: pts.map((p, i) => `${i ? "L" : "M"}${X(p.t)},${Y(p.v)}`).join(" "),
+        fill: "none", stroke: labelColor(a), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round",
+      }));
+    }
+    for (const p of pts) {
+      // 2px surface ring instead of a border, so overlapping markers stay legible.
+      const m = el("circle", { cx: X(p.t), cy: Y(p.v), r: 4.5, fill: labelColor(a), stroke: "var(--surface-2)", "stroke-width": 2 });
+      svg.appendChild(m);
+      bindTip(m, `<b>${a}</b><br>call ${p.t + 1}<br>mean context: ${fmt(p.v)}<br>n = ${p.n}`);
+    }
+  }
+}
+
+// ---- table -----------------------------------------------------------------
+const COLS = [
+  ["label", "label", 1], ["task", "task", 1], ["trial", "trial", 0],
+  ["total_context_tokens", "context", 0], ["peak_context_tokens", "peak", 0],
+  ["output_tokens", "output", 0], ["num_turns", "turns", 0],
+  ["n_tool_calls", "tools", 0], ["n_discovery_calls", "disc", 0],
+  ["max_tool_result_bytes", "max result B", 0], ["duration_api_ms", "api ms", 0],
+  ["total_cost_usd", "usd", 0], ["status", "status", 1], ["answer", "answered", 1],
+];
+let sortKey = "label", sortDir = 1;
+
+function renderTable() {
+  const t = $("table");
+  const rows = selected().map((r) => ({
+    ...r,
+    status: r.invalid ? r.invalid_reason : !r.graded ? "ungraded" : r.passed ? "pass" : "FAIL",
+  }));
+  rows.sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    if (x === y) return 0;
+    if (x === null || x === undefined) return 1;
+    if (y === null || y === undefined) return -1;
+    return (x > y ? 1 : -1) * sortDir;
+  });
+  t.innerHTML =
+    "<thead><tr>" + COLS.map(([k, l, txt]) =>
+      `<th class="${txt ? "txt" : ""}" data-k="${k}">${l}${sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr></thead><tbody>" +
+    rows.map((r) => "<tr>" + COLS.map(([k, , txt]) => {
+      const v = r[k];
+      const cls = (txt ? "txt " : "") + (k === "status" && (v === "FAIL" || (r.invalid && v)) ? "fail" : "");
+      return `<td class="${cls.trim()}">${typeof v === "number" ? fmt(v) : v ?? "–"}</td>`;
+    }).join("") + "</tr>").join("") + "</tbody>";
+  t.querySelectorAll("th").forEach((th) => th.addEventListener("click", () => {
+    const k = th.dataset.k;
+    sortDir = sortKey === k ? -sortDir : 1;
+    sortKey = k;
+    renderTable();
+  }));
+}
+
+// ---- what this is / what happened ------------------------------------------
+function renderArmsExplained() {
+  const labels = uniq(DATA.runs.map((r) => r.label));
+  $("labels-explained").innerHTML = labels.map((a) =>
+    `<p class="prose"><span class="swatch" style="background:${labelColor(a)}"></span>` +
+    `<strong>${a}</strong> — ${LABEL_EXPLAIN[a] || "an MCP tool surface under test."}</p>`).join("");
+}
+
+// The plain-language conclusion. Everything here is computed, never asserted:
+// with one label or no control there is nothing to compare, and it says so rather
+// than implying a result that was not measured.
+function renderVerdict() {
+  const runs = DATA.runs;
+  const labels = uniq(runs.map((r) => r.label));
+  const questions = uniq(runs.map((r) => r.task)).length;
+  const graded = runs.filter((r) => !r.invalid && r.graded);
+  const ok = graded.filter((r) => r.passed);
+  const bits = [];
+
+  const rate = graded.length ? Math.round((100 * ok.length) / graded.length) : null;
+  bits.push(
+    `<b>${runs.length}</b> run${runs.length === 1 ? "" : "s"} — ${questions} question` +
+    `${questions === 1 ? "" : "s"} across ${labels.length} label${labels.length === 1 ? "" : "s"}` +
+    (rate === null ? ", none with a checkable answer." :
+     `, of which <b>${rate}%</b> were answered correctly.`));
+
+  // Fixed surface cost, as a subtraction against the no-tools control.
+  const noop = {};
+  for (const a of labels) {
+    const v = median(runs.filter((r) => r.label === a && r.task_class === "noop" && !r.invalid)
+                         .map((r) => r.total_context_tokens));
+    if (v !== null) noop[a] = v;
+  }
+  const base = noop["no-mcp"];
+  if (base !== undefined) {
+    for (const a of labels) {
+      if (a === "no-mcp" || noop[a] === undefined) continue;
+      bits.push(`Before any question is asked, <b>${a}</b> already puts ` +
+        `<b>${fmt(noop[a] - base)} tokens</b> of tool descriptions in front of the model ` +
+        `(${fmt(noop[a])} versus ${fmt(base)} with no tools at all). That is the fixed price ` +
+        `of the surface, paid on every single request.`);
+    }
+  } else if (Object.keys(noop).length) {
+    bits.push(`The <b>no-mcp</b> control did not run, so the fixed cost of each surface ` +
+      `cannot be separated from the cost of answering. Run that label to get the number.`);
+  }
+
+  // Per-question-type comparison, only where there is something to compare.
+  if (labels.length < 2) {
+    bits.push(`Only one label (<b>${labels[0]}</b>) ran, so there is nothing to compare it ` +
+      `against yet. The chart below shows what it cost on each kind of question.`);
+  } else {
+    for (const c of uniq(ok.map((r) => r.task_class))) {
+      if (c === "noop") continue;
+      const per = labels.map((a) => [a, median(ok.filter((r) => r.task_class === c && r.label === a)
+                                                .map((r) => r.total_context_tokens))])
+                      .filter(([, v]) => v !== null && v > 0);
+      if (per.length < 2) continue;
+      per.sort((x, y) => x[1] - y[1]);
+      const [lo, hi] = [per[0], per[per.length - 1]];
+      bits.push(`On <b>${clsLabel(c).toLowerCase()}</b> questions (${CLASS_HINT[c] || ""}), ` +
+        `<b>${lo[0]}</b> was cheapest at ${fmt(lo[1])} tokens — ` +
+        `<b>${(hi[1] / lo[1]).toFixed(1)}× less</b> than ${hi[0]} at ${fmt(hi[1])}.`);
+    }
+  }
+
+  const trials = Math.max(...labels.map((a) =>
+    Math.max(...uniq(runs.filter((r) => r.label === a).map((r) => r.trial)))));
+  if (trials < 2) {
+    bits.push(`Each question ran <b>once</b>, so these are single observations with no ` +
+      `sense of how much they vary. Re-run with more trials before trusting a gap.`);
+  }
+  $("verdict").innerHTML = "<ul>" + bits.map((b) => `<li>${b}</li>`).join("") + "</ul>";
+}
+
+// The prompts, verbatim, with what each label actually replied.
+function renderTasks() {
+  const byName = {};
+  for (const t of DATA.tasks || []) byName[t.name] = t;
+  const names = uniq(DATA.runs.map((r) => r.task));
+  $("tasks").innerHTML = names.map((name) => {
+    const t = byName[name] || {};
+    const cls = t.task_class || (DATA.runs.find((r) => r.task === name) || {}).task_class;
+    const want = t.expect ? Object.values(t.expect)[0] : null;
+    const answers = DATA.runs.filter((r) => r.task === name).map((r) => {
+      const mark = r.invalid ? `<span class="no">not run</span>`
+        : r.passed === true ? `<span class="ok">correct</span>`
+        : r.passed === false ? `<span class="no">wrong</span>` : "ungraded";
+      const said = (r.answer || "").replace(/\s+/g, " ").slice(0, 90);
+      return `<span><span class="swatch" style="background:${labelColor(r.label)}"></span>` +
+             `${r.label}: ${mark}${said ? ` — “${said}”` : ""}</span>`;
+    });
+    return `<div class="task"><div class="task-head">` +
+      `<span class="task-name">${name}</span>` +
+      `<span class="chip">${clsLabel(cls)}</span>` +
+      (t.structured ? `<span class="chip">structured answer</span>` : "") +
+      `</div>` +
+      (t.prompt ? `<div class="prompt">${t.prompt}</div>` : "") +
+      (want ? `<p class="card-note" style="margin:4px 0 8px">Expected: <b>${
+        typeof want === "object" ? JSON.stringify(want) : want}</b></p>` : "") +
+      `<div class="answers">${answers.join("")}</div></div>`;
+  }).join("");
+}
+
+// ---- warnings --------------------------------------------------------------
+function renderWarnings() {
+  const w = $("warnings");
+  w.innerHTML = "";
+  const sandbox = DATA.runs.reduce((s, r) => s + (r.n_sandbox_errors || 0), 0);
+  const invalid = DATA.runs.filter((r) => r.invalid).length;
+  const ungraded = DATA.runs.filter((r) => !r.invalid && !r.graded).length;
+  const add = (cls, html) => { const d = document.createElement("div"); d.className = "banner " + cls; d.innerHTML = html; w.appendChild(d); };
+  if (sandbox) add("warn", `<b>${sandbox} sandbox errors.</b> These runs measured server capacity, not the tool surface — check sandbox pool contention before trusting the comparison.`);
+  if (invalid) add("", `${invalid} invalid run(s) excluded from the default view — harness failures, not model failures.`);
+  if (ungraded) add("", `${ungraded} run(s) ungraded: their task declares no expectation, so token cost for them is unconditioned on correctness.`);
+}
+
+// ---- render ----------------------------------------------------------------
+function render() { renderKpis(); renderChart1(); renderChart2(); renderTasks(); renderTable(); }
+
+function fillSelect(node, opts, value) {
+  node.innerHTML = opts.map(([v, l]) => `<option value="${v}"${v === value ? " selected" : ""}>${l}</option>`).join("");
+}
+
+function init() {
+  const m = DATA.meta;
+  $("meta").textContent =
+    `${m.run_id} · ${m.model} · ${DATA.runs.length} runs · ${m.created_at}` + (m.phoenix_git_sha ? ` · phoenix ${m.phoenix_git_sha.slice(0, 8)}` : "");
+  document.title = `MCP Benchmark · ${m.run_id}`;
+
+  fillSelect($("f-label"), [["all", "all"], ...uniq(DATA.runs.map((r) => r.label)).map((a) => [a, a])], "all");
+  fillSelect($("f-class"), [["all", "all"], ...uniq(DATA.runs.map((r) => r.task_class)).map((c) => [c, c])], "all");
+  fillSelect($("f-metric"), METRICS, state.metric);
+  fillSelect($("f-scope"), [["passing", "passing only"], ["usable", "usable (incl. failed)"], ["all", "all incl. invalid"]], state.scope);
+
+  const bind = (id, key) => $(id).addEventListener("change", (e) => { state[key] = e.target.value; render(); });
+  bind("f-label", "label"); bind("f-class", "cls"); bind("f-metric", "metric"); bind("f-scope", "scope");
+
+  renderArmsExplained();
+  renderVerdict();
+  renderWarnings();
+  render();
+  initPanel();
+}
+
+// ---- serve mode ------------------------------------------------------------
+// Progressive enhancement: the same file is a read-only report when opened from
+// disk, and grows run controls only when a local server answers behind it.
+// Live updates: only possible when served. A file:// page has nothing to poll,
+// so it stays the snapshot it was written as.
+let pollTimer = null;
+async function pollResults(always) {
+  try {
+    const res = await fetch("api/results", { cache: "no-store" });
+    if (!res.ok) return false;
+    const fresh = await res.json();
+    const changed = fresh.runs.length !== DATA.runs.length ||
+                    JSON.stringify(fresh.runs) !== JSON.stringify(DATA.runs);
+    if (changed) {
+      DATA.runs = fresh.runs; DATA.iterations = fresh.iterations;
+      DATA.tasks = fresh.tasks; DATA.meta = fresh.meta;
+      renderArmsExplained(); renderVerdict(); renderWarnings(); render();
+    }
+    // Keep polling while a run is in flight; otherwise stop after one refresh.
+    if (fresh.running || always) {
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(() => pollResults(false), fresh.running ? 3000 : 15000);
+    }
+    return true;
+  } catch { return false; }
+}
+
+async function initPanel() {
+  let cfg;
+  try {
+    const res = await fetch("api/config", { cache: "no-store" });
+    if (!res.ok) return;
+    cfg = await res.json();
+  } catch { return; }
+
+  $("panel").classList.add("live");
+  pollResults(true);
+  const labels = $("p-labels"), tasks = $("p-tasks");
+  labels.innerHTML = cfg.labels.map((a) => `<option value="${a}" selected>${a}</option>`).join("");
+  tasks.innerHTML = cfg.tasks.map((t) => `<option value="${t}" selected>${t}</option>`).join("");
+  fillSelect($("p-trials"), [1, 2, 3, 5, 10].map((n) => [n, n + " trial" + (n > 1 ? "s" : "")]), 3);
+  fillSelect($("p-cap"), cfg.cost_caps.map((c) => [c, "$" + c.toFixed(2)]), cfg.default_cap);
+
+  const log = $("joblog");
+  const start = $("p-start"), cancel = $("p-cancel");
+  const picked = (n) => [...n.selectedOptions].map((o) => o.value);
+
+  start.addEventListener("click", async () => {
+    start.disabled = true; log.hidden = false; log.textContent = "starting…\n";
+    const res = await fetch("api/run", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ labels: picked(labels), tasks: picked(tasks), trials: +$("p-trials").value, max_total_usd: +$("p-cap").value }),
+    });
+    if (!res.ok) { log.textContent += "failed: " + (await res.text()) + "\n"; start.disabled = false; return; }
+    cancel.disabled = false;
+    poll();
+  });
+  cancel.addEventListener("click", () => fetch("api/cancel", { method: "POST" }));
+
+  async function poll() {
+    const res = await fetch("api/status", { cache: "no-store" });
+    const s = await res.json();
+    log.textContent = s.lines.join("\n");
+    log.scrollTop = log.scrollHeight;
+    if (s.running) return setTimeout(poll, 1200);
+    start.disabled = false; cancel.disabled = true;
+    log.textContent += "\ndone — reloading with the new results…";
+    setTimeout(() => location.reload(), 1200);
+  }
+  const s = await (await fetch("api/status", { cache: "no-store" })).json();
+  if (s.running) { start.disabled = true; cancel.disabled = false; log.hidden = false; poll(); }
+}
+
+init();
+</script>

@@ -20,6 +20,7 @@ GitHub + PyPI usage analytics. See `analytics/README.md`. Requires `GITHUB_TOKEN
 
 ### `benchmarks/`
 - `hallucination_eval_benchmark.ipynb` — notebook benchmarking the hallucination evaluator.
+- `mcp/` — token-cost benchmark for Phoenix's `/mcp` surfaces (code mode vs. progressive disclosure), driving `claude -p` with no system prompt and no built-in tools. Install with `uv pip install -e scripts/benchmarks/mcp/harness`; see its `README.md`.
 
 ### `ci/`
 Scripts run from CI workflows.
