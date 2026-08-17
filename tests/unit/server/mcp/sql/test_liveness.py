@@ -960,6 +960,45 @@ POSTGRES_JSON_SURFACE = [
         "SELECT jsonb_extract_path_text(attributes, 'session') AS v FROM spans",
         id="extract_path_text",
     ),
+    # The portable function spelling, which PostgreSQL does not define. It is
+    # rewritten to jsonb_extract_path because the generator would otherwise emit
+    # json_extract_path, which takes json and refuses the stored jsonb column.
+    pytest.param(
+        "SELECT json_extract('{\"a\":1}'::jsonb, '$.a') AS v FROM spans", id="json_extract_function"
+    ),
+    # The array-constructor spelling of a `#>` path, which reaches the same
+    # value as `#> '{a,b}'`.
+    pytest.param(
+        "SELECT '{\"a\":{\"b\":1}}'::jsonb #> ARRAY['a','b'] AS v FROM spans", id="array_path"
+    ),
+    pytest.param(
+        "SELECT '{\"a\":{\"b\":1}}'::jsonb #>> ARRAY['a','b'] AS v FROM spans",
+        id="array_path_scalar",
+    ),
+    # Operand shapes that reach the engine as written rather than through a
+    # rewrite. Each depends on the parser grouping the operand as PostgreSQL
+    # does, so each has to be executed rather than only rendered.
+    pytest.param(
+        "SELECT '{\"a\":1}'::jsonb -> k.key AS v FROM spans "
+        "CROSS JOIN LATERAL jsonb_each('{\"a\":1}'::jsonb) AS k",
+        id="dynamic_key",
+    ),
+    pytest.param(
+        "SELECT '{\"a\":1}'::jsonb ->> k.key AS v FROM spans "
+        "CROSS JOIN LATERAL jsonb_each('{\"a\":1}'::jsonb) AS k",
+        id="dynamic_key_scalar",
+    ),
+    pytest.param("SELECT '{\"a\":1}'::jsonb -> ('a') AS v FROM spans", id="parenthesised_key"),
+    pytest.param("SELECT '[1,2]'::jsonb -> (0) AS v FROM spans", id="parenthesised_subscript"),
+    pytest.param("SELECT '[1,2]'::jsonb -> 0 AS v FROM spans", id="bare_subscript"),
+    pytest.param(
+        "SELECT '{\"a\":{\"b\":1}}'::jsonb #>> '{a,b}'::text[] AS v FROM spans",
+        id="bare_cast_binds_to_path",
+    ),
+    pytest.param(
+        "SELECT CAST('{\"t\":\"{x,y}\"}'::jsonb #>> '{t}' AS text[]) AS v FROM spans",
+        id="cast_of_extraction",
+    ),
 ]
 
 
