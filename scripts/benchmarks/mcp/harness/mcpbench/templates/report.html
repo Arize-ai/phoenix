@@ -11,9 +11,9 @@
     --text-primary: #0b0b0b;
     --text-secondary: #52514e;
     --text-muted: #7a7975;
-    --series-1: #2a78d6; /* code-mode */
-    --series-2: #eb6834; /* progressive-disclosure */
-    --series-3: #1baf7a; /* no-mcp */
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
     --series-other: #8a8983;
     --critical: #d03b3b;
     --good: #0ca30c;
@@ -206,7 +206,7 @@
   <div class="card">
     <h2>Context growth per turn</h2>
     <p class="card-note">Mean context carried into each API call. Code mode should show
-      fewer, fatter turns; progressive disclosure a longer, thinner ramp.</p>
+      A surface that filters before returning shows fewer, fatter turns.</p>
     <div class="legend" id="c2-legend"></div>
     <div class="scroll-x"><svg id="chart2"></svg></div>
   </div>
@@ -251,14 +251,16 @@
 <script>
 const DATA = /*__REPORT_DATA__*/ null;
 
-// Colour follows the label, never its rank: filtering out a series must not
-// repaint the survivors. Unknown labels fold to one neutral rather than a new hue.
-const LABEL_SLOT = {
-  "code-mode": "var(--series-1)",
-  "progressive-disclosure": "var(--series-2)",
-  "no-mcp": "var(--series-3)",
+// Labels are user-supplied, so slots are assigned over every label present in the
+// data, sorted. That binding is independent of the current filter, so filtering
+// out a series never repaints the survivors. Past the palette, labels share one
+// neutral rather than taking a generated hue.
+const LABEL_SLOTS = ["var(--series-1)", "var(--series-2)", "var(--series-3)"];
+const ALL_LABELS = [...new Set((DATA.labels || []).concat(DATA.runs.map((r) => r.label)))].sort();
+const labelColor = (label) => {
+  const i = ALL_LABELS.indexOf(label);
+  return i >= 0 && i < LABEL_SLOTS.length ? LABEL_SLOTS[i] : "var(--series-other)";
 };
-const labelColor = (a) => LABEL_SLOT[a] || "var(--series-other)";
 
 const METRICS = [
   ["total_context_tokens", "Context tokens (input + cache)"],
@@ -287,11 +289,6 @@ const CLASS_HINT = {
   trivial: "a single call answers it — the surface overhead dominates",
   "multi-call": "needs a chain of calls",
   "large-result": "a big payload boiled down to a short answer",
-};
-const LABEL_EXPLAIN = {
-  "code-mode": "Phoenix shows only 5 tools; the model writes Python that calls the rest inside a sandbox, so results can be filtered before they reach the model.",
-  "progressive-disclosure": "Phoenix shows a small default set of tools and the model reveals more groups as it needs them. Every result travels through the model's context.",
-  "no-mcp": "Control: no MCP server at all. Its cost is the floor the others are measured against.",
 };
 const clsLabel = (c) => CLASS_LABEL[c] || c;
 
@@ -444,7 +441,7 @@ function renderChart1() {
   legend($("c1-legend"), filled > 1 ? labels : []);
   $("c1-note").textContent =
     labels.length > 1
-      ? "Where the ordering flips is the finding: code mode pays a fixed surface cost to save on payloads."
+      ? "Where the ordering flips between question types is the result."
       : `Only ${labels[0] || "one label"} is in view, so this shows its cost per question type rather than a comparison.`;
 
   if (!filled) { emptyNote(svg, "No runs match these filters."); return; }
@@ -608,9 +605,16 @@ function renderTable() {
 // ---- what this is / what happened ------------------------------------------
 function renderArmsExplained() {
   const labels = uniq(DATA.runs.map((r) => r.label));
-  $("labels-explained").innerHTML = labels.map((a) =>
-    `<p class="prose"><span class="swatch" style="background:${labelColor(a)}"></span>` +
-    `<strong>${a}</strong> — ${LABEL_EXPLAIN[a] || "an MCP tool surface under test."}</p>`).join("");
+  // Labels mean whatever the person running the benchmark said they mean, so the
+  // page reports the target and note rather than asserting a definition.
+  const meta = DATA.meta || {};
+  $("labels-explained").innerHTML = labels.map((a) => {
+    const detail = a === meta.label && (meta.target || meta.note)
+      ? [meta.target, meta.note].filter(Boolean).join(" — ")
+      : "a labelled run";
+    return `<p class="prose"><span class="swatch" style="background:${labelColor(a)}"></span>` +
+      `<strong>${a}</strong> — ${detail}</p>`;
+  }).join("");
 }
 
 // The plain-language conclusion. Everything here is computed, never asserted:

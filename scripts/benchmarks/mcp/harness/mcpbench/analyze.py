@@ -39,8 +39,25 @@ def task_hash(task: Task) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
-def meta_row(run_id: str, manifest: dict[str, Any]) -> dict[str, Any]:
-    """Provenance for one run, from its manifest."""
+ANNOTATION_FILE = "annotation.json"
+
+
+def read_annotation(out_dir: Path) -> dict[str, Any]:
+    """Authored notes for a run, kept beside the transcripts."""
+    path = out_dir / ANNOTATION_FILE
+    return json.loads(path.read_text()) if path.is_file() else {}
+
+
+def write_annotation(out_dir: Path, **fields: Any) -> dict[str, Any]:
+    """Merge ``fields`` into a run's annotation and persist it."""
+    current = read_annotation(out_dir)
+    current.update({k: v for k, v in fields.items() if v is not None})
+    (out_dir / ANNOTATION_FILE).write_text(json.dumps(current, indent=2))
+    return current
+
+
+def meta_row(run_id: str, manifest: dict[str, Any], annotation: dict[str, Any]) -> dict[str, Any]:
+    """Provenance for one run: what the harness recorded, plus what was authored."""
     return {
         "run_id": run_id,
         "created_at": manifest.get("created_at"),
@@ -51,7 +68,8 @@ def meta_row(run_id: str, manifest: dict[str, Any]) -> dict[str, Any]:
         "tracing_enabled": int(bool(manifest.get("tracing_enabled"))),
         "trace_sink": manifest.get("trace_sink"),
         "target": manifest.get("target"),
-        "label": manifest.get("label"),
+        "label": annotation.get("label") or manifest.get("label"),
+        "note": annotation.get("note"),
     }
 
 
@@ -223,14 +241,14 @@ def summarize(runs: list[dict[str, Any]]) -> str:
     if not scored:
         return "\n".join(lines + ["", "No passing runs to compare."])
 
-    arms = sorted({r["label"] for r in scored})
+    labels = sorted({r["label"] for r in scored})
     classes = sorted({r.get("task_class") or "?" for r in scored})
     width = max(len(c) for c in classes) + 2
-    header = "task_class".ljust(width) + "".join(a.rjust(24) for a in arms)
+    header = "task_class".ljust(width) + "".join(a.rjust(24) for a in labels)
     lines += ["", "median total_context_tokens (input + cache_creation + cache_read)", header]
     for cls in classes:
         cells = []
-        for label in arms:
+        for label in labels:
             vals = [
                 r["total_context_tokens"]
                 for r in scored
