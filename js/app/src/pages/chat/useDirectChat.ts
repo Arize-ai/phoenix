@@ -9,6 +9,8 @@ import {
 
 import type { ChatModelSelection } from "./chatModel";
 import { createChatModel } from "./chatModel";
+import type { ChatParameters } from "./chatParameters";
+import { toChatCallSettings } from "./chatParameters";
 
 export type DirectChatMessage = {
   id: string;
@@ -102,7 +104,8 @@ export function useDirectChat() {
 
   const run = async (
     history: DirectChatMessage[],
-    selection: ChatModelSelection
+    selection: ChatModelSelection,
+    parameters: ChatParameters
   ) => {
     abortControllerRef.current?.abort();
     const controller = new AbortController();
@@ -156,6 +159,7 @@ export function useDirectChat() {
       const result = streamText({
         model: chatModel,
         messages: toModelMessages(history),
+        ...toChatCallSettings(parameters),
         abortSignal: controller.signal,
         // One retry keeps transient blips invisible without leaving the user
         // staring at "Thinking..." through the SDK's default three attempts
@@ -234,7 +238,11 @@ export function useDirectChat() {
   const isBusy = status === "submitted" || status === "streaming";
 
   /** Sends a user message and streams the assistant reply. */
-  const sendMessage = (text: string, selection: ChatModelSelection) => {
+  const sendMessage = (
+    text: string,
+    selection: ChatModelSelection,
+    parameters: ChatParameters
+  ) => {
     const trimmed = text.trim();
     if (!trimmed || isBusy) {
       return;
@@ -244,12 +252,13 @@ export function useDirectChat() {
         ...messages,
         { id: crypto.randomUUID(), role: "user", content: trimmed },
       ],
-      selection
+      selection,
+      parameters
     );
   };
 
   /** Re-sends the conversation from the latest user message after an error. */
-  const retry = (selection: ChatModelSelection) => {
+  const retry = (selection: ChatModelSelection, parameters: ChatParameters) => {
     if (isBusy) {
       return;
     }
@@ -259,7 +268,7 @@ export function useDirectChat() {
     if (lastUserIndex === -1) {
       return;
     }
-    void run(messages.slice(0, lastUserIndex + 1), selection);
+    void run(messages.slice(0, lastUserIndex + 1), selection, parameters);
   };
 
   /** Aborts the in-flight completion, keeping any partial response. */
