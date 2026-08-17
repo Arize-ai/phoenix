@@ -5,6 +5,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import {
   Dialog,
   Switch,
+  Text,
   View,
   ViewportModal,
   ViewportModalOverlay,
@@ -125,6 +126,11 @@ function FeatureFlagsControls(props: PropsWithChildren) {
                 </DialogTitleExtra>
               </DialogHeader>
               <View padding="size-100">
+                {Object.keys(featureFlags).length === 0 && (
+                  <Text color="text-500">
+                    No feature flags are currently in flight.
+                  </Text>
+                )}
                 {Object.keys(featureFlags).map((featureFlag) => (
                   <Switch
                     key={featureFlag}

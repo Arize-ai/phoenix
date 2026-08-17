@@ -274,17 +274,22 @@ export function SettingsAgentsPage() {
               </div>
             </DisclosurePanel>
           </Disclosure>
-          <Disclosure id={EXPERIMENTAL_SECTION_ID}>
-            <AssistantSettingsSectionTrigger
-              title="Experimental settings"
-              description="Early assistant capabilities that may change."
-            />
-            <DisclosurePanel>
-              <div css={sectionPanelCSS}>
-                <AgentExperimentalSettings />
-              </div>
-            </DisclosurePanel>
-          </Disclosure>
+          {/* The experimental capabilities ride the server-side agent
+              runtime; with bash disabled the toggles would be inert, so the
+              section hides like the subagents setting above. */}
+          {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (
+            <Disclosure id={EXPERIMENTAL_SECTION_ID}>
+              <AssistantSettingsSectionTrigger
+                title="Experimental settings"
+                description="Early assistant capabilities that may change."
+              />
+              <DisclosurePanel>
+                <div css={sectionPanelCSS}>
+                  <AgentExperimentalSettings />
+                </div>
+              </DisclosurePanel>
+            </Disclosure>
+          ) : null}
         </DisclosureGroup>
       </Card>
       <SettingsAgentSessionsCard query={query} />
