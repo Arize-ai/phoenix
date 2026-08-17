@@ -163,7 +163,12 @@ html.dark {
 
 /* --- Links and focus ----------------------------------------------------- */
 
-#content a:not(.card):not(.link) {
+/* Prose links render as `<a class="link">`, so an earlier `:not(.link)` here
+   excluded exactly the links this was meant to style. Cards are also anchors, so
+   they stay excluded. Colour is set explicitly rather than left to Mintlify's
+   link token, which does not resolve to the brand accent. */
+#content a:not(.card) {
+  color: var(--px-accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
@@ -280,8 +285,12 @@ html.dark {
 /* --- Table of contents --------------------------------------------------- */
 /* `data-active` is applied client-side on scroll, so it is absent from SSR. */
 
-.toc-item[data-active] {
+/* Active entry is marked by colour alone — Mintlify also bolds it, which the
+   design does not. */
+.toc-item[data-active],
+.toc-item[data-active] a {
   color: var(--px-accent);
+  font-weight: 400;
 }
 
 /* --- Surfaces ------------------------------------------------------------ */
@@ -343,6 +352,17 @@ html.dark .code-block-background {
   border-radius: var(--px-radius-sm);
 }
 
+/* Code inside a callout sits on the page background, not the code surface — the
+   callout is already a tinted field, so a second tint muddies it. Mintlify ships
+   these as `bg-transparent`; the rules above would otherwise override that.
+   `html.dark` on the last selector only outranks Mintlify's dark-scoped fill. */
+.callout .code-block.code-block,
+.callout .code-group.code-group,
+.callout .code-block-background,
+html.dark .callout .code-block-background {
+  background: var(--px-bg) !important;
+}
+
 /* --- Callouts ------------------------------------------------------------ */
 /* `data-callout-type` is undocumented but present on every callout. Callout
    text is coloured by `!important` utilities, so overrides need it too. */
@@ -398,6 +418,19 @@ html.dark .code-block-background {
 
 .callout[data-callout-type='danger'] [data-component-part='callout-content'] {
   color: var(--px-danger-t) !important;
+}
+
+/* --- Steps --------------------------------------------------------------- */
+/* The numbered indicator ships as a plain grey disc. The design draws it as an
+   accent-soft disc with a hairline accent ring and accent numeral. Reached via
+   `data-component-part`, which is stabler than the generated
+   `group/step-indicator` class (and needs no escaping). */
+
+[data-component-part='step-number'] > div {
+  background: var(--px-accent-soft);
+  border: 1px solid var(--px-accent-line);
+  color: var(--px-accent);
+  font-weight: 500;
 }
 
 /* --- Changelog ----------------------------------------------------------- */
