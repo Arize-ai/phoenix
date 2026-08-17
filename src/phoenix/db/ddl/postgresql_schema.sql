@@ -29,6 +29,7 @@ CREATE TABLE public.eval_work_cursors (
     produced_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
     observed_high_water_id BIGINT,
     observed_at TIMESTAMP WITH TIME ZONE,
+    edits_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
     claimed_at TIMESTAMP WITH TIME ZONE,
     claimed_by VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

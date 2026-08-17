@@ -1462,3 +1462,34 @@ async def test_creating_a_trigger_is_refused_while_session_evaluation_is_off(
     assert result.errors
     assert "Session evaluation is turned off" in result.errors[0].message
     assert await _trigger_count(db) == 0
+
+
+async def test_create_project_evaluator_trigger_refuses_a_non_session_evaluator(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    session_evaluation_enabled: None,
+) -> None:
+    # Only SESSION evaluators are ever loaded as trigger rules, so a trigger on any other
+    # target would be inert while every surface still reported it as live.
+    project = await _add_project(db)
+    result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert result.data and not result.errors, result.errors
+    span_evaluator_id = result.data["createProjectCodeEvaluator"]["evaluator"]["id"]
+
+    refusal = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": span_evaluator_id,
+                "signalKind": "ANNOTATION_UPSERTED",
+                "annotationName": "correctness",
+            }
+        },
+    )
+    assert refusal.errors
+    assert "does not evaluate sessions" in refusal.errors[0].message
+    assert await _trigger_count(db) == 0

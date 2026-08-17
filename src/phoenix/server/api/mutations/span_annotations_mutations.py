@@ -9,7 +9,11 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.annotations import get_note_identifier, get_user_identifier
+from phoenix.server.api.helpers.annotations import (
+    get_note_identifier,
+    get_user_identifier,
+    raise_if_identifier_is_reserved,
+)
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import (
     CreateSpanAnnotationInput,
     CreateSpanNoteInput,
@@ -83,6 +87,7 @@ class SpanAnnotationMutationMixin:
                     resolved_identifier = annotation_input.identifier
                 elif annotation_input.source == AnnotationSource.APP and user_id is not None:
                     resolved_identifier = get_user_identifier(user_id)
+                raise_if_identifier_is_reserved(resolved_identifier)
                 values = {
                     "span_rowid": span_rowid,
                     "name": annotation_input.name,
@@ -272,6 +277,7 @@ class SpanAnnotationMutationMixin:
                     span_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
                     span_annotation.identifier = patch.identifier or ""
+                    raise_if_identifier_is_reserved(span_annotation.identifier)
                 if patch.source:
                     span_annotation.source = patch.source.value
                 session.add(span_annotation)

@@ -6,6 +6,7 @@ import pytest
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
+from phoenix.db.eval_work import ONLINE_EVAL_IDENTIFIER_PREFIX
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -1006,3 +1007,38 @@ class TestProjectSessionAnnotationMutations:
         # Verify error message is meaningful and not an unexpected system error
         error_message = str(wrong_gid_type_response.errors[0].message).lower()
         assert "unexpected" not in error_message
+
+
+_CREATE_SESSION_ANNOTATION = """
+mutation($input: CreateProjectSessionAnnotationInput!) {
+  createProjectSessionAnnotations(input: $input) {
+    projectSessionAnnotation { id identifier }
+  }
+}
+"""
+
+
+async def test_create_session_annotation_refuses_a_reserved_identifier(
+    gql_client: AsyncGraphQLClient,
+    project_session_data: models.ProjectSession,
+) -> None:
+    # The prefix is what keeps online evaluation's own annotations out of the scan that
+    # feeds triggers, so a client able to write it could exempt itself from every trigger.
+    response = await gql_client.execute(
+        _CREATE_SESSION_ANNOTATION,
+        {
+            "input": {
+                "projectSessionId": str(
+                    GlobalID("ProjectSession", str(project_session_data.id))
+                ),
+                "name": "correctness",
+                "label": "correct",
+                "annotatorKind": "HUMAN",
+                "metadata": {},
+                "identifier": f"{ONLINE_EVAL_IDENTIFIER_PREFIX}v2",
+                "source": "API",
+            }
+        },
+    )
+    assert response.errors
+    assert "reserved" in response.errors[0].message

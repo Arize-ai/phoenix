@@ -5313,7 +5313,7 @@ export interface components {
             } | null;
             /**
              * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.
              * @default
              */
             identifier?: string;
@@ -5347,7 +5347,7 @@ export interface components {
             } | null;
             /**
              * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.
              * @default
              */
             identifier?: string;
@@ -5670,7 +5670,7 @@ export interface components {
             } | null;
             /**
              * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.
              * @default
              */
             identifier?: string;
@@ -5704,7 +5704,7 @@ export interface components {
             } | null;
             /**
              * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.
              * @default
              */
             identifier?: string;
@@ -5764,7 +5764,7 @@ export interface components {
             } | null;
             /**
              * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.
              * @default
              */
             identifier?: string;
@@ -6166,7 +6166,7 @@ export interface components {
             } | null;
             /**
              * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.
              * @default
              */
             identifier?: string;
@@ -6200,7 +6200,7 @@ export interface components {
             } | null;
             /**
              * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.
              * @default
              */
             identifier?: string;

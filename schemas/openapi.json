@@ -18166,7 +18166,7 @@
           "identifier": {
             "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.",
             "default": ""
           },
           "session_id": {
@@ -18232,7 +18232,7 @@
           "identifier": {
             "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.",
             "default": ""
           },
           "session_id": {
@@ -18840,7 +18840,7 @@
           "identifier": {
             "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.",
             "default": ""
           },
           "span_id": {
@@ -18906,7 +18906,7 @@
           "identifier": {
             "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.",
             "default": ""
           },
           "span_id": {
@@ -19021,7 +19021,7 @@
           "identifier": {
             "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.",
             "default": ""
           },
           "span_id": {
@@ -19959,7 +19959,7 @@
           "identifier": {
             "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.",
             "default": ""
           },
           "trace_id": {
@@ -20025,7 +20025,7 @@
           "identifier": {
             "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists. Identifiers starting with 'online:' are reserved for evaluations Phoenix runs itself and are rejected here.",
             "default": ""
           },
           "trace_id": {

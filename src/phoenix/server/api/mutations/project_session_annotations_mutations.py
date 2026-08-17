@@ -11,7 +11,10 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
-from phoenix.server.api.helpers.annotations import get_user_identifier
+from phoenix.server.api.helpers.annotations import (
+    get_user_identifier,
+    raise_if_identifier_is_reserved,
+)
 from phoenix.server.api.input_types.CreateProjectSessionAnnotationInput import (
     CreateProjectSessionAnnotationInput,
 )
@@ -56,6 +59,7 @@ class ProjectSessionAnnotationMutationMixin:
             identifier = input.identifier  # Already trimmed in __post_init__
         elif input.source == AnnotationSource.APP and user_id is not None:
             identifier = get_user_identifier(user_id)
+        raise_if_identifier_is_reserved(identifier)
 
         try:
             async with info.context.db() as session:
