@@ -805,6 +805,52 @@ def test_postgres_dynamic_json_key_scalar_keeps_the_arrow_operator() -> None:
     assert "jsonb_extract_path" not in ctx.applied
 
 
+@pytest.mark.parametrize(
+    ("sql", "expected_operand"),
+    [
+        # `->` and `||` share a precedence class and associate left, so an
+        # unparenthesised `a -> 'x' || 'y'` is `(a -> 'x') || 'y'`.
+        ("SELECT json_extract(attributes, 'a' || 'b') AS v FROM spans", "('a' || 'b')"),
+        # Nested accessors are in that class as well.
+        (
+            "SELECT json_extract(attributes, attributes ->> 'k') AS v FROM spans",
+            "(attributes ->> 'k')",
+        ),
+    ],
+)
+def test_postgres_operator_json_key_is_parenthesised(sql: str, expected_operand: str) -> None:
+    """A computed key must reach PostgreSQL grouped as the caller wrote it.
+
+    Only the function spelling produces this tree: written as an operator, the
+    same text groups in the parser the way PostgreSQL groups it, leaving the
+    extraction below the outer operator rather than at the top.
+    """
+    allowlist = load_allowlist("postgresql")
+    root = admit(parse_sql(sql, dialect="postgresql"), allowlist=allowlist, dialect="postgresql")
+    ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="postgresql")
+    assert expected_operand in out
+    assert "json_operand_parens" in ctx.applied
+    # The emitted SQL must parse back to an extraction, not to the outer operator.
+    reparsed = sqlglot.parse_one(out, read="postgres")
+    assert isinstance(reparsed, exp.Select)
+    assert isinstance(reparsed.expressions[0].this, (exp.JSONExtract, exp.JSONExtractScalar))
+
+
+def test_postgres_atomic_json_key_is_not_parenthesised() -> None:
+    """Guards the test above: parenthesising everything would also satisfy it."""
+    allowlist = load_allowlist("postgresql")
+    sql = (
+        "SELECT s.attributes -> k.key AS v FROM spans s "
+        "CROSS JOIN LATERAL jsonb_each(s.attributes) AS k"
+    )
+    root = admit(parse_sql(sql, dialect="postgresql"), allowlist=allowlist, dialect="postgresql")
+    ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="postgresql")
+    assert "-> k.key" in out
+    assert "json_operand_parens" not in ctx.applied
+
+
 def test_postgres_literal_json_key_keeps_the_arrow_operator() -> None:
     allowlist = load_allowlist("postgresql")
     root = admit(

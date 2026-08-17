@@ -551,19 +551,32 @@ def _canonicalize_postgres_json_extract_function(
     ``jsonb_extract_path_text`` are the jsonb equivalents; both are in the anon
     allowlist, since callers may also write them directly.
 
-    Two conditions bound the rewrite. The operand must be a ``JSONPath``, since
-    only a static path supplies the key arguments; any other operand renders as
-    ``->`` whichever spelling produced it -- ``a -> k.key`` and
-    ``json_extract(a, k.key)`` parse to the same tree -- and needs nothing here.
-    ``only_json_types`` then separates the two spellings that do carry a path,
-    marking the operator, which already renders correctly.
+    Only a ``JSONPath`` operand can supply the key arguments, so that is the
+    condition for the rewrite; ``only_json_types`` then separates the two
+    spellings that carry a path, marking the operator, which already renders
+    correctly.
+
+    Any other operand renders inline as ``a -> operand``, and an operand that is
+    itself an operator regroups when it does: ``json_extract(a, 'x' || 'y')``
+    emits ``a -> 'x' || 'y'``, which PostgreSQL reads as ``(a -> 'x') || 'y'``
+    because ``->`` and ``||`` share a precedence class and associate left. That
+    is a different statement, so such an operand is parenthesised. It can only
+    arise from the function spelling: written as an operator, the same text
+    groups that way in the parser too, and the extraction is not the top node.
     """
     if ctx.dialect != "postgresql":
         return root
     changed = False
+    parenthesised = False
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         inner = _strip_parens(node.expression)
         if not isinstance(inner, exp.JSONPath):
+            operand = node.expression
+            # exp.Paren is itself a Unary, and an already-parenthesised operand
+            # renders unambiguously.
+            if isinstance(operand, (exp.Binary, exp.Unary)) and not isinstance(operand, exp.Paren):
+                node.set("expression", exp.Paren(this=operand))
+                parenthesised = True
             continue
         if node.args.get("only_json_types") is not None:
             continue
@@ -582,6 +595,8 @@ def _canonicalize_postgres_json_extract_function(
             )
         )
         changed = True
+    if parenthesised:
+        ctx.applied.append("json_operand_parens")
     if changed:
         ctx.applied.append("jsonb_extract_path")
     return root
