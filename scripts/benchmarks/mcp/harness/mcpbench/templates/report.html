@@ -176,9 +176,15 @@
         before any real work</dd>
       <dt>output</dt><dd>tokens the model wrote — its reasoning, plus any SQL</dd>
       <dt>status</dt><dd>whether the reply contained the expected answer</dd>
-      <dt>route</dt><dd>the tools it called, in order, with consecutive repeats collapsed.
-        Two runs of the same question can take very different routes, and this is
-        usually what explains a gap in tokens or time between them.</dd>
+      <dt>sql tools</dt><dd>whether the run reached the analytics SQL surface: which of
+        <code>executeSql</code> and <code>describeSqlSchema</code> it actually called, or
+        <i>found, unused</i> when discovery surfaced one and the run paged anyway.</dd>
+      <dt>route</dt><dd>the tools it called, in order, with consecutive repeats collapsed to
+        <code>x N</code>. The operation is named where the tool alone would not say what
+        happened — <code>execute(executeSql)</code>, <code>get_schema(spanSearch)</code> — and
+        a trailing <code>!</code> marks a call that came back an error. Two runs of the same
+        question can take very different routes, and this is usually what explains a gap in
+        tokens or time between them.</dd>
     </dl>
   </div>
   <div class="card">
@@ -525,6 +531,7 @@ const COLS = [
   ["num_turns", "turns", 0], ["n_tool_calls", "tools", 0],
   ["n_discovery_calls", "disc", 0],
   ["output_tokens", "output", 0], ["status", "status", 1],
+  ["sql_tools", "sql tools", 1],
   ["tool_sequence", "route", 1],
 ];
 let sortKey = "label", sortDir = 1;

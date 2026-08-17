@@ -97,6 +97,11 @@ def _event_time(event: dict[str, Any]) -> Optional[float]:
 #: "execute", so the operation is the only thing that says what a call did.
 _CALL_TOOL = re.compile(r"""call_tool\(\s*['"]([A-Za-z_][A-Za-z0-9_]*)['"]""")
 
+#: The analytics SQL surface, mapped to how it is reported. These are the tools
+#: the benchmark exists to measure, so whether a run reached them is a result in
+#: its own right rather than a detail of the route.
+_ANALYTICS_TOOLS = {"executeSql": "sql", "describeSqlSchema": "schema"}
+
 
 def _call_detail(tool_name: str, payload: Any) -> Optional[str]:
     """What a meta-tool call was about, or ``None`` when the name suffices.
@@ -114,6 +119,38 @@ def _call_detail(tool_name: str, payload: Any) -> Optional[str]:
         tools = payload.get("tools")
         if isinstance(tools, list):
             return ",".join(str(t) for t in tools) or None
+    if short == "search":
+        # The wording decides what gets surfaced, so it is the whole content of
+        # the step: a query naming the data finds different tools than one
+        # naming an operation.
+        query = str(payload.get("query") or "").strip()
+        return f'"{query}"' if query else None
+    return None
+
+
+def _payload_error(content: Any) -> Optional[str]:
+    """Error code from a result that reports failure in its own payload.
+
+    A rejected query is an ordinary successful tool call carrying an ``error``
+    object -- the sandbox ran fine, the SQL did not -- so nothing upstream marks
+    it. Detected structurally rather than by looking for the word, since results
+    legitimately contain error counts and error messages as data.
+    """
+    text = content if isinstance(content, str) else None
+    if text is None:
+        for block in content if isinstance(content, list) else []:
+            if isinstance(block, dict) and isinstance(block.get("text"), str):
+                text = block["text"]
+                break
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    error = parsed.get("error") if isinstance(parsed, dict) else None
+    if isinstance(error, dict) and (code := error.get("code")):
+        return f"tool_{code}"
     return None
 
 
@@ -218,6 +255,10 @@ class Transcript:
             name = call.tool_name.split("__")[-1]
             if call.detail:
                 name = f"{name}({call.detail})"
+            if call.is_error:
+                # Marks a step the run had to recover from, which is otherwise
+                # indistinguishable from deliberately calling the same tool twice.
+                name += "!"
             # Keyed on the rendered step: two executes calling different
             # operations are different work and must not merge.
             if steps and steps[-1][0] == name:
@@ -225,6 +266,27 @@ class Transcript:
             else:
                 steps.append([name, 1])
         return " ⇒ ".join(name if n == 1 else f"{name} x{n}" for name, n in steps)
+
+    @property
+    def sql_tools(self) -> str:
+        """Whether the analytics SQL tools were reached, and how far.
+
+        Being surfaced by discovery and being called are different outcomes: a
+        run that saw ``executeSql`` in a schema listing and paged anyway is the
+        case worth seeing, and it is invisible if only calls are counted.
+        """
+        used, found = set(), set()
+        for call in self.tool_calls:
+            if not call.detail:
+                continue
+            short = call.tool_name.split("__")[-1]
+            for op in call.detail.split(","):
+                if op not in _ANALYTICS_TOOLS:
+                    continue
+                (used if short == "execute" else found).add(_ANALYTICS_TOOLS[op])
+        if used:
+            return "+".join(sorted(used))
+        return "found, unused" if found else "–"
 
     @property
     def n_tool_errors(self) -> int:
@@ -306,7 +368,7 @@ def parse_transcript(path: Path) -> Transcript:
                 call.started_at = issued_at.pop(use_id, None)
                 call.ended_at = _event_time(event)
                 call.result_bytes = len(content)
-                call.error_kind = _error_kind(content)
+                call.error_kind = _error_kind(content) or _payload_error(block.get("content"))
                 # The sandbox reports some failures as ordinary results, so the
                 # content is classified independently of the error flag.
                 call.is_error = bool(block.get("is_error")) or call.error_kind is not None
@@ -454,6 +516,7 @@ def run_row(transcript: Transcript, *, expect: dict[str, Any]) -> dict[str, Any]
         "total_cost_usd": result.get("total_cost_usd"),
         "thinking_tokens": details.get("thinking_tokens"),
         "n_tool_calls": transcript.n_tool_calls,
+        "sql_tools": transcript.sql_tools,
         "tool_sequence": transcript.tool_sequence,
         "n_execute_calls": transcript.n_execute_calls,
         "n_discovery_calls": transcript.n_discovery_calls,

@@ -29,6 +29,7 @@ _RUN_KEYS = (
     "thinking_tokens",
     "num_turns",
     "n_tool_calls",
+    "sql_tools",
     "tool_sequence",
     "tool_time_ms",
     "max_tool_time_ms",
