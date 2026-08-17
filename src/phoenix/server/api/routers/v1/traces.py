@@ -1,8 +1,10 @@
 import gzip
 import zlib
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from binascii import Error as BinasciiError
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -11,7 +13,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select, update
+from sqlalchemy import delete, insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -113,6 +115,36 @@ def _to_trace_data(
     )
 
 
+#: Separates a cursor's two halves. Neither an ISO timestamp nor a float literal
+#: contains it, so the split is unambiguous.
+_CURSOR_SEP = "|"
+
+
+def _encode_cursor(trace: models.Trace, sort: str) -> str:
+    """Encode ``trace``'s position under ``sort`` as an opaque token.
+
+    Carries the sort value and the row id: together, the query's full ordering key.
+    """
+    value = trace.latency_ms if sort == "latency_ms" else trace.start_time
+    raw = f"{value.isoformat() if isinstance(value, datetime) else value}{_CURSOR_SEP}{trace.id}"
+    return urlsafe_b64encode(raw.encode()).decode()
+
+
+def _decode_cursor(cursor: str, sort: str) -> tuple[Any, int]:
+    """Decode a cursor into its sort value and row id.
+
+    ``sort`` fixes the value's type, so a token minted under a different sort
+    field fails to parse and yields 422.
+    """
+    try:
+        raw = urlsafe_b64decode(cursor.encode()).decode()
+        value, _, rowid = raw.rpartition(_CURSOR_SEP)
+        parsed = float(value) if sort == "latency_ms" else datetime.fromisoformat(value)
+        return parsed, int(rowid)
+    except (ValueError, TypeError, BinasciiError):
+        raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
+
+
 @router.get(
     "/projects/{project_identifier}/traces",
     operation_id="listProjectTraces",
@@ -137,7 +169,13 @@ async def list_project_traces(
     limit: int = Query(
         default=100, gt=0, le=1000, description="Maximum number of traces to return"
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Trace GlobalID)"),
+    cursor: Optional[str] = Query(
+        default=None,
+        description=(
+            "Pagination cursor from a previous response's next_cursor. Tied to the "
+            "sort field it was minted with."
+        ),
+    ),
     include_spans: bool = Query(
         default=False,
         description=(
@@ -207,14 +245,13 @@ async def list_project_traces(
             stmt = stmt.where(models.Trace.start_time < normalize_datetime(end_time, timezone.utc))
 
         if cursor:
-            try:
-                cursor_rowid = int(GlobalID.from_id(cursor).node_id)
-                if order == "desc":
-                    stmt = stmt.where(models.Trace.id <= cursor_rowid)
-                else:
-                    stmt = stmt.where(models.Trace.id >= cursor_rowid)
-            except (ValueError, TypeError):
-                raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
+            sort_value, cursor_rowid = _decode_cursor(cursor, sort)
+            # Keyset predicate over the query's full ordering key: `sort_col` is
+            # not unique and the row id does not order the result, so the pair is
+            # compared as a tuple.
+            row = tuple_(sort_col, models.Trace.id)
+            bound = tuple_(sort_value, cursor_rowid)
+            stmt = stmt.where(row < bound if order == "desc" else row > bound)
 
         stmt = stmt.limit(limit + 1)
         traces = (await session.scalars(stmt)).all()
@@ -224,8 +261,10 @@ async def list_project_traces(
 
         next_cursor: Optional[str] = None
         if len(traces) == limit + 1:
-            last_trace = traces[-1]
-            next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
+            # `limit + 1` rows were fetched; the extra one belongs to the next
+            # page, so the cursor marks the last row of this one.
+            last_trace = traces[-2]
+            next_cursor = _encode_cursor(last_trace, sort)
             traces = traces[:-1]
 
         trace_rowids = [t.id for t in traces]
