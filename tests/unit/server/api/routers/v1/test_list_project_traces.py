@@ -575,3 +575,92 @@ class TestListProjectTraces:
         assert trace_data["token_count_prompt"] == 100
         assert trace_data["token_count_completion"] == 50
         assert trace_data["token_count_total"] == 150
+
+
+async def _insert_traces_out_of_order(db: DbSessionFactory, num_traces: int = 6) -> models.Project:
+    """Insert traces whose row ids ascend while their start times descend.
+
+    Ingestion order is independent of event time, so row id and a time-based sort
+    key need not agree. Durations vary per row so latency ordering differs again.
+    """
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+        )
+        assert project_rowid is not None
+        base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        for i in range(num_traces):
+            start = base + timedelta(hours=num_traces - i)
+            await session.execute(
+                insert(models.Trace).values(
+                    trace_id=token_hex(16),
+                    project_rowid=project_rowid,
+                    start_time=start,
+                    end_time=start + timedelta(minutes=1 + i),
+                )
+            )
+        project = await session.get(models.Project, project_rowid)
+        assert project is not None
+        return project
+
+
+class TestListProjectTracesKeysetPagination:
+    async def _page_all(
+        self, client: httpx.AsyncClient, project: models.Project, **params: object
+    ) -> list[str]:
+        seen: list[str] = []
+        cursor: Optional[str] = None
+        for _ in range(20):  # Bounded so a cursor that fails to advance fails the test.
+            query = {"limit": 2, **params}
+            if cursor:
+                query["cursor"] = cursor
+            response = await client.get(f"v1/projects/{project.name}/traces", params=query)
+            assert response.status_code == 200, response.text
+            body = response.json()
+            seen.extend(t["id"] for t in body["data"])
+            cursor = body["next_cursor"]
+            if cursor is None:
+                return seen
+        raise AssertionError("pagination did not terminate")
+
+    async def test_pages_do_not_repeat_or_skip_when_id_order_opposes_sort_order(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        project = await _insert_traces_out_of_order(db, num_traces=6)
+        for sort in ("start_time", "latency_ms"):
+            for order in ("asc", "desc"):
+                seen = await self._page_all(httpx_client, project, sort=sort, order=order)
+                assert len(seen) == len(set(seen)), f"repeated rows with {sort}/{order}"
+                assert len(seen) == 6, f"skipped rows with {sort}/{order}: got {len(seen)}"
+
+    async def test_paged_order_matches_unpaged_order(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        project = await _insert_traces_out_of_order(db, num_traces=6)
+        for sort in ("start_time", "latency_ms"):
+            for order in ("asc", "desc"):
+                response = await httpx_client.get(
+                    f"v1/projects/{project.name}/traces",
+                    params={"limit": 100, "sort": sort, "order": order},
+                )
+                assert response.status_code == 200
+                expected = [t["id"] for t in response.json()["data"]]
+                assert (
+                    await self._page_all(httpx_client, project, sort=sort, order=order) == expected
+                )
+
+    async def test_cursor_from_another_sort_field_is_rejected(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        project = await _insert_traces_out_of_order(db, num_traces=6)
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"limit": 2, "sort": "start_time"}
+        )
+        cursor = response.json()["next_cursor"]
+        assert cursor is not None
+        # A timestamp cursor cannot be compared against a latency column.
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2, "sort": "latency_ms", "cursor": cursor},
+        )
+        assert response.status_code == 422
