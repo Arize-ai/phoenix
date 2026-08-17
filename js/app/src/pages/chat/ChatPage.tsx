@@ -1,6 +1,13 @@
 import { css, keyframes } from "@emotion/react";
+import { debounce } from "lodash";
 import type { CSSProperties, ReactNode } from "react";
 import { Suspense, useRef, useState } from "react";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
 import { useStickToBottom } from "use-stick-to-bottom";
 
 import {
@@ -42,11 +49,24 @@ import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 import { providerRequiresCredentials } from "@phoenix/components/generative/modelProviderUtils";
 import { useModelMenuData } from "@phoenix/components/generative/useModelMenuData";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 
 import type { ChatModelSelection } from "./chatModel";
 import { getStoredChatModel, storeChatModel } from "./chatModelStorage";
+import type { ChatParameters } from "./chatParameters";
+import { ChatParametersSidebar } from "./ChatParametersSidebar";
+import {
+  getStoredChatParameters,
+  storeChatParameters,
+} from "./chatParametersStorage";
 import type { DirectChatMessage } from "./useDirectChat";
 import { useDirectChat } from "./useDirectChat";
+
+// Slider drags and system-prompt keystrokes emit a change per step/character;
+// batch the localStorage writes so a gesture costs one serialization, not
+// hundreds. (The sibling model/layout persistence only fires on discrete
+// selections, so it writes synchronously.)
+const storeChatParametersDebounced = debounce(storeChatParameters, 300);
 
 type StarterPrompt = {
   icon: ReactNode;
@@ -56,19 +76,22 @@ type StarterPrompt = {
 
 const STARTER_PROMPTS: StarterPrompt[] = [
   {
-    icon: <Icons.MessageCircle />,
-    label: "Say hello",
-    prompt: "Hello! Tell me a bit about yourself and what you can do.",
-  },
-  {
-    icon: <Icons.Bulb />,
-    label: "Explain a concept",
-    prompt: "Explain retrieval-augmented generation and when I should use it.",
-  },
-  {
     icon: <Icons.Edit2 />,
     label: "Draft a system prompt",
-    prompt: "Draft a concise system prompt for a customer-support AI agent.",
+    prompt:
+      "Draft a system prompt for a RAG chatbot that answers questions using only the provided context, cites which passages it used, and says it doesn't know rather than guessing when the context doesn't cover the question.",
+  },
+  {
+    icon: <Icons.Scale />,
+    label: "Write an LLM-as-a-judge eval prompt",
+    prompt:
+      "Write an LLM-as-a-judge evaluation prompt that grades a chatbot answer for hallucination. It should take a question, reference context, and answer as input, and output a label of 'hallucinated' or 'factual' followed by a one-sentence explanation.",
+  },
+  {
+    icon: <Icons.Database />,
+    label: "Generate synthetic test data",
+    prompt:
+      "Generate 10 diverse test questions for a customer-support chatbot, ranging from simple FAQs to ambiguous, multi-part, and adversarial requests. Output them as a JSON array of strings.",
   },
 ];
 
@@ -99,11 +122,16 @@ const chatEmptyFadeUp = keyframes`
 const chatPageCSS = css`
   position: relative;
   display: flex;
-  flex-direction: column;
   flex: 1 1 auto;
   height: 100%;
   min-height: 0;
   overflow: hidden;
+
+  .chat-page__conversation {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
 
   .chat-page__toolbar {
     position: absolute;
@@ -393,6 +421,13 @@ function ChatSurface() {
   const [selectedModel, setSelectedModel] = useState<ChatModelSelection | null>(
     getStoredChatModel
   );
+  const [parameters, setParameters] = useState<ChatParameters>(
+    getStoredChatParameters
+  );
+  // The send path reads parameters through a ref so the submit/regenerate
+  // handlers keep a stable identity while the user drags a slider — otherwise
+  // every parameter tick would re-render the whole message list.
+  const parametersRef = useRef(parameters);
   const model =
     selectedModel ??
     getDefaultModel({
@@ -430,6 +465,11 @@ function ChatSurface() {
     initial: "instant",
     resize: "instant",
   });
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "chat-page-panels",
+    panelIds: ["chat-parameters", "chat-conversation"],
+    storage: localStorage,
+  });
 
   const showsEmptyState = messages.length === 0;
   const hasChatSettled = status === "ready" || status === "error";
@@ -443,6 +483,12 @@ function ChatSurface() {
     storeChatModel(nextModel);
   };
 
+  const handleParametersChange = (nextParameters: ChatParameters) => {
+    parametersRef.current = nextParameters;
+    setParameters(nextParameters);
+    storeChatParametersDebounced(nextParameters);
+  };
+
   const handleSubmit = (text: string) => {
     if (!model) {
       // The composer is disabled without a model; if a submit slips through,
@@ -451,7 +497,7 @@ function ChatSurface() {
       return;
     }
     void scrollToBottom();
-    sendMessage(text, model);
+    sendMessage(text, model, parametersRef.current);
   };
 
   const handleStarterPrompt = (prompt: string) => {
@@ -461,7 +507,7 @@ function ChatSurface() {
 
   const handleRegenerate = () => {
     if (model) {
-      retry(model);
+      retry(model, parametersRef.current);
     }
   };
 
@@ -480,117 +526,140 @@ function ChatSurface() {
           </TooltipTrigger>
         </div>
       )}
-      <div className="chat-page__scroll-frame">
-        <div className="chat-page__scroll" ref={scrollRef}>
-          <div className="chat-page__messages" ref={contentRef}>
-            {showsEmptyState && (
-              <ChatEmptyHero
-                model={model}
-                onStarterPrompt={handleStarterPrompt}
-              />
-            )}
-            {messages.map((message, index) => {
-              const isLast = index === messages.length - 1;
-              if (message.role === "user") {
-                return <ChatUserMessage key={message.id} message={message} />;
-              }
-              return (
-                <ChatAssistantMessage
-                  key={message.id}
-                  message={message}
-                  isStreaming={isLast && status === "streaming"}
-                  showActions={!isLast || hasChatSettled}
-                  pinToolbar={isLast && hasChatSettled}
-                  onRegenerate={
-                    isLast && hasChatSettled ? handleRegenerate : undefined
-                  }
-                />
-              );
-            })}
-            {status === "submitted" && (
-              <div className="chat-page__thinking">
-                <Shimmer size="S" color="text-500" fontStyle="italic">
-                  {downloadProgress != null
-                    ? `Downloading the on-device model… ${Math.round(downloadProgress * 100)}%`
-                    : "Thinking..."}
-                </Shimmer>
-              </div>
-            )}
-            {error != null && (
-              <Alert
-                variant="danger"
-                extra={
-                  model ? (
-                    <Button size="S" onPress={handleRegenerate}>
-                      Retry
-                    </Button>
-                  ) : undefined
-                }
-              >
-                {error}
-              </Alert>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="chat-page__input">
-        <PromptInput
-          onSubmit={handleSubmit}
-          status={status}
-          isDisabled={!model}
-          value={draft}
-          onValueChange={setDraft}
+      <Group
+        id="chat-page-panels"
+        orientation="horizontal"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
+      >
+        <Panel
+          id="chat-parameters"
+          defaultSize="340px"
+          minSize="260px"
+          maxSize="480px"
         >
-          <PromptInputBody>
-            <PromptInputTextarea
-              ref={handleTextareaRef}
-              placeholder={
-                model
-                  ? `Message ${modelDisplayName}...`
-                  : "Configure a model provider to start chatting"
-              }
-              aria-label="Chat message"
-            />
-          </PromptInputBody>
-          <PromptInputFooter>
-            <PromptInputTools>
-              <ModelMenu
-                value={model?.kind === "server" ? model.model : null}
-                onChange={(nextModel) =>
-                  handleModelChange({ kind: "server", model: nextModel })
-                }
-                placement="top start"
-                shouldFlip
-                variant="quiet"
-                leadingItems={browserAIItem ? [browserAIItem] : undefined}
-                selectedLeadingItemId={
-                  model?.kind === "browser"
-                    ? BROWSER_AI_MENU_ITEM_ID
-                    : undefined
-                }
-                onLeadingItemSelect={() =>
-                  handleModelChange({ kind: "browser" })
-                }
-              />
-            </PromptInputTools>
-            <PromptInputActions>
-              <PromptInputSubmit
-                isDisabled={!model || undefined}
-                onPress={stop}
-              />
-            </PromptInputActions>
-          </PromptInputFooter>
-        </PromptInput>
-        {usage ? (
-          <div className="chat-page__input-meta">
-            <ChatTokenUsage
-              total={usage.total}
-              prompt={usage.prompt}
-              completion={usage.completion}
-            />
+          <ChatParametersSidebar
+            parameters={parameters}
+            onChange={handleParametersChange}
+          />
+        </Panel>
+        <Separator css={compactResizeHandleCSS} />
+        <Panel id="chat-conversation" className="chat-page__conversation">
+          <div className="chat-page__scroll-frame">
+            <div className="chat-page__scroll" ref={scrollRef}>
+              <div className="chat-page__messages" ref={contentRef}>
+                {showsEmptyState && (
+                  <ChatEmptyHero
+                    model={model}
+                    onStarterPrompt={handleStarterPrompt}
+                  />
+                )}
+                {messages.map((message, index) => {
+                  const isLast = index === messages.length - 1;
+                  if (message.role === "user") {
+                    return (
+                      <ChatUserMessage key={message.id} message={message} />
+                    );
+                  }
+                  return (
+                    <ChatAssistantMessage
+                      key={message.id}
+                      message={message}
+                      isStreaming={isLast && status === "streaming"}
+                      showActions={!isLast || hasChatSettled}
+                      pinToolbar={isLast && hasChatSettled}
+                      onRegenerate={
+                        isLast && hasChatSettled ? handleRegenerate : undefined
+                      }
+                    />
+                  );
+                })}
+                {status === "submitted" && (
+                  <div className="chat-page__thinking">
+                    <Shimmer size="S" color="text-500" fontStyle="italic">
+                      {downloadProgress != null
+                        ? `Downloading the on-device model… ${Math.round(downloadProgress * 100)}%`
+                        : "Thinking..."}
+                    </Shimmer>
+                  </div>
+                )}
+                {error != null && (
+                  <Alert
+                    variant="danger"
+                    extra={
+                      model ? (
+                        <Button size="S" onPress={handleRegenerate}>
+                          Retry
+                        </Button>
+                      ) : undefined
+                    }
+                  >
+                    {error}
+                  </Alert>
+                )}
+              </div>
+            </div>
           </div>
-        ) : null}
-      </div>
+          <div className="chat-page__input">
+            <PromptInput
+              onSubmit={handleSubmit}
+              status={status}
+              isDisabled={!model}
+              value={draft}
+              onValueChange={setDraft}
+            >
+              <PromptInputBody>
+                <PromptInputTextarea
+                  ref={handleTextareaRef}
+                  placeholder={
+                    model
+                      ? `Message ${modelDisplayName}...`
+                      : "Configure a model provider to start chatting"
+                  }
+                  aria-label="Chat message"
+                />
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <ModelMenu
+                    value={model?.kind === "server" ? model.model : null}
+                    onChange={(nextModel) =>
+                      handleModelChange({ kind: "server", model: nextModel })
+                    }
+                    placement="top start"
+                    shouldFlip
+                    variant="quiet"
+                    leadingItems={browserAIItem ? [browserAIItem] : undefined}
+                    selectedLeadingItemId={
+                      model?.kind === "browser"
+                        ? BROWSER_AI_MENU_ITEM_ID
+                        : undefined
+                    }
+                    onLeadingItemSelect={() =>
+                      handleModelChange({ kind: "browser" })
+                    }
+                  />
+                </PromptInputTools>
+                <PromptInputActions>
+                  <PromptInputSubmit
+                    isDisabled={!model || undefined}
+                    onPress={stop}
+                  />
+                </PromptInputActions>
+              </PromptInputFooter>
+            </PromptInput>
+            {usage ? (
+              <div className="chat-page__input-meta">
+                <ChatTokenUsage
+                  total={usage.total}
+                  prompt={usage.prompt}
+                  completion={usage.completion}
+                />
+              </div>
+            ) : null}
+          </div>
+        </Panel>
+      </Group>
     </main>
   );
 }

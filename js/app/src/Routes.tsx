@@ -719,6 +719,11 @@ export const appRouteObjects = createRoutesFromElements(
           element={<ChatPage />}
           handle={{
             crumb: () => "Chat",
+            agentRoute: {
+              label: "Chat",
+              description:
+                "Chat directly with the configured models. Set a system prompt and tune temperature, top P, and max output tokens.",
+            },
           }}
         />
         <Route
