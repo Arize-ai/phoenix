@@ -128,7 +128,12 @@ def _call_detail(tool_name: str, payload: Any) -> Optional[str]:
     short = tool_name.split("__")[-1]
     if short == "execute":
         names = dict.fromkeys(_CALL_TOOL.findall(str(payload.get("code") or "")))
-        return ",".join(names) or None
+        # A program that calls nothing is a real step, not a detail we failed to
+        # read, and the two are indistinguishable when it renders as a bare
+        # `execute`. It is usually the sandbox being probed -- `print("hello")`,
+        # then `1+1`, looking for a way to see a value -- or a reduction over
+        # values pasted in as literals because nothing survives between calls.
+        return ",".join(names) or "no tool call"
     if short == "get_schema":
         tools = payload.get("tools")
         if isinstance(tools, list):
