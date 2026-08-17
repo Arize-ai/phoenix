@@ -22,7 +22,6 @@ import {
   SystemSettingsWarning,
 } from "@phoenix/components/agent";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
@@ -240,9 +239,6 @@ export function SettingsAgentsPage() {
     queryRef: loaderData,
   });
   const isAdmin = useIsAdminOrAuthDisabled();
-  const isExperimentalSettingsEnabled = useFeatureFlag(
-    "agent-experimental-settings"
-  );
   return (
     <Flex direction="column" gap="size-200">
       <Card
@@ -278,19 +274,17 @@ export function SettingsAgentsPage() {
               </div>
             </DisclosurePanel>
           </Disclosure>
-          {isExperimentalSettingsEnabled ? (
-            <Disclosure id={EXPERIMENTAL_SECTION_ID}>
-              <AssistantSettingsSectionTrigger
-                title="Experimental settings"
-                description="Early assistant capabilities that may change."
-              />
-              <DisclosurePanel>
-                <div css={sectionPanelCSS}>
-                  <AgentExperimentalSettings />
-                </div>
-              </DisclosurePanel>
-            </Disclosure>
-          ) : null}
+          <Disclosure id={EXPERIMENTAL_SECTION_ID}>
+            <AssistantSettingsSectionTrigger
+              title="Experimental settings"
+              description="Early assistant capabilities that may change."
+            />
+            <DisclosurePanel>
+              <div css={sectionPanelCSS}>
+                <AgentExperimentalSettings />
+              </div>
+            </DisclosurePanel>
+          </Disclosure>
         </DisclosureGroup>
       </Card>
       <SettingsAgentSessionsCard query={query} />
