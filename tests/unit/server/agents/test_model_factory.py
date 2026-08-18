@@ -1,5 +1,6 @@
 import base64
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -108,6 +109,11 @@ class TestCustomProviderModels:
             def __init__(self, **kwargs: Any) -> None:
                 self.kwargs = kwargs
                 self.base_url = kwargs.get("base_url", "https://example.test/v1")
+                # pydantic-ai reads the resource attribute matching the model class
+                # while constructing the model, so a stand-in client must expose the
+                # attribute for every ``openai_api_type`` under test.
+                self.chat = SimpleNamespace(completions=object())
+                self.responses = object()
 
         monkeypatch.setattr(openai, "AsyncOpenAI", DummyAsyncOpenAI)
 
