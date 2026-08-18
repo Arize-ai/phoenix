@@ -2062,3 +2062,44 @@ def test_virtual_column_predicate_in_a_subquery_resolves_to_the_subquery_relatio
     assert "traces.end_time" not in rendered
     # The span is 1500 ms so it counts; the trace is 2000 ms and would not.
     assert _run_two_table_sqlite(rendered)[0][0] == 1
+
+
+@pytest.mark.parametrize(
+    ("sql", "expected"),
+    [
+        # `_LATENCY_ROWS` start at 12:00:00, 12:00:01 and 12:00:02.
+        (
+            "SELECT count(*) AS v FROM spans "
+            "WHERE start_time > unixepoch('2026-07-30 12:00:01') - 1",
+            2,
+        ),
+        (
+            "SELECT count(*) AS v FROM spans WHERE start_time BETWEEN "
+            "unixepoch('2026-07-30 12:00:00') AND unixepoch('2026-07-30 12:00:01')",
+            2,
+        ),
+        # The bare form the pass already covered, kept so a regression is visible.
+        (
+            "SELECT count(*) AS v FROM spans WHERE start_time > unixepoch('2026-07-30 12:00:01')",
+            1,
+        ),
+    ],
+)
+def test_timestamp_compared_to_an_epoch_expression_is_converted(sql: str, expected: int) -> None:
+    """A stored timestamp must be converted whenever the other side is epoch-valued.
+
+    SQLite orders INTEGER below TEXT unconditionally, so an unconverted
+    `text > integer` matches every row and `text < integer` matches none --
+    a bounded window silently answers with the whole table or with nothing.
+    The unit survives arithmetic (`unixepoch('now') - 3600` is still epoch
+    seconds) and BETWEEN compares against both of its bounds.
+    """
+    rendered = _rendered(sql)
+    assert "UNIXEPOCH(START_TIME)" in rendered.upper()
+    assert _run_on_sqlite(rendered)[0][0] == expected
+
+
+def test_a_comparison_with_no_epoch_side_is_left_alone() -> None:
+    """Guards the test above: converting every comparison would also satisfy it."""
+    rendered = _rendered("SELECT count(*) AS v FROM spans WHERE start_time > '2026-07-30'")
+    assert "UNIXEPOCH" not in rendered.upper()
