@@ -673,6 +673,62 @@ def _canonicalize_postgres_json_extract_function(
     return root
 
 
+def _source_exposes_column(
+    source: exp.Expression,
+    name: str,
+    *,
+    quoted: bool,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> bool:
+    """Whether this relation offers the column, stored or overlay."""
+    if not isinstance(source, exp.Table):
+        return False
+    table_name = _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+    if table_name is None:
+        return False
+    spec = allowlist.table_specs.get(table_name)
+    if spec is None:
+        return False
+    want = _identifier_key(name, quoted=quoted, dialect=dialect)
+    return any(
+        _identifier_key(offered, quoted=False, dialect=dialect) == want
+        for offered in (*spec.columns, *spec.virtual_columns)
+    )
+
+
+def _using_key_qualifier(
+    left_sources: list[exp.Expression],
+    ident: exp.Identifier,
+    *,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> exp.Identifier:
+    """Which relation on the left a USING key names.
+
+    PostgreSQL refuses a key exposed by more than one relation of the left
+    composite, so more than one match here is the caller's ambiguity rather
+    than a choice to make for them. No match leaves the nearest relation, which
+    is what the engine will report against.
+    """
+    name = ident.this or ""
+    quoted = bool(ident.args.get("quoted"))
+    exposing = [
+        source
+        for source in left_sources
+        if _source_exposes_column(source, name, quoted=quoted, allowlist=allowlist, dialect=dialect)
+    ]
+    if len(exposing) > 1:
+        raise AnalyticsSqlError(
+            code=ErrorCode.UNSUPPORTED_SYNTAX,
+            message=(
+                f"`{name}` in USING names a column that more than one relation to its left "
+                "provides. Join with ON and qualify each side."
+            ),
+        )
+    return _relation_qualifier(exposing[0] if exposing else left_sources[-1])
+
+
 def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     """Turn USING keys that name query-only overlays into ON comparisons.
 
@@ -687,18 +743,26 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
     changed = False
     for select in root.find_all(exp.Select):
         from_expr = select.args.get("from_") or select.args.get("from")
-        left = from_expr.this if isinstance(from_expr, exp.From) else None
+        # Every relation to the left, not just the previous one: SQL resolves a
+        # USING key against the whole composite built so far, so in
+        # `a JOIN b ON ... JOIN c USING (k)` the key may come from `a`.
+        left_sources: list[exp.Expression] = (
+            [from_expr.this] if isinstance(from_expr, exp.From) else []
+        )
         for join in select.args.get("joins") or []:
-            if left is None:
-                left = join.this
+            if not left_sources:
+                left_sources.append(join.this)
                 continue
             virtual_keys: list[exp.Identifier] = []
             physical_keys: list[exp.Identifier] = []
             for ident in _join_using_identifiers(join):
                 name = ident.this or ""
                 quoted = bool(ident.args.get("quoted"))
-                if _virtual_column_on_source(
-                    left, name, quoted=quoted, allowlist=ctx.allowlist, dialect=ctx.dialect
+                if any(
+                    _virtual_column_on_source(
+                        source, name, quoted=quoted, allowlist=ctx.allowlist, dialect=ctx.dialect
+                    )
+                    for source in left_sources
                 ) or _virtual_column_on_source(
                     join.this, name, quoted=quoted, allowlist=ctx.allowlist, dialect=ctx.dialect
                 ):
@@ -706,7 +770,6 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
                 else:
                     physical_keys.append(ident)
             if virtual_keys:
-                left_qual = _relation_qualifier(left)
                 right_qual = _relation_qualifier(join.this)
                 # Physical keys have to become ON too. Leaving them as USING
                 # next to the new ON is not valid PostgreSQL (`USING (id) ON
@@ -715,7 +778,12 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
                 on_keys = [*physical_keys, *virtual_keys]
                 equalities: list[exp.Expression] = [
                     exp.EQ(
-                        this=exp.Column(this=ident.copy(), table=left_qual.copy()),
+                        this=exp.Column(
+                            this=ident.copy(),
+                            table=_using_key_qualifier(
+                                left_sources, ident, allowlist=ctx.allowlist, dialect=ctx.dialect
+                            ).copy(),
+                        ),
                         expression=exp.Column(this=ident.copy(), table=right_qual.copy()),
                     )
                     for ident in on_keys
@@ -741,7 +809,7 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
                         )
                     )
                 changed = True
-            left = join.this
+            left_sources.append(join.this)
     if changed:
         ctx.applied.append("virtual_using")
     return root
