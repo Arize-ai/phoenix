@@ -16,20 +16,20 @@ import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 /**
- * Annotation name used for both span- and trace-level user feedback on
- * assistant messages. Matches the annotation config expected by the Phoenix
- * backend and should stay in sync with any server-side consumers.
+ * Annotation name used for PXI thumbs-up/down feedback. Written once, on the
+ * turn's trace, so session view does not show the same rating twice. Matches
+ * the annotation config expected by the Phoenix backend and should stay in
+ * sync with any server-side consumers.
  */
 const FEEDBACK_ANNOTATION_NAME = "user_feedback";
 
 type AssistantFeedback = "positive" | "negative";
 
 /**
- * Shared shape of the annotation payload sent to the Phoenix REST API. Fields
- * use snake_case because that is what the `/v1/*_annotations` endpoints
- * expect on the wire.
+ * Shape of the annotation payload sent to `/v1/trace_annotations`. Fields use
+ * snake_case because that is what the REST endpoint expects on the wire.
  */
-type AnnotationPayloadBase = {
+type TraceAnnotationPayload = {
   annotator_kind: "HUMAN";
   identifier: string;
   metadata: Record<string, string>;
@@ -38,10 +38,8 @@ type AnnotationPayloadBase = {
     label: AssistantFeedback;
     score: number;
   };
+  trace_id: string;
 };
-
-type SpanAnnotationPayload = AnnotationPayloadBase & { span_id: string };
-type TraceAnnotationPayload = AnnotationPayloadBase & { trace_id: string };
 
 /**
  * Concatenates all text parts of an assistant message into a single string.
@@ -84,26 +82,15 @@ async function getResponseErrorMessage(response: Response) {
 }
 
 /**
- * POSTs a single annotation to the given Phoenix endpoint and waits for the
- * write to complete (`sync=true`) so the caller knows it was persisted.
- * Throws with a descriptive message on non-2xx responses.
+ * POSTs a trace-level annotation and waits for the write to complete
+ * (`sync=true`) so the caller knows it was persisted. Throws with a
+ * descriptive message on non-2xx responses.
  */
-async function postAnnotation(
-  args:
-    | { endpoint: "/v1/span_annotations"; payload: SpanAnnotationPayload }
-    | { endpoint: "/v1/trace_annotations"; payload: TraceAnnotationPayload }
-) {
-  const params = { query: { sync: true } } as const;
-  const { response } =
-    args.endpoint === "/v1/span_annotations"
-      ? await authApiFetch.POST("/v1/span_annotations", {
-          params,
-          body: { data: [args.payload] },
-        })
-      : await authApiFetch.POST("/v1/trace_annotations", {
-          params,
-          body: { data: [args.payload] },
-        });
+async function postTraceAnnotation(payload: TraceAnnotationPayload) {
+  const { response } = await authApiFetch.POST("/v1/trace_annotations", {
+    params: { query: { sync: true } },
+    body: { data: [payload] },
+  });
 
   if (!response.ok) {
     throw new Error(await getResponseErrorMessage(response));
@@ -112,10 +99,10 @@ async function postAnnotation(
 
 /**
  * Deletes `user_feedback` annotations with the given identifier from both the
- * span and trace annotation tables. Used to undo a previously submitted
- * thumbs-up/down. The identifier is scoped to a single user+message pair so
- * `delete_all=true` only removes that one annotation.
- * Throws with a descriptive message on non-2xx responses.
+ * span and trace annotation tables. Undo still hits both endpoints so ratings
+ * written before this path was trace-only are cleaned up. The identifier is
+ * scoped to a single user+message pair so `delete_all=true` only removes that
+ * one annotation. Throws with a descriptive message on non-2xx responses.
  */
 async function deleteAnnotations(args: {
   projectName: string;
@@ -153,10 +140,11 @@ async function deleteAnnotations(args: {
 /**
  * Toolbar rendered below an assistant message with quick actions:
  *
- * - Thumbs up / thumbs down: writes a `user_feedback` annotation to both the
- *   root span and the trace. Clicking the active button again deletes the
- *   annotation (undo). Requires the message to carry `traceId`, `rootSpanId`,
- *   and `sessionId` metadata.
+ * - Thumbs up / thumbs down: writes a `user_feedback` annotation on the
+ *   turn's trace (one write, so session view does not duplicate it with a
+ *   matching root-span annotation). Clicking the active button again deletes
+ *   the annotation (undo). Requires the message to carry `traceId`,
+ *   `rootSpanId`, and `sessionId` metadata.
  * - Copy: copies the assistant's text response to the clipboard.
  * - Trace: opens the associated trace in a new tab. Requires `traceId`.
  *
@@ -253,16 +241,7 @@ export function AssistantMessageActions({
     };
 
     try {
-      await Promise.all([
-        postAnnotation({
-          endpoint: "/v1/span_annotations",
-          payload: { ...base, span_id: rootSpanId },
-        }),
-        postAnnotation({
-          endpoint: "/v1/trace_annotations",
-          payload: { ...base, trace_id: traceId },
-        }),
-      ]);
+      await postTraceAnnotation({ ...base, trace_id: traceId });
       setSelectedFeedback(feedback);
     } catch {
       // Swallow errors; UI state simply won't reflect the feedback.
