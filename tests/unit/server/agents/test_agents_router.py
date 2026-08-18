@@ -23,7 +23,6 @@ from pydantic import ValidationError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
-from pydantic_ai.tools import DeferredToolResults
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
@@ -67,7 +66,6 @@ from phoenix.server.api.routers.agents import (
     ChatRequestBody,
     SubmittedToolApproval,
     _approval_attributes,
-    _attach_pending_mutation_metadata,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
@@ -2712,13 +2710,6 @@ def test_merge_rejects_tool_outputs_without_a_trailing_assistant_message() -> No
     assert exc_info.value.code == "agent_session_tool_outputs_conflict"
 
 
-_PENDING_MUTATION = {
-    "query": "mutation { deleteEverything }",
-    "variables": None,
-    "digest": "digest-1",
-}
-
-
 def _assistant_message_with_approval_request() -> dict[str, Any]:
     return {
         "id": _message_uuid("assistant-1"),
@@ -2729,14 +2720,12 @@ def _assistant_message_with_approval_request() -> dict[str, Any]:
                 "type": "tool-bash",
                 "toolCallId": "tool-call-approval",
                 "state": "approval-requested",
-                "input": {"command": "phoenix-gql 'mutation { deleteEverything }'"},
-                "approval": {"id": "approval-1"},
-                "callProviderMetadata": {
-                    "phoenix": {
-                        "toolExecutionEnvironment": "server",
-                        "pendingMutations": [_PENDING_MUTATION],
-                    }
+                "input": {
+                    "command": "phoenix-gql 'mutation { deleteEverything }'",
+                    "mutation_description": "This command will delete everything.",
                 },
+                "approval": {"id": "approval-1"},
+                "callProviderMetadata": {"phoenix": {"toolExecutionEnvironment": "server"}},
             },
         ],
     }
@@ -2835,7 +2824,9 @@ def test_merge_with_new_user_message_repairs_an_unanswered_approval_request() ->
     assert "interrupted" in part.output
 
 
-def test_attach_pending_mutation_metadata_threads_the_persisted_payload() -> None:
+def test_approved_call_carries_its_own_arguments_without_extra_metadata() -> None:
+    """The approved re-run needs nothing threaded through: mutation_description
+    lives in the tool call's own input, which pydantic-ai replays on resume."""
     persisted = _validated_messages(
         [_user_message("delete everything"), _assistant_message_with_approval_request()]
     )
@@ -2844,15 +2835,14 @@ def test_attach_pending_mutation_metadata_threads_the_persisted_payload() -> Non
         new_message=None,
         tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)],
     )
-    deferred_tool_results = DeferredToolResults(approvals={"tool-call-approval": True})
 
-    _attach_pending_mutation_metadata(
-        deferred_tool_results,
-        continued_assistant_message=merged.continued_assistant_message,
-    )
-
-    assert deferred_tool_results.metadata == {
-        "tool-call-approval": {"pendingMutations": [_PENDING_MUTATION]}
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    assert part.state == "approval-responded"
+    assert part.input == {
+        "command": "phoenix-gql 'mutation { deleteEverything }'",
+        "mutation_description": "This command will delete everything.",
     }
 
 

@@ -30,17 +30,19 @@ describe("getBashToolInput", () => {
     });
   });
 
-  it("passes through mutation_intent when it is a string", () => {
+  it("passes through mutation_description when it is a string", () => {
     expect(
       getBashToolInput({
         command: "phoenix-gql 'mutation { deleteDataset }'",
-        mutation_intent: "Deletes the dataset.",
+        mutation_description: "This command will delete the dataset.",
       })
     ).toEqual({
       command: "phoenix-gql 'mutation { deleteDataset }'",
-      mutation_intent: "Deletes the dataset.",
+      mutation_description: "This command will delete the dataset.",
     });
-    expect(getBashToolInput({ command: "ls", mutation_intent: 42 })).toEqual({
+    expect(
+      getBashToolInput({ command: "ls", mutation_description: 42 })
+    ).toEqual({
       command: "ls",
     });
   });

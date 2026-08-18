@@ -15,7 +15,6 @@ from .phoenix_types import (
     TurnTraceContext,
 )
 from .provider_metadata import (
-    PendingGraphQLMutationMetadata,
     PhoenixToolCallCallbackProviderMetadata,
     PhoenixToolCallProviderMetadata,
     PydanticAIMessageMetadata,
@@ -82,7 +81,6 @@ __all__ = [
     "FileUIPart",
     "JSONValue",
     "MessageMetadata",
-    "PendingGraphQLMutationMetadata",
     "PhoenixAssistantMessageMetadata",
     "PhoenixMessageMetadata",
     "PhoenixUIMessage",

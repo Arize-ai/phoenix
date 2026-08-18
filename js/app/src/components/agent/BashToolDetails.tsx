@@ -3,10 +3,8 @@ import { css } from "@emotion/react";
 import {
   getBashToolCommandDisplayResult,
   getBashToolInput,
-  getBashToolPendingMutations,
   getBashToolSummary,
 } from "@phoenix/agent/tools/bash";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { ToolApprovalRequest } from "./ToolApprovalRequest";
 import {
@@ -31,7 +29,7 @@ export function getBashToolPreview(part: ToolInvocationPart): string {
 }
 
 const bashMutationApprovalCSS = css`
-  .bash-mutation-approval__intent {
+  .bash-mutation-approval__description {
     margin: 0;
     padding: var(--global-dimension-size-50) var(--global-dimension-size-250)
       var(--global-dimension-size-125);
@@ -43,52 +41,28 @@ const bashMutationApprovalCSS = css`
 `;
 
 /**
- * Approval card for a bash command whose `phoenix-gql` invocation contains
- * GraphQL mutations.
+ * Approval card for a bash command that invokes a GraphQL mutation.
+ *
+ * The card shows the model's plain-text description of the change; the command
+ * itself renders above it. Nothing has executed at this point — the tool call
+ * is deferred before the shell runs — so rejecting leaves no side effects.
  */
 function BashMutationApproval({ part }: { part: ToolInvocationPart }) {
-  // Live streams deliver the resolved mutations via the
-  // `data-bash-mutation-approval` chunk into the store; reloaded transcripts
-  // carry the same payload on the part's call provider metadata.
-  const streamedMutations = useAgentContext(
-    (state) => state.pendingBashMutationsByToolCallId[part.toolCallId] ?? null
-  );
-  const pendingMutations =
-    streamedMutations ?? getBashToolPendingMutations(part) ?? [];
-  const mutationIntent = getBashToolInput(part.input)?.mutation_intent;
+  const mutationDescription = getBashToolInput(
+    part.input
+  )?.mutation_description;
   return (
     <div css={bashMutationApprovalCSS}>
       <ToolApprovalRequest
         part={part}
-        label="Mutation approval required"
+        label="Approval required to change data"
         denialReason="The user rejected the GraphQL mutation."
       >
-        {mutationIntent ? (
-          <p className="bash-mutation-approval__intent">{mutationIntent}</p>
+        {mutationDescription ? (
+          <p className="bash-mutation-approval__description">
+            {mutationDescription}
+          </p>
         ) : null}
-        {pendingMutations.map((mutation, index) => (
-          <div key={mutation.digest}>
-            <ToolPartLabel>
-              {pendingMutations.length > 1
-                ? `Mutation ${index + 1}`
-                : "Mutation"}
-            </ToolPartLabel>
-            <ToolPartExpandableSection>
-              <ToolPartCodeBlock>{mutation.query}</ToolPartCodeBlock>
-            </ToolPartExpandableSection>
-            {mutation.variables &&
-            Object.keys(mutation.variables).length > 0 ? (
-              <>
-                <ToolPartLabel>Variables</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>
-                    {JSON.stringify(mutation.variables, null, 2)}
-                  </ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-          </div>
-        ))}
       </ToolApprovalRequest>
     </div>
   );

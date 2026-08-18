@@ -13841,7 +13841,7 @@
           "mutationsEnabled"
         ],
         "title": "GraphQLContext",
-        "description": "Deprecated GraphQL mutations opt-in.\n\nMutations are enabled by default (gated per-call by user approval in\nmanual edit mode), so clients no longer need to send this context. It is\nstill accepted so older clients can opt out explicitly; sending it logs a\ndeprecation warning and it will be removed in a future release.",
+        "description": "Deprecated GraphQL mutations opt-in.",
         "deprecated": true
       },
       "HTTPValidationError": {
@@ -21891,101 +21891,6 @@
         "title": "AgentErrorData",
         "type": "object"
       },
-      "BashMutationApprovalChunk": {
-        "additionalProperties": false,
-        "description": "Transient ``data-bash-mutation-approval`` stream chunk.",
-        "properties": {
-          "type": {
-            "const": "data-bash-mutation-approval",
-            "title": "Type",
-            "type": "string"
-          },
-          "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Id"
-          },
-          "data": {
-            "$ref": "#/components/schemas/BashMutationApprovalData"
-          },
-          "transient": {
-            "const": true,
-            "default": true,
-            "title": "Transient",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "type",
-          "data"
-        ],
-        "title": "BashMutationApprovalChunk",
-        "type": "object"
-      },
-      "BashMutationApprovalData": {
-        "properties": {
-          "toolCallId": {
-            "title": "Toolcallid",
-            "type": "string"
-          },
-          "pendingMutations": {
-            "items": {
-              "$ref": "#/components/schemas/PendingGraphQLMutationMetadata"
-            },
-            "title": "Pendingmutations",
-            "type": "array"
-          }
-        },
-        "required": [
-          "toolCallId",
-          "pendingMutations"
-        ],
-        "title": "BashMutationApprovalData",
-        "type": "object"
-      },
-      "JsonValue": {},
-      "PendingGraphQLMutationMetadata": {
-        "additionalProperties": false,
-        "description": "A resolved GraphQL mutation awaiting user approval, captured by the\n``phoenix-gql`` bash builtin at execution time (after file/stdin\nindirection) so the user reviews exactly what will execute.",
-        "properties": {
-          "query": {
-            "title": "Query",
-            "type": "string"
-          },
-          "variables": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "$ref": "#/components/schemas/JsonValue"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Variables"
-          },
-          "digest": {
-            "title": "Digest",
-            "type": "string"
-          }
-        },
-        "required": [
-          "query",
-          "digest"
-        ],
-        "title": "PendingGraphQLMutationMetadata",
-        "type": "object"
-      },
       "PhoenixToolCallCallbackProviderMetadata": {
         "additionalProperties": false,
         "description": "Shape of the ``phoenix`` namespace the browser returns in\n``callProviderMetadata`` on resolved tool parts: the server-stamped fields\nplus browser-recorded execution timings.",
@@ -22009,21 +21914,6 @@
             ],
             "default": null,
             "title": "Toolinputemittedat"
-          },
-          "pendingMutations": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/PendingGraphQLMutationMetadata"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Pendingmutations"
           },
           "clientStartedAt": {
             "anyOf": [
@@ -22092,21 +21982,6 @@
             ],
             "default": null,
             "title": "Toolinputemittedat"
-          },
-          "pendingMutations": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/PendingGraphQLMutationMetadata"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Pendingmutations"
           }
         },
         "required": [
