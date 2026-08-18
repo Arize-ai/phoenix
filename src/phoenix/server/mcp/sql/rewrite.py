@@ -1043,7 +1043,7 @@ def _select_from_is_values(select: exp.Select) -> bool:
 
 
 def _using_keys_needing_coalesce(
-    node: exp.Select, dialect: SupportedSQLDialectName
+    node: exp.Select, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> dict[str, list[exp.Identifier]]:
     """USING keys whose left copy can be NULL, with the relations to merge.
 
@@ -1071,8 +1071,24 @@ def _using_keys_needing_coalesce(
                     quoted=bool(ident.args.get("quoted")),
                     dialect=dialect,
                 )
+                # Only the relations that actually offer the key. Merging
+                # across every relation to the left names columns they do not
+                # have, which the engine refuses.
+                providers = [
+                    source
+                    for source in left_sources
+                    if _source_exposes_column(
+                        source,
+                        ident.name or ident.this or "",
+                        quoted=bool(ident.args.get("quoted")),
+                        allowlist=allowlist,
+                        dialect=dialect,
+                    )
+                ]
+                if not providers:
+                    continue
                 needed[key] = [
-                    *(_relation_qualifier(source) for source in left_sources),
+                    *(_relation_qualifier(source) for source in providers),
                     _relation_qualifier(join.this),
                 ]
         left_sources.append(join.this)
@@ -1190,7 +1206,11 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             # copy of the key.
             using_keys = _using_join_keys(node, ctx.dialect) if not explicit else frozenset()
             coalesce_using = (
-                _using_keys_needing_coalesce(node, ctx.dialect) if not explicit else {}
+                _using_keys_needing_coalesce(
+                    node, allowlist=ctx.allowlist, dialect=ctx.dialect
+                )
+                if not explicit
+                else {}
             )
             using_keys = frozenset(using_keys | ctx.coalesced_using_by_select.get(id(node), set()))
             emitted_using: set[str] = set()
@@ -1492,7 +1512,9 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     return root
 
 
-def _sqlite_stored_timestamp_operand(node: exp.Expression) -> Optional[exp.Column]:
+def _sqlite_stored_timestamp_operand(
+    node: exp.Expression, timestamp_columns: frozenset[str]
+) -> Optional[exp.Column]:
     """The stored timestamp column an operand of `-` reads, or None.
 
     Elapsed time is written over the columns themselves or over aggregates of
@@ -1503,7 +1525,18 @@ def _sqlite_stored_timestamp_operand(node: exp.Expression) -> Optional[exp.Colum
     inner = _strip_parens(node)
     if isinstance(inner, (exp.Min, exp.Max)):
         inner = _strip_parens(inner.this)
-    return inner if isinstance(inner, exp.Column) else None
+    elif isinstance(inner, exp.Coalesce):
+        # Every branch must be a stored timestamp, or the result is not one.
+        branches = [inner.this, *(inner.expressions or [])]
+        resolved = [
+            _sqlite_stored_timestamp_operand(branch, timestamp_columns) for branch in branches
+        ]
+        if not resolved or any(column is None for column in resolved):
+            return None
+        return resolved[0]
+    if not isinstance(inner, exp.Column):
+        return None
+    return inner if (inner.name or "").casefold() in timestamp_columns else None
 
 
 def _unixepoch_subsec(node: exp.Expression) -> exp.Expression:
@@ -1524,8 +1557,8 @@ def _rewrite_sqlite_timestamp_subtraction(
     for node in list(root.find_all(exp.Sub)):
         left_operand = _strip_parens(node.this)
         right_operand = _strip_parens(node.expression)
-        left = _sqlite_stored_timestamp_operand(node.this)
-        right = _sqlite_stored_timestamp_operand(node.expression)
+        left = _sqlite_stored_timestamp_operand(node.this, timestamp_columns)
+        right = _sqlite_stored_timestamp_operand(node.expression, timestamp_columns)
         if not (
             left is not None
             and right is not None

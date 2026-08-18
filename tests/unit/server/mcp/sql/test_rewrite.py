@@ -2310,3 +2310,46 @@ def test_an_ordinary_json_key_is_not_noted(sql: str) -> None:
     ctx = RewriteContext(allowlist=al, dialect="postgresql", row_limit=100)
     rewrite(root, ctx)
     assert not any("computed JSON key" in note for note in ctx.notes)
+
+
+def test_using_merge_names_only_the_relations_that_provide_the_key() -> None:
+    """Merging across every relation to the left names columns they do not have.
+
+    `projects` has no `start_time`, so coalescing it into the merge emits a
+    reference the engine refuses -- turning the silent NULL this pass exists to
+    fix into a hard error against a column the caller never wrote.
+    """
+    _, rendered = _rewritten(
+        "SELECT * FROM projects JOIN traces ON traces.project_rowid = projects.id "
+        "RIGHT JOIN spans USING (start_time)",
+        dialect="postgresql",
+    )
+    assert "COALESCE(traces.start_time, spans.start_time)" in rendered
+    assert "projects.start_time" not in rendered
+
+
+def test_interval_arithmetic_keeps_the_fraction_it_shifts() -> None:
+    """Both sides of the comparison must carry subseconds, not just the column.
+
+    `datetime(col, '+1 seconds')` truncates, so a span exactly one second long
+    compared with `> INTERVAL '1' SECOND` answered true, and a half-second span
+    did too.
+    """
+    rendered = _rendered(
+        "SELECT span_id AS v FROM spans WHERE end_time > start_time + INTERVAL '1' SECOND"
+    )
+    assert rendered.count("'subsec'") == 2
+    assert [row[0] for row in _run_on_sqlite(rendered)] == ["span-long"]
+
+
+@pytest.mark.parametrize(
+    ("sql", "converted"),
+    [
+        ("SELECT COALESCE(end_time, start_time) - start_time AS v FROM spans", True),
+        # A branch that is not a stored timestamp makes the result something else.
+        ("SELECT COALESCE(end_time, name) - start_time AS v FROM spans", False),
+    ],
+)
+def test_coalesced_timestamps_subtract_as_timestamps(sql: str, converted: bool) -> None:
+    """COALESCE of stored timestamps is still a stored timestamp."""
+    assert ("UNIXEPOCH" in _rendered(sql).upper()) is converted

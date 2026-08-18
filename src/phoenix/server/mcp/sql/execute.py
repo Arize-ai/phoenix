@@ -1182,11 +1182,12 @@ async def _execute_sqlite_file(
         raise
     except _SQLITE_RUNTIME_ERRORS as exc:
         message = str(exc).lower()
-        # Matched whole, not as a substring. SQLite reports the deadline
-        # interrupt as exactly "interrupted", while a caller's own identifier
-        # reaches here inside a longer sentence -- `ambiguous column name:
-        # timeout` was reported as a timeout, sending an agent to retry a
-        # statement it needed to fix.
+        # Anchored rather than searched. SQLite reports the deadline interrupt
+        # as exactly "interrupted", while a caller's own identifier reaches here
+        # inside a longer sentence -- `ambiguous column name: timeout` was
+        # reported as a timeout, sending an agent to retry a statement it needed
+        # to fix. No SQLite message begins with "timeout"; that branch is a
+        # guard for drivers that word a deadline differently.
         if message.strip() == "interrupted" or message.startswith("timeout"):
             raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.") from exc
         # A refusal by the authorizer reaches the driver as an ordinary operational
