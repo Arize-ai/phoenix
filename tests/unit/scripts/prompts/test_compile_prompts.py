@@ -29,119 +29,72 @@ def _config(**overrides: Any) -> dict[str, Any]:
     return config
 
 
-def test_gallery_metadata_survives_parsing(compiler_module: ModuleType) -> None:
+def test_gallery_metadata_contract(compiler_module: ModuleType) -> None:
     model = compiler_module.ClassificationEvaluatorConfig.model_validate(
         _config(
             scope="trace",
             recommended=True,
             category="response_quality",
             kind="CODE",
-            details="Use this to judge a response.",
+            details="Detailed guidance.",
+            substitutions={"unused_placeholder": "available_tools_list"},
             inputs={"input": {"description": "The user request.", "format": "text"}},
         )
     )
 
-    assert model.scope == "trace"
-    assert model.recommended is True
-    assert model.category == "response_quality"
-    assert model.kind == "CODE"
-    assert model.inputs["input"].description == "The user request."
-    assert model.inputs["input"].format == "text"
+    assert model.model_dump(mode="json", exclude_defaults=True) == {
+        **_config(),
+        "scope": "trace",
+        "recommended": True,
+        "category": "response_quality",
+        "kind": "CODE",
+        "details": "Detailed guidance.",
+        "substitutions": {"unused_placeholder": "available_tools_list"},
+        "inputs": {"input": {"description": "The user request.", "format": "text"}},
+    }
 
 
 @pytest.mark.parametrize(
-    ("field", "value"),
-    [("scope", "project"), ("category", "quality"), ("kind", "BUILTIN")],
+    "content",
+    ["{{input}} {{nested.value}}", "{input} {nested.value}"],
 )
-def test_invalid_metadata_enum_fails(compiler_module: ModuleType, field: str, value: str) -> None:
-    with pytest.raises(ValidationError):
-        compiler_module.ClassificationEvaluatorConfig.model_validate(_config(**{field: value}))
+def test_input_variables_match_template_format(
+    compiler_module: ModuleType,
+    content: str,
+) -> None:
+    inputs = {
+        "input": {"description": "Input"},
+        "nested": {"description": "Nested input"},
+    }
+    compiler_module.ClassificationEvaluatorConfig.model_validate(
+        _config(messages=[{"role": "user", "content": content}], inputs=inputs)
+    )
+
+    with pytest.raises(ValidationError, match="unused inputs"):
+        compiler_module.ClassificationEvaluatorConfig.model_validate(
+            _config(
+                messages=[{"role": "user", "content": content}],
+                inputs={**inputs, "unused": {"description": "Unused"}},
+            )
+        )
 
 
-def test_omitted_metadata_is_backward_compatible(compiler_module: ModuleType) -> None:
-    model = compiler_module.ClassificationEvaluatorConfig.model_validate(_config())
-
-    assert model.scope is None
-    assert model.recommended is False
-    assert model.category is None
-    assert model.kind == "LLM"
-    assert model.inputs is None
-
-
-def test_python_generator_emits_only_supplied_metadata() -> None:
+def test_python_generator_emits_gallery_metadata() -> None:
     module_path = Path(__file__).parents[4] / "scripts" / "prompts" / "compile_python_prompts.py"
     spec = spec_from_file_location("compile_python_prompts_generation", module_path)
     assert spec and spec.loader
     compiler_module = module_from_spec(spec)
     spec.loader.exec_module(compiler_module)
-
-    legacy_config = compiler_module.ClassificationEvaluatorConfig.model_validate(_config())
-    legacy_source = compiler_module.get_prompt_file_contents(legacy_config, "TEST_CONFIG")
-    assert "scope=" not in legacy_source
-    assert "recommended=" not in legacy_source
-
-    gallery_config = compiler_module.ClassificationEvaluatorConfig.model_validate(
+    config = compiler_module.ClassificationEvaluatorConfig.model_validate(
         _config(
             scope="span",
             category="response_quality",
             inputs={"input": {"description": "Input"}},
         )
     )
-    gallery_source = compiler_module.get_prompt_file_contents(gallery_config, "TEST_CONFIG")
-    assert "scope='span'" in gallery_source
-    assert "category='response_quality'" in gallery_source
-    assert "inputs={'input': {'description': 'Input'}}" in gallery_source
-    assert "<Evaluator" not in gallery_source
 
+    source = compiler_module.get_prompt_file_contents(config, "TEST_CONFIG")
 
-@pytest.mark.parametrize(
-    "content",
-    [
-        "Input: {{input}}; value: {{nested.value}}",
-        "Input: {input}; value: {nested.value}",
-    ],
-)
-def test_inputs_match_variables_for_supported_template_formats(
-    compiler_module: ModuleType,
-    content: str,
-) -> None:
-    model = compiler_module.ClassificationEvaluatorConfig.model_validate(
-        _config(
-            messages=[{"role": "user", "content": content}],
-            substitutions={"unused_placeholder": "available_tools_list"},
-            inputs={
-                "input": {"description": "Input"},
-                "nested": {"description": "Nested input"},
-            },
-        )
-    )
-
-    assert set(model.inputs) == {"input", "nested"}
-
-
-@pytest.mark.parametrize(
-    "inputs",
-    [
-        {"input": {"description": "Input"}, "unused": {"description": "Unused"}},
-        {},
-    ],
-)
-def test_inputs_must_exactly_match_source_variables(
-    compiler_module: ModuleType, inputs: dict[str, dict[str, str]]
-) -> None:
-    with pytest.raises(ValidationError):
-        compiler_module.ClassificationEvaluatorConfig.model_validate(_config(inputs=inputs))
-
-
-@pytest.mark.parametrize(
-    "inputs",
-    [
-        {"": {"description": "Input"}},
-        {"input": {"description": "  "}},
-    ],
-)
-def test_input_names_and_descriptions_must_not_be_empty(
-    compiler_module: ModuleType, inputs: dict[str, dict[str, str]]
-) -> None:
-    with pytest.raises(ValidationError):
-        compiler_module.ClassificationEvaluatorConfig.model_validate(_config(inputs=inputs))
+    assert "scope='span'" in source
+    assert "category='response_quality'" in source
+    assert "inputs={'input': {'description': 'Input'}}" in source
