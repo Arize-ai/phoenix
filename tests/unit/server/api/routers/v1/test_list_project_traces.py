@@ -10,7 +10,11 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import Cursor
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+)
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
@@ -687,3 +691,49 @@ class TestListProjectTracesKeysetPagination:
             params={"limit": 2, "cursor": str(Cursor(rowid=1))},
         )
         assert response.status_code == 422
+
+    async def test_cursor_with_an_out_of_range_rowid_is_rejected(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        project = await _insert_traces_out_of_order(db)
+        # A rowid too large for the id column would raise when bound, not paginate.
+        cursor = Cursor(
+            rowid=2**31,
+            sort_column=CursorSortColumn(
+                type=CursorSortColumnDataType.DATETIME,
+                value=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            ),
+        )
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2, "cursor": str(cursor)},
+        )
+        assert response.status_code == 422
+
+    async def test_pages_do_not_repeat_or_skip_when_sort_values_tie(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        """Rows sharing a start_time are ordered only by the row id in the key."""
+        async with db() as session:
+            project_rowid = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            assert project_rowid is not None
+            start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+            for _ in range(3):
+                await session.execute(
+                    insert(models.Trace).values(
+                        trace_id=token_hex(16),
+                        project_rowid=project_rowid,
+                        start_time=start,
+                        end_time=start + timedelta(minutes=1),
+                    )
+                )
+            project = await session.get(models.Project, project_rowid)
+            assert project is not None
+        for order in ("asc", "desc"):
+            for limit in (1, 2):
+                seen = await self._page_all(
+                    httpx_client, project, sort="start_time", order=order, limit=limit
+                )
+                assert len(seen) == len(set(seen)) == 3, f"tie mishandled with {order}/{limit}"
