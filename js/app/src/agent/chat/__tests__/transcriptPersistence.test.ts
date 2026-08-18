@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createTranscriptPersistenceCoordinator } from "../transcriptPersistence";
+import {
+  createTranscriptPersistenceCoordinator,
+  resolvedClientToolOutputIds,
+} from "../transcriptPersistence";
 import type { AgentUIMessage } from "../types";
 
 describe("createTranscriptPersistenceCoordinator", () => {
@@ -68,8 +71,30 @@ describe("createTranscriptPersistenceCoordinator", () => {
     ).resolves.toBe(true);
   });
 
-  it("tracks resolved client tool outputs on persisted assistant messages", () => {
+  it("marks only the tool outputs it is given", () => {
     const coordinator = createTranscriptPersistenceCoordinator();
+
+    coordinator.markToolOutputsPersisted(["tool-call-a", "tool-call-b"]);
+
+    expect(coordinator.syncedToolOutputIds).toEqual(
+      new Set(["tool-call-a", "tool-call-b"])
+    );
+  });
+
+  it("marks nothing when the acknowledgement names no outputs", () => {
+    const coordinator = createTranscriptPersistenceCoordinator();
+
+    // An older server, or a turn that persisted no client outputs. Either way
+    // the flush must stay free to send them.
+    coordinator.markToolOutputsPersisted(undefined);
+    coordinator.markToolOutputsPersisted([]);
+
+    expect(coordinator.syncedToolOutputIds.size).toBe(0);
+  });
+});
+
+describe("resolvedClientToolOutputIds", () => {
+  it("picks resolved client tool outputs off a server-provided message", () => {
     const message = {
       id: "assistant-1",
       role: "assistant",
@@ -103,23 +128,20 @@ describe("createTranscriptPersistenceCoordinator", () => {
       ],
     } as AgentUIMessage;
 
-    coordinator.markToolOutputsPersisted(message);
-
-    expect(coordinator.syncedToolOutputIds).toEqual(
-      new Set(["tool-call-resolved"])
-    );
+    // Server-executed and still-pending calls are not the client's to flush.
+    expect(resolvedClientToolOutputIds(message)).toEqual([
+      "tool-call-resolved",
+    ]);
   });
 
-  it("ignores non-assistant and missing messages when marking outputs", () => {
-    const coordinator = createTranscriptPersistenceCoordinator();
-
-    coordinator.markToolOutputsPersisted(undefined);
-    coordinator.markToolOutputsPersisted({
-      id: "user-1",
-      role: "user",
-      parts: [{ type: "text", text: "hello" }],
-    } as AgentUIMessage);
-
-    expect(coordinator.syncedToolOutputIds.size).toBe(0);
+  it("ignores non-assistant and missing messages", () => {
+    expect(resolvedClientToolOutputIds(undefined)).toEqual([]);
+    expect(
+      resolvedClientToolOutputIds({
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "hello" }],
+      } as AgentUIMessage)
+    ).toEqual([]);
   });
 });

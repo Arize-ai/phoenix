@@ -226,7 +226,10 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
-            allow_mutations=graphql_mutations_enabled,
+            # This deprecated route runs with ``deps=None`` and cannot surface
+            # an approval request, so mutations require an explicit bypass.
+            allow_mutations=(graphql_mutations_enabled and body.edit_permission == "bypass"),
+            require_mutation_approval=False,
             read_only=request.app.state.read_only,
             auth_enabled=request.app.state.authentication_enabled,
             user_id=user_id,
