@@ -81,7 +81,6 @@ from typing_extensions import TypeIs, assert_never
 from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_disable_bash,
-    get_env_phoenix_agents_disable_graphql_mutations,
     get_env_phoenix_agents_force_tracing,
     get_env_phoenix_agents_web_access_enabled,
 )
@@ -1889,16 +1888,18 @@ def _to_approval_responded_part(
             call_provider_metadata=part.call_provider_metadata,
             approval=responded,
         )
-    return ToolApprovalRespondedPart(
-        type=part.type,
-        tool_call_id=part.tool_call_id,
-        title=part.title,
-        state="approval-responded",
-        input=part.input,
-        provider_executed=part.provider_executed,
-        call_provider_metadata=part.call_provider_metadata,
-        approval=responded,
-    )
+    elif isinstance(part, ToolApprovalRequestedPart):
+        return ToolApprovalRespondedPart(
+            type=part.type,
+            tool_call_id=part.tool_call_id,
+            title=part.title,
+            state="approval-responded",
+            input=part.input,
+            provider_executed=part.provider_executed,
+            call_provider_metadata=part.call_provider_metadata,
+            approval=responded,
+        )
+    assert_never(part)
 
 
 def _apply_tool_approvals(
@@ -1958,12 +1959,7 @@ def _attach_pending_mutation_metadata(
     *,
     continued_assistant_message: PhoenixUIMessage | None,
 ) -> None:
-    """Thread persisted pending-mutation payloads into the resumed run's deferred results.
-
-    The bash tool re-verifies each mutation's digest against this metadata
-    (surfaced as ``ctx.tool_call_metadata`` on the approved re-run) before
-    executing, binding the user's approval to the exact document they reviewed.
-    """
+    """Thread persisted pending-mutation payloads into the resumed run's deferred results."""
     if continued_assistant_message is None:
         return
     for part in continued_assistant_message.parts:
@@ -1985,12 +1981,7 @@ def _stamp_pending_mutation_metadata(
     message: PhoenixUIMessage,
     pending_mutations_by_tool_call_id: Mapping[str, Any],
 ) -> PhoenixUIMessage:
-    """Record each deferred call's pending-mutation payload on its persisted part.
-
-    The payload rides the ``phoenix`` namespace of ``callProviderMetadata`` so
-    the approval card can render the mutation after a reload and the approved
-    re-run can verify its digest.
-    """
+    """Record each deferred call's pending-mutation payload on its persisted part."""
     parts = list(message.parts)
     changed = False
     for index, part in enumerate(message.parts):
@@ -2071,11 +2062,12 @@ def _merge_messages(
                 messages[-1] = merged_tail
     continuing_assistant_turn = new_message is None
     for index, message in enumerate(messages):
+        # A continued tail's approval-responded parts are consumed as deferred
+        # tool results when the run resumes; don't close them out.
+        is_continued_tail = continuing_assistant_turn and index == len(messages) - 1
         repaired_message = _resolve_interrupted_tool_parts(
             message,
-            # A continued tail's approval-responded parts are consumed as
-            # deferred tool results when the run resumes; don't close them out.
-            keep_responded_approvals=(continuing_assistant_turn and index == len(messages) - 1),
+            keep_responded_approvals=is_continued_tail,
         )
         if repaired_message is not None:
             updated_messages[repaired_message.id] = repaired_message
@@ -3027,10 +3019,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
         subagents_enabled = _subagents_enabled(resolved_contexts)
-        graphql_mutations_enabled = (
-            resolved_contexts.graphql_mutations_enabled
-            and not get_env_phoenix_agents_disable_graphql_mutations()
-        )
+        graphql_mutations_enabled = resolved_contexts.graphql_mutations_enabled
         phoenix_user_email: str | None = None
         initial_bash_snapshot: bytes | None = None
         try:
