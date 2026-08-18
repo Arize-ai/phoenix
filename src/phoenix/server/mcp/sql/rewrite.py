@@ -140,6 +140,11 @@ def _is_json_extraction(node: exp.Expression) -> bool:
     }
 
 
+#: Comparisons where text ordering answers differently from numeric ordering.
+#: Equality is a separate hazard and is not one of these.
+_ORDER_SENSITIVE_COMPARISONS = (exp.GT, exp.GTE, exp.LT, exp.LTE, exp.Between)
+
+
 def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> None:
     """Say so when a JSON read is ordered as text.
 
@@ -154,14 +159,20 @@ def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> Non
     document -- so refusing would block a legitimate query to prevent a
     plausible mistake.
     """
-    for node in root.find_all(*_ORDER_SENSITIVE):
-        target = node.this
-        if isinstance(target, exp.Cast):
-            continue
-        note = _JSON_TEXT_ORDERING_NOTES[ctx.dialect]
-        if _is_json_extraction(target) and note not in ctx.notes:
-            ctx.notes.append(note)
-            return
+    note = _JSON_TEXT_ORDERING_NOTES[ctx.dialect]
+    for node in root.find_all(*_ORDER_SENSITIVE, *_ORDER_SENSITIVE_COMPARISONS):
+        for target in _comparison_operands(node) if isinstance(
+            node, _ORDER_SENSITIVE_COMPARISONS
+        ) else (node.this,):
+            # A cast says the caller knows. Parentheses say nothing: the lambda
+            # repair adds them, so an accessor written inside a call arrives
+            # wrapped.
+            unwrapped = _strip_parens(target)
+            if unwrapped is None or isinstance(unwrapped, exp.Cast):
+                continue
+            if _is_json_extraction(unwrapped) and note not in ctx.notes:
+                ctx.notes.append(note)
+                return
 
 
 def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -1418,6 +1429,11 @@ def _timestamp_unit_function_call(
     return None
 
 
+#: Unit functions that truncate to whole seconds unless given `subsec`.
+#: `julianday` is already fractional and `date` is day-resolution by definition.
+_SQLITE_SUBSEC_UNITS = frozenset({"unixepoch", "datetime", "time"})
+
+
 def _timestamp_unit_through_arithmetic(node: Optional[exp.Expression]) -> Optional[str]:
     """The unit a side is expressed in, seen through arithmetic.
 
@@ -1492,7 +1508,13 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
         if unit_name == "date":
             wrapped: exp.Expression = exp.Date(this=column.copy())
         else:
-            wrapped = exp.Anonymous(this=unit_name, expressions=[column.copy()])
+            # Storage carries fractional seconds. `unixepoch`, `datetime` and
+            # `time` truncate to whole seconds unless asked otherwise, which
+            # drops rows whose comparison is decided below the second.
+            args: list[exp.Expression] = [column.copy()]
+            if unit_name in _SQLITE_SUBSEC_UNITS:
+                args.append(exp.Literal.string("subsec"))
+            wrapped = exp.Anonymous(this=unit_name, expressions=args)
         column.replace(wrapped)
         changed = True
     if changed:
