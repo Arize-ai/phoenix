@@ -179,6 +179,7 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _rewrite_sqlite_median(root, ctx)
     root = _canonicalize_json_extract(root, ctx)
     root = _canonicalize_postgres_json_extract_function(root, ctx)
+    root = _repair_quoted_json_path(root, ctx)
     root = _qualify_schema(root, ctx)
     root = _parenthesize_setop_operands(root, ctx)
     root = _inject_limit(root, ctx)
@@ -539,6 +540,48 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     return root
 
 
+def _repair_quoted_json_path(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    """Emit a JSON key containing a quote as a literal, so it is escaped.
+
+    The generator renders the path of a JSON accessor without escaping, so a
+    key holding an apostrophe closes its own string and the statement does not
+    parse. Attribute keys are arbitrary strings, and `describeSqlSchema`
+    publishes the populated ones, so the surface can print a path it cannot run.
+
+    A plain string literal in the same position is escaped correctly, and keeps
+    the accessor the caller wrote -- which matters on SQLite, where `->` and
+    `json_extract` return different types.
+    """
+    changed = False
+    for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
+        path = node.expression
+        if not isinstance(path, exp.JSONPath):
+            continue
+        parts = [part for part in path.expressions if not isinstance(part, exp.JSONPathRoot)]
+        keys = [part.this for part in parts if isinstance(part, exp.JSONPathKey)]
+        if len(keys) != len(parts) or not any("'" in key for key in keys):
+            continue
+        if ctx.dialect == "sqlite":
+            spelled = _quoted_json_path(path)
+            if spelled is None:
+                continue
+        elif len(keys) == 1:
+            # The operator takes one key, and that key is the literal.
+            spelled = keys[0]
+        else:
+            continue
+        node.set("expression", exp.Literal.string(spelled))
+        changed = True
+    if changed:
+        ctx.applied.append("json_path_quote_repair")
+    return root
+
+
+def _json_path_is_root_only(path: exp.JSONPath) -> bool:
+    """True for `$`, which names the document rather than anything inside it."""
+    return not [part for part in path.expressions if not isinstance(part, exp.JSONPathRoot)]
+
+
 def _canonicalize_postgres_json_extract_function(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
@@ -583,6 +626,19 @@ def _canonicalize_postgres_json_extract_function(
                 parenthesised = True
             continue
         if node.args.get("only_json_types") is not None:
+            continue
+        # A root-only path selects the whole document. It has no keys to pass,
+        # and `json_extract_path(doc)` is not a signature PostgreSQL defines,
+        # so the path operators express it instead: `#> '{}'` is the document,
+        # `#>> '{}'` is the document as text.
+        if _json_path_is_root_only(inner):
+            whole = (
+                exp.JSONBExtractScalar
+                if isinstance(node, exp.JSONExtractScalar)
+                else exp.JSONBExtract
+            )
+            node.replace(whole(this=node.this, expression=exp.Literal.string("{}")))
+            changed = True
             continue
         path_args = _json_path_extract_args(inner)
         if path_args is None:
