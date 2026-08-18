@@ -655,25 +655,8 @@ def upgrade() -> None:
     _create_project_evaluator_triggers_table()
     _create_evaluation_requests_table()
 
-    # The delta adapter finds edited annotations by updated_at; no annotation table carries
-    # an index on it, so without these every tick sequential-scans the annotation tables.
-    op.create_index("ix_span_annotations_updated_at", "span_annotations", ["updated_at"])
-    op.create_index("ix_trace_annotations_updated_at", "trace_annotations", ["updated_at"])
-    op.create_index(
-        "ix_project_session_annotations_updated_at",
-        "project_session_annotations",
-        ["updated_at"],
-    )
-
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_project_session_annotations_updated_at",
-        table_name="project_session_annotations",
-    )
-    op.drop_index("ix_trace_annotations_updated_at", table_name="trace_annotations")
-    op.drop_index("ix_span_annotations_updated_at", table_name="span_annotations")
-
     op.drop_index(
         "ix_evaluation_requests_criteria_id_project_session_rowid",
         table_name="evaluation_requests",

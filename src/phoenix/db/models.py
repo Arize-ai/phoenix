@@ -1354,7 +1354,7 @@ class SpanAnnotation(HasId):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now(), index=True
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     identifier: Mapped[str] = mapped_column(
         String,
@@ -1396,7 +1396,7 @@ class TraceAnnotation(HasId):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now(), index=True
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     identifier: Mapped[str] = mapped_column(
         String,
@@ -1479,7 +1479,7 @@ class ProjectSessionAnnotation(HasId):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now(), index=True
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     identifier: Mapped[str] = mapped_column(
         String,

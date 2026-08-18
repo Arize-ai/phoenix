@@ -558,43 +558,6 @@ class TestEvaluationRequests(_OnlineEvalSchemaTest):
         )
 
 
-async def test_annotation_updated_at_indexes(
-    _engine: AsyncEngine,
-    _alembic_config: Config,
-    _db_backend: _DBBackend,
-    _schema: str,
-) -> None:
-    """The annotation tables gain an updated_at index the delta adapter reads edits by."""
-    await _verify_clean_state(_engine, _schema)
-    await _up(_engine, _alembic_config, _DOWN, _schema)
-
-    expected = {
-        "span_annotations": "ix_span_annotations_updated_at",
-        "trace_annotations": "ix_trace_annotations_updated_at",
-        "project_session_annotations": "ix_project_session_annotations_updated_at",
-    }
-
-    def _get(conn: Connection) -> dict[str, frozenset[str]]:
-        info = {}
-        for table_name in expected:
-            table_info = _get_table_schema_info(conn, table_name, _db_backend, _schema)
-            assert table_info is not None
-            info[table_name] = table_info["index_names"]
-        return info
-
-    before = await _run_async(_engine, _get)
-    for table_name, index_name in expected.items():
-        assert index_name not in before[table_name]
-
-    await _up(_engine, _alembic_config, _UP, _schema)
-    after = await _run_async(_engine, _get)
-    for table_name, index_name in expected.items():
-        assert after[table_name] == before[table_name] | {index_name}
-
-    await _down(_engine, _alembic_config, _DOWN, _schema)
-    assert await _run_async(_engine, _get) == before
-
-
 async def test_project_session_liveness_schema(
     _engine: AsyncEngine,
     _alembic_config: Config,

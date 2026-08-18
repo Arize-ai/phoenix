@@ -1581,8 +1581,6 @@ CREATE TABLE project_session_annotations (
 
 CREATE INDEX ix_project_session_annotations_project_session_id ON project_session_annotations
     (project_session_id);
-CREATE INDEX ix_project_session_annotations_updated_at ON project_session_annotations
-    (updated_at);
 CREATE INDEX ix_project_session_annotations_user_id ON project_session_annotations
     (user_id);
 
@@ -1946,7 +1944,6 @@ CREATE TABLE span_annotations (
 );
 
 CREATE INDEX ix_span_annotations_span_rowid ON span_annotations (span_rowid);
-CREATE INDEX ix_span_annotations_updated_at ON span_annotations (updated_at);
 CREATE INDEX ix_span_annotations_user_id ON span_annotations (user_id);
 
 
@@ -2000,5 +1997,4 @@ CREATE TABLE trace_annotations (
 );
 
 CREATE INDEX ix_trace_annotations_trace_rowid ON trace_annotations (trace_rowid);
-CREATE INDEX ix_trace_annotations_updated_at ON trace_annotations (updated_at);
 CREATE INDEX ix_trace_annotations_user_id ON trace_annotations (user_id);
