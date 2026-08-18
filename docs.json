@@ -1241,7 +1241,7 @@
           },
           {
             "group": "Security",
-            "icon": "user-shield",
+            "icon": "shield-user",
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/self-hosting/security/privacy",
