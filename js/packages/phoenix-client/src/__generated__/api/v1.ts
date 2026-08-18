@@ -7089,6 +7089,11 @@ export interface components {
         TranscriptPersistedData: {
             /** Messageid */
             messageId: string;
+            /**
+             * Persistedtooloutputids
+             * @description Tool call IDs whose client-executed outputs are in the message that was just written. The client skips these in its eager flush. Derived from the persisted message itself rather than from the client's copy, which can have moved on since the server took its snapshot.
+             */
+            persistedToolOutputIds?: string[];
         };
     };
     responses: never;
