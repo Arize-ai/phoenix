@@ -12,6 +12,8 @@ from phoenix.server.api.helpers.substitutions import (
 
 def get_classification_evaluator_configs(
     labels: Optional[list[str]] = None,
+    *,
+    gallery_ready: bool = False,
 ) -> list[PydanticClassificationEvaluatorConfig]:
     """
     Load all CLASSIFICATION_EVALUATOR_CONFIG objects from __generated__.
@@ -20,9 +22,9 @@ def get_classification_evaluator_configs(
     '_CLASSIFICATION_EVALUATOR_CONFIG'. For configs with a `substitutions` mapping,
     expands simple placeholders into full Mustache blocks before returning.
 
-    If `labels` is not provided, all discovered evaluator configs are returned.
-    If `labels` is provided, only evaluator configs with at least one matching
-    label are returned.
+    If `gallery_ready` is true, only complete gallery configs are returned,
+    ordered by recommendation, category, and name. Otherwise, `labels` optionally
+    filters configs with at least one matching label while preserving discovery order.
     """
     configs = []
     substitutions = load_substitutions()
@@ -36,6 +38,16 @@ def get_classification_evaluator_configs(
                     config = expand_config_templates(config, substitutions)
                 configs.append(config)
 
+    if gallery_ready:
+        return sorted(
+            (config for config in configs if is_gallery_ready(config)),
+            key=lambda config: (
+                not config.recommended,
+                config.category.value if config.category else "",
+                config.name,
+            ),
+        )
+
     if labels:
         requested_labels = set(labels)
         configs = [
@@ -45,3 +57,7 @@ def get_classification_evaluator_configs(
         ]
 
     return configs
+
+
+def is_gallery_ready(config: PydanticClassificationEvaluatorConfig) -> bool:
+    return bool(config.scope and config.category and config.details is not None and config.inputs)

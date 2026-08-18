@@ -17,6 +17,9 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.__generated__.classification_evaluator_configs import (
+    ClassificationEvaluatorConfig as PydanticClassificationEvaluatorConfig,
+)
 from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
 )
@@ -72,7 +75,12 @@ from phoenix.server.api.types.AgentsConfig import AgentsConfig
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.AgentSkill import AgentSkill
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
-from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
+from phoenix.server.api.types.ClassificationEvaluatorConfig import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInputDescriptor,
+    EvaluatorScope,
+)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
@@ -82,6 +90,7 @@ from phoenix.server.api.types.Evaluator import (
     CodeEvaluator,
     DatasetEvaluator,
     Evaluator,
+    EvaluatorKind,
     LLMEvaluator,
     ProjectEvaluator,
 )
@@ -160,6 +169,65 @@ from phoenix.utilities.template_formatters import TemplateFormatterError
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
+
+
+def _to_gql_classification_evaluator_config(
+    config: PydanticClassificationEvaluatorConfig,
+) -> ClassificationEvaluatorConfig:
+    if config.optimization_direction == "maximize":
+        optimization_direction = OptimizationDirection.MAXIMIZE
+    elif config.optimization_direction == "minimize":
+        optimization_direction = OptimizationDirection.MINIMIZE
+    else:
+        optimization_direction = OptimizationDirection.NONE
+
+    gql_messages: list[PromptMessage] = []
+    for message in config.messages:
+        role_value = message.role.lower()
+        if role_value == "user":
+            role = PromptMessageRole.USER
+        elif role_value == "system":
+            role = PromptMessageRole.SYSTEM
+        elif role_value in ("ai", "assistant"):
+            role = PromptMessageRole.AI
+        elif role_value == "tool":
+            role = PromptMessageRole.TOOL
+        else:
+            role = PromptMessageRole.USER
+
+        content = type_cast(
+            list[ContentPart],
+            [TextContentPart(text=TextContentValue(text=message.content))],
+        )
+        gql_messages.append(PromptMessage(role=role, content=content))
+
+    inputs = (
+        [
+            EvaluatorInputDescriptor(
+                name=input_name,
+                description=input_descriptor.description,
+                format=input_descriptor.format,
+            )
+            for input_name, input_descriptor in config.inputs.items()
+        ]
+        if config.inputs is not None
+        else None
+    )
+    return ClassificationEvaluatorConfig(
+        name=config.name,
+        description=config.description,
+        optimization_direction=optimization_direction,
+        messages=gql_messages,
+        choices=JSON(config.choices),
+        labels=config.labels,
+        scope=EvaluatorScope(config.scope.value) if config.scope else None,
+        recommended=config.recommended,
+        category=EvaluatorCategory(config.category.value) if config.category else None,
+        kind=EvaluatorKind(config.kind.value),
+        details=config.details,
+        inputs=inputs,
+        docs_link=config.docs_link,
+    )
 
 
 @strawberry.input
@@ -1513,51 +1581,18 @@ class Query:
         info: Info[Context, None],
         labels: Optional[list[str]] = UNSET,
     ) -> list[ClassificationEvaluatorConfig]:
-        pydantic_configs = get_classification_evaluator_configs(
+        configs = get_classification_evaluator_configs(
             labels=labels if labels is not UNSET else None
         )
+        return [_to_gql_classification_evaluator_config(config) for config in configs]
 
-        gql_configs: list[ClassificationEvaluatorConfig] = []
-        for config in pydantic_configs:
-            if config.optimization_direction == "maximize":
-                optimization_direction = OptimizationDirection.MAXIMIZE
-            elif config.optimization_direction == "minimize":
-                optimization_direction = OptimizationDirection.MINIMIZE
-            else:
-                optimization_direction = OptimizationDirection.NONE
-
-            gql_messages: list[PromptMessage] = []
-            for msg in config.messages:
-                role_str = msg.role.lower()
-                if role_str == "user":
-                    role = PromptMessageRole.USER
-                elif role_str == "system":
-                    role = PromptMessageRole.SYSTEM
-                elif role_str in ("ai", "assistant"):
-                    role = PromptMessageRole.AI
-                elif role_str == "tool":
-                    role = PromptMessageRole.TOOL
-                else:
-                    # Default to USER if unknown role
-                    role = PromptMessageRole.USER
-
-                content = type_cast(
-                    list[ContentPart],
-                    [TextContentPart(text=TextContentValue(text=msg.content))],
-                )
-
-                gql_messages.append(PromptMessage(role=role, content=content))
-
-            gql_config = ClassificationEvaluatorConfig(
-                name=config.name,
-                description=config.description,
-                optimization_direction=optimization_direction,
-                messages=gql_messages,
-                choices=JSON(config.choices),
-            )
-            gql_configs.append(gql_config)
-
-        return gql_configs
+    @strawberry.field
+    async def evaluator_gallery_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[ClassificationEvaluatorConfig]:
+        configs = get_classification_evaluator_configs(gallery_ready=True)
+        return [_to_gql_classification_evaluator_config(config) for config in configs]
 
     @strawberry.field
     async def default_project_trace_retention_policy(

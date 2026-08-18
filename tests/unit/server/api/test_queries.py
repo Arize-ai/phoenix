@@ -36,6 +36,121 @@ from tests.unit.graphql import AsyncGraphQLClient
 _REDACTOR = Redactor(secret=SecretStr(""))
 
 
+class TestEvaluatorGalleryConfigsQuery:
+    _QUERY = """
+      query {
+        evaluatorGalleryConfigs {
+          name
+          description
+          optimizationDirection
+          messages {
+            role
+            content {
+              ... on TextContentPart { text { text } }
+            }
+          }
+          choices
+          labels
+          scope
+          recommended
+          category
+          kind
+          details
+          inputs { name description format }
+          docsLink
+        }
+        classificationEvaluatorConfigs(labels: ["legacy"]) {
+          name
+          labels
+        }
+      }
+    """
+
+    async def test_returns_enriched_gallery_configs_without_changing_legacy_query(
+        self,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.__generated__.classification_evaluator_configs import (
+            ClassificationEvaluatorConfig,
+            PromptMessage,
+        )
+        from phoenix.server.api import queries
+
+        ready = ClassificationEvaluatorConfig.model_validate(
+            {
+                "name": "quality",
+                "description": "Quality evaluator",
+                "optimization_direction": "maximize",
+                "messages": [PromptMessage(role="user", content="Review {{input}}")],
+                "choices": {"good": 1, "bad": 0},
+                "labels": ["promoted_dataset_evaluator"],
+                "scope": "trace",
+                "recommended": True,
+                "category": "response_quality",
+                "kind": "LLM",
+                "details": "Use for end-to-end response quality.",
+                "inputs": {"input": {"description": "The user request.", "format": "text"}},
+                "docs_link": "https://example.com/quality",
+            }
+        )
+        legacy = ClassificationEvaluatorConfig(
+            name="legacy",
+            description="Legacy evaluator",
+            optimization_direction="neutral",
+            messages=[PromptMessage(role="user", content="{{input}}")],
+            choices={"yes": 1, "no": 0},
+            labels=["legacy"],
+        )
+
+        def get_configs(
+            labels: Optional[list[str]] = None,
+            *,
+            gallery_ready: bool = False,
+        ) -> list[ClassificationEvaluatorConfig]:
+            if gallery_ready:
+                return [ready]
+            assert labels == ["legacy"]
+            return [legacy]
+
+        monkeypatch.setattr(queries, "get_classification_evaluator_configs", get_configs)
+
+        response = await gql_client.execute(query=self._QUERY)
+
+        assert not response.errors
+        assert response.data == {
+            "evaluatorGalleryConfigs": [
+                {
+                    "name": "quality",
+                    "description": "Quality evaluator",
+                    "optimizationDirection": "MAXIMIZE",
+                    "messages": [
+                        {
+                            "role": "USER",
+                            "content": [{"text": {"text": "Review {{input}}"}}],
+                        }
+                    ],
+                    "choices": {"good": 1.0, "bad": 0.0},
+                    "labels": ["promoted_dataset_evaluator"],
+                    "scope": "TRACE",
+                    "recommended": True,
+                    "category": "RESPONSE_QUALITY",
+                    "kind": "LLM",
+                    "details": "Use for end-to-end response quality.",
+                    "inputs": [
+                        {
+                            "name": "input",
+                            "description": "The user request.",
+                            "format": "text",
+                        }
+                    ],
+                    "docsLink": "https://example.com/quality",
+                }
+            ],
+            "classificationEvaluatorConfigs": [{"name": "legacy", "labels": ["legacy"]}],
+        }
+
+
 async def test_projects_omits_experiment_projects(
     gql_client: AsyncGraphQLClient,
     projects_with_and_without_experiments: Any,

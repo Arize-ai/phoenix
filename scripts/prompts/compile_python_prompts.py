@@ -4,18 +4,52 @@ Compiles YAML prompts into Python code.
 
 import argparse
 import inspect
+from enum import Enum
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
+import pystache
 import yaml
 from jinja2 import Template
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
+from pystache.parser import _EscapeNode, _LiteralNode  # type: ignore[import-untyped]
 
 
 # Based message class copied into the compiled module.
 class PromptMessage(BaseModel):
     role: Literal["user"]
     content: str
+
+
+class EvaluatorScope(str, Enum):
+    SPAN = "span"
+    TRACE = "trace"
+    SESSION = "session"
+
+
+class EvaluatorCategory(str, Enum):
+    GROUNDING_AND_RETRIEVAL = "grounding_and_retrieval"
+    AGENTS = "agents"
+    RESPONSE_QUALITY = "response_quality"
+    SAFETY_AND_SECURITY = "safety_and_security"
+    USER_EXPERIENCE = "user_experience"
+
+
+class EvaluatorKind(str, Enum):
+    LLM = "LLM"
+    CODE = "CODE"
+
+
+class EvaluatorInput(BaseModel):
+    description: str
+    format: Optional[str] = None
+
+    @field_validator("description")
+    @classmethod
+    def description_must_not_be_empty(cls, description: str) -> str:
+        if not description.strip():
+            raise ValueError("input description must not be empty")
+        return description
 
 
 # Base classification evaluator config class copied into the compiled module.
@@ -27,19 +61,83 @@ class ClassificationEvaluatorConfig(BaseModel):
     choices: dict[str, float]
     substitutions: Optional[dict[str, str]] = None  # placeholder -> substitution_name
     labels: list[str] = []
+    scope: Optional[EvaluatorScope] = None
+    recommended: bool = False
+    category: Optional[EvaluatorCategory] = None
+    kind: EvaluatorKind = EvaluatorKind.LLM
+    details: Optional[str] = None
+    inputs: Optional[dict[str, EvaluatorInput]] = None
+    docs_link: Optional[str] = None
+
+    @field_validator("inputs")
+    @classmethod
+    def input_names_must_not_be_empty(
+        cls, inputs: Optional[dict[str, EvaluatorInput]]
+    ) -> Optional[dict[str, EvaluatorInput]]:
+        if inputs is not None and any(not input_name.strip() for input_name in inputs):
+            raise ValueError("input name must not be empty")
+        return inputs
+
+    @model_validator(mode="after")
+    def validate_source_inputs(self) -> "ClassificationEvaluatorConfig":
+        if self.inputs is None:
+            return self
+
+        source_variables = set(self.substitutions or {})
+        for message in self.messages:
+            source_variables.update(_get_direct_mustache_variables(message.content))
+
+        declared_inputs = set(self.inputs)
+        missing_inputs = source_variables - declared_inputs
+        unused_inputs = declared_inputs - source_variables
+        if missing_inputs or unused_inputs:
+            errors = []
+            if missing_inputs:
+                errors.append(f"missing inputs: {sorted(missing_inputs)}")
+            if unused_inputs:
+                errors.append(f"unused inputs: {sorted(unused_inputs)}")
+            raise ValueError("; ".join(errors))
+        return self
+
+
+def _get_direct_mustache_variables(template: str) -> set[str]:
+    parsed = pystache.parse(template, raise_on_mismatch=True)
+    parse_tree: list[Any] = parsed._parse_tree
+    variables: set[str] = set()
+    for node in parse_tree:
+        if not isinstance(node, (_EscapeNode, _LiteralNode)):
+            continue
+        key = getattr(node, "key", None)
+        if isinstance(key, str) and key != "." and "." not in key:
+            variables.add(key)
+    return variables
 
 
 MODELS_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 
-from typing import Literal, Optional
+from enum import Enum
+from typing import Any, Literal, Optional
 
+import pystache
 from pydantic import BaseModel
+from pydantic import field_validator, model_validator
+from pystache.parser import _EscapeNode, _LiteralNode  # type: ignore[import-untyped]
 
 
 {{ prompt_message_source }}
 
+{{ evaluator_scope_source }}
+
+{{ evaluator_category_source }}
+
+{{ evaluator_kind_source }}
+
+{{ evaluator_input_source }}
+
 {{ classification_evaluator_config_source }}
+
+{{ get_direct_mustache_variables_source }}
 """
 
 CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE = """\
@@ -54,13 +152,24 @@ from ._models import ClassificationEvaluatorConfig, PromptMessage
 INIT_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorKind,
+    EvaluatorScope,
+    PromptMessage,
+)
 {% for name in prompt_names -%}
 from ._{{ name.lower() }} import {{ name }}
 {% endfor %}
 
 __all__ = [
     "ClassificationEvaluatorConfig",
+    "EvaluatorCategory",
+    "EvaluatorInput",
+    "EvaluatorKind",
+    "EvaluatorScope",
     "PromptMessage",
     {{ prompt_names|map('tojson')|join(', ') }}
 ]
@@ -73,12 +182,22 @@ def get_models_file_contents() -> str:
     """
     template = Template(MODELS_TEMPLATE)
     prompt_message_source = inspect.getsource(PromptMessage).strip()
+    evaluator_scope_source = inspect.getsource(EvaluatorScope).strip()
+    evaluator_category_source = inspect.getsource(EvaluatorCategory).strip()
+    evaluator_kind_source = inspect.getsource(EvaluatorKind).strip()
+    evaluator_input_source = inspect.getsource(EvaluatorInput).strip()
     classification_evaluator_config_source = inspect.getsource(
         ClassificationEvaluatorConfig
     ).strip()
+    get_direct_mustache_variables_source = inspect.getsource(_get_direct_mustache_variables).strip()
     content = template.render(
         prompt_message_source=prompt_message_source,
+        evaluator_scope_source=evaluator_scope_source,
+        evaluator_category_source=evaluator_category_source,
+        evaluator_kind_source=evaluator_kind_source,
+        evaluator_input_source=evaluator_input_source,
         classification_evaluator_config_source=classification_evaluator_config_source,
+        get_direct_mustache_variables_source=get_direct_mustache_variables_source,
     )
     return content
 
@@ -88,9 +207,35 @@ def get_prompt_file_contents(config: ClassificationEvaluatorConfig, name: str) -
     Gets the Python code contents for a ClassificationEvaluatorConfig.
     """
     template = Template(CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE)
+    base_field_names = (
+        "name",
+        "description",
+        "optimization_direction",
+        "messages",
+        "choices",
+        "substitutions",
+        "labels",
+    )
+    arguments = [f"{field_name}={getattr(config, field_name)!r}" for field_name in base_field_names]
+    metadata = config.model_dump(
+        mode="json",
+        include={
+            "scope",
+            "recommended",
+            "category",
+            "kind",
+            "details",
+            "inputs",
+            "docs_link",
+        },
+        exclude_defaults=True,
+        exclude_none=True,
+    )
+    arguments.extend(f"{field_name}={value!r}" for field_name, value in metadata.items())
+    config_definition = f"ClassificationEvaluatorConfig({', '.join(arguments)})"
     content = template.render(
         classification_evaluator_config_name=name,
-        classification_evaluator_config_definition=repr(config),
+        classification_evaluator_config_definition=config_definition,
     )
     return content
 
