@@ -20,6 +20,10 @@ export const dslFilterCodeMirrorCSS = css`
      controls out of view — without this the flex item's auto minimum is
      the full content width */
   min-width: 0;
+  /* Grow from remaining flex space. An explicit 100% width paints the
+     scroller under the control cluster, so the error badge covers the
+     end of the expression and steals caret clicks. */
+  width: auto;
   .cm-content {
     padding: var(--global-dimension-size-100) 0;
   }
@@ -211,6 +215,12 @@ export const dslFilterFieldCSS = css`
     border-color: var(--global-color-warning);
   }
   box-sizing: border-box;
+  /* The editor row must fill the field so the CodeMirror flex item can
+     shrink instead of overflowing under the control cluster */
+  > .flex {
+    width: 100%;
+    min-width: 0;
+  }
   .filter-icon {
     margin-left: var(--global-dimension-size-100);
     margin-right: var(--global-dimension-size-50);
@@ -228,6 +238,7 @@ export const dslFilterFieldCSS = css`
   .error-badge {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
     gap: var(--global-dimension-size-50);
     max-width: 200px;
     overflow: hidden;
@@ -264,6 +275,13 @@ export const dslFilterFieldCSS = css`
   .error-badge__message {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  /* Icon-only validation errors: truncated copy used to cover the end of
+     the expression and intercept caret placement. Full detail stays in
+     the tooltip and the visually hidden status. */
+  .error-badge:not(:has(.error-badge__message)) {
+    max-width: none;
+    gap: 0;
   }
   /* The clear affordance only exists once there is something to clear —
      it leaves the layout entirely (no reserved empty slot) and grows in
