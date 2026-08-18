@@ -978,6 +978,14 @@ POSTGRES_JSON_SURFACE = [
         "FROM spans",
         id="computed_key_nested_accessor",
     ),
+    # A key holding an apostrophe, and the root-only path. Both are emissions
+    # the generator gets wrong on its own, so both have to reach the engine.
+    pytest.param(
+        "SELECT '{\"c''d\":7}'::jsonb -> 'c''d' AS v FROM spans", id="quoted_key"
+    ),
+    pytest.param(
+        "SELECT json_extract('{\"a\":1}'::jsonb, '$') AS v FROM spans", id="root_path"
+    ),
     # The array-constructor spelling of a `#>` path, which reaches the same
     # value as `#> '{a,b}'`.
     pytest.param(

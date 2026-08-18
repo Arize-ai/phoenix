@@ -2103,3 +2103,32 @@ def test_a_comparison_with_no_epoch_side_is_left_alone() -> None:
     """Guards the test above: converting every comparison would also satisfy it."""
     rendered = _rendered("SELECT count(*) AS v FROM spans WHERE start_time > '2026-07-30'")
     assert "UNIXEPOCH" not in rendered.upper()
+
+
+@pytest.mark.parametrize(
+    ("sql", "dialect"),
+    [
+        ("SELECT attributes -> 'c''d' AS v FROM spans", "postgresql"),
+        ("SELECT attributes ->> 'c''d' AS v FROM spans", "postgresql"),
+        ("SELECT attributes -> '$.\"c''d\"' AS v FROM spans", "sqlite"),
+        ("SELECT attributes ->> '$.\"c''d\"' AS v FROM spans", "sqlite"),
+    ],
+)
+def test_a_json_key_containing_a_quote_is_escaped(sql: str, dialect: str) -> None:
+    """A key holding an apostrophe must not close its own string literal.
+
+    Attribute keys are arbitrary, and describeSqlSchema publishes the populated
+    paths, so an unescaped one is a spelling the surface prints and cannot run.
+    """
+    root = parse_sql(sql, dialect=cast(Any, dialect))
+    root = admit(root, allowlist=load_allowlist(cast(Any, dialect)), dialect=cast(Any, dialect))
+    rendered = render(rewrite(root, _ctx(cast(Any, dialect))), dialect=cast(Any, dialect))
+    assert rendered.count("'") % 2 == 0, f"unbalanced quotes: {rendered}"
+    assert "''" in rendered
+
+
+def test_a_json_key_without_a_quote_keeps_its_path_form() -> None:
+    """Guards the test above: rewriting every path would also satisfy it."""
+    rendered = _rendered("SELECT attributes -> '$.llm' AS v FROM spans")
+    assert "json_path_quote_repair" not in _ctx("sqlite").applied
+    assert "->" in rendered
