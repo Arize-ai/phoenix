@@ -657,6 +657,27 @@ _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAd
 )
 
 
+def _dump_for_pydantic_ai(messages: Sequence[PhoenixUIMessage]) -> list[dict[str, Any]]:
+    """Dump persisted messages into the shape pydantic-ai's UI models accept.
+
+    A few part fields are defined by AI SDK v7 but not modelled by pydantic-ai, so Phoenix
+    carries them on its own copies of the parts to keep what the client sent. pydantic-ai's
+    models set ``extra="forbid"``, so those fields have to come back off here or validation
+    fails. Nothing is lost: pydantic-ai has no field to load them into either way.
+    """
+    dumped: list[dict[str, Any]] = []
+    for message in messages:
+        payload = message.model_dump(mode="json", by_alias=True, exclude_none=True)
+        for part in payload.get("parts", ()):
+            if part.get("type") == "reasoning":
+                # The id grouping a reasoning block's stream chunks.
+                part.pop("id", None)
+            # Result-side provider metadata on the four tool output parts.
+            part.pop("resultProviderMetadata", None)
+        dumped.append(payload)
+    return dumped
+
+
 def _to_pydantic_ai_request_data(
     request_data: ChatRequestBody,
     *,
@@ -665,19 +686,12 @@ def _to_pydantic_ai_request_data(
     """Validate wire types into pydantic-ai's runtime request classes."""
     return PydanticAISubmitMessage(
         id=request_data.id,
-        messages=_PydanticAIUIMessageListAdapter.validate_python(
-            [
-                message.model_dump(mode="json", by_alias=True, exclude_none=True)
-                for message in messages
-            ]
-        ),
+        messages=_PydanticAIUIMessageListAdapter.validate_python(_dump_for_pydantic_ai(messages)),
     )
 
 
 def _to_pydantic_ai_messages(messages: Sequence[PhoenixUIMessage]) -> list[ModelMessage]:
-    ui_messages = _PydanticAIUIMessageListAdapter.validate_python(
-        [message.model_dump(mode="json", by_alias=True, exclude_none=True) for message in messages]
-    )
+    ui_messages = _PydanticAIUIMessageListAdapter.validate_python(_dump_for_pydantic_ai(messages))
     return VercelAIAdapter.load_messages(ui_messages)
 
 

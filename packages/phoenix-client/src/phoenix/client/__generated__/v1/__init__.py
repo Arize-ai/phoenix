@@ -744,13 +744,6 @@ class PydanticAIMessageMetadata(TypedDict):
     timestamp: NotRequired[str]
 
 
-class ReasoningUIPart(TypedDict):
-    type: Literal["reasoning"]
-    text: str
-    state: NotRequired[Literal["streaming", "done"]]
-    providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
-
-
 class SecretKeyValue(TypedDict):
     key: str
     value: Optional[str]
@@ -1165,6 +1158,14 @@ class PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart(Typ
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
+class PhoenixDbTypesDataStreamProtocolRequestTypesReasoningUIPart(TypedDict):
+    type: Literal["reasoning"]
+    text: str
+    id: NotRequired[str]
+    state: NotRequired[Literal["streaming", "done"]]
+    providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
 class PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart(TypedDict):
     type: str
     toolCallId: str
@@ -1218,6 +1219,13 @@ class PydanticAiUiVercelAiRequestTypesDynamicToolOutputErrorPart(TypedDict):
     providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class PydanticAiUiVercelAiRequestTypesReasoningUIPart(TypedDict):
+    type: Literal["reasoning"]
+    text: str
+    state: NotRequired[Literal["streaming", "done"]]
+    providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 
 
 class PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart(TypedDict):
@@ -1938,7 +1946,7 @@ class LegacyAssistantMetadataUIMessage(TypedDict):
     parts: Sequence[
         Union[
             TextUIPart,
-            ReasoningUIPart,
+            PydanticAiUiVercelAiRequestTypesReasoningUIPart,
             ToolInputStreamingPart,
             ToolInputAvailablePart,
             PydanticAiUiVercelAiRequestTypesToolOutputAvailablePart,
@@ -2048,7 +2056,7 @@ class PhoenixUIMessage(TypedDict):
     parts: Sequence[
         Union[
             TextUIPart,
-            ReasoningUIPart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesReasoningUIPart,
             ToolInputStreamingPart,
             ToolInputAvailablePart,
             PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,

@@ -16,6 +16,7 @@ _LOCAL_FIELD_ADDITIONS: dict[str, frozenset[str]] = {
     "ToolOutputErrorPart": frozenset({"result_provider_metadata"}),
     "DynamicToolOutputAvailablePart": frozenset({"result_provider_metadata"}),
     "DynamicToolOutputErrorPart": frozenset({"result_provider_metadata"}),
+    "ReasoningUIPart": frozenset({"id"}),
 }
 """Fields Phoenix adds to the vendored parts because pydantic-ai lags AI SDK v7.
 
@@ -38,6 +39,7 @@ def _strip_local_additions(tree: ast.Module) -> ast.Module:
         if not (added := _LOCAL_FIELD_ADDITIONS.get(node.name)):
             continue
         kept = []
+        drop_field_docstring = False
         for stmt in node.body:
             if (
                 isinstance(stmt, ast.AnnAssign)
@@ -45,7 +47,15 @@ def _strip_local_additions(tree: ast.Module) -> ast.Module:
                 and stmt.target.id in added
             ):
                 stripped.setdefault(node.name, set()).add(stmt.target.id)
+                drop_field_docstring = True
                 continue
+            if drop_field_docstring:
+                drop_field_docstring = False
+                # A bare string literal directly after a field declaration documents that
+                # field, so it is part of the local addition and has no upstream counterpart.
+                if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant):
+                    if isinstance(stmt.value.value, str):
+                        continue
             kept.append(stmt)
         node.body = kept
     assert stripped == {name: set(fields) for name, fields in _LOCAL_FIELD_ADDITIONS.items()}, (

@@ -3669,7 +3669,7 @@ export interface components {
             role: "system" | "user" | "assistant";
             metadata?: components["schemas"]["LegacyAssistantMessageMetadata"] | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * LegacyChatRegenerateMessage
@@ -4255,7 +4255,7 @@ export interface components {
             role: "system" | "user" | "assistant";
             metadata?: components["schemas"]["MessageMetadata"] | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * PhoenixUserMessageMetadata
@@ -5230,28 +5230,6 @@ export interface components {
         PydanticAIMessageMetadata: {
             /** Timestamp */
             timestamp?: string | null;
-        };
-        /**
-         * ReasoningUIPart
-         * @description A reasoning part of a message.
-         */
-        ReasoningUIPart: {
-            /**
-             * Type
-             * @default reasoning
-             * @constant
-             */
-            type?: "reasoning";
-            /** Text */
-            text: string;
-            /** State */
-            state?: ("streaming" | "done") | null;
-            /** Providermetadata */
-            providerMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
         };
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
@@ -6693,6 +6671,30 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
+         * ReasoningUIPart
+         * @description A reasoning part of a message.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__ReasoningUIPart: {
+            /**
+             * Type
+             * @default reasoning
+             * @constant
+             */
+            type?: "reasoning";
+            /** Id */
+            id?: string | null;
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+        };
+        /**
          * ToolOutputAvailablePart
          * @description Tool part in output-available state.
          */
@@ -6849,6 +6851,28 @@ export interface components {
             } | null;
             /** Approval */
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ReasoningUIPart
+         * @description A reasoning part of a message.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__ReasoningUIPart: {
+            /**
+             * Type
+             * @default reasoning
+             * @constant
+             */
+            type?: "reasoning";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
         };
         /**
          * ToolOutputAvailablePart

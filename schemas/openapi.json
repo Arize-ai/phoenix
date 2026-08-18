@@ -14102,7 +14102,7 @@
                   "$ref": "#/components/schemas/TextUIPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ReasoningUIPart"
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__ReasoningUIPart"
                 },
                 {
                   "$ref": "#/components/schemas/ToolInputStreamingPart"
@@ -15560,7 +15560,7 @@
                   "$ref": "#/components/schemas/TextUIPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ReasoningUIPart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ReasoningUIPart"
                 },
                 {
                   "$ref": "#/components/schemas/ToolInputStreamingPart"
@@ -17998,57 +17998,6 @@
         "type": "object",
         "title": "PydanticAIMessageMetadata",
         "description": "Local pin of pydantic-ai's message-level ``pydantic_ai`` metadata\nnamespace (its private ``_PydanticAIMessageMetadata``), merged into the\nassistant metadata by the stream's metadata chunk."
-      },
-      "ReasoningUIPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "reasoning",
-            "title": "Type",
-            "default": "reasoning"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "state": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "streaming",
-                  "done"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "State"
-          },
-          "providerMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providermetadata"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "text"
-        ],
-        "title": "ReasoningUIPart",
-        "description": "A reasoning part of a message."
       },
       "ResponseBody_UpsertOrDeleteSecretsResult_": {
         "properties": {
@@ -21128,6 +21077,68 @@
         "title": "DynamicToolOutputErrorPart",
         "description": "Dynamic tool part in output-error state."
       },
+      "phoenix__db__types__data_stream_protocol__request_types__ReasoningUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "reasoning",
+            "title": "Type",
+            "default": "reasoning"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "streaming",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ReasoningUIPart",
+        "description": "A reasoning part of a message."
+      },
       "phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart": {
         "properties": {
           "type": {
@@ -21559,6 +21570,57 @@
         ],
         "title": "DynamicToolOutputErrorPart",
         "description": "Dynamic tool part in output-error state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__ReasoningUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "reasoning",
+            "title": "Type",
+            "default": "reasoning"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "streaming",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ReasoningUIPart",
+        "description": "A reasoning part of a message."
       },
       "pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart": {
         "properties": {
