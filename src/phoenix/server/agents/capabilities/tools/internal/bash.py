@@ -31,16 +31,7 @@ TMP_ROOT = "/tmp"
 
 @dataclass
 class GraphQLMutationPolicy:
-    """Mutation-execution policy shared between the ``bash`` tool and the
-    ``phoenix-gql`` builtin.
-
-    ``allow_mutations`` and ``require_approval`` are fixed for the toolset's
-    lifetime; the ``bash`` tool stamps ``approved`` onto this policy at the top
-    of every call, under the toolset's execution lock, and the builtin reads it
-    when it is about to run a mutation. ``mutations_allowed`` is the single
-    enforcement point: a mutation never executes on a call that required
-    approval and did not get it, whatever the model declared.
-    """
+    """Mutation-execution policy"""
 
     allow_mutations: bool
     require_approval: bool = False
@@ -323,9 +314,6 @@ def create_phoenix_gql_builtin(
             if is_mutation and not mutation_policy.allow_mutations:
                 raise ValueError("Mutations are not permitted.")
             if is_mutation and not mutation_policy.mutations_allowed:
-                # The command reached a mutation on a call that was never
-                # approved, which means the model omitted mutation_description
-                # and so no approval was ever requested.
                 raise ValueError(
                     "This mutation requires the user's approval, which this "
                     "command did not request. Re-issue the bash call with a "
@@ -458,16 +446,8 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         initial_snapshot: Optional[bytes] = None,
         on_snapshot: Optional[Callable[[bytes], None]] = None,
     ) -> None:
-        # Both flags are stated by the caller rather than inferred from the run:
-        # only the caller knows whether this run can surface an approval request
-        # at all, and a run that cannot must not be handed mutations it would
-        # need to ask about. See the call sites in ``build_agent`` /
-        # ``build_server_agent``.
         mutation_policy = GraphQLMutationPolicy(
             allow_mutations=allow_mutations,
-            # Approval is only required for a mutation that could actually run:
-            # with mutations off the builtin refuses outright, and asking the
-            # user to approve something that cannot execute is noise.
             require_approval=allow_mutations and require_mutation_approval,
         )
         shell = _build_shell(
@@ -482,8 +462,7 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         # stamps its own require_approval/approved onto that shared policy, so
         # without this lock one call's approval could be live while another
         # call's unapproved mutation executes. The lock is what makes the
-        # policy's enforcement per-call, and it is load-bearing for the
-        # invariant that an unapproved mutation never runs.
+        # policy's enforcement per-call.
         execution_lock = asyncio.Lock()
 
         async def bash(
@@ -493,19 +472,12 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
             mutation_description: Optional[str] = None,
         ) -> BashToolResult:
             async with execution_lock:
-                # Always assign, never only on approval: the policy outlives a
-                # single call because the shell is long-lived, so a stale
-                # approval from an earlier call must never carry into this one.
                 mutation_policy.approved = ctx.tool_call_approved
                 if (
                     mutation_description
                     and mutation_policy.require_approval
                     and not ctx.tool_call_approved
                 ):
-                    # The model declared that this command mutates, so ask
-                    # before running anything. Nothing has executed yet, so a
-                    # denial leaves no side effects and an approval runs the
-                    # command exactly once.
                     raise ApprovalRequired()
                 started_at = datetime.now(timezone.utc)
                 start = time.monotonic()
