@@ -3,4 +3,4 @@ anthropic
 google-genai
 litellm>=1.83.14; python_version < '3.14'
 mypy-boto3-bedrock-runtime
-openai
+openai>=3.1.0,<4
