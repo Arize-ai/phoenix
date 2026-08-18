@@ -161,6 +161,15 @@ def _loads_tolerant(s: str) -> Any:
         return json.loads(_TRAILING_COMMA_RE.sub(r"\1", s))
 
 
+def _pg_text(value: str | None) -> str | None:
+    """Drop U+0000. Postgres rejects NULs in text/varchar; TRAIL explanations
+    contain them (``frame\\x00by\\x00frame``), and the insert then 500s.
+    """
+    if value is None:
+        return None
+    return str(value).replace("\x00", "")
+
+
 def _parse_iso8601_duration(s: str) -> timedelta:
     if not (m := _ISO_DUR_RE.match(s)) or not any(m.groupdict().values()):
         raise ValueError(f"unparseable duration: {s!r}")
@@ -228,14 +237,14 @@ def _to_phoenix_span(raw: dict[str, Any], mapper: IdMapper) -> dict[str, Any]:
         if ts := (ev.get("timestamp") or ev.get("time")):
             events.append(
                 {
-                    "name": str(ev.get("name", "")),
+                    "name": _pg_text(str(ev.get("name", ""))) or "",
                     "timestamp": _parse_timestamp(ts).isoformat(),
                     "attributes": dict(ev.get("attributes") or {}),
                 }
             )
 
     span: dict[str, Any] = {
-        "name": str(raw.get("span_name") or "span"),
+        "name": _pg_text(str(raw.get("span_name") or "span")) or "span",
         "context": {
             "trace_id": mapper.map_trace(str(raw["trace_id"])),
             "span_id": mapper.map_span(str(raw["span_id"])),
@@ -250,7 +259,7 @@ def _to_phoenix_span(raw: dict[str, Any], mapper: IdMapper) -> dict[str, Any]:
     if parent := raw.get("parent_span_id"):
         span["parent_id"] = mapper.map_span(str(parent))
     if msg := raw.get("status_message"):
-        span["status_message"] = str(msg)
+        span["status_message"] = _pg_text(str(msg)) or ""
     return span
 
 
@@ -265,10 +274,10 @@ def _to_span_annotations(errors: list[dict[str, Any]], mapper: IdMapper) -> list
         if not (original := err.get("location")):
             continue
         span_id = mapper.map_span(str(original))
-        category = str(err.get("category") or "unknown")
+        category = _pg_text(str(err.get("category") or "unknown")) or "unknown"
         impact = str(err.get("impact") or "MEDIUM").lower()
-        description = str(err.get("description") or "")
-        evidence = str(err.get("evidence") or "")
+        description = _pg_text(str(err.get("description") or "")) or ""
+        evidence = _pg_text(str(err.get("evidence") or "")) or ""
         explanation = description if not evidence else f"{description}\n\nEvidence: {evidence}"
         out.append(
             {
@@ -296,7 +305,7 @@ def _extract_scores(
     out: list[tuple[str, float, str | None]] = []
     for metric in TRAIL_SCORE_METRICS:
         if (val := scores.get(f"{metric}_score")) is not None:
-            out.append((metric, float(val), scores.get(f"{metric}_reasoning")))
+            out.append((metric, float(val), _pg_text(scores.get(f"{metric}_reasoning"))))
     if (overall := scores.get("overall")) is not None:
         out.append(("overall", float(overall), None))
     return out
