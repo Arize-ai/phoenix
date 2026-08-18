@@ -2,8 +2,10 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
-import { EXECUTE_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
-import { abortActiveUiScriptRun } from "@phoenix/agent/uiOperations/executeUiAgentTool";
+import {
+  abortActiveUiScriptRun,
+  EXECUTE_UI_TOOL_NAME,
+} from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import type { AgentState } from "@phoenix/store/agentStore";
 
 type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
