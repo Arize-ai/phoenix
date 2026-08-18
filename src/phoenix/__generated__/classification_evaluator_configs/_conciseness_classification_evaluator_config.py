@@ -16,4 +16,11 @@ CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"concise": 1.0, "verbose": 0.0},
     substitutions={"output": "output_messages_to_conversation"},
     labels=[],
+    scope="span",
+    category="response_quality",
+    details="TODO: Add detailed guidance for this evaluator.",
+    inputs={
+        "input": {"description": "TODO: Describe the input field."},
+        "output": {"description": "TODO: Describe the output field."},
+    },
 )

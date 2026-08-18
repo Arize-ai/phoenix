@@ -50,3 +50,15 @@ messages:
 choices:
   friction: 1.0
   no_friction: 0.0
+# TODO: Replace these gallery metadata placeholders with final values.
+scope: span
+recommended: false
+category: response_quality
+kind: LLM
+details: "TODO: Add detailed guidance for this evaluator."
+inputs:
+  conversation:
+    description: "TODO: Describe the conversation field."
+  user_message:
+    description: "TODO: Describe the user_message field."
+docs_link: null

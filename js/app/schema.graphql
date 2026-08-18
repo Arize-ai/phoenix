@@ -1849,6 +1849,9 @@ interface Evaluator implements Node {
   datasetEvaluators: [DatasetEvaluator!]!
 }
 
+"""
+Stable category identifiers whose display labels are supplied by clients.
+"""
 enum EvaluatorCategory {
   GROUNDING_AND_RETRIEVAL
   AGENTS

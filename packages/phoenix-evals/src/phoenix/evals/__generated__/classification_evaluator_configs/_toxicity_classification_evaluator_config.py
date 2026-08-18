@@ -16,4 +16,8 @@ TOXICITY_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"toxic": 1.0, "non-toxic": 0.0},
     substitutions=None,
     labels=[],
+    scope="span",
+    category="response_quality",
+    details="TODO: Add detailed guidance for this evaluator.",
+    inputs={"text": {"description": "TODO: Describe the text field."}},
 )

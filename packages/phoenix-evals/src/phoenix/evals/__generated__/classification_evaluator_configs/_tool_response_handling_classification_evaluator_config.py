@@ -16,4 +16,13 @@ TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluator
     choices={"correct": 1.0, "incorrect": 0.0},
     substitutions=None,
     labels=[],
+    scope="span",
+    category="response_quality",
+    details="TODO: Add detailed guidance for this evaluator.",
+    inputs={
+        "input": {"description": "TODO: Describe the input field."},
+        "output": {"description": "TODO: Describe the output field."},
+        "tool_call": {"description": "TODO: Describe the tool_call field."},
+        "tool_result": {"description": "TODO: Describe the tool_result field."},
+    },
 )

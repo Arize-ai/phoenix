@@ -16,4 +16,11 @@ USER_FRICTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"friction": 1.0, "no_friction": 0.0},
     substitutions=None,
     labels=[],
+    scope="span",
+    category="response_quality",
+    details="TODO: Add detailed guidance for this evaluator.",
+    inputs={
+        "conversation": {"description": "TODO: Describe the conversation field."},
+        "user_message": {"description": "TODO: Describe the user_message field."},
+    },
 )

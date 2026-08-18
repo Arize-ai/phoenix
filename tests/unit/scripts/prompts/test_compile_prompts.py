@@ -42,10 +42,10 @@ def test_gallery_metadata_survives_parsing(compiler_module: ModuleType) -> None:
         )
     )
 
-    assert model.scope.value == "trace"
+    assert model.scope == "trace"
     assert model.recommended is True
-    assert model.category.value == "response_quality"
-    assert model.kind.value == "CODE"
+    assert model.category == "response_quality"
+    assert model.kind == "CODE"
     assert model.inputs["input"].description == "The user request."
     assert model.inputs["input"].format == "text"
 
@@ -65,7 +65,7 @@ def test_omitted_metadata_is_backward_compatible(compiler_module: ModuleType) ->
     assert model.scope is None
     assert model.recommended is False
     assert model.category is None
-    assert model.kind.value == "LLM"
+    assert model.kind == "LLM"
     assert model.inputs is None
 
 
@@ -95,27 +95,29 @@ def test_python_generator_emits_only_supplied_metadata() -> None:
     assert "<Evaluator" not in gallery_source
 
 
-def test_inputs_match_direct_variables_and_substitutions(compiler_module: ModuleType) -> None:
+@pytest.mark.parametrize(
+    "content",
+    [
+        "Input: {{input}}; value: {{nested.value}}",
+        "Input: {input}; value: {nested.value}",
+    ],
+)
+def test_inputs_match_variables_for_supported_template_formats(
+    compiler_module: ModuleType,
+    content: str,
+) -> None:
     model = compiler_module.ClassificationEvaluatorConfig.model_validate(
         _config(
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        "{{input}} {{#items}}{{name}}{{/items}} {{^missing}}none{{/missing}} "
-                        "{{! ignored }} {{{.}}} {{output.value}} {{available_tools}}"
-                    ),
-                }
-            ],
-            substitutions={"available_tools": "available_tools_list"},
+            messages=[{"role": "user", "content": content}],
+            substitutions={"unused_placeholder": "available_tools_list"},
             inputs={
                 "input": {"description": "Input"},
-                "available_tools": {"description": "Available tools"},
+                "nested": {"description": "Nested input"},
             },
         )
     )
 
-    assert set(model.inputs) == {"input", "available_tools"}
+    assert set(model.inputs) == {"input", "nested"}
 
 
 @pytest.mark.parametrize(

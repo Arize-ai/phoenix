@@ -10,7 +10,7 @@ from phoenix.__generated__.classification_evaluator_configs import (
 )
 from phoenix.server.api.helpers.classification_evaluator_configs import (
     get_classification_evaluator_configs,
-    is_gallery_ready,
+    get_evaluator_gallery_configs,
 )
 
 
@@ -43,23 +43,7 @@ def make_config(
     return _make_config
 
 
-def test_gallery_readiness_requires_complete_metadata(
-    make_config: Callable[..., ClassificationEvaluatorConfig],
-) -> None:
-    ready = make_config()
-    missing_scope = make_config(scope=None)
-    missing_category = make_config(category=None)
-    missing_details = make_config(details=None)
-    empty_inputs = make_config(inputs=None)
-
-    assert is_gallery_ready(ready)
-    assert not is_gallery_ready(missing_scope)
-    assert not is_gallery_ready(missing_category)
-    assert not is_gallery_ready(missing_details)
-    assert not is_gallery_ready(empty_inputs)
-
-
-def test_gallery_filter_ignores_labels_and_uses_stable_order(
+def test_gallery_includes_all_configs_and_uses_stable_order(
     make_config: Callable[..., ClassificationEvaluatorConfig],
 ) -> None:
     make_config(name="zeta", recommended=False, category="agents", labels=[])
@@ -72,12 +56,15 @@ def test_gallery_filter_ignores_labels_and_uses_stable_order(
     make_config(name="alpha", recommended=True, category="agents", labels=[])
     make_config(name="partial", scope=None, labels=["requested"])
 
-    gallery_configs = get_classification_evaluator_configs(labels=["requested"], gallery_ready=True)
+    gallery_configs = get_evaluator_gallery_configs()
+    test_configs = [
+        config for config in gallery_configs if config.name in {"alpha", "beta", "partial", "zeta"}
+    ]
 
-    assert [config.name for config in gallery_configs] == ["alpha", "beta", "zeta"]
+    assert [config.name for config in test_configs] == ["alpha", "beta", "zeta", "partial"]
 
 
-def test_gallery_expands_substitutions_before_returning_config(
+def test_gallery_preserves_raw_templates(
     make_config: Callable[..., ClassificationEvaluatorConfig],
 ) -> None:
     make_config(
@@ -87,10 +74,10 @@ def test_gallery_expands_substitutions_before_returning_config(
         inputs={"available_tools": {"description": "Available tools"}},
     )
 
-    gallery_configs = get_classification_evaluator_configs(gallery_ready=True)
+    gallery_configs = get_evaluator_gallery_configs()
     tools_config = next(config for config in gallery_configs if config.name == "tools")
 
-    assert "{{#output.available_tools}}" in tools_config.messages[0].content
+    assert tools_config.messages[0].content == "{{available_tools}}"
 
 
 def test_legacy_filter_and_order_are_unchanged(

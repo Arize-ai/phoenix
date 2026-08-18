@@ -16,7 +16,9 @@ class EvaluatorScope(Enum):
     SESSION = "session"
 
 
-@strawberry.enum
+@strawberry.enum(
+    description="Stable category identifiers whose display labels are supplied by clients."
+)
 class EvaluatorCategory(Enum):
     GROUNDING_AND_RETRIEVAL = "grounding_and_retrieval"
     AGENTS = "agents"

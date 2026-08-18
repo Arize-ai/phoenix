@@ -16,4 +16,11 @@ DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConf
     choices={"relevant": 1.0, "unrelated": 0.0},
     substitutions=None,
     labels=[],
+    scope="span",
+    category="response_quality",
+    details="TODO: Add detailed guidance for this evaluator.",
+    inputs={
+        "document_text": {"description": "TODO: Describe the document_text field."},
+        "input": {"description": "TODO: Describe the input field."},
+    },
 )

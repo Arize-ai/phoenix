@@ -57,3 +57,17 @@ choices:
 substitutions:
   available_tools: available_tools_list
   tool_selection: output_with_tool_calls
+# TODO: Replace these gallery metadata placeholders with final values.
+scope: span
+recommended: false
+category: response_quality
+kind: LLM
+details: "TODO: Add detailed guidance for this evaluator."
+inputs:
+  available_tools:
+    description: "TODO: Describe the available_tools field."
+  input:
+    description: "TODO: Describe the input field."
+  tool_selection:
+    description: "TODO: Describe the tool_selection field."
+docs_link: null

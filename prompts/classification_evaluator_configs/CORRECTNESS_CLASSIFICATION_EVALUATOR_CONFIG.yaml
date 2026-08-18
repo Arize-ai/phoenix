@@ -48,3 +48,15 @@ messages:
 choices:
   correct: 1.0
   incorrect: 0.0
+# TODO: Replace these gallery metadata placeholders with final values.
+scope: span
+recommended: false
+category: response_quality
+kind: LLM
+details: "TODO: Add detailed guidance for this evaluator."
+inputs:
+  input:
+    description: "TODO: Describe the input field."
+  output:
+    description: "TODO: Describe the output field."
+docs_link: null

@@ -16,4 +16,11 @@ REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"refused": 1.0, "answered": 0.0},
     substitutions=None,
     labels=[],
+    scope="span",
+    category="response_quality",
+    details="TODO: Add detailed guidance for this evaluator.",
+    inputs={
+        "input": {"description": "TODO: Describe the input field."},
+        "output": {"description": "TODO: Describe the output field."},
+    },
 )

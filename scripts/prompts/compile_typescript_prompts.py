@@ -5,15 +5,13 @@ Compiles YAML prompts into TypeScript code.
 import argparse
 import json
 import re
-from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 
-import pystache
 import yaml
 from jinja2 import Template
+from phoenix.evals.llm.prompts import FormatterFactory
 from pydantic import BaseModel, field_validator, model_validator
-from pystache.parser import _EscapeNode, _LiteralNode  # type: ignore[import-untyped]
 
 
 class PromptMessage(BaseModel):
@@ -21,23 +19,15 @@ class PromptMessage(BaseModel):
     content: str
 
 
-class EvaluatorScope(str, Enum):
-    SPAN = "span"
-    TRACE = "trace"
-    SESSION = "session"
-
-
-class EvaluatorCategory(str, Enum):
-    GROUNDING_AND_RETRIEVAL = "grounding_and_retrieval"
-    AGENTS = "agents"
-    RESPONSE_QUALITY = "response_quality"
-    SAFETY_AND_SECURITY = "safety_and_security"
-    USER_EXPERIENCE = "user_experience"
-
-
-class EvaluatorKind(str, Enum):
-    LLM = "LLM"
-    CODE = "CODE"
+EvaluatorScope = Literal["span", "trace", "session"]
+EvaluatorCategory = Literal[
+    "grounding_and_retrieval",
+    "agents",
+    "response_quality",
+    "safety_and_security",
+    "user_experience",
+]
+EvaluatorKind = Literal["LLM", "CODE"]
 
 
 class EvaluatorInput(BaseModel):
@@ -63,7 +53,7 @@ class ClassificationEvaluatorConfig(BaseModel):
     scope: Optional[EvaluatorScope] = None
     recommended: bool = False
     category: Optional[EvaluatorCategory] = None
-    kind: EvaluatorKind = EvaluatorKind.LLM
+    kind: EvaluatorKind = "LLM"
     details: Optional[str] = None
     inputs: Optional[dict[str, EvaluatorInput]] = None
     docs_link: Optional[str] = None
@@ -82,9 +72,9 @@ class ClassificationEvaluatorConfig(BaseModel):
         if self.inputs is None:
             return self
 
-        source_variables = set(self.substitutions or {})
+        source_variables = set()
         for message in self.messages:
-            source_variables.update(_get_direct_mustache_variables(message.content))
+            source_variables.update(_get_template_variables(message.content))
 
         declared_inputs = set(self.inputs)
         missing_inputs = source_variables - declared_inputs
@@ -99,17 +89,13 @@ class ClassificationEvaluatorConfig(BaseModel):
         return self
 
 
-def _get_direct_mustache_variables(template: str) -> set[str]:
-    parsed = pystache.parse(template, raise_on_mismatch=True)
-    parse_tree: list[Any] = parsed._parse_tree
-    variables: set[str] = set()
-    for node in parse_tree:
-        if not isinstance(node, (_EscapeNode, _LiteralNode)):
-            continue
-        key = getattr(node, "key", None)
-        if isinstance(key, str) and key != "." and "." not in key:
-            variables.add(key)
-    return variables
+def _get_template_variables(template: str) -> set[str]:
+    formatter = FormatterFactory.auto_detect_and_create(template)
+    return {
+        re.split(r"[.\[]", variable, maxsplit=1)[0]
+        for variable in formatter.extract_variables(template)
+        if variable != "."
+    }
 
 
 CLASSIFICATION_EVALUATOR_CONFIG_FILE_TEMPLATE = """\

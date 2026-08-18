@@ -48,6 +48,7 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.classification_evaluator_configs import (
     get_classification_evaluator_configs,
+    get_evaluator_gallery_configs,
 )
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
@@ -174,6 +175,7 @@ initialize_playground_clients()
 def _to_gql_classification_evaluator_config(
     config: PydanticClassificationEvaluatorConfig,
 ) -> ClassificationEvaluatorConfig:
+    """Convert a generated config to the GraphQL shape shared by both config queries."""
     if config.optimization_direction == "maximize":
         optimization_direction = OptimizationDirection.MAXIMIZE
     elif config.optimization_direction == "minimize":
@@ -1591,7 +1593,7 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[ClassificationEvaluatorConfig]:
-        configs = get_classification_evaluator_configs(gallery_ready=True)
+        configs = get_evaluator_gallery_configs()
         return [_to_gql_classification_evaluator_config(config) for config in configs]
 
     @strawberry.field

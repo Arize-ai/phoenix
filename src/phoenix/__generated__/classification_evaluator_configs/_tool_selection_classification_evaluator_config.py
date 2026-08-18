@@ -19,4 +19,12 @@ TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         "tool_selection": "output_with_tool_calls",
     },
     labels=["promoted_dataset_evaluator"],
+    scope="span",
+    category="response_quality",
+    details="TODO: Add detailed guidance for this evaluator.",
+    inputs={
+        "available_tools": {"description": "TODO: Describe the available_tools field."},
+        "input": {"description": "TODO: Describe the input field."},
+        "tool_selection": {"description": "TODO: Describe the tool_selection field."},
+    },
 )

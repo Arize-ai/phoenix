@@ -103,17 +103,12 @@ class TestEvaluatorGalleryConfigsQuery:
             labels=["legacy"],
         )
 
-        def get_configs(
-            labels: Optional[list[str]] = None,
-            *,
-            gallery_ready: bool = False,
-        ) -> list[ClassificationEvaluatorConfig]:
-            if gallery_ready:
-                return [ready]
+        def get_configs(labels: Optional[list[str]] = None) -> list[ClassificationEvaluatorConfig]:
             assert labels == ["legacy"]
             return [legacy]
 
         monkeypatch.setattr(queries, "get_classification_evaluator_configs", get_configs)
+        monkeypatch.setattr(queries, "get_evaluator_gallery_configs", lambda: [ready])
 
         response = await gql_client.execute(query=self._QUERY)
 

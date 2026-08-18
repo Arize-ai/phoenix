@@ -16,4 +16,12 @@ FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"faithful": 1.0, "unfaithful": 0.0},
     substitutions=None,
     labels=[],
+    scope="span",
+    category="response_quality",
+    details="TODO: Add detailed guidance for this evaluator.",
+    inputs={
+        "context": {"description": "TODO: Describe the context field."},
+        "input": {"description": "TODO: Describe the input field."},
+        "output": {"description": "TODO: Describe the output field."},
+    },
 )
