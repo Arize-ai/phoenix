@@ -162,12 +162,13 @@ def _loads_tolerant(s: str) -> Any:
 
 
 def _pg_text(value: str | None) -> str | None:
-    """Drop U+0000. Postgres rejects NULs in text/varchar; TRAIL explanations
-    contain them (``frame\\x00by\\x00frame``), and the insert then 500s.
+    """Replace U+0000 with a space. Postgres rejects NULs in text/varchar;
+    TRAIL explanations contain them (``frame\\x00by\\x00frame``), and the
+    insert then 500s. A space keeps word boundaries (``frame by frame``).
     """
     if value is None:
         return None
-    return str(value).replace("\x00", "")
+    return str(value).replace("\x00", " ")
 
 
 def _parse_iso8601_duration(s: str) -> timedelta:
