@@ -1362,6 +1362,37 @@ def _timestamp_unit_function_call(
     return None
 
 
+def _timestamp_unit_through_arithmetic(node: Optional[exp.Expression]) -> Optional[str]:
+    """The unit a side is expressed in, seen through arithmetic.
+
+    `unixepoch('now') - 3600` is an epoch value exactly as `unixepoch('now')`
+    is; shifting it by a constant does not change its unit. Without this, a
+    bounded window -- the most common form of "recent" -- is left comparing
+    text to an integer.
+    """
+    unwrapped = _strip_parens(node)
+    if isinstance(unwrapped, (exp.Add, exp.Sub, exp.Mul, exp.Div)):
+        for operand in (unwrapped.this, unwrapped.expression):
+            found = _timestamp_unit_through_arithmetic(operand)
+            if found is not None:
+                return found
+        return None
+    unit = _timestamp_unit_function_call(unwrapped)
+    return unit[0] if unit is not None else None
+
+
+def _comparison_operands(node: exp.Condition) -> tuple[Optional[exp.Expression], ...]:
+    """Both sides of a comparison, or all three parts of a BETWEEN."""
+    if isinstance(node, exp.Between):
+        return (node.this, node.args.get("low"), node.args.get("high"))
+    return (node.this, node.expression)
+
+
+#: BETWEEN is a comparison here even though it is not one of the binary
+#: comparison classes: `col BETWEEN a AND b` compares `col` against both bounds.
+_EPOCH_COMPARISON_NODES = (*_TIMESTAMP_COMPARISONS, exp.Between)
+
+
 def _rewrite_sqlite_timestamp_vs_epoch_function(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
@@ -1382,8 +1413,8 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
     passthrough = _timestamp_passthrough_references(root, timestamp_columns)
     changed = False
-    for node in list(root.find_all(*_TIMESTAMP_COMPARISONS)):
-        sides = (node.this, node.expression)
+    for node in list(root.find_all(*_EPOCH_COMPARISON_NODES)):
+        sides = _comparison_operands(node)
         column: Optional[exp.Column] = None
         unit_name: Optional[str] = None
         for side in sides:
@@ -1397,9 +1428,9 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
                 and not (query_local.is_local(unwrapped) and id(unwrapped) not in passthrough)
             ):
                 column = unwrapped
-            unit = _timestamp_unit_function_call(side)
+            unit = _timestamp_unit_through_arithmetic(side)
             if unit is not None:
-                unit_name = unit[0]
+                unit_name = unit
         if column is None or unit_name is None:
             continue
         if unit_name == "date":
