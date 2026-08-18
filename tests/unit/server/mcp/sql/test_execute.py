@@ -958,3 +958,23 @@ class TestSqliteResolutionErrorsAreActionable:
             )
 
         assert "validate_only" not in exc.value.message
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    ["timeout", "interrupted"],
+)
+async def test_an_identifier_named_like_a_deadline_is_not_reported_as_a_timeout(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], identifier: str
+) -> None:
+    """SQLite reports the deadline as exactly "interrupted".
+
+    Matching that as a substring made any error mentioning the word a timeout,
+    so a caller whose own column is named `timeout` was told to retry a
+    statement they needed to fix instead.
+    """
+    db, db_path = analytics_sqlite_db
+    sql = f"SELECT {identifier} FROM (SELECT 1 AS {identifier}) a, (SELECT 2 AS {identifier}) b"
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert caught.value.code is not ErrorCode.TIMEOUT

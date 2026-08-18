@@ -625,6 +625,17 @@ def _canonicalize_postgres_json_extract_function(
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         inner = _strip_parens(node.expression)
         if not isinstance(inner, exp.JSONPath):
+            # PostgreSQL's `->` takes a key, not a path. A computed operand is
+            # therefore looked up as one key name, so `json_extract(doc, '$.' ||
+            # 'llm')` asks for a key literally called `$.llm` and answers NULL,
+            # while SQLite reads the same text as a path. Nothing in the tree
+            # separates a computed key from a computed path -- `doc -> k.key`
+            # and `json_extract(doc, k.key)` parse identically -- so this is
+            # noted rather than refused or rewritten.
+            if not isinstance(inner, (exp.Literal, exp.Column)) and _COMPUTED_JSON_KEY_NOTE not in (
+                ctx.notes
+            ):
+                ctx.notes.append(_COMPUTED_JSON_KEY_NOTE)
             operand = node.expression
             # Binary and Unary cover the infix and prefix operators; Predicate
             # adds the comparison forms that are neither, such as BETWEEN and
@@ -671,6 +682,15 @@ def _canonicalize_postgres_json_extract_function(
     if changed:
         ctx.applied.append("jsonb_extract_path")
     return root
+
+
+#: Said when a JSON accessor's key is computed, because the two engines read
+#: the same statement differently and neither is wrong.
+_COMPUTED_JSON_KEY_NOTE = (
+    "A computed JSON key is looked up as a key name on PostgreSQL and as a path on "
+    "SQLite. Use jsonb_extract_path(doc, k1, k2) on PostgreSQL, or a literal path, "
+    "if you meant to walk into the document."
+)
 
 
 def _source_exposes_column(

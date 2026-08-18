@@ -2272,3 +2272,41 @@ def test_star_over_an_inner_join_using_keeps_one_plain_copy() -> None:
     # the span's graphql_node_id expression, which is not a second key column.
     assert rendered.startswith("SELECT traces.id,")
     assert ", spans.id," not in rendered
+
+
+def test_a_computed_json_key_is_noted_on_postgres() -> None:
+    """The two engines read the same computed operand differently.
+
+    PostgreSQL's `->` takes a key, so a computed operand names one key; SQLite
+    reads the same text as a path. `doc -> k.key` and `json_extract(doc, k.key)`
+    parse identically, so the surface cannot tell which the caller meant and
+    says so instead of choosing.
+    """
+    al = load_allowlist("postgresql")
+    root = admit(
+        parse_sql("SELECT json_extract(attributes, '$.' || 'llm') AS v FROM spans", dialect="postgresql"),
+        allowlist=al,
+        dialect="postgresql",
+    )
+    ctx = RewriteContext(allowlist=al, dialect="postgresql", row_limit=100)
+    rewrite(root, ctx)
+    assert any("computed JSON key" in note for note in ctx.notes)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        # A dynamic column key is a key lookup on both engines, which is what
+        # `->` does -- nothing to warn about.
+        "SELECT s.attributes -> k.key AS v FROM spans s "
+        "CROSS JOIN LATERAL jsonb_each(s.attributes) AS k",
+        "SELECT attributes -> 'llm' AS v FROM spans",
+    ],
+)
+def test_an_ordinary_json_key_is_not_noted(sql: str) -> None:
+    """Guards the test above: noting every accessor would also satisfy it."""
+    al = load_allowlist("postgresql")
+    root = admit(parse_sql(sql, dialect="postgresql"), allowlist=al, dialect="postgresql")
+    ctx = RewriteContext(allowlist=al, dialect="postgresql", row_limit=100)
+    rewrite(root, ctx)
+    assert not any("computed JSON key" in note for note in ctx.notes)
