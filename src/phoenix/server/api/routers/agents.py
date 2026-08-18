@@ -1674,17 +1674,16 @@ def _get_tool_execution_environment(
 
 
 def _persisted_client_tool_output_ids(message: PhoenixUIMessage) -> list[str]:
-    """Tool call IDs whose client-executed outputs this message actually carries.
-
-    The client suppresses its eager flush for these, so this must describe the
-    message being written and nothing more: naming a call whose output the server
-    does not hold stops the client from ever sending it.
-    """
-    return [
-        part.tool_call_id
-        for part in message.parts
-        if isinstance(part, ToolOutputUIPart) and _get_tool_execution_environment(part) == "client"
-    ]
+    """Tool call IDs whose client-executed outputs this message actually carries."""
+    client_tool_output_ids: list[str] = []
+    for part in message.parts:
+        if not isinstance(part, ToolOutputUIPart):
+            continue
+        executed_on_client = _get_tool_execution_environment(part) == "client"
+        if not executed_on_client:
+            continue
+        client_tool_output_ids.append(part.tool_call_id)
+    return client_tool_output_ids
 
 
 def _interrupted_tool_output_text(part: _UnresolvedToolUIPart) -> str:
@@ -1909,14 +1908,7 @@ def _apply_tool_approvals(
     message: PhoenixUIMessage,
     tool_approvals: Sequence[SubmittedToolApproval],
 ) -> PhoenixUIMessage:
-    """Respond to the assistant message's approval-requested tool calls.
-
-    Every submitted approval must name a call that is still awaiting one, so
-    this either rewrites at least one part or raises. A resubmission of an
-    approval the transcript already carries is a conflict rather than a no-op:
-    the server cannot tell whether the approved call already ran, and resuming
-    the turn on the strength of a duplicate would execute it a second time.
-    """
+    """Respond to the assistant message's approval-requested tool calls."""
     tool_calls_by_id: dict[_ToolCallId, tuple[_PartIndex, ToolUIPart | DynamicToolUIPart]] = {}
     for index, part in enumerate(message.parts):
         if isinstance(part, ToolUIPart | DynamicToolUIPart):
@@ -1935,11 +1927,6 @@ def _apply_tool_approvals(
             )
         matched_index, call_part = matched_call
         if isinstance(call_part, (ToolApprovalRespondedPart, DynamicToolApprovalRespondedPart)):
-            # Rejected even when the resubmitted answer matches the recorded
-            # one. Skipping an identical duplicate meant a submission of nothing
-            # but duplicates rewrote no part at all, while ``_merge_messages``
-            # still resumed the turn from the tail -- so the approved call ran a
-            # second time, committing twice for a mutation.
             raise AgentSessionConflict(
                 "agent_session_tool_outputs_conflict",
                 (
@@ -2017,12 +2004,10 @@ def _merge_messages(
             messages[-1] = merged_tail
     continuing_assistant_turn = new_message is None
     for index, message in enumerate(messages):
-        # A continued tail's approval-responded parts are consumed as deferred
-        # tool results when the run resumes; don't close them out.
-        is_continued_tail = continuing_assistant_turn and index == len(messages) - 1
+        is_continued_assistant_message = continuing_assistant_turn and index == len(messages) - 1
         repaired_message = _resolve_interrupted_tool_parts(
             message,
-            keep_responded_approvals=is_continued_tail,
+            keep_responded_approvals=is_continued_assistant_message,
         )
         if repaired_message is not None:
             updated_messages[repaired_message.id] = repaired_message
@@ -3150,7 +3135,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     return server_agent_adapter.run_stream(
                         deps=None,
                         message_history=compaction_history,
-                        deferred_tool_results=deferred_tool_results,
                         on_complete=on_complete,
                     )
 
@@ -3274,18 +3258,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     return assistant_adapter.run_stream(
                         deps=deps,
                         message_history=compaction_history,
-                        deferred_tool_results=deferred_tool_results,
                         on_complete=on_complete,
                     )
 
                 adapter = assistant_adapter
                 run_agent_stream = _run_assistant_agent_stream
-
-            # The adapter extracts the user's approval responses from the merged
-            # transcript; the run resumes the deferred calls from them. The
-            # approved call's own arguments carry everything the tool needs, so
-            # no extra metadata is threaded through.
-            deferred_tool_results = adapter.deferred_tool_results
 
             continued_turn_trace_context = _message_turn_trace_context(continued_assistant_message)
             superseded_turn_trace_context = _message_turn_trace_context(
