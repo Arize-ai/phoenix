@@ -816,6 +816,16 @@ def test_postgres_dynamic_json_key_scalar_keeps_the_arrow_operator() -> None:
             "SELECT json_extract(attributes, attributes ->> 'k') AS v FROM spans",
             "(attributes ->> 'k')",
         ),
+        # Comparison forms that are neither infix nor prefix operators, and so
+        # are reached by exp.Predicate rather than by Binary or Unary.
+        (
+            "SELECT json_extract(attributes, name BETWEEN 'a' AND 'b') AS v FROM spans",
+            "(name BETWEEN 'a' AND 'b')",
+        ),
+        (
+            "SELECT json_extract(attributes, name IN ('a', 'b')) AS v FROM spans",
+            "(name IN ('a', 'b'))",
+        ),
     ],
 )
 def test_postgres_operator_json_key_is_parenthesised(sql: str, expected_operand: str) -> None:

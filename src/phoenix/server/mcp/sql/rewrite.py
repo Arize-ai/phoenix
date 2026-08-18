@@ -572,9 +572,13 @@ def _canonicalize_postgres_json_extract_function(
         inner = _strip_parens(node.expression)
         if not isinstance(inner, exp.JSONPath):
             operand = node.expression
-            # exp.Paren is itself a Unary, and an already-parenthesised operand
-            # renders unambiguously.
-            if isinstance(operand, (exp.Binary, exp.Unary)) and not isinstance(operand, exp.Paren):
+            # Binary and Unary cover the infix and prefix operators; Predicate
+            # adds the comparison forms that are neither, such as BETWEEN and
+            # IN. exp.Paren is itself a Unary, and an already-parenthesised
+            # operand renders unambiguously.
+            if isinstance(operand, (exp.Binary, exp.Unary, exp.Predicate)) and not isinstance(
+                operand, exp.Paren
+            ):
                 node.set("expression", exp.Paren(this=operand))
                 parenthesised = True
             continue
