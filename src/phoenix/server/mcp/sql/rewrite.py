@@ -1271,6 +1271,27 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     return root
 
 
+def _sqlite_stored_timestamp_operand(node: exp.Expression) -> Optional[exp.Column]:
+    """The stored timestamp column an operand of `-` reads, or None.
+
+    Elapsed time is written over the columns themselves or over aggregates of
+    them, and `MAX(end_time)` is still a stored timestamp: these are zero-padded
+    ISO-8601 text, so their text ordering is their timestamp ordering and the
+    aggregate result converts like the column. Parentheses are transparent.
+    """
+    inner = _strip_parens(node)
+    if isinstance(inner, (exp.Min, exp.Max)):
+        inner = _strip_parens(inner.this)
+    return inner if isinstance(inner, exp.Column) else None
+
+
+def _unixepoch_subsec(node: exp.Expression) -> exp.Expression:
+    """Seconds since the epoch, keeping fractional seconds."""
+    return exp.Anonymous(
+        this="unixepoch", expressions=[node.copy(), exp.Literal.string("subsec")]
+    )
+
+
 def _rewrite_sqlite_timestamp_subtraction(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
@@ -1282,10 +1303,15 @@ def _rewrite_sqlite_timestamp_subtraction(
     passthrough = _timestamp_passthrough_references(root, timestamp_columns)
     changed = False
     for node in list(root.find_all(exp.Sub)):
-        left, right = node.this, node.expression
+        left_operand = _strip_parens(node.this)
+        right_operand = _strip_parens(node.expression)
+        left = _sqlite_stored_timestamp_operand(node.this)
+        right = _sqlite_stored_timestamp_operand(node.expression)
         if not (
-            isinstance(left, exp.Column)
-            and isinstance(right, exp.Column)
+            left is not None
+            and right is not None
+            and left_operand is not None
+            and right_operand is not None
             and (left.name or "").casefold() in timestamp_columns
             and (right.name or "").casefold() in timestamp_columns
         ):
@@ -1300,12 +1326,8 @@ def _rewrite_sqlite_timestamp_subtraction(
         node.replace(
             exp.paren(
                 exp.Sub(
-                    this=exp.Anonymous(
-                        this="unixepoch", expressions=[left.copy(), exp.Literal.string("subsec")]
-                    ),
-                    expression=exp.Anonymous(
-                        this="unixepoch", expressions=[right.copy(), exp.Literal.string("subsec")]
-                    ),
+                    this=_unixepoch_subsec(left_operand),
+                    expression=_unixepoch_subsec(right_operand),
                 )
             )
         )

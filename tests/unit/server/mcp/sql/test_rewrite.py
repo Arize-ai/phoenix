@@ -1988,3 +1988,36 @@ def test_comma_lateral_base_table_is_a_plain_join() -> None:
     assert "LATERAL" not in rendered.upper()
     assert ".traces" in rendered.casefold()
     assert "schema_qualification" in ctx.applied
+
+
+@pytest.mark.parametrize(
+    ("sql", "expected"),
+    [
+        # `_LATENCY_ROWS` spans 12:00:00.000000 to 12:00:04.500000, so the
+        # elapsed time across every row is 4.5 seconds and one row is 0.5.
+        ("SELECT MAX(end_time) - MIN(start_time) AS v FROM spans", 4.5),
+        ("SELECT (end_time) - start_time AS v FROM spans WHERE span_id = 'span-medium'", 0.5),
+        ("SELECT end_time - (start_time) AS v FROM spans WHERE span_id = 'span-medium'", 0.5),
+        ("SELECT end_time - start_time AS v FROM spans WHERE span_id = 'span-medium'", 0.5),
+    ],
+)
+def test_stored_timestamp_subtraction_yields_elapsed_seconds(sql: str, expected: float) -> None:
+    """Subtracting stored timestamps must not reach SQLite as text arithmetic.
+
+    Storage is text, so `end_time - start_time` coerces both sides to the
+    leading integer and answers 0 for every row -- a clean run with a confidently
+    wrong number. The conversion is applied through parentheses and through an
+    aggregate, because `MAX(end) - MIN(start)` is how total elapsed time is
+    written and it reads the same stored text.
+    """
+    rendered = _rendered(sql)
+    assert "UNIXEPOCH" in rendered.upper()
+    assert _run_on_sqlite(rendered)[0][0] == expected
+
+
+def test_subtraction_of_non_timestamp_columns_is_left_alone() -> None:
+    """Guards the test above: converting every subtraction would also satisfy it."""
+    rendered = _rendered(
+        "SELECT llm_token_count_prompt - llm_token_count_completion AS v FROM spans"
+    )
+    assert "UNIXEPOCH" not in rendered.upper()
