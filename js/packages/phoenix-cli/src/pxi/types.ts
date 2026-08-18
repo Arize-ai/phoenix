@@ -75,13 +75,20 @@ export type PxiEditPermission = NonNullable<
  * Derived from the generated `ChatRequestBody` schema, with every field the CLI
  * sends made required (the schema marks server-defaulted fields optional) and
  * `message` swapped for the SDK-typed {@link PxiMessage}. Fields the CLI never
- * sends (`requestedSkills`, `turnTraceContext`, and `toolOutputs` — the CLI
- * executes no client tools, so it has no tool outputs to submit) are omitted.
+ * sends are omitted: `requestedSkills`, `turnTraceContext`, `toolOutputs` (the
+ * CLI executes no client tools, so it has no tool outputs to submit), and
+ * `toolApprovals` (the CLI has no way to present an approval request, so it
+ * never answers one — the server withholds anything needing approval from a
+ * headless run instead).
  */
 export type PxiChatRequest = Required<
   Omit<
     SchemasV1["ChatRequestBody"],
-    "message" | "requestedSkills" | "turnTraceContext" | "toolOutputs"
+    | "message"
+    | "requestedSkills"
+    | "turnTraceContext"
+    | "toolOutputs"
+    | "toolApprovals"
   >
 > & {
   message: PxiMessage;
