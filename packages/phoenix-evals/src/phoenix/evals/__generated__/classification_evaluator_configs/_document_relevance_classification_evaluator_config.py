@@ -17,10 +17,10 @@ DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConf
     substitutions=None,
     labels=[],
     scope="span",
-    category="response_quality",
-    details="Determines whether a retrieved document contains information relevant to answering a specific question. This is essential for evaluating RAG systems, where document quality directly impacts response quality.",
+    category="grounding_and_retrieval",
+    details="Determines whether a retrieved document contains information relevant to answering the input query. This is essential for evaluating RAG systems, where document quality directly impacts response quality.",
     inputs={
-        "document_text": {"description": "TODO: Describe the document_text field."},
-        "input": {"description": "TODO: Describe the input field."},
+        "document_text": {"description": "The content of the retrieved document or context."},
+        "input": {"description": "The input query or conversational context."},
     },
 )

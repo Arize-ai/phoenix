@@ -18,9 +18,11 @@ CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     labels=["promoted_dataset_evaluator"],
     scope="span",
     category="response_quality",
-    details="Assesses whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates answer quality without requiring external context or reference responses.",
+    details="A broad, general purpose metric to determine whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates answer quality without requiring external context or reference responses.",
     inputs={
-        "input": {"description": "TODO: Describe the input field."},
-        "output": {"description": "TODO: Describe the output field."},
+        "input": {
+            "description": "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+        },
+        "output": {"description": "The LLM's output response to be evaluated."},
     },
 )

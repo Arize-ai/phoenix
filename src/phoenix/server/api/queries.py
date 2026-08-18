@@ -228,7 +228,6 @@ def _to_gql_classification_evaluator_config(
         kind=EvaluatorKind(config.kind.value),
         details=config.details,
         inputs=inputs,
-        docs_link=config.docs_link,
     )
 
 

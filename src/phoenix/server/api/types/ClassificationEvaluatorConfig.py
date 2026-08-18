@@ -48,4 +48,3 @@ class ClassificationEvaluatorConfig:
     kind: EvaluatorKind
     details: Optional[str]
     inputs: Optional[list[EvaluatorInputDescriptor]]
-    docs_link: Optional[str]

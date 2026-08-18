@@ -17,10 +17,12 @@ REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     substitutions=None,
     labels=[],
     scope="span",
-    category="response_quality",
-    details="Detects when an LLM refuses, declines, or avoids answering a user query. It captures explicit refusals, scope disclaimers, lack-of-information responses, safety refusals, redirections, and apologetic non-answers.",
+    category="user_experience",
+    details="Detects when an LLM refuses, declines, or avoids answering a user query. It captures explicit refusals, scope disclaimers, lack-of-information responses, safety refusals, redirections, and apologetic non-answers. It does not judge whether the refusal was the appropriate response.",
     inputs={
-        "input": {"description": "TODO: Describe the input field."},
-        "output": {"description": "TODO: Describe the output field."},
+        "input": {
+            "description": "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+        },
+        "output": {"description": "The LLM's output response to be evaluated."},
     },
 )

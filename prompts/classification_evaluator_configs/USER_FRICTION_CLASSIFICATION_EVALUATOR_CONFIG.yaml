@@ -50,10 +50,9 @@ messages:
 choices:
   friction: 1.0
   no_friction: 0.0
-# TODO: Replace these gallery metadata placeholders with final values.
-scope: span
+scope: trace
 recommended: false
-category: response_quality
+category: user_experience
 kind: LLM
 details: >-
   Classifies whether the latest user message expresses friction with an assistant's
@@ -61,7 +60,6 @@ details: >-
   frustration, and challenges to unrequested or unexplained actions.
 inputs:
   conversation:
-    description: "TODO: Describe the conversation field."
+    description: "The complete conversational context, including user/assistant messages. Intermediate tool calls/results are optional but may help, especially those from the most recent turn."
   user_message:
-    description: "TODO: Describe the user_message field."
-docs_link: null
+    description: "The latest user message to be evaluated."

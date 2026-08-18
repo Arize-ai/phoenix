@@ -20,11 +20,15 @@ TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     },
     labels=["promoted_dataset_evaluator"],
     scope="span",
-    category="response_quality",
+    category="agents",
     details="Determines whether an LLM selected the most appropriate tool or tools for a given task. It focuses on what tool was chosen rather than whether the invocation arguments were correct.",
     inputs={
-        "available_tools": {"description": "TODO: Describe the available_tools field."},
-        "input": {"description": "TODO: Describe the input field."},
-        "tool_selection": {"description": "TODO: Describe the tool_selection field."},
+        "available_tools": {
+            "description": "The list of available tools, including names and descriptions. A simple human-readable list is better than including the full tool schemas as JSON."
+        },
+        "input": {
+            "description": "The conversational context, whether that is a single input query or a full turn-by-turn conversation. Intermediate tool calls/results are not required."
+        },
+        "tool_selection": {"description": "The tool or tools called by the LLM."},
     },
 )

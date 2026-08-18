@@ -56,7 +56,6 @@ class ClassificationEvaluatorConfig(BaseModel):
     kind: EvaluatorKind = "LLM"
     details: Optional[str] = None
     inputs: Optional[dict[str, EvaluatorInput]] = None
-    docs_link: Optional[str] = None
 
     @field_validator("inputs")
     @classmethod

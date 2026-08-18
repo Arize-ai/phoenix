@@ -20,11 +20,17 @@ TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     },
     labels=["promoted_dataset_evaluator"],
     scope="span",
-    category="response_quality",
-    details="Determines whether an LLM invoked a tool correctly with proper arguments, formatting, and safe content. It focuses on how the tool was called rather than whether the right tool was selected.",
+    category="agents",
+    details="Determines whether an LLM invoked a tool correctly with proper arguments, formatting, and safe content. It focuses on how the tool was called rather than whether the right tool was selected. It works even if no tools were called.",
     inputs={
-        "available_tools": {"description": "TODO: Describe the available_tools field."},
-        "input": {"description": "TODO: Describe the input field."},
-        "tool_selection": {"description": "TODO: Describe the tool_selection field."},
+        "available_tools": {
+            "description": "The list of available tools, including names and descriptions. A simple human-readable list is better than including the full tool schemas."
+        },
+        "input": {
+            "description": "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+        },
+        "tool_selection": {
+            "description": "The LLM's output response (including messages and tool calls) to be evaluated."
+        },
     },
 )

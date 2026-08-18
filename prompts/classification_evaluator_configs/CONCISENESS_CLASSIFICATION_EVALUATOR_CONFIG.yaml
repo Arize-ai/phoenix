@@ -50,7 +50,6 @@ choices:
   verbose: 0.0
 substitutions:
   output: output_messages_to_conversation
-# TODO: Replace these gallery metadata placeholders with final values.
 scope: span
 recommended: false
 category: response_quality
@@ -61,7 +60,6 @@ details: >-
   language, meta-commentary, redundant restatements, and unsolicited explanations.
 inputs:
   input:
-    description: "TODO: Describe the input field."
+    description: "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
   output:
-    description: "TODO: Describe the output field."
-docs_link: null
+    description: "The LLM's output response to be evaluated."

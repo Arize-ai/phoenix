@@ -705,7 +705,6 @@ type ClassificationEvaluatorConfig {
   kind: EvaluatorKind!
   details: String
   inputs: [EvaluatorInput!]
-  docsLink: String
 }
 
 input ClearProjectInput {

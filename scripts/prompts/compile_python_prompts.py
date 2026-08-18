@@ -67,7 +67,6 @@ class ClassificationEvaluatorConfig(BaseModel):
     kind: EvaluatorKind = EvaluatorKind.LLM
     details: Optional[str] = None
     inputs: Optional[dict[str, EvaluatorInput]] = None
-    docs_link: Optional[str] = None
 
     @field_validator("inputs")
     @classmethod
@@ -222,7 +221,6 @@ def get_prompt_file_contents(config: ClassificationEvaluatorConfig, name: str) -
             "kind",
             "details",
             "inputs",
-            "docs_link",
         },
         exclude_defaults=True,
         exclude_none=True,

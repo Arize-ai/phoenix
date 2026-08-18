@@ -20,7 +20,9 @@ CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     category="response_quality",
     details="Assesses whether an LLM's response uses the minimum number of words necessary to fully answer the question. It detects unnecessary pleasantries, hedging language, meta-commentary, redundant restatements, and unsolicited explanations.",
     inputs={
-        "input": {"description": "TODO: Describe the input field."},
-        "output": {"description": "TODO: Describe the output field."},
+        "input": {
+            "description": "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+        },
+        "output": {"description": "The LLM's output response to be evaluated."},
     },
 )

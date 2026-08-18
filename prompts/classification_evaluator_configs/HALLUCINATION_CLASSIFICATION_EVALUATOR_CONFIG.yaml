@@ -71,10 +71,9 @@ choices:
   grounded: 0.0
 substitutions:
   output: output_with_tool_calls
-# TODO: Replace these gallery metadata placeholders with final values.
 scope: span
 recommended: false
-category: response_quality
+category: grounding_and_retrieval
 kind: LLM
 details: >-
   Determines whether an assistant's response contains claims unsupported by or
@@ -83,7 +82,6 @@ details: >-
   conversation, including earlier turns, tool calls, tool results, and retrieved context.
 inputs:
   input:
-    description: "TODO: Describe the input field."
+    description: "The entire conversational context, including all messages, tool calls, and tool results."
   output:
-    description: "TODO: Describe the output field."
-docs_link: null
+    description: "The LLM's output response (messages and tool calls) to be evaluated."

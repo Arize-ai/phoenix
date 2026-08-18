@@ -57,7 +57,6 @@ class TestEvaluatorGalleryConfigsQuery:
           kind
           details
           inputs { name description format }
-          docsLink
         }
         classificationEvaluatorConfigs(labels: ["legacy"]) {
           name
@@ -91,7 +90,6 @@ class TestEvaluatorGalleryConfigsQuery:
                 "kind": "LLM",
                 "details": "Use for end-to-end response quality.",
                 "inputs": {"input": {"description": "The user request.", "format": "text"}},
-                "docs_link": "https://example.com/quality",
             }
         )
         legacy = ClassificationEvaluatorConfig(
@@ -139,7 +137,6 @@ class TestEvaluatorGalleryConfigsQuery:
                             "format": "text",
                         }
                     ],
-                    "docsLink": "https://example.com/quality",
                 }
             ],
             "classificationEvaluatorConfigs": [{"name": "legacy", "labels": ["legacy"]}],

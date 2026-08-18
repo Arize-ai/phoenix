@@ -38,7 +38,6 @@ def test_gallery_metadata_survives_parsing(compiler_module: ModuleType) -> None:
             kind="CODE",
             details="Use this to judge a response.",
             inputs={"input": {"description": "The user request.", "format": "text"}},
-            docs_link="https://example.com/evaluators/test",
         )
     )
 

@@ -16,13 +16,19 @@ TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluator
     choices={"correct": 1.0, "incorrect": 0.0},
     substitutions=None,
     labels=[],
-    scope="span",
-    category="response_quality",
+    scope="trace",
+    category="agents",
     details="Determines whether an AI agent correctly processed a tool's result to produce an appropriate output. It focuses on what happens after a tool call by checking that the agent used the result accurately, handled errors, and disclosed information safely.",
     inputs={
-        "input": {"description": "TODO: Describe the input field."},
-        "output": {"description": "TODO: Describe the output field."},
-        "tool_call": {"description": "TODO: Describe the tool_call field."},
-        "tool_result": {"description": "TODO: Describe the tool_result field."},
+        "input": {
+            "description": "The conversational context, whether that is a single input query or a full turn-by-turn conversation. Intermediate tool calls/results are not required."
+        },
+        "tool_call": {
+            "description": "Details of the tool or tools that were called, including name and parameters."
+        },
+        "tool_result": {"description": "The complete tool results, including any errors."},
+        "output": {
+            "description": "The LLM's output messages after the tool call (including messages and tool calls)."
+        },
     },
 )

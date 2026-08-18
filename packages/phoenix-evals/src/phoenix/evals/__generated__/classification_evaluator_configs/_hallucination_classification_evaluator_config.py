@@ -17,10 +17,14 @@ HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     substitutions={"output": "output_with_tool_calls"},
     labels=["promoted_dataset_evaluator"],
     scope="span",
-    category="response_quality",
+    category="grounding_and_retrieval",
     details="Determines whether an assistant's response contains claims unsupported by or contradictory to the conversation it had access to. Unlike Faithfulness, which grounds a response in one retrieved context block, Hallucination uses the broader conversation, including earlier turns, tool calls, tool results, and retrieved context.",
     inputs={
-        "input": {"description": "TODO: Describe the input field."},
-        "output": {"description": "TODO: Describe the output field."},
+        "input": {
+            "description": "The entire conversational context, including all messages, tool calls, and tool results."
+        },
+        "output": {
+            "description": "The LLM's output response (messages and tool calls) to be evaluated."
+        },
     },
 )
