@@ -3678,13 +3678,9 @@ class EvalWorkCursor(HasId):
     consumer_group). Only materializers that scan a table keep a row here — those that
     materialize from entity state take a plain EvalWorkLease instead.
 
-    Two row families share the table, and evaluation_target names the scanned table for
-    both. The SPAN producer walks the span arrival log: produced_through_id,
+    The SPAN producer walks the span arrival log: produced_through_id,
     observed_high_water_id and observed_at are Span.id positions in it and when one was
-    read. The annotation delta adapter walks one annotation table per row:
-    produced_through_id is its insert walk's id position, and (observed_at,
-    edits_through_id) is its edit walk's position, a resumable point inside an
-    updated_at-ordered window rather than a position in the span log."""
+    read."""
 
     __tablename__ = "eval_work_cursors"
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(
@@ -3698,8 +3694,6 @@ class EvalWorkCursor(HasId):
     produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
     observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
     observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    edits_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
-
     claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     claimed_by: Mapped[Optional[str]] = mapped_column(String)
 
