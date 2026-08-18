@@ -1878,7 +1878,7 @@ def test_sqlite_timestamp_vs_unixepoch_wraps_the_column() -> None:
     )
     assert "sqlite_timestamp_epoch_compare" in ctx.applied
     folded = rendered.lower()
-    assert "unixepoch(start_time)" in folded.replace(" ", "")
+    assert "unixepoch(start_time,'subsec')" in folded.replace(" ", "")
     assert folded.count("unixepoch") >= 2
 
 
@@ -1889,7 +1889,7 @@ def test_sqlite_timestamp_vs_datetime_wraps_the_column() -> None:
     )
     assert "sqlite_timestamp_epoch_compare" in ctx.applied
     folded = rendered.lower().replace(" ", "")
-    assert "datetime(start_time)" in folded
+    assert "datetime(start_time,'subsec')" in folded
     assert folded.count("datetime") >= 2
 
 
@@ -2095,7 +2095,7 @@ def test_timestamp_compared_to_an_epoch_expression_is_converted(sql: str, expect
     seconds) and BETWEEN compares against both of its bounds.
     """
     rendered = _rendered(sql)
-    assert "UNIXEPOCH(START_TIME)" in rendered.upper()
+    assert "UNIXEPOCH(START_TIME" in rendered.upper()
     assert _run_on_sqlite(rendered)[0][0] == expected
 
 
@@ -2132,3 +2132,57 @@ def test_a_json_key_without_a_quote_keeps_its_path_form() -> None:
     rendered = _rendered("SELECT attributes -> '$.llm' AS v FROM spans")
     assert "json_path_quote_repair" not in _ctx("sqlite").applied
     assert "->" in rendered
+
+
+def test_subsecond_precision_survives_an_epoch_comparison() -> None:
+    """Converting the column must not floor it to whole seconds.
+
+    Storage carries microseconds. `datetime()` and `unixepoch()` truncate
+    unless asked for `subsec`, so a comparison decided below the second dropped
+    rows PostgreSQL returns.
+    """
+    rendered = _rendered(
+        "SELECT span_id AS v FROM spans WHERE end_time > start_time + INTERVAL '1' SECOND"
+    )
+    assert "'subsec'" in rendered
+    # span-long runs 2.5s and clears a one-second threshold; the others do not.
+    assert [row[0] for row in _run_on_sqlite(rendered)] == ["span-long"]
+
+
+@pytest.mark.parametrize(
+    ("sql", "dialect"),
+    [
+        ("SELECT count(*) AS v FROM spans WHERE attributes ->> '$.n' > '99'", "sqlite"),
+        ("SELECT count(*) AS v FROM spans WHERE attributes #>> '{n}' > '99'", "postgresql"),
+        # The lambda repair parenthesises an accessor written inside a call.
+        ("SELECT MIN(attributes -> '$.n') AS v FROM spans", "sqlite"),
+    ],
+)
+def test_uncast_json_ordering_is_noted(sql: str, dialect: str) -> None:
+    """The note says "ordered or compared", so a comparison has to reach it.
+
+    Text ordering of a JSON read answers differently from numeric ordering, and
+    the surface cannot tell which the path holds -- so it notes rather than
+    refuses. A note that fires only in MIN/MAX/ORDER BY misses the predicate
+    form, which is where the wrong answer is least visible.
+    """
+    d = cast(Any, dialect)
+    root = admit(parse_sql(sql, dialect=d), allowlist=load_allowlist(d), dialect=d)
+    ctx = RewriteContext(allowlist=load_allowlist(d), dialect=d, row_limit=100)
+    rewrite(root, ctx)
+    assert any("without a cast" in note for note in ctx.notes), ctx.notes
+
+
+def test_a_cast_json_comparison_is_not_noted() -> None:
+    """Guards the test above: a cast says the caller already decided."""
+    ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=100)
+    root = admit(
+        parse_sql(
+            "SELECT count(*) AS v FROM spans WHERE CAST(attributes ->> '$.n' AS REAL) > 99",
+            dialect="sqlite",
+        ),
+        allowlist=load_allowlist("sqlite"),
+        dialect="sqlite",
+    )
+    rewrite(root, ctx)
+    assert not any("without a cast" in note for note in ctx.notes)
