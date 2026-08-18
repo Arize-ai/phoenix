@@ -18,7 +18,7 @@ CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     labels=[],
     scope="span",
     category="response_quality",
-    details="TODO: Add detailed guidance for this evaluator.",
+    details="Assesses whether an LLM's response uses the minimum number of words necessary to fully answer the question. It detects unnecessary pleasantries, hedging language, meta-commentary, redundant restatements, and unsolicited explanations.",
     inputs={
         "input": {"description": "TODO: Describe the input field."},
         "output": {"description": "TODO: Describe the output field."},

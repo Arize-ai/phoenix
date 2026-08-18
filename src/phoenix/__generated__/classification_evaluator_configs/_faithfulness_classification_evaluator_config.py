@@ -18,7 +18,7 @@ FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     labels=[],
     scope="span",
     category="response_quality",
-    details="TODO: Add detailed guidance for this evaluator.",
+    details="Determines whether an LLM's response is grounded in and faithful to the provided context. It detects information that is unsupported by or contradicts the reference context and is intended for grounded responses such as RAG outputs.",
     inputs={
         "context": {"description": "TODO: Describe the context field."},
         "input": {"description": "TODO: Describe the input field."},

@@ -21,7 +21,7 @@ TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     labels=["promoted_dataset_evaluator"],
     scope="span",
     category="response_quality",
-    details="TODO: Add detailed guidance for this evaluator.",
+    details="Determines whether an LLM selected the most appropriate tool or tools for a given task. It focuses on what tool was chosen rather than whether the invocation arguments were correct.",
     inputs={
         "available_tools": {"description": "TODO: Describe the available_tools field."},
         "input": {"description": "TODO: Describe the input field."},

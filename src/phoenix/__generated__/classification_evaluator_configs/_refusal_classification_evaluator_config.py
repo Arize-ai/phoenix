@@ -18,7 +18,7 @@ REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     labels=[],
     scope="span",
     category="response_quality",
-    details="TODO: Add detailed guidance for this evaluator.",
+    details="Detects when an LLM refuses, declines, or avoids answering a user query. It captures explicit refusals, scope disclaimers, lack-of-information responses, safety refusals, redirections, and apologetic non-answers.",
     inputs={
         "input": {"description": "TODO: Describe the input field."},
         "output": {"description": "TODO: Describe the output field."},

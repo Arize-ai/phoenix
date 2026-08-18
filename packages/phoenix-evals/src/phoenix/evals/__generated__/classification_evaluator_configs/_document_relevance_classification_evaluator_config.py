@@ -18,7 +18,7 @@ DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConf
     labels=[],
     scope="span",
     category="response_quality",
-    details="TODO: Add detailed guidance for this evaluator.",
+    details="Determines whether a retrieved document contains information relevant to answering a specific question. This is essential for evaluating RAG systems, where document quality directly impacts response quality.",
     inputs={
         "document_text": {"description": "TODO: Describe the document_text field."},
         "input": {"description": "TODO: Describe the input field."},

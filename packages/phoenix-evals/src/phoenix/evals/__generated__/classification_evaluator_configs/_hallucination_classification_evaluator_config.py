@@ -18,7 +18,7 @@ HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     labels=["promoted_dataset_evaluator"],
     scope="span",
     category="response_quality",
-    details="TODO: Add detailed guidance for this evaluator.",
+    details="Determines whether an assistant's response contains claims unsupported by or contradictory to the conversation it had access to. Unlike Faithfulness, which grounds a response in one retrieved context block, Hallucination uses the broader conversation, including earlier turns, tool calls, tool results, and retrieved context.",
     inputs={
         "input": {"description": "TODO: Describe the input field."},
         "output": {"description": "TODO: Describe the output field."},

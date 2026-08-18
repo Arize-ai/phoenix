@@ -18,7 +18,7 @@ CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     labels=["promoted_dataset_evaluator"],
     scope="span",
     category="response_quality",
-    details="TODO: Add detailed guidance for this evaluator.",
+    details="Assesses whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates answer quality without requiring external context or reference responses.",
     inputs={
         "input": {"description": "TODO: Describe the input field."},
         "output": {"description": "TODO: Describe the output field."},

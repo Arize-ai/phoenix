@@ -18,7 +18,7 @@ TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluator
     labels=[],
     scope="span",
     category="response_quality",
-    details="TODO: Add detailed guidance for this evaluator.",
+    details="Determines whether an AI agent correctly processed a tool's result to produce an appropriate output. It focuses on what happens after a tool call by checking that the agent used the result accurately, handled errors, and disclosed information safely.",
     inputs={
         "input": {"description": "TODO: Describe the input field."},
         "output": {"description": "TODO: Describe the output field."},

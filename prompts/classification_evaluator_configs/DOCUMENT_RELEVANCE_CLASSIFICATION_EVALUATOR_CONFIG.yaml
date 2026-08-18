@@ -36,7 +36,10 @@ scope: span
 recommended: false
 category: response_quality
 kind: LLM
-details: "TODO: Add detailed guidance for this evaluator."
+details: >-
+  Determines whether a retrieved document contains information relevant to
+  answering a specific question. This is essential for evaluating RAG systems,
+  where document quality directly impacts response quality.
 inputs:
   document_text:
     description: "TODO: Describe the document_text field."

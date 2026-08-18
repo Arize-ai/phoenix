@@ -62,7 +62,10 @@ scope: span
 recommended: false
 category: response_quality
 kind: LLM
-details: "TODO: Add detailed guidance for this evaluator."
+details: >-
+  Determines whether an LLM selected the most appropriate tool or tools for a
+  given task. It focuses on what tool was chosen rather than whether the invocation
+  arguments were correct.
 inputs:
   available_tools:
     description: "TODO: Describe the available_tools field."
