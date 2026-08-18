@@ -3,7 +3,6 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import type { PendingGraphQLMutation } from "@phoenix/agent/chat/types";
 import {
   agentContextKey,
   type AgentContext,
@@ -548,13 +547,6 @@ export interface AgentState extends AgentProps {
   // `phoenix.outcome`, the durable form.
   locallyInterruptedToolCallIds: Partial<Record<string, true>>;
   markToolCallInterrupted: (toolCallId: string) => void;
-  pendingBashMutationsByToolCallId: Partial<
-    Record<string, PendingGraphQLMutation[]>
-  >;
-  setPendingBashMutations: (
-    toolCallId: string,
-    pendingMutations: PendingGraphQLMutation[]
-  ) => void;
 }
 
 function normalizeAgentCapabilities({
@@ -700,7 +692,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingLlmEvaluatorEditsByToolCallId: {},
     pendingLoadDatasetsByToolCallId: {},
     locallyInterruptedToolCallIds: {},
-    pendingBashMutationsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -1081,19 +1072,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
               },
         false,
         { type: "markToolCallInterrupted" }
-      );
-    },
-
-    setPendingBashMutations: (toolCallId, pendingMutations) => {
-      set(
-        (state) => ({
-          pendingBashMutationsByToolCallId: {
-            ...state.pendingBashMutationsByToolCallId,
-            [toolCallId]: pendingMutations,
-          },
-        }),
-        false,
-        { type: "setPendingBashMutations" }
       );
     },
 

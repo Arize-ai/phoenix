@@ -11,21 +11,6 @@ from ._models import CamelBaseModel
 ToolExecutionEnvironment = Literal["client", "server"]
 
 
-class PendingGraphQLMutationMetadata(CamelBaseModel):
-    """A resolved GraphQL mutation awaiting user approval, captured by the
-    ``phoenix-gql`` bash builtin at execution time (after file/stdin
-    indirection) so the user reviews exactly what will execute."""
-
-    query: str
-    """The resolved GraphQL document text."""
-
-    variables: dict[str, JsonValue] | None = None
-    """The resolved GraphQL variables, if any."""
-
-    digest: str
-    """Hash binding the approval to this exact document and variables."""
-
-
 class PhoenixToolCallProviderMetadata(CamelBaseModel):
     """Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
@@ -37,9 +22,6 @@ class PhoenixToolCallProviderMetadata(CamelBaseModel):
 
     tool_input_emitted_at: str | None = None
     """RFC3339 server timestamp for a client tool-call chunk."""
-
-    pending_mutations: list[PendingGraphQLMutationMetadata] | None = None
-    """GraphQL mutations awaiting user approval."""
 
 
 class PhoenixToolCallCallbackProviderMetadata(PhoenixToolCallProviderMetadata):

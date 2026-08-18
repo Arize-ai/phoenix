@@ -1254,16 +1254,9 @@ class AgentErrorData(TypedDict):
     errorText: str
 
 
-class PendingGraphQLMutationMetadata(TypedDict):
-    query: str
-    digest: str
-    variables: NotRequired[Mapping[str, Any]]
-
-
 class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
-    pendingMutations: NotRequired[Sequence[PendingGraphQLMutationMetadata]]
     clientStartedAt: NotRequired[str]
     clientEndedAt: NotRequired[str]
     outcome: NotRequired[Literal["interrupted"]]
@@ -1272,7 +1265,6 @@ class PhoenixToolCallCallbackProviderMetadata(TypedDict):
 class PhoenixToolCallProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
-    pendingMutations: NotRequired[Sequence[PendingGraphQLMutationMetadata]]
 
 
 class SessionSummaryChunk(TypedDict):
@@ -1870,11 +1862,6 @@ class AgentErrorChunk(TypedDict):
     transient: NotRequired[bool]
 
 
-class BashMutationApprovalData(TypedDict):
-    toolCallId: str
-    pendingMutations: Sequence[PendingGraphQLMutationMetadata]
-
-
 class TranscriptPersistedChunk(TypedDict):
     type: Literal["data-transcript-persisted"]
     data: TranscriptPersistedData
@@ -2116,13 +2103,6 @@ class PromptMessage(TypedDict):
 
 class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
     data: PhoenixUIMessage
-
-
-class BashMutationApprovalChunk(TypedDict):
-    type: Literal["data-bash-mutation-approval"]
-    data: BashMutationApprovalData
-    id: NotRequired[str]
-    transient: NotRequired[Literal[True]]
 
 
 class ChatRequestBody(TypedDict):
