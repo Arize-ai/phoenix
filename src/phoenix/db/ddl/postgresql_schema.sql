@@ -1691,8 +1691,6 @@ CREATE TABLE public.project_session_annotations (
 
 CREATE INDEX ix_project_session_annotations_project_session_id ON public.project_session_annotations
     USING btree (project_session_id);
-CREATE INDEX ix_project_session_annotations_updated_at ON public.project_session_annotations
-    USING btree (updated_at);
 CREATE INDEX ix_project_session_annotations_user_id ON public.project_session_annotations
     USING btree (user_id);
 
@@ -2090,8 +2088,6 @@ CREATE TABLE public.span_annotations (
 
 CREATE INDEX ix_span_annotations_span_rowid ON public.span_annotations
     USING btree (span_rowid);
-CREATE INDEX ix_span_annotations_updated_at ON public.span_annotations
-    USING btree (updated_at);
 CREATE INDEX ix_span_annotations_user_id ON public.span_annotations
     USING btree (user_id);
 
@@ -2156,7 +2152,5 @@ CREATE TABLE public.trace_annotations (
 
 CREATE INDEX ix_trace_annotations_trace_rowid ON public.trace_annotations
     USING btree (trace_rowid);
-CREATE INDEX ix_trace_annotations_updated_at ON public.trace_annotations
-    USING btree (updated_at);
 CREATE INDEX ix_trace_annotations_user_id ON public.trace_annotations
     USING btree (user_id);

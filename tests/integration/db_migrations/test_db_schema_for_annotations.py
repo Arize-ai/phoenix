@@ -330,7 +330,7 @@ class TestDBSchema:
                 "span_rowid",
                 [],
                 [],
-                ["ix_span_annotations_updated_at"],
+                [],
                 id="span_annotations",
             ),
             pytest.param(
@@ -338,7 +338,7 @@ class TestDBSchema:
                 "trace_rowid",
                 [],
                 [],
-                ["ix_trace_annotations_updated_at"],
+                [],
                 id="trace_annotations",
             ),
             pytest.param(
@@ -346,7 +346,7 @@ class TestDBSchema:
                 "project_session_id",
                 [],
                 [],  # no additional nullable columns - uses same as other annotation tables
-                ["ix_project_session_annotations_updated_at"],
+                [],
                 id="project_session_annotations",
             ),
             pytest.param(
