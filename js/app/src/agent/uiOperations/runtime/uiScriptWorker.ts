@@ -31,13 +31,26 @@ type UiScriptWorkerScope = {
 const workerScope = globalThis as unknown as UiScriptWorkerScope;
 
 /**
+ * Private postMessage used by this module after the guest-visible binding is
+ * shadowed. Captured at load — before any script runs — so forged
+ * `done` / `log` / `call` frames cannot ride the real channel.
+ */
+const postMessageToMain: UiScriptWorkerScope["postMessage"] =
+  workerScope.postMessage.bind(workerScope);
+
+/**
  * Globals removed before the script runs so the `ui` bridge is the worker's
  * only capability. Defense-in-depth, not a sandbox guarantee: a same-origin
  * worker is not a security boundary, and PXI scripts already run at user
  * trust level — this just makes "everything flows through dispatch" true in
  * practice.
+ *
+ * The messaging names are shadowed *after* this module registers its
+ * `message` listener and binds `postMessageToMain`. Guest scripts otherwise
+ * keep `postMessage` (forge protocol frames) and `dispatchEvent` (inject a
+ * synthetic `callResult` into that listener).
  */
-const BLOCKED_GLOBAL_NAMES = [
+export const BLOCKED_GLOBAL_NAMES = [
   "fetch",
   "XMLHttpRequest",
   "WebSocket",
@@ -50,7 +63,14 @@ const BLOCKED_GLOBAL_NAMES = [
   "navigator",
   "Worker",
   "SharedWorker",
-];
+  "postMessage",
+  "onmessage",
+  "onmessageerror",
+  "addEventListener",
+  "removeEventListener",
+  "dispatchEvent",
+  "close",
+] as const;
 
 /**
  * Remove globals from the entire prototype chain of `globalThis`, then shadow
@@ -106,7 +126,7 @@ function postOperationCall(operationName: string, input: unknown) {
   return new Promise((resolve) => {
     const callId = nextCallId++;
     pendingCalls.set(callId, resolve);
-    workerScope.postMessage({ type: "call", callId, operationName, input });
+    postMessageToMain({ type: "call", callId, operationName, input });
   });
 }
 
@@ -178,7 +198,7 @@ async function evaluateUiScript(script: string) {
   removeBlockedGlobals();
   const ui = createUiProxy();
   const log = (message: unknown) => {
-    workerScope.postMessage({ type: "log", message: String(message) });
+    postMessageToMain({ type: "log", message: String(message) });
   };
   // The script body may `await` ui calls and `return` a final value. Dynamic
   // evaluation is the point of this worker: the agent-authored script is data
@@ -188,7 +208,7 @@ async function evaluateUiScript(script: string) {
   // and burn the whole execution budget in silence), and "failed to parse"
   // tells the model to fix its syntax rather than re-issue the script.
   if (referencesDynamicImport(script)) {
-    workerScope.postMessage({
+    postMessageToMain({
       type: "failed",
       error:
         "The script uses `import`, which is not available in execute_ui — " +
@@ -205,7 +225,7 @@ async function evaluateUiScript(script: string) {
       `"use strict"; return (async () => {\n${script}\n})();`
     ) as typeof runner;
   } catch (error) {
-    workerScope.postMessage({
+    postMessageToMain({
       type: "failed",
       error: `The script failed to parse — fix the syntax and retry. ${describeError(error)}`,
     });
@@ -213,12 +233,12 @@ async function evaluateUiScript(script: string) {
   }
   try {
     const returnValue: unknown = await runner(ui, log);
-    workerScope.postMessage({
+    postMessageToMain({
       type: "done",
       returnValue: serializeReturnValue(returnValue),
     });
   } catch (error) {
-    workerScope.postMessage({
+    postMessageToMain({
       type: "failed",
       error: describeError(error),
     });

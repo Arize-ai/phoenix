@@ -33,7 +33,9 @@ def _scope(path: str, root_path: str = "", scope_type: str = "http") -> dict[str
     }
 
 
-async def _run(scope: dict[str, Any]) -> list[MutableMapping[str, Any]]:
+async def _run(
+    scope: dict[str, Any], content_type: bytes = b"text/javascript"
+) -> list[MutableMapping[str, Any]]:
     sent: list[MutableMapping[str, Any]] = []
 
     async def send(message: MutableMapping[str, Any]) -> None:
@@ -44,7 +46,7 @@ async def _run(scope: dict[str, Any]) -> list[MutableMapping[str, Any]]:
             {
                 "type": "http.response.start",
                 "status": 200,
-                "headers": [(b"content-type", b"text/javascript")],
+                "headers": [(b"content-type", content_type)],
             }
         )
         await send({"type": "http.response.body", "body": b"// js"})
@@ -77,12 +79,24 @@ async def test_worker_asset_matched_under_host_root_path() -> None:
     [
         pytest.param("/assets/index-a1b2c3.js", id="ordinary_js_bundle"),
         pytest.param("/assets/uiScriptWorker-a1b2c3.js.map", id="source_map"),
+        pytest.param("/assets/uiScriptWorker-a1b2c3.ts", id="unbundled_typescript_asset"),
         pytest.param("/index.html", id="html_document"),
         pytest.param("/v1/traces", id="api_route"),
     ],
 )
 async def test_other_responses_are_untouched(path: str) -> None:
     messages = await _run(_scope(path))
+    headers = dict(messages[0]["headers"])
+    assert b"content-security-policy" not in headers
+
+
+async def test_spa_html_fallback_for_worker_path_is_untouched() -> None:
+    # A missing hashed worker URL is served as the SPA document. Stamping the
+    # worker CSP on HTML would break the page without sandboxing any script.
+    messages = await _run(
+        _scope("/assets/uiScriptWorker-a1b2c3.js"),
+        content_type=b"text/html; charset=utf-8",
+    )
     headers = dict(messages[0]["headers"])
     assert b"content-security-policy" not in headers
 

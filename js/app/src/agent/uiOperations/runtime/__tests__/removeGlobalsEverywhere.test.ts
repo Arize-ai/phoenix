@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { removeGlobalsEverywhere } from "@phoenix/agent/uiOperations/runtime/uiScriptWorker";
+import {
+  BLOCKED_GLOBAL_NAMES,
+  removeGlobalsEverywhere,
+} from "@phoenix/agent/uiOperations/runtime/uiScriptWorker";
+
+import workerSource from "../uiScriptWorker.ts?raw";
 
 describe("removeGlobalsEverywhere", () => {
   it("deletes prototype-chain members and shadows the global", () => {
@@ -33,5 +38,29 @@ describe("removeGlobalsEverywhere", () => {
     expect(
       Object.getOwnPropertyDescriptor(globalThis, "__pxiNeverExisted__")?.value
     ).toBeUndefined();
+  });
+});
+
+describe("BLOCKED_GLOBAL_NAMES messaging surface", () => {
+  it("shadows postMessage and EventTarget so guest scripts cannot forge protocol frames", () => {
+    expect(BLOCKED_GLOBAL_NAMES).toEqual(
+      expect.arrayContaining([
+        "postMessage",
+        "onmessage",
+        "onmessageerror",
+        "addEventListener",
+        "removeEventListener",
+        "dispatchEvent",
+        "close",
+      ])
+    );
+  });
+
+  it("binds a private postMessage before the guest-visible binding is removed", () => {
+    const bindIndex = workerSource.indexOf("postMessage.bind");
+    const removeIndex = workerSource.indexOf("removeBlockedGlobals()");
+    expect(bindIndex).toBeGreaterThan(-1);
+    expect(removeIndex).toBeGreaterThan(bindIndex);
+    expect(workerSource).not.toMatch(/workerScope\.postMessage\(/);
   });
 });

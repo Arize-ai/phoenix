@@ -10,6 +10,8 @@ import {
 } from "@phoenix/agent/uiOperations/runtime/uiScriptBridge";
 import type { UiOperationResult } from "@phoenix/agent/uiOperations/types";
 
+import uiScriptBridgeSource from "../uiScriptBridge.ts?raw";
+
 /** A real approval-kind operation, so the bridge pauses the budget for it. */
 const APPROVAL_OP = "playground.prompt.edit";
 
@@ -220,5 +222,13 @@ describe("runUiScript worker failure backstop", () => {
       ok: false,
       error: expect.stringContaining("failed to parse"),
     });
+  });
+});
+
+describe("createUiScriptWorker bundler contract", () => {
+  it("imports the worker with ?worker&url so Vite emits a JS chunk", () => {
+    expect(uiScriptBridgeSource).toMatch(
+      /uiScriptWorker\.ts\?worker&url/
+    );
   });
 });

@@ -23,6 +23,7 @@ dev-mode execution is not part of the security posture.
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from starlette.datastructures import MutableHeaders
@@ -32,10 +33,15 @@ from phoenix.server.utils import strip_root_path
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-# Basename marker of the emitted worker chunk (Vite appends a content hash).
-_WORKER_ASSET_MARKER = "uiScriptWorker"
+# Basename prefix of the emitted worker chunk (Vite appends a content hash).
+_WORKER_ASSET_PREFIX = "uiScriptWorker"
 
 SANDBOX_CSP = "script-src 'unsafe-eval'; connect-src 'none'; worker-src 'none'"
+
+
+def _is_worker_js_path(path: str) -> bool:
+    name = PurePosixPath(path).name
+    return name.startswith(_WORKER_ASSET_PREFIX) and name.endswith(".js")
 
 
 class UiScriptWorkerCSPMiddleware:
@@ -49,13 +55,17 @@ class UiScriptWorkerCSPMiddleware:
             await self.app(scope, receive, send)
             return
         path = strip_root_path(scope, scope.get("path", ""))
-        if not path.endswith(".js") or _WORKER_ASSET_MARKER not in path:
+        if not _is_worker_js_path(path):
             await self.app(scope, receive, send)
             return
 
         async def send_with_csp(message: "Message") -> None:
             if message["type"] == "http.response.start":
-                MutableHeaders(scope=message)["content-security-policy"] = SANDBOX_CSP
+                headers = MutableHeaders(scope=message)
+                # SPA fallbacks for missing hashed paths are text/html; only
+                # a real JavaScript worker response should carry this CSP.
+                if "javascript" in headers.get("content-type", ""):
+                    headers["content-security-policy"] = SANDBOX_CSP
             await send(message)
 
         await self.app(scope, receive, send_with_csp)
