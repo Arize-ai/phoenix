@@ -730,6 +730,7 @@ jobs:
       - build-graphql-schema
       - build-openapi-schema
       - build-ddl-schema
+      - build-session-filter-vocabulary
       - codegen-prompts
       - check-lockfile
       - type-check
