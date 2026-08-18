@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
-import httpx
+import httpx2
 import pytest
 from openai import AsyncOpenAI
 from openinference.semconv.trace import (
@@ -2300,11 +2300,11 @@ class TestLLMEvaluator:
         self,
         openai_api_key: str,
     ) -> Callable[
-        [Optional[httpx.AsyncClient]],
+        [Optional[httpx2.AsyncClient]],
         "OpenAIChatCompletionsClient",
     ]:
         def create_client(
-            http_client: Optional[httpx.AsyncClient],
+            http_client: Optional[httpx2.AsyncClient],
         ) -> "OpenAIChatCompletionsClient":
             @asynccontextmanager
             async def create_openai_client() -> Any:
@@ -2329,7 +2329,7 @@ class TestLLMEvaluator:
     def openai_streaming_client(
         self,
         openai_streaming_client_factory: Callable[
-            [Optional[httpx.AsyncClient]],
+            [Optional[httpx2.AsyncClient]],
             "OpenAIChatCompletionsClient",
         ],
     ) -> "OpenAIChatCompletionsClient":
@@ -3266,7 +3266,7 @@ class TestLLMEvaluator:
         tracer: Tracer,
         llm_evaluator_factory: Callable[["OpenAIChatCompletionsClient"], LLMEvaluator],
         openai_streaming_client_factory: Callable[
-            [Optional[httpx.AsyncClient]],
+            [Optional[httpx2.AsyncClient]],
             "OpenAIChatCompletionsClient",
         ],
         output_config: CategoricalOutputConfig,
@@ -3295,14 +3295,14 @@ class TestLLMEvaluator:
                 },
             }
         )
-        transport = httpx.MockTransport(
-            lambda request: httpx.Response(
+        transport = httpx2.MockTransport(
+            lambda request: httpx2.Response(
                 200,
                 content=text_response_body,
                 headers={"content-type": "application/json"},
             )
         )
-        async with httpx.AsyncClient(transport=transport) as http_client:
+        async with httpx2.AsyncClient(transport=transport) as http_client:
             llm_evaluator = llm_evaluator_factory(openai_streaming_client_factory(http_client))
             evaluation_results = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
@@ -3450,7 +3450,7 @@ class TestLLMEvaluator:
         tracer: Tracer,
         llm_evaluator_factory: Callable[["OpenAIChatCompletionsClient"], LLMEvaluator],
         openai_streaming_client_factory: Callable[
-            [Optional[httpx.AsyncClient]],
+            [Optional[httpx2.AsyncClient]],
             "OpenAIChatCompletionsClient",
         ],
         output_config: CategoricalOutputConfig,
@@ -3489,14 +3489,14 @@ class TestLLMEvaluator:
                 },
             }
         )
-        transport = httpx.MockTransport(
-            lambda request: httpx.Response(
+        transport = httpx2.MockTransport(
+            lambda request: httpx2.Response(
                 200,
                 content=tool_call_response_body,
                 headers={"content-type": "application/json"},
             )
         )
-        async with httpx.AsyncClient(transport=transport) as http_client:
+        async with httpx2.AsyncClient(transport=transport) as http_client:
             llm_evaluator = llm_evaluator_factory(openai_streaming_client_factory(http_client))
             evaluation_results = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
