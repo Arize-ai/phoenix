@@ -2186,3 +2186,41 @@ def test_a_cast_json_comparison_is_not_noted() -> None:
     )
     rewrite(root, ctx)
     assert not any("without a cast" in note for note in ctx.notes)
+
+
+def test_virtual_using_key_resolves_against_the_whole_left_composite() -> None:
+    """A USING key may come from any relation to its left, not just the last.
+
+    `a JOIN b ON ... JOIN c USING (k)` resolves `k` against the composite of
+    `a` and `b`. Taking only the nearest relation qualified the rewritten
+    comparison with one that does not provide the column, so the engine
+    reported a reference the caller never wrote.
+    """
+    ctx, rendered = _rewritten(
+        "SELECT spans.span_id FROM spans JOIN projects ON projects.id = 1 "
+        "JOIN traces USING (latency_ms)",
+        dialect="postgresql",
+    )
+    assert "virtual_using" in ctx.applied
+    assert "projects.latency_ms" not in rendered
+    assert "spans.end_time" in rendered and "traces.end_time" in rendered
+
+
+def test_two_relation_virtual_using_still_resolves_to_the_left_relation() -> None:
+    """Guards the test above: the simple case must keep working."""
+    _, rendered = _rewritten(
+        "SELECT spans.span_id FROM spans JOIN traces USING (latency_ms)",
+        dialect="postgresql",
+    )
+    assert "spans.end_time" in rendered and "traces.end_time" in rendered
+
+
+def test_a_using_key_provided_by_two_left_relations_is_refused() -> None:
+    """PostgreSQL refuses this too, so binding it silently would answer for the caller."""
+    with pytest.raises(AnalyticsSqlError) as caught:
+        _rewritten(
+            "SELECT s.span_id FROM spans s JOIN traces t1 ON t1.id = 1 "
+            "JOIN traces t2 USING (latency_ms)",
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
