@@ -3,25 +3,37 @@
   "theme": "mint",
   "name": "Phoenix",
   "colors": {
-    "primary": "#0384C3",
-    "light": "#0384C3",
-    "dark": "#0384C3"
+    "primary": "#00769E",
+    "light": "#39C7FF",
+    "dark": "#009DD2"
   },
   "contextual": {
     "options": ["copy", "view", "chatgpt", "claude", "perplexity"]
   },
   "background": {
-    "decoration": "gradient"
+    "color": {
+      "light": "#FFFFFF",
+      "dark": "#08090A"
+    }
   },
   "interaction": {
     "drilldown": false
   },
   "fonts": {
     "heading": {
-      "family": "Roboto"
+      "family": "Geist",
+      "weight": 600
     },
     "body": {
-      "family": "Roboto"
+      "family": "Geist"
+    }
+  },
+  "styling": {
+    "codeblocks": {
+      "theme": {
+        "light": "github-light-default",
+        "dark": "github-dark-default"
+      }
     }
   },
   "integrations": {
@@ -40,14 +52,11 @@
       {
         "tab": "Documentation",
         "icon": "book-open",
-        "groups": [
-          {
-            "group": " ",
-            "pages": ["docs/phoenix"]
-          },
+        "pages": [
+          "docs/phoenix",
           {
             "group": "Get Started",
-            "icon": "rocket",
+            "icon": "rocket-launch",
             "pages": [
               {
                 "group": "Quick Start",
@@ -375,7 +384,6 @@
               }
             ]
           },
-
           {
             "group": "Settings",
             "icon": "gear-complex",
@@ -486,12 +494,9 @@
       },
       {
         "tab": "Integrations",
-        "icon": "puzzle-piece",
-        "groups": [
-          {
-            "group": " ",
-            "pages": ["docs/phoenix/integrations"]
-          },
+        "icon": "puzzle",
+        "pages": [
+          "docs/phoenix/integrations",
           {
             "group": "Developer Tools",
             "icon": "code",
@@ -1185,26 +1190,21 @@
       {
         "tab": "Self-Hosting",
         "icon": "server",
-        "groups": [
+        "pages": [
+          "docs/phoenix/self-hosting",
+          "docs/phoenix/self-hosting/architecture",
+          "docs/phoenix/self-hosting/license",
           {
-            "group": " ",
+            "group": "Configuration",
             "pages": [
-              "docs/phoenix/self-hosting",
-              "docs/phoenix/self-hosting/architecture",
-              "docs/phoenix/self-hosting/license",
-              {
-                "group": "Configuration",
-                "pages": [
-                  "docs/phoenix/self-hosting/configuration",
-                  "docs/phoenix/self-hosting/configuration/using-amazon-aurora",
-                  "docs/phoenix/self-hosting/configuration/using-azure-managed-identity"
-                ]
-              }
+              "docs/phoenix/self-hosting/configuration",
+              "docs/phoenix/self-hosting/configuration/using-amazon-aurora",
+              "docs/phoenix/self-hosting/configuration/using-azure-managed-identity"
             ]
           },
           {
             "group": "Deployment Options",
-            "icon": "rocket-launch",
+            "icon": "rocket",
             "pages": [
               "docs/phoenix/self-hosting/deployment-options/terminal",
               "docs/phoenix/self-hosting/deployment-options/docker",
@@ -1231,8 +1231,10 @@
           },
           {
             "group": "Upgrade",
-            "icon": "angles-up",
-            "pages": ["docs/phoenix/self-hosting/upgrade/migrations"]
+            "icon": "chevrons-up",
+            "pages": [
+              "docs/phoenix/self-hosting/upgrade/migrations"
+            ]
           },
           {
             "group": "Security",
@@ -1245,8 +1247,10 @@
           },
           {
             "group": "Advanced",
-            "icon": "gears",
-            "pages": ["docs/phoenix/self-hosting/advanced/encryption"]
+            "icon": "gear",
+            "pages": [
+              "docs/phoenix/self-hosting/advanced/encryption"
+            ]
           },
           {
             "group": "Misc",
@@ -1260,23 +1264,18 @@
       {
         "tab": "Cookbooks",
         "icon": "user-chef",
-        "groups": [
+        "pages": [
+          "docs/phoenix/cookbook",
           {
-            "group": " ",
+            "group": "Agent Workflow Patterns",
             "pages": [
-              "docs/phoenix/cookbook",
-              {
-                "group": "Agent Workflow Patterns",
-                "pages": [
-                  "docs/phoenix/cookbook/agent-workflow-patterns",
-                  "docs/phoenix/cookbook/agent-workflow-patterns/autogen",
-                  "docs/phoenix/cookbook/agent-workflow-patterns/crewai",
-                  "docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration",
-                  "docs/phoenix/cookbook/agent-workflow-patterns/openai-agents",
-                  "docs/phoenix/cookbook/agent-workflow-patterns/langgraph",
-                  "docs/phoenix/cookbook/agent-workflow-patterns/smolagents"
-                ]
-              }
+              "docs/phoenix/cookbook/agent-workflow-patterns",
+              "docs/phoenix/cookbook/agent-workflow-patterns/autogen",
+              "docs/phoenix/cookbook/agent-workflow-patterns/crewai",
+              "docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration",
+              "docs/phoenix/cookbook/agent-workflow-patterns/openai-agents",
+              "docs/phoenix/cookbook/agent-workflow-patterns/langgraph",
+              "docs/phoenix/cookbook/agent-workflow-patterns/smolagents"
             ]
           },
           {
@@ -1366,278 +1365,273 @@
       {
         "tab": "Release Notes",
         "icon": "gift",
-        "groups": [
+        "pages": [
+          "docs/phoenix/release-notes",
           {
-            "group": " ",
+            "group": "08.2026",
             "pages": [
-              "docs/phoenix/release-notes",
-              {
-                "group": "08.2026",
-                "pages": [
-                  "docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config",
-                  "docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions",
-                  "docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts"
-                ]
-              },
-              {
-                "group": "07.2026",
-                "pages": [
-                  "docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters",
-                  "docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals",
-                  "docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server",
-                  "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",
-                  "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
-                ]
-              },
-              {
-                "group": "06.2026",
-                "pages": [
-                  "docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary",
-                  "docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest",
-                  "docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools",
-                  "docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing",
-                  "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",
-                  "docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update",
-                  "docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent"
-                ]
-              },
-              {
-                "group": "05.2026",
-                "pages": [
-                  "docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom",
-                  "docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators",
-                  "docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion",
-                  "docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif",
-                  "docs/phoenix/release-notes/05-2026/05-13-2026-playground-thinking-controls",
-                  "docs/phoenix/release-notes/05-2026/05-13-2026-session-and-annotations",
-                  "docs/phoenix/release-notes/05-2026/05-10-2026-playground-preferences",
-                  "docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header",
-                  "docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools",
-                  "docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-updates",
-                  "docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing"
-                ]
-              },
-              {
-                "group": "04.2026",
-                "pages": [
-                  "docs/phoenix/release-notes/04-2026/04-30-2026-cli-auth-profiles",
-                  "docs/phoenix/release-notes/04-2026/04-30-2026-annotation-enhancements",
-                  "docs/phoenix/release-notes/04-2026/04-29-2026-dataset-upsert",
-                  "docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api",
-                  "docs/phoenix/release-notes/04-2026/04-24-2026-trace-notes-api",
-                  "docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16",
-                  "docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id",
-                  "docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7",
-                  "docs/phoenix/release-notes/04-2026/04-16-2026-azure-managed-identity-postgres",
-                  "docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands",
-                  "docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0",
-                  "docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects",
-                  "docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica",
-                  "docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes",
-                  "docs/phoenix/release-notes/04-2026/04-03-2026-atif-trajectory-upload",
-                  "docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314"
-                ]
-              },
-              {
-                "group": "03.2026",
-                "pages": [
-                  "docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api",
-                  "docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates",
-                  "docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api",
-                  "docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements",
-                  "docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api",
-                  "docs/phoenix/release-notes/03-2026/03-08-2026-new-playground-providers-and-project-settings",
-                  "docs/phoenix/release-notes/03-2026/03-05-2026-sdk-session-retrieval"
-                ]
-              },
-              {
-                "group": "02.2026",
-                "pages": [
-                  "docs/phoenix/release-notes/02-2026/02-27-2026-cli-sessions-and-rest-api",
-                  "docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0"
-                ]
-              },
-              {
-                "group": "01.2026",
-                "pages": [
-                  "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging"
-                ]
-              },
-              {
-                "group": "12.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/12-2025/12-20-2025-improved-user-preferences",
-                  "docs/phoenix/release-notes/12-2025/12-12-2025-support-for-gemini-tool-calls",
-                  "docs/phoenix/release-notes/12-2025/12-09-2025-span-notes-api",
-                  "docs/phoenix/release-notes/12-2025/12-06-2025-ldap-authentication-support",
-                  "docs/phoenix/release-notes/12-2025/12-04-2025-evaluator-message-formats",
-                  "docs/phoenix/release-notes/12-2025/12-03-2025-typescript-create-evaluator",
-                  "docs/phoenix/release-notes/12-2025/12-01-2025-splits-on-experiments-table"
-                ]
-              },
-              {
-                "group": "11.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/11-2025/11-29-2025-add-support-for-claude-opus-4-5",
-                  "docs/phoenix/release-notes/11-2025/11-27-2025-show-server-credential-setup-in-playground-api-keys",
-                  "docs/phoenix/release-notes/11-2025/11-25-2025-split-assignments-when-uploading-a-dataset",
-                  "docs/phoenix/release-notes/11-2025/11-23-2025-repetitions-for-manual-playground-invocations",
-                  "docs/phoenix/release-notes/11-2025/11-19-2025-expanded-provider-support-with-openai-5-1-+-gemini-3",
-                  "docs/phoenix/release-notes/11-2025/11-12-2025-updated-anthropic-model-list",
-                  "docs/phoenix/release-notes/11-2025/11-09-2025-openinference-typescript-2-0",
-                  "docs/phoenix/release-notes/11-2025/11-07-2025-timezone-preference",
-                  "docs/phoenix/release-notes/11-2025/11-05-2025-metadata-for-prompts",
-                  "docs/phoenix/release-notes/11-2025/11-03-2025-playground-dataset-label-display",
-                  "docs/phoenix/release-notes/11-2025/11-01-2025-resume-experiments-and-evaluations"
-                ]
-              },
-              {
-                "group": "10.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/10-2025/10-30-2025-metadata-support-for-experiment-run-annotations",
-                  "docs/phoenix/release-notes/10-2025/10-28-2025-enable-aws-iam-auth-for-db-configuration",
-                  "docs/phoenix/release-notes/10-2025/10-26-2025-add-split-edit-menu-to-examples",
-                  "docs/phoenix/release-notes/10-2025/10-24-2025-filter-prompts-page-by-label",
-                  "docs/phoenix/release-notes/10-2025/10-20-2025-splits",
-                  "docs/phoenix/release-notes/10-2025/10-18-2025-filter-annotations-in-compare-experiments-slideover",
-                  "docs/phoenix/release-notes/10-2025/10-15-2025-enhanced-filtering-for-examples-table",
-                  "docs/phoenix/release-notes/10-2025/10-13-2025-view-traces-in-compare-experiments",
-                  "docs/phoenix/release-notes/10-2025/10-10-2025-viewer-role",
-                  "docs/phoenix/release-notes/10-2025/10-08-2025-dataset-labels",
-                  "docs/phoenix/release-notes/10-2025/10-06-2025-paginate-compare-experiments",
-                  "docs/phoenix/release-notes/10-2025/10-05-2025-load-prompt-by-tag-into-playground",
-                  "docs/phoenix/release-notes/10-2025/10-03-2025-prompt-version-editing-in-playground"
-                ]
-              },
-              {
-                "group": "09.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/09-2025/09-29-2025-day-0-support-for-claude-sonnet-4.5",
-                  "docs/phoenix/release-notes/09-2025/09-27-2025-dataset-splits",
-                  "docs/phoenix/release-notes/09-2025/09-26-2025-session-annotations",
-                  "docs/phoenix/release-notes/09-2025/09-25-2025-repetitions",
-                  "docs/phoenix/release-notes/09-2025/09-24-2025-custom-http-headers-for-requests-in-playground",
-                  "docs/phoenix/release-notes/09-2025/09-23-2025-repetitions-in-experiment-compare-slideover",
-                  "docs/phoenix/release-notes/09-2025/09-22-2025-helm-configurable-image-registry-and-ipv6-support",
-                  "docs/phoenix/release-notes/09-2025/09-17-2025-experiment-compare-details-slideover-in-list-view",
-                  "docs/phoenix/release-notes/09-2025/09-15-2025-prompt-labels",
-                  "docs/phoenix/release-notes/09-2025/09-12-2025-enable-paging-in-experiment-compare-details",
-                  "docs/phoenix/release-notes/09-2025/09-08-2025-experiment-annotation-popover-in-detail-view",
-                  "docs/phoenix/release-notes/09-2025/09-04-2025-experiment-lists-page-frontend-enhancements",
-                  "docs/phoenix/release-notes/09-2025/09-03-2025-add-methods-to-log-document-annotations"
-                ]
-              },
-              {
-                "group": "08.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/08-2025/08-28-2025-new-arize-phoenix-client-package",
-                  "docs/phoenix/release-notes/08-2025/08-22-2025-new-trace-timeline-view",
-                  "docs/phoenix/release-notes/08-2025/08-20-2025-new-experiment-and-annotation-quick-filters",
-                  "docs/phoenix/release-notes/08-2025/08-15-2025-enhance-experiment-comparison-views",
-                  "docs/phoenix/release-notes/08-2025/08-14-2025-trace-transfer-for-long-term-storage",
-                  "docs/phoenix/release-notes/08-2025/08-12-2025-ui-design-overhauls",
-                  "docs/phoenix/release-notes/08-2025/08-09-2025-playground-support-for-gpt-5",
-                  "docs/phoenix/release-notes/08-2025/08-07-2025-improved-error-handling-in-prompt-playground",
-                  "docs/phoenix/release-notes/08-2025/08-06-2025-expanded-search-capabilities",
-                  "docs/phoenix/release-notes/08-2025/08-05-2025-claude-opus-4-1-support",
-                  "docs/phoenix/release-notes/08-2025/08-04-2025-manual-project-creation-and-trace-duplication",
-                  "docs/phoenix/release-notes/08-2025/08-03-2025-delete-spans-via-rest-api"
-                ]
-              },
-              {
-                "group": "07.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/07-2025/07-29-2025-google-genai-evals",
-                  "docs/phoenix/release-notes/07-2025/07-25-2025-project-dashboards",
-                  "docs/phoenix/release-notes/07-2025/07-25-2025-average-metrics-in-experiment-comparison-table",
-                  "docs/phoenix/release-notes/07-2025/07-21-2025-project-and-trace-management-via-graphql",
-                  "docs/phoenix/release-notes/07-2025/07-18-2025-openinference-java",
-                  "docs/phoenix/release-notes/07-2025/07-13-2025-experiments-module-in-phoenix-client",
-                  "docs/phoenix/release-notes/07-2025/07-09-2025-baseline-for-experiment-comparisons",
-                  "docs/phoenix/release-notes/07-2025/07-07-2025-databse-disk-usage-monitor",
-                  "docs/phoenix/release-notes/07-2025/07-03-2025-cost-summaries-in-trace-headers",
-                  "docs/phoenix/release-notes/07-2025/07-02-2025-cursor-mcp-button"
-                ]
-              },
-              {
-                "group": "06.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/06-2025/06-25-2025-cost-tracking",
-                  "docs/phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground",
-                  "docs/phoenix/release-notes/06-2025/06-13-2025-session-filtering",
-                  "docs/phoenix/release-notes/06-2025/06-13-2025-enhanced-span-creation-and-logging",
-                  "docs/phoenix/release-notes/06-2025/06-12-2025-dataset-filtering",
-                  "docs/phoenix/release-notes/06-2025/06-06-2025-experiment-progress-graph",
-                  "docs/phoenix/release-notes/06-2025/06-04-2025-ollama-support-in-playground",
-                  "docs/phoenix/release-notes/06-2025/06-03-2025-deploy-via-helm"
-                ]
-              },
-              {
-                "group": "05.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/05-2025/05-30-2025-xai-and-deepseek-support-in-playground",
-                  "docs/phoenix/release-notes/05-2025/05-20-2025-datasets-and-experiment-evaluations-in-the-js-client",
-                  "docs/phoenix/release-notes/05-2025/05-14-2025-experiments-in-the-js-client",
-                  "docs/phoenix/release-notes/05-2025/05-09-2025-annotations-data-retention-policies-hotkeys",
-                  "docs/phoenix/release-notes/05-2025/05-05-2025-openinference-google-genai-instrumentation"
-                ]
-              },
-              {
-                "group": "04.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/04-2025/04-30-2025-span-querying-and-data-extraction-for-phoenix-client",
-                  "docs/phoenix/release-notes/04-2025/04-28-2025-tls-support-for-phoenix-server",
-                  "docs/phoenix/release-notes/04-2025/04-28-2025-improved-shutdown-handling",
-                  "docs/phoenix/release-notes/04-2025/04-25-2025-scroll-selected-span-into-view",
-                  "docs/phoenix/release-notes/04-2025/04-18-2025-tracing-for-mcp-client-server-applications",
-                  "docs/phoenix/release-notes/04-2025/04-16-2025-api-key-generation-via-api",
-                  "docs/phoenix/release-notes/04-2025/04-15-2025-display-tool-call-and-result-ids-in-span-details",
-                  "docs/phoenix/release-notes/04-2025/04-09-2025-project-management-api-enhancements",
-                  "docs/phoenix/release-notes/04-2025/04-09-2025-new-rest-api-for-projects-with-rbac",
-                  "docs/phoenix/release-notes/04-2025/04-03-2025-phoenix-client-prompt-tagging",
-                  "docs/phoenix/release-notes/04-2025/04-02-2025-improved-span-annotation-editor",
-                  "docs/phoenix/release-notes/04-2025/04-01-2025-support-for-mcp-span-tool-info-in-openai-agents-sdk"
-                ]
-              },
-              {
-                "group": "03.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/03-2025/03-27-2025-span-view-improvements",
-                  "docs/phoenix/release-notes/03-2025/03-24-2025-tracing-configuration-tab",
-                  "docs/phoenix/release-notes/03-2025/03-21-2025-environment-variable-based-admin-user-configuration",
-                  "docs/phoenix/release-notes/03-2025/03-20-2025-delete-experiment-from-action-menu",
-                  "docs/phoenix/release-notes/03-2025/03-19-2025-access-to-new-integrations-in-projects",
-                  "docs/phoenix/release-notes/03-2025/03-18-2025-resize-span-trace-and-session-tables",
-                  "docs/phoenix/release-notes/03-2025/03-14-2025-openai-agents-instrumentation",
-                  "docs/phoenix/release-notes/03-2025/03-07-2025-model-config-enhancements-for-prompts",
-                  "docs/phoenix/release-notes/03-2025/03-07-2025-new-prompt-playground-evals-and-integration-support",
-                  "docs/phoenix/release-notes/03-2025/03-06-2025-project-improvements"
-                ]
-              },
-              {
-                "group": "02.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/02-2025/02-19-2025-prompts",
-                  "docs/phoenix/release-notes/02-2025/02-18-2025-one-line-instrumentation"
-                ]
-              },
-              {
-                "group": "01.2025",
-                "pages": [
-                  "docs/phoenix/release-notes/01-2025/01-18-2025-automatic-and-manual-span-tracing"
-                ]
-              },
-              {
-                "group": "2024",
-                "pages": [
-                  "docs/phoenix/release-notes/2024/12-09-2024-sessions",
-                  "docs/phoenix/release-notes/2024/11-18-2024-prompt-playground",
-                  "docs/phoenix/release-notes/2024/09-26-2024-authentication-and-rbac",
-                  "docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations",
-                  "docs/phoenix/release-notes/2024/07-03-2024-datasets-and-experiments",
-                  "docs/phoenix/release-notes/2024/07-02-2024-function-call-evaluations"
-                ]
-              }
+              "docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config",
+              "docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions",
+              "docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts"
+            ]
+          },
+          {
+            "group": "07.2026",
+            "pages": [
+              "docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters",
+              "docs/phoenix/release-notes/07-2026/07-22-2026-mcp-setup-provider-filter-and-evals",
+              "docs/phoenix/release-notes/07-2026/07-17-2026-oauth2-authorization-server",
+              "docs/phoenix/release-notes/07-2026/07-14-2026-command-palette-sessions-and-tables",
+              "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
+            ]
+          },
+          {
+            "group": "06.2026",
+            "pages": [
+              "docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary",
+              "docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest",
+              "docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools",
+              "docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing",
+              "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",
+              "docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update",
+              "docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent"
+            ]
+          },
+          {
+            "group": "05.2026",
+            "pages": [
+              "docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom",
+              "docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators",
+              "docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion",
+              "docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif",
+              "docs/phoenix/release-notes/05-2026/05-13-2026-playground-thinking-controls",
+              "docs/phoenix/release-notes/05-2026/05-13-2026-session-and-annotations",
+              "docs/phoenix/release-notes/05-2026/05-10-2026-playground-preferences",
+              "docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header",
+              "docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools",
+              "docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-updates",
+              "docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing"
+            ]
+          },
+          {
+            "group": "04.2026",
+            "pages": [
+              "docs/phoenix/release-notes/04-2026/04-30-2026-cli-auth-profiles",
+              "docs/phoenix/release-notes/04-2026/04-30-2026-annotation-enhancements",
+              "docs/phoenix/release-notes/04-2026/04-29-2026-dataset-upsert",
+              "docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api",
+              "docs/phoenix/release-notes/04-2026/04-24-2026-trace-notes-api",
+              "docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16",
+              "docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id",
+              "docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7",
+              "docs/phoenix/release-notes/04-2026/04-16-2026-azure-managed-identity-postgres",
+              "docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands",
+              "docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0",
+              "docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects",
+              "docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica",
+              "docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes",
+              "docs/phoenix/release-notes/04-2026/04-03-2026-atif-trajectory-upload",
+              "docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314"
+            ]
+          },
+          {
+            "group": "03.2026",
+            "pages": [
+              "docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api",
+              "docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates",
+              "docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api",
+              "docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements",
+              "docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api",
+              "docs/phoenix/release-notes/03-2026/03-08-2026-new-playground-providers-and-project-settings",
+              "docs/phoenix/release-notes/03-2026/03-05-2026-sdk-session-retrieval"
+            ]
+          },
+          {
+            "group": "02.2026",
+            "pages": [
+              "docs/phoenix/release-notes/02-2026/02-27-2026-cli-sessions-and-rest-api",
+              "docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0"
+            ]
+          },
+          {
+            "group": "01.2026",
+            "pages": [
+              "docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging"
+            ]
+          },
+          {
+            "group": "12.2025",
+            "pages": [
+              "docs/phoenix/release-notes/12-2025/12-20-2025-improved-user-preferences",
+              "docs/phoenix/release-notes/12-2025/12-12-2025-support-for-gemini-tool-calls",
+              "docs/phoenix/release-notes/12-2025/12-09-2025-span-notes-api",
+              "docs/phoenix/release-notes/12-2025/12-06-2025-ldap-authentication-support",
+              "docs/phoenix/release-notes/12-2025/12-04-2025-evaluator-message-formats",
+              "docs/phoenix/release-notes/12-2025/12-03-2025-typescript-create-evaluator",
+              "docs/phoenix/release-notes/12-2025/12-01-2025-splits-on-experiments-table"
+            ]
+          },
+          {
+            "group": "11.2025",
+            "pages": [
+              "docs/phoenix/release-notes/11-2025/11-29-2025-add-support-for-claude-opus-4-5",
+              "docs/phoenix/release-notes/11-2025/11-27-2025-show-server-credential-setup-in-playground-api-keys",
+              "docs/phoenix/release-notes/11-2025/11-25-2025-split-assignments-when-uploading-a-dataset",
+              "docs/phoenix/release-notes/11-2025/11-23-2025-repetitions-for-manual-playground-invocations",
+              "docs/phoenix/release-notes/11-2025/11-19-2025-expanded-provider-support-with-openai-5-1-+-gemini-3",
+              "docs/phoenix/release-notes/11-2025/11-12-2025-updated-anthropic-model-list",
+              "docs/phoenix/release-notes/11-2025/11-09-2025-openinference-typescript-2-0",
+              "docs/phoenix/release-notes/11-2025/11-07-2025-timezone-preference",
+              "docs/phoenix/release-notes/11-2025/11-05-2025-metadata-for-prompts",
+              "docs/phoenix/release-notes/11-2025/11-03-2025-playground-dataset-label-display",
+              "docs/phoenix/release-notes/11-2025/11-01-2025-resume-experiments-and-evaluations"
+            ]
+          },
+          {
+            "group": "10.2025",
+            "pages": [
+              "docs/phoenix/release-notes/10-2025/10-30-2025-metadata-support-for-experiment-run-annotations",
+              "docs/phoenix/release-notes/10-2025/10-28-2025-enable-aws-iam-auth-for-db-configuration",
+              "docs/phoenix/release-notes/10-2025/10-26-2025-add-split-edit-menu-to-examples",
+              "docs/phoenix/release-notes/10-2025/10-24-2025-filter-prompts-page-by-label",
+              "docs/phoenix/release-notes/10-2025/10-20-2025-splits",
+              "docs/phoenix/release-notes/10-2025/10-18-2025-filter-annotations-in-compare-experiments-slideover",
+              "docs/phoenix/release-notes/10-2025/10-15-2025-enhanced-filtering-for-examples-table",
+              "docs/phoenix/release-notes/10-2025/10-13-2025-view-traces-in-compare-experiments",
+              "docs/phoenix/release-notes/10-2025/10-10-2025-viewer-role",
+              "docs/phoenix/release-notes/10-2025/10-08-2025-dataset-labels",
+              "docs/phoenix/release-notes/10-2025/10-06-2025-paginate-compare-experiments",
+              "docs/phoenix/release-notes/10-2025/10-05-2025-load-prompt-by-tag-into-playground",
+              "docs/phoenix/release-notes/10-2025/10-03-2025-prompt-version-editing-in-playground"
+            ]
+          },
+          {
+            "group": "09.2025",
+            "pages": [
+              "docs/phoenix/release-notes/09-2025/09-29-2025-day-0-support-for-claude-sonnet-4.5",
+              "docs/phoenix/release-notes/09-2025/09-27-2025-dataset-splits",
+              "docs/phoenix/release-notes/09-2025/09-26-2025-session-annotations",
+              "docs/phoenix/release-notes/09-2025/09-25-2025-repetitions",
+              "docs/phoenix/release-notes/09-2025/09-24-2025-custom-http-headers-for-requests-in-playground",
+              "docs/phoenix/release-notes/09-2025/09-23-2025-repetitions-in-experiment-compare-slideover",
+              "docs/phoenix/release-notes/09-2025/09-22-2025-helm-configurable-image-registry-and-ipv6-support",
+              "docs/phoenix/release-notes/09-2025/09-17-2025-experiment-compare-details-slideover-in-list-view",
+              "docs/phoenix/release-notes/09-2025/09-15-2025-prompt-labels",
+              "docs/phoenix/release-notes/09-2025/09-12-2025-enable-paging-in-experiment-compare-details",
+              "docs/phoenix/release-notes/09-2025/09-08-2025-experiment-annotation-popover-in-detail-view",
+              "docs/phoenix/release-notes/09-2025/09-04-2025-experiment-lists-page-frontend-enhancements",
+              "docs/phoenix/release-notes/09-2025/09-03-2025-add-methods-to-log-document-annotations"
+            ]
+          },
+          {
+            "group": "08.2025",
+            "pages": [
+              "docs/phoenix/release-notes/08-2025/08-28-2025-new-arize-phoenix-client-package",
+              "docs/phoenix/release-notes/08-2025/08-22-2025-new-trace-timeline-view",
+              "docs/phoenix/release-notes/08-2025/08-20-2025-new-experiment-and-annotation-quick-filters",
+              "docs/phoenix/release-notes/08-2025/08-15-2025-enhance-experiment-comparison-views",
+              "docs/phoenix/release-notes/08-2025/08-14-2025-trace-transfer-for-long-term-storage",
+              "docs/phoenix/release-notes/08-2025/08-12-2025-ui-design-overhauls",
+              "docs/phoenix/release-notes/08-2025/08-09-2025-playground-support-for-gpt-5",
+              "docs/phoenix/release-notes/08-2025/08-07-2025-improved-error-handling-in-prompt-playground",
+              "docs/phoenix/release-notes/08-2025/08-06-2025-expanded-search-capabilities",
+              "docs/phoenix/release-notes/08-2025/08-05-2025-claude-opus-4-1-support",
+              "docs/phoenix/release-notes/08-2025/08-04-2025-manual-project-creation-and-trace-duplication",
+              "docs/phoenix/release-notes/08-2025/08-03-2025-delete-spans-via-rest-api"
+            ]
+          },
+          {
+            "group": "07.2025",
+            "pages": [
+              "docs/phoenix/release-notes/07-2025/07-29-2025-google-genai-evals",
+              "docs/phoenix/release-notes/07-2025/07-25-2025-project-dashboards",
+              "docs/phoenix/release-notes/07-2025/07-25-2025-average-metrics-in-experiment-comparison-table",
+              "docs/phoenix/release-notes/07-2025/07-21-2025-project-and-trace-management-via-graphql",
+              "docs/phoenix/release-notes/07-2025/07-18-2025-openinference-java",
+              "docs/phoenix/release-notes/07-2025/07-13-2025-experiments-module-in-phoenix-client",
+              "docs/phoenix/release-notes/07-2025/07-09-2025-baseline-for-experiment-comparisons",
+              "docs/phoenix/release-notes/07-2025/07-07-2025-databse-disk-usage-monitor",
+              "docs/phoenix/release-notes/07-2025/07-03-2025-cost-summaries-in-trace-headers",
+              "docs/phoenix/release-notes/07-2025/07-02-2025-cursor-mcp-button"
+            ]
+          },
+          {
+            "group": "06.2025",
+            "pages": [
+              "docs/phoenix/release-notes/06-2025/06-25-2025-cost-tracking",
+              "docs/phoenix/release-notes/06-2025/06-25-2025-amazon-bedrock-support-in-playground",
+              "docs/phoenix/release-notes/06-2025/06-13-2025-session-filtering",
+              "docs/phoenix/release-notes/06-2025/06-13-2025-enhanced-span-creation-and-logging",
+              "docs/phoenix/release-notes/06-2025/06-12-2025-dataset-filtering",
+              "docs/phoenix/release-notes/06-2025/06-06-2025-experiment-progress-graph",
+              "docs/phoenix/release-notes/06-2025/06-04-2025-ollama-support-in-playground",
+              "docs/phoenix/release-notes/06-2025/06-03-2025-deploy-via-helm"
+            ]
+          },
+          {
+            "group": "05.2025",
+            "pages": [
+              "docs/phoenix/release-notes/05-2025/05-30-2025-xai-and-deepseek-support-in-playground",
+              "docs/phoenix/release-notes/05-2025/05-20-2025-datasets-and-experiment-evaluations-in-the-js-client",
+              "docs/phoenix/release-notes/05-2025/05-14-2025-experiments-in-the-js-client",
+              "docs/phoenix/release-notes/05-2025/05-09-2025-annotations-data-retention-policies-hotkeys",
+              "docs/phoenix/release-notes/05-2025/05-05-2025-openinference-google-genai-instrumentation"
+            ]
+          },
+          {
+            "group": "04.2025",
+            "pages": [
+              "docs/phoenix/release-notes/04-2025/04-30-2025-span-querying-and-data-extraction-for-phoenix-client",
+              "docs/phoenix/release-notes/04-2025/04-28-2025-tls-support-for-phoenix-server",
+              "docs/phoenix/release-notes/04-2025/04-28-2025-improved-shutdown-handling",
+              "docs/phoenix/release-notes/04-2025/04-25-2025-scroll-selected-span-into-view",
+              "docs/phoenix/release-notes/04-2025/04-18-2025-tracing-for-mcp-client-server-applications",
+              "docs/phoenix/release-notes/04-2025/04-16-2025-api-key-generation-via-api",
+              "docs/phoenix/release-notes/04-2025/04-15-2025-display-tool-call-and-result-ids-in-span-details",
+              "docs/phoenix/release-notes/04-2025/04-09-2025-project-management-api-enhancements",
+              "docs/phoenix/release-notes/04-2025/04-09-2025-new-rest-api-for-projects-with-rbac",
+              "docs/phoenix/release-notes/04-2025/04-03-2025-phoenix-client-prompt-tagging",
+              "docs/phoenix/release-notes/04-2025/04-02-2025-improved-span-annotation-editor",
+              "docs/phoenix/release-notes/04-2025/04-01-2025-support-for-mcp-span-tool-info-in-openai-agents-sdk"
+            ]
+          },
+          {
+            "group": "03.2025",
+            "pages": [
+              "docs/phoenix/release-notes/03-2025/03-27-2025-span-view-improvements",
+              "docs/phoenix/release-notes/03-2025/03-24-2025-tracing-configuration-tab",
+              "docs/phoenix/release-notes/03-2025/03-21-2025-environment-variable-based-admin-user-configuration",
+              "docs/phoenix/release-notes/03-2025/03-20-2025-delete-experiment-from-action-menu",
+              "docs/phoenix/release-notes/03-2025/03-19-2025-access-to-new-integrations-in-projects",
+              "docs/phoenix/release-notes/03-2025/03-18-2025-resize-span-trace-and-session-tables",
+              "docs/phoenix/release-notes/03-2025/03-14-2025-openai-agents-instrumentation",
+              "docs/phoenix/release-notes/03-2025/03-07-2025-model-config-enhancements-for-prompts",
+              "docs/phoenix/release-notes/03-2025/03-07-2025-new-prompt-playground-evals-and-integration-support",
+              "docs/phoenix/release-notes/03-2025/03-06-2025-project-improvements"
+            ]
+          },
+          {
+            "group": "02.2025",
+            "pages": [
+              "docs/phoenix/release-notes/02-2025/02-19-2025-prompts",
+              "docs/phoenix/release-notes/02-2025/02-18-2025-one-line-instrumentation"
+            ]
+          },
+          {
+            "group": "01.2025",
+            "pages": [
+              "docs/phoenix/release-notes/01-2025/01-18-2025-automatic-and-manual-span-tracing"
+            ]
+          },
+          {
+            "group": "2024",
+            "pages": [
+              "docs/phoenix/release-notes/2024/12-09-2024-sessions",
+              "docs/phoenix/release-notes/2024/11-18-2024-prompt-playground",
+              "docs/phoenix/release-notes/2024/09-26-2024-authentication-and-rbac",
+              "docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations",
+              "docs/phoenix/release-notes/2024/07-03-2024-datasets-and-experiments",
+              "docs/phoenix/release-notes/2024/07-02-2024-function-call-evaluations"
             ]
           }
         ]
@@ -1669,25 +1663,41 @@
         "label": "",
         "href": "https://x.com/ArizePhoenix",
         "title": "X",
-        "icon": "x-twitter"
+        "icon": {
+          "name": "x-twitter",
+          "library": "fontawesome",
+          "style": "brands"
+        }
       },
       {
         "label": "",
         "href": "https://bsky.app/profile/arize-phoenix.bsky.social",
         "title": "Bluesky",
-        "icon": "bluesky"
+        "icon": {
+          "name": "bluesky",
+          "library": "fontawesome",
+          "style": "brands"
+        }
       },
       {
         "label": "",
         "href": "https://www.linkedin.com/showcase/113218220",
         "title": "LinkedIn",
-        "icon": "linkedin"
+        "icon": {
+          "name": "linkedin",
+          "library": "fontawesome",
+          "style": "brands"
+        }
       },
       {
         "label": "",
         "href": "https://github.com/Arize-ai/phoenix",
         "title": "GitHub",
-        "icon": "github"
+        "icon": {
+          "name": "github",
+          "library": "fontawesome",
+          "style": "brands"
+        }
       }
     ]
   },
