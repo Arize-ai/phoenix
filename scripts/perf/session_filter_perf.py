@@ -384,7 +384,9 @@ def count(condition: str, project_id: int) -> Select[Any]:
         .where(models.ProjectSession.project_id == project_id)
         .where(
             models.ProjectSession.id.in_(
-                get_filtered_session_rowids_subquery(condition, project_rowids=[project_id])
+                get_filtered_session_rowids_subquery(
+                    condition, project_rowids=[project_id], lowering="probe"
+                )
             )
         )
     )
@@ -398,7 +400,9 @@ def sweep(condition: str, project_id: int, candidates: list[int]) -> Select[Any]
         .where(models.ProjectSession.id.in_(candidates))
         .where(
             models.ProjectSession.id.in_(
-                get_filtered_session_rowids_subquery(condition, project_rowids=[project_id])
+                get_filtered_session_rowids_subquery(
+                    condition, project_rowids=[project_id], lowering="probe"
+                )
             )
         )
     )

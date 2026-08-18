@@ -413,7 +413,8 @@ The shipped dispatch follows from that:
 |---|---|---|
 | Page, no annotation access, ordered by an indexed column | direct + probe | `LIMIT` stops after enough matching rows |
 | Page ordered by an aggregate column | direct + scan, reusing the sort's subquery | the sort must materialize that aggregate for every session before it can order rows, so the early exit is already gone |
-| Count, summary loaders, and any condition reading annotations | rowid subquery + scan | no `LIMIT` to exit on, or deduplication required |
+| Count and summary loaders | rowid subquery + probe | no `LIMIT` to exit on; probe keeps `all(...)` mixed with `any`/`len` correlated, which is what avoids the scan anti-set timeout on large corpora |
+| Page whose condition reads annotations | rowid subquery + scan | deduplication required |
 
 "Direct" means the predicate is applied to the statement being paginated. The alternative —
 wrapping it as `session_id IN (SELECT DISTINCT …)` — puts the per-session work outside that
