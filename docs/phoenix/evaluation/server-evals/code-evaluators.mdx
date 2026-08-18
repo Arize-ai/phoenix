@@ -198,7 +198,7 @@ The editor includes a **Test** panel that runs the current draft against a chose
 Copy-paste starting points for common evaluator patterns. Each page spells out the exact **sandbox configuration** — backend, dependencies, internet access, environment variables — to provision under **Settings → Sandboxes** before you save.
 
 <CardGroup cols={3}>
-  <Card title="JSON Distance" icon="braces" href="/docs/phoenix/evaluation/server-evals/code-evaluators/json-distance">
+  <Card title="JSON Distance" icon="brackets-curly" href="/docs/phoenix/evaluation/server-evals/code-evaluators/json-distance">
     Count differing fields between output and a golden-dataset reference. Local sandbox.
   </Card>
   <Card title="Regex Match" icon="asterisk" href="/docs/phoenix/evaluation/server-evals/code-evaluators/regex-match">
@@ -207,13 +207,13 @@ Copy-paste starting points for common evaluator patterns. Each page spells out t
   <Card title="Embedding Distance" icon="vector-square" href="/docs/phoenix/evaluation/server-evals/code-evaluators/embedding-distance">
     Cosine similarity over OpenAI embeddings. Needs `openai`, network, and `OPENAI_API_KEY`.
   </Card>
-  <Card title="scikit-learn" icon="flask-conical" href="/docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn">
+  <Card title="scikit-learn" icon="flask" href="/docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn">
     Token-overlap similarity via `HashingVectorizer` and cosine. Offline.
   </Card>
-  <Card title="Pairwise Evaluator" icon="scale" href="/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise">
+  <Card title="Pairwise Evaluator" icon="scale-balanced" href="/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise">
     Blind LLM-judge `output` vs `reference` head-to-head with randomized order.
   </Card>
-  <Card title="Composite Evaluator" icon="layers" href="/docs/phoenix/evaluation/server-evals/code-evaluators/composite">
+  <Card title="Composite Evaluator" icon="layer-group" href="/docs/phoenix/evaluation/server-evals/code-evaluators/composite">
     Blend sub-scores (LLM + code rules) into one weighted average with per-axis breakdown.
   </Card>
   <Card title="LLM Jury" icon="gavel" href="/docs/phoenix/evaluation/server-evals/code-evaluators/llm-jury">

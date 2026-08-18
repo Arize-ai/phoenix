@@ -28,9 +28,6 @@
       "family": "Geist"
     }
   },
-  "icons": {
-    "library": "lucide"
-  },
   "styling": {
     "codeblocks": {
       "theme": {
@@ -59,7 +56,7 @@
           "docs/phoenix",
           {
             "group": "Get Started",
-            "icon": "rocket",
+            "icon": "rocket-launch",
             "pages": [
               {
                 "group": "Quick Start",
@@ -311,7 +308,7 @@
           },
           {
             "group": "Datasets & Experiments",
-            "icon": "flask-conical",
+            "icon": "flask",
             "pages": [
               {
                 "group": "Tutorial",
@@ -350,7 +347,7 @@
           },
           {
             "group": "Prompts",
-            "icon": "wand-sparkles",
+            "icon": "wand-magic-sparkles",
             "pages": [
               {
                 "group": "Tutorial",
@@ -389,7 +386,7 @@
           },
           {
             "group": "Settings",
-            "icon": "settings-2",
+            "icon": "gear-complex",
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/settings/api-keys",
@@ -463,7 +460,7 @@
           },
           {
             "group": "Resources",
-            "icon": "library",
+            "icon": "books",
             "pages": [
               {
                 "group": "Frequently Asked Questions",
@@ -519,7 +516,7 @@
           },
           {
             "group": "LLM Providers",
-            "icon": "bot",
+            "icon": "user-robot",
             "pages": [
               {
                 "group": "Amazon Bedrock",
@@ -895,7 +892,7 @@
           },
           {
             "group": "Sandboxes",
-            "icon": "box",
+            "icon": "cube",
             "pages": [
               "docs/phoenix/integrations/sandboxes/e2b",
               "docs/phoenix/integrations/sandboxes/daytona",
@@ -931,7 +928,7 @@
       },
       {
         "tab": "SDK & API Reference",
-        "icon": "square-terminal",
+        "icon": "rectangle-terminal",
         "groups": [
           {
             "group": "Python",
@@ -1004,7 +1001,7 @@
           },
           {
             "group": "Rest API",
-            "icon": "network",
+            "icon": "network-wired",
             "pages": [
               "docs/phoenix/sdk-api-reference/rest-api/overview",
               {
@@ -1222,7 +1219,7 @@
           },
           {
             "group": "Features",
-            "icon": "layers",
+            "icon": "layer-group",
             "pages": [
               "docs/phoenix/self-hosting/features/provisioning",
               "docs/phoenix/self-hosting/features/authentication",
@@ -1241,7 +1238,7 @@
           },
           {
             "group": "Security",
-            "icon": "shield-user",
+            "icon": "user-shield",
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/self-hosting/security/privacy",
@@ -1250,14 +1247,14 @@
           },
           {
             "group": "Advanced",
-            "icon": "settings",
+            "icon": "gear",
             "pages": [
               "docs/phoenix/self-hosting/advanced/encryption"
             ]
           },
           {
             "group": "Misc",
-            "icon": "boxes",
+            "icon": "boxes-stacked",
             "pages": [
               "docs/phoenix/self-hosting/misc/frequently-asked-questions"
             ]
@@ -1266,7 +1263,7 @@
       },
       {
         "tab": "Cookbooks",
-        "icon": "chef-hat",
+        "icon": "user-chef",
         "pages": [
           "docs/phoenix/cookbook",
           {
@@ -1283,7 +1280,7 @@
           },
           {
             "group": "AI Engineering Workflows",
-            "icon": "settings",
+            "icon": "gear",
             "pages": [
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
@@ -1315,7 +1312,7 @@
           },
           {
             "group": "Prompts",
-            "icon": "wand-sparkles",
+            "icon": "wand-magic-sparkles",
             "pages": [
               "docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning",
               "docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification",
@@ -1344,7 +1341,7 @@
           },
           {
             "group": "Guardrails & Safety",
-            "icon": "shield",
+            "icon": "shield-halved",
             "pages": [
               "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense",
               "docs/phoenix/cookbook/guardrails/designing-realtime-guardrails"
@@ -1352,7 +1349,7 @@
           },
           {
             "group": "Datasets & Experiments",
-            "icon": "flask-conical",
+            "icon": "flask",
             "pages": [
               "docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments",
               "docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
