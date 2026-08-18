@@ -1022,3 +1022,23 @@ class TestProjects:
         for i, p in enumerate(projects):
             print(f"Created test project {i + 1}: id={p.id}, name='{p.name}'")
         return projects
+
+
+class TestOversizedProjectGlobalID:
+    """An id too large for any row must miss, not raise when bound."""
+
+    @pytest.mark.parametrize("node_id", [10**20, 2**63])
+    async def test_get_project_returns_404(
+        self, httpx_client: httpx.AsyncClient, node_id: int
+    ) -> None:
+        gid = str(GlobalID("Project", str(node_id)))
+        response = await httpx_client.get(f"v1/projects/{quote(gid, safe='')}")
+        assert response.status_code == 404, response.text
+
+    @pytest.mark.parametrize("node_id", [10**20, 2**63])
+    async def test_list_project_traces_returns_404(
+        self, httpx_client: httpx.AsyncClient, node_id: int
+    ) -> None:
+        gid = str(GlobalID("Project", str(node_id)))
+        response = await httpx_client.get(f"v1/projects/{quote(gid, safe='')}/traces")
+        assert response.status_code == 404, response.text

@@ -10,6 +10,19 @@ _COMPOSITE_GLOBAL_ID_PATTERN = re.compile(r"[^:]+:[^:]+(:[^:]+)+")
 if TYPE_CHECKING:
     from phoenix.db.models import SandboxBackendType
 
+#: Widest row id any supported dialect's integer primary key holds (sqlite's 64-bit
+#: rowid; postgres `SERIAL` is narrower still). A larger value identifies no row and
+#: raises when bound rather than missing, so it is rejected here.
+_ROWID_RANGE = range(-(2**63), 2**63)
+
+
+def _to_rowid(node_id: str) -> int:
+    """Parse a Relay node id as a row id, rejecting values no row can have."""
+    rowid = int(node_id)
+    if rowid not in _ROWID_RANGE:
+        raise ValueError(f"The node id is out of range: {node_id}")
+    return rowid
+
 
 def is_composite_global_id(node_id: str) -> bool:
     try:
@@ -26,7 +39,7 @@ def from_global_id(global_id: GlobalID) -> tuple[str, int]:
     :param global_id: The global id to decode.
     :return: A tuple of type and id.
     """
-    return global_id.type_name, int(global_id.node_id)
+    return global_id.type_name, _to_rowid(global_id.node_id)
 
 
 def from_global_id_with_expected_type(global_id: GlobalID, expected_type_name: str) -> int:
@@ -41,7 +54,7 @@ def from_global_id_with_expected_type(global_id: GlobalID, expected_type_name: s
             f"but instead corresponds to a node of type: {type_name}"
         )
     try:
-        return int(global_id.node_id)
+        return _to_rowid(global_id.node_id)
     except ValueError as exc:
         raise ValueError(
             f"The node id must correspond to a node of type {expected_type_name}, "
