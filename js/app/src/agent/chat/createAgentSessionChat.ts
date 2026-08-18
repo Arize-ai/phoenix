@@ -244,13 +244,6 @@ export function createAgentSessionChat({
             (message) => message.id === dataPart.data.messageId
           )
         );
-      } else if (dataPart.type === "data-bash-mutation-approval") {
-        store
-          .getState()
-          .setPendingBashMutations(
-            dataPart.data.toolCallId,
-            dataPart.data.pendingMutations
-          );
       }
     },
     sendAutomaticallyWhen: async ({ messages }) => {

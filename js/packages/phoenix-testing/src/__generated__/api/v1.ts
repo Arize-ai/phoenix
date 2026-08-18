@@ -3515,11 +3515,6 @@ export interface components {
          * GraphQLContext
          * @deprecated
          * @description Deprecated GraphQL mutations opt-in.
-         *
-         *     Mutations are enabled by default (gated per-call by user approval in
-         *     manual edit mode), so clients no longer need to send this context. It is
-         *     still accepted so older clients can opt out explicitly; sending it logs a
-         *     deprecation warning and it will be removed in a future release.
          */
         GraphQLContext: {
             /**
@@ -6984,56 +6979,6 @@ export interface components {
             errorText: string;
         };
         /**
-         * BashMutationApprovalChunk
-         * @description Transient ``data-bash-mutation-approval`` stream chunk.
-         */
-        BashMutationApprovalChunk: {
-            /**
-             * Type
-             * @constant
-             */
-            type: "data-bash-mutation-approval";
-            /**
-             * Id
-             * @default null
-             */
-            id?: string | null;
-            data: components["schemas"]["BashMutationApprovalData"];
-            /**
-             * Transient
-             * @default true
-             * @constant
-             */
-            transient?: true;
-        };
-        /** BashMutationApprovalData */
-        BashMutationApprovalData: {
-            /** Toolcallid */
-            toolCallId: string;
-            /** Pendingmutations */
-            pendingMutations: components["schemas"]["PendingGraphQLMutationMetadata"][];
-        };
-        JsonValue: unknown;
-        /**
-         * PendingGraphQLMutationMetadata
-         * @description A resolved GraphQL mutation awaiting user approval, captured by the
-         *     ``phoenix-gql`` bash builtin at execution time (after file/stdin
-         *     indirection) so the user reviews exactly what will execute.
-         */
-        PendingGraphQLMutationMetadata: {
-            /** Query */
-            query: string;
-            /**
-             * Variables
-             * @default null
-             */
-            variables?: {
-                [key: string]: components["schemas"]["JsonValue"];
-            } | null;
-            /** Digest */
-            digest: string;
-        };
-        /**
          * PhoenixToolCallCallbackProviderMetadata
          * @description Shape of the ``phoenix`` namespace the browser returns in
          *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
@@ -7050,11 +6995,6 @@ export interface components {
              * @default null
              */
             toolInputEmittedAt?: string | null;
-            /**
-             * Pendingmutations
-             * @default null
-             */
-            pendingMutations?: components["schemas"]["PendingGraphQLMutationMetadata"][] | null;
             /**
              * Clientstartedat
              * @default null
@@ -7088,11 +7028,6 @@ export interface components {
              * @default null
              */
             toolInputEmittedAt?: string | null;
-            /**
-             * Pendingmutations
-             * @default null
-             */
-            pendingMutations?: components["schemas"]["PendingGraphQLMutationMetadata"][] | null;
         };
         /**
          * SessionSummaryChunk

@@ -9,7 +9,6 @@ from collections.abc import (
     Awaitable,
     Callable,
     Iterable,
-    Mapping,
     Sequence,
 )
 from contextlib import AbstractContextManager, aclosing, nullcontext
@@ -50,7 +49,6 @@ from pydantic import (
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
 from pydantic_ai.messages import ModelMessage
-from pydantic_ai.tools import DeferredToolRequests, DeferredToolResults
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     SubmitMessage as PydanticAISubmitMessage,
@@ -99,7 +97,6 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolOutputErrorPart,
     DynamicToolUIPart,
     MessageMetadata,
-    PendingGraphQLMutationMetadata,
     PhoenixAssistantMessageMetadata,
     PhoenixToolCallCallbackProviderMetadata,
     PhoenixToolCallProviderMetadata,
@@ -126,9 +123,6 @@ from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
-from phoenix.server.agents.capabilities.tools.internal.bash import (
-    PENDING_MUTATIONS_METADATA_KEY,
-)
 from phoenix.server.agents.context import (
     AppContext,
     ChatContext,
@@ -375,20 +369,6 @@ class SubmittedToolApproval(_CamelBaseModel):
         default=None,
         description="Optional reason for the approval or denial, shown to the model on denial.",
     )
-
-
-class BashMutationApprovalData(_CamelBaseModel):
-    tool_call_id: str
-    pending_mutations: list[PendingGraphQLMutationMetadata]
-
-
-@register_openapi_schema
-class BashMutationApprovalChunk(DataChunk):
-    """Transient ``data-bash-mutation-approval`` stream chunk."""
-
-    type: Literal["data-bash-mutation-approval"]
-    data: BashMutationApprovalData
-    transient: Literal[True] = True
 
 
 class ChatRequestBody(_CamelBaseModel):
@@ -1954,55 +1934,6 @@ def _apply_tool_approvals(
     return message.model_copy(update={"parts": parts})
 
 
-def _attach_pending_mutation_metadata(
-    deferred_tool_results: DeferredToolResults,
-    *,
-    continued_assistant_message: PhoenixUIMessage | None,
-) -> None:
-    """Thread persisted pending-mutation payloads into the resumed run's deferred results."""
-    if continued_assistant_message is None:
-        return
-    for part in continued_assistant_message.parts:
-        if not isinstance(part, (ToolApprovalRespondedPart, DynamicToolApprovalRespondedPart)):
-            continue
-        if part.tool_call_id not in deferred_tool_results.approvals:
-            continue
-        phoenix_metadata = (part.call_provider_metadata or {}).get(_PHOENIX_PROVIDER_METADATA_KEY)
-        if not isinstance(phoenix_metadata, dict):
-            continue
-        pending_mutations = phoenix_metadata.get(PENDING_MUTATIONS_METADATA_KEY)
-        if pending_mutations:
-            deferred_tool_results.metadata[part.tool_call_id] = {
-                PENDING_MUTATIONS_METADATA_KEY: pending_mutations
-            }
-
-
-def _stamp_pending_mutation_metadata(
-    message: PhoenixUIMessage,
-    pending_mutations_by_tool_call_id: Mapping[str, Any],
-) -> PhoenixUIMessage:
-    """Record each deferred call's pending-mutation payload on its persisted part."""
-    parts = list(message.parts)
-    changed = False
-    for index, part in enumerate(message.parts):
-        if not isinstance(part, (ToolApprovalRequestedPart, DynamicToolApprovalRequestedPart)):
-            continue
-        pending_mutations = pending_mutations_by_tool_call_id.get(part.tool_call_id)
-        if pending_mutations is None:
-            continue
-        call_provider_metadata: ProviderMetadata = (
-            deepcopy(part.call_provider_metadata) if part.call_provider_metadata else {}
-        )
-        phoenix_metadata = dict(call_provider_metadata.get(_PHOENIX_PROVIDER_METADATA_KEY) or {})
-        phoenix_metadata[PENDING_MUTATIONS_METADATA_KEY] = pending_mutations
-        call_provider_metadata[_PHOENIX_PROVIDER_METADATA_KEY] = phoenix_metadata
-        parts[index] = part.model_copy(update={"call_provider_metadata": call_provider_metadata})
-        changed = True
-    if not changed:
-        return message
-    return message.model_copy(update={"parts": parts})
-
-
 @dataclass
 class _MergedTranscript:
     """A submit request merged into the persisted transcript."""
@@ -3127,7 +3058,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 asyncio.Queue()
             )
             final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk] = {}
-            pending_mutations_by_tool_call_id: dict[str, Any] = {}
 
             bash_enabled = not get_env_phoenix_agents_disable_bash()
             bash_snapshot_to_persist: bytes | None = None
@@ -3319,15 +3249,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 adapter = assistant_adapter
                 run_agent_stream = _run_assistant_agent_stream
 
-            # The adapter extracts approval responses from the merged transcript;
-            # enrich them with each call's persisted pending-mutation payload so
-            # the approved re-run can verify the mutation digests.
+            # The adapter extracts the user's approval responses from the merged
+            # transcript; the run resumes the deferred calls from them. The
+            # approved call's own arguments carry everything the tool needs, so
+            # no extra metadata is threaded through.
             deferred_tool_results = adapter.deferred_tool_results
-            if deferred_tool_results is not None:
-                _attach_pending_mutation_metadata(
-                    deferred_tool_results,
-                    continued_assistant_message=continued_assistant_message,
-                )
 
             continued_turn_trace_context = _message_turn_trace_context(continued_assistant_message)
             superseded_turn_trace_context = _message_turn_trace_context(
@@ -3385,19 +3311,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if isinstance(result.output, str):
                     turn_is_terminal = True
                     turn_final_output_text = result.output.strip() or None
-                elif isinstance(result.output, DeferredToolRequests):
-                    for tool_call_id, deferred_metadata in result.output.metadata.items():
-                        pending_mutations = deferred_metadata.get(PENDING_MUTATIONS_METADATA_KEY)
-                        if not pending_mutations:
-                            continue
-                        pending_mutations_by_tool_call_id[tool_call_id] = pending_mutations
-                        yield BashMutationApprovalChunk(
-                            type="data-bash-mutation-approval",
-                            data=BashMutationApprovalData(
-                                tool_call_id=tool_call_id,
-                                pending_mutations=pending_mutations,
-                            ),
-                        )
                 yield _build_message_metadata_chunk(
                     turn_trace_context=resolved_turn_trace_context,
                     session_id=otel_session_id,
@@ -3430,11 +3343,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             exclude_unset=True,
                         )
                     )
-                    if pending_mutations_by_tool_call_id:
-                        generated_assistant_message = _stamp_pending_mutation_metadata(
-                            generated_assistant_message,
-                            pending_mutations_by_tool_call_id,
-                        )
                     if continued_assistant_message is not None:
                         # Continue the trailing assistant message with the generated response.
                         turn_messages = [generated_assistant_message]

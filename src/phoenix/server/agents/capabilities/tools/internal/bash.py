@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import posixpath
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Generic, Literal, Optional
 
@@ -16,7 +15,6 @@ from graphql import OperationType as GraphQLOperationType
 from graphql import parse as parse_graphql
 from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
-from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_ai import RunContext, Tool
 from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.tools import AgentDepsT
@@ -31,49 +29,26 @@ from phoenix.server.api.context import Context
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
 
-PENDING_MUTATIONS_METADATA_KEY = "pendingMutations"
-"""Key under which a deferred bash tool call's approval metadata carries the
-resolved GraphQL mutation payloads awaiting user approval."""
-
-
-class PendingGraphQLMutation(TypedDict):
-    """A resolved GraphQL mutation captured for user approval.
-
-    ``query`` and ``variables`` are the fully resolved inputs — after file and
-    stdin indirection — so the user approves exactly what will execute, and
-    ``digest`` binds that approval to this document: execution only proceeds
-    when the re-resolved inputs hash to an approved digest.
-    """
-
-    query: str
-    variables: Optional[dict[str, Any]]
-    digest: str
-
-
-def _mutation_digest(query: str, variables: Optional[dict[str, Any]]) -> str:
-    canonical = json.dumps(
-        {"query": query, "variables": variables},
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
 
 @dataclass
 class GraphQLMutationPolicy:
     """Mutable mutation-execution policy shared between the ``bash`` tool and the
     ``phoenix-gql`` builtin.
+
+    The ``bash`` tool stamps ``require_approval`` and ``approved`` onto this
+    policy at the top of every call, under the toolset's execution lock, and the
+    builtin reads them when it is about to run a mutation. ``mutations_allowed``
+    is the single enforcement point: a mutation never executes on a call that
+    required approval and did not get it, whatever the model declared.
     """
 
     allow_mutations: bool
     require_approval: bool = False
-    approved_digests: frozenset[str] = frozenset()
-    pending: list[PendingGraphQLMutation] = field(default_factory=list)
+    approved: bool = False
 
-    def drain(self) -> list[PendingGraphQLMutation]:
-        drained, self.pending = self.pending, []
-        return drained
+    @property
+    def mutations_allowed(self) -> bool:
+        return self.allow_mutations and (not self.require_approval or self.approved)
 
 
 _BASH_TOOL_DESCRIPTION_TEMPLATE = Template(
@@ -95,10 +70,12 @@ Args:
     summary: Short, user-facing description of what this command does. Shown as the
         collapsed preview in the UI.
     command: The shell command to execute.
-    mutation_intent: Provide only when the command invokes a GraphQL mutation via \
-phoenix-gql: a concise, user-facing, one-sentence description of the change the \
-mutation will make, starting with "This command will ...". Shown next to the \
-approval prompt when the user is asked to approve the mutation.
+    mutation_description: Provide if and only if the command invokes a GraphQL \
+mutation via phoenix-gql: a concise, user-facing, one-sentence description of the \
+change the mutation will make, starting with "This command will ...". This is the \
+entire approval prompt the user reads before the command runs, so describe the \
+actual change, not your goal. Omitting it on a mutating command does not skip \
+approval — the mutation is refused and you must re-issue the call with it.
 
 Returns a dict with the command's `stdout`, `stderr`, and `exitCode`.
 """,
@@ -175,14 +152,18 @@ Execute GraphQL operations against Phoenix.
 {% if not mutations_enabled -%}
 Permissions: queries only (mutations are disabled).
 {% elif approval_required -%}
-Permissions: queries and mutations are enabled; each mutation requires the \
-user's approval before it executes.
+Permissions: queries and mutations are enabled, but a command that runs a \
+mutation must pass mutation_description to the bash tool, and the user approves \
+it before the command runs. There is no dry run: once approved, the command \
+executes for real, exactly once.
 {% else -%}
 Permissions: queries and mutations are ENABLED.
 {% endif %}
 Recommended flow:
   1. start with a tiny query or an introspection query to confirm the schema
   2. add filters, sorting, and deeper fields only after the base query works
+  3. keep mutations in their own bash call, separate from the queries that
+     shaped them, so the user approves one clear change at a time
 
 Options:
   --vars <json>         JSON object of GraphQL variables
@@ -341,24 +322,22 @@ def create_phoenix_gql_builtin(
             is_mutation = GraphQLOperationType.MUTATION in operation_types
             if is_mutation and not mutation_policy.allow_mutations:
                 raise ValueError("Mutations are not permitted.")
+            if is_mutation and not mutation_policy.mutations_allowed:
+                # The command reached a mutation on a call that was never
+                # approved, which means the model omitted mutation_description
+                # and so no approval was ever requested.
+                raise ValueError(
+                    "This mutation requires the user's approval, which this "
+                    "command did not request. Re-issue the bash call with a "
+                    "mutation_description describing the change, so the user "
+                    "can approve it before the command runs."
+                )
 
             variables = _resolve_variables(parsed, ctx)
 
-            if is_mutation and mutation_policy.require_approval:
-                digest = _mutation_digest(query, variables)
-                if digest not in mutation_policy.approved_digests:
-                    mutation_policy.pending.append(
-                        PendingGraphQLMutation(query=query, variables=variables, digest=digest)
-                    )
-                    raise ValueError(
-                        "This mutation requires the user's approval. An approval "
-                        "request has been sent; do not retry the command until "
-                        "the user responds."
-                    )
-
             allowed_operation_types = (
                 {OperationType.QUERY, OperationType.MUTATION}
-                if is_mutation
+                if mutation_policy.allow_mutations
                 else {OperationType.QUERY}
             )
             result = await schema.execute(
@@ -434,26 +413,6 @@ def _make_custom_builtins(
     }
 
 
-def _restore_shell(
-    snapshot: bytes,
-    *,
-    schema: strawberry.Schema,
-    build_graphql_context: Callable[[], Context],
-    mutation_policy: GraphQLMutationPolicy,
-) -> Bash:
-    """Restore a shell from snapshot bytes."""
-    return Bash.from_snapshot(
-        snapshot,
-        python=False,
-        network=None,
-        custom_builtins=_make_custom_builtins(
-            schema=schema,
-            build_graphql_context=build_graphql_context,
-            mutation_policy=mutation_policy,
-        ),
-    )
-
-
 def _build_shell(
     *,
     schema: strawberry.Schema,
@@ -463,11 +422,15 @@ def _build_shell(
 ) -> Bash:
     """Build the virtual shell, restoring prior session state when available."""
     if initial_snapshot is not None:
-        return _restore_shell(
+        return Bash.from_snapshot(
             initial_snapshot,
-            schema=schema,
-            build_graphql_context=build_graphql_context,
-            mutation_policy=mutation_policy,
+            python=False,
+            network=None,
+            custom_builtins=_make_custom_builtins(
+                schema=schema,
+                build_graphql_context=build_graphql_context,
+                mutation_policy=mutation_policy,
+            ),
         )
     shell = Bash(
         python=False,
@@ -493,30 +456,6 @@ def _resolve_edit_permission(
     return deps.edit_permission if deps is not None else None
 
 
-class _ApprovedMutationEntry(BaseModel):
-    """The slice of a pending-mutation metadata entry needed for approval matching."""
-
-    digest: str
-
-
-_approved_mutations_adapter: TypeAdapter[list[_ApprovedMutationEntry]] = TypeAdapter(
-    list[_ApprovedMutationEntry]
-)
-
-
-def _approved_digests_from_metadata(tool_call_metadata: Optional[dict[str, Any]]) -> frozenset[str]:
-    """Extract the approved mutation digests from a deferred tool call's metadata."""
-    if not tool_call_metadata:
-        return frozenset()
-    try:
-        entries = _approved_mutations_adapter.validate_python(
-            tool_call_metadata.get(PENDING_MUTATIONS_METADATA_KEY)
-        )
-    except ValidationError:
-        return frozenset()
-    return frozenset(entry.digest for entry in entries)
-
-
 class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
     """Toolset exposing a ``bash`` tool backed by a virtual shell."""
 
@@ -539,55 +478,43 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         # pydantic-ai executes same-turn tool calls concurrently, so multiple
         # bash calls from one model response can enter the closure below at
         # once while sharing the shell and the mutation policy. Each call
-        # stamps its own approval context onto the policy, snapshots the
-        # shell, executes, then drains pending mutations and may roll the
-        # shell back — interleaving would leak one call's approved digests
-        # into another's execution, misattribute pending mutations, and
-        # clobber another call's shell state on rollback.
+        # stamps its own require_approval/approved onto that shared policy, so
+        # without this lock one call's approval could be live while another
+        # call's unapproved mutation executes. The lock is what makes the
+        # policy's enforcement per-call, and it is load-bearing for the
+        # invariant that an unapproved mutation never runs.
         execution_lock = asyncio.Lock()
 
         async def bash(
             ctx: RunContext[AgentDepsT],
             summary: str,
             command: str,
-            mutation_intent: Optional[str] = None,
+            mutation_description: Optional[str] = None,
         ) -> BashToolResult:
-            nonlocal shell
             async with execution_lock:
                 deps = ctx.deps if isinstance(ctx.deps, AgentDependencies) else None
+                # Always assign both fields: the policy outlives a single call
+                # because the shell is long-lived, so a stale approval from an
+                # earlier call must never carry into this one.
                 mutation_policy.require_approval = (
                     mutation_policy.allow_mutations and _resolve_edit_permission(deps) == "manual"
                 )
-                mutation_policy.approved_digests = (
-                    _approved_digests_from_metadata(ctx.tool_call_metadata)
-                    if ctx.tool_call_approved
-                    else frozenset()
-                )
-                mutation_policy.drain()
-                pre_execution_snapshot = (
-                    shell.snapshot() if mutation_policy.require_approval else None
-                )
+                mutation_policy.approved = ctx.tool_call_approved
+                if (
+                    mutation_description
+                    and mutation_policy.require_approval
+                    and not ctx.tool_call_approved
+                ):
+                    # The model declared that this command mutates, so ask
+                    # before running anything. Nothing has executed yet, so a
+                    # denial leaves no side effects and an approval runs the
+                    # command exactly once.
+                    raise ApprovalRequired()
                 started_at = datetime.now(timezone.utc)
                 start = time.monotonic()
                 result = await shell.execute(command)
                 completed_at = datetime.now(timezone.utc)
                 duration_ms = round((time.monotonic() - start) * 1000)
-                if pending_mutations := mutation_policy.drain():
-                    # Roll the shell back so the command's side effects don't
-                    # survive the dry run: on approval the whole command
-                    # re-executes exactly once against this restored state.
-                    assert pre_execution_snapshot is not None
-                    shell = _restore_shell(
-                        pre_execution_snapshot,
-                        schema=schema,
-                        build_graphql_context=build_graphql_context,
-                        mutation_policy=mutation_policy,
-                    )
-                    if on_snapshot is not None:
-                        on_snapshot(pre_execution_snapshot)
-                    raise ApprovalRequired(
-                        metadata={PENDING_MUTATIONS_METADATA_KEY: list(pending_mutations)}
-                    )
                 if on_snapshot is not None:
                     on_snapshot(shell.snapshot())
                 result_dict = result.to_dict()

@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Literal, Protocol
@@ -11,7 +12,6 @@ from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
 from phoenix.server.agents.capabilities.tools.internal.bash import (
-    PENDING_MUTATIONS_METADATA_KEY,
     BashToolResult,
     BashToolset,
 )
@@ -38,12 +38,37 @@ class Query:
     def big(self, size: int) -> str:
         return "x" * size
 
+    @strawberry.field
+    def deletion_count(self) -> int:
+        return len(DELETE_EVERYTHING_CALLS)
+
+
+DELETE_EVERYTHING_CALLS: list[str] = []
+"""Every ``deleteEverything`` the schema actually executed, so tests can assert
+a mutation ran *exactly once* rather than inferring it from stdout."""
+
+TAG_EVERYTHING_CALLS: list[str] = []
+
+_SENTINEL = object()
+
 
 @strawberry.type
 class Mutation:
     @strawberry.mutation
     def delete_everything(self) -> str:
+        DELETE_EVERYTHING_CALLS.append("deleted")
         return "deleted"
+
+    @strawberry.mutation
+    def tag_everything(self, tag: str) -> str:
+        TAG_EVERYTHING_CALLS.append(tag)
+        return tag
+
+
+@pytest.fixture(autouse=True)
+def _reset_mutation_call_recorders() -> None:
+    DELETE_EVERYTHING_CALLS.clear()
+    TAG_EVERYTHING_CALLS.clear()
 
 
 class RunBash(Protocol):
@@ -338,7 +363,13 @@ def _deps(edit_permission: Literal["manual", "bypass"]) -> AgentDependencies:
 
 
 class RunBashWithContext(Protocol):
-    def __call__(self, command: str, ctx: RunContext[Any]) -> Awaitable[dict[str, Any]]: ...
+    def __call__(
+        self,
+        command: str,
+        ctx: RunContext[Any],
+        *,
+        mutation_description: "str | None" = None,
+    ) -> Awaitable[dict[str, Any]]: ...
 
 
 def _build_run_bash_with_context(
@@ -353,135 +384,204 @@ def _build_run_bash_with_context(
         on_snapshot=snapshots.append if snapshots is not None else None,
     )
 
-    async def run(command: str, ctx: RunContext[Any]) -> dict[str, Any]:
+    async def run(
+        command: str,
+        ctx: RunContext[Any],
+        *,
+        mutation_description: "str | None" = None,
+    ) -> dict[str, Any]:
         tools = await toolset.get_tools(ctx)
-        result: dict[str, Any] = await toolset.call_tool(
-            "bash", {"summary": "Run shell command", "command": command}, ctx, tools["bash"]
-        )
+        args: dict[str, Any] = {"summary": "Run shell command", "command": command}
+        if mutation_description is not None:
+            args["mutation_description"] = mutation_description
+        result: dict[str, Any] = await toolset.call_tool("bash", args, ctx, tools["bash"])
         return result
 
     return run
 
 
-def _manual_mode_context(
+def _context(
+    edit_permission: Literal["manual", "bypass"] = "manual",
     *,
     tool_call_approved: bool = False,
-    tool_call_metadata: "dict[str, Any] | None" = None,
+    deps: "AgentDependencies | None | object" = _SENTINEL,
 ) -> RunContext[Any]:
     return RunContext(
-        deps=_deps("manual"),
+        deps=_deps(edit_permission) if deps is _SENTINEL else deps,
         model=TestModel(),
         usage=RunUsage(),
         tool_call_approved=tool_call_approved,
-        tool_call_metadata=tool_call_metadata,
     )
 
 
-async def test_manual_mode_mutation_requires_approval_and_rolls_back_side_effects() -> None:
+DELETE_EVERYTHING = "phoenix-gql 'mutation { deleteEverything }' --data-only"
+DESCRIPTION = "This command will delete everything."
+
+
+async def test_manual_mode_asks_for_approval_before_executing_anything() -> None:
+    """The tool call is deferred *before* the shell runs, so a command that was
+    never approved leaves no trace at all — not even its non-mutating prefix."""
     run_bash = _build_run_bash_with_context()
-    command = "echo staged > note.txt && phoenix-gql 'mutation { deleteEverything }'"
+    command = f"echo staged > note.txt && {DELETE_EVERYTHING}"
 
-    with pytest.raises(ApprovalRequired) as exc_info:
-        await run_bash(command, _manual_mode_context())
+    with pytest.raises(ApprovalRequired):
+        await run_bash(command, _context(), mutation_description=DESCRIPTION)
 
-    metadata = exc_info.value.metadata
-    assert metadata is not None
-    pending_mutations = metadata[PENDING_MUTATIONS_METADATA_KEY]
-    assert len(pending_mutations) == 1
-    assert pending_mutations[0]["query"] == "mutation { deleteEverything }"
-    assert pending_mutations[0]["variables"] is None
-    assert isinstance(pending_mutations[0]["digest"], str)
-
-    # The dry run's file write was rolled back with the rest of the shell state.
-    result = await run_bash("cat note.txt", _manual_mode_context())
+    # Nothing ran, so the file was never written in the first place.
+    result = await run_bash("cat note.txt", _context())
     assert result["exitCode"] != 0
+    assert DELETE_EVERYTHING_CALLS == []
 
 
-async def test_manual_mode_mutation_executes_when_approved() -> None:
+async def test_manual_mode_approved_command_executes_its_mutation_exactly_once() -> None:
     run_bash = _build_run_bash_with_context()
-    command = "phoenix-gql 'mutation { deleteEverything }' --data-only"
 
-    with pytest.raises(ApprovalRequired) as exc_info:
-        await run_bash(command, _manual_mode_context())
-    metadata = exc_info.value.metadata
-    assert metadata is not None
+    with pytest.raises(ApprovalRequired):
+        await run_bash(DELETE_EVERYTHING, _context(), mutation_description=DESCRIPTION)
+    assert DELETE_EVERYTHING_CALLS == []
 
     result = await run_bash(
-        command,
-        _manual_mode_context(tool_call_approved=True, tool_call_metadata=dict(metadata)),
+        DELETE_EVERYTHING,
+        _context(tool_call_approved=True),
+        mutation_description=DESCRIPTION,
     )
     assert result["exitCode"] == 0
     assert json.loads(result["stdout"]) == {"deleteEverything": "deleted"}
+    assert DELETE_EVERYTHING_CALLS == ["deleted"]
 
 
-async def test_manual_mode_approval_is_bound_to_the_document_digest() -> None:
+async def test_mutation_is_refused_when_the_model_omits_a_description() -> None:
+    """Omitting ``mutation_description`` must not skip approval: no approval is
+    requested, so the builtin refuses the mutation instead of executing it."""
     run_bash = _build_run_bash_with_context()
-    approved_for_other_document = {
-        PENDING_MUTATIONS_METADATA_KEY: [
-            {"query": "mutation { somethingElse }", "variables": None, "digest": "deadbeef"}
-        ]
-    }
 
-    with pytest.raises(ApprovalRequired):
-        await run_bash(
-            "phoenix-gql 'mutation { deleteEverything }'",
-            _manual_mode_context(
-                tool_call_approved=True,
-                tool_call_metadata=approved_for_other_document,
-            ),
-        )
+    result = await run_bash(DELETE_EVERYTHING, _context())
+
+    assert result["exitCode"] != 0
+    assert "requires the user's approval" in result["stderr"]
+    assert "mutation_description" in result["stderr"]
+    assert DELETE_EVERYTHING_CALLS == []
 
 
-async def test_manual_mode_approval_captures_resolved_variables() -> None:
+async def test_an_earlier_approval_does_not_carry_into_a_later_call() -> None:
+    """The policy outlives a single call because the shell is long-lived, so a
+    stale approval must never authorise a subsequent unapproved mutation."""
     run_bash = _build_run_bash_with_context()
-    command = "phoenix-gql 'mutation { deleteEverything }' --vars '{\"id\": \"abc\"}'"
 
-    with pytest.raises(ApprovalRequired) as exc_info:
-        await run_bash(command, _manual_mode_context())
+    approved = await run_bash(
+        DELETE_EVERYTHING,
+        _context(tool_call_approved=True),
+        mutation_description=DESCRIPTION,
+    )
+    assert approved["exitCode"] == 0
+    assert DELETE_EVERYTHING_CALLS == ["deleted"]
 
-    metadata = exc_info.value.metadata
-    assert metadata is not None
-    assert metadata[PENDING_MUTATIONS_METADATA_KEY][0]["variables"] == {"id": "abc"}
+    unapproved = await run_bash(DELETE_EVERYTHING, _context())
+    assert unapproved["exitCode"] != 0
+    assert DELETE_EVERYTHING_CALLS == ["deleted"]
+
+
+async def test_concurrent_calls_do_not_share_one_call_s_approval() -> None:
+    """Same-turn bash calls run concurrently against a shared policy; the
+    execution lock is what keeps one call's approval from covering another's."""
+    run_bash = _build_run_bash_with_context()
+
+    approved, unapproved = await asyncio.gather(
+        run_bash(
+            DELETE_EVERYTHING,
+            _context(tool_call_approved=True),
+            mutation_description=DESCRIPTION,
+        ),
+        run_bash(DELETE_EVERYTHING, _context()),
+    )
+
+    assert approved["exitCode"] == 0
+    assert unapproved["exitCode"] != 0
+    assert DELETE_EVERYTHING_CALLS == ["deleted"]
 
 
 async def test_manual_mode_queries_run_without_approval() -> None:
     run_bash = _build_run_bash_with_context()
-    result = await run_bash("phoenix-gql '{ hello }' --data-only", _manual_mode_context())
+    result = await run_bash("phoenix-gql '{ hello }' --data-only", _context())
     assert result["exitCode"] == 0
     assert json.loads(result["stdout"]) == {"hello": "world"}
 
 
 async def test_bypass_mode_mutations_run_without_approval() -> None:
     run_bash = _build_run_bash_with_context()
-    ctx: RunContext[Any] = RunContext(deps=_deps("bypass"), model=TestModel(), usage=RunUsage())
-    result = await run_bash("phoenix-gql 'mutation { deleteEverything }' --data-only", ctx)
+    result = await run_bash(DELETE_EVERYTHING, _context("bypass"))
     assert result["exitCode"] == 0
     assert json.loads(result["stdout"]) == {"deleteEverything": "deleted"}
+    assert DELETE_EVERYTHING_CALLS == ["deleted"]
 
 
-async def test_manual_mode_mutation_stays_blocked_when_mutations_disabled() -> None:
+async def test_mutation_stays_blocked_when_mutations_are_disabled() -> None:
     run_bash = _build_run_bash_with_context(allow_mutations=False)
-    result = await run_bash("phoenix-gql 'mutation { deleteEverything }'", _manual_mode_context())
+    result = await run_bash(DELETE_EVERYTHING, _context(), mutation_description=DESCRIPTION)
     assert result["exitCode"] == 1
     assert "Mutations are not permitted." in result["stderr"]
+    assert DELETE_EVERYTHING_CALLS == []
 
 
-async def test_pending_mutation_persists_the_rolled_back_snapshot() -> None:
+async def test_one_snapshot_per_call_and_none_on_a_deferred_call() -> None:
     snapshots: list[bytes] = []
     run_bash = _build_run_bash_with_context(snapshots=snapshots)
 
-    await run_bash("echo durable > kept.txt", _manual_mode_context())
+    await run_bash("echo durable > kept.txt", _context())
     assert len(snapshots) == 1
 
+    # A deferred call never reaches the shell, so it snapshots nothing.
     with pytest.raises(ApprovalRequired):
-        await run_bash(
-            "echo staged > staged.txt && phoenix-gql 'mutation { deleteEverything }'",
-            _manual_mode_context(),
-        )
+        await run_bash(DELETE_EVERYTHING, _context(), mutation_description=DESCRIPTION)
+    assert len(snapshots) == 1
+
+    # Prior session state survives the deferral.
+    result = await run_bash("cat kept.txt", _context())
+    assert result["stdout"] == "durable\n"
+    # Two snapshots for two executed calls; the deferred one contributed none.
     assert len(snapshots) == 2
 
-    # The pre-command file survives the rollback; the dry run's write does not.
-    kept = await run_bash("cat kept.txt", _manual_mode_context())
-    assert kept["stdout"].strip() == "durable"
-    staged = await run_bash("cat staged.txt", _manual_mode_context())
-    assert staged["exitCode"] != 0
+
+class TestRegressionsFromTheDigestEraApprovalFlow:
+    """The old flow dry-ran the command, rolled the shell back, then re-ran the
+    whole command on approval. Because a rollback cannot undo a database commit,
+    an approved mutation could execute once per approval round, and a mutation
+    whose resolved text differed between runs could never be approved at all.
+    """
+
+    async def test_a_write_then_read_back_command_commits_exactly_once(self) -> None:
+        run_bash = _build_run_bash_with_context()
+        # The read-back sees a different count once the mutation has run, which
+        # is what made the old digest-matched approval loop forever.
+        command = (
+            "phoenix-gql 'mutation { deleteEverything }' --data-only ; "
+            "N=$(phoenix-gql '{ deletionCount }' --data-only | tr -dc '0-9') ; "
+            'echo "count=$N"'
+        )
+
+        with pytest.raises(ApprovalRequired):
+            await run_bash(command, _context(), mutation_description=DESCRIPTION)
+        assert DELETE_EVERYTHING_CALLS == []
+
+        result = await run_bash(
+            command, _context(tool_call_approved=True), mutation_description=DESCRIPTION
+        )
+        assert result["exitCode"] == 0
+        assert "count=1" in result["stdout"]
+        assert DELETE_EVERYTHING_CALLS == ["deleted"]
+
+    async def test_a_nondeterministic_mutation_still_executes_once(self) -> None:
+        run_bash = _build_run_bash_with_context()
+        command = (
+            "phoenix-gql 'mutation($tag: String!) { tagEverything(tag: $tag) }' "
+            '--vars "{\\"tag\\": \\"$RANDOM\\"}" --data-only'
+        )
+
+        with pytest.raises(ApprovalRequired):
+            await run_bash(command, _context(), mutation_description=DESCRIPTION)
+
+        result = await run_bash(
+            command, _context(tool_call_approved=True), mutation_description=DESCRIPTION
+        )
+        assert result["exitCode"] == 0, result["stderr"]
+        assert len(TAG_EVERYTHING_CALLS) == 1
