@@ -126,6 +126,10 @@ _CURSOR_SORT_TYPES: dict[str, tuple[CursorSortColumnDataType, type]] = {
     "latency_ms": (CursorSortColumnDataType.FLOAT, float),
 }
 
+#: `Trace.id` is a 32-bit integer column, so a rowid outside this range matches no
+#: row and would raise at bind time instead of paginating.
+_ROWID_RANGE = range(-(2**31), 2**31)
+
 
 def _parse_cursor(cursor: str, sort: str) -> Cursor:
     """Decode a pagination cursor, requiring it to carry ``sort``'s value type."""
@@ -139,6 +143,7 @@ def _parse_cursor(cursor: str, sort: str) -> Cursor:
         sort_column is None
         or sort_column.type is not expected_type
         or not isinstance(sort_column.value, expected_python_type)
+        or parsed.rowid not in _ROWID_RANGE
     ):
         raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
     return parsed

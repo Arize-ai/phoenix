@@ -431,7 +431,7 @@ const sessionTraces = await getTraces({
 | `sort`         | `"start_time" \| "latency_ms"` | Sort field                                 |
 | `order`        | `"asc" \| "desc"`              | Sort direction                             |
 | `limit`        | `number`                       | Maximum number of traces to return         |
-| `cursor`       | `string \| null`               | Pagination cursor (Trace GlobalID)         |
+| `cursor`       | `string \| null`               | Pagination cursor from a previous response's next_cursor. Tied to the sort field it was minted with. |
 | `includeSpans` | `boolean`                      | Include full span details for each trace   |
 | `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
 
