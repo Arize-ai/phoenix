@@ -436,7 +436,7 @@ export function PromptsTable(props: PromptsTableProps) {
     nonOrderableColumnIds: [ACTIONS_COLUMN_ID],
   });
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

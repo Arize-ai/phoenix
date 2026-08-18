@@ -145,7 +145,7 @@ export function GenerativeProvidersCard({
     ] satisfies ColumnDef<DataRow>[];
   }, []);
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
     data: tableData,

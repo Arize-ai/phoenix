@@ -9,13 +9,6 @@
 
   "plugins": ["react", "typescript", "import"],
 
-  "jsPlugins": [
-    {
-      "name": "react-hooks-js",
-      "specifier": "eslint-plugin-react-hooks"
-    }
-  ],
-
   "env": {
     "browser": true
   },
@@ -40,10 +33,24 @@
       }
     ],
     "import/no-cycle": "error",
+    // The native React Compiler rules are stricter than the JS plugin they
+    // replace. Keep the existing gates blocking and introduce newly available
+    // checks as warnings while the reported compiler bailouts are addressed.
+    "react/error-boundaries": "warn",
     "react/exhaustive-deps": "error",
+    "react/globals": "warn",
+    "react/immutability": "warn",
+    "react/incompatible-library": "error",
+    "react/preserve-manual-memoization": "warn",
+    "react/purity": "warn",
+    "react/refs": "warn",
     "react/rules-of-hooks": "error",
-    "react-hooks-js/set-state-in-effect": "error",
-    "react-hooks-js/incompatible-library": "error",
+    "react/set-state-in-effect": "error",
+    "react/set-state-in-render": "warn",
+    "react/static-components": "warn",
+    "react/unsupported-syntax": "warn",
+    "react/use-memo": "warn",
+    "react/void-use-memo": "warn",
     "react/no-unknown-property": ["error", { "ignore": ["css"] }],
     "react/react-in-jsx-scope": "off",
     "typescript/no-empty-object-type": [

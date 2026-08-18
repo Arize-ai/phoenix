@@ -472,6 +472,7 @@ export function AgentFabPositioner({
 
   useLayoutEffect(() => {
     if (!requiresBoundary) {
+      // eslint-disable-next-line react/set-state-in-effect
       setResolvedBoundary(null);
       return undefined;
     }

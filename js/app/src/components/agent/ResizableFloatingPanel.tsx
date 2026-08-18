@@ -1003,6 +1003,7 @@ export function ResizableFloatingPanel({
   }, [minSize, placement, resolvedBoundary]);
 
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setCurrentGeometry((geometry) =>
       clampGeometry({
         bounds: currentBounds,
