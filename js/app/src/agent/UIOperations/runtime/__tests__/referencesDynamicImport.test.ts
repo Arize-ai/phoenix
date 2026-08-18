@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { referencesDynamicImport } from "@phoenix/agent/uiOperations/runtime/uiScriptWorker";
+import { referencesDynamicImport } from "@phoenix/agent/UIOperations/runtime/UIScriptWorker";
 
 describe("referencesDynamicImport", () => {
   it("rejects dynamic import() and import.meta exfil forms", () => {

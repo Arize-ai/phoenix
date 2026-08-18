@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { maskNonCode } from "@phoenix/agent/uiOperations/runtime/maskNonCode";
+import { maskNonCode } from "@phoenix/agent/UIOperations/runtime/maskNonCode";
 
 /** Collapse whitespace runs to make masked output easy to eyeball. */
 const visible = (masked: string) => masked.replace(/\s+/g, " ").trim();

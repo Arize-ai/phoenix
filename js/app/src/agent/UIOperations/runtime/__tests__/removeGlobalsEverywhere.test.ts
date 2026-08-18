@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { removeGlobalsEverywhere } from "@phoenix/agent/uiOperations/runtime/uiScriptWorker";
+import { removeGlobalsEverywhere } from "@phoenix/agent/UIOperations/runtime/UIScriptWorker";
 
 describe("removeGlobalsEverywhere", () => {
   it("deletes prototype-chain members and shadows the global", () => {

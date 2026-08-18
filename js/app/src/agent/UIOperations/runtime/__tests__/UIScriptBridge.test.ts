@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type {
-  UiScriptMessageToWorker,
-  UiScriptMessageToMain,
-} from "@phoenix/agent/uiOperations/runtime/protocol";
+  UIScriptMessageToWorker,
+  UIScriptMessageToMain,
+} from "@phoenix/agent/UIOperations/runtime/protocol";
 import {
-  runUiScript,
-  type UiScriptWorkerLike,
-} from "@phoenix/agent/uiOperations/runtime/uiScriptBridge";
-import type { UiOperationResult } from "@phoenix/agent/uiOperations/types";
+  runUIScript,
+  type UIScriptWorkerLike,
+} from "@phoenix/agent/UIOperations/runtime/UIScriptBridge";
+import type { UIOperationResult } from "@phoenix/agent/UIOperations/types";
 
 /** A real approval-kind operation, so the bridge pauses the budget for it. */
 const APPROVAL_OP = "playground.prompt.edit";
@@ -22,10 +22,10 @@ function createDeferred<T>() {
   return { promise, resolve };
 }
 
-type FakeWorker = UiScriptWorkerLike & {
-  posted: UiScriptMessageToWorker[];
+type FakeWorker = UIScriptWorkerLike & {
+  posted: UIScriptMessageToWorker[];
   isTerminated: boolean;
-  emitMessage: (message: UiScriptMessageToMain) => void;
+  emitMessage: (message: UIScriptMessageToMain) => void;
   emitError: (event: { message?: string }) => void;
 };
 
@@ -44,7 +44,7 @@ function createFakeWorker(): FakeWorker {
   return {
     posted: [],
     isTerminated: false,
-    postMessage(message: UiScriptMessageToWorker) {
+    postMessage(message: UIScriptMessageToWorker) {
       this.posted.push(message);
     },
     addEventListener: addListener as FakeWorker["addEventListener"],
@@ -60,10 +60,10 @@ function createFakeWorker(): FakeWorker {
   };
 }
 
-describe("runUiScript worker failure backstop", () => {
+describe("runUIScript worker failure backstop", () => {
   it("settles as failed when the worker fires an error event instead of burning the budget", async () => {
     const worker = createFakeWorker();
-    const runPromise = runUiScript({
+    const runPromise = runUIScript({
       script: "return 1;",
       dispatchCall: vi.fn(),
       createWorker: () => worker,
@@ -83,12 +83,12 @@ describe("runUiScript worker failure backstop", () => {
     vi.useFakeTimers();
     try {
       const worker = createFakeWorker();
-      const first = createDeferred<UiOperationResult>();
-      const second = createDeferred<UiOperationResult>();
+      const first = createDeferred<UIOperationResult>();
+      const second = createDeferred<UIOperationResult>();
       const dispatchResults = [first.promise, second.promise];
       const dispatchCall = vi.fn(() => dispatchResults.shift()!);
 
-      const runPromise = runUiScript({
+      const runPromise = runUIScript({
         script: "await Promise.all([ui.a(), ui.b()]);",
         dispatchCall,
         createWorker: () => worker,
@@ -136,10 +136,10 @@ describe("runUiScript worker failure backstop", () => {
     vi.useFakeTimers();
     try {
       const worker = createFakeWorker();
-      const neverSettles = new Promise<UiOperationResult>(() => {});
+      const neverSettles = new Promise<UIOperationResult>(() => {});
       const dispatchCall = vi.fn(() => neverSettles);
 
-      const runPromise = runUiScript({
+      const runPromise = runUIScript({
         script: "await ui.something();",
         dispatchCall,
         createWorker: () => worker,
@@ -178,7 +178,7 @@ describe("runUiScript worker failure backstop", () => {
     vi.useFakeTimers();
     try {
       const worker = createFakeWorker();
-      const runPromise = runUiScript({
+      const runPromise = runUIScript({
         script: "while (true) {}",
         dispatchCall: vi.fn(),
         createWorker: () => worker,
@@ -203,7 +203,7 @@ describe("runUiScript worker failure backstop", () => {
 
   it("reports a script-posted parse failure as the run error", async () => {
     const worker = createFakeWorker();
-    const runPromise = runUiScript({
+    const runPromise = runUIScript({
       script: "const s = `broken\\\\`;",
       dispatchCall: vi.fn(),
       createWorker: () => worker,
