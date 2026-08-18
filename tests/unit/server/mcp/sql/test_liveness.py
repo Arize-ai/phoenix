@@ -1057,9 +1057,7 @@ async def test_portable_function_classes_are_executable_on_sqlite(
 DISTINCT_ON_SHAPES = [
     pytest.param("SELECT DISTINCT ON (name) id FROM spans ORDER BY name, id", id="single-key"),
     pytest.param("SELECT DISTINCT ON ((name)) id FROM spans ORDER BY name, id", id="parenthesised"),
-    pytest.param(
-        "SELECT DISTINCT ON (name, id) id FROM spans ORDER BY name, id", id="multi-key"
-    ),
+    pytest.param("SELECT DISTINCT ON (name, id) id FROM spans ORDER BY name, id", id="multi-key"),
 ]
 
 

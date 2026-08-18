@@ -1292,9 +1292,7 @@ def _sqlite_stored_timestamp_operand(node: exp.Expression) -> Optional[exp.Colum
 
 def _unixepoch_subsec(node: exp.Expression) -> exp.Expression:
     """Seconds since the epoch, keeping fractional seconds."""
-    return exp.Anonymous(
-        this="unixepoch", expressions=[node.copy(), exp.Literal.string("subsec")]
-    )
+    return exp.Anonymous(this="unixepoch", expressions=[node.copy(), exp.Literal.string("subsec")])
 
 
 def _rewrite_sqlite_timestamp_subtraction(
