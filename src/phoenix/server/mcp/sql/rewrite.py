@@ -1022,6 +1022,43 @@ def _select_from_is_values(select: exp.Select) -> bool:
     return isinstance(source, exp.Values)
 
 
+def _using_keys_needing_coalesce(
+    node: exp.Select, dialect: SupportedSQLDialectName
+) -> dict[str, list[exp.Identifier]]:
+    """USING keys whose left copy can be NULL, with the relations to merge.
+
+    USING exposes one column per key, defined as the merge of both sides. For
+    an inner or left join the left copy is always the merged value, so emitting
+    it is faithful. A right or full join produces rows where the left side is
+    absent, and there the left copy is NULL while the key itself is not.
+    """
+    from_expr = node.args.get("from_") or node.args.get("from")
+    left_sources: list[exp.Expression] = (
+        [from_expr.this] if isinstance(from_expr, exp.From) else []
+    )
+    needed: dict[str, list[exp.Identifier]] = {}
+    for join in node.args.get("joins") or []:
+        side = str(join.args.get("side") or "").upper()
+        using = join.args.get("using")
+        if using and side in ("RIGHT", "FULL") and left_sources:
+            items = using if isinstance(using, list) else [using]
+            for item in items:
+                ident = item if isinstance(item, exp.Identifier) else getattr(item, "this", None)
+                if not isinstance(ident, exp.Identifier):
+                    continue
+                key = _identifier_key(
+                    ident.name or ident.this or "",
+                    quoted=bool(ident.args.get("quoted")),
+                    dialect=dialect,
+                )
+                needed[key] = [
+                    *(_relation_qualifier(source) for source in left_sources),
+                    _relation_qualifier(join.this),
+                ]
+        left_sources.append(join.this)
+    return needed
+
+
 def _using_join_keys(node: exp.Select, dialect: SupportedSQLDialectName) -> frozenset[str]:
     """Join keys named by USING, compared the way this dialect compares identifiers.
 
@@ -1132,6 +1169,9 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             # star names one relation's columns, so it keeps that relation's
             # copy of the key.
             using_keys = _using_join_keys(node, ctx.dialect) if not explicit else frozenset()
+            coalesce_using = (
+                _using_keys_needing_coalesce(node, ctx.dialect) if not explicit else {}
+            )
             using_keys = frozenset(using_keys | ctx.coalesced_using_by_select.get(id(node), set()))
             emitted_using: set[str] = set()
 
@@ -1212,6 +1252,27 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                         if key in emitted_using:
                             continue
                         emitted_using.add(key)
+                        merge = coalesce_using.get(key)
+                        if merge:
+                            new_exprs.append(
+                                exp.alias_(
+                                    exp.Coalesce(
+                                        this=exp.Column(
+                                            this=exp.to_identifier(name, quoted=quoted),
+                                            table=merge[0].copy(),
+                                        ),
+                                        expressions=[
+                                            exp.Column(
+                                                this=exp.to_identifier(name, quoted=quoted),
+                                                table=other.copy(),
+                                            )
+                                            for other in merge[1:]
+                                        ],
+                                    ),
+                                    exp.to_identifier(name, quoted=quoted),
+                                )
+                            )
+                            continue
                     # Qualify by the caller's alias, quoting included: after
                     # ``FROM spans AS s`` the name ``spans`` no longer resolves.
                     new_exprs.append(
