@@ -1169,8 +1169,13 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                     aliases.add(key)
                     exposed_by_key[key] = exposed
             names = frozenset(aliases)
+            # `Scope.columns` of an outer query includes an unqualified column
+            # that belongs to a nested subquery, and `traverse()` yields the
+            # inner scope first. Keeping the first attribution binds the column
+            # to the relation that actually encloses it; overwriting binds a
+            # subquery's `latency_ms` to the outer query's table.
             for column in (*scope.columns, *_scope_columns(scope.expression)):
-                duration_scope[id(column)] = (duration_sources, names, exposed_by_key)
+                duration_scope.setdefault(id(column), (duration_sources, names, exposed_by_key))
             if duration_sources < 2:
                 continue
             for column in _scope_columns(scope.expression):
@@ -1814,8 +1819,10 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                 scope, allowlist=ctx.allowlist, dialect=ctx.dialect
             )
             fallback = next(iter(set(by_alias.values()))) if n_sources == 1 else None
+            # Innermost attribution wins, as in the duration overlay: an outer
+            # scope lists a nested subquery's unqualified column too.
             for column in (*scope.columns, *_scope_columns(scope.expression)):
-                resolution[id(column)] = (by_alias, fallback, n_sources, exposed_by_key)
+                resolution.setdefault(id(column), (by_alias, fallback, n_sources, exposed_by_key))
     if not any(n_sources for _, _, n_sources, _ in resolution.values()):
         return root
 
