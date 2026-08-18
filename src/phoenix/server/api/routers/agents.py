@@ -293,6 +293,15 @@ class SessionSummaryChunk(DataChunk):
 
 class TranscriptPersistedData(_CamelBaseModel):
     message_id: str
+    persisted_tool_output_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Tool call IDs whose client-executed outputs are in the message that "
+            "was just written. The client skips these in its eager flush. Derived "
+            "from the persisted message itself rather than from the client's copy, "
+            "which can have moved on since the server took its snapshot."
+        ),
+    )
 
 
 @register_openapi_schema
@@ -1652,7 +1661,7 @@ _UnresolvedToolUIPart = (
 
 
 def _get_tool_execution_environment(
-    part: _UnresolvedToolUIPart,
+    part: _UnresolvedToolUIPart | ToolOutputUIPart,
 ) -> ToolExecutionEnvironment | None:
     """Read the server-stamped execution environment off a tool part, if any."""
     if part.call_provider_metadata is None:
@@ -1662,6 +1671,20 @@ def _get_tool_execution_environment(
         return None
     metadata = _PhoenixToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
     return metadata.tool_execution_environment
+
+
+def _persisted_client_tool_output_ids(message: PhoenixUIMessage) -> list[str]:
+    """Tool call IDs whose client-executed outputs this message actually carries.
+
+    The client suppresses its eager flush for these, so this must describe the
+    message being written and nothing more: naming a call whose output the server
+    does not hold stops the client from ever sending it.
+    """
+    return [
+        part.tool_call_id
+        for part in message.parts
+        if isinstance(part, ToolOutputUIPart) and _get_tool_execution_environment(part) == "client"
+    ]
 
 
 def _interrupted_tool_output_text(part: _UnresolvedToolUIPart) -> str:
@@ -1885,14 +1908,20 @@ def _to_approval_responded_part(
 def _apply_tool_approvals(
     message: PhoenixUIMessage,
     tool_approvals: Sequence[SubmittedToolApproval],
-) -> PhoenixUIMessage | None:
-    """Respond to the assistant message's approval-requested tool calls."""
+) -> PhoenixUIMessage:
+    """Respond to the assistant message's approval-requested tool calls.
+
+    Every submitted approval must name a call that is still awaiting one, so
+    this either rewrites at least one part or raises. A resubmission of an
+    approval the transcript already carries is a conflict rather than a no-op:
+    the server cannot tell whether the approved call already ran, and resuming
+    the turn on the strength of a duplicate would execute it a second time.
+    """
     tool_calls_by_id: dict[_ToolCallId, tuple[_PartIndex, ToolUIPart | DynamicToolUIPart]] = {}
     for index, part in enumerate(message.parts):
         if isinstance(part, ToolUIPart | DynamicToolUIPart):
             tool_calls_by_id[part.tool_call_id] = (index, part)
     parts = list(message.parts)
-    changed = False
     for tool_approval in tool_approvals:
         matched_call = tool_calls_by_id.get(tool_approval.tool_call_id)
         if matched_call is None:
@@ -1906,12 +1935,11 @@ def _apply_tool_approvals(
             )
         matched_index, call_part = matched_call
         if isinstance(call_part, (ToolApprovalRespondedPart, DynamicToolApprovalRespondedPart)):
-            existing_approval = call_part.approval
-            if (
-                isinstance(existing_approval, ToolApprovalResponded)
-                and existing_approval.approved == tool_approval.approved
-            ):
-                continue
+            # Rejected even when the resubmitted answer matches the recorded
+            # one. Skipping an identical duplicate meant a submission of nothing
+            # but duplicates rewrote no part at all, while ``_merge_messages``
+            # still resumed the turn from the tail -- so the approved call ran a
+            # second time, committing twice for a mutation.
             raise AgentSessionConflict(
                 "agent_session_tool_outputs_conflict",
                 (
@@ -1928,9 +1956,6 @@ def _apply_tool_approvals(
                 ),
             )
         parts[matched_index] = _to_approval_responded_part(call_part, tool_approval)
-        changed = True
-    if not changed:
-        return None
     return message.model_copy(update={"parts": parts})
 
 
@@ -1988,9 +2013,8 @@ def _merge_messages(
                 messages[-1] = merged_tail
         if tool_approvals:
             merged_tail = _apply_tool_approvals(messages[-1], tool_approvals)
-            if merged_tail is not None:
-                updated_messages[merged_tail.id] = merged_tail
-                messages[-1] = merged_tail
+            updated_messages[merged_tail.id] = merged_tail
+            messages[-1] = merged_tail
     continuing_assistant_turn = new_message is None
     for index, message in enumerate(messages):
         # A continued tail's approval-responded parts are consumed as deferred
@@ -3094,7 +3118,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     prompts=ServerAgentPrompts(base=agent_prompts.base),
                     docs_mcp_server=request.app.state.docs_mcp_server,
                     enable_web_access=web_access_enabled,
-                    allow_mutations=graphql_mutations_enabled,
+                    # A headless run has no client to answer an approval
+                    # request, so in manual mode it gets no mutation access at
+                    # all rather than mutations with the approval flow skipped.
+                    allow_mutations=(
+                        graphql_mutations_enabled and body.edit_permission == "bypass"
+                    ),
+                    require_mutation_approval=False,
                     read_only=request.app.state.read_only,
                     auth_enabled=request.app.state.authentication_enabled,
                     user_id=request_user_id,
@@ -3144,6 +3174,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         allow_mutations=(
                             graphql_mutations_enabled and body.edit_permission == "bypass"
                         ),
+                        require_mutation_approval=False,
                         read_only=request.app.state.read_only,
                         auth_enabled=request.app.state.authentication_enabled,
                         user_id=request_user_id,
@@ -3199,6 +3230,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         else None
                     ),
                     allow_mutations=graphql_mutations_enabled,
+                    require_mutation_approval=body.edit_permission == "manual",
                     initial_bash_snapshot=initial_bash_snapshot,
                     on_bash_snapshot=_capture_bash_snapshot,
                 )
@@ -3329,6 +3361,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 stream_error: BaseException | None = None
                 turn_interrupted = False
                 turn_persisted = False
+                turn_lock_released = False
                 summary_task: asyncio.Task[str | None] | None = None
                 message_state = create_streaming_ui_message_state(
                     message_id=server_message_id,
@@ -3367,8 +3400,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             str(GlobalID("AgentSession", str(agent_session_rowid))),
                         )
                         raise _transcript_persistence_error(request.app.state.db) from exc
+                    persisted_message = turn_messages[-1]
                     return TranscriptPersistedChunk(
-                        data=TranscriptPersistedData(message_id=turn_messages[-1].id)
+                        data=TranscriptPersistedData(
+                            message_id=persisted_message.id,
+                            persisted_tool_output_ids=_persisted_client_tool_output_ids(
+                                persisted_message
+                            ),
+                        )
                     )
 
                 async def _persist_interrupted_turn() -> None:
@@ -3547,6 +3586,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             yield message_chunk
                         transcript_persisted_chunk = await _persist_turn()
                         turn_persisted = True
+                        # Release before announcing the write, not after. The
+                        # client reacts to this chunk by flushing tool outputs
+                        # the ack did not name, and a flush that arrives while
+                        # this turn still holds the lock is refused with
+                        # ``agent_session_busy`` and only retries when something
+                        # else re-triggers it -- which may be never.
+                        await _release_agent_session_turn_lock(
+                            db_session_factory,
+                            agent_session_rowid=agent_session_rowid,
+                        )
+                        turn_lock_released = True
                         yield transcript_persisted_chunk
                 except Exception as exc:
                     stream_error = exc
@@ -3568,10 +3618,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     with anyio.CancelScope(shield=turn_interrupted):
                         if turn_interrupted and not turn_persisted:
                             await _persist_interrupted_turn()
-                        await _release_agent_session_turn_lock(
-                            db_session_factory,
-                            agent_session_rowid=agent_session_rowid,
-                        )
+                        # Skipped when the happy path already released: the
+                        # release is unconditional, so repeating it here would
+                        # clear a lock another turn has since claimed.
+                        if not turn_lock_released:
+                            await _release_agent_session_turn_lock(
+                                db_session_factory,
+                                agent_session_rowid=agent_session_rowid,
+                            )
                         if summary_task is not None:
                             if not summary_task.done():
                                 summary_task.cancel()

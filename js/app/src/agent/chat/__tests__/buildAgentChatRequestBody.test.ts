@@ -449,6 +449,106 @@ describe("buildAgentChatRequestBody", () => {
   });
 });
 
+describe("buildAgentChatRequestBody tool approvals", () => {
+  const baseOptions = {
+    body: undefined,
+    id: "session-1",
+    capabilities: createDefaultAgentCapabilities(),
+    observability: {
+      storeLocalTraces: false,
+      exportRemoteTraces: false,
+      attachUserId: false,
+      acknowledgedTraceConsent: null,
+    },
+    agentsConfig,
+    permissions: { edits: "manual" } as const,
+    contexts: [],
+    modelSelection: {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-4o-mini",
+    } as const,
+  };
+
+  function respondedApprovalMessage(
+    part: Record<string, unknown>
+  ): AgentUIMessage {
+    return {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [part],
+    } as unknown as AgentUIMessage;
+  }
+
+  it("carries a responded approval as a continuation, with its denial reason", () => {
+    const body = buildAgentChatRequestBody({
+      ...baseOptions,
+      messages: [
+        userMessage,
+        respondedApprovalMessage({
+          type: "tool-bash",
+          toolCallId: "tool-call-1",
+          state: "approval-responded",
+          input: {},
+          approval: {
+            id: "approval-1",
+            approved: false,
+            reason: "Too destructive",
+          },
+        }),
+      ],
+    });
+
+    expect(body.toolApprovals).toEqual([
+      { toolCallId: "tool-call-1", approved: false, reason: "Too destructive" },
+    ]);
+    expect(body).not.toHaveProperty("toolOutputs");
+  });
+
+  it("carries a responded approval on a dynamic tool part too", () => {
+    // `isToolUIPart` is the union predicate — static *or* dynamic — so dynamic
+    // parts are extracted by the same branch. The router handles the dynamic
+    // approval part types, and this keeps the two sides from drifting apart if
+    // dynamic tools (e.g. via MCP) ever start requesting approval.
+    const body = buildAgentChatRequestBody({
+      ...baseOptions,
+      messages: [
+        userMessage,
+        respondedApprovalMessage({
+          type: "dynamic-tool",
+          toolName: "some_mcp_tool",
+          toolCallId: "tool-call-dynamic",
+          state: "approval-responded",
+          input: {},
+          approval: { id: "approval-2", approved: true },
+        }),
+      ],
+    });
+
+    expect(body.toolApprovals).toEqual([
+      { toolCallId: "tool-call-dynamic", approved: true },
+    ]);
+  });
+
+  it("rejects a continuation with neither outputs nor approvals to send", () => {
+    expect(() =>
+      buildAgentChatRequestBody({
+        ...baseOptions,
+        messages: [
+          userMessage,
+          respondedApprovalMessage({
+            type: "tool-bash",
+            toolCallId: "tool-call-1",
+            state: "approval-requested",
+            input: {},
+            approval: { id: "approval-1" },
+          }),
+        ],
+      })
+    ).toThrow("requires resolved client tool outputs or approvals");
+  });
+});
+
 describe("enrichMessageWithClientToolMetadata", () => {
   it("copies completed tool parts and preserves provider metadata", () => {
     const times = [

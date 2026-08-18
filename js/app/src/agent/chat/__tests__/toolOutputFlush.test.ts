@@ -1,5 +1,6 @@
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
+import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 
 const FLUSH_URL = "/v1/agent_sessions/session-1/tool_outputs";
@@ -175,6 +176,67 @@ describe("flushToolOutputs", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(syncedToolOutputIds.size).toBe(0);
+  });
+
+  it("still retries after a busy 409 when the ack does not name the output", async () => {
+    // The regression this pairs with: the turn lock is held for the whole chat
+    // stream, so a flush issued mid-turn is refused with agent_session_busy and
+    // unmarks itself for a retry. The transcript-persisted ack used to re-mark
+    // it from the client's own copy of the message — cancelling that retry for
+    // an output the server never received. The ack now names only what it
+    // wrote, so an output it does not name stays flushable.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 409 } as Response)
+      .mockResolvedValue(okResponse());
+    const coordinator = createTranscriptPersistenceCoordinator();
+    const message = assistantMessage([
+      resolvedToolPart("call-1"),
+      pendingToolPart("call-2"),
+    ]);
+
+    flushToolOutputs({
+      message,
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+      syncedToolOutputIds: coordinator.syncedToolOutputIds,
+    });
+    await settle();
+    expect(coordinator.syncedToolOutputIds.size).toBe(0);
+
+    // The turn persisted without call-1's output, so the ack names nothing.
+    coordinator.acknowledge({ messageId: "assistant-1" });
+    coordinator.markToolOutputsPersisted([]);
+
+    flushToolOutputs({
+      message,
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+      syncedToolOutputIds: coordinator.syncedToolOutputIds,
+    });
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(coordinator.syncedToolOutputIds).toEqual(new Set(["call-1"]));
+  });
+
+  it("skips an output the ack named as persisted", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse());
+    const coordinator = createTranscriptPersistenceCoordinator();
+
+    coordinator.markToolOutputsPersisted(["call-1"]);
+    flushToolOutputs({
+      message: assistantMessage([
+        resolvedToolPart("call-1"),
+        pendingToolPart("call-2"),
+      ]),
+      flushUrl: FLUSH_URL,
+      fetch: fetchMock,
+      syncedToolOutputIds: coordinator.syncedToolOutputIds,
+    });
+    await settle();
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("does not flush when every tool call has resolved", async () => {

@@ -14,6 +14,23 @@ type PersistenceState =
     };
 
 /**
+ * Resolved client-tool output IDs on a message the server sent us.
+ *
+ * Sound only for a server-provided message — a seeded transcript — where every
+ * resolved output is by definition already durable.
+ */
+export function resolvedClientToolOutputIds(
+  message: AgentUIMessage | undefined
+): string[] {
+  if (message?.role !== "assistant") {
+    return [];
+  }
+  return message.parts
+    .filter(isResolvedClientToolOutputPart)
+    .map((part) => part.toolCallId);
+}
+
+/**
  * Coordinates automatic continuations with durable assistant messages, and
  * tracks which client tool outputs the server already holds so the eager
  * flush never re-posts them: a redundant POST claims the session turn lock
@@ -26,20 +43,20 @@ export function createTranscriptPersistenceCoordinator() {
   const syncedToolOutputIds = new Set<string>();
 
   /**
-   * Records every resolved client tool output on a persisted message as held
-   * by the server. Called for seed messages and on each transcript-persisted
-   * acknowledgement; outputs resolved after an acknowledgement still flush.
+   * Records tool outputs the server holds, so the eager flush never re-posts
+   * them.
+   *
+   * Takes IDs, not a message: the only sound sources are the transcript the
+   * server sent and the acknowledgement's own list of what it wrote. Reading
+   * them off the client's live copy of a message instead marks outputs the
+   * server never received, because that copy can have moved past the snapshot
+   * the server persisted — and a wrongly marked output is never flushed again.
    */
   const markToolOutputsPersisted = (
-    message: AgentUIMessage | undefined
+    toolCallIds: readonly string[] | undefined
   ): void => {
-    if (message?.role !== "assistant") {
-      return;
-    }
-    for (const part of message.parts) {
-      if (isResolvedClientToolOutputPart(part)) {
-        syncedToolOutputIds.add(part.toolCallId);
-      }
+    for (const toolCallId of toolCallIds ?? []) {
+      syncedToolOutputIds.add(toolCallId);
     }
   };
 
