@@ -115,7 +115,7 @@ dev = [
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
-  "openai",
+  "openai>=3.1.0,<4",
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "opentelemetry-exporter-otlp",
@@ -216,7 +216,7 @@ container = [
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
-  "openai>=2.14.0",
+  "openai>=3.1.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
@@ -443,13 +443,13 @@ exclude-newer = "3 days"
 # member — it is a setup.py C extension — so it resolves from PyPI and needs
 # this to be installable at all on the day it publishes.
 exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z" }
-# litellm 1.83.x hard-pins `openai==2.24.0` and `python-dotenv==1.0.1`, which
-# conflict with pydantic-ai (needs openai>=2.29.0) and fastmcp (needs
-# python-dotenv>=1.1.0). Override the over-restrictive pins so resolution
-# succeeds; phoenix uses litellm purely as a client library and does not
-# exercise the pinned-version code paths.
+# litellm bounds shared dependencies below what the rest of the tree needs: it
+# caps `openai<3` while phoenix and pydantic-ai require openai 3, and it has
+# capped `python-dotenv` below the `>=1.1.0` fastmcp requires. Overriding is safe
+# because phoenix uses litellm purely as a client library and never reaches the
+# code paths those bounds guard.
 override-dependencies = [
-  "openai>=2.30.0",
+  "openai>=3.1.0,<4",
   "python-dotenv>=1.1.0",
 ]
 
