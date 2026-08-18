@@ -2021,3 +2021,44 @@ def test_subtraction_of_non_timestamp_columns_is_left_alone() -> None:
         "SELECT llm_token_count_prompt - llm_token_count_completion AS v FROM spans"
     )
     assert "UNIXEPOCH" not in rendered.upper()
+
+
+def _run_two_table_sqlite(sql: str) -> list[tuple[Any, ...]]:
+    """spans holds a 1500 ms row; traces holds a 2000 ms row."""
+    conn = sqlean.connect(":memory:")
+    try:
+        conn.execute("CREATE TABLE spans(start_time TEXT, end_time TEXT)")
+        conn.execute("CREATE TABLE traces(start_time TEXT, end_time TEXT)")
+        conn.execute(
+            "INSERT INTO spans VALUES('2026-07-30 12:00:00.000000','2026-07-30 12:00:01.500000')"
+        )
+        conn.execute(
+            "INSERT INTO traces VALUES('2026-07-30 12:00:00.000000','2026-07-30 12:00:02.000000')"
+        )
+        return cast(list[tuple[Any, ...]], conn.execute(sql).fetchall())
+    finally:
+        conn.close()
+
+
+def test_virtual_column_in_a_subquery_resolves_to_the_subquery_relation() -> None:
+    """An unqualified overlay binds to the relation that encloses it.
+
+    `Scope.columns` of an outer query also lists an unqualified column that
+    belongs to a nested subquery. Binding it to the outer table substitutes one
+    relation's timestamps into another relation's query: the statement runs and
+    returns the wrong duration, with nothing to indicate it.
+    """
+    rendered = _rendered("SELECT (SELECT max(latency_ms) FROM spans) AS m FROM traces")
+    assert "spans.end_time" in rendered
+    assert "traces.end_time" not in rendered
+    assert _run_two_table_sqlite(rendered)[0][0] == 1500.0
+
+
+def test_virtual_column_predicate_in_a_subquery_resolves_to_the_subquery_relation() -> None:
+    rendered = _rendered(
+        "SELECT (SELECT count(*) FROM spans WHERE latency_ms < 1800) AS c FROM traces"
+    )
+    assert "spans.end_time" in rendered
+    assert "traces.end_time" not in rendered
+    # The span is 1500 ms so it counts; the trace is 2000 ms and would not.
+    assert _run_two_table_sqlite(rendered)[0][0] == 1
