@@ -2763,6 +2763,36 @@ async def test_failure_transition_retries_raised_exceptions(
     assert row.attempts == 1
 
 
+async def test_transition_retry_stops_after_bounded_attempts(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    transition_attempts = 0
+
+    async def _always_fails() -> bool:
+        nonlocal transition_attempts
+        transition_attempts += 1
+        raise TypeError("unexpected transition result")
+
+    async def _heartbeat(_: int) -> bool:
+        return True
+
+    monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0,))
+    monkeypatch.setattr(consumer, "_heartbeat", _heartbeat)
+
+    recorded = await asyncio.wait_for(
+        consumer._retry_transition(
+            action="record failure",
+            work_unit_id=1,
+            transition=_always_fails,
+        ),
+        timeout=1,
+    )
+
+    assert recorded is False
+    assert transition_attempts == 1 + consumer_module._TRANSITION_RETRY_TERMINAL_ATTEMPTS
+
+
 async def test_failure_transition_retries_after_ambiguous_commit(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
