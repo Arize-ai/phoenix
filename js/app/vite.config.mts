@@ -16,6 +16,12 @@ import relay from "vite-plugin-relay";
 // We however want to enable source maps on the containers for debugging purposes.
 const enableSourceMap = process.env.PHOENIX_ENABLE_SOURCE_MAP === "True";
 
+// Adapted on August 18, 2026 from the proposed native integration in
+// https://github.com/vitejs/vite-plugin-react/pull/1419 because
+// @vitejs/plugin-react 6.0.5 does not yet expose its `compiler` option.
+// Once that PR (or equivalent support) ships, remove this local plugin and use
+// `react({ compiler: { panicThreshold: "none", target: "19" } })` instead.
+// Keep `oxc-transform-react` installed if the upstream option still requires it.
 const REACT_CODE_PATTERN = /forwardRef|memo|\b(?:[A-Z]|use[A-Z0-9])/;
 const REACT_SOURCE_PATTERN = /\.[jt]sx?$/;
 const NODE_MODULES_PATTERN = /\/node_modules\//;
