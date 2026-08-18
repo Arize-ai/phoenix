@@ -63,6 +63,7 @@ EXECUTION_DEADLINE_SECONDS = 600.0
 _CONSUMER_GROUP = "default"
 
 _TRANSITION_RETRY_DELAYS_SECONDS = (1.0, 2.0, 4.0)
+_TRANSITION_RETRY_TERMINAL_ATTEMPTS = 3
 
 
 class ExecutionTimeoutCause(str, Enum):
@@ -451,10 +452,20 @@ class OnlineEvalConsumer(DaemonTask):
             try:
                 return await self._run_db(transition)
             except Exception:
-                delay_seconds = _TRANSITION_RETRY_DELAYS_SECONDS[
-                    min(retry_index, len(_TRANSITION_RETRY_DELAYS_SECONDS) - 1)
-                ]
                 retry_index += 1
+                if retry_index >= (
+                    len(_TRANSITION_RETRY_DELAYS_SECONDS)
+                    + _TRANSITION_RETRY_TERMINAL_ATTEMPTS
+                ):
+                    logger.error(
+                        f"Failed to {action} for online-eval work unit {work_unit_id} after "
+                        f"{retry_index} attempts; stopping transition retries",
+                        exc_info=True,
+                    )
+                    return False
+                delay_seconds = _TRANSITION_RETRY_DELAYS_SECONDS[
+                    min(retry_index - 1, len(_TRANSITION_RETRY_DELAYS_SECONDS) - 1)
+                ]
                 logger.warning(
                     f"Failed to {action} for online-eval work unit {work_unit_id}; "
                     f"retrying in {delay_seconds:g}s",
