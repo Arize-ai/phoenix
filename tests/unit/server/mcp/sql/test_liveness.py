@@ -1052,3 +1052,29 @@ async def test_portable_function_classes_are_executable_on_sqlite(
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
     assert result.envelope.row_count > 0
+
+
+DISTINCT_ON_SHAPES = [
+    pytest.param("SELECT DISTINCT ON (name) id FROM spans ORDER BY name, id", id="single-key"),
+    pytest.param("SELECT DISTINCT ON ((name)) id FROM spans ORDER BY name, id", id="parenthesised"),
+    pytest.param(
+        "SELECT DISTINCT ON (name, id) id FROM spans ORDER BY name, id", id="multi-key"
+    ),
+]
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize("sql", DISTINCT_ON_SHAPES)
+async def test_distinct_on_executes(analytics_postgres_db: DbSessionFactory, sql: str) -> None:
+    """`DISTINCT ON (expr)` is a key list, not a row constructor.
+
+    A one-element parenthesised list is a record constructor almost everywhere
+    it appears, and is rewritten to `ROW(expr)` so PostgreSQL reads it as one.
+    In `DISTINCT ON` the same text is grammar, and `ROW` there is a syntax
+    error, so admission accepted a statement the engine then rejected.
+
+    Executed rather than rendered: the corpus pinned admission for this shape
+    and could not see that the emitted SQL does not parse.
+    """
+    result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
+    assert result.envelope.row_count > 0
