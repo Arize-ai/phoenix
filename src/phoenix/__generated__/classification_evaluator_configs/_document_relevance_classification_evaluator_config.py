@@ -1,7 +1,13 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 
 DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="document_relevance",
@@ -16,11 +22,13 @@ DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConf
     choices={"relevant": 1.0, "unrelated": 0.0},
     substitutions=None,
     labels=[],
-    scope="span",
-    category="grounding_and_retrieval",
+    scope=EvaluatorScope.SPAN,
+    category=EvaluatorCategory.GROUNDING_AND_RETRIEVAL,
     details="Determines whether a retrieved document contains information relevant to answering the input query. This is essential for evaluating RAG systems, where document quality directly impacts response quality.",
     inputs={
-        "document_text": {"description": "The content of the retrieved document or context."},
-        "input": {"description": "The input query or conversational context."},
+        "document_text": EvaluatorInput(
+            description="The content of the retrieved document or context."
+        ),
+        "input": EvaluatorInput(description="The input query or conversational context."),
     },
 )

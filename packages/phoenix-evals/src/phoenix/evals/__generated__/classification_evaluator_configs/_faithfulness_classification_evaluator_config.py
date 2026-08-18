@@ -1,7 +1,13 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 
 FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="faithfulness",
@@ -16,12 +22,12 @@ FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"faithful": 1.0, "unfaithful": 0.0},
     substitutions=None,
     labels=[],
-    scope="span",
-    category="grounding_and_retrieval",
+    scope=EvaluatorScope.SPAN,
+    category=EvaluatorCategory.GROUNDING_AND_RETRIEVAL,
     details="Determines whether an LLM's response is grounded in and faithful to the provided context. It detects information that is unsupported by or contradicts the reference context and is intended for grounded responses such as RAG outputs.",
     inputs={
-        "context": {"description": "The content of the retrieved documents or context."},
-        "input": {"description": "The input query or conversational context."},
-        "output": {"description": "The LLM's output response to be evaluated."},
+        "context": EvaluatorInput(description="The content of the retrieved documents or context."),
+        "input": EvaluatorInput(description="The input query or conversational context."),
+        "output": EvaluatorInput(description="The LLM's output response to be evaluated."),
     },
 )

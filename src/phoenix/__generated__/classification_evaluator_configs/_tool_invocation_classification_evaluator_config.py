@@ -1,7 +1,13 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 
 TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="tool_invocation",
@@ -19,18 +25,18 @@ TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         "tool_selection": "output_with_tool_calls",
     },
     labels=["promoted_dataset_evaluator"],
-    scope="span",
-    category="agents",
+    scope=EvaluatorScope.SPAN,
+    category=EvaluatorCategory.AGENTS,
     details="Determines whether an LLM invoked a tool correctly with proper arguments, formatting, and safe content. It focuses on how the tool was called rather than whether the right tool was selected. It works even if no tools were called.",
     inputs={
-        "available_tools": {
-            "description": "The list of available tools, including names and descriptions. A simple human-readable list is better than including the full tool schemas."
-        },
-        "input": {
-            "description": "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
-        },
-        "tool_selection": {
-            "description": "The LLM's output response (including messages and tool calls) to be evaluated."
-        },
+        "available_tools": EvaluatorInput(
+            description="The list of available tools, including names and descriptions. A simple human-readable list is better than including the full tool schemas."
+        ),
+        "input": EvaluatorInput(
+            description="The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+        ),
+        "tool_selection": EvaluatorInput(
+            description="The LLM's output response (including messages and tool calls) to be evaluated."
+        ),
     },
 )

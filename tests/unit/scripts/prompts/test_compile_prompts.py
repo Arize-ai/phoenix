@@ -88,13 +88,19 @@ def test_python_generator_emits_gallery_metadata() -> None:
     config = compiler_module.ClassificationEvaluatorConfig.model_validate(
         _config(
             scope="span",
+            recommended=True,
             category="response_quality",
-            inputs={"input": {"description": "Input"}},
+            kind="CODE",
+            details="Detailed guidance.",
+            inputs={"input": {"description": "Input", "format": "text"}},
         )
     )
 
     source = compiler_module.get_prompt_file_contents(config, "TEST_CONFIG")
 
-    assert "scope='span'" in source
-    assert "category='response_quality'" in source
-    assert "inputs={'input': {'description': 'Input'}}" in source
+    assert "scope=EvaluatorScope.SPAN" in source
+    assert "recommended=True" in source
+    assert "category=EvaluatorCategory.RESPONSE_QUALITY" in source
+    assert "kind=EvaluatorKind.CODE" in source
+    assert "details='Detailed guidance.'" in source
+    assert "inputs={'input': EvaluatorInput(description='Input', format='text')}" in source

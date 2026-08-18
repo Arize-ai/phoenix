@@ -1,7 +1,13 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 
 TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="tool_response_handling",
@@ -16,19 +22,21 @@ TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluator
     choices={"correct": 1.0, "incorrect": 0.0},
     substitutions=None,
     labels=[],
-    scope="trace",
-    category="agents",
+    scope=EvaluatorScope.TRACE,
+    category=EvaluatorCategory.AGENTS,
     details="Determines whether an AI agent correctly processed a tool's result to produce an appropriate output. It focuses on what happens after a tool call by checking that the agent used the result accurately, handled errors, and disclosed information safely.",
     inputs={
-        "input": {
-            "description": "The conversational context, whether that is a single input query or a full turn-by-turn conversation. Intermediate tool calls/results are not required."
-        },
-        "tool_call": {
-            "description": "Details of the tool or tools that were called, including name and parameters."
-        },
-        "tool_result": {"description": "The complete tool results, including any errors."},
-        "output": {
-            "description": "The LLM's output messages after the tool call (including messages and tool calls)."
-        },
+        "input": EvaluatorInput(
+            description="The conversational context, whether that is a single input query or a full turn-by-turn conversation. Intermediate tool calls/results are not required."
+        ),
+        "tool_call": EvaluatorInput(
+            description="Details of the tool or tools that were called, including name and parameters."
+        ),
+        "tool_result": EvaluatorInput(
+            description="The complete tool results, including any errors."
+        ),
+        "output": EvaluatorInput(
+            description="The LLM's output messages after the tool call (including messages and tool calls)."
+        ),
     },
 )

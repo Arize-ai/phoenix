@@ -139,7 +139,11 @@ CLASSIFICATION_EVALUATOR_CONFIG_TEMPLATE = """\
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+{% for model_import in model_imports -%}
+    {{ model_import }},
+{% endfor -%}
+)
 
 {{ classification_evaluator_config_name }} = {{ classification_evaluator_config_definition }}
 """
@@ -212,22 +216,34 @@ def get_prompt_file_contents(config: ClassificationEvaluatorConfig, name: str) -
         "labels",
     )
     arguments = [f"{field_name}={getattr(config, field_name)!r}" for field_name in base_field_names]
-    metadata = config.model_dump(
-        mode="json",
-        include={
-            "scope",
-            "recommended",
-            "category",
-            "kind",
-            "details",
-            "inputs",
-        },
-        exclude_defaults=True,
-        exclude_none=True,
-    )
-    arguments.extend(f"{field_name}={value!r}" for field_name, value in metadata.items())
+    model_imports = {"ClassificationEvaluatorConfig", "PromptMessage"}
+    if config.scope is not None:
+        model_imports.add("EvaluatorScope")
+        arguments.append(f"scope=EvaluatorScope.{config.scope.name}")
+    if config.recommended:
+        arguments.append("recommended=True")
+    if config.category is not None:
+        model_imports.add("EvaluatorCategory")
+        arguments.append(f"category=EvaluatorCategory.{config.category.name}")
+    if config.kind != EvaluatorKind.LLM:
+        model_imports.add("EvaluatorKind")
+        arguments.append(f"kind=EvaluatorKind.{config.kind.name}")
+    if config.details is not None:
+        arguments.append(f"details={config.details!r}")
+    if config.inputs is not None:
+        model_imports.add("EvaluatorInput")
+        input_definitions = []
+        for input_name, evaluator_input in config.inputs.items():
+            input_arguments = [f"description={evaluator_input.description!r}"]
+            if evaluator_input.format is not None:
+                input_arguments.append(f"format={evaluator_input.format!r}")
+            input_definitions.append(
+                f"{input_name!r}: EvaluatorInput({', '.join(input_arguments)})"
+            )
+        arguments.append(f"inputs={{{', '.join(input_definitions)}}}")
     config_definition = f"ClassificationEvaluatorConfig({', '.join(arguments)})"
     content = template.render(
+        model_imports=sorted(model_imports),
         classification_evaluator_config_name=name,
         classification_evaluator_config_definition=config_definition,
     )
