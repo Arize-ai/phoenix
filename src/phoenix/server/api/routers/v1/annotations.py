@@ -89,9 +89,9 @@ class AnnotationData(V1RoutesBaseModel):
     def _reject_reserved_identifier(cls, identifier: str) -> str:
         """Keep the prefix that marks Phoenix's own annotations out of client hands.
 
-        It is what excludes online evaluation's output from the annotation scan that feeds
-        triggers, so a client able to write it could exempt its own annotations from every
-        trigger and collide with the key online evaluation publishes under.
+        It prevents online evaluation output from triggering another evaluation, so a
+        client able to write it could exempt its own annotations from every trigger and
+        collide with the key online evaluation publishes under.
         """
         if is_reserved_annotation_identifier(identifier):
             raise ValueError(
@@ -816,7 +816,7 @@ supplied filter.
 
 - The request must either supply both `start_time` AND `end_time`
   to bound the delete to a `[start_time, end_time)` time window,
-  OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+  OR set `delete_all=true` to acknowledge an unbounded deletion. A request
   that satisfies neither is rejected with 422.
 - `name`, `identifier`, and `annotator_kind` are optional narrowing
   filters; on their own they do NOT authorize the request — they only

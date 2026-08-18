@@ -62,13 +62,13 @@ def _live_rules(*selected: Any) -> Select[Any]:
 async def annotation_rules_exist(session: AsyncSession) -> bool:
     """Whether any live rule fires on annotations at all.
 
-    The annotation scan runs only when one does. Without the gate, turning session
-    evaluation on also turns on a signal write per annotation write, plus a day of
-    retained payload, drained against an empty rule set — an amplification an operator
-    never asked for and cannot see.
+    Annotation writes append signals only when one does. Without the gate, turning
+    session evaluation on also turns on a signal write per annotation write, plus a day
+    of retained payload, drained against an empty rule set — an amplification an
+    operator never asked for and cannot see.
 
     Like `load_rules`, this read is a linearization point: a rule committed after it
-    does not open the scan for the tick that ran it.
+    does not cause an earlier annotation transaction to append a signal.
     """
     stmt = _live_rules(models.ProjectEvaluatorTrigger.id).where(
         models.ProjectEvaluatorTrigger.signal_kind == "annotation_upserted"

@@ -24,7 +24,8 @@ from phoenix.db.helpers import (
     delete_spans,
     get_ancestor_span_rowids,
 )
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.annotation import insert_annotations, upsert_annotations
+from phoenix.db.insertion.helpers import as_kv
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
@@ -1196,15 +1197,14 @@ async def annotate_spans(
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
-            span_annotation_id = await session.scalar(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.SpanAnnotation,
-                    unique_by=("name", "span_rowid", "identifier"),
-                ).returning(models.SpanAnnotation.id)
+            (annotation,) = await upsert_annotations(
+                session,
+                values,
+                dialect=dialect,
+                table=models.SpanAnnotation,
+                unique_by=("name", "span_rowid", "identifier"),
             )
-            inserted_ids.append(span_annotation_id)
+            inserted_ids.append(annotation.id)
     request.state.event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSpansResponseBody(
         data=[
@@ -1316,21 +1316,20 @@ async def create_span_note(
 
         if note_data.identifier:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            result = await session.execute(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.SpanAnnotation,
-                    unique_by=("name", "span_rowid", "identifier"),
-                ).returning(models.SpanAnnotation.id)
+            (annotation,) = await upsert_annotations(
+                session,
+                values,
+                dialect=dialect,
+                table=models.SpanAnnotation,
+                unique_by=("name", "span_rowid", "identifier"),
             )
         else:
-            result = await session.execute(
-                sa.insert(models.SpanAnnotation)
-                .values(**values)
-                .returning(models.SpanAnnotation.id)
+            (annotation,) = await insert_annotations(
+                session,
+                values,
+                table=models.SpanAnnotation,
             )
-        annotation_id = result.scalar_one()
+        annotation_id = annotation.id
 
     # Put event on queue after successful insert
     request.state.event_queue.put(SpanAnnotationInsertEvent((annotation_id,)))

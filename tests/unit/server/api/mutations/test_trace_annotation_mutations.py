@@ -3,9 +3,11 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -22,8 +24,18 @@ async def _trace_data(db: DbSessionFactory) -> models.Trace:
         session.add(project)
         await session.flush()
 
+        project_session = models.ProjectSession(
+            session_id=token_hex(8),
+            project_id=project.id,
+            start_time=datetime.datetime.now(),
+            end_time=datetime.datetime.now(),
+        )
+        session.add(project_session)
+        await session.flush()
+
         trace = models.Trace(
             project_rowid=project.id,
+            project_session_rowid=project_session.id,
             trace_id=token_hex(16),
             start_time=datetime.datetime.now(),
             end_time=datetime.datetime.now(),
@@ -92,6 +104,33 @@ class TestTraceAnnotationMutations:
         - Delete
         """
         trace_gid = str(GlobalID("Trace", str(_trace_data.id)))
+
+        async with db() as session:
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root=f"eval-{token_hex(4)}"),
+                kind="BUILTIN",
+                key=token_hex(8),
+                input_schema={},
+                output_configs=[],
+            )
+            session.add(evaluator)
+            await session.flush()
+            criteria = models.ProjectEvaluatorCriteria(
+                project_id=_trace_data.project_rowid,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"criteria-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SESSION",
+            )
+            session.add(criteria)
+            await session.flush()
+            session.add(
+                models.ProjectEvaluatorTrigger(
+                    criteria_id=criteria.id,
+                    signal_kind="annotation_upserted",
+                )
+            )
 
         # 1) Basic create (no identifier)
         create_input: dict[str, Any] = {
@@ -216,6 +255,18 @@ class TestTraceAnnotationMutations:
         assert patched["score"] == 3.5
         assert patched["explanation"] == "Patched explanation"
         assert patched["metadata"] == {"patched": True}
+
+        patched_id = int(GlobalID.from_id(patched["id"]).node_id)
+        async with db() as session:
+            signals = list(
+                await session.scalars(
+                    select(models.EvaluatorSignal).order_by(models.EvaluatorSignal.id)
+                )
+            )
+        patched_signals = [
+            signal for signal in signals if signal.payload["annotation_id"] == patched_id
+        ]
+        assert patched_signals[-1].payload["change"] == "updated"
 
         delete_input = {"annotationIds": [ann4["id"]]}
         res_delete = await gql_client.execute(

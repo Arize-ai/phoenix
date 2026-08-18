@@ -1,11 +1,12 @@
 from typing import Any, Optional, cast
 
 import strawberry
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from strawberry import UNSET, Info
 
 from phoenix.db import models
+from phoenix.db.insertion.annotation import insert_annotations, update_annotations
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -115,14 +116,15 @@ class TraceAnnotationMutationMixin:
                     existing_annotation.annotator_kind = annotation_input.annotator_kind.value
                     existing_annotation.source = annotation_input.source.value
                     existing_annotation.user_id = user_id
-                    session.add(existing_annotation)
+                    await update_annotations(session, existing_annotation)
                     processed_annotation = existing_annotation
 
                 if processed_annotation is None:
-                    stmt = insert(models.TraceAnnotation).values(**values)
-                    stmt = stmt.returning(models.TraceAnnotation)
-                    result = await session.scalars(stmt)
-                    processed_annotation = result.one()
+                    (processed_annotation,) = await insert_annotations(
+                        session,
+                        values,
+                        table=models.TraceAnnotation,
+                    )
 
                 processed_annotations_map[idx] = processed_annotation
 
@@ -207,7 +209,7 @@ class TraceAnnotationMutationMixin:
                 if patch.identifier is not UNSET:
                     trace_annotation.identifier = patch.identifier or ""
                     raise_if_identifier_is_reserved(trace_annotation.identifier)
-                session.add(trace_annotation)
+            await update_annotations(session, *trace_annotations_by_id.values())
             await session.commit()
 
         patched_annotations = [

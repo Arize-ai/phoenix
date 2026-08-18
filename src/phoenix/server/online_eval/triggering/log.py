@@ -10,8 +10,9 @@ be behind any cursor that had already advanced past it. Acknowledgment has no su
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from secrets import token_hex
 from typing import Any, ClassVar, Literal, Optional, Union
 
 from sqlalchemy import delete, func, select, text, update
@@ -26,11 +27,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 
 @dataclass(frozen=True)
 class AnnotationUpserted:
-    """An annotation as it stood when it was noticed, with the change that noticed it.
-
-    `updated_at` carries the occurrence identity: a rescan of the same edit repeats it and
-    collapses, while a later edit to the same annotation is a distinct occurrence.
-    """
+    """An annotation as it stood when it was written, with its change kind."""
 
     kind: ClassVar[models.EvaluatorSignalKind] = "annotation_upserted"
 
@@ -46,10 +43,11 @@ class AnnotationUpserted:
     source: Optional[Literal["API", "APP"]] = None
     user_id: Optional[int] = None
     identifier: Optional[str] = None
+    _occurrence_id: str = field(default_factory=lambda: token_hex(16), repr=False, compare=False)
 
     @property
     def dedup_key(self) -> str:
-        return f"{self.annotation_target}:{self.annotation_id}:{self.updated_at.isoformat()}"
+        return f"{self.annotation_target}:{self.annotation_id}:{self._occurrence_id}"
 
     def payload(self) -> dict[str, Any]:
         return {
