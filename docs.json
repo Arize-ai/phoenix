@@ -600,6 +600,13 @@
                 ]
               },
               {
+                "group": "Eden AI",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/edenai",
+                  "docs/phoenix/integrations/llm-providers/edenai/openai-tracing"
+                ]
+              },
+              {
                 "group": "Together AI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/together",
