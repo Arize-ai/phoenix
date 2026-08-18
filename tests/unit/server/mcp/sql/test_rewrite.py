@@ -2224,3 +2224,51 @@ def test_a_using_key_provided_by_two_left_relations_is_refused() -> None:
             dialect="postgresql",
         )
     assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+
+
+def _rendered_dialect(sql: str, dialect: str) -> str:
+    d = cast(Any, dialect)
+    root = admit(parse_sql(sql, dialect=d), allowlist=load_allowlist(d), dialect=d)
+    return render(rewrite(root, _ctx(d)), dialect=d)
+
+
+def _run_join_on_sqlite(sql: str) -> list[tuple[Any, ...]]:
+    """traces id={1,2}; spans id={1,2,3}, so span 3 has no matching trace."""
+    conn = sqlean.connect(":memory:")
+    try:
+        conn.execute("CREATE TABLE traces(id INT)")
+        conn.execute("CREATE TABLE spans(id INT)")
+        conn.executemany("INSERT INTO traces VALUES(?)", [(1,), (2,)])
+        conn.executemany("INSERT INTO spans VALUES(?)", [(1,), (2,), (3,)])
+        return cast(list[tuple[Any, ...]], conn.execute(sql).fetchall())
+    finally:
+        conn.close()
+
+
+def test_star_over_a_right_join_using_merges_the_key() -> None:
+    """USING exposes the merge of both sides, which matters when the left is absent.
+
+    A right join produces rows with no left row, and there the left copy of the
+    key is NULL while the key itself is not. Emitting the left copy answered
+    NULL for exactly the rows the join was written to keep -- and both engines
+    agreed on it, so comparing deployments would not have shown it.
+    """
+    rendered = _rendered_dialect("SELECT * FROM traces RIGHT JOIN spans USING (id)", "sqlite")
+    assert "COALESCE(traces.id, spans.id) AS id" in rendered
+    # The merged key is what the engine's own USING produces.
+    assert [row[0] for row in _run_join_on_sqlite(
+        "SELECT COALESCE(traces.id, spans.id) AS id "
+        "FROM traces RIGHT JOIN spans USING (id) ORDER BY id"
+    )] == [row[0] for row in _run_join_on_sqlite(
+        "SELECT * FROM traces RIGHT JOIN spans USING (id) ORDER BY id"
+    )]
+
+
+def test_star_over_an_inner_join_using_keeps_one_plain_copy() -> None:
+    """Guards the test above: an inner join cannot lose the left row."""
+    rendered = _rendered_dialect("SELECT * FROM traces JOIN spans USING (id)", "sqlite")
+    assert "COALESCE" not in rendered.upper()
+    # The key is projected once, from the left. `spans.id` still appears inside
+    # the span's graphql_node_id expression, which is not a second key column.
+    assert rendered.startswith("SELECT traces.id,")
+    assert ", spans.id," not in rendered
