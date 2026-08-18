@@ -681,7 +681,14 @@ def _rewrite_sqlite_interval_arithmetic(
             node.replace(
                 exp.Anonymous(
                     this="datetime",
-                    expressions=[left.copy(), exp.Literal.string(modifier)],
+                    expressions=[
+                        left.copy(),
+                        exp.Literal.string(modifier),
+                        # Storage carries microseconds and `datetime` truncates
+                        # to whole seconds, so without this the shifted value
+                        # loses the fraction the comparison turns on.
+                        exp.Literal.string("subsec"),
+                    ],
                 )
             )
         elif (
@@ -696,7 +703,11 @@ def _rewrite_sqlite_interval_arithmetic(
             node.replace(
                 exp.Anonymous(
                     this="datetime",
-                    expressions=[right.copy(), exp.Literal.string(modifier)],
+                    expressions=[
+                        right.copy(),
+                        exp.Literal.string(modifier),
+                        exp.Literal.string("subsec"),
+                    ],
                 )
             )
     return root
@@ -2965,9 +2976,9 @@ def _check_column_references(
                         AdmissionOutcome.UNSUPPORTED_SYNTAX,
                         subject,
                         message=(
-                            f"{subject} It binds to the table or the session rather than to "
-                            "a relation this statement introduces. Qualify it with the "
-                            "relation that projects it if that is what you mean."
+                            f"{subject} Unqualified, it binds to the table or the session "
+                            "rather than to a relation this statement introduces. Qualify it "
+                            "with the relation that projects it if that is what you mean."
                         ),
                     )
                 continue

@@ -1872,7 +1872,8 @@ def test_sqlite_interval_addition_becomes_datetime_modifier() -> None:
 
     assert result.outcome is AdmissionOutcome.ADMIT
     folded = (result.rendered_sql or "").lower().replace(" ", "")
-    assert "datetime(start_time,'+1days')" in folded
+    # The shifted value keeps its subseconds; the modifier is what this pins.
+    assert "datetime(start_time,'+1days'" in folded
     assert "interval" not in folded
 
 
