@@ -4,6 +4,7 @@ import type {
   UIScriptMessageToMain,
   UIScriptMessageToWorker,
 } from "./protocol";
+import UIScriptWorkerUrl from "./UIScriptWorker.ts?worker&url";
 
 /**
  * Executes one `ui.*` call from a running script. The `execute_browser_action` tool
@@ -59,9 +60,17 @@ export type UIScriptWorkerLike = {
   terminate(): void;
 };
 
-/** Spawn the real module worker (Vite bundles it via the URL constructor). */
+/**
+ * Spawn the real module worker.
+ *
+ * Import with Vite's `?worker&url` so production emits a compiled JS chunk
+ * (`assets/UIScriptWorker-<hash>.js`) instead of copying the TypeScript
+ * source as a static asset. A standalone `new URL("./UIScriptWorker.ts",
+ * import.meta.url)` assigned to a variable is treated as a generic asset
+ * (`.ts` → `video/mp2t`, no CSP) and execute_ui cannot boot.
+ */
 export function createUIScriptWorker(): UIScriptWorkerLike {
-  const workerUrl = new URL("./UIScriptWorker.ts", import.meta.url);
+  const workerUrl = new URL(UIScriptWorkerUrl, import.meta.url);
   if (workerUrl.origin === globalThis.location.origin) {
     return new Worker(workerUrl, { type: "module" });
   }
