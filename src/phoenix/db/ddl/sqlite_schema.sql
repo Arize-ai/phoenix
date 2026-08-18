@@ -30,7 +30,6 @@ CREATE TABLE eval_work_cursors (
     produced_through_id INTEGER DEFAULT '0' NOT NULL,
     observed_high_water_id INTEGER,
     observed_at TIMESTAMP,
-    edits_through_id INTEGER DEFAULT '0' NOT NULL,
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
