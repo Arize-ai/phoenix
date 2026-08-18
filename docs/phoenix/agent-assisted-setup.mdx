@@ -1,7 +1,7 @@
 ---
 title: "Agent-Assisted Setup"
 description: >-
-  Start Phoenix, then let your coding agent instrument your app — `px setup`
+  Start Phoenix, then let your coding agent add tracing to your app — `px setup`
   connects the two and waits until a real trace arrives.
 ---
 
@@ -9,7 +9,7 @@ import StartPhoenix from "../snippets/start-phoenix.mdx";
 
 # Agent-Assisted Setup
 
-The fastest way to add Phoenix tracing to your application. Start Phoenix, then run `px setup` to connect your app, hand the instrumentation to your coding agent, and confirm a real trace arrived — so "done" means traces are actually flowing.
+The fastest way to add Phoenix tracing to your application: start Phoenix, then run `px setup` to connect your app, hand the instrumentation to your coding agent, and confirm a real trace arrived — so "done" means traces are actually flowing.
 
 <Info>
 **Supported stacks:** Python and TypeScript/JavaScript. See the [full integration list](/docs/phoenix/integrations) for the LLM providers and frameworks Phoenix instruments.
@@ -27,9 +27,8 @@ The fastest way to add Phoenix tracing to your application. Start Phoenix, then 
 
     ```bash
     npx -y @arizeai/phoenix-cli setup
+    # Already installed the CLI (npm i -g @arizeai/phoenix-cli)? Just run: px setup
     ```
-
-    Already installed the CLI (`npm install -g @arizeai/phoenix-cli`)? Just run `px setup`.
   </Step>
 </Steps>
 
