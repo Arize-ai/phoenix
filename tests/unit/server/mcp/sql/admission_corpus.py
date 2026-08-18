@@ -402,6 +402,36 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="postgresql",
     ),
     AdmissionCase(
+        sql="SELECT user FROM spans, (SELECT 1) q",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a foreign source in the FROM clause opens the unqualified-name hatch, and `user` binds to the session rather than to that source; the same identity is refused under its current_user spelling",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT ctid FROM spans, (SELECT 1) q",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="a system column binds to the base table through the same hatch, exposing physical tuple location; qualified spans.ctid is refused by the manifest check",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT id FROM spans, (SELECT 1) q WHERE ctid IS NOT NULL",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="the hatch is per column reference, not per projection, so a predicate reaches it too",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
+        sql="SELECT rowid FROM spans, (SELECT 1) q",
+        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
+        note="SQLite binds rowid to the base table through the same hatch",
+        dialect="sqlite",
+    ),
+    AdmissionCase(
+        sql="SELECT key FROM spans, jsonb_each(attributes) j",
+        expect=AdmissionOutcome.ADMIT,
+        note="the shape the unqualified-name hatch exists for: a table-valued function projects a name the manifest has never heard of",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
         sql="SELECT CAST('pg_authid' AS regclass) FROM spans",
         expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
         note="object-identifier types consult the catalogs for any relation, role or function and never appear as a scanned relation, so the plan gate cannot see them; this is why cast targets are restricted at all",

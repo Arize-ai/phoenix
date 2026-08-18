@@ -2680,6 +2680,18 @@ def _check_base_tables(
     return None
 
 
+#: Names an engine binds implicitly, so a foreign source in the FROM clause is
+#: not evidence that a relation in the statement projects them. PostgreSQL
+#: system columns and the niladic keywords that parse as a bare column rather
+#: than as a function; SQLite's rowid aliases.
+_RESERVED_IMPLICIT_NAMES: dict[SupportedSQLDialectName, frozenset[str]] = {
+    "postgresql": frozenset(
+        {"ctid", "xmin", "xmax", "cmin", "cmax", "tableoid", "user", "current_role"}
+    ),
+    "sqlite": frozenset({"rowid", "oid", "_rowid_"}),
+}
+
+
 def _check_column_references(
     root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
@@ -2941,7 +2953,23 @@ def _check_column_references(
             # the manifest has never heard of, and `json_each(attributes)`
             # projecting `key` is a shape the schema teaches.
             #
+            # Reserved names are excepted. The engine binds them to the base
+            # table or to the session rather than to the foreign source, so
+            # admitting them on the chance the source projects them hands over
+            # a system column or the session identity. A caller who does mean a
+            # projected column of that name can qualify it.
             if not qualifier and foreign_source:
+                if name.casefold() in _RESERVED_IMPLICIT_NAMES[dialect]:
+                    subject = f"{name} is reserved."
+                    return AdmissionResult(
+                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                        subject,
+                        message=(
+                            f"{subject} It binds to the table or the session rather than to "
+                            "a relation this statement introduces. Qualify it with the "
+                            "relation that projects it if that is what you mean."
+                        ),
+                    )
                 continue
             # Not a column of any table in scope -- a misspelling, most often.
             # Name nearby physical or virtual columns so a misspelling is

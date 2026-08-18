@@ -1881,3 +1881,57 @@ def test_sqlite_bare_interval_is_refused() -> None:
 
     assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
     assert "INTERVAL" in result.detail
+
+
+class TestReservedNamesAreNotReachedThroughTheForeignSourceHatch:
+    """An unqualified name is admitted when a foreign source could project it.
+
+    A subquery, CTE or table-valued function in the FROM clause names columns
+    the manifest does not know, so an unqualified reference no allowlisted table
+    offers is admitted rather than refused. The engine does not resolve every
+    such name that way: a system column binds to the base table and a niladic
+    keyword binds to the session, and neither the plan gate nor the SQLite
+    authorizer inspects column expressions.
+    """
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            ("SELECT user FROM spans, (SELECT 1) q", "postgresql"),
+            ("SELECT current_role FROM spans, (SELECT 1) q", "postgresql"),
+            ("SELECT ctid FROM spans, (SELECT 1) q", "postgresql"),
+            ("SELECT xmin, xmax, tableoid FROM spans, (SELECT 1) q", "postgresql"),
+            # Any foreign source opens the hatch, not just a subquery.
+            ("SELECT ctid FROM spans, jsonb_each(attributes) j", "postgresql"),
+            ("WITH t AS (SELECT 1 AS n) SELECT ctid FROM spans, t", "postgresql"),
+            # A reference anywhere reaches it, not only a projection.
+            ("SELECT id FROM spans, (SELECT 1) q WHERE ctid IS NOT NULL", "postgresql"),
+            ("SELECT count(*) FROM spans, (SELECT 1) q GROUP BY user", "postgresql"),
+            ("SELECT rowid FROM spans, (SELECT 1) q", "sqlite"),
+            ("SELECT _rowid_ FROM spans, (SELECT 1) q", "sqlite"),
+            ("SELECT oid FROM spans, (SELECT 1) q", "sqlite"),
+        ],
+    )
+    def test_reserved_names_are_refused(self, sql: str, dialect: SupportedSQLDialectName) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(sql, allowlist=load_allowlist(dialect), dialect=dialect)
+        assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            # What the hatch exists for. Refusing these would take the surface's
+            # own documented json_each idiom with it.
+            ("SELECT key FROM spans, jsonb_each(attributes) j", "postgresql"),
+            ("SELECT j.key FROM spans, jsonb_each(attributes) j", "postgresql"),
+            ("SELECT key FROM spans, json_each(attributes)", "sqlite"),
+            (
+                "WITH t AS (SELECT id AS weird_name FROM spans) SELECT weird_name FROM spans, t",
+                "postgresql",
+            ),
+        ],
+    )
+    def test_the_hatch_still_admits_what_it_is_for(
+        self, sql: str, dialect: SupportedSQLDialectName
+    ) -> None:
+        admit_sql(sql, allowlist=load_allowlist(dialect), dialect=dialect)
