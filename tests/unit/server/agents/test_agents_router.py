@@ -9,12 +9,14 @@ import json
 import warnings
 from collections.abc import AsyncIterator, MutableMapping
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import UUID
 
 import httpx
 import pytest
+from bashkit import Bash
 from fastapi import FastAPI
 from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
@@ -134,6 +136,17 @@ class TestApprovalAttributes:
         ]
         for result in results:
             assert _approval_attributes(result) == {}
+
+
+@lru_cache(maxsize=1)
+def _restorable_bashkit_snapshot() -> bytes:
+    """Snapshot bytes a real shell can be restored from.
+
+    Routes that attach the bash tool restore the session's shell from these
+    bytes, so a seed has to be a genuine snapshot -- a placeholder like
+    ``b"shell-state"`` fails to deserialize and surfaces as a 500.
+    """
+    return Bash(python=False, network=None).snapshot()
 
 
 def _user_message(text: str, *, message_id: str = _DEFAULT_USER_MESSAGE_ID) -> dict[str, Any]:
@@ -508,13 +521,14 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         title="Existing session",
         messages=transcript,
     )
+    seeded_snapshot = _restorable_bashkit_snapshot()
     async with db() as session:
         seeded_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert seeded_session_rowid is not None
         session.add(
             models.AgentSessionSnapshot(
                 agent_session_id=seeded_session_rowid,
-                bashkit_snapshot=b"shell-state",
+                bashkit_snapshot=seeded_snapshot,
             )
         )
 
@@ -552,7 +566,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     async with db() as session:
         snapshot = await session.scalar(select(models.AgentSessionSnapshot))
         assert snapshot is not None
-        assert snapshot.bashkit_snapshot == b"shell-state"
+        assert snapshot.bashkit_snapshot == seeded_snapshot
         agent_session_rowid = snapshot.agent_session_id
         original_messages = await _load_session_messages(session, agent_session_rowid)
         compaction_message_count = await session.scalar(
