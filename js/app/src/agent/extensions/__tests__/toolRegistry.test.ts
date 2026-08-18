@@ -1,5 +1,6 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
+import { ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/annotate";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { SET_PLAYGROUND_REPETITIONS_TOOL_NAME } from "@phoenix/agent/tools/playgroundRepetitions";
@@ -118,6 +119,37 @@ describe("toolRegistry", () => {
           tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
           toolCallId: "tool-call-empty-batch-annotation",
           errorText: expect.stringContaining("needs an annotations array"),
+        })
+      );
+    }
+  );
+
+  it.each([
+    ["an empty object", {}],
+    ["no input at all", undefined],
+  ])(
+    "tells the agent how to recover from an annotate call with %s",
+    async (_description, input) => {
+      const store = createAgentStore();
+      const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+      await handleRegisteredAgentToolCall({
+        toolCall: {
+          toolCallId: "tool-call-empty-annotate",
+          toolName: ANNOTATE_TOOL_NAME,
+          input,
+        },
+        sessionId: "session-1",
+        addToolOutput,
+        agentStore: store,
+      });
+
+      expect(addToolOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: "output-error",
+          tool: ANNOTATE_TOOL_NAME,
+          toolCallId: "tool-call-empty-annotate",
+          errorText: expect.stringContaining("needs a target and a value"),
         })
       );
     }

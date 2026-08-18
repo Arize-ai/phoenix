@@ -3,6 +3,7 @@ import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
+import { ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/annotate";
 import {
   CREATE_ANNOTATION_CONFIG_TOOL_NAME,
   UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
@@ -60,6 +61,11 @@ import {
   AddDatasetExamplesToolDetails,
   getAddDatasetExamplesToolPreview,
 } from "./AddDatasetExamplesToolDetails";
+import {
+  AnnotateToolDetails,
+  formatAnnotateState,
+  getAnnotateToolPreview,
+} from "./AnnotateToolDetails";
 import {
   AnnotationConfigWriteToolDetails,
   getCreateAnnotationConfigToolPreview,
@@ -1159,6 +1165,13 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <AddDatasetExamplesToolDetails part={part} />,
+      };
+    case ANNOTATE_TOOL_NAME:
+      return {
+        preview: getAnnotateToolPreview(part),
+        stateLabel: formatAnnotateState(part),
+        statusVariant,
+        details: <AnnotateToolDetails part={part} />,
       };
     case BATCH_SPAN_ANNOTATE_TOOL_NAME:
       return {

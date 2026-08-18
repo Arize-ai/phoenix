@@ -134,6 +134,7 @@ _CREATE_DATASET_TOOL_INSTRUCTIONS = get_template("tools/CREATE_DATASET_TOOL_INST
 _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS = get_template(
     "tools/PATCH_EXPERIMENT_TOOL_INSTRUCTIONS.xml.j2"
 )
+_ANNOTATE_TOOL_INSTRUCTIONS = get_template("tools/ANNOTATE_TOOL_INSTRUCTIONS.xml.j2")
 _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS = get_template(
     "tools/BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -269,6 +270,7 @@ class AgentPrompts:
     list_labels_tool: Template = _LIST_LABELS_TOOL_INSTRUCTIONS
     create_dataset_tool: Template = _CREATE_DATASET_TOOL_INSTRUCTIONS
     patch_experiment_tool: Template = _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS
+    annotate_tool: Template = _ANNOTATE_TOOL_INSTRUCTIONS
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
     create_annotation_config_tool: Template = _CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS
     update_annotation_config_tool: Template = _UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS

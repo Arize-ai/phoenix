@@ -1,5 +1,6 @@
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
+import { ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/annotate";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
@@ -28,6 +29,8 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
     state.setPendingPromptEdit(toolCallId, null),
   [REMOVE_PROMPT_INSTANCE_TOOL_NAME]: (state, toolCallId) =>
     state.setPendingPromptInstanceRemoval(toolCallId, null),
+  [ANNOTATE_TOOL_NAME]: (state, toolCallId) =>
+    state.setPendingAnnotate(toolCallId, null),
   [BATCH_SPAN_ANNOTATE_TOOL_NAME]: (state, toolCallId) =>
     state.setPendingBatchSpanAnnotate(toolCallId, null),
   [WRITE_PROMPT_TOOLS_TOOL_NAME]: (state, toolCallId) =>
@@ -63,6 +66,7 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
 export const REWIND_CLEANUP_TOOL_NAMES: ReadonlySet<string> = new Set([
   EDIT_PROMPT_TOOL_NAME,
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+  ANNOTATE_TOOL_NAME,
   BATCH_SPAN_ANNOTATE_TOOL_NAME,
   WRITE_PROMPT_TOOLS_TOOL_NAME,
 ]);

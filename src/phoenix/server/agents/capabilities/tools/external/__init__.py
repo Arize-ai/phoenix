@@ -12,6 +12,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     add_dataset_examples,
     add_prompt_instance,
     add_spans_to_dataset,
+    annotate,
     ask_user,
     batch_span_annotate,
     cancel_playground_run,
@@ -80,6 +81,7 @@ from phoenix.server.agents.capabilities.tools.external.add_prompt_instance impor
 from phoenix.server.agents.capabilities.tools.external.add_spans_to_dataset import (
     AddSpansToDatasetCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.annotate import AnnotateCapability
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
 from phoenix.server.agents.capabilities.tools.external.batch_span_annotate import (
     BatchSpanAnnotateCapability,
@@ -278,6 +280,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         delete_dataset_splits.TOOL_DEFINITION,
         delete_dataset_labels.TOOL_DEFINITION,
         add_prompt_instance.TOOL_DEFINITION,
+        annotate.TOOL_DEFINITION,
         batch_span_annotate.TOOL_DEFINITION,
         create_annotation_config.TOOL_DEFINITION,
         update_annotation_config.TOOL_DEFINITION,
@@ -335,6 +338,7 @@ def get_external_tool_capability_function(
     capabilities self-gate via ``include_for_run``.
     """
     static_capabilities: list[AbstractStaticCapability[AgentDependencies]] = [
+        AnnotateCapability(instructions=prompts.annotate_tool),
         AskUserCapability(instructions=prompts.ask_user_tool),
         BatchSpanAnnotateCapability(instructions=prompts.batch_span_annotate_tool),
         ListDatasetsCapability(instructions=prompts.list_datasets_tool),
@@ -440,6 +444,7 @@ __all__ = [
     "ListSplitsCapability",
     "CreateDatasetCapability",
     "AddPromptInstanceCapability",
+    "AnnotateCapability",
     "BatchSpanAnnotateCapability",
     "CreateAnnotationConfigCapability",
     "UpdateAnnotationConfigCapability",

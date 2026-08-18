@@ -13,6 +13,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import type { PendingAnnotate } from "@phoenix/agent/tools/annotate";
 import type { PendingAnnotationConfigWrite } from "@phoenix/agent/tools/annotationConfig";
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -478,6 +479,11 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     removal: PendingPromptInstanceRemoval | null
   ) => void;
+  pendingAnnotatesByToolCallId: Partial<Record<string, PendingAnnotate>>;
+  setPendingAnnotate: (
+    toolCallId: string,
+    annotation: PendingAnnotate | null
+  ) => void;
   pendingBatchSpanAnnotatesByToolCallId: Partial<
     Record<string, PendingBatchSpanAnnotate>
   >;
@@ -696,6 +702,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
     pendingPromptInstanceRemovalsByToolCallId: {},
+    pendingAnnotatesByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
     pendingAnnotationConfigWritesByToolCallId: {},
@@ -1149,6 +1156,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingAnnotationConfigWrite" }
+      );
+    },
+    setPendingAnnotate: (toolCallId, annotation) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingAnnotatesByToolCallId };
+          if (annotation) {
+            next[toolCallId] = annotation;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingAnnotatesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingAnnotate" }
       );
     },
     setPendingBatchSpanAnnotate: (toolCallId, annotation) => {

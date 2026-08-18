@@ -1,0 +1,27 @@
+<tool name="annotate">
+  <description>Write one structured annotation to a Phoenix span, trace, or session. Use this only when the user wants the annotation saved, not for ordinary analysis.</description>
+  <guidelines>
+    - Call this tool once per annotation. For several span annotations in one review, prefer `batch_span_annotate`.
+    - Provide exactly one target: `spanId` or `spanNodeId` for a span, `traceId` or `traceNodeId` for a trace, `sessionId` or `sessionNodeId` for a session.
+    - Use IDs from the available context or prior tool results. Do not guess IDs.
+    - Each call needs a stable `name` and at least one of `label`, `score`, or `explanation`.
+    - Include an `explanation` for any score, failed check, unclear label, or judgment the user may want to audit later.
+    - Annotate a span for a specific step, a trace for an end-to-end judgment, and a session for conversation-level feedback.
+  </guidelines>
+  <naming>
+    - Use lowercase `snake_case` annotation names that are easy to read and filter, such as `task_success`, `answer_relevance`, or `user_satisfaction`.
+    - Treat `name` as the metric or rubric dimension, not the result. Put outcomes in `label` or `score`.
+    - Keep names stable across runs. Do not add suffixes like `_2`, `_new`, or `_v2` to avoid overwrites.
+    - Do not use `note` as an annotation name; notes are separate from structured annotations.
+  </naming>
+  <values>
+    - Use short, consistent labels that are easy to filter, preferably lowercase values like `pass`, `fail`, `relevant`, `irrelevant`, `correct`, or `incorrect`.
+    - Use numeric `score` only when the scale is clear. Put the rubric, scale, threshold, evaluator version, or confidence in `metadata` when useful.
+    - Set `annotatorKind` to `LLM` for your own judgment, `HUMAN` when recording explicit user feedback, or `CODE` for deterministic checks. It defaults to `LLM`.
+  </values>
+  <updates>
+    - Annotations are keyed by `(name, entity, identifier)`.
+    - Reuse the same `name` and `identifier` on the same span, trace, or session to update that annotation.
+    - Use distinct identifiers, such as `reviewer:pxi` or `evaluator:v1`, when you need multiple annotations with the same name on the same entity.
+  </updates>
+</tool>

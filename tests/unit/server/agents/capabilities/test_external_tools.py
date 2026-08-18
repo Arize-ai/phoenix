@@ -1,5 +1,6 @@
 from phoenix.server.agents.capabilities.tools.external import (
     _EXTERNAL_TOOL_DEFINITIONS_BY_NAME,
+    annotate,
     get_external_tool_definition,
     load_dataset,
     open_dataset_evaluator_for_edit,
@@ -246,3 +247,47 @@ def test_read_dataset_evaluator_definition_instructions_pin_read_only_contract()
     assert '<tool name="read_dataset_evaluator_definition">' in rendered
     assert "datasetEvaluatorIds" in rendered
     assert "truncated" in rendered
+
+
+def test_annotate_is_registered_as_external_tool() -> None:
+    tool_definition = get_external_tool_definition("annotate")
+
+    assert tool_definition is not None
+    assert tool_definition.kind == "external"
+    assert annotate.NAME == "annotate"
+
+
+def test_annotate_parameters_require_name_and_optional_single_target() -> None:
+    """Pin the model-facing parameter contract for one span, trace, or session annotation."""
+    schema = annotate.TOOL_DEFINITION.parameters_json_schema
+
+    assert schema["type"] == "object"
+    assert schema["required"] == ["name"]
+    assert set(schema["properties"]) == {
+        "spanId",
+        "spanNodeId",
+        "traceId",
+        "traceNodeId",
+        "sessionId",
+        "sessionNodeId",
+        "name",
+        "annotatorKind",
+        "label",
+        "score",
+        "explanation",
+        "identifier",
+        "metadata",
+    }
+    assert schema["additionalProperties"] is False
+    assert "oneOf" not in schema
+    assert "anyOf" not in schema
+    assert "allOf" not in schema
+
+
+def test_annotate_instructions_pin_single_annotation_and_reserved_name() -> None:
+    rendered = AgentPrompts().annotate_tool.render()
+
+    assert '<tool name="annotate">' in rendered
+    assert "batch_span_annotate" in rendered
+    assert "exactly one target" in rendered
+    assert "note" in rendered

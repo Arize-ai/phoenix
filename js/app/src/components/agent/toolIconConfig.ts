@@ -95,6 +95,7 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
 
   // Edits and durable writes
   add_prompt_instance: "edit",
+  annotate: "edit",
   batch_span_annotate: "edit",
   clone_prompt_instance: "edit",
   create_annotation_config: "edit",

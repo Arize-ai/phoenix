@@ -11,6 +11,7 @@
  * in `./registry/defineTool` or `./registry/defineClientActionTool`, then list
  * it in the appropriate array below.
  */
+import { annotateAgentTool } from "@phoenix/agent/tools/annotate";
 import {
   createAnnotationConfigAgentTool,
   updateAnnotationConfigAgentTool,
@@ -179,11 +180,11 @@ const datasetTools: AgentToolDefinition[] = [
  * lower-level `defineTool`):
  * - `get_route_info` resolves route info from the catalog and returns it directly;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
- * - `ask_user`, `batch_span_annotate`, and `patch_experiment` write a
+ * - `ask_user`, `annotate`, `batch_span_annotate`, and `patch_experiment` write a
  *   pending-approval store entry and defer their output to a later accept/reject.
  *
  * Requiring an active session is orthogonal to this split: the session-gated
- * tools here (`ask_user`, `batch_span_annotate`, `patch_experiment`) compose the
+ * tools here (`ask_user`, `annotate`, `batch_span_annotate`, `patch_experiment`) compose the
  * same `requireToolSession` guard that `defineClientActionTool` uses for its
  * `requireSession` knob, so the guard lives in one place rather than per tool.
  */
@@ -191,6 +192,7 @@ const tools: AgentToolDefinition[] = [
   getRouteInfoAgentTool,
   renderGenerativeUIAgentTool,
   askUserAgentTool,
+  annotateAgentTool,
   batchSpanAnnotateAgentTool,
   patchExperimentAgentTool,
   createAnnotationConfigAgentTool,
