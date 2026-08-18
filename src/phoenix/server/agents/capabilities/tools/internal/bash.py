@@ -6,7 +6,7 @@ import posixpath
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Generic, Literal, Optional
+from typing import Any, Awaitable, Callable, Generic, Optional
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
@@ -23,7 +23,6 @@ from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
-from phoenix.server.agents.types import AgentDependencies
 from phoenix.server.api.context import Context
 
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -32,14 +31,15 @@ TMP_ROOT = "/tmp"
 
 @dataclass
 class GraphQLMutationPolicy:
-    """Mutable mutation-execution policy shared between the ``bash`` tool and the
+    """Mutation-execution policy shared between the ``bash`` tool and the
     ``phoenix-gql`` builtin.
 
-    The ``bash`` tool stamps ``require_approval`` and ``approved`` onto this
-    policy at the top of every call, under the toolset's execution lock, and the
-    builtin reads them when it is about to run a mutation. ``mutations_allowed``
-    is the single enforcement point: a mutation never executes on a call that
-    required approval and did not get it, whatever the model declared.
+    ``allow_mutations`` and ``require_approval`` are fixed for the toolset's
+    lifetime; the ``bash`` tool stamps ``approved`` onto this policy at the top
+    of every call, under the toolset's execution lock, and the builtin reads it
+    when it is about to run a mutation. ``mutations_allowed`` is the single
+    enforcement point: a mutation never executes on a call that required
+    approval and did not get it, whatever the model declared.
     """
 
     allow_mutations: bool
@@ -445,17 +445,6 @@ def _build_shell(
     return shell
 
 
-def _resolve_edit_permission(
-    deps: Optional[AgentDependencies],
-) -> Optional[Literal["manual", "bypass"]]:
-    """Read the run's edit permission off the agent dependencies, if it has one.
-
-    The browser agent's ``AgentDependencies`` carries ``edit_permission``; the
-    headless/subagent variants run with ``deps=None`` and get no approval flow.
-    """
-    return deps.edit_permission if deps is not None else None
-
-
 class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
     """Toolset exposing a ``bash`` tool backed by a virtual shell."""
 
@@ -465,10 +454,22 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
         allow_mutations: bool,
+        require_mutation_approval: bool,
         initial_snapshot: Optional[bytes] = None,
         on_snapshot: Optional[Callable[[bytes], None]] = None,
     ) -> None:
-        mutation_policy = GraphQLMutationPolicy(allow_mutations=allow_mutations)
+        # Both flags are stated by the caller rather than inferred from the run:
+        # only the caller knows whether this run can surface an approval request
+        # at all, and a run that cannot must not be handed mutations it would
+        # need to ask about. See the call sites in ``build_agent`` /
+        # ``build_server_agent``.
+        mutation_policy = GraphQLMutationPolicy(
+            allow_mutations=allow_mutations,
+            # Approval is only required for a mutation that could actually run:
+            # with mutations off the builtin refuses outright, and asking the
+            # user to approve something that cannot execute is noise.
+            require_approval=allow_mutations and require_mutation_approval,
+        )
         shell = _build_shell(
             schema=schema,
             build_graphql_context=build_graphql_context,
@@ -492,13 +493,9 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
             mutation_description: Optional[str] = None,
         ) -> BashToolResult:
             async with execution_lock:
-                deps = ctx.deps if isinstance(ctx.deps, AgentDependencies) else None
-                # Always assign both fields: the policy outlives a single call
-                # because the shell is long-lived, so a stale approval from an
-                # earlier call must never carry into this one.
-                mutation_policy.require_approval = (
-                    mutation_policy.allow_mutations and _resolve_edit_permission(deps) == "manual"
-                )
+                # Always assign, never only on approval: the policy outlives a
+                # single call because the shell is long-lived, so a stale
+                # approval from an earlier call must never carry into this one.
                 mutation_policy.approved = ctx.tool_call_approved
                 if (
                     mutation_description
@@ -551,6 +548,7 @@ class BashCapability(AbstractStaticCapability[AgentDepsT], Generic[AgentDepsT]):
     build_graphql_context: Callable[[], Context]
     instructions: str
     allow_mutations: bool = False
+    require_mutation_approval: bool = True
     initial_snapshot: Optional[bytes] = None
     on_snapshot: Optional[Callable[[bytes], None]] = None
 
@@ -559,6 +557,7 @@ class BashCapability(AbstractStaticCapability[AgentDepsT], Generic[AgentDepsT]):
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
+            require_mutation_approval=self.require_mutation_approval,
             initial_snapshot=self.initial_snapshot,
             on_snapshot=self.on_snapshot,
         )

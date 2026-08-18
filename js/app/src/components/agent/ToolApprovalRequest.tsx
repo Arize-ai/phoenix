@@ -7,38 +7,47 @@ import { ToolPartApprovalActions, ToolPartLabel } from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 
 /**
- * Returns a callback that resolves a server-deferred tool call's approval on
- * the active session's chat: an approved call re-executes server-side, a
- * denied one returns the `reason` to the model. This is the single place tool
- * detail components go through to answer an `approval-requested` part —
- * they stay presentational and never touch the chat runtime directly.
+ * Resolves a server-deferred tool call's approval on the active session's chat:
+ * an approved call re-executes server-side, a denied one returns the `reason` to
+ * the model. This is the single place tool detail components go through to
+ * answer an `approval-requested` part — they stay presentational and never touch
+ * the chat runtime directly.
+ *
+ * `canRespond` reports whether a chat is actually reachable. Callers must
+ * disable their controls when it is false: the answer cannot be delivered, and
+ * accepting the click silently drops the user's decision.
  */
-export function useRespondToToolApproval() {
-  const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const chatRuntime = useAgentChatRuntime();
-  return ({
-    approvalId,
-    approved,
-    reason,
-  }: {
+export function useRespondToToolApproval(): {
+  respondToApproval: (args: {
     approvalId: string;
     approved: boolean;
     reason?: string;
-  }) => {
-    if (!activeSessionId) {
-      return;
-    }
-    const chat = chatRuntime.getChat(activeSessionId);
-    if (!chat) {
-      return;
-    }
-    void chat.addToolApprovalResponse({
-      id: approvalId,
-      approved,
-      ...(reason ? { reason } : null),
-    });
+  }) => void;
+  canRespond: boolean;
+} {
+  const activeSessionId = useAgentContext((state) => state.activeSessionId);
+  const chatRuntime = useAgentChatRuntime();
+  const chat = activeSessionId ? chatRuntime.getChat(activeSessionId) : null;
+  return {
+    canRespond: chat !== null,
+    respondToApproval: ({ approvalId, approved, reason }) => {
+      if (!chat) {
+        // Unreachable while the controls honour `canRespond`; kept so a future
+        // caller that forgets cannot deliver an approval to nothing.
+        return;
+      }
+      void chat.addToolApprovalResponse({
+        id: approvalId,
+        approved,
+        ...(reason ? { reason } : null),
+      });
+    },
   };
 }
+
+export const UNREACHABLE_CHAT_MESSAGE =
+  "This conversation is no longer connected, so the tool call can't be " +
+  "answered from here. Reload the conversation to respond.";
 
 /**
  * Approval card for a tool call in the `approval-requested` state: a warning
@@ -59,7 +68,7 @@ export function ToolApprovalRequest({
   /** Tool-specific preview of what the user is approving. */
   children?: ReactNode;
 }) {
-  const respondToApproval = useRespondToToolApproval();
+  const { respondToApproval, canRespond } = useRespondToToolApproval();
   if (part.state !== "approval-requested") {
     return null;
   }
@@ -69,6 +78,8 @@ export function ToolApprovalRequest({
       <ToolPartLabel variant="warning">{label}</ToolPartLabel>
       {children}
       <ToolPartApprovalActions
+        isDisabled={!canRespond}
+        staleMessage={UNREACHABLE_CHAT_MESSAGE}
         onAccept={() => respondToApproval({ approvalId, approved: true })}
         onReject={() =>
           respondToApproval({

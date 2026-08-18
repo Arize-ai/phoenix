@@ -1139,6 +1139,79 @@ async def test_failed_chat_turn_does_not_persist_partial_transcript(
     assert stored_messages == persisted_messages
 
 
+async def test_transcript_persisted_ack_names_only_the_outputs_it_wrote(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The acknowledgement describes the message the server wrote, not the
+    client's copy of it.
+
+    The client suppresses its eager flush for the IDs named here, so an ack that
+    over-reports stops those outputs from ever being sent: the client believes
+    they are durable while the server never received them. The first turn ends
+    with the client tool unresolved and must name nothing; the continuation that
+    carries the output must name it.
+    """
+    session_id = "60606060-6060-4606-8606-606060606060"
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+    model = _client_tool_model()
+    _mock_turn_models(monkeypatch, model, model)
+
+    first_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("list my datasets")),
+    )
+    assert first_response.status_code == 200
+    first_chunks = _stream_chunks(first_response.text)
+    assistant_message_id = next(chunk for chunk in first_chunks if chunk["type"] == "start")[
+        "messageId"
+    ]
+    first_ack = next(
+        chunk for chunk in first_chunks if chunk["type"] == "data-transcript-persisted"
+    )
+    # The turn stopped awaiting the client tool, so its output is not persisted.
+    assert first_ack["data"].get("persistedToolOutputIds", []) == []
+
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    tool_part = next(
+        part for part in stored_messages[-1]["parts"] if part["type"] == "tool-list_datasets"
+    )
+
+    continuation_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            session_id,
+            None,
+            toolOutputs=[
+                {
+                    "type": "tool-list_datasets",
+                    "toolCallId": tool_part["toolCallId"],
+                    "state": "output-available",
+                    "input": tool_part.get("input"),
+                    "output": {"datasets": []},
+                    # The real client submits the part as it holds it, carrying
+                    # the server-stamped namespace that marks the call
+                    # client-executed. That marker is what identifies the output
+                    # as one the eager flush would otherwise re-post.
+                    "callProviderMetadata": tool_part.get("callProviderMetadata"),
+                }
+            ],
+            lastMessageId=assistant_message_id,
+        ),
+    )
+    assert continuation_response.status_code == 200
+    continuation_ack = next(
+        chunk
+        for chunk in _stream_chunks(continuation_response.text)
+        if chunk["type"] == "data-transcript-persisted"
+    )
+    assert continuation_ack["data"]["persistedToolOutputIds"] == [tool_part["toolCallId"]]
+
+
 async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
@@ -2820,6 +2893,81 @@ def test_merge_rejects_tool_approvals_for_calls_not_awaiting_approval() -> None:
     assert exc_info.value.code == "agent_session_tool_outputs_conflict"
 
 
+def _assistant_message_with_a_responded_approval() -> dict[str, Any]:
+    """A tail whose approval was recorded but whose call never produced output.
+
+    Only reachable when a run was interrupted between persisting the response
+    and persisting the result: a call that finished would be ``output-available``.
+    """
+    message = _assistant_message_with_approval_request()
+    message["parts"][1] = {
+        **message["parts"][1],
+        "state": "approval-responded",
+        "approval": {"id": "approval-1", "approved": True},
+    }
+    return message
+
+
+def test_merge_rejects_a_resubmitted_approval_instead_of_resuming_the_turn() -> None:
+    """A duplicate submission must not resume the turn.
+
+    An identical duplicate used to be skipped, leaving nothing rewritten -- but
+    the merge still returned the tail as ``continued_assistant_message``, so the
+    run resumed and the approved call executed a second time. For a bash command
+    carrying a mutation that is a second commit, so the resubmission is refused
+    and the client is told to reload.
+    """
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_a_responded_approval()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[
+                SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)
+            ],
+        )
+
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+def test_merge_answers_an_approval_alongside_an_already_resolved_call() -> None:
+    """Strictness about duplicates must not break the ordinary multi-call flow.
+
+    A resumed run rewrites an answered call to ``output-available``, so a second
+    approval request later in the same message is answered on its own without
+    the first one looking like a duplicate.
+    """
+    assistant_message = _assistant_message_with_approval_request()
+    assistant_message["parts"] = [
+        assistant_message["parts"][0],
+        {
+            "type": "tool-bash",
+            "toolCallId": "tool-call-first",
+            "state": "output-available",
+            "input": {"command": "echo first"},
+            "output": {"stdout": "first\n", "exitCode": 0},
+            "callProviderMetadata": {"phoenix": {"toolExecutionEnvironment": "server"}},
+        },
+        assistant_message["parts"][1],
+    ]
+    persisted = _validated_messages([_user_message("delete everything"), assistant_message])
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    parts = _parts_by_tool_call_id(continued)
+    assert parts["tool-call-approval"].state == "approval-responded"
+    assert parts["tool-call-first"].state == "output-available"
+
+
 def test_merge_with_new_user_message_repairs_an_unanswered_approval_request() -> None:
     persisted = _validated_messages(
         [_user_message("delete everything"), _assistant_message_with_approval_request()]
@@ -3272,6 +3420,80 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
         if chunk.get("type") == "tool-output-available" and "output" in chunk
     ]
     assert any(output.get("stdout") == "hello\n" for output in bash_outputs)
+
+
+# A mutation document naming a field the schema does not have. The permission
+# gate runs off the parsed operation type, before the document is executed, so
+# this is enough to observe whether mutations were permitted -- and it cannot
+# change any data if they were.
+_UNKNOWN_MUTATION = "phoenix-gql 'mutation { thisFieldDoesNotExist }'"
+
+
+def _bash_stderr(response_text: str) -> str:
+    return "".join(
+        chunk["output"].get("stderr", "")
+        for chunk in _stream_chunks(response_text)
+        if chunk.get("type") == "tool-output-available" and isinstance(chunk.get("output"), dict)
+    )
+
+
+async def test_headless_chat_in_manual_mode_cannot_run_a_mutation(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A headless run has no client that could answer an approval request, so
+    manual mode withholds mutation access entirely rather than running mutations
+    with the approval flow silently skipped.
+
+    ``headless`` is client-supplied, so before this gate any caller could opt
+    out of mutation approval by setting it.
+    """
+    session_id = "58585858-5858-4858-8858-585858585858"
+    agent_session_id = await _create_agent_session_row(db)
+    _mock_turn_models(monkeypatch, _scripted_model(bash_command=_UNKNOWN_MUTATION))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_headless_chat_body(session_id, _user_message("delete it")),
+    )
+
+    assert response.status_code == 200
+    assert "Mutations are not permitted." in _bash_stderr(response.text)
+
+
+async def test_headless_chat_in_bypass_mode_runs_a_mutation_without_approval(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The other half of the gate: an explicit bypass still grants mutation
+    access, and does so without an approval round-trip the headless caller
+    could not complete."""
+    session_id = "59595959-5959-4959-8959-595959595959"
+    agent_session_id = await _create_agent_session_row(db)
+    _mock_turn_models(monkeypatch, _scripted_model(bash_command=_UNKNOWN_MUTATION))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_headless_chat_body(
+            session_id,
+            _user_message("delete it"),
+            editPermission="bypass",
+        ),
+    )
+
+    assert response.status_code == 200
+    stderr = _bash_stderr(response.text)
+    # Permitted, so the document reached the schema and failed on its own terms.
+    assert "Mutations are not permitted." not in stderr
+    assert "thisFieldDoesNotExist" in stderr
+    # Nothing was deferred for an approval no headless caller could answer.
+    assert not [
+        chunk
+        for chunk in _stream_chunks(response.text)
+        if chunk.get("type") == "tool-approval-request"
+    ]
 
 
 async def test_headless_chat_is_forbidden_when_bash_is_disabled(

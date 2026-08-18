@@ -1,7 +1,7 @@
 import asyncio
 import json
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Literal, Protocol
+from typing import Any, Awaitable, Protocol
 from unittest.mock import Mock
 
 import pytest
@@ -15,8 +15,6 @@ from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashToolResult,
     BashToolset,
 )
-from phoenix.server.agents.context import ResolvedContexts
-from phoenix.server.agents.types import AgentDependencies
 from phoenix.server.api.context import Context
 
 
@@ -48,8 +46,6 @@ DELETE_EVERYTHING_CALLS: list[str] = []
 a mutation ran *exactly once* rather than inferring it from stdout."""
 
 TAG_EVERYTHING_CALLS: list[str] = []
-
-_SENTINEL = object()
 
 
 @strawberry.type
@@ -97,6 +93,7 @@ def _build_run_bash(*, allow_mutations: bool) -> RunBash:
         schema=strawberry.Schema(query=Query, mutation=Mutation),
         build_graphql_context=lambda: Mock(spec=Context),
         allow_mutations=allow_mutations,
+        require_mutation_approval=False,
     )
     ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
 
@@ -358,10 +355,6 @@ async def test_web_commands_cannot_reach_loopback(run_bash: RunBash, command: st
     assert "network access not configured" in result["stdout"] + result["stderr"]
 
 
-def _deps(edit_permission: Literal["manual", "bypass"]) -> AgentDependencies:
-    return AgentDependencies(contexts=ResolvedContexts(), edit_permission=edit_permission)
-
-
 class RunBashWithContext(Protocol):
     def __call__(
         self,
@@ -375,12 +368,14 @@ class RunBashWithContext(Protocol):
 def _build_run_bash_with_context(
     *,
     allow_mutations: bool = True,
+    require_mutation_approval: bool = True,
     snapshots: "list[bytes] | None" = None,
 ) -> RunBashWithContext:
     toolset = BashToolset(
         schema=strawberry.Schema(query=Query, mutation=Mutation),
         build_graphql_context=lambda: Mock(spec=Context),
         allow_mutations=allow_mutations,
+        require_mutation_approval=require_mutation_approval,
         on_snapshot=snapshots.append if snapshots is not None else None,
     )
 
@@ -400,14 +395,15 @@ def _build_run_bash_with_context(
     return run
 
 
-def _context(
-    edit_permission: Literal["manual", "bypass"] = "manual",
-    *,
-    tool_call_approved: bool = False,
-    deps: "AgentDependencies | None | object" = _SENTINEL,
-) -> RunContext[Any]:
+def _context(*, tool_call_approved: bool = False) -> RunContext[Any]:
+    """A run context for one bash call.
+
+    The approval requirement is a property of the toolset, not of the run, so it
+    is set by ``_build_run_bash_with_context``; all this carries is whether the
+    user answered this particular call.
+    """
     return RunContext(
-        deps=_deps(edit_permission) if deps is _SENTINEL else deps,
+        deps=None,
         model=TestModel(),
         usage=RunUsage(),
         tool_call_approved=tool_call_approved,
@@ -508,11 +504,44 @@ async def test_manual_mode_queries_run_without_approval() -> None:
 
 
 async def test_bypass_mode_mutations_run_without_approval() -> None:
-    run_bash = _build_run_bash_with_context()
-    result = await run_bash(DELETE_EVERYTHING, _context("bypass"))
+    run_bash = _build_run_bash_with_context(require_mutation_approval=False)
+    result = await run_bash(DELETE_EVERYTHING, _context())
     assert result["exitCode"] == 0
     assert json.loads(result["stdout"]) == {"deleteEverything": "deleted"}
     assert DELETE_EVERYTHING_CALLS == ["deleted"]
+
+
+async def test_a_run_with_no_approval_channel_never_asks_for_approval() -> None:
+    """Headless, subagent and legacy runs cannot surface an approval request.
+
+    Such a run must never reach ``ApprovalRequired``: nothing could answer it,
+    so the deferred call would hang instead of being approved. The routers give
+    those runs mutations only when the user asked for bypass, and then no
+    approval is wanted anyway.
+    """
+    run_bash = _build_run_bash_with_context(require_mutation_approval=False)
+
+    result = await run_bash(DELETE_EVERYTHING, _context(), mutation_description=DESCRIPTION)
+
+    assert result["exitCode"] == 0
+    assert DELETE_EVERYTHING_CALLS == ["deleted"]
+
+
+async def test_a_run_with_no_approval_channel_in_manual_mode_cannot_mutate() -> None:
+    """The manual-mode shape of the same run: the routers withhold
+    ``allow_mutations`` entirely, so the builtin refuses rather than executing an
+    unapproved mutation. This is the fail-closed half of the pair -- before the
+    fix, this configuration ran the mutation with no approval flow at all."""
+    run_bash = _build_run_bash_with_context(
+        allow_mutations=False,
+        require_mutation_approval=False,
+    )
+
+    result = await run_bash(DELETE_EVERYTHING, _context(), mutation_description=DESCRIPTION)
+
+    assert result["exitCode"] != 0
+    assert "Mutations are not permitted." in result["stderr"]
+    assert DELETE_EVERYTHING_CALLS == []
 
 
 async def test_mutation_stays_blocked_when_mutations_are_disabled() -> None:
