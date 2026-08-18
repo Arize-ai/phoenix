@@ -782,13 +782,19 @@ def _repair_row_constructor(
     # `(1,)` is a one-field row. A one-element Tuple renders as `(1)`, a
     # scalar. ROW(1) is the spelling PostgreSQL still treats as a record.
     # VALUES (1) is a one-column row, not a record constructor — leave it.
+    # The excluded parents spell a parenthesised list that is grammar rather
+    # than a constructor: a grouping key, or the `DISTINCT ON (expr)` key list,
+    # where `ROW` is a syntax error.
     for tuple_node in list(root.find_all(exp.Tuple)):
         items = list(tuple_node.expressions)
         if len(items) != 1:
             continue
         if tuple_node.find_ancestor(exp.Values) is not None:
             continue
-        if isinstance(tuple_node.parent, (exp.GroupingSets, exp.Cube, exp.Rollup, exp.Group)):
+        if isinstance(
+            tuple_node.parent,
+            (exp.GroupingSets, exp.Cube, exp.Rollup, exp.Group, exp.Distinct),
+        ):
             continue
         tuple_node.replace(exp.Anonymous(this="row", expressions=[items[0].copy()]))
     return root
