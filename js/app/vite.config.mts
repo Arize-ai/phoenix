@@ -63,6 +63,9 @@ function createReactCompilerPlugin({
       const result = await transformReact(fileName, sourceCode, {
         jsx: {
           runtime: "automatic",
+          // Must match `jsxImportSource` in js/app/tsconfig.json — this plugin
+          // lowers JSX itself, so Vite's transform never gets to apply it.
+          importSource: "@emotion/react",
           development: isDevelopment,
           refresh: false,
         },
