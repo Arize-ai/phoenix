@@ -8,6 +8,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.helpers import dedup
+from phoenix.db.insertion.annotation import upsert_annotations
 from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import (
     Insertables,
@@ -60,8 +61,14 @@ class SessionAnnotationQueueInserter(
         *insertions: Insertables.SessionAnnotation,
     ) -> list[SessionAnnotationDmlEvent]:
         records = [{**dict(as_kv(ins.row)), "updated_at": ins.row.updated_at} for ins in insertions]
-        stmt = self._insert_on_conflict(*records).returning(self.table.id)
-        ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
+        annotations = await upsert_annotations(
+            session,
+            *records,
+            table=self.table,
+            dialect=self._db.dialect,
+            unique_by=self.unique_by,
+        )
+        ids = tuple(annotation.id for annotation in annotations)
         return [SessionAnnotationDmlEvent(ids)]
 
     async def _partition(

@@ -1,7 +1,6 @@
 """End-to-end wiring tests for the online-eval runtime: a writable app composes one
-runtime owning the producer, both consumers, the session sweeper, the signal drain, and
-the annotation delta adapter, and a seeded project_evaluators flows all the way to a
-published evaluation.
+runtime owning the producer, both consumers, the session sweeper, and the signal drain,
+and a seeded project_evaluators flows all the way to a published evaluation.
 """
 
 import asyncio
@@ -10,17 +9,18 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from asgi_lifespan import LifespanManager
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, update
 
 from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
-    ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
     ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
     ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
 )
 from phoenix.db import models
+from phoenix.db.insertion.annotation import insert_annotations
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.dataloaders.evaluation_request_blocking_reasons import (
     EvaluationRequestBlockingReasonsDataLoader,
@@ -31,7 +31,6 @@ from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.runtime import OnlineEvalRuntime
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
-from phoenix.server.online_eval.triggering.annotations_adapter import AnnotationDeltaAdapter
 from phoenix.server.online_eval.triggering.drain import SignalDrain
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from tests.unit.conftest import (
@@ -66,12 +65,6 @@ def _runtime(db: DbSessionFactory, *, read_only: bool = False) -> OnlineEvalRunt
     runtime = app.state.online_eval_runtime
     assert isinstance(runtime, OnlineEvalRuntime)
     return runtime
-
-
-def _zero_adapter_lag(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The adapter holds both of its walks this far short of the present; without the
-    # wait a test would have to sleep out the default lag to see its own annotation.
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS, "0")
 
 
 def _record_stop(
@@ -120,28 +113,6 @@ async def _add_trigger(
         )
 
 
-async def _add_span_annotation(
-    db: DbSessionFactory,
-    span: models.Span,
-) -> models.SpanAnnotation:
-    async with db() as session:
-        annotation = models.SpanAnnotation(
-            span_rowid=span.id,
-            name="human-review",
-            label="incorrect",
-            score=None,
-            explanation=None,
-            metadata_={},
-            annotator_kind="HUMAN",
-            identifier="",
-            source="APP",
-            user_id=None,
-        )
-        session.add(annotation)
-        await session.flush()
-    return annotation
-
-
 async def _requests(db: DbSessionFactory) -> list[models.EvaluationRequest]:
     async with db() as session:
         return list(
@@ -178,8 +149,8 @@ async def _session_annotations(db: DbSessionFactory) -> list[models.ProjectSessi
 
 async def test_online_eval_daemons_run_by_default(db: DbSessionFactory) -> None:
     """Read-only mode is the only thing that keeps the daemons from starting: a writable
-    app composes the producer, both consumers, the session sweeper, the signal drain, and
-    the annotation delta adapter with no online-eval environment at all.
+    app composes the producer, both consumers, the session sweeper, and the signal drain
+    with no online-eval environment at all.
     """
     runtime = _runtime(db)
     assert isinstance(runtime.producer, OnlineEvalProducer)
@@ -187,7 +158,6 @@ async def test_online_eval_daemons_run_by_default(db: DbSessionFactory) -> None:
     assert isinstance(runtime.session_consumer, OnlineEvalConsumer)
     assert isinstance(runtime.session_sweeper, SessionEvalSweeper)
     assert isinstance(runtime.signal_drain, SignalDrain)
-    assert isinstance(runtime.annotation_adapter, AnnotationDeltaAdapter)
 
 
 async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory) -> None:
@@ -373,10 +343,7 @@ async def test_writable_app_runs_seeded_criteria_end_to_end(
 async def test_an_annotation_drives_a_session_evaluation_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An annotation reaches a published session evaluation through the composed
-    runtime: adapter -> drain -> sweeper -> session consumer.
-    """
-    _zero_adapter_lag(monkeypatch)
+    """A REST annotation reaches a published session evaluation."""
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
@@ -385,24 +352,39 @@ async def test_an_annotation_drives_a_session_evaluation_end_to_end(
         app = _create_app(db)
         runtime = app.state.online_eval_runtime
         assert isinstance(runtime, OnlineEvalRuntime)
-        await stack.enter_async_context(LifespanManager(app))
+        lifespan = LifespanManager(app)
+        await stack.enter_async_context(lifespan)
+        asgi_app = lifespan.app
         # Every daemon shares the fixture's one connection, so they are quiesced before
         # this test drives the database itself.
         await runtime.stop()
-        adapter, drain = runtime.annotation_adapter, runtime.signal_drain
+        drain = runtime.signal_drain
         sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
-        assert adapter is not None and drain is not None
+        assert drain is not None
         assert sweeper is not None and session_consumer is not None
 
         project, _, span = await _seed_quiet_session(db)
         _, project_evaluator_id = await _seed_llm_criteria(db, project.id, evaluation_target="SESSION")
         await _add_trigger(db, project_evaluator_id, signal_kind="annotation_upserted")
 
-        # The adapter starts both walks at the present, so an annotation is only
-        # announced when it lands after a tick that has already positioned them.
-        await adapter._tick()
-        await _add_span_annotation(db, span)
-        await adapter._tick()
+        async with AsyncClient(
+            transport=ASGITransport(app=asgi_app),
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/v1/span_annotations?sync=true",
+                json={
+                    "data": [
+                        {
+                            "span_id": span.span_id,
+                            "name": "human-review",
+                            "annotator_kind": "HUMAN",
+                            "result": {"label": "incorrect"},
+                        }
+                    ]
+                },
+            )
+        assert response.status_code == 200
 
         await drain._tick()
         await sweeper._tick()
@@ -502,19 +484,21 @@ async def _add_session_annotation(
     name: str,
 ) -> None:
     async with db() as session:
-        session.add(
-            models.ProjectSessionAnnotation(
-                project_session_id=project_session.id,
-                name=name,
-                label="yes",
-                score=None,
-                explanation=None,
-                metadata_={},
-                annotator_kind="HUMAN",
-                identifier="",
-                source="APP",
-                user_id=None,
-            )
+        await insert_annotations(
+            session,
+            {
+                "project_session_id": project_session.id,
+                "name": name,
+                "label": "yes",
+                "score": None,
+                "explanation": None,
+                "metadata_": {},
+                "annotator_kind": "HUMAN",
+                "identifier": "",
+                "source": "APP",
+                "user_id": None,
+            },
+            table=models.ProjectSessionAnnotation,
         )
 
 
@@ -538,7 +522,6 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
     satisfy — so it stays unfulfilled and says why, rather than being declined. When the
     second lands the pair evaluates, once.
     """
-    _enable_online_eval(monkeypatch)
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
@@ -549,9 +532,9 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
         assert isinstance(runtime, OnlineEvalRuntime)
         await stack.enter_async_context(LifespanManager(app))
         await runtime.stop()
-        adapter, drain = runtime.annotation_adapter, runtime.signal_drain
+        drain = runtime.signal_drain
         sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
-        assert adapter is not None and drain is not None
+        assert drain is not None
         assert sweeper is not None and session_consumer is not None
 
         project, project_session, _ = await _seed_quiet_session(db)
@@ -565,9 +548,7 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
         )
         await _add_trigger(db, project_evaluator_id, signal_kind="annotation_upserted")
 
-        await adapter._tick()
         await _add_session_annotation(db, project_session, "A")
-        await adapter._tick()
         await drain._tick()
         await sweeper._tick()
 
@@ -583,7 +564,6 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
         )
 
         await _add_session_annotation(db, project_session, "B")
-        await adapter._tick()
         await drain._tick()
         await sweeper._tick()
         await session_consumer._cycle()

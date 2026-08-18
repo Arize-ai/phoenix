@@ -8,6 +8,7 @@ from strawberry import Info
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.insertion.annotation import insert_annotations, update_annotations
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
@@ -63,19 +64,22 @@ class ProjectSessionAnnotationMutationMixin:
 
         try:
             async with info.context.db() as session:
-                anno = models.ProjectSessionAnnotation(
-                    project_session_id=project_session_id,
-                    name=input.name,
-                    label=input.label,
-                    score=input.score,
-                    explanation=input.explanation,
-                    annotator_kind=input.annotator_kind.value,
-                    metadata_=input.metadata,
-                    identifier=identifier,
-                    source=input.source.value,
-                    user_id=user_id,
+                (anno,) = await insert_annotations(
+                    session,
+                    {
+                        "project_session_id": project_session_id,
+                        "name": input.name,
+                        "label": input.label,
+                        "score": input.score,
+                        "explanation": input.explanation,
+                        "annotator_kind": input.annotator_kind.value,
+                        "metadata_": input.metadata,
+                        "identifier": identifier,
+                        "source": input.source.value,
+                        "user_id": user_id,
+                    },
+                    table=models.ProjectSessionAnnotation,
                 )
-                session.add(anno)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             raise Conflict(f"Error creating annotation: {e}")
 
@@ -115,9 +119,8 @@ class ProjectSessionAnnotationMutationMixin:
             anno.metadata_ = cast(dict[str, Any], input.metadata)
             anno.source = input.source.value
 
-            session.add(anno)
             try:
-                await session.flush()
+                await update_annotations(session, anno)
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
                 raise Conflict(f"Error updating annotation: {e}")
 

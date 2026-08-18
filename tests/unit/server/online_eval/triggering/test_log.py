@@ -74,13 +74,12 @@ async def test_signal_is_appended_then_drained_then_acknowledged(db: DbSessionFa
         assert await drain_page(session, limit=10) == ()
 
 
-async def test_rescanned_annotation_collapses_while_a_later_edit_is_its_own_signal(
+async def test_retried_annotation_signal_collapses_while_a_later_write_is_distinct(
     db: DbSessionFactory,
 ) -> None:
     project_id, project_session_rowid = await _seed_session(db)
     noticed = _annotation(1)
-    rescanned = _annotation(1, label="correct")
-    edited = _annotation(1, updated_at=_NOTICED_AT + timedelta(minutes=5), label="correct")
+    rewritten = _annotation(1, label="correct")
 
     async with db() as session:
         assert await append(
@@ -88,17 +87,17 @@ async def test_rescanned_annotation_collapses_while_a_later_edit_is_its_own_sign
         )
     async with db() as session:
         assert not await append(
-            session, rescanned, project_id=project_id, project_session_rowid=project_session_rowid
+            session, noticed, project_id=project_id, project_session_rowid=project_session_rowid
         )
     async with db() as session:
         assert await append(
-            session, edited, project_id=project_id, project_session_rowid=project_session_rowid
+            session, rewritten, project_id=project_id, project_session_rowid=project_session_rowid
         )
 
     async with db() as session:
         page = await drain_page(session, limit=10)
-    assert [signal.dedup_key for signal in page] == [noticed.dedup_key, edited.dedup_key]
-    # The rescan did not overwrite what the first notice recorded.
+    assert [signal.dedup_key for signal in page] == [noticed.dedup_key, rewritten.dedup_key]
+    # The retry did not overwrite what the first write recorded.
     assert page[0].payload["label"] == "incorrect"
 
 

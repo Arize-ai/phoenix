@@ -1,10 +1,10 @@
 """Composes the online-eval daemons into a single lifecycle the app can hold.
 
 Construction follows the two enable flags: nothing is built while online evaluation is
-off, and the session arm — its consumer, its sweeper, the signal drain, and the
-annotation delta adapter — is built only while session evaluation is on as well. Those
-are the same flags `request_evaluations` reads, so the drain can never be left asking a
-runtime that refuses to answer.
+off, and the session arm — its consumer, its sweeper, and the signal drain — is built
+only while session evaluation is on as well. Those are the same flags
+`request_evaluations` reads, so the drain can never be left asking a runtime that
+refuses to answer.
 """
 
 from __future__ import annotations
@@ -28,7 +28,6 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
-from phoenix.server.online_eval.triggering.annotations_adapter import AnnotationDeltaAdapter
 from phoenix.server.online_eval.triggering.drain import SignalDrain
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
@@ -57,7 +56,6 @@ class OnlineEvalRuntime:
         self.session_consumer: Optional[OnlineEvalConsumer] = None
         self.session_sweeper: Optional[SessionEvalSweeper] = None
         self.signal_drain: Optional[SignalDrain] = None
-        self.annotation_adapter: Optional[AnnotationDeltaAdapter] = None
         self._stack: Optional[AsyncExitStack] = None
         if read_only:
             return
@@ -104,15 +102,14 @@ class OnlineEvalRuntime:
         )
         self.session_sweeper = SessionEvalSweeper(db)
         self.signal_drain = SignalDrain(db)
-        self.annotation_adapter = AnnotationDeltaAdapter(db)
 
     @property
     def daemons(self) -> tuple[DaemonTask, ...]:
         """The constructed daemons in startup order.
 
         Each one starts after whatever consumes what it produces, so the reversed
-        teardown stops the annotation scan before the drain, the drain before the
-        sweeper, and every scheduler before the consumer it feeds.
+        teardown stops the drain before the sweeper and every scheduler before the
+        consumer it feeds.
         """
         ordered = (
             self.consumer,
@@ -120,7 +117,6 @@ class OnlineEvalRuntime:
             self.producer,
             self.session_sweeper,
             self.signal_drain,
-            self.annotation_adapter,
         )
         return tuple(daemon for daemon in ordered if daemon is not None)
 

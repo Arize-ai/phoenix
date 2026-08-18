@@ -1,11 +1,12 @@
 from typing import Any, Optional, cast
 
 import strawberry
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from strawberry import UNSET, Info
 
 from phoenix.db import models
+from phoenix.db.insertion.annotation import insert_annotations, update_annotations
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -119,14 +120,15 @@ class SpanAnnotationMutationMixin:
                     existing_annotation.annotator_kind = annotation_input.annotator_kind.value
                     existing_annotation.source = annotation_input.source.value
                     existing_annotation.user_id = user_id
-                    session.add(existing_annotation)
+                    await update_annotations(session, existing_annotation)
                     processed_annotation = existing_annotation
 
                 if processed_annotation is None:
-                    stmt = insert(models.SpanAnnotation).values(**values)
-                    stmt = stmt.returning(models.SpanAnnotation)
-                    result = await session.scalars(stmt)
-                    processed_annotation = result.one()
+                    (processed_annotation,) = await insert_annotations(
+                        session,
+                        values,
+                        table=models.SpanAnnotation,
+                    )
 
                 processed_annotations_map[idx] = processed_annotation
 
@@ -202,10 +204,11 @@ class SpanAnnotationMutationMixin:
                 "user_id": user_id,
             }
 
-            stmt = insert(models.SpanAnnotation).values(**values)
-            stmt = stmt.returning(models.SpanAnnotation)
-            result = await session.scalars(stmt)
-            processed_annotation = result.one()
+            (processed_annotation,) = await insert_annotations(
+                session,
+                values,
+                table=models.SpanAnnotation,
+            )
 
             info.context.event_queue.put(SpanAnnotationInsertEvent((processed_annotation.id,)))
             returned_annotation = SpanAnnotation(
@@ -280,7 +283,7 @@ class SpanAnnotationMutationMixin:
                     raise_if_identifier_is_reserved(span_annotation.identifier)
                 if patch.source:
                     span_annotation.source = patch.source.value
-                session.add(span_annotation)
+            await update_annotations(session, *span_annotations_by_id.values())
 
             patched_annotations = [
                 SpanAnnotation(id=span_annotation.id, db_record=span_annotation)

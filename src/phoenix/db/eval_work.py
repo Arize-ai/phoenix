@@ -17,7 +17,7 @@ SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
 # Every annotation online evaluation writes carries an identifier starting with this, so
 # a reader can tell its own output from a user's or an API client's without a join. It is
 # spelled once here because three sides read it and none of them may drift: the derivation
-# that writes it, the annotation scan that must not announce its own output back into the
+# that writes it, the annotation seam that must not announce its own output back into the
 # trigger loop, and the stand-down delete that removes it. The write boundary reserves it
 # so no client can namespace its way into any of the three.
 ONLINE_EVAL_IDENTIFIER_PREFIX = "online:"
