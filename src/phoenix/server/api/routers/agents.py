@@ -3361,7 +3361,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 stream_error: BaseException | None = None
                 turn_interrupted = False
                 turn_persisted = False
-                turn_lock_released = False
                 summary_task: asyncio.Task[str | None] | None = None
                 message_state = create_streaming_ui_message_state(
                     message_id=server_message_id,
@@ -3586,17 +3585,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             yield message_chunk
                         transcript_persisted_chunk = await _persist_turn()
                         turn_persisted = True
-                        # Release before announcing the write, not after. The
-                        # client reacts to this chunk by flushing tool outputs
-                        # the ack did not name, and a flush that arrives while
-                        # this turn still holds the lock is refused with
-                        # ``agent_session_busy`` and only retries when something
-                        # else re-triggers it -- which may be never.
-                        await _release_agent_session_turn_lock(
-                            db_session_factory,
-                            agent_session_rowid=agent_session_rowid,
-                        )
-                        turn_lock_released = True
                         yield transcript_persisted_chunk
                 except Exception as exc:
                     stream_error = exc
@@ -3618,14 +3606,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     with anyio.CancelScope(shield=turn_interrupted):
                         if turn_interrupted and not turn_persisted:
                             await _persist_interrupted_turn()
-                        # Skipped when the happy path already released: the
-                        # release is unconditional, so repeating it here would
-                        # clear a lock another turn has since claimed.
-                        if not turn_lock_released:
-                            await _release_agent_session_turn_lock(
-                                db_session_factory,
-                                agent_session_rowid=agent_session_rowid,
-                            )
+                        await _release_agent_session_turn_lock(
+                            db_session_factory,
+                            agent_session_rowid=agent_session_rowid,
+                        )
                         if summary_task is not None:
                             if not summary_task.done():
                                 summary_task.cancel()

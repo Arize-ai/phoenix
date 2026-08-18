@@ -178,16 +178,15 @@ describe("flushToolOutputs", () => {
     expect(syncedToolOutputIds.size).toBe(0);
   });
 
-  it("still retries after a busy 409 when the ack does not name the output", async () => {
-    // The regression this pairs with: the turn lock is held for the whole chat
-    // stream, so a flush issued mid-turn is refused with agent_session_busy and
-    // unmarks itself for a retry. The transcript-persisted ack used to re-mark
-    // it from the client's own copy of the message — cancelling that retry for
-    // an output the server never received. The ack now names only what it
-    // wrote, so an output it does not name stays flushable.
+  it("still retries after a failed flush when the ack does not name the output", async () => {
+    // A failed flush unmarks its IDs so a later flush can retry. The
+    // transcript-persisted ack used to re-mark them from the client's own copy
+    // of the message, cancelling that retry for an output the server never
+    // received. The ack now names only what it wrote, so an output it does not
+    // name stays flushable.
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: false, status: 409 } as Response)
+      .mockResolvedValueOnce({ ok: false, status: 500 } as Response)
       .mockResolvedValue(okResponse());
     const coordinator = createTranscriptPersistenceCoordinator();
     const message = assistantMessage([
@@ -205,6 +204,7 @@ describe("flushToolOutputs", () => {
     expect(coordinator.syncedToolOutputIds.size).toBe(0);
 
     // The turn persisted without call-1's output, so the ack names nothing.
+    // Its output resolved client-side after the server took its snapshot.
     coordinator.acknowledge({ messageId: "assistant-1" });
     coordinator.markToolOutputsPersisted([]);
 
