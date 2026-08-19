@@ -466,7 +466,6 @@
                 "group": "Frequently Asked Questions",
                 "pages": [
                   "docs/phoenix/resources/frequently-asked-questions",
-                  "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
                   "docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai",
@@ -483,7 +482,13 @@
                 ]
               },
               "docs/phoenix/resources/contribute-to-phoenix",
-              "docs/phoenix/resources/phoenix-to-arize-ax-migration",
+              {
+                "group": "Arize AX",
+                "root": "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
+                "pages": [
+                  "docs/phoenix/resources/phoenix-to-arize-ax-migration"
+                ]
+              },
               "docs/phoenix/resources/typescript-api",
               "docs/phoenix/resources/python-api",
               "docs/phoenix/resources/github",
