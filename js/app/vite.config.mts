@@ -55,7 +55,7 @@ export default defineConfig(() => {
     // execute_ui's uiScriptWorker must emit as an ES module chunk (hashed
     // .js), not a copied .ts asset. `type: "module"` Workers require this.
     worker: {
-      format: "es",
+      format: "es" as const,
     },
     resolve: {
       alias: {
