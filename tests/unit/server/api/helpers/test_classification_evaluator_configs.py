@@ -6,11 +6,11 @@ from phoenix.__generated__.classification_evaluator_configs import (
     PromptMessage,
 )
 from phoenix.server.api.helpers.classification_evaluator_configs import (
-    get_evaluator_gallery_configs,
+    get_classification_evaluator_configs,
 )
 
 
-def test_gallery_returns_all_configs_in_order_without_expanding_templates(
+def test_gallery_returns_complete_configs_in_order_without_expanding_templates(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def make_config(name: str, *, recommended: bool) -> ClassificationEvaluatorConfig:
@@ -32,6 +32,7 @@ def test_gallery_returns_all_configs_in_order_without_expanding_templates(
 
     recommended = make_config("recommended", recommended=True)
     standard = make_config("standard", recommended=False)
+    incomplete = standard.model_copy(update={"name": "incomplete", "inputs": None})
     monkeypatch.setattr(
         configs_module,
         "TEST_RECOMMENDED_CLASSIFICATION_EVALUATOR_CONFIG",
@@ -44,11 +45,17 @@ def test_gallery_returns_all_configs_in_order_without_expanding_templates(
         standard,
         raising=False,
     )
+    monkeypatch.setattr(
+        configs_module,
+        "TEST_INCOMPLETE_CLASSIFICATION_EVALUATOR_CONFIG",
+        incomplete,
+        raising=False,
+    )
 
     configs = [
         config
-        for config in get_evaluator_gallery_configs()
-        if config.name in {"recommended", "standard"}
+        for config in get_classification_evaluator_configs(gallery_ready=True)
+        if config.name in {"recommended", "standard", "incomplete"}
     ]
 
     assert configs == [recommended, standard]

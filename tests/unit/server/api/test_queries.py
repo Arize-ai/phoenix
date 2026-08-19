@@ -60,7 +60,11 @@ async def test_evaluator_gallery_configs_contract(
             "inputs": {"input": {"description": "The user request."}},
         }
     )
-    monkeypatch.setattr(queries, "get_evaluator_gallery_configs", lambda: [config])
+    monkeypatch.setattr(
+        queries,
+        "get_classification_evaluator_configs",
+        lambda *, gallery_ready: [config] if gallery_ready else [],
+    )
 
     response = await gql_client.execute(
         query="""

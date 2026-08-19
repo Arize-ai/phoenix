@@ -48,7 +48,6 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.classification_evaluator_configs import (
     get_classification_evaluator_configs,
-    get_evaluator_gallery_configs,
 )
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
@@ -1589,7 +1588,7 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[ClassificationEvaluatorConfig]:
-        configs = get_evaluator_gallery_configs()
+        configs = get_classification_evaluator_configs(gallery_ready=True)
         return [_to_gql_classification_evaluator_config(config) for config in configs]
 
     @strawberry.field
