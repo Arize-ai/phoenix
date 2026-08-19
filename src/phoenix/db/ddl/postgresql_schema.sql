@@ -200,43 +200,6 @@ CREATE INDEX ix_project_sessions_project_id_start_time ON public.project_session
     USING btree (project_id, start_time DESC);
 
 
--- Table: evaluator_signals
--- ------------------------
-CREATE TABLE public.evaluator_signals (
-    id bigserial NOT NULL,
-    kind VARCHAR NOT NULL,
-    dedup_key VARCHAR NOT NULL,
-    project_id BIGINT NOT NULL,
-    project_session_rowid BIGINT NOT NULL,
-    payload JSONB NOT NULL,
-    acknowledged_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_evaluator_signals PRIMARY KEY (id),
-    CONSTRAINT uq_evaluator_signals_kind_dedup_key
-        UNIQUE (kind, dedup_key),
-    CONSTRAINT "ck_evaluator_signals_`valid_signal_kind`"
-        CHECK (((kind)::text = ANY ((ARRAY[
-            'annotation_upserted'::character varying,
-            'evaluation_completed'::character varying
-        ])::text[]))),
-    CONSTRAINT fk_evaluator_signals_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES public.projects (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_signals_project_session_rowid_project_sessions
-        FOREIGN KEY (project_session_rowid)
-        REFERENCES public.project_sessions (id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_evaluator_signals_project_id ON public.evaluator_signals
-    USING btree (project_id);
-CREATE INDEX ix_evaluator_signals_project_session_rowid ON public.evaluator_signals
-    USING btree (project_session_rowid);
-CREATE INDEX ix_evaluator_signals_undrained ON public.evaluator_signals
-    USING btree (id) WHERE (acknowledged_at IS NULL);
-
-
 -- Table: prompt_labels
 -- --------------------
 CREATE TABLE public.prompt_labels (
@@ -391,6 +354,65 @@ CREATE INDEX ix_spans_trace_rowid ON public.spans
     USING btree (trace_rowid);
 CREATE INDEX ix_spans_user_id ON public.spans
     USING btree ((((attributes #>> '{user,id}'::text[]))::character varying)) WHERE (((attributes #>> '{user,id}'::text[]))::character varying IS NOT NULL);
+
+
+-- Table: evaluator_signals
+-- ------------------------
+CREATE TABLE public.evaluator_signals (
+    id bigserial NOT NULL,
+    kind VARCHAR NOT NULL,
+    dedup_key VARCHAR NOT NULL,
+    project_id BIGINT NOT NULL,
+    evaluation_target VARCHAR NOT NULL,
+    span_rowid BIGINT,
+    trace_rowid BIGINT,
+    project_session_rowid BIGINT,
+    payload JSONB NOT NULL,
+    acknowledged_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_evaluator_signals PRIMARY KEY (id),
+    CONSTRAINT uq_evaluator_signals_kind_dedup_key
+        UNIQUE (kind, dedup_key),
+    CONSTRAINT "ck_evaluator_signals_`valid_evaluation_target`"
+        CHECK (((evaluation_target)::text = ANY ((ARRAY[
+            'SPAN'::character varying,
+            'TRACE'::character varying,
+            'SESSION'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_evaluator_signals_`valid_signal_kind`"
+        CHECK (((kind)::text = ANY ((ARRAY[
+            'annotation_upserted'::character varying,
+            'evaluation_completed'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_evaluator_signals_`valid_target_key`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (span_rowid IS NOT NULL) AND (trace_rowid IS NULL) AND (project_session_rowid IS NULL)) OR (((evaluation_target)::text = 'TRACE'::text) AND (trace_rowid IS NOT NULL) AND (span_rowid IS NULL) AND (project_session_rowid IS NULL)) OR (((evaluation_target)::text = 'SESSION'::text) AND (project_session_rowid IS NOT NULL) AND (span_rowid IS NULL) AND (trace_rowid IS NULL)))),
+    CONSTRAINT fk_evaluator_signals_project_id_projects
+        FOREIGN KEY (project_id)
+        REFERENCES public.projects (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evaluator_signals_project_session_rowid_project_sessions
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES public.project_sessions (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evaluator_signals_span_rowid_spans
+        FOREIGN KEY (span_rowid)
+        REFERENCES public.spans (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evaluator_signals_trace_rowid_traces
+        FOREIGN KEY (trace_rowid)
+        REFERENCES public.traces (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_evaluator_signals_project_id ON public.evaluator_signals
+    USING btree (project_id);
+CREATE INDEX ix_evaluator_signals_project_session_rowid ON public.evaluator_signals
+    USING btree (project_session_rowid) WHERE (project_session_rowid IS NOT NULL);
+CREATE INDEX ix_evaluator_signals_span_rowid ON public.evaluator_signals
+    USING btree (span_rowid) WHERE (span_rowid IS NOT NULL);
+CREATE INDEX ix_evaluator_signals_trace_rowid ON public.evaluator_signals
+    USING btree (trace_rowid) WHERE (trace_rowid IS NOT NULL);
+CREATE INDEX ix_evaluator_signals_undrained ON public.evaluator_signals
+    USING btree (id) WHERE (acknowledged_at IS NULL);
 
 
 -- Table: span_costs
@@ -1590,37 +1612,11 @@ CREATE TABLE public.project_evaluator_triggers (
     id bigserial NOT NULL,
     criteria_id BIGINT NOT NULL,
     signal_kind VARCHAR NOT NULL,
-    annotation_name VARCHAR,
-    label VARCHAR,
-    score_below DOUBLE PRECISION,
-    score_above DOUBLE PRECISION,
-    annotator_kind VARCHAR,
-    annotation_change VARCHAR,
-    annotation_target VARCHAR,
-    source_criteria_id BIGINT,
-    result_changed_only BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_change`"
-        CHECK (((annotation_change)::text = ANY ((ARRAY[
-            'created'::character varying,
-            'updated'::character varying
-        ])::text[]))),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_predicates`" CHECK ((((signal_kind)::text <> 'annotation_upserted'::text) OR ((source_criteria_id IS NULL) AND (result_changed_only = false)))),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotation_target`"
-        CHECK (((annotation_target)::text = ANY ((ARRAY[
-            'span'::character varying,
-            'trace'::character varying,
-            'session'::character varying
-        ])::text[]))),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_annotator_kind`"
-        CHECK (((annotator_kind)::text = ANY ((ARRAY[
-            'LLM'::character varying,
-            'CODE'::character varying,
-            'HUMAN'::character varying
-        ])::text[]))),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_evaluation_predicates`" CHECK ((((signal_kind)::text <> 'evaluation_completed'::text) OR ((annotator_kind IS NULL) AND (annotation_change IS NULL) AND (annotation_target IS NULL)))),
+    CONSTRAINT uq_project_evaluator_triggers_id_signal_kind
+        UNIQUE (id, signal_kind),
     CONSTRAINT "ck_project_evaluator_triggers_`valid_signal_kind`"
         CHECK (((signal_kind)::text = ANY ((ARRAY[
             'annotation_upserted'::character varying,
@@ -1629,16 +1625,85 @@ CREATE TABLE public.project_evaluator_triggers (
     CONSTRAINT fk_project_evaluator_triggers_criteria_id_project_evalu_acfb
         FOREIGN KEY (criteria_id)
         REFERENCES public.project_evaluator_criteria (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_project_evaluator_triggers_source_criteria_id_projec_30d2
-        FOREIGN KEY (source_criteria_id)
-        REFERENCES public.project_evaluator_criteria (id)
         ON DELETE CASCADE
 );
 
 CREATE INDEX ix_project_evaluator_triggers_criteria_id ON public.project_evaluator_triggers
     USING btree (criteria_id);
-CREATE INDEX ix_project_evaluator_triggers_source_criteria_id ON public.project_evaluator_triggers
+
+
+-- Table: project_evaluator_trigger_annotation_predicates
+-- ------------------------------------------------------
+CREATE TABLE public.project_evaluator_trigger_annotation_predicates (
+    id bigserial NOT NULL,
+    trigger_id BIGINT NOT NULL,
+    signal_kind VARCHAR NOT NULL,
+    name VARCHAR,
+    label VARCHAR,
+    score_below DOUBLE PRECISION,
+    score_above DOUBLE PRECISION,
+    annotator_kind VARCHAR,
+    annotation_change VARCHAR,
+    annotation_target VARCHAR,
+    matches_evaluator_annotations BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_project_evaluator_trigger_annotation_predicates PRIMARY KEY (id),
+    CONSTRAINT uq_project_evaluator_trigger_annotation_predicates_trigger_id
+        UNIQUE (trigger_id),
+    CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`val_a424"
+        CHECK (((annotation_change)::text = ANY ((ARRAY[
+            'created'::character varying,
+            'updated'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`val_bf55" CHECK (((signal_kind)::text = 'annotation_upserted'::text)),
+    CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`val_d859"
+        CHECK (((annotator_kind)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'CODE'::character varying,
+            'HUMAN'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`val_e403"
+        CHECK (((annotation_target)::text = ANY ((ARRAY[
+            'span'::character varying,
+            'trace'::character varying,
+            'session'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_project_evaluator_trigger_annotation_predicates_trig_0c9c
+        FOREIGN KEY (trigger_id, signal_kind)
+        REFERENCES public.project_evaluator_triggers (id, signal_kind)
+        ON DELETE CASCADE
+);
+
+
+-- Table: project_evaluator_trigger_evaluation_predicates
+-- ------------------------------------------------------
+CREATE TABLE public.project_evaluator_trigger_evaluation_predicates (
+    id bigserial NOT NULL,
+    trigger_id BIGINT NOT NULL,
+    signal_kind VARCHAR NOT NULL,
+    name VARCHAR,
+    label VARCHAR,
+    score_below DOUBLE PRECISION,
+    score_above DOUBLE PRECISION,
+    source_criteria_id BIGINT,
+    result_changed_only BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_project_evaluator_trigger_evaluation_predicates PRIMARY KEY (id),
+    CONSTRAINT uq_project_evaluator_trigger_evaluation_predicates_trigger_id
+        UNIQUE (trigger_id),
+    CONSTRAINT "ck_project_evaluator_trigger_evaluation_predicates_`val_ec1e" CHECK (((signal_kind)::text = 'evaluation_completed'::text)),
+    CONSTRAINT fk_project_evaluator_trigger_evaluation_predicates_sour_8bfd
+        FOREIGN KEY (source_criteria_id)
+        REFERENCES public.project_evaluator_criteria (id),
+    CONSTRAINT fk_project_evaluator_trigger_evaluation_predicates_trig_baa2
+        FOREIGN KEY (trigger_id, signal_kind)
+        REFERENCES public.project_evaluator_triggers (id, signal_kind)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_trigger_evaluation_predicates_source_criteria_id ON public.project_evaluator_trigger_evaluation_predicates
     USING btree (source_criteria_id);
 
 

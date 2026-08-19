@@ -15,6 +15,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
 from phoenix.db.eval_work import (
+    evaluation_target_check,
     evaluator_signal_kind_check,
     live_eval_session_work_index_predicate,
     undrained_evaluator_signal_predicate,
@@ -180,10 +181,31 @@ def _create_evaluator_signals_table() -> None:
             nullable=False,
         ),
         sa.Column(
+            "evaluation_target",
+            sa.String(),
+            sa.CheckConstraint(
+                evaluation_target_check("evaluation_target"),
+                name="valid_evaluation_target",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "span_rowid",
+            _Integer,
+            sa.ForeignKey("spans.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "trace_rowid",
+            _Integer,
+            sa.ForeignKey("traces.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
             "project_session_rowid",
             _Integer,
             sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
-            nullable=False,
+            nullable=True,
         ),
         sa.Column("payload", JSON_, nullable=False),
         sa.Column("acknowledged_at", sa.TIMESTAMP(timezone=True), nullable=True),
@@ -194,6 +216,17 @@ def _create_evaluator_signals_table() -> None:
             server_default=sa.func.now(),
         ),
         sa.UniqueConstraint("kind", "dedup_key"),
+        # Signals are appended and matched by a daemon outside the mutation layer, so
+        # the schema is the only validator that path passes.
+        sa.CheckConstraint(
+            "(evaluation_target = 'SPAN' AND span_rowid IS NOT NULL"
+            " AND trace_rowid IS NULL AND project_session_rowid IS NULL)"
+            " OR (evaluation_target = 'TRACE' AND trace_rowid IS NOT NULL"
+            " AND span_rowid IS NULL AND project_session_rowid IS NULL)"
+            " OR (evaluation_target = 'SESSION' AND project_session_rowid IS NOT NULL"
+            " AND span_rowid IS NULL AND trace_rowid IS NULL)",
+            name="valid_target_key",
+        ),
     )
     # Auto-increment ids are allocation-ordered, not commit-ordered, so a scalar cursor can
     # permanently skip a signal whose transaction committed late. Unacknowledged-ness has no
@@ -210,10 +243,28 @@ def _create_evaluator_signals_table() -> None:
         "evaluator_signals",
         ["project_id"],
     )
+    # Each target key is populated only for its own target kind, so its index holds only
+    # the rows routed there.
+    op.create_index(
+        "ix_evaluator_signals_span_rowid",
+        "evaluator_signals",
+        ["span_rowid"],
+        postgresql_where=sa.text("span_rowid IS NOT NULL"),
+        sqlite_where=sa.text("span_rowid IS NOT NULL"),
+    )
+    op.create_index(
+        "ix_evaluator_signals_trace_rowid",
+        "evaluator_signals",
+        ["trace_rowid"],
+        postgresql_where=sa.text("trace_rowid IS NOT NULL"),
+        sqlite_where=sa.text("trace_rowid IS NOT NULL"),
+    )
     op.create_index(
         "ix_evaluator_signals_project_session_rowid",
         "evaluator_signals",
         ["project_session_rowid"],
+        postgresql_where=sa.text("project_session_rowid IS NOT NULL"),
+        sqlite_where=sa.text("project_session_rowid IS NOT NULL"),
     )
 
 
@@ -235,7 +286,44 @@ def _create_project_evaluator_triggers_table() -> None:
             ),
             nullable=False,
         ),
-        sa.Column("annotation_name", sa.String(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        # The key each predicate table's foreign key references, so a predicate row can
+        # only attach to a trigger of its own signal kind.
+        sa.UniqueConstraint("id", "signal_kind"),
+    )
+    op.create_index(
+        "ix_project_evaluator_triggers_criteria_id",
+        "project_evaluator_triggers",
+        ["criteria_id"],
+    )
+
+
+def _create_trigger_annotation_predicates_table() -> None:
+    op.create_table(
+        "project_evaluator_trigger_annotation_predicates",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column("trigger_id", _Integer, nullable=False),
+        sa.Column(
+            "signal_kind",
+            sa.String(),
+            sa.CheckConstraint(
+                "signal_kind = 'annotation_upserted'",
+                name="valid_signal_kind",
+            ),
+            nullable=False,
+        ),
+        sa.Column("name", sa.String(), nullable=True),
         sa.Column("label", sa.String(), nullable=True),
         sa.Column("score_below", sa.Float(), nullable=True),
         sa.Column("score_above", sa.Float(), nullable=True),
@@ -267,9 +355,57 @@ def _create_project_evaluator_triggers_table() -> None:
             nullable=True,
         ),
         sa.Column(
+            "matches_evaluator_annotations",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.ForeignKeyConstraint(
+            ["trigger_id", "signal_kind"],
+            ["project_evaluator_triggers.id", "project_evaluator_triggers.signal_kind"],
+            ondelete="CASCADE",
+        ),
+        sa.UniqueConstraint("trigger_id"),
+    )
+
+
+def _create_trigger_evaluation_predicates_table() -> None:
+    op.create_table(
+        "project_evaluator_trigger_evaluation_predicates",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column("trigger_id", _Integer, nullable=False),
+        sa.Column(
+            "signal_kind",
+            sa.String(),
+            sa.CheckConstraint(
+                "signal_kind = 'evaluation_completed'",
+                name="valid_signal_kind",
+            ),
+            nullable=False,
+        ),
+        sa.Column("name", sa.String(), nullable=True),
+        sa.Column("label", sa.String(), nullable=True),
+        sa.Column("score_below", sa.Float(), nullable=True),
+        sa.Column("score_above", sa.Float(), nullable=True),
+        # Not ON DELETE CASCADE: cascading here would delete the predicates and leave the
+        # trigger behind, firing on every completion. Deleting a watched criterion is
+        # refused until the trigger that watches it goes with it.
+        sa.Column(
             "source_criteria_id",
             _Integer,
-            sa.ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+            sa.ForeignKey("project_evaluator_criteria.id"),
             nullable=True,
         ),
         sa.Column(
@@ -290,25 +426,18 @@ def _create_project_evaluator_triggers_table() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.CheckConstraint(
-            "signal_kind != 'annotation_upserted' OR "
-            "(source_criteria_id IS NULL AND result_changed_only = false)",
-            name="valid_annotation_predicates",
+        sa.ForeignKeyConstraint(
+            ["trigger_id", "signal_kind"],
+            ["project_evaluator_triggers.id", "project_evaluator_triggers.signal_kind"],
+            ondelete="CASCADE",
         ),
-        sa.CheckConstraint(
-            "signal_kind != 'evaluation_completed' OR "
-            "(annotator_kind IS NULL AND annotation_change IS NULL AND annotation_target IS NULL)",
-            name="valid_evaluation_predicates",
-        ),
+        sa.UniqueConstraint("trigger_id"),
     )
+    # Named short: the conventional ix_<table>_<column> spelling exceeds PostgreSQL's
+    # 63-character identifier limit.
     op.create_index(
-        "ix_project_evaluator_triggers_criteria_id",
-        "project_evaluator_triggers",
-        ["criteria_id"],
-    )
-    op.create_index(
-        "ix_project_evaluator_triggers_source_criteria_id",
-        "project_evaluator_triggers",
+        "ix_trigger_evaluation_predicates_source_criteria_id",
+        "project_evaluator_trigger_evaluation_predicates",
         ["source_criteria_id"],
     )
 
@@ -653,6 +782,8 @@ def upgrade() -> None:
     _create_session_work_units_table()
     _create_evaluator_signals_table()
     _create_project_evaluator_triggers_table()
+    _create_trigger_annotation_predicates_table()
+    _create_trigger_evaluation_predicates_table()
     _create_evaluation_requests_table()
 
 
@@ -664,9 +795,13 @@ def downgrade() -> None:
     op.drop_table("evaluation_requests")
 
     op.drop_index(
-        "ix_project_evaluator_triggers_source_criteria_id",
-        table_name="project_evaluator_triggers",
+        "ix_trigger_evaluation_predicates_source_criteria_id",
+        table_name="project_evaluator_trigger_evaluation_predicates",
     )
+    op.drop_table("project_evaluator_trigger_evaluation_predicates")
+
+    op.drop_table("project_evaluator_trigger_annotation_predicates")
+
     op.drop_index(
         "ix_project_evaluator_triggers_criteria_id",
         table_name="project_evaluator_triggers",
@@ -674,6 +809,8 @@ def downgrade() -> None:
     op.drop_table("project_evaluator_triggers")
 
     op.drop_index("ix_evaluator_signals_project_session_rowid", table_name="evaluator_signals")
+    op.drop_index("ix_evaluator_signals_trace_rowid", table_name="evaluator_signals")
+    op.drop_index("ix_evaluator_signals_span_rowid", table_name="evaluator_signals")
     op.drop_index("ix_evaluator_signals_project_id", table_name="evaluator_signals")
     op.drop_index("ix_evaluator_signals_undrained", table_name="evaluator_signals")
     op.drop_table("evaluator_signals")

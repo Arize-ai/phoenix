@@ -55,6 +55,7 @@ from typing_extensions import Self, TypeAlias
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.eval_work import (
+    evaluation_target_check,
     evaluator_signal_kind_check,
     live_eval_session_work_index_predicate,
     undrained_evaluator_signal_predicate,
@@ -3609,7 +3610,7 @@ class ProjectEvaluatorCriteria(HasId):
     filter_condition: Mapped[str] = mapped_column(String, nullable=False, server_default="")
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(
         CheckConstraint(
-            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')",
+            evaluation_target_check("evaluation_target"),
             name="valid_evaluation_target",
         ),
         nullable=False,
@@ -3679,7 +3680,7 @@ class EvalWorkCursor(HasId):
     __tablename__ = "eval_work_cursors"
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(
         CheckConstraint(
-            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
+            evaluation_target_check("evaluation_target"), name="valid_evaluation_target"
         ),
         nullable=False,
     )
@@ -3865,6 +3866,9 @@ class EvaluatorSignal(HasId):
     allocation-ordered, not commit-ordered, so a cursor can permanently skip a signal
     whose transaction committed late. (kind, dedup_key) is the occurrence identity, so
     the same signal delivered twice collapses to one row.
+
+    evaluation_target says which entity the occurrence demands be evaluated, and the
+    matching target key holds it — what the occurrence happened to is in the payload.
     """
 
     __tablename__ = "evaluator_signals"
@@ -3878,25 +3882,67 @@ class EvaluatorSignal(HasId):
         nullable=False,
         index=True,
     )
-    project_session_rowid: Mapped[int] = mapped_column(
-        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+    evaluation_target: Mapped[EvaluationTarget] = mapped_column(
+        CheckConstraint(
+            evaluation_target_check("evaluation_target"),
+            name="valid_evaluation_target",
+        ),
         nullable=False,
-        index=True,
+    )
+    span_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+    )
+    trace_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"),
+    )
+    project_session_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
     )
     payload: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     acknowledged_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     project: Mapped["Project"] = relationship("Project")
-    project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+    span: Mapped[Optional["Span"]] = relationship("Span")
+    trace: Mapped[Optional["Trace"]] = relationship("Trace")
+    project_session: Mapped[Optional["ProjectSession"]] = relationship("ProjectSession")
 
     __table_args__ = (
         UniqueConstraint("kind", "dedup_key"),
+        # Signals are appended and matched by a daemon outside the mutation layer, so
+        # the schema is the only validator that path passes.
+        CheckConstraint(
+            "(evaluation_target = 'SPAN' AND span_rowid IS NOT NULL"
+            " AND trace_rowid IS NULL AND project_session_rowid IS NULL)"
+            " OR (evaluation_target = 'TRACE' AND trace_rowid IS NOT NULL"
+            " AND span_rowid IS NULL AND project_session_rowid IS NULL)"
+            " OR (evaluation_target = 'SESSION' AND project_session_rowid IS NOT NULL"
+            " AND span_rowid IS NULL AND trace_rowid IS NULL)",
+            name="valid_target_key",
+        ),
         Index(
             "ix_evaluator_signals_undrained",
             "id",
             postgresql_where=text(undrained_evaluator_signal_predicate()),
             sqlite_where=text(undrained_evaluator_signal_predicate()),
+        ),
+        Index(
+            "ix_evaluator_signals_span_rowid",
+            "span_rowid",
+            postgresql_where=text("span_rowid IS NOT NULL"),
+            sqlite_where=text("span_rowid IS NOT NULL"),
+        ),
+        Index(
+            "ix_evaluator_signals_trace_rowid",
+            "trace_rowid",
+            postgresql_where=text("trace_rowid IS NOT NULL"),
+            sqlite_where=text("trace_rowid IS NOT NULL"),
+        ),
+        Index(
+            "ix_evaluator_signals_project_session_rowid",
+            "project_session_rowid",
+            postgresql_where=text("project_session_rowid IS NOT NULL"),
+            sqlite_where=text("project_session_rowid IS NOT NULL"),
         ),
     )
 
@@ -3904,11 +3950,13 @@ class EvaluatorSignal(HasId):
 class ProjectEvaluatorTrigger(HasId):
     """One rule saying which signals should make its criteria run.
 
-    Every predicate column is nullable and NULL means unconstrained, so a trigger with
-    all of them NULL fires on every signal of its kind. Set-valued intent ("label A or
-    B") is several trigger rows on the same criteria. The columns that only apply to one
-    kind are held NULL for the other by CHECK, because signals are matched by a daemon
-    outside the mutation layer and the schema is the only validator that path passes.
+    The rule's predicates live in the child table for its signal kind, at most one row
+    per trigger; no child row means no predicates, so the trigger fires on every signal
+    of its kind. Set-valued intent ("label A or B") is several trigger rows on the same
+    criteria. UNIQUE (id, signal_kind) is the key each child's foreign key references,
+    which is what stops predicates of one family attaching to a trigger of another —
+    signals are matched by a daemon outside the mutation layer and the schema is the
+    only validator that path passes.
     """
 
     __tablename__ = "project_evaluator_triggers"
@@ -3921,7 +3969,46 @@ class ProjectEvaluatorTrigger(HasId):
         CheckConstraint(evaluator_signal_kind_check("signal_kind"), name="valid_signal_kind"),
         nullable=False,
     )
-    annotation_name: Mapped[Optional[str]] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship("ProjectEvaluatorCriteria")
+    annotation_predicates: Mapped[Optional["ProjectEvaluatorTriggerAnnotationPredicates"]] = (
+        relationship(
+            "ProjectEvaluatorTriggerAnnotationPredicates",
+            back_populates="trigger",
+        )
+    )
+    evaluation_predicates: Mapped[Optional["ProjectEvaluatorTriggerEvaluationPredicates"]] = (
+        relationship(
+            "ProjectEvaluatorTriggerEvaluationPredicates",
+            back_populates="trigger",
+        )
+    )
+
+    __table_args__ = (UniqueConstraint("id", "signal_kind"),)
+
+
+class ProjectEvaluatorTriggerAnnotationPredicates(HasId):
+    """What an annotation_upserted signal must look like for its trigger to fire.
+
+    Every predicate column is nullable and NULL means unconstrained. The row attaches
+    by (trigger_id, signal_kind), so it can only reach a trigger whose kind is
+    annotation_upserted.
+    """
+
+    __tablename__ = "project_evaluator_trigger_annotation_predicates"
+    trigger_id: Mapped[int] = mapped_column(nullable=False, unique=True)
+    signal_kind: Mapped[EvaluatorSignalKind] = mapped_column(
+        CheckConstraint(
+            "signal_kind = 'annotation_upserted'",
+            name="valid_signal_kind",
+        ),
+        nullable=False,
+    )
+    name: Mapped[Optional[str]] = mapped_column(String)
     label: Mapped[Optional[str]] = mapped_column(String)
     score_below: Mapped[Optional[float]] = mapped_column(Float)
     score_above: Mapped[Optional[float]] = mapped_column(Float)
@@ -3943,9 +4030,56 @@ class ProjectEvaluatorTrigger(HasId):
             name="valid_annotation_target",
         ),
     )
+    # Annotations written by online evaluation are excluded from matching unless the rule
+    # asks for them, so one evaluator can run on another evaluator's output.
+    matches_evaluator_annotations: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    trigger: Mapped["ProjectEvaluatorTrigger"] = relationship(
+        "ProjectEvaluatorTrigger",
+        back_populates="annotation_predicates",
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["trigger_id", "signal_kind"],
+            ["project_evaluator_triggers.id", "project_evaluator_triggers.signal_kind"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class ProjectEvaluatorTriggerEvaluationPredicates(HasId):
+    """What an evaluation_completed signal must look like for its trigger to fire.
+
+    Every predicate column is nullable and NULL means unconstrained. The row attaches
+    by (trigger_id, signal_kind), so it can only reach a trigger whose kind is
+    evaluation_completed.
+    """
+
+    __tablename__ = "project_evaluator_trigger_evaluation_predicates"
+    trigger_id: Mapped[int] = mapped_column(nullable=False, unique=True)
+    signal_kind: Mapped[EvaluatorSignalKind] = mapped_column(
+        CheckConstraint(
+            "signal_kind = 'evaluation_completed'",
+            name="valid_signal_kind",
+        ),
+        nullable=False,
+    )
+    name: Mapped[Optional[str]] = mapped_column(String)
+    label: Mapped[Optional[str]] = mapped_column(String)
+    score_below: Mapped[Optional[float]] = mapped_column(Float)
+    score_above: Mapped[Optional[float]] = mapped_column(Float)
+    # Not ON DELETE CASCADE: cascading here would delete the predicates and leave the
+    # trigger behind, firing on every completion. Deleting a watched criterion is
+    # refused until the trigger that watches it goes with it.
     source_criteria_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
-        index=True,
+        ForeignKey("project_evaluator_criteria.id"),
     )
     result_changed_only: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
@@ -3955,25 +4089,25 @@ class ProjectEvaluatorTrigger(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship(
-        "ProjectEvaluatorCriteria",
-        foreign_keys=[criteria_id],
+    trigger: Mapped["ProjectEvaluatorTrigger"] = relationship(
+        "ProjectEvaluatorTrigger",
+        back_populates="evaluation_predicates",
     )
     source_criteria: Mapped[Optional["ProjectEvaluatorCriteria"]] = relationship(
-        "ProjectEvaluatorCriteria",
-        foreign_keys=[source_criteria_id],
+        "ProjectEvaluatorCriteria"
     )
 
     __table_args__ = (
-        CheckConstraint(
-            "signal_kind != 'annotation_upserted' OR "
-            "(source_criteria_id IS NULL AND result_changed_only = false)",
-            name="valid_annotation_predicates",
+        ForeignKeyConstraint(
+            ["trigger_id", "signal_kind"],
+            ["project_evaluator_triggers.id", "project_evaluator_triggers.signal_kind"],
+            ondelete="CASCADE",
         ),
-        CheckConstraint(
-            "signal_kind != 'evaluation_completed' OR "
-            "(annotator_kind IS NULL AND annotation_change IS NULL AND annotation_target IS NULL)",
-            name="valid_evaluation_predicates",
+        # Named short: the conventional ix_<table>_<column> spelling exceeds
+        # PostgreSQL's 63-character identifier limit.
+        Index(
+            "ix_trigger_evaluation_predicates_source_criteria_id",
+            "source_criteria_id",
         ),
     )
 
