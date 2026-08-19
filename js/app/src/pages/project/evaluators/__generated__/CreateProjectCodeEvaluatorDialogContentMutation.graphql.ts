@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4fa7ac065b8ecaf4af19496123a1a51c>>
+ * @generated SignedSource<<e0ad59aa0e87b1a2631744069fd3fd0e>>
  * @lightSyntaxTransform
  */
 
@@ -22,7 +22,7 @@ export type CreateProjectCodeEvaluatorInput = {
   inputMapping?: EvaluatorInputMappingInput | null;
   language: Language;
   name: string;
-  outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
   projectId: string;
   samplingRate: number;
   sandboxConfigId: string;
