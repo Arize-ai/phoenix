@@ -2792,6 +2792,7 @@ _TRIGGER_TARGET_MISMATCH = (
     "This evaluator does not evaluate sessions. Only an evaluator whose evaluation target "
     "is SESSION can be given a trigger."
 )
+MAX_PROJECT_EVALUATOR_TRIGGERS = 25
 
 
 @dataclass(frozen=True)
@@ -2971,6 +2972,23 @@ async def _raise_on_duplicate_project_evaluator_trigger(
         )
 
 
+async def _raise_if_project_evaluator_trigger_limit_reached(
+    session: AsyncSession,
+    *,
+    project_evaluator_id: int,
+) -> None:
+    """Bound synchronous event matching before accepting another trigger."""
+    trigger_count = await session.scalar(
+        select(func.count())
+        .select_from(models.ProjectEvaluatorTrigger)
+        .where(models.ProjectEvaluatorTrigger.project_evaluator_id == project_evaluator_id)
+    )
+    if (trigger_count or 0) >= MAX_PROJECT_EVALUATOR_TRIGGERS:
+        raise BadRequest(
+            f"A project evaluator can have at most {MAX_PROJECT_EVALUATOR_TRIGGERS} triggers."
+        )
+
+
 def _predicate_column_matches(family: _PredicateFamily, column: str, value: Any) -> Any:
     stored = getattr(family.model, column)
     if column in family.defaults:
@@ -3019,11 +3037,21 @@ class ProjectEvaluatorTriggerMutationMixin:
         family = _PREDICATE_FAMILY_BY_EVENT_KIND[input.event_kind]
         predicates = _selected_predicates(input, family)
         async with info.context.db() as session:
-            project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+            # Serialize trigger creation per evaluator so concurrent authors cannot pass
+            # the cap together. The cap bounds the synchronous event-matching cross-product.
+            project_evaluators = await session.scalar(
+                select(models.ProjectEvaluator)
+                .where(models.ProjectEvaluator.id == project_evaluator_id)
+                .with_for_update()
+            )
             if project_evaluator is None:
                 raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
             if project_evaluators.evaluation_target != "SESSION":
                 raise BadRequest(_TRIGGER_TARGET_MISMATCH)
+            await _raise_if_project_evaluator_trigger_limit_reached(
+                session,
+                project_evaluator_id=project_evaluator_id,
+            )
             values = (
                 None
                 if predicates is UNSET or predicates is None
