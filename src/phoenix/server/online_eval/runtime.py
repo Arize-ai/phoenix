@@ -1,7 +1,7 @@
 """Composes the online-eval daemons into a single lifecycle the app can hold.
 
 Construction follows the two enable flags: nothing is built while online evaluation is
-off, and the session arm — its consumer, its sweeper, and the signal drain — is built
+off, and SESSION delivery — its consumer, its sweeper, and the event drain — is built
 only while session evaluation is on as well. Those are the same flags
 `request_evaluations` reads, so the drain can never be left asking a runtime that
 refuses to answer.
@@ -28,7 +28,7 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
-from phoenix.server.online_eval.triggering.drain import SignalDrain
+from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
@@ -55,7 +55,7 @@ class OnlineEvalRuntime:
         self.consumer: Optional[OnlineEvalConsumer] = None
         self.session_consumer: Optional[OnlineEvalConsumer] = None
         self.session_sweeper: Optional[SessionEvalSweeper] = None
-        self.signal_drain: Optional[SignalDrain] = None
+        self.event_drain: Optional[EventDrain] = None
         self._stack: Optional[AsyncExitStack] = None
         if read_only:
             return
@@ -84,9 +84,6 @@ class OnlineEvalRuntime:
             db_semaphore=db_semaphore,
             tracer_factory=tracer_factory,
         )
-        # The whole session arm sits behind the one flag: a consumer without its sweeper
-        # claims from a table only the sweeper fills, and a drain without a session arm
-        # writes requests nothing answers.
         self.session_consumer = OnlineEvalConsumer(
             db,
             decrypt=decrypt,
@@ -101,7 +98,7 @@ class OnlineEvalRuntime:
             tracer_factory=tracer_factory,
         )
         self.session_sweeper = SessionEvalSweeper(db)
-        self.signal_drain = SignalDrain(db)
+        self.event_drain = EventDrain(db)
 
     @property
     def daemons(self) -> tuple[DaemonTask, ...]:
@@ -116,7 +113,7 @@ class OnlineEvalRuntime:
             self.session_consumer,
             self.producer,
             self.session_sweeper,
-            self.signal_drain,
+            self.event_drain,
         )
         return tuple(daemon for daemon in ordered if daemon is not None)
 

@@ -334,17 +334,17 @@ CREATE INDEX ix_spans_user_id ON spans (JSON_EXTRACT(attributes, '$."user"."id"'
     WHERE JSON_EXTRACT(attributes, '$."user"."id"') IS NOT NULL;
 
 
--- Table: evaluator_signals
--- ------------------------
-CREATE TABLE evaluator_signals (
+-- Table: evaluator_events
+-- -----------------------
+CREATE TABLE evaluator_events (
     id INTEGER NOT NULL,
     kind VARCHAR NOT NULL
-        CONSTRAINT "ck_evaluator_signals_`valid_signal_kind`"
+        CONSTRAINT "ck_evaluator_events_`valid_event_kind`"
         CHECK (kind IN ('annotation_upserted', 'evaluation_completed')),
-    dedup_key VARCHAR NOT NULL,
+    occurrence_key VARCHAR NOT NULL,
     project_id INTEGER NOT NULL,
     evaluation_target VARCHAR NOT NULL
-        CONSTRAINT "ck_evaluator_signals_`valid_evaluation_target`"
+        CONSTRAINT "ck_evaluator_events_`valid_evaluation_target`"
         CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
     span_rowid INTEGER,
     trace_rowid INTEGER,
@@ -352,9 +352,9 @@ CREATE TABLE evaluator_signals (
     payload JSONB NOT NULL,
     acknowledged_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_evaluator_signals PRIMARY KEY (id),
-    CONSTRAINT uq_evaluator_signals_kind_dedup_key UNIQUE (kind, dedup_key),
-    CONSTRAINT "ck_evaluator_signals_`valid_target_key`"
+    CONSTRAINT pk_evaluator_events PRIMARY KEY (id),
+    CONSTRAINT uq_evaluator_events_kind_occurrence_key UNIQUE (kind, occurrence_key),
+    CONSTRAINT "ck_evaluator_events_`valid_target_key`"
         CHECK (
             (
                 evaluation_target = 'SPAN'
@@ -375,33 +375,33 @@ CREATE TABLE evaluator_signals (
                 AND trace_rowid IS NULL
             )
         ),
-    CONSTRAINT fk_evaluator_signals_project_id_projects
+    CONSTRAINT fk_evaluator_events_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES projects (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_signals_project_session_rowid_project_sessions
+    CONSTRAINT fk_evaluator_events_project_session_rowid_project_sessions
         FOREIGN KEY (project_session_rowid)
         REFERENCES project_sessions (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_signals_span_rowid_spans
+    CONSTRAINT fk_evaluator_events_span_rowid_spans
         FOREIGN KEY (span_rowid)
         REFERENCES spans (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_signals_trace_rowid_traces
+    CONSTRAINT fk_evaluator_events_trace_rowid_traces
         FOREIGN KEY (trace_rowid)
         REFERENCES traces (id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_evaluator_signals_project_id ON evaluator_signals (project_id);
-CREATE INDEX ix_evaluator_signals_project_session_rowid ON evaluator_signals
+CREATE INDEX ix_evaluator_events_project_id ON evaluator_events (project_id);
+CREATE INDEX ix_evaluator_events_project_session_rowid ON evaluator_events
     (project_session_rowid)
     WHERE project_session_rowid IS NOT NULL;
-CREATE INDEX ix_evaluator_signals_span_rowid ON evaluator_signals (span_rowid)
+CREATE INDEX ix_evaluator_events_span_rowid ON evaluator_events (span_rowid)
     WHERE span_rowid IS NOT NULL;
-CREATE INDEX ix_evaluator_signals_trace_rowid ON evaluator_signals (trace_rowid)
+CREATE INDEX ix_evaluator_events_trace_rowid ON evaluator_events (trace_rowid)
     WHERE trace_rowid IS NOT NULL;
-CREATE INDEX ix_evaluator_signals_undrained ON evaluator_signals (id)
+CREATE INDEX ix_evaluator_events_undrained ON evaluator_events (id)
     WHERE acknowledged_at IS NULL;
 
 
@@ -1540,13 +1540,13 @@ CREATE INDEX ix_evaluation_requests_project_evaluator_id_project_session_rowid O
 CREATE TABLE project_evaluator_triggers (
     id INTEGER NOT NULL,
     project_evaluator_id INTEGER NOT NULL,
-    signal_kind VARCHAR NOT NULL
-        CONSTRAINT "ck_project_evaluator_triggers_`valid_signal_kind`"
-        CHECK (signal_kind IN ('annotation_upserted', 'evaluation_completed')),
+    event_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluator_triggers_`valid_event_kind`"
+        CHECK (event_kind IN ('annotation_upserted', 'evaluation_completed')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_triggers_id_signal_kind UNIQUE (id, signal_kind),
+    CONSTRAINT uq_project_evaluator_triggers_id_event_kind UNIQUE (id, event_kind),
     CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_project_evaluators
         FOREIGN KEY (project_evaluator_id)
         REFERENCES project_evaluators (id)
@@ -1562,9 +1562,9 @@ CREATE INDEX ix_project_evaluator_triggers_project_evaluator_id ON project_evalu
 CREATE TABLE project_evaluator_trigger_annotation_predicates (
     id INTEGER NOT NULL,
     trigger_id INTEGER NOT NULL,
-    signal_kind VARCHAR NOT NULL
-        CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`valid_signal_kind`"
-        CHECK (signal_kind = 'annotation_upserted'),
+    event_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`valid_event_kind`"
+        CHECK (event_kind = 'annotation_upserted'),
     name VARCHAR,
     label VARCHAR,
     score_below FLOAT,
@@ -1585,8 +1585,8 @@ CREATE TABLE project_evaluator_trigger_annotation_predicates (
     CONSTRAINT uq_project_evaluator_trigger_annotation_predicates_trigger_id
         UNIQUE (trigger_id),
     CONSTRAINT fk_project_evaluator_trigger_annotation_predicates_trigger_id_project_evaluator_triggers
-        FOREIGN KEY (trigger_id, signal_kind)
-        REFERENCES project_evaluator_triggers (id, signal_kind)
+        FOREIGN KEY (trigger_id, event_kind)
+        REFERENCES project_evaluator_triggers (id, event_kind)
         ON DELETE CASCADE
 );
 
@@ -1596,9 +1596,9 @@ CREATE TABLE project_evaluator_trigger_annotation_predicates (
 CREATE TABLE project_evaluator_trigger_evaluation_predicates (
     id INTEGER NOT NULL,
     trigger_id INTEGER NOT NULL,
-    signal_kind VARCHAR NOT NULL
-        CONSTRAINT "ck_project_evaluator_trigger_evaluation_predicates_`valid_signal_kind`"
-        CHECK (signal_kind = 'evaluation_completed'),
+    event_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluator_trigger_evaluation_predicates_`valid_event_kind`"
+        CHECK (event_kind = 'evaluation_completed'),
     name VARCHAR,
     label VARCHAR,
     score_below FLOAT,
@@ -1614,8 +1614,8 @@ CREATE TABLE project_evaluator_trigger_evaluation_predicates (
         FOREIGN KEY (source_project_evaluator_id)
         REFERENCES project_evaluators (id),
     CONSTRAINT fk_project_evaluator_trigger_evaluation_predicates_trigger_id_project_evaluator_triggers
-        FOREIGN KEY (trigger_id, signal_kind)
-        REFERENCES project_evaluator_triggers (id, signal_kind)
+        FOREIGN KEY (trigger_id, event_kind)
+        REFERENCES project_evaluator_triggers (id, event_kind)
         ON DELETE CASCADE
 );
 

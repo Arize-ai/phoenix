@@ -7,7 +7,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS,
+    ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS,
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -18,7 +18,7 @@ from phoenix.server.online_eval.executor import _announce_annotations
 from phoenix.server.online_eval.leases import LeaseLost
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.online_eval.triggering import drain as drain_module
-from phoenix.server.online_eval.triggering.drain import SignalDrain
+from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.online_eval.triggering.log import (
     AnnotationUpserted,
     EvaluationCompleted,
@@ -73,10 +73,10 @@ async def _requests(session: AsyncSession) -> list[models.EvaluationRequest]:
 
 async def _unacknowledged(db: DbSessionFactory) -> tuple[int, ...]:
     async with db() as session:
-        return tuple(signal.signal_id for signal in await drain_page(session, limit=100))
+        return tuple(event.event_id for event in await drain_page(session, limit=100))
 
 
-async def test_a_matched_signal_becomes_a_request_and_its_page_is_acknowledged(
+async def test_a_matched_event_becomes_a_request_and_its_page_is_acknowledged(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
@@ -100,7 +100,7 @@ async def test_a_matched_signal_becomes_a_request_and_its_page_is_acknowledged(
             target_rowid=project_session.id,
         )
 
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         (request,) = await _requests(session)
@@ -110,7 +110,7 @@ async def test_a_matched_signal_becomes_a_request_and_its_page_is_acknowledged(
     assert await _unacknowledged(db) == ()
 
 
-async def test_a_signal_matching_a_dormant_trigger_is_acknowledged_without_a_request(
+async def test_an_event_matching_a_dormant_trigger_is_acknowledged_without_a_request(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
@@ -126,14 +126,14 @@ async def test_a_signal_matching_a_dormant_trigger_is_acknowledged_without_a_req
             target_rowid=project_session.id,
         )
 
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         assert await _requests(session) == []
     assert await _unacknowledged(db) == ()
 
 
-async def test_a_signal_whose_criteria_was_deleted_is_acknowledged_without_a_request(
+async def test_an_event_whose_criteria_was_deleted_is_acknowledged_without_a_request(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
@@ -156,7 +156,7 @@ async def test_a_signal_whose_criteria_was_deleted_is_acknowledged_without_a_req
             )
         )
 
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         assert await _requests(session) == []
@@ -198,14 +198,14 @@ async def test_a_rule_whose_criteria_vanishes_before_the_request_is_consumed_as_
         return (stale,)
 
     monkeypatch.setattr(drain_module, "load_rules", _stale_rules)
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         assert await _requests(session) == []
     assert await _unacknowledged(db) == ()
 
 
-async def test_a_signal_whose_session_has_no_content_identity_is_consumed_as_a_no_op(
+async def test_an_event_whose_session_has_no_content_identity_is_consumed_as_a_no_op(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
@@ -222,14 +222,14 @@ async def test_a_signal_whose_session_has_no_content_identity_is_consumed_as_a_n
             target_rowid=project_session.id,
         )
 
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         assert await _requests(session) == []
     assert await _unacknowledged(db) == ()
 
 
-async def test_a_signal_whose_session_is_in_another_project_writes_no_request(
+async def test_an_event_whose_session_is_in_another_project_writes_no_request(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
@@ -246,7 +246,7 @@ async def test_a_signal_whose_session_is_in_another_project_writes_no_request(
             target_rowid=foreign_session.id,
         )
 
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         assert await _requests(session) == []
@@ -268,7 +268,7 @@ async def test_a_rule_created_after_a_page_is_drained_never_matches_it(
             target_rowid=project_session.id,
         )
 
-    drain = SignalDrain(db)
+    drain = EventDrain(db)
     await drain._tick()
     assert await _unacknowledged(db) == ()
 
@@ -314,7 +314,7 @@ async def test_rules_sharing_a_project_evaluator_advance_one_generation_per_occu
             target_rowid=project_session.id,
         )
 
-    drain = SignalDrain(db)
+    drain = EventDrain(db)
     await drain._tick()
 
     async with db() as session:
@@ -355,7 +355,7 @@ async def test_losing_the_lease_leaves_the_page_unacknowledged(
             target_rowid=project_session.id,
         )
 
-    drain = SignalDrain(db)
+    drain = EventDrain(db)
 
     async def _stolen(session: AsyncSession) -> None:
         raise LeaseLost
@@ -368,7 +368,7 @@ async def test_losing_the_lease_leaves_the_page_unacknowledged(
     assert len(await _unacknowledged(db)) == 1
 
 
-async def test_the_drain_purges_acknowledged_signals_past_the_safety_window(
+async def test_the_drain_purges_acknowledged_events_past_the_safety_window(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -384,22 +384,22 @@ async def test_the_drain_purges_acknowledged_signals_past_the_safety_window(
                 target_rowid=project_session.id,
             )
 
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS, "1800")
-    drain = SignalDrain(db, purge_interval_seconds=0.0)
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS, "1800")
+    drain = EventDrain(db, purge_interval_seconds=0.0)
     await drain._tick()
 
     async with db() as session:
-        stale = await session.scalar(select(models.EvaluatorSignal.id))
+        stale = await session.scalar(select(models.EvaluatorEvent.id))
         await session.execute(
-            update(models.EvaluatorSignal)
-            .where(models.EvaluatorSignal.id == stale)
+            update(models.EvaluatorEvent)
+            .where(models.EvaluatorEvent.id == stale)
             .values(acknowledged_at=datetime.now(timezone.utc) - timedelta(hours=1))
         )
 
     assert await drain._purge_if_due() == 1
 
     async with db() as session:
-        surviving = await session.scalars(select(models.EvaluatorSignal.id))
+        surviving = await session.scalars(select(models.EvaluatorEvent.id))
         assert stale not in list(surviving)
 
 
@@ -420,7 +420,7 @@ async def test_a_rule_committed_after_the_matching_select_does_not_participate(
             target_rowid=project_session.id,
         )
 
-    drain = SignalDrain(db)
+    drain = EventDrain(db)
     committed_during_the_tick: Optional[int] = None
 
     async def _commit_a_rule_mid_tick(session: AsyncSession) -> None:
@@ -516,7 +516,7 @@ async def _publish(
     await coordinator.complete(
         work_unit_id=unit.work_unit_id,
         claimed_by=_CLAIMED_BY,
-        completion_signals=(
+        completion_events=(
             EvaluationCompleted(
                 work_unit_kind="session",
                 work_unit_id=unit.work_unit_id,
@@ -529,12 +529,12 @@ async def _publish(
     )
 
 
-async def _generated_signals(db: DbSessionFactory) -> list[models.EvaluatorSignal]:
+async def _generated_events(db: DbSessionFactory) -> list[models.EvaluatorEvent]:
     async with db() as session:
         rows = await session.scalars(
-            select(models.EvaluatorSignal)
-            .where(models.EvaluatorSignal.kind == "annotation_upserted")
-            .order_by(models.EvaluatorSignal.id)
+            select(models.EvaluatorEvent)
+            .where(models.EvaluatorEvent.kind == "annotation_upserted")
+            .order_by(models.EvaluatorEvent.id)
         )
         return list(rows)
 
@@ -593,7 +593,7 @@ async def test_an_opted_in_evaluator_cycle_settles_on_the_unchanged_content_wate
     project_session_id, project_evaluator_a_id, project_evaluator_b_id = await _seed_mutually_watching_evaluators(db)
     ingested_at = await _last_span_ingested_at(db, project_session_id)
     sweeper = SessionEvalSweeper(db)
-    drain = SignalDrain(db)
+    drain = EventDrain(db)
 
     await sweeper._tick()
     units = await _claim_pending(db)
@@ -644,11 +644,11 @@ async def test_a_rule_that_did_not_opt_in_ignores_a_generated_annotation_that_wa
 
     await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION)
 
-    (logged,) = await _generated_signals(db)
+    (logged,) = await _generated_events(db)
     assert logged.payload["project_evaluator_id"] == project_evaluator_a_id
     assert logged.payload["name"] == _A_ANNOTATION
 
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         assert await _requests(session) == []
@@ -670,7 +670,7 @@ async def test_a_publication_retried_before_it_completes_logs_one_generated_anno
     await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION, complete=False)
     await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION)
 
-    assert len(await _generated_signals(db)) == 1
+    assert len(await _generated_events(db)) == 1
 
 
 async def test_publishing_logs_no_annotation_when_no_rule_asked_for_evaluator_output(
@@ -683,7 +683,7 @@ async def test_publishing_logs_no_annotation_when_no_rule_asked_for_evaluator_ou
     units = await _claim_pending(db)
     await _publish(db, units[project_evaluator_id], name=_A_ANNOTATION)
 
-    assert await _generated_signals(db) == []
+    assert await _generated_events(db) == []
 
 
 async def test_an_occurrence_routed_to_a_span_is_consumed_without_holding_up_a_session(
@@ -733,7 +733,7 @@ async def test_an_occurrence_routed_to_a_span_is_consumed_without_holding_up_a_s
 
     monkeypatch.setattr(drain_module, "load_rules", _every_target)
     with caplog.at_level(logging.INFO, logger=drain_module.__name__):
-        await SignalDrain(db)._tick()
+        await EventDrain(db)._tick()
 
     async with db() as session:
         (request,) = await _requests(session)

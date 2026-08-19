@@ -63,7 +63,7 @@ from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
     persist_evaluator_traces,
 )
-from phoenix.server.online_eval.triggering import log as signal_log
+from phoenix.server.online_eval.triggering import log as event_log
 from phoenix.server.online_eval.triggering.log import AnnotationUpserted, EvaluationCompleted
 from phoenix.server.online_eval.triggering.rules import evaluator_annotation_rules_exist
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
@@ -83,7 +83,7 @@ _SCHEDULING_ORIGIN_METADATA_KEY = "phoenix.online_eval.scheduling_origin"
 _SCHEDULING_ORIGIN_METADATA_VALUES: dict[models.SchedulingOrigin, str] = {
     "AMBIENT": "SCHEDULED",
     "RULE": "TRIGGERED",
-    "EXPLICIT": "REQUESTED",
+    "EXPLICIT": "ON_DEMAND",
 }
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 _ANNOTATION_TARGETS: dict[models.EvaluationTarget, models.AnnotationTarget] = {
@@ -430,7 +430,7 @@ async def _announce_annotations(
         ).where(annotation_table.id.in_(annotation_ids))
     )
     for annotation in written:
-        await signal_log.append(
+        await event_log.append(
             session,
             AnnotationUpserted(
                 annotation_target=_ANNOTATION_TARGETS[unit.evaluation_target],
@@ -445,7 +445,7 @@ async def _announce_annotations(
                 source="API",
                 identifier=unit.identifier,
                 project_evaluator_id=unit.project_evaluator_id,
-                occurrence_id=f"work-unit:{unit.work_unit_id}",
+                write_token=f"work-unit:{unit.work_unit_id}",
             ),
             project_id=routed.project_id,
             evaluation_target="SESSION",

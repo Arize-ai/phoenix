@@ -70,7 +70,7 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectEvaluatorTrigger import (
     AnnotationChange,
     AnnotationTarget,
-    EvaluatorSignalKind,
+    EvaluatorEventKind,
     ProjectEvaluatorTrigger,
     to_gql_project_evaluator_trigger,
 )
@@ -2731,14 +2731,14 @@ class ProjectEvaluatorTriggerEvaluationPredicatesInput:
 
 @strawberry.input(
     description=(
-        "The predicate object must be the one that goes with the signal kind; the other one is "
-        "refused. Leaving both out makes a trigger that fires on every occurrence of its kind "
+        "The predicate object must be the one that goes with the event kind; the other one is "
+        "refused. Leaving both out makes a trigger that fires on every event of its kind "
         "in the project."
     )
 )
 class CreateProjectEvaluatorTriggerInput:
     project_evaluator_id: GlobalID
-    signal_kind: EvaluatorSignalKind
+    event_kind: EvaluatorEventKind
     annotation_predicates: Optional[ProjectEvaluatorTriggerAnnotationPredicatesInput] = UNSET
     evaluation_predicates: Optional[ProjectEvaluatorTriggerEvaluationPredicatesInput] = UNSET
 
@@ -2746,15 +2746,15 @@ class CreateProjectEvaluatorTriggerInput:
 @strawberry.input(
     description=(
         "A predicate object left out is unchanged; one set to null drops every predicate it "
-        "held, so the trigger fires on every occurrence of its kind. Inside a predicate object, "
+        "held, so the trigger fires on every event of its kind. Inside a predicate object, "
         "fields left out are unchanged and fields set to null stop constraining the match. "
-        "Leaving the signal kind out keeps it; changing it drops the predicates of the kind "
-        "being left behind, since they cannot describe occurrences of the new one."
+        "Leaving the event kind out keeps it; changing it drops the predicates of the kind "
+        "being left behind, since they cannot describe events of the new one."
     )
 )
 class PatchProjectEvaluatorTriggerInput:
     project_evaluator_trigger_id: GlobalID
-    signal_kind: Optional[EvaluatorSignalKind] = UNSET
+    event_kind: Optional[EvaluatorEventKind] = UNSET
     annotation_predicates: Optional[ProjectEvaluatorTriggerAnnotationPredicatesInput] = UNSET
     evaluation_predicates: Optional[ProjectEvaluatorTriggerEvaluationPredicatesInput] = UNSET
 
@@ -2788,13 +2788,13 @@ _TRIGGER_TARGET_MISMATCH = (
 
 @dataclass(frozen=True)
 class _PredicateFamily:
-    """One signal kind's predicate table, as the trigger mutations need to see it.
+    """One event kind's predicate table, as the trigger mutations need to see it.
 
-    A new signal kind is a new entry here plus its nested field on the two inputs and on
+    A new event kind is a new entry here plus its nested field on the two inputs and on
     ProjectEvaluatorTrigger; nothing below branches on the kind itself.
     """
 
-    signal_kind: EvaluatorSignalKind
+    event_kind: EvaluatorEventKind
     field_name: str
     model: Any
     columns: tuple[str, ...]
@@ -2805,7 +2805,7 @@ class _PredicateFamily:
 
 _PREDICATE_FAMILIES = (
     _PredicateFamily(
-        signal_kind=EvaluatorSignalKind.ANNOTATION_UPSERTED,
+        event_kind=EvaluatorEventKind.ANNOTATION_UPSERTED,
         field_name="annotation_predicates",
         model=models.ProjectEvaluatorTriggerAnnotationPredicates,
         columns=(
@@ -2821,7 +2821,7 @@ _PREDICATE_FAMILIES = (
         defaults={"matches_evaluator_annotations": False},
     ),
     _PredicateFamily(
-        signal_kind=EvaluatorSignalKind.EVALUATION_COMPLETED,
+        event_kind=EvaluatorEventKind.EVALUATION_COMPLETED,
         field_name="evaluation_predicates",
         model=models.ProjectEvaluatorTriggerEvaluationPredicates,
         columns=(
@@ -2835,16 +2835,16 @@ _PREDICATE_FAMILIES = (
         defaults={"result_changed_only": False},
     ),
 )
-_PREDICATE_FAMILY_BY_SIGNAL_KIND = {family.signal_kind: family for family in _PREDICATE_FAMILIES}
+_PREDICATE_FAMILY_BY_EVENT_KIND = {family.event_kind: family for family in _PREDICATE_FAMILIES}
 
 
 def _selected_predicates(input: Any, family: _PredicateFamily) -> Any:
-    """The predicate object for this signal kind, refusing one meant for another kind."""
+    """The predicate object for this event kind, refusing one meant for another kind."""
     for other in _PREDICATE_FAMILIES:
         if other is not family and getattr(input, other.field_name) is not UNSET:
             raise BadRequest(
-                f"{to_camel_case(other.field_name)} cannot be set on a trigger whose signal "
-                f"kind is {family.signal_kind.name}."
+                f"{to_camel_case(other.field_name)} cannot be set on a trigger whose event "
+                f"kind is {family.event_kind.name}."
             )
     return getattr(input, family.field_name)
 
@@ -2941,7 +2941,7 @@ async def _raise_on_duplicate_project_evaluator_trigger(
     """Refuse a second trigger identical to one the evaluator already carries.
 
     A trigger with no predicate row and one whose predicates are all unconstrained match
-    the same occurrences, so the comparison reads an absent row as its default columns.
+    the same events, so the comparison reads an absent row as its default columns.
     """
     wanted: dict[str, Any] = {column: family.defaults.get(column) for column in family.columns}
     wanted.update(values or {})
@@ -2950,7 +2950,7 @@ async def _raise_on_duplicate_project_evaluator_trigger(
         .outerjoin(family.model, family.model.trigger_id == models.ProjectEvaluatorTrigger.id)
         .where(
             models.ProjectEvaluatorTrigger.project_evaluator_id == project_evaluator_id,
-            models.ProjectEvaluatorTrigger.signal_kind == family.signal_kind.value,
+            models.ProjectEvaluatorTrigger.event_kind == family.event_kind.value,
             *(_predicate_column_matches(family, column, value) for column, value in wanted.items()),
         )
     )
@@ -2992,9 +2992,9 @@ class ProjectEvaluatorTriggerMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
-            "Add a rule that makes this project evaluator run whenever a matching occurrence "
+            "Add a rule that makes this project evaluator run whenever a matching event "
             "is recorded. Predicates left out do not constrain the match. The rule applies to "
-            "occurrences recorded after it is created and never to earlier ones; to evaluate "
+            "events recorded after it is created and never to earlier ones; to evaluate "
             "sessions that already carry a matching annotation, ask for those evaluations "
             "directly with requestProjectSessionEvaluation."
         ),
@@ -3008,7 +3008,7 @@ class ProjectEvaluatorTriggerMutationMixin:
             )
         except ValueError as error:
             raise BadRequest(str(error))
-        family = _PREDICATE_FAMILY_BY_SIGNAL_KIND[input.signal_kind]
+        family = _PREDICATE_FAMILY_BY_EVENT_KIND[input.event_kind]
         predicates = _selected_predicates(input, family)
         async with info.context.db() as session:
             project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
@@ -3032,7 +3032,7 @@ class ProjectEvaluatorTriggerMutationMixin:
             )
             trigger = models.ProjectEvaluatorTrigger(
                 project_evaluator_id=project_evaluator_id,
-                signal_kind=input.signal_kind.value,
+                event_kind=input.event_kind.value,
             )
             session.add(trigger)
             try:
@@ -3041,7 +3041,7 @@ class ProjectEvaluatorTriggerMutationMixin:
                     session.add(
                         family.model(
                             trigger_id=trigger.id,
-                            signal_kind=input.signal_kind.value,
+                            event_kind=input.event_kind.value,
                             **values,
                         )
                     )
@@ -3055,7 +3055,7 @@ class ProjectEvaluatorTriggerMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description="Change the signal kind or the predicates of an existing trigger.",
+        description="Change the event kind or the predicates of an existing trigger.",
     )  # type: ignore
     async def patch_project_evaluator_trigger(
         self, info: Info[Context, None], input: PatchProjectEvaluatorTriggerInput
@@ -3075,13 +3075,13 @@ class ProjectEvaluatorTriggerMutationMixin:
                 raise NotFound(
                     f"Trigger not found: {input.project_evaluator_trigger_id}",
                 )
-            previous_family = _PREDICATE_FAMILY_BY_SIGNAL_KIND[
-                EvaluatorSignalKind(trigger.signal_kind)
+            previous_family = _PREDICATE_FAMILY_BY_EVENT_KIND[
+                EvaluatorEventKind(trigger.event_kind)
             ]
             family = (
                 previous_family
-                if input.signal_kind is UNSET or input.signal_kind is None
-                else _PREDICATE_FAMILY_BY_SIGNAL_KIND[input.signal_kind]
+                if input.event_kind is UNSET or input.event_kind is None
+                else _PREDICATE_FAMILY_BY_EVENT_KIND[input.event_kind]
             )
             predicates = _selected_predicates(input, family)
             project_evaluators = await session.get(models.ProjectEvaluator, trigger.project_evaluator_id)
@@ -3114,7 +3114,7 @@ class ProjectEvaluatorTriggerMutationMixin:
             )
             try:
                 if family is not previous_family:
-                    # The child's foreign key names (trigger_id, signal_kind), so the row of
+                    # The child's foreign key names (trigger_id, event_kind), so the row of
                     # the kind being left behind goes before the trigger's kind changes.
                     await session.execute(
                         delete(previous_family.model).where(
@@ -3122,7 +3122,7 @@ class ProjectEvaluatorTriggerMutationMixin:
                         )
                     )
                     await session.flush()
-                    trigger.signal_kind = family.signal_kind.value
+                    trigger.event_kind = family.event_kind.value
                     await session.flush()
                 if values is None:
                     if stored is not None:
@@ -3134,7 +3134,7 @@ class ProjectEvaluatorTriggerMutationMixin:
                     session.add(
                         family.model(
                             trigger_id=trigger_id,
-                            signal_kind=family.signal_kind.value,
+                            event_kind=family.event_kind.value,
                             **values,
                         )
                     )

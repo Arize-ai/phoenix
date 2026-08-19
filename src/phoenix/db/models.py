@@ -56,9 +56,9 @@ from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.eval_work import (
     evaluation_target_check,
-    evaluator_signal_kind_check,
+    evaluator_event_kind_check,
     live_eval_session_work_index_predicate,
-    undrained_evaluator_signal_predicate,
+    undrained_evaluator_event_predicate,
 )
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
@@ -206,7 +206,7 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
-EvaluatorSignalKind: TypeAlias = Literal["annotation_upserted", "evaluation_completed"]
+EvaluatorEventKind: TypeAlias = Literal["annotation_upserted", "evaluation_completed"]
 AnnotationChange: TypeAlias = Literal["created", "updated"]
 AnnotationTarget: TypeAlias = Literal["span", "trace", "session"]
 SchedulingOrigin: TypeAlias = Literal["AMBIENT", "RULE", "EXPLICIT"]
@@ -3865,24 +3865,24 @@ class EvalSessionWorkUnit(HasId):
     )
 
 
-class EvaluatorSignal(HasId):
+class EvaluatorEvent(HasId):
     """Append-only log of things trigger rules can match on, one row per occurrence.
 
     Rows are drained by acknowledgement rather than by a scalar position: ids are
-    allocation-ordered, not commit-ordered, so a cursor can permanently skip a signal
-    whose transaction committed late. (kind, dedup_key) is the occurrence identity, so
-    the same signal delivered twice collapses to one row.
+    allocation-ordered, not commit-ordered, so a cursor can permanently skip an event
+    whose transaction committed late. (kind, occurrence_key) is the occurrence identity, so
+    the same event delivered twice collapses to one row.
 
     evaluation_target says which entity the occurrence demands be evaluated, and the
     matching target key holds it — what the occurrence happened to is in the payload.
     """
 
-    __tablename__ = "evaluator_signals"
-    kind: Mapped[EvaluatorSignalKind] = mapped_column(
-        CheckConstraint(evaluator_signal_kind_check("kind"), name="valid_signal_kind"),
+    __tablename__ = "evaluator_events"
+    kind: Mapped[EvaluatorEventKind] = mapped_column(
+        CheckConstraint(evaluator_event_kind_check("kind"), name="valid_event_kind"),
         nullable=False,
     )
-    dedup_key: Mapped[str] = mapped_column(String, nullable=False)
+    occurrence_key: Mapped[str] = mapped_column(String, nullable=False)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
@@ -3914,8 +3914,8 @@ class EvaluatorSignal(HasId):
     project_session: Mapped[Optional["ProjectSession"]] = relationship("ProjectSession")
 
     __table_args__ = (
-        UniqueConstraint("kind", "dedup_key"),
-        # Signals are appended and matched by a daemon outside the mutation layer, so
+        UniqueConstraint("kind", "occurrence_key"),
+        # Events are appended and matched by a daemon outside the mutation layer, so
         # the schema is the only validator that path passes.
         CheckConstraint(
             "(evaluation_target = 'SPAN' AND span_rowid IS NOT NULL"
@@ -3927,25 +3927,25 @@ class EvaluatorSignal(HasId):
             name="valid_target_key",
         ),
         Index(
-            "ix_evaluator_signals_undrained",
+            "ix_evaluator_events_undrained",
             "id",
-            postgresql_where=text(undrained_evaluator_signal_predicate()),
-            sqlite_where=text(undrained_evaluator_signal_predicate()),
+            postgresql_where=text(undrained_evaluator_event_predicate()),
+            sqlite_where=text(undrained_evaluator_event_predicate()),
         ),
         Index(
-            "ix_evaluator_signals_span_rowid",
+            "ix_evaluator_events_span_rowid",
             "span_rowid",
             postgresql_where=text("span_rowid IS NOT NULL"),
             sqlite_where=text("span_rowid IS NOT NULL"),
         ),
         Index(
-            "ix_evaluator_signals_trace_rowid",
+            "ix_evaluator_events_trace_rowid",
             "trace_rowid",
             postgresql_where=text("trace_rowid IS NOT NULL"),
             sqlite_where=text("trace_rowid IS NOT NULL"),
         ),
         Index(
-            "ix_evaluator_signals_project_session_rowid",
+            "ix_evaluator_events_project_session_rowid",
             "project_session_rowid",
             postgresql_where=text("project_session_rowid IS NOT NULL"),
             sqlite_where=text("project_session_rowid IS NOT NULL"),
@@ -3954,14 +3954,14 @@ class EvaluatorSignal(HasId):
 
 
 class ProjectEvaluatorTrigger(HasId):
-    """One rule saying which signals should make its project_evaluators run.
+    """One rule saying which events should make its project_evaluators run.
 
-    The rule's predicates live in the child table for its signal kind, at most one row
-    per trigger; no child row means no predicates, so the trigger fires on every signal
+    The rule's predicates live in the child table for its event kind, at most one row
+    per trigger; no child row means no predicates, so the trigger fires on every event
     of its kind. Set-valued intent ("label A or B") is several trigger rows on the same
-    project_evaluators. UNIQUE (id, signal_kind) is the key each child's foreign key references,
+    project_evaluators. UNIQUE (id, event_kind) is the key each child's foreign key references,
     which is what stops predicates of one family attaching to a trigger of another —
-    signals are matched by a daemon outside the mutation layer and the schema is the
+    events are matched by a daemon outside the mutation layer and the schema is the
     only validator that path passes.
     """
 
@@ -3971,8 +3971,8 @@ class ProjectEvaluatorTrigger(HasId):
         nullable=False,
         index=True,
     )
-    signal_kind: Mapped[EvaluatorSignalKind] = mapped_column(
-        CheckConstraint(evaluator_signal_kind_check("signal_kind"), name="valid_signal_kind"),
+    event_kind: Mapped[EvaluatorEventKind] = mapped_column(
+        CheckConstraint(evaluator_event_kind_check("event_kind"), name="valid_event_kind"),
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -3994,23 +3994,23 @@ class ProjectEvaluatorTrigger(HasId):
         )
     )
 
-    __table_args__ = (UniqueConstraint("id", "signal_kind"),)
+    __table_args__ = (UniqueConstraint("id", "event_kind"),)
 
 
 class ProjectEvaluatorTriggerAnnotationPredicates(HasId):
-    """What an annotation_upserted signal must look like for its trigger to fire.
+    """What an annotation_upserted event must look like for its trigger to fire.
 
     Every predicate column is nullable and NULL means unconstrained. The row attaches
-    by (trigger_id, signal_kind), so it can only reach a trigger whose kind is
+    by (trigger_id, event_kind), so it can only reach a trigger whose kind is
     annotation_upserted.
     """
 
     __tablename__ = "project_evaluator_trigger_annotation_predicates"
     trigger_id: Mapped[int] = mapped_column(nullable=False, unique=True)
-    signal_kind: Mapped[EvaluatorSignalKind] = mapped_column(
+    event_kind: Mapped[EvaluatorEventKind] = mapped_column(
         CheckConstraint(
-            "signal_kind = 'annotation_upserted'",
-            name="valid_signal_kind",
+            "event_kind = 'annotation_upserted'",
+            name="valid_event_kind",
         ),
         nullable=False,
     )
@@ -4053,27 +4053,27 @@ class ProjectEvaluatorTriggerAnnotationPredicates(HasId):
 
     __table_args__ = (
         ForeignKeyConstraint(
-            ["trigger_id", "signal_kind"],
-            ["project_evaluator_triggers.id", "project_evaluator_triggers.signal_kind"],
+            ["trigger_id", "event_kind"],
+            ["project_evaluator_triggers.id", "project_evaluator_triggers.event_kind"],
             ondelete="CASCADE",
         ),
     )
 
 
 class ProjectEvaluatorTriggerEvaluationPredicates(HasId):
-    """What an evaluation_completed signal must look like for its trigger to fire.
+    """What an evaluation_completed event must look like for its trigger to fire.
 
     Every predicate column is nullable and NULL means unconstrained. The row attaches
-    by (trigger_id, signal_kind), so it can only reach a trigger whose kind is
+    by (trigger_id, event_kind), so it can only reach a trigger whose kind is
     evaluation_completed.
     """
 
     __tablename__ = "project_evaluator_trigger_evaluation_predicates"
     trigger_id: Mapped[int] = mapped_column(nullable=False, unique=True)
-    signal_kind: Mapped[EvaluatorSignalKind] = mapped_column(
+    event_kind: Mapped[EvaluatorEventKind] = mapped_column(
         CheckConstraint(
-            "signal_kind = 'evaluation_completed'",
-            name="valid_signal_kind",
+            "event_kind = 'evaluation_completed'",
+            name="valid_event_kind",
         ),
         nullable=False,
     )
@@ -4105,8 +4105,8 @@ class ProjectEvaluatorTriggerEvaluationPredicates(HasId):
 
     __table_args__ = (
         ForeignKeyConstraint(
-            ["trigger_id", "signal_kind"],
-            ["project_evaluator_triggers.id", "project_evaluator_triggers.signal_kind"],
+            ["trigger_id", "event_kind"],
+            ["project_evaluator_triggers.id", "project_evaluator_triggers.event_kind"],
             ondelete="CASCADE",
         ),
         # Named short: the conventional ix_<table>_<column> spelling exceeds

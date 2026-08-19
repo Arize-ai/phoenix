@@ -1295,7 +1295,7 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Rules that make this evaluator run when a matching occurrence is recorded, in "
+            "Rules that make this evaluator run when a matching event is recorded, in "
             "addition to whatever its own schedule already runs. Only SESSION evaluators act "
             "on them."
         )

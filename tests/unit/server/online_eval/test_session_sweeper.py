@@ -988,7 +988,7 @@ async def test_filtered_and_unfiltered_criteria_schedule_independently(
 ) -> None:
     """An unfiltered criterion and a filtered one compile into separate union arms whose
     bind parameters must stay distinct: sharing a name drops one criterion's identity
-    from the statement and hands its arm's rows to the other criterion.
+    from the statement and hands its origin's rows to the other project_evaluator.
     """
     project_id, matching_session_id, _ = await _add_session_liveness(
         db,
@@ -1472,7 +1472,7 @@ async def test_a_forced_request_passes_the_filter_a_rule_request_waits_behind(
     )
     sweeper = SessionEvalSweeper(db)
     await sweeper._tick()
-    # The ambient arm declines the pair outright; the request arrives afterwards.
+    # The ambient origin declines the pair outright; the request arrives afterwards.
     assert await _work_statuses(db) == ["FILTERED_OUT"]
 
     await _request(db, project_session_id, project_evaluator_id, force=force)

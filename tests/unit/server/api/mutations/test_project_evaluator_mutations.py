@@ -9,7 +9,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.online_eval.triggering.drain import SignalDrain
+from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.online_eval.triggering.log import EvaluationCompleted, append
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -1308,7 +1308,7 @@ async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
 
 _TRIGGER_FIELDS = """
 id
-signalKind
+eventKind
 annotationPredicates {
   name
   label
@@ -1412,7 +1412,7 @@ async def test_project_evaluator_trigger_crud(
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
     create_input = {
         "projectEvaluatorId": project_evaluator_id,
-        "signalKind": "ANNOTATION_UPSERTED",
+        "eventKind": "ANNOTATION_UPSERTED",
         "annotationPredicates": {
             "name": "correctness",
             "label": "incorrect",
@@ -1423,7 +1423,7 @@ async def test_project_evaluator_trigger_crud(
     create_result = await gql_client.execute(_CREATE_TRIGGER, {"input": create_input})
     assert create_result.data and not create_result.errors, create_result.errors
     created = create_result.data["createProjectEvaluatorTrigger"]["trigger"]
-    assert created["signalKind"] == "ANNOTATION_UPSERTED"
+    assert created["eventKind"] == "ANNOTATION_UPSERTED"
     assert created["annotationPredicates"] == {
         "name": "correctness",
         "label": "incorrect",
@@ -1484,7 +1484,7 @@ async def test_omitting_a_predicate_object_keeps_it_and_nulling_it_matches_every
         {
             "input": {
                 "projectEvaluatorId": project_evaluator_id,
-                "signalKind": "ANNOTATION_UPSERTED",
+                "eventKind": "ANNOTATION_UPSERTED",
                 "annotationPredicates": {"name": "correctness"},
             }
         },
@@ -1517,7 +1517,7 @@ async def test_omitting_a_predicate_object_keeps_it_and_nulling_it_matches_every
     assert reread["annotationPredicates"] is None
 
 
-async def test_changing_the_signal_kind_replaces_the_predicates(
+async def test_changing_the_event_kind_replaces_the_predicates(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
@@ -1529,7 +1529,7 @@ async def test_changing_the_signal_kind_replaces_the_predicates(
         {
             "input": {
                 "projectEvaluatorId": project_evaluator_id,
-                "signalKind": "ANNOTATION_UPSERTED",
+                "eventKind": "ANNOTATION_UPSERTED",
                 "annotationPredicates": {"name": "correctness", "annotatorKind": "HUMAN"},
             }
         },
@@ -1542,14 +1542,14 @@ async def test_changing_the_signal_kind_replaces_the_predicates(
         {
             "input": {
                 "projectEvaluatorTriggerId": created["id"],
-                "signalKind": "EVALUATION_COMPLETED",
+                "eventKind": "EVALUATION_COMPLETED",
                 "evaluationPredicates": {"name": "quality", "resultChangedOnly": True},
             }
         },
     )
     assert transition.data and not transition.errors, transition.errors
     transitioned = transition.data["patchProjectEvaluatorTrigger"]["trigger"]
-    assert transitioned["signalKind"] == "EVALUATION_COMPLETED"
+    assert transitioned["eventKind"] == "EVALUATION_COMPLETED"
     assert transitioned["annotationPredicates"] is None
     assert transitioned["evaluationPredicates"] == {
         "name": "quality",
@@ -1567,7 +1567,7 @@ async def test_changing_the_signal_kind_replaces_the_predicates(
     assert left_behind == 0
 
 
-async def test_a_trigger_rejects_the_predicates_of_the_other_signal_kind(
+async def test_a_trigger_rejects_the_predicates_of_the_other_event_kind(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
@@ -1579,7 +1579,7 @@ async def test_a_trigger_rejects_the_predicates_of_the_other_signal_kind(
         {
             "input": {
                 "projectEvaluatorId": project_evaluator_id,
-                "signalKind": "ANNOTATION_UPSERTED",
+                "eventKind": "ANNOTATION_UPSERTED",
                 "evaluationPredicates": {"resultChangedOnly": True},
             }
         },
@@ -1593,7 +1593,7 @@ async def test_a_trigger_rejects_the_predicates_of_the_other_signal_kind(
         {
             "input": {
                 "projectEvaluatorId": project_evaluator_id,
-                "signalKind": "EVALUATION_COMPLETED",
+                "eventKind": "EVALUATION_COMPLETED",
                 "evaluationPredicates": {"resultChangedOnly": True},
             }
         },
@@ -1635,7 +1635,7 @@ async def test_create_project_evaluator_trigger_refuses_a_non_session_evaluator(
         {
             "input": {
                 "projectEvaluatorId": span_evaluator_id,
-                "signalKind": "ANNOTATION_UPSERTED",
+                "eventKind": "ANNOTATION_UPSERTED",
                 "annotationPredicates": {"name": "correctness"},
             }
         },
@@ -1665,7 +1665,7 @@ async def test_source_scoped_trigger_reaches_a_request_from_the_named_evaluator(
         {
             "input": {
                 "projectEvaluatorId": watcher_id,
-                "signalKind": "EVALUATION_COMPLETED",
+                "eventKind": "EVALUATION_COMPLETED",
                 "evaluationPredicates": {"sourceProjectEvaluatorId": source_id},
             }
         },
@@ -1707,7 +1707,7 @@ async def test_source_scoped_trigger_reaches_a_request_from_the_named_evaluator(
             target_rowid=project_session.id,
         )
 
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         requests = list(await session.scalars(select(models.EvaluationRequest)))
@@ -1730,7 +1730,7 @@ async def test_deleting_a_watched_project_evaluator_removes_the_triggers_that_wa
         {
             "input": {
                 "projectEvaluatorId": watcher_id,
-                "signalKind": "EVALUATION_COMPLETED",
+                "eventKind": "EVALUATION_COMPLETED",
                 "evaluationPredicates": {"sourceProjectEvaluatorId": source_id},
             }
         },
@@ -1766,7 +1766,7 @@ async def test_create_project_evaluator_trigger_refuses_a_source_in_another_proj
         {
             "input": {
                 "projectEvaluatorId": watcher_id,
-                "signalKind": "EVALUATION_COMPLETED",
+                "eventKind": "EVALUATION_COMPLETED",
                 "evaluationPredicates": {"sourceProjectEvaluatorId": elsewhere_id},
             }
         },
@@ -1790,7 +1790,7 @@ async def test_create_project_evaluator_trigger_refuses_a_score_window_nothing_f
         {
             "input": {
                 "projectEvaluatorId": project_evaluator_id,
-                "signalKind": "ANNOTATION_UPSERTED",
+                "eventKind": "ANNOTATION_UPSERTED",
                 "annotationPredicates": {"scoreAbove": 0.9, "scoreBelow": 0.1},
             }
         },
@@ -1812,7 +1812,7 @@ async def test_a_trigger_is_reachable_as_a_node(
         {
             "input": {
                 "projectEvaluatorId": project_evaluator_id,
-                "signalKind": "ANNOTATION_UPSERTED",
+                "eventKind": "ANNOTATION_UPSERTED",
                 "annotationPredicates": {"name": "correctness"},
             }
         },

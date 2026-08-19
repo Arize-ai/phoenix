@@ -91,7 +91,7 @@ from phoenix.server.online_eval.tracing import (
     PROJECT_EVALUATOR_ID_ATTRIBUTE,
     PROJECT_EVALUATOR_NAME_ATTRIBUTE,
 )
-from phoenix.server.online_eval.triggering.drain import SignalDrain
+from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
@@ -2938,7 +2938,7 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
     assert await _annotations(db) == []
 
 
-async def test_session_stand_down_is_visible_on_the_expired_gauge(
+async def test_session_content_incomplete_is_visible_on_the_expired_gauge(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -3010,7 +3010,7 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
             [
                 models.ProjectEvaluatorTrigger(
                     project_evaluator_id=project_evaluator_id,
-                    signal_kind="evaluation_completed",
+                    event_kind="evaluation_completed",
                 )
                 for project_evaluator_id in (
                     authoring_project_evaluator_id,
@@ -3023,14 +3023,14 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
         project_session.id,
         evaluator_id,
         authoring_project_evaluator_id,
-        scheduling_origin="RULE",
+        scheduling_origin="EXPLICIT",
     )
     coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
-    assert unit.scheduling_origin == "RULE"
+    assert unit.scheduling_origin == "EXPLICIT"
     executor = _executor(db, evaluation_target="SESSION")
 
-    completion_signals = await executor.evaluate_and_annotate(
+    completion_events = await executor.evaluate_and_annotate(
         unit,
         _hydrated_stub(
             results=[_evaluation_result("criterion")],
@@ -3041,14 +3041,14 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by="consumer",
-        completion_signals=completion_signals,
+        completion_events=completion_events,
     )
-    await SignalDrain(db)._tick()
+    await EventDrain(db)._tick()
 
-    (completion_signal,) = completion_signals
-    assert completion_signal.project_evaluator_id == authoring_project_evaluator_id
-    assert completion_signal.result_changed is True
-    assert completion_signal.previous_label is None
+    (completion_event,) = completion_events
+    assert completion_event.project_evaluator_id == authoring_project_evaluator_id
+    assert completion_event.result_changed is True
+    assert completion_event.previous_label is None
     async with db() as session:
         requests = list(
             await session.scalars(
@@ -3061,10 +3061,10 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
     (annotation,) = await _session_annotations(db)
     # Metadata is rendered verbatim to users, so it carries the translated word rather
     # than the column's own vocabulary.
-    assert annotation.metadata_["phoenix.online_eval.scheduling_origin"] == "TRIGGERED"
+    assert annotation.metadata_["phoenix.online_eval.scheduling_origin"] == "ON_DEMAND"
 
 
-async def test_every_evaluator_output_is_announced_as_its_own_occurrence(
+async def test_every_evaluator_output_is_announced_as_its_own_event(
     db: DbSessionFactory,
 ) -> None:
     """A rule authored against a two-output evaluator's second output must be able to
@@ -3089,7 +3089,7 @@ async def test_every_evaluator_output_is_announced_as_its_own_occurrence(
     )
 
     assert [completion.name for completion in completions] == ["quality", "safety"]
-    assert {completion.dedup_key for completion in completions} == {
+    assert {completion.occurrence_key for completion in completions} == {
         f"span:{unit_id}:quality",
         f"span:{unit_id}:safety",
     }

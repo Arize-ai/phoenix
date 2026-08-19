@@ -16,9 +16,9 @@ from sqlalchemy.ext.compiler import compiles
 
 from phoenix.db.eval_work import (
     evaluation_target_check,
-    evaluator_signal_kind_check,
+    evaluator_event_kind_check,
     live_eval_session_work_index_predicate,
-    undrained_evaluator_signal_predicate,
+    undrained_evaluator_event_predicate,
 )
 
 _Integer = sa.Integer().with_variant(
@@ -163,17 +163,17 @@ def _create_session_work_units_table() -> None:
     )
 
 
-def _create_evaluator_signals_table() -> None:
+def _create_evaluator_events_table() -> None:
     op.create_table(
-        "evaluator_signals",
+        "evaluator_events",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "kind",
             sa.String(),
-            sa.CheckConstraint(evaluator_signal_kind_check("kind"), name="valid_signal_kind"),
+            sa.CheckConstraint(evaluator_event_kind_check("kind"), name="valid_event_kind"),
             nullable=False,
         ),
-        sa.Column("dedup_key", sa.String(), nullable=False),
+        sa.Column("occurrence_key", sa.String(), nullable=False),
         sa.Column(
             "project_id",
             _Integer,
@@ -215,8 +215,8 @@ def _create_evaluator_signals_table() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("kind", "dedup_key"),
-        # Signals are appended and matched by a daemon outside the mutation layer, so
+        sa.UniqueConstraint("kind", "occurrence_key"),
+        # Events are appended and matched by a daemon outside the mutation layer, so
         # the schema is the only validator that path passes.
         sa.CheckConstraint(
             "(evaluation_target = 'SPAN' AND span_rowid IS NOT NULL"
@@ -229,39 +229,39 @@ def _create_evaluator_signals_table() -> None:
         ),
     )
     # Auto-increment ids are allocation-ordered, not commit-ordered, so a scalar cursor can
-    # permanently skip a signal whose transaction committed late. Unacknowledged-ness has no
+    # permanently skip an event whose transaction committed late. Unacknowledged-ness has no
     # such hole, and this index holds only the small undrained set.
     op.create_index(
-        "ix_evaluator_signals_undrained",
-        "evaluator_signals",
+        "ix_evaluator_events_undrained",
+        "evaluator_events",
         ["id"],
-        postgresql_where=sa.text(undrained_evaluator_signal_predicate()),
-        sqlite_where=sa.text(undrained_evaluator_signal_predicate()),
+        postgresql_where=sa.text(undrained_evaluator_event_predicate()),
+        sqlite_where=sa.text(undrained_evaluator_event_predicate()),
     )
     op.create_index(
-        "ix_evaluator_signals_project_id",
-        "evaluator_signals",
+        "ix_evaluator_events_project_id",
+        "evaluator_events",
         ["project_id"],
     )
     # Each target key is populated only for its own target kind, so its index holds only
     # the rows routed there.
     op.create_index(
-        "ix_evaluator_signals_span_rowid",
-        "evaluator_signals",
+        "ix_evaluator_events_span_rowid",
+        "evaluator_events",
         ["span_rowid"],
         postgresql_where=sa.text("span_rowid IS NOT NULL"),
         sqlite_where=sa.text("span_rowid IS NOT NULL"),
     )
     op.create_index(
-        "ix_evaluator_signals_trace_rowid",
-        "evaluator_signals",
+        "ix_evaluator_events_trace_rowid",
+        "evaluator_events",
         ["trace_rowid"],
         postgresql_where=sa.text("trace_rowid IS NOT NULL"),
         sqlite_where=sa.text("trace_rowid IS NOT NULL"),
     )
     op.create_index(
-        "ix_evaluator_signals_project_session_rowid",
-        "evaluator_signals",
+        "ix_evaluator_events_project_session_rowid",
+        "evaluator_events",
         ["project_session_rowid"],
         postgresql_where=sa.text("project_session_rowid IS NOT NULL"),
         sqlite_where=sa.text("project_session_rowid IS NOT NULL"),
@@ -279,11 +279,9 @@ def _create_project_evaluator_triggers_table() -> None:
             nullable=False,
         ),
         sa.Column(
-            "signal_kind",
+            "event_kind",
             sa.String(),
-            sa.CheckConstraint(
-                evaluator_signal_kind_check("signal_kind"), name="valid_signal_kind"
-            ),
+            sa.CheckConstraint(evaluator_event_kind_check("event_kind"), name="valid_event_kind"),
             nullable=False,
         ),
         sa.Column(
@@ -299,8 +297,8 @@ def _create_project_evaluator_triggers_table() -> None:
             server_default=sa.func.now(),
         ),
         # The key each predicate table's foreign key references, so a predicate row can
-        # only attach to a trigger of its own signal kind.
-        sa.UniqueConstraint("id", "signal_kind"),
+        # only attach to a trigger of its own event kind.
+        sa.UniqueConstraint("id", "event_kind"),
     )
     op.create_index(
         "ix_project_evaluator_triggers_project_evaluator_id",
@@ -315,11 +313,11 @@ def _create_trigger_annotation_predicates_table() -> None:
         sa.Column("id", _Integer, primary_key=True),
         sa.Column("trigger_id", _Integer, nullable=False),
         sa.Column(
-            "signal_kind",
+            "event_kind",
             sa.String(),
             sa.CheckConstraint(
-                "signal_kind = 'annotation_upserted'",
-                name="valid_signal_kind",
+                "event_kind = 'annotation_upserted'",
+                name="valid_event_kind",
             ),
             nullable=False,
         ),
@@ -373,8 +371,8 @@ def _create_trigger_annotation_predicates_table() -> None:
             server_default=sa.func.now(),
         ),
         sa.ForeignKeyConstraint(
-            ["trigger_id", "signal_kind"],
-            ["project_evaluator_triggers.id", "project_evaluator_triggers.signal_kind"],
+            ["trigger_id", "event_kind"],
+            ["project_evaluator_triggers.id", "project_evaluator_triggers.event_kind"],
             ondelete="CASCADE",
         ),
         sa.UniqueConstraint("trigger_id"),
@@ -387,11 +385,11 @@ def _create_trigger_evaluation_predicates_table() -> None:
         sa.Column("id", _Integer, primary_key=True),
         sa.Column("trigger_id", _Integer, nullable=False),
         sa.Column(
-            "signal_kind",
+            "event_kind",
             sa.String(),
             sa.CheckConstraint(
-                "signal_kind = 'evaluation_completed'",
-                name="valid_signal_kind",
+                "event_kind = 'evaluation_completed'",
+                name="valid_event_kind",
             ),
             nullable=False,
         ),
@@ -427,8 +425,8 @@ def _create_trigger_evaluation_predicates_table() -> None:
             server_default=sa.func.now(),
         ),
         sa.ForeignKeyConstraint(
-            ["trigger_id", "signal_kind"],
-            ["project_evaluator_triggers.id", "project_evaluator_triggers.signal_kind"],
+            ["trigger_id", "event_kind"],
+            ["project_evaluator_triggers.id", "project_evaluator_triggers.event_kind"],
             ondelete="CASCADE",
         ),
         sa.UniqueConstraint("trigger_id"),
@@ -791,7 +789,7 @@ def upgrade() -> None:
         ["project_evaluator_id"],
     )
     _create_session_work_units_table()
-    _create_evaluator_signals_table()
+    _create_evaluator_events_table()
     _create_project_evaluator_triggers_table()
     _create_trigger_annotation_predicates_table()
     _create_trigger_evaluation_predicates_table()
@@ -819,12 +817,12 @@ def downgrade() -> None:
     )
     op.drop_table("project_evaluator_triggers")
 
-    op.drop_index("ix_evaluator_signals_project_session_rowid", table_name="evaluator_signals")
-    op.drop_index("ix_evaluator_signals_trace_rowid", table_name="evaluator_signals")
-    op.drop_index("ix_evaluator_signals_span_rowid", table_name="evaluator_signals")
-    op.drop_index("ix_evaluator_signals_project_id", table_name="evaluator_signals")
-    op.drop_index("ix_evaluator_signals_undrained", table_name="evaluator_signals")
-    op.drop_table("evaluator_signals")
+    op.drop_index("ix_evaluator_events_project_session_rowid", table_name="evaluator_events")
+    op.drop_index("ix_evaluator_events_trace_rowid", table_name="evaluator_events")
+    op.drop_index("ix_evaluator_events_span_rowid", table_name="evaluator_events")
+    op.drop_index("ix_evaluator_events_project_id", table_name="evaluator_events")
+    op.drop_index("ix_evaluator_events_undrained", table_name="evaluator_events")
+    op.drop_table("evaluator_events")
 
     op.drop_index(
         "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"

@@ -128,7 +128,7 @@ class TestTraceAnnotationMutations:
             session.add(
                 models.ProjectEvaluatorTrigger(
                     project_evaluator_id=project_evaluator.id,
-                    signal_kind="annotation_upserted",
+                    event_kind="annotation_upserted",
                 )
             )
 
@@ -258,15 +258,13 @@ class TestTraceAnnotationMutations:
 
         patched_id = int(GlobalID.from_id(patched["id"]).node_id)
         async with db() as session:
-            signals = list(
+            events = list(
                 await session.scalars(
-                    select(models.EvaluatorSignal).order_by(models.EvaluatorSignal.id)
+                    select(models.EvaluatorEvent).order_by(models.EvaluatorEvent.id)
                 )
             )
-        patched_signals = [
-            signal for signal in signals if signal.payload["annotation_id"] == patched_id
-        ]
-        assert patched_signals[-1].payload["change"] == "updated"
+        patched_events = [event for event in events if event.payload["annotation_id"] == patched_id]
+        assert patched_events[-1].payload["change"] == "updated"
 
         delete_input = {"annotationIds": [ann4["id"]]}
         res_delete = await gql_client.execute(

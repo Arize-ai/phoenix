@@ -1037,11 +1037,11 @@ input CreateProjectCodeEvaluatorInput {
 }
 
 """
-The predicate object must be the one that goes with the signal kind; the other one is refused. Leaving both out makes a trigger that fires on every occurrence of its kind in the project.
+The predicate object must be the one that goes with the event kind; the other one is refused. Leaving both out makes a trigger that fires on every event of its kind in the project.
 """
 input CreateProjectEvaluatorTriggerInput {
   projectEvaluatorId: ID!
-  signalKind: EvaluatorSignalKind!
+  eventKind: EvaluatorEventKind!
   annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicatesInput
   evaluationPredicates: ProjectEvaluatorTriggerEvaluationPredicatesInput
 }
@@ -1972,6 +1972,12 @@ type EvaluatorEdge {
   node: Evaluator!
 }
 
+"""The kind of event a trigger matches on."""
+enum EvaluatorEventKind {
+  ANNOTATION_UPSERTED
+  EVALUATION_COMPLETED
+}
+
 """The filter key and value for evaluator connections"""
 input EvaluatorFilter {
   col: EvaluatorFilterColumn!
@@ -2034,12 +2040,6 @@ enum EvaluatorScope {
   SPAN
   TRACE
   SESSION
-"""The kind of occurrence a trigger matches on."""
-enum EvaluatorSignalKind {
-  ANNOTATION_UPSERTED
-  EVALUATION_COMPLETED
-}
-
 """The sort key and direction for evaluator connections"""
 input EvaluatorSort {
   col: EvaluatorColumn!
@@ -2906,11 +2906,11 @@ type Mutation {
   deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
 
   """
-  Add a rule that makes this project evaluator run whenever a matching occurrence is recorded. Predicates left out do not constrain the match. The rule applies to occurrences recorded after it is created and never to earlier ones; to evaluate sessions that already carry a matching annotation, ask for those evaluations directly with requestProjectSessionEvaluation.
+  Add a rule that makes this project evaluator run whenever a matching event is recorded. Predicates left out do not constrain the match. The rule applies to events recorded after it is created and never to earlier ones; to evaluate sessions that already carry a matching annotation, ask for those evaluations directly with requestProjectSessionEvaluation.
   """
   createProjectEvaluatorTrigger(input: CreateProjectEvaluatorTriggerInput!): ProjectEvaluatorTriggerMutationPayload!
 
-  """Change the signal kind or the predicates of an existing trigger."""
+  """Change the event kind or the predicates of an existing trigger."""
   patchProjectEvaluatorTrigger(input: PatchProjectEvaluatorTriggerInput!): ProjectEvaluatorTriggerMutationPayload!
 
   """Remove triggers, leaving the evaluators they belong to in place."""
@@ -3154,11 +3154,11 @@ type PatchGenerativeModelCustomProviderMutationPayload {
 }
 
 """
-A predicate object left out is unchanged; one set to null drops every predicate it held, so the trigger fires on every occurrence of its kind. Inside a predicate object, fields left out are unchanged and fields set to null stop constraining the match. Leaving the signal kind out keeps it; changing it drops the predicates of the kind being left behind, since they cannot describe occurrences of the new one.
+A predicate object left out is unchanged; one set to null drops every predicate it held, so the trigger fires on every event of its kind. Inside a predicate object, fields left out are unchanged and fields set to null stop constraining the match. Leaving the event kind out keeps it; changing it drops the predicates of the kind being left behind, since they cannot describe events of the new one.
 """
 input PatchProjectEvaluatorTriggerInput {
   projectEvaluatorTriggerId: ID!
-  signalKind: EvaluatorSignalKind
+  eventKind: EvaluatorEventKind
   annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicatesInput
   evaluationPredicates: ProjectEvaluatorTriggerEvaluationPredicatesInput
 }
@@ -3484,7 +3484,7 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
-  Rules that make this evaluator run when a matching occurrence is recorded, in addition to whatever its own schedule already runs. Only SESSION evaluators act on them.
+  Rules that make this evaluator run when a matching event is recorded, in addition to whatever its own schedule already runs. Only SESSION evaluators act on them.
   """
   triggers: [ProjectEvaluatorTrigger!]!
 
@@ -3573,20 +3573,20 @@ enum ProjectEvaluatorSchedulabilityStatus {
 }
 
 """
-A rule saying which occurrences should make its project evaluator run. Its predicates live in the object for its signal kind; leaving that object null means the trigger fires on every occurrence of that kind in the project. To match a set of values ('label A or B'), add one trigger per value. A trigger applies to occurrences recorded after it is created and never to earlier ones; use requestProjectSessionEvaluation to evaluate sessions that already match.
+A rule saying which events should make its project evaluator run. Its predicates live in the object for its event kind; leaving that object null means the trigger fires on every event of that kind in the project. To match a set of values ('label A or B'), add one trigger per value. A trigger applies to events recorded after it is created and never to earlier ones; use requestProjectSessionEvaluation to evaluate sessions that already match.
 """
 type ProjectEvaluatorTrigger implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
-  signalKind: EvaluatorSignalKind!
+  eventKind: EvaluatorEventKind!
 
   """
-  What an annotation must look like for this trigger to fire, or null to match every annotation. Null unless the signal kind is ANNOTATION_UPSERTED.
+  What an annotation must look like for this trigger to fire, or null to match every annotation. Null unless the event kind is ANNOTATION_UPSERTED.
   """
   annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicates
 
   """
-  What a finished evaluation must look like for this trigger to fire, or null to match every evaluation. Null unless the signal kind is EVALUATION_COMPLETED.
+  What a finished evaluation must look like for this trigger to fire, or null to match every evaluation. Null unless the event kind is EVALUATION_COMPLETED.
   """
   evaluationPredicates: ProjectEvaluatorTriggerEvaluationPredicates
   createdAt: DateTime!

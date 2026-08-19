@@ -386,15 +386,15 @@ ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_SESSI
 The outstanding session work-unit count above which the session sweeper stops materializing
 new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
 """
-ENV_PHOENIX_ONLINE_EVAL_SIGNAL_DRAIN_PAGE_SIZE = "PHOENIX_ONLINE_EVAL_SIGNAL_DRAIN_PAGE_SIZE"
+ENV_PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE = "PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE"
 """
-The maximum number of evaluator signals the signal drain reads and decides per tick.
+The maximum number of evaluator events the event drain reads and decides per tick.
 Defaults to 500.
 """
-ENV_PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS"
+ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS"
 """
-How long an acknowledged evaluator signal is kept before the signal drain deletes it.
-Unacknowledged signals are never deleted at any age. Defaults to 86400 (1 day).
+How long an acknowledged evaluator event is kept before the event drain deletes it.
+Unacknowledged events are never deleted at any age. Defaults to 86400 (1 day).
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """
@@ -3671,29 +3671,29 @@ def get_env_online_eval_max_session_outstanding() -> int:
     return max_outstanding
 
 
-def get_env_online_eval_signal_drain_page_size() -> int:
+def get_env_online_eval_event_drain_page_size() -> int:
     """
-    Gets the value of the PHOENIX_ONLINE_EVAL_SIGNAL_DRAIN_PAGE_SIZE environment variable.
+    Gets the value of the PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE environment variable.
     """
-    page_size = _int_val(ENV_PHOENIX_ONLINE_EVAL_SIGNAL_DRAIN_PAGE_SIZE, 500)
+    page_size = _int_val(ENV_PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE, 500)
     if page_size < 1:
         raise ValueError(
             f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_SIGNAL_DRAIN_PAGE_SIZE}: "
+            f"{ENV_PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE}: "
             f"{page_size}. Value must be a positive integer."
         )
     return page_size
 
 
-def get_env_online_eval_signal_retention_seconds() -> float:
+def get_env_online_eval_event_retention_seconds() -> float:
     """
-    Gets the value of the PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS environment variable.
+    Gets the value of the PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS environment variable.
     """
-    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS, 86_400.0)
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS, 86_400.0)
     if not isfinite(seconds) or seconds <= 0:
         raise ValueError(
             f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS}: "
+            f"{ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS}: "
             f"{seconds}. Value must be a finite positive number."
         )
     return seconds
