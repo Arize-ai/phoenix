@@ -23,6 +23,7 @@ CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     substitutions=None,
     labels=["promoted_dataset_evaluator"],
     scope=EvaluatorScope.SPAN,
+    recommended=True,
     category=EvaluatorCategory.RESPONSE_QUALITY,
     details="A broad, general purpose metric to determine whether an LLM's response is factually accurate, complete, and logically consistent. It evaluates answer quality without requiring external context or reference responses.",
     inputs={

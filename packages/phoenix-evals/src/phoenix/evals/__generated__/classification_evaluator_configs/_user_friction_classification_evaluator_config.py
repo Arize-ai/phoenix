@@ -23,6 +23,7 @@ USER_FRICTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     substitutions=None,
     labels=[],
     scope=EvaluatorScope.TRACE,
+    recommended=True,
     category=EvaluatorCategory.USER_EXPERIENCE,
     details="Classifies whether the latest user message expresses friction with an assistant's preceding behavior. It detects corrections, retries after an unsuccessful response, frustration, and challenges to unrequested or unexplained actions.",
     inputs={

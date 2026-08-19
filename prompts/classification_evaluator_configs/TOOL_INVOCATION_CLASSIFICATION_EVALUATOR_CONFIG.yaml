@@ -1,7 +1,21 @@
 name: tool_invocation
 description: For determining if a tool was invoked correctly with proper arguments, formatting, and safe content.
+scope: span
+category: agents
 labels:
   - promoted_dataset_evaluator
+recommended: false
+details: >-
+  Determines whether an LLM invoked a tool correctly with proper arguments,
+  formatting, and safe content. It focuses on how the tool was called rather
+  than whether the right tool was selected. It works even if no tools were called.
+inputs:
+  available_tools:
+    description: "The list of available tools, including names and descriptions. A simple human-readable list is better than including the full tool schemas."
+  input:
+    description: "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+  tool_selection:
+    description: "The LLM's output response (including messages and tool calls) to be evaluated."
 optimization_direction: maximize
 messages:
   - role: user
@@ -68,23 +82,9 @@ messages:
       </data>
 
       Given the above data, is the tool invocation correct or incorrect?
-choices:
-  correct: 1.0
-  incorrect: 0.0
 substitutions:
   available_tools: available_tools_list
   tool_selection: output_with_tool_calls
-scope: span
-recommended: false
-category: agents
-details: >-
-  Determines whether an LLM invoked a tool correctly with proper arguments,
-  formatting, and safe content. It focuses on how the tool was called rather
-  than whether the right tool was selected. It works even if no tools were called.
-inputs:
-  available_tools:
-    description: "The list of available tools, including names and descriptions. A simple human-readable list is better than including the full tool schemas."
-  input:
-    description: "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
-  tool_selection:
-    description: "The LLM's output response (including messages and tool calls) to be evaluated."
+choices:
+  correct: 1.0
+  incorrect: 0.0

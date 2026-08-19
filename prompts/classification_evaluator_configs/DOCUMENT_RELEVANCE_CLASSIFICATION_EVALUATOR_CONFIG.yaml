@@ -1,6 +1,18 @@
 name: document_relevance
 description: For determining if a document is relevant to a given question.
+scope: span
+category: grounding_and_retrieval
 labels: []
+recommended: false
+details: >-
+  Determines whether a retrieved document contains information relevant to
+  answering the input query. This is essential for evaluating RAG systems,
+  where document quality directly impacts response quality.
+inputs:
+  document_text:
+    description: "The content of the retrieved document or context."
+  input:
+    description: "The input query or conversational context."
 optimization_direction: maximize
 messages:
   - role: user
@@ -31,15 +43,3 @@ messages:
 choices:
   relevant: 1.0
   unrelated: 0.0
-scope: span
-recommended: false
-category: grounding_and_retrieval
-details: >-
-  Determines whether a retrieved document contains information relevant to
-  answering the input query. This is essential for evaluating RAG systems,
-  where document quality directly impacts response quality.
-inputs:
-  document_text:
-    description: "The content of the retrieved document or context."
-  input:
-    description: "The input query or conversational context."
