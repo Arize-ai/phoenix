@@ -46,6 +46,7 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS,
     ONLINE_EVAL_RUNNING_WORK_UNITS,
 )
+from phoenix.server.sandbox import SandboxRuntimeContext
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
