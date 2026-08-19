@@ -32,6 +32,10 @@ def _output(*tool_names: str) -> dict[str, Any]:
     }
 
 
+def _execute_ui_output(script: str) -> dict[str, Any]:
+    return _output_with_args("execute_ui", {"summary": "Update the UI", "script": script})
+
+
 def _expected(
     *,
     required: list[str] | None = None,
@@ -62,6 +66,24 @@ class TestCorrectToolsCalled:
         )
         assert result["score"] == 1.0
         assert result["label"] == "correct"
+
+    def test_execute_ui_replacement_satisfies_legacy_required_tool(self) -> None:
+        result = evaluate_tools_called(
+            output=_execute_ui_output(
+                "return await ui.spansFilter.set({condition: \"status_code == 'ERROR'\"});"
+            ),
+            expected=_expected(required=["set_spans_filter"]),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "correct"
+
+    def test_execute_ui_replacement_triggers_legacy_forbidden_tool(self) -> None:
+        result = evaluate_tools_called(
+            output=_execute_ui_output("return await ui.timeRange.set({timeRangeKey: '1h'});"),
+            expected=_expected(forbidden=["set_time_range"]),
+        )
+        assert result["score"] == 0.0
+        assert result["label"] == "called_forbidden"
 
     def test_correct_when_no_constraints_and_no_calls(self) -> None:
         result = evaluate_tools_called(output=_output(), expected=_expected())
@@ -322,6 +344,43 @@ class TestToolCallArgsMatch:
             expected=self._expected(set_time_range={"timeRangeKey": "1h"}),
         )
         assert result["label"] == "pass"
+
+    def test_execute_ui_replacement_matches_legacy_literal_args(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_execute_ui_output(
+                "return await ui.timeRange.set({timeRangeKey: 'custom', "
+                "startTime: '2025-01-01T00:00:00Z'});"
+            ),
+            expected=self._expected(
+                set_time_range={
+                    "timeRangeKey": "custom",
+                    "startTime": "2025-01-01T00:00:00Z",
+                    "endTime": {"absent": True},
+                }
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_execute_ui_replacement_matches_legacy_string_matchers(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_execute_ui_output(
+                "return await ui.spansFilter.set({condition: "
+                "\"span_kind == 'LLM' and latency_ms >= 5000\"});"
+            ),
+            expected=self._expected(
+                set_spans_filter={
+                    "condition": {"contains_all": ["span_kind", "latency_ms", "5000"]}
+                }
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_execute_ui_replacement_rejects_wrong_legacy_args(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_execute_ui_output("return await ui.timeRange.set({timeRangeKey: '7d'});"),
+            expected=self._expected(set_time_range={"timeRangeKey": "1h"}),
+        )
+        assert result["label"] == "fail"
 
     def test_fails_when_value_differs(self) -> None:
         result = evaluate_tool_call_args(
