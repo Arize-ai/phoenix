@@ -896,7 +896,6 @@ class SubagentsContext(TypedDict):
 class SubmittedToolApproval(TypedDict):
     toolCallId: str
     approved: bool
-    reason: NotRequired[str]
 
 
 class TextContentPart(TypedDict):
@@ -1278,6 +1277,7 @@ class SessionSummaryChunk(TypedDict):
 
 class TranscriptPersistedData(TypedDict):
     messageId: str
+    persistedToolOutputIds: NotRequired[Sequence[str]]
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):

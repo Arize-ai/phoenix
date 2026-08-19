@@ -2840,7 +2840,7 @@ def test_merge_applies_tool_approvals_to_the_trailing_assistant_message() -> Non
     assert part.approval.approved is True
 
 
-def test_merge_applies_tool_denials_with_a_reason() -> None:
+def test_merge_applies_tool_denials() -> None:
     persisted = _validated_messages(
         [_user_message("delete everything"), _assistant_message_with_approval_request()]
     )
@@ -2848,13 +2848,7 @@ def test_merge_applies_tool_denials_with_a_reason() -> None:
     merged = _merge_messages(
         old_messages=persisted,
         new_message=None,
-        tool_approvals=[
-            SubmittedToolApproval(
-                tool_call_id="tool-call-approval",
-                approved=False,
-                reason="Too destructive",
-            )
-        ],
+        tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=False)],
     )
 
     continued = merged.continued_assistant_message
@@ -2862,7 +2856,6 @@ def test_merge_applies_tool_denials_with_a_reason() -> None:
     part = _parts_by_tool_call_id(continued)["tool-call-approval"]
     assert part.state == "approval-responded"
     assert part.approval.approved is False
-    assert part.approval.reason == "Too destructive"
 
 
 def test_merge_rejects_tool_approvals_that_match_no_tool_call() -> None:
