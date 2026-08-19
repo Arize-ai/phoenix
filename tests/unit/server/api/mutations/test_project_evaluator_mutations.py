@@ -1820,14 +1820,12 @@ async def test_source_scoped_trigger_reaches_a_request_from_the_named_evaluator(
     assert [request.criteria_id for request in requests] == [watcher_criteria_id]
 
 
-async def test_deleting_a_watched_project_evaluator_removes_the_triggers_that_watch_it(
+async def test_deleting_a_watched_project_evaluator_is_refused_until_trigger_removed(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
     session_evaluation_enabled: None,
 ) -> None:
-    # A trigger left behind without its source would match every completion, which is the
-    # opposite of what it was written to do.
     project = await _add_project(db)
     watcher_id = await _add_session_project_evaluator(gql_client, db, sandbox_config, project)
     source_id = await _add_session_project_evaluator(gql_client, db, sandbox_config, project)
@@ -1842,6 +1840,36 @@ async def test_deleting_a_watched_project_evaluator_removes_the_triggers_that_wa
         },
     )
     assert create.data and not create.errors, create.errors
+    trigger_id = create.data["createProjectEvaluatorTrigger"]["trigger"]["id"]
+    watcher_criteria_id = from_global_id_with_expected_type(
+        GlobalID.from_id(watcher_id), "ProjectEvaluator"
+    )
+    source_criteria_id = from_global_id_with_expected_type(
+        GlobalID.from_id(source_id), "ProjectEvaluator"
+    )
+    async with db() as session:
+        watcher = await session.get(models.ProjectEvaluatorCriteria, watcher_criteria_id)
+        assert watcher is not None
+        watcher_name = str(watcher.name)
+
+    deletion = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [source_id]}},
+    )
+    assert deletion.errors
+    assert watcher_name in deletion.errors[0].message
+    assert trigger_id in deletion.errors[0].message
+    assert "Remove" in deletion.errors[0].message
+    async with db() as session:
+        assert await session.get(models.ProjectEvaluatorCriteria, watcher_criteria_id) is not None
+        assert await session.get(models.ProjectEvaluatorCriteria, source_criteria_id) is not None
+    assert await _trigger_count(db) == 1
+
+    trigger_deletion = await gql_client.execute(
+        _DELETE_TRIGGERS,
+        {"input": {"projectEvaluatorTriggerIds": [trigger_id]}},
+    )
+    assert trigger_deletion.data and not trigger_deletion.errors, trigger_deletion.errors
 
     deletion = await gql_client.execute(
         _DELETE,
@@ -1849,11 +1877,38 @@ async def test_deleting_a_watched_project_evaluator_removes_the_triggers_that_wa
     )
     assert deletion.data and not deletion.errors, deletion.errors
     assert deletion.data["deleteProjectEvaluators"]["projectEvaluatorIds"] == [source_id]
+    async with db() as session:
+        assert await session.get(models.ProjectEvaluatorCriteria, watcher_criteria_id) is not None
+        assert await session.get(models.ProjectEvaluatorCriteria, source_criteria_id) is None
     assert await _trigger_count(db) == 0
 
-    read = await gql_client.execute(_TRIGGERS, {"id": watcher_id})
-    assert read.data and not read.errors, read.errors
-    assert read.data["node"]["triggers"] == []
+
+async def test_deleting_a_self_watching_project_evaluator_cascades_its_trigger(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    session_evaluation_enabled: None,
+) -> None:
+    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+    create = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": project_evaluator_id,
+                "eventKind": "EVALUATION_COMPLETED",
+                "evaluationPredicates": {"sourceProjectEvaluatorId": project_evaluator_id},
+            }
+        },
+    )
+    assert create.data and not create.errors, create.errors
+
+    deletion = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [project_evaluator_id]}},
+    )
+    assert deletion.data and not deletion.errors, deletion.errors
+    assert deletion.data["deleteProjectEvaluators"]["projectEvaluatorIds"] == [project_evaluator_id]
+    assert await _trigger_count(db) == 0
 
 
 async def test_create_project_evaluator_trigger_refuses_a_source_in_another_project(

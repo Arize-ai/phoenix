@@ -1470,22 +1470,36 @@ class EvaluatorMutationMixin:
                     if prompt_id is not None:
                         prompt_ids.add(prompt_id)
             if actual_criteria_ids:
-                # A trigger that watches one of these evaluators would otherwise be left
-                # matching every completion, so it goes with the evaluator it watches.
-                watching_trigger_ids = list(
-                    await session.scalars(
-                        select(models.ProjectEvaluatorTrigger.id).where(
+                external_watches = (
+                    await session.execute(
+                        select(
+                            models.ProjectEvaluatorTrigger.id,
+                            models.ProjectEvaluatorCriteria.name,
+                        )
+                        .join(
+                            models.ProjectEvaluatorCriteria,
+                            models.ProjectEvaluatorTrigger.criteria_id
+                            == models.ProjectEvaluatorCriteria.id,
+                        )
+                        .where(
                             models.ProjectEvaluatorTrigger.source_criteria_id.in_(
                                 actual_criteria_ids
-                            )
+                            ),
+                            models.ProjectEvaluatorTrigger.criteria_id.not_in(actual_criteria_ids),
                         )
+                        .order_by(models.ProjectEvaluatorTrigger.id)
                     )
-                )
-                if watching_trigger_ids:
-                    await session.execute(
-                        delete(models.ProjectEvaluatorTrigger).where(
-                            models.ProjectEvaluatorTrigger.id.in_(watching_trigger_ids)
-                        )
+                ).all()
+                if external_watches:
+                    watchers = ", ".join(
+                        f"'{watcher_name}' (trigger "
+                        f"{GlobalID(ProjectEvaluatorTrigger.__name__, str(trigger_id))})"
+                        for trigger_id, watcher_name in external_watches
+                    )
+                    raise BadRequest(
+                        "Cannot delete project evaluators while they are watched by other "
+                        "project evaluators. Remove these triggers first: "
+                        f"{watchers}."
                     )
                 await session.execute(
                     delete(models.ProjectEvaluatorCriteria).where(
