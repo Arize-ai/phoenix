@@ -32,6 +32,11 @@ def is_reserved_annotation_identifier(identifier: str) -> bool:
 # code that emits and matches it; the CHECK domains are rendered from this tuple.
 EVALUATOR_SIGNAL_KINDS = ("annotation_upserted", "evaluation_completed")
 
+# Entity kinds an online evaluation can be aimed at. The project_evaluators that declare one, the
+# cursors that scan for one, and the signal log that routes to one all render their CHECK
+# domains from this tuple.
+EVALUATION_TARGETS = ("SPAN", "TRACE", "SESSION")
+
 # Stamped on session work units retired because their session lost content. Like the
 # subsystem's other error markers it is read by operators and matched in tests, so it
 # is spelled once here rather than at the deletion path that writes it.
@@ -69,6 +74,16 @@ def evaluator_signal_kind_check(column: str) -> str:
     """
     kinds = ", ".join(f"'{kind}'" for kind in EVALUATOR_SIGNAL_KINDS)
     return f"{column} IN ({kinds})"
+
+
+def evaluation_target_check(column: str) -> str:
+    """SQL text constraining ``column`` to ``EVALUATION_TARGETS``.
+
+    Project evaluators, work cursors and the signal log all spell the vocabulary through this,
+    so a new target cannot reach one table without the others.
+    """
+    targets = ", ".join(f"'{target}'" for target in EVALUATION_TARGETS)
+    return f"{column} IN ({targets})"
 
 
 def undrained_evaluator_signal_predicate() -> str:
