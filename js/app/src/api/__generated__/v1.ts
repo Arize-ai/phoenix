@@ -1795,6 +1795,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agent_sessions/{session_id}/tool_approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Agent Session Tool Approvals
+         * @description Persist answered tool approvals for the session's open turn.
+         *
+         *     Recording an answer never runs the tool: approved calls run when the
+         *     turn is continued on the chat route.
+         */
+        post: operations["submitAgentSessionToolApprovals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agent_sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -1888,6 +1911,12 @@ export interface components {
          *       mismatch). Unlike ``agent_session_messages_stale`` this is not a
          *       concurrent-writer race but an inconsistent request; fix the client
          *       rather than retrying.
+         *     - ``agent_session_tool_approvals_conflict``: the submitted ``toolApprovals``
+         *       do not match the transcript's trailing assistant message (no trailing
+         *       assistant message to answer, an unknown ``toolCallId``, a call that is
+         *       not awaiting approval, or a reversal of an already-persisted answer).
+         *       Like the tool-output conflict this is an inconsistent request rather than
+         *       a concurrent-writer race; fix the client rather than retrying.
          *     - ``agent_session_already_compact``: there are no complete turns to
          *       compact — either nothing new has finished since the transcript's latest
          *       checkpoint, or a concurrent request's checkpoint already covers them.
@@ -1901,7 +1930,7 @@ export interface components {
              * @description Machine-readable reason the request conflicted.
              * @enum {string}
              */
-            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
+            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_tool_approvals_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
             /**
              * Message
              * @description Optional human-readable elaboration on the conflict.
@@ -2339,7 +2368,7 @@ export interface components {
              * Toolapprovals
              * @description Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``.
              */
-            toolApprovals?: components["schemas"]["SubmittedToolApproval"][];
+            toolApprovals?: components["schemas"]["ToolApproval"][];
             /**
              * Lastmessageid
              * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
@@ -5873,6 +5902,29 @@ export interface components {
             enabled: boolean;
         };
         /**
+         * SubmitAgentSessionToolApprovalsRequestBody
+         * @description Persist answered tool approvals without continuing the turn.
+         */
+        SubmitAgentSessionToolApprovalsRequestBody: {
+            /**
+             * Toolapprovals
+             * @description Answers to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Resending a persisted answer is a no-op; an answer that reverses one, or that matches no call awaiting approval, is rejected with HTTP 409 and code ``agent_session_tool_approvals_conflict``.
+             */
+            toolApprovals: components["schemas"]["ToolApproval"][];
+            /**
+             * Lastmessageid
+             * @description The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``.
+             */
+            lastMessageId: string;
+        };
+        /**
+         * SubmitAgentSessionToolApprovalsResponseBody
+         * @description The trailing assistant message with the submitted approvals applied.
+         */
+        SubmitAgentSessionToolApprovalsResponseBody: {
+            data: components["schemas"]["PhoenixUIMessage"];
+        };
+        /**
          * SubmitAgentSessionToolOutputsRequestBody
          * @description Persist resolved client tool outputs without continuing the turn.
          */
@@ -5894,19 +5946,6 @@ export interface components {
          */
         SubmitAgentSessionToolOutputsResponseBody: {
             data: components["schemas"]["PhoenixUIMessage"];
-        };
-        /**
-         * SubmittedToolApproval
-         * @description A user's response to a tool call awaiting approval.
-         */
-        SubmittedToolApproval: {
-            /** Toolcallid */
-            toolCallId: string;
-            /**
-             * Approved
-             * @description Whether the user approved the tool call.
-             */
-            approved: boolean;
         };
         /** TextContentPart */
         TextContentPart: {
@@ -5939,6 +5978,19 @@ export interface components {
                     [key: string]: unknown;
                 };
             } | null;
+        };
+        /**
+         * ToolApproval
+         * @description A user's response to a tool call awaiting approval.
+         */
+        ToolApproval: {
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * Approved
+             * @description Whether the user approved the tool call.
+             */
+            approved: boolean;
         };
         /**
          * ToolApprovalRequested
@@ -13037,6 +13089,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmitAgentSessionToolOutputsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    submitAgentSessionToolApprovals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitAgentSessionToolApprovalsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitAgentSessionToolApprovalsResponseBody"];
                 };
             };
             /** @description Bad Request */

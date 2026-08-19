@@ -353,11 +353,18 @@ def _validate_submitted_tool_outputs(tool_outputs: Sequence[ToolOutputUIPart]) -
             )
 
 
-class SubmittedToolApproval(_CamelBaseModel):
+class ToolApproval(_CamelBaseModel):
     """A user's response to a tool call awaiting approval."""
 
     tool_call_id: str
     approved: StrictBool = Field(description="Whether the user approved the tool call.")
+
+
+def _validate_submitted_tool_approvals(tool_approvals: Sequence[ToolApproval]) -> None:
+    """Validate the wire-level invariants shared by every ``toolApprovals`` payload."""
+    tool_call_ids = [tool_approval.tool_call_id for tool_approval in tool_approvals]
+    if len(tool_call_ids) != len(set(tool_call_ids)):
+        raise ValueError("Each toolApprovals entry must have a distinct toolCallId")
 
 
 class ChatRequestBody(_CamelBaseModel):
@@ -412,7 +419,7 @@ class ChatRequestBody(_CamelBaseModel):
             "calls before the new user turn runs."
         ),
     )
-    tool_approvals: list[SubmittedToolApproval] = Field(
+    tool_approvals: list[ToolApproval] = Field(
         default_factory=list,
         description=(
             "Responses to tool calls awaiting approval on the trailing assistant "
@@ -449,9 +456,7 @@ class ChatRequestBody(_CamelBaseModel):
             )
         if self.message is not None and self.tool_approvals:
             raise ValueError("toolApprovals cannot be combined with a new message")
-        approval_tool_call_ids = [approval.tool_call_id for approval in self.tool_approvals]
-        if len(approval_tool_call_ids) != len(set(approval_tool_call_ids)):
-            raise ValueError("Each toolApprovals entry must have a distinct toolCallId")
+        _validate_submitted_tool_approvals(self.tool_approvals)
         if self.message is not None and self.message.role != "user":
             raise ValueError("Only user messages can be submitted")
         if (
@@ -497,6 +502,7 @@ AgentSessionConflictCode = Literal[
     "agent_session_model_stale",
     "agent_session_messages_stale",
     "agent_session_tool_outputs_conflict",
+    "agent_session_tool_approvals_conflict",
     "agent_session_already_compact",
     "agent_session_compaction_conflict",
 ]
@@ -517,6 +523,12 @@ class AgentSessionConflictError(V1RoutesBaseModel):
       mismatch). Unlike ``agent_session_messages_stale`` this is not a
       concurrent-writer race but an inconsistent request; fix the client
       rather than retrying.
+    - ``agent_session_tool_approvals_conflict``: the submitted ``toolApprovals``
+      do not match the transcript's trailing assistant message (no trailing
+      assistant message to answer, an unknown ``toolCallId``, a call that is
+      not awaiting approval, or a reversal of an already-persisted answer).
+      Like the tool-output conflict this is an inconsistent request rather than
+      a concurrent-writer race; fix the client rather than retrying.
     - ``agent_session_already_compact``: there are no complete turns to
       compact — either nothing new has finished since the transcript's latest
       checkpoint, or a concurrent request's checkpoint already covers them.
@@ -674,6 +686,36 @@ class SubmitAgentSessionToolOutputsRequestBody(_CamelBaseModel):
 
 class SubmitAgentSessionToolOutputsResponseBody(ResponseBody[PhoenixUIMessage]):
     """The trailing assistant message with the submitted outputs applied."""
+
+
+class SubmitAgentSessionToolApprovalsRequestBody(_CamelBaseModel):
+    """Persist answered tool approvals without continuing the turn."""
+
+    tool_approvals: list[ToolApproval] = Field(
+        min_length=1,
+        description=(
+            "Answers to tool calls awaiting approval on the trailing assistant "
+            "message, matched by ``toolCallId``. Resending a persisted answer is "
+            "a no-op; an answer that reverses one, or that matches no call "
+            "awaiting approval, is rejected with HTTP 409 and code "
+            "``agent_session_tool_approvals_conflict``."
+        ),
+    )
+    last_message_id: str = Field(
+        description=(
+            "The trailing assistant message's id. On mismatch the submission is rejected with HTTP "
+            "409 and code ``agent_session_messages_stale``."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_tool_approvals(self) -> "SubmitAgentSessionToolApprovalsRequestBody":
+        _validate_submitted_tool_approvals(self.tool_approvals)
+        return self
+
+
+class SubmitAgentSessionToolApprovalsResponseBody(ResponseBody[PhoenixUIMessage]):
+    """The trailing assistant message with the submitted approvals applied."""
 
 
 _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAdapter(
@@ -1850,7 +1892,7 @@ def _apply_tool_outputs(
 
 def _to_approval_responded_part(
     part: ToolApprovalRequestedPart | DynamicToolApprovalRequestedPart,
-    approval: SubmittedToolApproval,
+    approval: ToolApproval,
 ) -> ToolApprovalRespondedPart | DynamicToolApprovalRespondedPart:
     approval_id = (
         part.approval.id if isinstance(part.approval, ToolApprovalRequested) else part.tool_call_id
@@ -1885,23 +1927,34 @@ def _to_approval_responded_part(
     assert_never(part)
 
 
+@dataclass(frozen=True)
+class _ToolApprovalResult:
+    """The result of answering a message's approval-requested tool calls."""
+
+    message: PhoenixUIMessage
+    """The message, rewritten when ``updated_approval_state`` and untouched otherwise."""
+    updated_approval_state: bool
+    """Whether any submitted approval moved a call out of ``approval-requested``."""
+
+
 def _apply_tool_approvals(
     message: PhoenixUIMessage,
-    tool_approvals: Sequence[SubmittedToolApproval],
-) -> PhoenixUIMessage | None:
+    tool_approvals: Sequence[ToolApproval],
+) -> _ToolApprovalResult:
     """Respond to the assistant message's approval-requested tool calls."""
     if not tool_approvals:
-        return None
+        return _ToolApprovalResult(message=message, updated_approval_state=False)
     tool_calls_by_id: dict[_ToolCallId, tuple[_PartIndex, ToolUIPart | DynamicToolUIPart]] = {}
     for index, part in enumerate(message.parts):
         if isinstance(part, ToolUIPart | DynamicToolUIPart):
             tool_calls_by_id[part.tool_call_id] = (index, part)
     parts = list(message.parts)
+    updated_approval_state = False
     for tool_approval in tool_approvals:
         matched_call = tool_calls_by_id.get(tool_approval.tool_call_id)
         if matched_call is None:
             raise AgentSessionConflict(
-                "agent_session_tool_outputs_conflict",
+                "agent_session_tool_approvals_conflict",
                 (
                     f"Tool approval {tool_approval.tool_call_id!r} does not match a "
                     "tool call on the session's latest assistant message; "
@@ -1910,23 +1963,54 @@ def _apply_tool_approvals(
             )
         matched_index, call_part = matched_call
         if isinstance(call_part, (ToolApprovalRespondedPart, DynamicToolApprovalRespondedPart)):
+            persisted_approval = call_part.approval
+            if (
+                isinstance(persisted_approval, ToolApprovalResponded)
+                and persisted_approval.approved == tool_approval.approved
+            ):
+                continue
             raise AgentSessionConflict(
-                "agent_session_tool_outputs_conflict",
+                "agent_session_tool_approvals_conflict",
                 (
-                    f"Tool approval {tool_approval.tool_call_id!r} conflicts with "
-                    "an earlier response to the same call; reload the conversation"
+                    f"Tool approval {tool_approval.tool_call_id!r} reverses the "
+                    "persisted answer for the same call; reload the conversation"
                 ),
             )
         if not isinstance(call_part, (ToolApprovalRequestedPart, DynamicToolApprovalRequestedPart)):
             raise AgentSessionConflict(
-                "agent_session_tool_outputs_conflict",
+                "agent_session_tool_approvals_conflict",
                 (
                     f"Tool approval {tool_approval.tool_call_id!r} names a tool "
                     "call that is not awaiting approval; reload the conversation"
                 ),
             )
         parts[matched_index] = _to_approval_responded_part(call_part, tool_approval)
-    return message.model_copy(update={"parts": parts})
+        updated_approval_state = True
+    if not updated_approval_state:
+        return _ToolApprovalResult(message=message, updated_approval_state=False)
+    return _ToolApprovalResult(
+        message=message.model_copy(update={"parts": parts}),
+        updated_approval_state=True,
+    )
+
+
+def _all_tool_approvals_already_answered(
+    message: PhoenixUIMessage,
+    tool_approvals: Sequence[ToolApproval],
+) -> bool:
+    """Whether the message already carries an answer for every submitted approval."""
+    if not tool_approvals:
+        return False
+    return not _apply_tool_approvals(message, tool_approvals).updated_approval_state
+
+
+def _rewrite_with_tool_approvals(
+    message: PhoenixUIMessage,
+    tool_approvals: Sequence[ToolApproval],
+) -> PhoenixUIMessage | None:
+    """Adapt ``_apply_tool_approvals`` to the ``_MessageRewrite`` contract."""
+    approval_result = _apply_tool_approvals(message, tool_approvals)
+    return approval_result.message if approval_result.updated_approval_state else None
 
 
 @dataclass
@@ -1962,7 +2046,7 @@ def _merge_messages(
     old_messages: Sequence[PhoenixUIMessage],
     new_message: PhoenixUIMessage | None,
     tool_outputs: Sequence[ToolOutputUIPart] = (),
-    tool_approvals: Sequence[SubmittedToolApproval] = (),
+    tool_approvals: Sequence[ToolApproval] = (),
 ) -> _MergedTranscript:
     messages = list(old_messages)
     updated_messages: dict[_MessageId, PhoenixUIMessage] = {}
@@ -1976,12 +2060,24 @@ def _merge_messages(
 
     if tool_outputs or tool_approvals:
         if not messages or messages[-1].role != "assistant":
+            submitted = "Tool outputs" if tool_outputs else "Tool approvals"
             raise AgentSessionConflict(
-                "agent_session_tool_outputs_conflict",
+                "agent_session_tool_outputs_conflict"
+                if tool_outputs
+                else "agent_session_tool_approvals_conflict",
                 (
-                    "Tool outputs were submitted but the session's latest "
+                    f"{submitted} were submitted but the session's latest "
                     "transcript message is not an assistant message; reload "
                     "the conversation"
+                ),
+            )
+        if _all_tool_approvals_already_answered(messages[-1], tool_approvals):
+            raise AgentSessionConflict(
+                "agent_session_tool_approvals_conflict",
+                (
+                    "Every submitted tool approval was already answered on the "
+                    "session's latest assistant message; continuing would run "
+                    "the approved calls again. Reload the conversation"
                 ),
             )
         _record(
@@ -1989,7 +2085,7 @@ def _merge_messages(
             _apply_rewrites(
                 messages[-1],
                 lambda tail: _apply_tool_outputs(tail, tool_outputs),
-                lambda tail: _apply_tool_approvals(tail, tool_approvals),
+                lambda tail: _rewrite_with_tool_approvals(tail, tool_approvals),
             ),
         )
     continuing_assistant_turn = new_message is None
@@ -2115,6 +2211,56 @@ async def _clear_agent_session_turn_lock(
         .where(models.AgentSession.id == agent_session_rowid)
         .values(heartbeat_at=None)
     )
+
+
+async def _rewrite_trailing_assistant_message(
+    request: Request,
+    *,
+    session_id: str,
+    last_message_id: str,
+    rewrite: _MessageRewrite,
+    conflict_code: AgentSessionConflictCode,
+    non_assistant_tail_detail: str,
+) -> PhoenixUIMessage:
+    """Apply a rewrite to the session's trailing assistant message under the turn lock."""
+    user = request.user if "user" in request.scope else None
+    phoenix_user = user if isinstance(user, PhoenixUser) else None
+    request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
+    db_session_factory: DbSessionFactory = request.app.state.db
+    async with db_session_factory() as session:
+        agent_session = await _refresh_and_load_agent_session(
+            session,
+            agent_session_id=session_id,
+            user_id=request_user_id,
+        )
+        agent_session_rowid = agent_session.id
+        # Claim the turn lock before reading the trailing message so
+        # concurrent submissions serialize instead of overwriting each
+        # other's answers.
+        if not await _claim_agent_session_turn_lock(
+            session,
+            agent_session_rowid=agent_session_rowid,
+        ):
+            raise AgentSessionConflict("agent_session_busy")
+        latest_row = await session.scalar(
+            select(models.AgentSessionMessage)
+            .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
+            .order_by(models.AgentSessionMessage.id.desc())
+            .limit(1)
+        )
+        if latest_row is None or latest_row.message_id != last_message_id:
+            raise AgentSessionConflict("agent_session_messages_stale")
+        latest_message = latest_row.message
+        if latest_message.role != "assistant":
+            raise AgentSessionConflict(conflict_code, non_assistant_tail_detail)
+        updated_message = rewrite(latest_message)
+        if updated_message is not None:
+            latest_row.message = updated_message
+        await _clear_agent_session_turn_lock(
+            session,
+            agent_session_rowid=agent_session_rowid,
+        )
+    return updated_message if updated_message is not None else latest_message
 
 
 async def _claim_agent_session_turn_lock_for_model(
@@ -2869,52 +3015,52 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request_body: SubmitAgentSessionToolOutputsRequestBody,
     ) -> SubmitAgentSessionToolOutputsResponseBody:
         """Persist resolved client tool outputs for the session's open turn."""
-        user = request.user if "user" in request.scope else None
-        phoenix_user = user if isinstance(user, PhoenixUser) else None
-        request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
-        db_session_factory: DbSessionFactory = request.app.state.db
-        async with db_session_factory() as session:
-            agent_session = await _refresh_and_load_agent_session(
-                session,
-                agent_session_id=session_id,
-                user_id=request_user_id,
-            )
-            agent_session_rowid = agent_session.id
-            # Claim the turn lock before reading the trailing message so
-            # concurrent submissions serialize instead of overwriting each
-            # other's outputs.
-            if not await _claim_agent_session_turn_lock(
-                session,
-                agent_session_rowid=agent_session_rowid,
-            ):
-                raise AgentSessionConflict("agent_session_busy")
-            latest_row = await session.scalar(
-                select(models.AgentSessionMessage)
-                .where(models.AgentSessionMessage.agent_session_id == agent_session_rowid)
-                .order_by(models.AgentSessionMessage.id.desc())
-                .limit(1)
-            )
-            if latest_row is None or latest_row.message_id != request_body.last_message_id:
-                raise AgentSessionConflict("agent_session_messages_stale")
-            latest_message = latest_row.message
-            if latest_message.role != "assistant":
-                raise AgentSessionConflict(
-                    "agent_session_tool_outputs_conflict",
-                    (
-                        "Tool outputs were submitted but the session's latest "
-                        "transcript message is not an assistant message; reload "
-                        "the conversation"
-                    ),
-                )
-            updated_message = _apply_tool_outputs(latest_message, request_body.tool_outputs)
-            if updated_message is not None:
-                latest_row.message = updated_message
-            await _clear_agent_session_turn_lock(
-                session,
-                agent_session_rowid=agent_session_rowid,
-            )
         return SubmitAgentSessionToolOutputsResponseBody(
-            data=updated_message if updated_message is not None else latest_message
+            data=await _rewrite_trailing_assistant_message(
+                request,
+                session_id=session_id,
+                last_message_id=request_body.last_message_id,
+                rewrite=lambda message: _apply_tool_outputs(message, request_body.tool_outputs),
+                conflict_code="agent_session_tool_outputs_conflict",
+                non_assistant_tail_detail=(
+                    "Tool outputs were submitted but the session's latest "
+                    "transcript message is not an assistant message; reload "
+                    "the conversation"
+                ),
+            )
+        )
+
+    @router.post(
+        "/agent_sessions/{session_id}/tool_approvals",
+        operation_id="submitAgentSessionToolApprovals",
+        response_model_by_alias=True,
+        response_model_exclude_unset=True,
+        responses=add_errors_to_responses(
+            [400, 401, 403, 404, 507],
+            responses=dict(_CONFLICT_RESPONSES),
+        ),
+    )
+    async def submit_agent_session_tool_approvals(
+        session_id: str,
+        request: Request,
+        request_body: SubmitAgentSessionToolApprovalsRequestBody,
+    ) -> SubmitAgentSessionToolApprovalsResponseBody:
+        """Persist answered tool approvals for the session's open turn."""
+        return SubmitAgentSessionToolApprovalsResponseBody(
+            data=await _rewrite_trailing_assistant_message(
+                request,
+                session_id=session_id,
+                last_message_id=request_body.last_message_id,
+                rewrite=lambda message: _rewrite_with_tool_approvals(
+                    message, request_body.tool_approvals
+                ),
+                conflict_code="agent_session_tool_approvals_conflict",
+                non_assistant_tail_detail=(
+                    "Tool approvals were submitted but the session's latest "
+                    "transcript message is not an assistant message; reload "
+                    "the conversation"
+                ),
+            )
         )
 
     @router.post(
