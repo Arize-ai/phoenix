@@ -2247,7 +2247,6 @@
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/hallucinations",
       "destination": "/docs/phoenix/evaluation/pre-built-metrics/hallucination"
-      
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
