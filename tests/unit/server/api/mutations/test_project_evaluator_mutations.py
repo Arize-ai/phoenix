@@ -3,7 +3,7 @@ from secrets import token_hex
 from typing import Any, Optional
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import bindparam, func, select, text
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -1480,6 +1480,59 @@ async def test_project_evaluator_trigger_crud(
         created["id"]
     ]
     assert await _trigger_count(db) == 0
+
+
+async def test_invalid_sibling_predicates_do_not_block_trigger_mutations(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    session_evaluation_enabled: None,
+) -> None:
+    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+    project_evaluator_id = from_global_id_with_expected_type(
+        GlobalID.from_id(project_evaluator_id),
+        "ProjectEvaluator",
+    )
+    async with db() as session:
+        await session.execute(
+            text(
+                "INSERT INTO project_evaluator_triggers "
+                "(project_evaluator_id, event_kind, predicates) "
+                "VALUES (:project_evaluator_id, 'annotation_upserted', :predicates)"
+            ).bindparams(bindparam("predicates", type_=models.JSON_)),
+            {
+                "project_evaluator_id": project_evaluator_id,
+                "predicates": {"type": "annotation_upserted", "unexpected": True},
+            },
+        )
+
+    create_result = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": project_evaluator_id,
+                "eventKind": "ANNOTATION_UPSERTED",
+                "annotationPredicates": {"name": "correctness"},
+            }
+        },
+    )
+    assert create_result.data and not create_result.errors, create_result.errors
+    created = create_result.data["createProjectEvaluatorTrigger"]["trigger"]
+
+    patch_result = await gql_client.execute(
+        _PATCH_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorTriggerId": created["id"],
+                "annotationPredicates": {"label": "incorrect"},
+            }
+        },
+    )
+    assert patch_result.data and not patch_result.errors, patch_result.errors
+    assert patch_result.data["patchProjectEvaluatorTrigger"]["trigger"]["annotationPredicates"] == {
+        **created["annotationPredicates"],
+        "label": "incorrect",
+    }
 
 
 async def test_project_evaluator_trigger_limit_is_refused(

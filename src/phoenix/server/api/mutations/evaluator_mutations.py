@@ -7,7 +7,7 @@ from typing import Any, Mapping, Optional, cast
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import and_, delete, func, select, true
+from sqlalchemy import and_, delete, func, select, true, type_coerce
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -2986,7 +2986,10 @@ async def _raise_on_duplicate_project_evaluator_trigger(
     )
     stmt = select(
         models.ProjectEvaluatorTrigger.id,
-        models.ProjectEvaluatorTrigger.predicates,
+        type_coerce(
+            models.ProjectEvaluatorTrigger.__table__.c.predicates,
+            models.JSON_,
+        ).label("predicates"),
         models.ProjectEvaluatorTrigger.source_project_evaluator_id,
     ).where(
         models.ProjectEvaluatorTrigger.project_evaluator_id == project_evaluator_id,
@@ -2999,9 +3002,11 @@ async def _raise_on_duplicate_project_evaluator_trigger(
             stored = (
                 family.predicate_model(type=family.event_kind.value)
                 if row.predicates is None
-                else TriggerPredicates(root=row.predicates).root
+                else TriggerPredicates.model_validate(row.predicates).root
             )
         except ValidationError:
+            continue
+        if stored.type != family.event_kind.value:
             continue
         if stored == wanted and row.source_project_evaluator_id == source_project_evaluator_id:
             existing = GlobalID(ProjectEvaluatorTrigger.__name__, str(row.id))
