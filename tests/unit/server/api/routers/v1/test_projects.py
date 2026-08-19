@@ -271,6 +271,61 @@ class TestProjects:
             deleted_project = await session.get(models.Project, project.id)
             assert deleted_project is None, f"Project {project.id} should be deleted from database"
 
+    @pytest.mark.postgres_only
+    async def test_delete_project_with_source_scoped_evaluator_trigger(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            evaluators = [
+                models.BuiltinEvaluator(
+                    name=Identifier(root=f"eval-{token_hex(4)}"),
+                    kind="BUILTIN",
+                    key=token_hex(8),
+                    input_schema={},
+                    output_configs=[],
+                )
+                for _ in range(2)
+            ]
+            session.add_all([project, *evaluators])
+            await session.flush()
+            watcher, source = (
+                models.ProjectEvaluator(
+                    project_id=project.id,
+                    evaluator_id=evaluator.id,
+                    name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                    filter_condition="",
+                    sampling_rate=1.0,
+                    evaluation_target="SESSION",
+                )
+                for evaluator in evaluators
+            )
+            session.add_all([watcher, source])
+            await session.flush()
+            trigger = models.ProjectEvaluatorTrigger(
+                project_evaluator_id=watcher.id,
+                event_kind="evaluation_completed",
+            )
+            session.add(trigger)
+            await session.flush()
+            session.add(
+                models.ProjectEvaluatorTriggerEvaluationPredicates(
+                    trigger_id=trigger.id,
+                    event_kind="evaluation_completed",
+                    source_project_evaluator_id=source.id,
+                )
+            )
+            await session.flush()
+            project_id = project.id
+
+        response = await httpx_client.delete(f"v1/projects/{project.name}")
+
+        assert response.status_code == 204, response.text
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is None
+
     async def test_cannot_delete_default_project(
         self,
         httpx_client: httpx.AsyncClient,

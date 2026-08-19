@@ -1,7 +1,7 @@
 from sqlalchemy import select
 
 from phoenix.db import models
-from phoenix.db.helpers import delete_projects_and_evaluator_trace_projects
+from phoenix.db.helpers import delete_projects as delete_project_rows
 from phoenix.db.helpers import delete_traces as delete_traces_and_stand_down
 from phoenix.server.types import DbSessionFactory
 
@@ -13,13 +13,10 @@ async def delete_projects(
     if not project_names:
         return []
     async with db() as session:
-        project_ids = (
-            await session.scalars(
-                select(models.Project.id).where(models.Project.name.in_(set(project_names)))
-            )
-        ).all()
-        await delete_projects_and_evaluator_trace_projects(session, project_ids)
-        return list(project_ids)
+        return await delete_project_rows(
+            session,
+            models.Project.name.in_(set(project_names)),
+        )
 
 
 async def delete_traces(

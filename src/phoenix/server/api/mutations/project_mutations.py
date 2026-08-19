@@ -9,11 +9,7 @@ from strawberry.types import Info
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.helpers import (
-    delete_projects_and_evaluator_trace_projects,
-    delete_traces,
-    mark_session_content_incomplete,
-)
+from phoenix.db.helpers import delete_projects, delete_traces, mark_session_content_incomplete
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict
@@ -81,26 +77,7 @@ class ProjectMutationMixin:
                 raise Conflict(
                     "This project holds an evaluator's traces; delete the evaluator instead"
                 )
-            # A trigger that names a project evaluator is only ever deleted with it, so the
-            # triggers watching this project's evaluators go before the project does.
-            watching_trigger_ids = list(
-                await session.scalars(
-                    select(models.ProjectEvaluatorTriggerEvaluationPredicates.trigger_id)
-                    .join(
-                        models.ProjectEvaluator,
-                        models.ProjectEvaluatorTriggerEvaluationPredicates.source_project_evaluator_id
-                        == models.ProjectEvaluator.id,
-                    )
-                    .where(models.ProjectEvaluator.project_id == project_id)
-                )
-            )
-            if watching_trigger_ids:
-                await session.execute(
-                    delete(models.ProjectEvaluatorTrigger).where(
-                        models.ProjectEvaluatorTrigger.id.in_(watching_trigger_ids)
-                    )
-                )
-            await delete_projects_and_evaluator_trace_projects(session, [project_id])
+            await delete_projects(session, models.Project.id == project_id)
         info.context.event_queue.put(ProjectDeleteEvent((project_id,)))
         return Query()
 

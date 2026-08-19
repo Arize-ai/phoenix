@@ -451,27 +451,6 @@ def exclude_project_evaluators_in_trace_projects(
     )
 
 
-async def delete_projects_and_evaluator_trace_projects(
-    session: AsyncSession,
-    project_ids: Iterable[int],
-) -> None:
-    ids = set(project_ids)
-    if not ids:
-        return
-    trace_project_ids = (
-        await session.scalars(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.project_id.in_(ids)
-            )
-        )
-    ).all()
-    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
-    if trace_project_ids:
-        await session.execute(
-            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
-        )
-
-
 def date_trunc(
     dialect: SupportedSQLDialect,
     field: Literal["minute", "hour", "day", "week", "month", "year"],
@@ -663,6 +642,54 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
 
 
 _SESSION_CONTENT_DELETE_BATCH_SIZE = 1_000
+
+
+async def delete_projects(
+    session: AsyncSession,
+    project_filter: sa.ColumnElement[bool],
+) -> list[int]:
+    """Delete matching projects safely.
+
+    Removing a project takes three cleanups with it: triggers watching the project's
+    evaluators (a trigger that names a project evaluator is only ever deleted with it),
+    the trace projects those evaluators write to, and the project rows themselves.
+    Route new project deletions through here.
+    """
+    project_ids = sa.select(models.Project.id).where(project_filter)
+    watching_trigger_ids = (
+        sa.select(models.ProjectEvaluatorTriggerEvaluationPredicates.trigger_id)
+        .join(
+            models.ProjectEvaluator,
+            models.ProjectEvaluatorTriggerEvaluationPredicates.source_project_evaluator_id
+            == models.ProjectEvaluator.id,
+        )
+        .where(models.ProjectEvaluator.project_id.in_(project_ids))
+    )
+    await session.execute(
+        sa.delete(models.ProjectEvaluatorTrigger).where(
+            models.ProjectEvaluatorTrigger.id.in_(watching_trigger_ids)
+        )
+    )
+    trace_project_ids = (
+        await session.scalars(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.project_id.in_(project_ids),
+                models.ProjectEvaluator.trace_project_id.is_not(None),
+            )
+        )
+    ).all()
+    deleted = list(
+        await session.scalars(
+            sa.delete(models.Project)
+            .where(models.Project.id.in_(project_ids))
+            .returning(models.Project.id)
+        )
+    )
+    if trace_project_ids:
+        await session.execute(
+            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+        )
+    return deleted
 
 
 async def delete_traces(

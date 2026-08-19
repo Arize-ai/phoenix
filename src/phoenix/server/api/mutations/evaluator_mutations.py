@@ -21,7 +21,7 @@ from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     code_evaluator_with_latest_version,
-    delete_projects_and_evaluator_trace_projects,
+    delete_projects,
 )
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
@@ -2052,7 +2052,7 @@ class EvaluatorMutationMixin:
                 )
 
             if project_ids:
-                await delete_projects_and_evaluator_trace_projects(session, project_ids)
+                await delete_projects(session, models.Project.id.in_(project_ids))
 
             await _garbage_collect_evaluators(
                 session,
@@ -2872,7 +2872,7 @@ async def _predicate_values(
         if value is not UNSET:
             values[column] = _enum_value(value)
     # sourceProjectEvaluatorId is the one input field that is not named for its column:
-    # it arrives as a global id and is stored as the project_evaluators row it points at.
+    # it arrives as a global id and is stored as the project-evaluator row it points at.
     source = getattr(predicates, "source_project_evaluator_id", UNSET)
     if source is not UNSET:
         values["source_project_evaluator_id"] = await _resolve_trigger_source_project_evaluator_id(
@@ -2917,7 +2917,7 @@ async def _resolve_trigger_source_project_evaluator_id(
     *,
     project_id: int,
 ) -> Any:
-    """The project_evaluators a trigger watches, refusing one it could never match.
+    """The project evaluator a trigger watches, refusing one it could never match.
 
     Matching requires the watched evaluator and the rule to be in one project, so a
     source from another project makes a rule that is jointly unsatisfiable — configured,
@@ -3039,14 +3039,14 @@ class ProjectEvaluatorTriggerMutationMixin:
         async with info.context.db() as session:
             # Serialize trigger creation per evaluator so concurrent authors cannot pass
             # the cap together. The cap bounds the synchronous event-matching cross-product.
-            project_evaluators = await session.scalar(
+            project_evaluator = await session.scalar(
                 select(models.ProjectEvaluator)
                 .where(models.ProjectEvaluator.id == project_evaluator_id)
                 .with_for_update()
             )
             if project_evaluator is None:
                 raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
-            if project_evaluators.evaluation_target != "SESSION":
+            if project_evaluator.evaluation_target != "SESSION":
                 raise BadRequest(_TRIGGER_TARGET_MISMATCH)
             await _raise_if_project_evaluator_trigger_limit_reached(
                 session,
@@ -3056,7 +3056,7 @@ class ProjectEvaluatorTriggerMutationMixin:
                 None
                 if predicates is UNSET or predicates is None
                 else await _predicate_values(
-                    session, predicates, family=family, project_id=project_evaluators.project_id
+                    session, predicates, family=family, project_id=project_evaluator.project_id
                 )
             )
             _raise_if_score_bounds_cannot_match(values or {})
@@ -3096,9 +3096,6 @@ class ProjectEvaluatorTriggerMutationMixin:
     async def patch_project_evaluator_trigger(
         self, info: Info[Context, None], input: PatchProjectEvaluatorTriggerInput
     ) -> ProjectEvaluatorTriggerMutationPayload:
-        # Editing a rule is the same act as writing one, so it meets the same gate.
-        # Deletion stays open: removing a rule the arm would never act on is cleanup.
-        raise_if_session_evaluation_unavailable()
         try:
             trigger_id = from_global_id_with_expected_type(
                 input.project_evaluator_trigger_id, ProjectEvaluatorTrigger.__name__
@@ -3120,7 +3117,9 @@ class ProjectEvaluatorTriggerMutationMixin:
                 else _PREDICATE_FAMILY_BY_EVENT_KIND[input.event_kind]
             )
             predicates = _selected_predicates(input, family)
-            project_evaluators = await session.get(models.ProjectEvaluator, trigger.project_evaluator_id)
+            project_evaluator = await session.get(
+                models.ProjectEvaluator, trigger.project_evaluator_id
+            )
             if project_evaluator is None:
                 raise NotFound(f"Trigger not found: {input.project_evaluator_trigger_id}")
             # A kind change leaves the old family's row behind; nothing of it carries over.
@@ -3137,7 +3136,7 @@ class ProjectEvaluatorTriggerMutationMixin:
                 values = None
             else:
                 patch = await _predicate_values(
-                    session, predicates, family=family, project_id=project_evaluators.project_id
+                    session, predicates, family=family, project_id=project_evaluator.project_id
                 )
                 values = {**(_stored_predicate_values(stored, family) or {}), **patch}
             _raise_if_score_bounds_cannot_match(values or {})
