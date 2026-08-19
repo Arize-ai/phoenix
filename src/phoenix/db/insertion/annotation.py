@@ -137,6 +137,8 @@ async def _append_events(
     annotation_ids = [annotation.id for annotation in annotations]
     stmt: Any
     # Shared-seam exclusion blocks default feedback; executor opt-in is its off-seam twin.
+    # A span or trace outside any session emits no event; that is an ordinary outcome,
+    # not a failure, because a SESSION evaluator has no session target to run against.
     if table is models.SpanAnnotation:
         stmt = (
             select(
@@ -152,6 +154,7 @@ async def _append_events(
             )
             .where(
                 models.SpanAnnotation.id.in_(annotation_ids),
+                # Shared-seam half of the executor opt-in twin described above.
                 ~models.SpanAnnotation.identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX),
             )
         )
@@ -171,6 +174,7 @@ async def _append_events(
             )
             .where(
                 models.TraceAnnotation.id.in_(annotation_ids),
+                # Shared-seam half of the executor opt-in twin described above.
                 ~models.TraceAnnotation.identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX),
             )
         )
@@ -189,6 +193,7 @@ async def _append_events(
             )
             .where(
                 models.ProjectSessionAnnotation.id.in_(annotation_ids),
+                # Shared-seam half of the executor opt-in twin described above.
                 ~models.ProjectSessionAnnotation.identifier.startswith(
                     ONLINE_EVAL_IDENTIFIER_PREFIX
                 ),

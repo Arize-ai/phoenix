@@ -88,6 +88,9 @@ def session_project_evaluator_is_schedulable(
     project_evaluator: type["models.ProjectEvaluator"],
 ) -> ColumnElement[bool]:
     return and_(
+        # This cannot be a SessionSchedulabilityCondition: its row-side twin would mark
+        # SPAN evaluators globally unschedulable even though the span producer schedules
+        # them. Evaluator.py branches by target before applying the SESSION registry.
         project_evaluator.evaluation_target == "SESSION",
         *(
             not_(condition.blocks_sql(project_evaluator))
