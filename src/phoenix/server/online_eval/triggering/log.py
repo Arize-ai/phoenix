@@ -27,7 +27,11 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 
 @dataclass(frozen=True)
 class AnnotationUpserted:
-    """An annotation as it stood when it was written, with its change kind."""
+    """An annotation as it stood when it was written, with its change kind.
+
+    `project_evaluator_id` names the project evaluator that wrote it, and is absent for
+    annotations written by a person or an API client.
+    """
 
     kind: ClassVar[models.EvaluatorSignalKind] = "annotation_upserted"
 
@@ -43,11 +47,16 @@ class AnnotationUpserted:
     source: Optional[Literal["API", "APP"]] = None
     user_id: Optional[int] = None
     identifier: Optional[str] = None
-    _occurrence_id: str = field(default_factory=lambda: token_hex(16), repr=False, compare=False)
+    project_evaluator_id: Optional[int] = None
+    # Names the write this announces, so a retry of that write repeats the dedup key and
+    # collapses while a later write of the same annotation is a distinct occurrence. A
+    # caller whose write is already identified — a work unit publishing its verdict —
+    # passes that identity in; anyone else takes a fresh token.
+    occurrence_id: str = field(default_factory=lambda: token_hex(16), repr=False, compare=False)
 
     @property
     def dedup_key(self) -> str:
-        return f"{self.annotation_target}:{self.annotation_id}:{self._occurrence_id}"
+        return f"{self.annotation_target}:{self.annotation_id}:{self.occurrence_id}"
 
     def payload(self) -> dict[str, Any]:
         return {
@@ -63,6 +72,7 @@ class AnnotationUpserted:
             "source": self.source,
             "user_id": self.user_id,
             "identifier": self.identifier,
+            "project_evaluator_id": self.project_evaluator_id,
         }
 
 
@@ -109,15 +119,30 @@ class EvaluationCompleted:
 Signal: TypeAlias = Union[AnnotationUpserted, EvaluationCompleted]
 
 
+# Which column holds the routed entity's rowid, per evaluation target. The table CHECKs
+# that exactly the declared target's column is filled, so writes and reads both resolve
+# the key through here rather than each naming a column.
+_TARGET_KEY_COLUMNS: dict[models.EvaluationTarget, str] = {
+    "SPAN": "span_rowid",
+    "TRACE": "trace_rowid",
+    "SESSION": "project_session_rowid",
+}
+
+
 @dataclass(frozen=True)
 class DrainedSignal:
-    """One unacknowledged occurrence, as the drain reads it."""
+    """One unacknowledged occurrence, as the drain reads it.
+
+    `evaluation_target` and `target_rowid` say which entity the occurrence demands be
+    evaluated; what the occurrence happened to is in the payload.
+    """
 
     signal_id: int
     kind: models.EvaluatorSignalKind
     dedup_key: str
     project_id: int
-    project_session_rowid: int
+    evaluation_target: models.EvaluationTarget
+    target_rowid: int
     payload: dict[str, Any]
     created_at: datetime
 
@@ -127,15 +152,16 @@ async def append(
     signal: Signal,
     *,
     project_id: int,
-    project_session_rowid: int,
+    evaluation_target: models.EvaluationTarget,
+    target_rowid: int,
 ) -> bool:
-    """Log one occurrence of `signal` against a project and the session it resolved to.
+    """Log one occurrence of `signal` against a project and the entity it demands.
 
     Pass the session of the transaction the fact belongs to: the signal then commits or
     rolls back with the fact, which is what keeps an announced change from outliving the
     change that announced it. Only a repeat of the same occurrence is tolerated; anything
-    else the row violates — an unknown kind, a project or session that is gone — raises and
-    leaves the caller's transaction to fail.
+    else the row violates — an unknown kind or target, a project or entity that is gone —
+    raises and leaves the caller's transaction to fail.
 
     Returns:
         True when this call wrote the row, False when the occurrence was already logged.
@@ -146,7 +172,8 @@ async def append(
             "kind": signal.kind,
             "dedup_key": signal.dedup_key,
             "project_id": project_id,
-            "project_session_rowid": project_session_rowid,
+            "evaluation_target": evaluation_target,
+            _TARGET_KEY_COLUMNS[evaluation_target]: target_rowid,
             "payload": signal.payload(),
         },
         table=models.EvaluatorSignal,
@@ -170,6 +197,9 @@ async def drain_page(session: AsyncSession, *, limit: int) -> tuple[DrainedSigna
             models.EvaluatorSignal.kind,
             models.EvaluatorSignal.dedup_key,
             models.EvaluatorSignal.project_id,
+            models.EvaluatorSignal.evaluation_target,
+            models.EvaluatorSignal.span_rowid,
+            models.EvaluatorSignal.trace_rowid,
             models.EvaluatorSignal.project_session_rowid,
             models.EvaluatorSignal.payload,
             models.EvaluatorSignal.created_at,
@@ -184,7 +214,8 @@ async def drain_page(session: AsyncSession, *, limit: int) -> tuple[DrainedSigna
             kind=row.kind,
             dedup_key=row.dedup_key,
             project_id=row.project_id,
-            project_session_rowid=row.project_session_rowid,
+            evaluation_target=row.evaluation_target,
+            target_rowid=getattr(row, _TARGET_KEY_COLUMNS[row.evaluation_target]),
             payload=row.payload,
             created_at=row.created_at,
         )

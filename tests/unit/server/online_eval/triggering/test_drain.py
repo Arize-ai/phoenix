@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -9,18 +10,34 @@ from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS,
 )
 from phoenix.db import models
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import _db
+from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
+from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
+from phoenix.server.online_eval.executor import _announce_annotations
 from phoenix.server.online_eval.leases import LeaseLost
+from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.online_eval.triggering import drain as drain_module
 from phoenix.server.online_eval.triggering.drain import SignalDrain
-from phoenix.server.online_eval.triggering.log import AnnotationUpserted, append, drain_page
-from phoenix.server.online_eval.triggering.rules import TriggerRule
+from phoenix.server.online_eval.triggering.log import (
+    AnnotationUpserted,
+    EvaluationCompleted,
+    append,
+    drain_page,
+)
+from phoenix.server.online_eval.triggering.rules import (
+    AnnotationTriggerRule,
+    TriggerRule,
+    evaluator_annotation_rules_exist,
+)
 from phoenix.server.types import DbSessionFactory
 
-from ...._helpers import _add_project, _add_project_session
+from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from ..test_session_sweeper import _add_session_liveness, _seed_criteria
 from .test_rules import _add_project_evaluator, _add_trigger
 
 _NOTICED_AT = datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc)
+_CLAIMED_BY = "consumer"
 
 
 def _annotation(annotation_id: int, *, label: str = "incorrect") -> AnnotationUpserted:
@@ -71,14 +88,16 @@ async def test_a_matched_signal_becomes_a_request_and_its_page_is_acknowledged(
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
         # A second occurrence no rule selects for, drained on the same page.
         await append(
             session,
             _annotation(2, label="correct"),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     await SignalDrain(db)._tick()
@@ -103,7 +122,8 @@ async def test_a_signal_matching_a_dormant_trigger_is_acknowledged_without_a_req
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     await SignalDrain(db)._tick()
@@ -125,7 +145,8 @@ async def test_a_signal_whose_criteria_was_deleted_is_acknowledged_without_a_req
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     async with db() as session:
@@ -155,15 +176,16 @@ async def test_a_rule_whose_criteria_vanishes_before_the_request_is_consumed_as_
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     # The rule the matcher decided on, held past the deletion of the project evaluator it names.
-    stale = TriggerRule(
+    stale = AnnotationTriggerRule(
         trigger_id=trigger.id,
         project_evaluator_id=project_evaluator.id,
         project_id=project.id,
-        signal_kind="annotation_upserted",
+        evaluation_target="SESSION",
     )
     async with db() as session:
         await session.execute(
@@ -196,7 +218,8 @@ async def test_a_signal_whose_session_has_no_content_identity_is_consumed_as_a_n
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     await SignalDrain(db)._tick()
@@ -219,7 +242,8 @@ async def test_a_signal_whose_session_is_in_another_project_writes_no_request(
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=foreign_session.id,
+            evaluation_target="SESSION",
+            target_rowid=foreign_session.id,
         )
 
     await SignalDrain(db)._tick()
@@ -240,7 +264,8 @@ async def test_a_rule_created_after_a_page_is_drained_never_matches_it(
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     drain = SignalDrain(db)
@@ -261,7 +286,8 @@ async def test_a_rule_created_after_a_page_is_drained_never_matches_it(
             session,
             _annotation(2),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
     await drain._tick()
 
@@ -277,14 +303,15 @@ async def test_rules_sharing_a_project_evaluator_advance_one_generation_per_occu
         project = await _add_project(session)
         project_session = await _add_live_session(session, project)
         project_evaluator = await _add_project_evaluator(session, project)
-        await _add_trigger(session, project_evaluator, annotation_name="human-review")
+        await _add_trigger(session, project_evaluator, name="human-review")
         await _add_trigger(session, project_evaluator, label="incorrect")
         await _add_trigger(session, project_evaluator, annotator_kind="HUMAN")
         await append(
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     drain = SignalDrain(db)
@@ -300,7 +327,8 @@ async def test_rules_sharing_a_project_evaluator_advance_one_generation_per_occu
                 session,
                 _annotation(annotation_id),
                 project_id=project.id,
-                project_session_rowid=project_session.id,
+                evaluation_target="SESSION",
+                target_rowid=project_session.id,
             )
 
     await drain._tick()
@@ -323,7 +351,8 @@ async def test_losing_the_lease_leaves_the_page_unacknowledged(
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     drain = SignalDrain(db)
@@ -351,7 +380,8 @@ async def test_the_drain_purges_acknowledged_signals_past_the_safety_window(
                 session,
                 _annotation(annotation_id),
                 project_id=project.id,
-                project_session_rowid=project_session.id,
+                evaluation_target="SESSION",
+                target_rowid=project_session.id,
             )
 
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SIGNAL_RETENTION_SECONDS, "1800")
@@ -386,7 +416,8 @@ async def test_a_rule_committed_after_the_matching_select_does_not_participate(
             session,
             _annotation(1),
             project_id=project.id,
-            project_session_rowid=project_session.id,
+            evaluation_target="SESSION",
+            target_rowid=project_session.id,
         )
 
     drain = SignalDrain(db)
@@ -407,4 +438,309 @@ async def test_a_rule_committed_after_the_matching_select_does_not_participate(
     async with db() as session:
         assert await _requests(session) == []
     assert await _unacknowledged(db) == ()
+
+
+_A_ANNOTATION = "helpfulness"
+_B_ANNOTATION = "hallucination"
+
+
+async def _work_units(db: DbSessionFactory) -> list[models.EvalSessionWorkUnit]:
+    async with db() as session:
+        rows = await session.scalars(
+            select(models.EvalSessionWorkUnit).order_by(models.EvalSessionWorkUnit.id)
+        )
+        return list(rows)
+
+
+async def _claim_pending(db: DbSessionFactory) -> dict[int, ClaimedWorkUnit]:
+    """Lease every pending session unit, keyed by the project_evaluator it runs."""
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    claimed = await coordinator.claim(claimed_by=_CLAIMED_BY, limit=100)
+    return {unit.project_evaluator_id: unit for unit in claimed}
+
+
+async def _publish(
+    db: DbSessionFactory,
+    unit: ClaimedWorkUnit,
+    *,
+    name: str,
+    complete: bool = True,
+) -> None:
+    """Publish one evaluator's verdict the way the executor does.
+
+    The annotation write and the generated-annotation announcement land in the
+    publication's fenced transaction; completion is a separate transition, and leaving
+    it undone is what a publication that has to be retried looks like.
+    """
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+
+    async def _write(session: AsyncSession) -> None:
+        inserted = (
+            await session.scalars(
+                insert_on_conflict(
+                    {
+                        "project_session_id": unit.target_rowid,
+                        "name": name,
+                        "label": "yes",
+                        "score": None,
+                        "explanation": None,
+                        "metadata_": {},
+                        "annotator_kind": "LLM",
+                        "identifier": unit.identifier,
+                        "source": "API",
+                        "user_id": None,
+                    },
+                    table=models.ProjectSessionAnnotation,
+                    dialect=db.dialect,
+                    unique_by=("name", "project_session_id", "identifier"),
+                    on_conflict=OnConflict.DO_UPDATE,
+                ).returning(models.ProjectSessionAnnotation.id)
+            )
+        ).all()
+        if inserted and await evaluator_annotation_rules_exist(session):
+            await _announce_annotations(
+                session,
+                unit,
+                models.ProjectSessionAnnotation,
+                inserted,
+                replaced_names=frozenset(),
+            )
+
+    await coordinator.publish(
+        work_unit_id=unit.work_unit_id,
+        claimed_by=_CLAIMED_BY,
+        write=_write,
+    )
+    if not complete:
+        return
+    await coordinator.complete(
+        work_unit_id=unit.work_unit_id,
+        claimed_by=_CLAIMED_BY,
+        completion_signals=(
+            EvaluationCompleted(
+                work_unit_kind="session",
+                work_unit_id=unit.work_unit_id,
+                project_evaluator_id=unit.project_evaluator_id,
+                evaluator_name=name,
+                name=name,
+                label="yes",
+            ),
+        ),
+    )
+
+
+async def _generated_signals(db: DbSessionFactory) -> list[models.EvaluatorSignal]:
+    async with db() as session:
+        rows = await session.scalars(
+            select(models.EvaluatorSignal)
+            .where(models.EvaluatorSignal.kind == "annotation_upserted")
+            .order_by(models.EvaluatorSignal.id)
+        )
+        return list(rows)
+
+
+async def _last_span_ingested_at(db: DbSessionFactory, project_session_id: int) -> datetime:
+    async with db() as session:
+        ingested_at = await session.scalar(
+            select(models.ProjectSession.last_span_ingested_at).where(
+                models.ProjectSession.id == project_session_id
+            )
+        )
+    assert ingested_at is not None
+    return ingested_at
+
+
+async def _seed_mutually_watching_evaluators(
+    db: DbSessionFactory,
+    *,
+    b_matches_evaluator_annotations: bool = True,
+) -> tuple[int, int, int]:
+    """One session and two evaluators, each opted in to the other's annotations.
+
+    Returns the session rowid and both project_evaluator ids.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_a_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    _, project_evaluator_b_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    async with db() as session:
+        project_evaluator_a = await session.get(models.ProjectEvaluator, project_evaluator_a_id)
+        project_evaluator_b = await session.get(models.ProjectEvaluator, project_evaluator_b_id)
+        assert project_evaluator_a is not None and project_evaluator_b is not None
+        await _add_trigger(
+            session,
+            project_evaluator_b,
+            name=_A_ANNOTATION,
+            matches_evaluator_annotations=b_matches_evaluator_annotations,
+        )
+        await _add_trigger(
+            session,
+            project_evaluator_a,
+            name=_B_ANNOTATION,
+            matches_evaluator_annotations=True,
+        )
+    return project_session_id, project_evaluator_a_id, project_evaluator_b_id
+
+
+async def test_an_opted_in_evaluator_cycle_settles_on_the_unchanged_content_watermark(
+    db: DbSessionFactory,
+) -> None:
+    """Two evaluators each triggering on the other's output stop after one round.
+
+    Nothing brakes the requests — they are written and granted both ways. What stops
+    the cycle is that an annotation never advances the session's content, so the second
+    request for A is answered by the evaluation A already finished.
+    """
+    project_session_id, project_evaluator_a_id, project_evaluator_b_id = await _seed_mutually_watching_evaluators(db)
+    ingested_at = await _last_span_ingested_at(db, project_session_id)
+    sweeper = SessionEvalSweeper(db)
+    drain = SignalDrain(db)
+
+    await sweeper._tick()
+    units = await _claim_pending(db)
+    assert set(units) == {project_evaluator_a_id, project_evaluator_b_id}
+
+    await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION)
+    await drain._tick()
+    await sweeper._tick()
+
+    await _publish(db, units[project_evaluator_b_id], name=_B_ANNOTATION)
+    await drain._tick()
+
+    # Each evaluator's annotation asked for the other.
+    async with db() as session:
+        requested = sorted(request.project_evaluator_id for request in await _requests(session))
+    assert requested == sorted([project_evaluator_a_id, project_evaluator_b_id])
+
+    await sweeper._tick()
+
+    # The falsifier: an annotation that advanced the session's content would let the
+    # second request schedule fresh work, and the cycle would have no per-node bound.
+    assert await _last_span_ingested_at(db, project_session_id) == ingested_at
+    work = await _work_units(db)
+    assert [(unit.project_evaluator_id, unit.status) for unit in work] == [
+        (project_evaluator_a_id, "DONE"),
+        (project_evaluator_b_id, "DONE"),
+    ]
+    async with db() as session:
+        for request in await _requests(session):
+            assert request.materialized_generation == request.requested_generation
+
+
+async def test_a_rule_that_did_not_opt_in_ignores_a_generated_annotation_that_was_logged(
+    db: DbSessionFactory,
+) -> None:
+    """The occurrence reaches the log; the rule that never asked for it draws nothing.
+
+    The refusal itself is the matcher's, and is asserted there. What this pins is that
+    an opted-out rule is refused at matching rather than silently unannounced.
+    """
+    _, project_evaluator_a_id, _ = await _seed_mutually_watching_evaluators(
+        db,
+        b_matches_evaluator_annotations=False,
+    )
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    units = await _claim_pending(db)
+
+    await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION)
+
+    (logged,) = await _generated_signals(db)
+    assert logged.payload["project_evaluator_id"] == project_evaluator_a_id
+    assert logged.payload["name"] == _A_ANNOTATION
+
+    await SignalDrain(db)._tick()
+
+    async with db() as session:
+        assert await _requests(session) == []
+    assert await _unacknowledged(db) == ()
+
+
+async def test_a_publication_retried_before_it_completes_logs_one_generated_annotation(
+    db: DbSessionFactory,
+) -> None:
+    """The occurrence is the publication, not the attempt, so a retry of it collapses.
+
+    A later distinct annotation write staying distinct is the other half, and is pinned
+    at the log altitude in test_log.
+    """
+    _, project_evaluator_a_id, _ = await _seed_mutually_watching_evaluators(db)
+    await SessionEvalSweeper(db)._tick()
+    units = await _claim_pending(db)
+
+    await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION, complete=False)
+    await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION)
+
+    assert len(await _generated_signals(db)) == 1
+
+
+async def test_publishing_logs_no_annotation_when_no_rule_asked_for_evaluator_output(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+
+    await SessionEvalSweeper(db)._tick()
+    units = await _claim_pending(db)
+    await _publish(db, units[project_evaluator_id], name=_A_ANNOTATION)
+
+    assert await _generated_signals(db) == []
+
+
+async def test_an_occurrence_routed_to_a_span_is_consumed_without_holding_up_a_session(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A rule on a target the drain cannot ask for never turns into a request.
+
+    Only session evaluations can be requested, so a span- or trace-routed occurrence is
+    acknowledged and passed over. The rules are supplied directly because a project_evaluator on
+    any other target is dormant, which would settle the question before the drain saw it.
+    """
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_live_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+        project_evaluator = await _add_project_evaluator(session, project)
+        routed: tuple[tuple[models.EvaluationTarget, int], ...] = (
+            ("SPAN", span.id),
+            ("TRACE", trace.id),
+            ("SESSION", project_session.id),
+        )
+        for evaluation_target, target_rowid in routed:
+            await append(
+                session,
+                _annotation(target_rowid),
+                project_id=project.id,
+                evaluation_target=evaluation_target,
+                target_rowid=target_rowid,
+            )
+
+    every_target: tuple[models.EvaluationTarget, ...] = ("SPAN", "TRACE", "SESSION")
+    unconstrained = tuple(
+        AnnotationTriggerRule(
+            trigger_id=index,
+            project_evaluator_id=project_evaluator.id,
+            project_id=project.id,
+            evaluation_target=evaluation_target,
+        )
+        for index, evaluation_target in enumerate(every_target, start=1)
+    )
+
+    async def _every_target(session: AsyncSession) -> tuple[TriggerRule, ...]:
+        return unconstrained
+
+    monkeypatch.setattr(drain_module, "load_rules", _every_target)
+    with caplog.at_level(logging.INFO, logger=drain_module.__name__):
+        await SignalDrain(db)._tick()
+
+    async with db() as session:
+        (request,) = await _requests(session)
+    assert request.project_session_rowid == project_session.id
+    assert request.project_evaluator_id == project_evaluator.id
+    # Only the session occurrence asked; the other two never reached the request layer.
+    assert request.requested_generation == 1
+    assert await _unacknowledged(db) == ()
+    assert "SessionTarget" in caplog.text
 

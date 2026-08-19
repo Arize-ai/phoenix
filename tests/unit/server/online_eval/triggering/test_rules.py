@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.online_eval.triggering.rules import load_rules
+from phoenix.server.online_eval.triggering.rules import (
+    AnnotationTriggerRule,
+    EvaluationTriggerRule,
+    evaluator_annotation_rules_exist,
+    load_rules,
+)
 from phoenix.server.types import DbSessionFactory
 
 from ...._helpers import _add_project
@@ -49,13 +54,18 @@ async def _add_trigger(
     signal_kind: models.EvaluatorSignalKind = "annotation_upserted",
     **predicates: Any,
 ) -> models.ProjectEvaluatorTrigger:
-    trigger = models.ProjectEvaluatorTrigger(
-        project_evaluator_id=project_evaluator.id,
-        signal_kind=signal_kind,
-        **predicates,
-    )
+    """A trigger, with a predicate row of its own family when any predicate is given."""
+    trigger = models.ProjectEvaluatorTrigger(project_evaluator_id=project_evaluator.id, signal_kind=signal_kind)
     session.add(trigger)
     await session.flush()
+    if predicates:
+        table = (
+            models.ProjectEvaluatorTriggerAnnotationPredicates
+            if signal_kind == "annotation_upserted"
+            else models.ProjectEvaluatorTriggerEvaluationPredicates
+        )
+        session.add(table(trigger_id=trigger.id, signal_kind=signal_kind, **predicates))
+        await session.flush()
     return trigger
 
 
@@ -68,29 +78,97 @@ async def test_a_live_rule_loads_with_its_predicates_and_its_criteria_s_project(
         trigger = await _add_trigger(
             session,
             project_evaluator,
-            annotation_name="human-review",
+            name="human-review",
             label="incorrect",
             score_below=0.5,
             annotator_kind="HUMAN",
             annotation_change="created",
             annotation_target="span",
+            matches_evaluator_annotations=True,
         )
 
     async with db() as session:
         (rule,) = await load_rules(session)
+    assert isinstance(rule, AnnotationTriggerRule)
     assert rule.trigger_id == trigger.id
     assert rule.project_evaluator_id == project_evaluator.id
     assert rule.project_id == project.id
+    assert rule.evaluation_target == "SESSION"
     assert rule.signal_kind == "annotation_upserted"
-    assert rule.annotation_name == "human-review"
+    assert rule.name == "human-review"
     assert rule.label == "incorrect"
     assert rule.score_below == 0.5
     assert rule.score_above is None
     assert rule.annotator_kind == "HUMAN"
     assert rule.annotation_change == "created"
     assert rule.annotation_target == "span"
-    assert rule.source_project_evaluator_id is None
-    assert rule.result_changed_only is False
+    assert rule.matches_evaluator_annotations is True
+
+
+async def test_an_evaluation_rule_loads_with_the_predicates_of_its_own_family(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_evaluator = await _add_project_evaluator(session, project)
+        watched = await _add_project_evaluator(session, project)
+        trigger = await _add_trigger(
+            session,
+            project_evaluator,
+            signal_kind="evaluation_completed",
+            name="hallucination",
+            label="hallucinated",
+            source_project_evaluator_id=watched.id,
+            result_changed_only=True,
+        )
+
+    async with db() as session:
+        (rule,) = await load_rules(session)
+    assert isinstance(rule, EvaluationTriggerRule)
+    assert rule.trigger_id == trigger.id
+    assert rule.signal_kind == "evaluation_completed"
+    assert rule.name == "hallucination"
+    assert rule.label == "hallucinated"
+    assert rule.source_project_evaluator_id == watched.id
+    assert rule.result_changed_only is True
+
+
+async def test_a_trigger_without_predicates_loads_unconstrained(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_evaluator = await _add_project_evaluator(session, project)
+        await _add_trigger(session, project_evaluator)
+
+    async with db() as session:
+        (rule,) = await load_rules(session)
+    assert isinstance(rule, AnnotationTriggerRule)
+    assert rule.name is None
+    assert rule.label is None
+    assert rule.score_below is None
+    assert rule.score_above is None
+    assert rule.annotator_kind is None
+    assert rule.annotation_change is None
+    assert rule.annotation_target is None
+    assert rule.matches_evaluator_annotations is False
+
+
+async def test_only_an_opted_in_annotation_rule_makes_evaluator_annotations_worth_logging(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_evaluator = await _add_project_evaluator(session, project)
+        await _add_trigger(session, project_evaluator, matches_evaluator_annotations=False)
+
+    async with db() as session:
+        assert await evaluator_annotation_rules_exist(session) is False
+
+    async with db() as session:
+        opted_in = await _add_project_evaluator(session, project)
+        await _add_trigger(session, opted_in, matches_evaluator_annotations=True)
+
+    async with db() as session:
+        assert await evaluator_annotation_rules_exist(session) is True
 
 
 async def test_a_trigger_whose_criteria_is_disabled_is_dormant(db: DbSessionFactory) -> None:

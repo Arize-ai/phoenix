@@ -56,14 +56,16 @@ async def test_signal_is_appended_then_drained_then_acknowledged(db: DbSessionFa
             session,
             _annotation(1),
             project_id=project_id,
-            project_session_rowid=project_session_rowid,
+            evaluation_target="SESSION",
+            target_rowid=project_session_rowid,
         )
 
     async with db() as session:
         (drained,) = await drain_page(session, limit=10)
     assert drained.kind == "annotation_upserted"
     assert drained.project_id == project_id
-    assert drained.project_session_rowid == project_session_rowid
+    assert drained.evaluation_target == "SESSION"
+    assert drained.target_rowid == project_session_rowid
     assert drained.payload["name"] == "human-review"
     assert drained.payload["label"] == "incorrect"
 
@@ -83,15 +85,27 @@ async def test_retried_annotation_signal_collapses_while_a_later_write_is_distin
 
     async with db() as session:
         assert await append(
-            session, noticed, project_id=project_id, project_session_rowid=project_session_rowid
+            session,
+            noticed,
+            project_id=project_id,
+            evaluation_target="SESSION",
+            target_rowid=project_session_rowid,
         )
     async with db() as session:
         assert not await append(
-            session, noticed, project_id=project_id, project_session_rowid=project_session_rowid
+            session,
+            noticed,
+            project_id=project_id,
+            evaluation_target="SESSION",
+            target_rowid=project_session_rowid,
         )
     async with db() as session:
         assert await append(
-            session, rewritten, project_id=project_id, project_session_rowid=project_session_rowid
+            session,
+            rewritten,
+            project_id=project_id,
+            evaluation_target="SESSION",
+            target_rowid=project_session_rowid,
         )
 
     async with db() as session:
@@ -120,7 +134,8 @@ async def test_retried_completion_collapses_to_one_signal(db: DbSessionFactory) 
                 session,
                 completed,
                 project_id=project_id,
-                project_session_rowid=project_session_rowid,
+                evaluation_target="SESSION",
+                target_rowid=project_session_rowid,
             )
 
     async with db() as session:
@@ -142,7 +157,8 @@ async def test_append_fails_the_transaction_when_the_row_cannot_be_written(
                 session,
                 _annotation(1),
                 project_id=project_id,
-                project_session_rowid=10**9,
+                evaluation_target="SESSION",
+                target_rowid=10**9,
             )
 
     async with db() as session:
@@ -159,7 +175,8 @@ async def test_acknowledge_stamps_only_the_given_signals_and_repeats_harmlessly(
                 session,
                 _annotation(annotation_id),
                 project_id=project_id,
-                project_session_rowid=project_session_rowid,
+                evaluation_target="SESSION",
+                target_rowid=project_session_rowid,
             )
 
     async with db() as session:
@@ -197,7 +214,8 @@ async def test_purge_removes_acknowledged_signals_past_the_window_and_nothing_el
                 session,
                 _annotation(annotation_id),
                 project_id=project_id,
-                project_session_rowid=project_session_rowid,
+                evaluation_target="SESSION",
+                target_rowid=project_session_rowid,
             )
 
     now = datetime.now(timezone.utc)
@@ -233,10 +251,20 @@ async def test_signal_committed_after_a_higher_id_signal_is_still_drained(
     async with db() as slow:
         # `late` takes the lower id here, but its transaction stays open past the commit
         # of the signal that follows it.
-        await append(slow, late, project_id=project_id, project_session_rowid=project_session_rowid)
+        await append(
+            slow,
+            late,
+            project_id=project_id,
+            evaluation_target="SESSION",
+            target_rowid=project_session_rowid,
+        )
         async with db() as fast:
             await append(
-                fast, early, project_id=project_id, project_session_rowid=project_session_rowid
+                fast,
+                early,
+                project_id=project_id,
+                evaluation_target="SESSION",
+                target_rowid=project_session_rowid,
             )
         async with db() as reader:
             page = await drain_page(reader, limit=10)

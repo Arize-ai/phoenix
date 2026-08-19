@@ -36,7 +36,12 @@ from phoenix.server.online_eval.requests import (
     SessionTarget,
     request_evaluations,
 )
-from phoenix.server.online_eval.triggering.log import acknowledge, drain_page, purge_acknowledged
+from phoenix.server.online_eval.triggering.log import (
+    DrainedSignal,
+    acknowledge,
+    drain_page,
+    purge_acknowledged,
+)
 from phoenix.server.online_eval.triggering.matching import match_signals
 from phoenix.server.online_eval.triggering.rules import load_rules
 from phoenix.server.types import DaemonTask, DbSessionFactory
@@ -49,6 +54,12 @@ SIGNAL_PURGE_INTERVAL_SECONDS = 3600.0
 
 _LEASE_NAME = "online-eval-signal-drain"
 _REQUESTED_BY = "trigger"
+
+# The evaluation targets this drain can ask for. `requests.EvaluationAsk` takes a
+# `SessionTarget` and nothing else, so an occurrence routed to a span or a trace is
+# acknowledged without a request. Adding a target means adding an ask target beside
+# `SessionTarget` and naming it here in the same change.
+_DELIVERABLE_TARGETS: frozenset[models.EvaluationTarget] = frozenset({"SESSION"})
 
 # Facts about the signal's target: the pair cannot be evaluated, so the occurrence is
 # consumed and no request is written. Every other rejection is a failure of the drain's
@@ -151,12 +162,13 @@ class SignalDrain(DaemonTask):
             if not signals:
                 await self._lease.fence(session)
                 return 0
-            keys = match_signals(signals, await load_rules(session))
+            deliverable = _deliverable(signals)
+            keys = match_signals(deliverable, await load_rules(session))
             # One ask per distinct occurrence, so several rules matching one occurrence for
             # one pair advance its generation once while two occurrences advance it twice.
             asks = [
                 EvaluationAsk(
-                    target=SessionTarget(project_session_rowid=key.project_session_rowid),
+                    target=SessionTarget(project_session_rowid=key.target_rowid),
                     project_evaluator_id=key.project_evaluator_id,
                     requested_by=_REQUESTED_BY,
                 )
@@ -186,6 +198,28 @@ class SignalDrain(DaemonTask):
             await self._lease.release()
         except Exception:
             logger.exception("Failed to release online-eval signal drain lease")
+
+
+def _deliverable(signals: Sequence[DrainedSignal]) -> list[DrainedSignal]:
+    """Return the occurrences this drain can ask for, naming the ones it cannot.
+
+    An occurrence routed to a target with no ask target is consumed rather than retried:
+    leaving it unacknowledged would hold up every session occurrence behind it on the
+    page, and no later tick would decide it differently.
+    """
+    deliverable = [signal for signal in signals if signal.evaluation_target in _DELIVERABLE_TARGETS]
+    if undeliverable := len(signals) - len(deliverable):
+        counts = Counter(
+            signal.evaluation_target
+            for signal in signals
+            if signal.evaluation_target not in _DELIVERABLE_TARGETS
+        )
+        logger.info(
+            f"Signal drain consumed {undeliverable} occurrences it cannot request "
+            f"evaluations for: {dict(counts)}. Requesting one needs an ask target "
+            f"beside SessionTarget in phoenix.server.online_eval.requests."
+        )
+    return deliverable
 
 
 def _consume_rejections(rejected: Sequence[RejectedAsk]) -> None:

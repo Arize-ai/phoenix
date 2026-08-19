@@ -293,7 +293,10 @@ class DbEvalWorkCoordinator:
             session,
             completion_signal,
             project_id=project_id,
-            project_session_rowid=project_session_rowid,
+            # Delivery is session-only, so a verdict on any target demands the session
+            # it belongs to be evaluated.
+            evaluation_target="SESSION",
+            target_rowid=project_session_rowid,
         )
 
     async def publish(

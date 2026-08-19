@@ -29,9 +29,7 @@ async def insert_annotations(
 ) -> tuple[AnnotationT, ...]:
     if not records:
         return ()
-    annotation_ids = tuple(
-        await session.scalars(insert(table).values(records).returning(table.id))
-    )
+    annotation_ids = tuple(await session.scalars(insert(table).values(records).returning(table.id)))
     annotations = await _load_annotations(session, table, annotation_ids)
     await _append_signals(session, table, annotations, existing_keys=frozenset())
     return annotations
@@ -108,9 +106,7 @@ async def _existing_keys(
             select(columns[0]).where(columns[0].in_(key[0] for key in keys))
         )
         return frozenset((value,) for value in scalar_rows)
-    composite_rows = await session.execute(
-        select(*columns).where(tuple_(*columns).in_(keys))
-    )
+    composite_rows = await session.execute(select(*columns).where(tuple_(*columns).in_(keys)))
     return frozenset(tuple(row) for row in composite_rows)
 
 
@@ -220,6 +216,9 @@ async def _append_signals(
                 identifier=annotation.identifier,
             ),
             project_id=project_id,
-            project_session_rowid=project_session_rowid,
+            # Delivery is session-only, so an annotation on any target demands the
+            # session it belongs to be evaluated.
+            evaluation_target="SESSION",
+            target_rowid=project_session_rowid,
         )
 
