@@ -33,11 +33,14 @@ import { settingsAgentsPageLoaderGql } from "./settingsAgentsPageLoader";
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
 
 /**
- * Whether the subagents (server-side bash tool) setting should be offered in the
- * UI. Hidden when the deployment sets PHOENIX_AGENTS_DISABLE_BASH, which prevents
- * subagents from being attached server-side. Does not affect the frontend bash tool.
+ * Whether the server-side agent runtime (bash tool, subagents, experimental
+ * capabilities) is enabled for this deployment. False when
+ * PHOENIX_AGENTS_DISABLE_BASH is set, which prevents those capabilities from
+ * being constructed server-side — settings that only configure them are
+ * hidden rather than offered as inert switches. Does not affect the frontend
+ * bash tool.
  */
-function shouldShowSubagentsSetting(agentBashDisabled: boolean): boolean {
+function isServerAgentRuntimeEnabled(agentBashDisabled: boolean): boolean {
   return !agentBashDisabled;
 }
 
@@ -222,7 +225,7 @@ function PersonalSettingsSection() {
       <AssistantDisplaySettings />
       <AgentSettingsForm>
         <AgentWebAccessSettings />
-        {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (
+        {isServerAgentRuntimeEnabled(window.Config.agentBashDisabled) ? (
           <AgentSubagentsSettings />
         ) : null}
         <AgentObservabilitySettings isOnSettingsPage />
@@ -274,10 +277,7 @@ export function SettingsAgentsPage() {
               </div>
             </DisclosurePanel>
           </Disclosure>
-          {/* The experimental capabilities ride the server-side agent
-              runtime; with bash disabled the toggles would be inert, so the
-              section hides like the subagents setting above. */}
-          {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (
+          {isServerAgentRuntimeEnabled(window.Config.agentBashDisabled) ? (
             <Disclosure id={EXPERIMENTAL_SECTION_ID}>
               <AssistantSettingsSectionTrigger
                 title="Experimental settings"

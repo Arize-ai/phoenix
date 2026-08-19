@@ -188,26 +188,41 @@ export function useDirectChat() {
       });
       const assistantId = generateUUID();
       let hasStartedStreaming = false;
+      // Fast providers push hundreds of deltas per second, and each delta
+      // arrives in its own microtask so React cannot batch them — flushing
+      // at most once per frame keeps the page responsive while looking
+      // identical. The final flush below guarantees completeness even when
+      // a hidden tab has paused animation frames.
+      let accumulated = "";
+      let flushHandle: number | null = null;
+      const flushContent = () => {
+        flushHandle = null;
+        const content = accumulated;
+        setMessages((previous) =>
+          previous.map((message) =>
+            message.id === assistantId ? { ...message, content } : message
+          )
+        );
+      };
       for await (const delta of result.textStream) {
         if (controller.signal.aborted) {
           break;
         }
+        accumulated += delta;
         if (!hasStartedStreaming) {
           hasStartedStreaming = true;
           setStatus("streaming");
           setMessages((previous) => [
             ...previous,
-            { id: assistantId, role: "assistant", content: delta },
+            { id: assistantId, role: "assistant", content: accumulated },
           ]);
-        } else {
-          setMessages((previous) =>
-            previous.map((message) =>
-              message.id === assistantId
-                ? { ...message, content: message.content + delta }
-                : message
-            )
-          );
+        } else if (flushHandle === null) {
+          flushHandle = requestAnimationFrame(flushContent);
         }
+      }
+      if (flushHandle !== null) {
+        cancelAnimationFrame(flushHandle);
+        flushContent();
       }
       if (streamError != null) {
         throw streamError;
