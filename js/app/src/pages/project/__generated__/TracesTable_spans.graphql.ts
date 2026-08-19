@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8483007f9772f209cfcbc733c85757b>>
+ * @generated SignedSource<<80d5bda0aee03f331e4c404de170ee0a>>
  * @lightSyntaxTransform
  */
 
@@ -80,12 +80,15 @@ export type TracesTable_spans$data = {
         } | null;
         readonly parentId: string | null;
         readonly spanAnnotationSummaries: ReadonlyArray<{
+          readonly count: number;
+          readonly labelCount: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
+          readonly scoreCount: number;
         }>;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
@@ -109,12 +112,15 @@ export type TracesTable_spans$data = {
           readonly id: string;
           readonly numSpans: number;
           readonly traceAnnotationSummaries: ReadonlyArray<{
+            readonly count: number;
+            readonly labelCount: number;
             readonly labelFractions: ReadonlyArray<{
               readonly fraction: number;
               readonly label: string;
             }>;
             readonly meanScore: number | null;
             readonly name: string;
+            readonly scoreCount: number;
           }>;
           readonly traceId: string;
           readonly userId: string | null;
@@ -262,6 +268,27 @@ v15 = [
       },
       (v14/*:: as any*/)
     ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "count",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "scoreCount",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "labelCount",
     "storageKey": null
   },
   {
@@ -741,6 +768,6 @@ return {
 };
 })();
 
-(node as any).hash = "6c250ea6ab9b97145f2c5dfbfa37791d";
+(node as any).hash = "230ebf1e50d1926e65e89949ecb45b7e";
 
 export default node;

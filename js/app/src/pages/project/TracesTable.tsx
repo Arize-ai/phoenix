@@ -39,7 +39,6 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
@@ -76,7 +75,7 @@ import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -106,6 +105,7 @@ import {
   DEFAULT_SORT,
   getGqlSort,
   makeAnnotationColumnId,
+  normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceFilterConditionField } from "./TraceFilterConditionField";
@@ -366,6 +366,9 @@ export function TracesTable(props: TracesTableProps) {
                       fraction
                       label
                     }
+                    count
+                    scoreCount
+                    labelCount
                     meanScore
                     name
                   }
@@ -384,6 +387,9 @@ export function TracesTable(props: TracesTableProps) {
                     fraction
                     label
                   }
+                  count
+                  scoreCount
+                  labelCount
                   meanScore
                   name
                 }
@@ -513,46 +519,32 @@ export function TracesTable(props: TracesTableProps) {
       visibleAnnotationColumnNames.map((name) => {
         return {
           header: name,
-          columns: [
-            {
-              header: `labels`,
-              accessorKey: makeAnnotationColumnId(name, "label"),
-              cell: ({ row }) => {
-                const annotation = (
-                  row.original
-                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-                )?.find((annotation) => annotation.name === name);
-                if (!annotation) {
-                  return null;
-                }
-                return (
-                  <SummaryValueLabels
-                    name={name}
-                    labelFractions={annotation.labelFractions}
-                  />
-                );
-              },
-            } as ColumnDef<TableRow>,
-            {
-              header: `mean score`,
-              accessorKey: makeAnnotationColumnId(name, "score"),
-              cell: ({ row }) => {
-                const annotation = (
-                  row.original
-                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-                )?.find((annotation) => annotation.name === name);
-                if (!annotation) {
-                  return null;
-                }
-                return (
-                  <MeanScore value={annotation.meanScore} fallback={null} />
-                );
-              },
-            } as ColumnDef<TableRow>,
-          ],
+          accessorKey: makeAnnotationColumnId(name, "score"),
+          cell: ({ row }) => {
+            const annotation = (
+              row.original
+                .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
+            )?.find((annotation) => annotation.name === name);
+            if (!annotation) {
+              return null;
+            }
+            return (
+              <SummaryValue
+                name={name}
+                annotationConfig={annotationConfigsByName.get(name)}
+                count={annotation.count}
+                scoreCount={annotation.scoreCount}
+                labelCount={annotation.labelCount}
+                labelFractions={annotation.labelFractions}
+                meanScore={annotation.meanScore}
+                size="S"
+                disableAnimation
+              />
+            );
+          },
         };
       }),
-    [visibleAnnotationColumnNames]
+    [annotationConfigsByName, visibleAnnotationColumnNames]
   );
 
   const dynamicTraceAnnotationColumns: ColumnDef<TableRow>[] = useMemo(
@@ -560,58 +552,38 @@ export function TracesTable(props: TracesTableProps) {
       visibleTraceAnnotationColumnNames.map((name) => {
         return {
           header: name,
-          columns: [
-            {
-              header: `labels`,
-              accessorKey: makeAnnotationColumnId(name, "label", "trace"),
-              enableSorting: false,
-              cell: ({ row }) => {
-                if (row.depth !== 0 || row.original.__additionalRow) {
-                  return null;
-                }
-                const annotation = (
-                  row.original
-                    .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
-                )?.traceAnnotationSummaries?.find(
-                  (annotation) => annotation.name === name
-                );
-                if (!annotation) {
-                  return null;
-                }
-                return (
-                  <SummaryValueLabels
-                    name={name}
-                    labelFractions={annotation.labelFractions}
-                  />
-                );
-              },
-            } as ColumnDef<TableRow>,
-            {
-              header: `mean score`,
-              accessorKey: makeAnnotationColumnId(name, "score", "trace"),
-              enableSorting: false,
-              cell: ({ row }) => {
-                if (row.depth !== 0 || row.original.__additionalRow) {
-                  return null;
-                }
-                const annotation = (
-                  row.original
-                    .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
-                )?.traceAnnotationSummaries?.find(
-                  (annotation) => annotation.name === name
-                );
-                if (!annotation) {
-                  return null;
-                }
-                return (
-                  <MeanScore value={annotation.meanScore} fallback={null} />
-                );
-              },
-            } as ColumnDef<TableRow>,
-          ],
+          accessorKey: makeAnnotationColumnId(name, "score", "trace"),
+          enableSorting: false,
+          cell: ({ row }) => {
+            if (row.depth !== 0 || row.original.__additionalRow) {
+              return null;
+            }
+            const annotation = (
+              row.original
+                .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
+            )?.traceAnnotationSummaries?.find(
+              (annotation) => annotation.name === name
+            );
+            if (!annotation) {
+              return null;
+            }
+            return (
+              <SummaryValue
+                name={name}
+                annotationConfig={annotationConfigsByName.get(name)}
+                count={annotation.count}
+                scoreCount={annotation.scoreCount}
+                labelCount={annotation.labelCount}
+                labelFractions={annotation.labelFractions}
+                meanScore={annotation.meanScore}
+                size="S"
+                disableAnimation
+              />
+            );
+          },
         };
       }),
-    [visibleTraceAnnotationColumnNames]
+    [annotationConfigsByName, visibleTraceAnnotationColumnNames]
   );
 
   const annotationColumns: ColumnDef<TableRow>[] = useMemo(
@@ -1060,6 +1032,18 @@ export function TracesTable(props: TracesTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
+  const annotationColumnIdsByName = new Map([
+    ...visibleTraceAnnotationColumnNames.map(
+      (name) => [name, makeAnnotationColumnId(name, "score", "trace")] as const
+    ),
+    ...visibleAnnotationColumnNames.map(
+      (name) => [name, makeAnnotationColumnId(name, "score")] as const
+    ),
+  ]);
+  const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
+    columnOrder: storedColumnOrder,
+    annotationColumnIdsByName,
+  });
   const {
     leafColumnOrder,
     visibleColumnOrder,
@@ -1067,7 +1051,7 @@ export function TracesTable(props: TracesTableProps) {
     getColumnOrderIndex,
   } = useColumnOrder({
     columns,
-    columnOrder: storedColumnOrder,
+    columnOrder: normalizedStoredColumnOrder,
     onColumnOrderChange: setStoredColumnOrder,
     columnVisibility,
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],

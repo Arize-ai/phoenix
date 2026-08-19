@@ -34,7 +34,6 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -49,7 +48,7 @@ import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -83,6 +82,7 @@ import {
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
   makeAnnotationColumnId,
+  normalizeAnnotationColumnOrder,
 } from "./tableUtils";
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
@@ -265,6 +265,9 @@ export function SessionsTable(props: SessionsTableProps) {
                     fraction
                     label
                   }
+                  count
+                  scoreCount
+                  labelCount
                   meanScore
                   name
                 }
@@ -314,39 +317,28 @@ export function SessionsTable(props: SessionsTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        columns: [
-          {
-            header: `labels`,
-            accessorKey: makeAnnotationColumnId(name, "label"),
-            cell: ({ row }) => {
-              const annotation = row.original.sessionAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return (
-                <SummaryValueLabels
-                  name={name}
-                  labelFractions={annotation.labelFractions}
-                />
-              );
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `mean score`,
-            accessorKey: makeAnnotationColumnId(name, "score"),
-            cell: ({ row }) => {
-              const annotation = row.original.sessionAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return <MeanScore value={annotation.meanScore} fallback={null} />;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+        accessorKey: makeAnnotationColumnId(name, "score"),
+        cell: ({ row }) => {
+          const annotation = row.original.sessionAnnotationSummaries.find(
+            (annotation) => annotation.name === name
+          );
+          if (!annotation) {
+            return null;
+          }
+          return (
+            <SummaryValue
+              name={name}
+              annotationConfig={annotationConfigsByName.get(name)}
+              count={annotation.count}
+              scoreCount={annotation.scoreCount}
+              labelCount={annotation.labelCount}
+              labelFractions={annotation.labelFractions}
+              meanScore={annotation.meanScore}
+              size="S"
+              disableAnimation
+            />
+          );
+        },
       };
     });
 
@@ -553,6 +545,15 @@ export function SessionsTable(props: SessionsTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
+  const annotationColumnIdsByName = new Map(
+    visibleAnnotationColumnNames.map(
+      (name) => [name, makeAnnotationColumnId(name, "score")] as const
+    )
+  );
+  const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
+    columnOrder: storedColumnOrder,
+    annotationColumnIdsByName,
+  });
   const {
     leafColumnOrder,
     visibleColumnOrder,
@@ -560,7 +561,7 @@ export function SessionsTable(props: SessionsTableProps) {
     getColumnOrderIndex,
   } = useColumnOrder({
     columns,
-    columnOrder: storedColumnOrder,
+    columnOrder: normalizedStoredColumnOrder,
     onColumnOrderChange: setStoredColumnOrder,
     columnVisibility,
   });

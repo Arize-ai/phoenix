@@ -9,6 +9,7 @@ import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   TRACE_ANNOTATIONS_COLUMN_ID,
   TRACE_ANNOTATIONS_COLUMN_LABEL,
+  makeAnnotationColumnId,
 } from "./tableUtils";
 import { TracingColumnSelector } from "./TracingColumnSelector";
 
@@ -16,8 +17,8 @@ const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
 
 type SpanColumnSelectorProps = {
   /**
-   * All of the top-level columns of the span table (including group columns,
-   * which represent the visible dynamic annotation columns)
+   * All of the top-level columns of the span table, including visible dynamic
+   * annotation columns.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
@@ -73,6 +74,7 @@ export function SpanColumnSelector({
           names: getNonNoteAnnotationNames(annotationsData.spanAnnotationNames),
           visibility: annotationColumnVisibility,
           onVisibilityChange: setAnnotationColumnVisibility,
+          getColumnId: (name) => makeAnnotationColumnId(name, "score"),
         },
         {
           names: getNonNoteAnnotationNames(
@@ -81,6 +83,7 @@ export function SpanColumnSelector({
           visibility: traceAnnotationColumnVisibility,
           onVisibilityChange: setTraceAnnotationColumnVisibility,
           getLabel: (name) => `${name} (trace)`,
+          getColumnId: (name) => makeAnnotationColumnId(name, "score", "trace"),
         },
       ]}
     />

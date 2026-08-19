@@ -29,7 +29,6 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
@@ -69,7 +68,7 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
@@ -105,6 +104,7 @@ import {
   DEFAULT_SORT,
   getGqlSort,
   makeAnnotationColumnId,
+  normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
@@ -348,6 +348,8 @@ export function SpansTable(props: SpansTableProps) {
                       label
                     }
                     count
+                    scoreCount
+                    labelCount
                     meanScore
                     name
                   }
@@ -372,6 +374,9 @@ export function SpansTable(props: SpansTableProps) {
                     fraction
                     label
                   }
+                  count
+                  scoreCount
+                  labelCount
                   meanScore
                   name
                 }
@@ -445,39 +450,28 @@ export function SpansTable(props: SpansTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        columns: [
-          {
-            header: `labels`,
-            accessorKey: makeAnnotationColumnId(name, "label"),
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return (
-                <SummaryValueLabels
-                  name={name}
-                  labelFractions={annotation.labelFractions}
-                />
-              );
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `mean score`,
-            accessorKey: makeAnnotationColumnId(name, "score"),
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return <MeanScore value={annotation.meanScore} fallback={null} />;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+        accessorKey: makeAnnotationColumnId(name, "score"),
+        cell: ({ row }) => {
+          const annotation = row.original.spanAnnotationSummaries.find(
+            (annotation) => annotation.name === name
+          );
+          if (!annotation) {
+            return null;
+          }
+          return (
+            <SummaryValue
+              name={name}
+              annotationConfig={annotationConfigsByName.get(name)}
+              count={annotation.count}
+              scoreCount={annotation.scoreCount}
+              labelCount={annotation.labelCount}
+              labelFractions={annotation.labelFractions}
+              meanScore={annotation.meanScore}
+              size="S"
+              disableAnimation
+            />
+          );
+        },
       };
     });
 
@@ -485,43 +479,29 @@ export function SpansTable(props: SpansTableProps) {
     visibleTraceAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        columns: [
-          {
-            header: `labels`,
-            accessorKey: makeAnnotationColumnId(name, "label", "trace"),
-            enableSorting: false,
-            cell: ({ row }) => {
-              const annotation =
-                row.original.trace.traceAnnotationSummaries.find(
-                  (annotation) => annotation.name === name
-                );
-              if (!annotation) {
-                return null;
-              }
-              return (
-                <SummaryValueLabels
-                  name={name}
-                  labelFractions={annotation.labelFractions}
-                />
-              );
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `mean score`,
-            accessorKey: makeAnnotationColumnId(name, "score", "trace"),
-            enableSorting: false,
-            cell: ({ row }) => {
-              const annotation =
-                row.original.trace.traceAnnotationSummaries.find(
-                  (annotation) => annotation.name === name
-                );
-              if (!annotation) {
-                return null;
-              }
-              return <MeanScore value={annotation.meanScore} fallback={null} />;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+        accessorKey: makeAnnotationColumnId(name, "score", "trace"),
+        enableSorting: false,
+        cell: ({ row }) => {
+          const annotation = row.original.trace.traceAnnotationSummaries.find(
+            (annotation) => annotation.name === name
+          );
+          if (!annotation) {
+            return null;
+          }
+          return (
+            <SummaryValue
+              name={name}
+              annotationConfig={annotationConfigsByName.get(name)}
+              count={annotation.count}
+              scoreCount={annotation.scoreCount}
+              labelCount={annotation.labelCount}
+              labelFractions={annotation.labelFractions}
+              meanScore={annotation.meanScore}
+              size="S"
+              disableAnimation
+            />
+          );
+        },
       };
     });
 
@@ -899,6 +879,18 @@ export function SpansTable(props: SpansTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
+  const annotationColumnIdsByName = new Map([
+    ...visibleTraceAnnotationColumnNames.map(
+      (name) => [name, makeAnnotationColumnId(name, "score", "trace")] as const
+    ),
+    ...visibleAnnotationColumnNames.map(
+      (name) => [name, makeAnnotationColumnId(name, "score")] as const
+    ),
+  ]);
+  const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
+    columnOrder: storedColumnOrder,
+    annotationColumnIdsByName,
+  });
   const {
     leafColumnOrder,
     visibleColumnOrder,
@@ -906,7 +898,7 @@ export function SpansTable(props: SpansTableProps) {
     getColumnOrderIndex,
   } = useColumnOrder({
     columns,
-    columnOrder: storedColumnOrder,
+    columnOrder: normalizedStoredColumnOrder,
     onColumnOrderChange: setStoredColumnOrder,
     columnVisibility,
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],

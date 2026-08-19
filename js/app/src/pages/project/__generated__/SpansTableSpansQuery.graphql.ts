@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aaebc396cb50f602c34c211cf485de8a>>
+ * @generated SignedSource<<7bc7bd91d3fd6434bb78ab9be9af2622>>
  * @lightSyntaxTransform
  */
 
@@ -236,10 +236,32 @@ v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "scoreCount",
+  "storageKey": null
+},
+v25 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "labelCount",
+  "storageKey": null
+},
+v26 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "meanScore",
   "storageKey": null
 },
-v25 = [
+v27 = [
+  (v22/*:: as any*/),
+  (v23/*:: as any*/),
+  (v24/*:: as any*/),
+  (v25/*:: as any*/),
+  (v26/*:: as any*/),
+  (v14/*:: as any*/)
+],
+v28 = [
   {
     "kind": "Literal",
     "name": "filter",
@@ -252,21 +274,21 @@ v25 = [
     }
   }
 ],
-v26 = {
+v29 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotatorKind",
   "storageKey": null
 },
-v27 = {
+v30 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v28 = [
+v31 = [
   (v13/*:: as any*/),
   (v14/*:: as any*/),
   (v16/*:: as any*/),
@@ -278,8 +300,8 @@ v28 = [
     "name": "explanation",
     "storageKey": null
   },
-  (v26/*:: as any*/),
-  (v27/*:: as any*/),
+  (v29/*:: as any*/),
+  (v30/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -314,7 +336,7 @@ v28 = [
     "storageKey": null
   }
 ],
-v29 = [
+v32 = [
   {
     "alias": "value",
     "args": null,
@@ -322,11 +344,6 @@ v29 = [
     "name": "truncatedValue",
     "storageKey": null
   }
-],
-v30 = [
-  (v22/*:: as any*/),
-  (v24/*:: as any*/),
-  (v14/*:: as any*/)
 ];
 return {
   "fragment": {
@@ -668,49 +685,32 @@ return {
                                 "kind": "LinkedField",
                                 "name": "traceAnnotationSummaries",
                                 "plural": true,
-                                "selections": [
-                                  (v22/*:: as any*/),
-                                  (v23/*:: as any*/),
-                                  (v24/*:: as any*/),
-                                  (v14/*:: as any*/)
-                                ],
+                                "selections": (v27/*:: as any*/),
                                 "storageKey": null
                               },
                               {
                                 "alias": "summaryTraceAnnotations",
-                                "args": (v25/*:: as any*/),
+                                "args": (v28/*:: as any*/),
                                 "concreteType": "TraceAnnotation",
                                 "kind": "LinkedField",
                                 "name": "traceAnnotations",
                                 "plural": true,
-                                "selections": (v28/*:: as any*/),
+                                "selections": (v31/*:: as any*/),
                                 "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                               },
                               {
                                 "alias": "summaryTraceAnnotationSummaries",
-                                "args": (v25/*:: as any*/),
+                                "args": (v28/*:: as any*/),
                                 "concreteType": "AnnotationSummary",
                                 "kind": "LinkedField",
                                 "name": "traceAnnotationSummaries",
                                 "plural": true,
                                 "selections": [
                                   (v23/*:: as any*/),
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "scoreCount",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "labelCount",
-                                    "storageKey": null
-                                  },
-                                  (v22/*:: as any*/),
                                   (v24/*:: as any*/),
+                                  (v25/*:: as any*/),
+                                  (v22/*:: as any*/),
+                                  (v26/*:: as any*/),
                                   (v14/*:: as any*/)
                                 ],
                                 "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
@@ -725,7 +725,7 @@ return {
                             "kind": "LinkedField",
                             "name": "input",
                             "plural": false,
-                            "selections": (v29/*:: as any*/),
+                            "selections": (v32/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -735,7 +735,7 @@ return {
                             "kind": "LinkedField",
                             "name": "output",
                             "plural": false,
-                            "selections": (v29/*:: as any*/),
+                            "selections": (v32/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -750,8 +750,8 @@ return {
                               (v14/*:: as any*/),
                               (v16/*:: as any*/),
                               (v17/*:: as any*/),
-                              (v26/*:: as any*/),
-                              (v27/*:: as any*/)
+                              (v29/*:: as any*/),
+                              (v30/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -762,7 +762,7 @@ return {
                             "kind": "LinkedField",
                             "name": "spanAnnotationSummaries",
                             "plural": true,
-                            "selections": (v30/*:: as any*/),
+                            "selections": (v27/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -806,22 +806,26 @@ return {
                           },
                           {
                             "alias": "summarySpanAnnotations",
-                            "args": (v25/*:: as any*/),
+                            "args": (v28/*:: as any*/),
                             "concreteType": "SpanAnnotation",
                             "kind": "LinkedField",
                             "name": "spanAnnotations",
                             "plural": true,
-                            "selections": (v28/*:: as any*/),
+                            "selections": (v31/*:: as any*/),
                             "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                           },
                           {
                             "alias": "summarySpanAnnotationSummaries",
-                            "args": (v25/*:: as any*/),
+                            "args": (v28/*:: as any*/),
                             "concreteType": "AnnotationSummary",
                             "kind": "LinkedField",
                             "name": "spanAnnotationSummaries",
                             "plural": true,
-                            "selections": (v30/*:: as any*/),
+                            "selections": [
+                              (v22/*:: as any*/),
+                              (v26/*:: as any*/),
+                              (v14/*:: as any*/)
+                            ],
                             "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                           }
                         ],
@@ -901,16 +905,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "de32b212e7f1d65b46eb504239314f21",
+    "cacheID": "3456d5537efa92af043073ba3f25f49b",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 30\n  $rootSpansOnly: Boolean = true\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpansTable_spans_xYL0c\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationsNames\n}\n\nfragment SpansTable_spans_xYL0c on Project {\n  name\n  spanAnnotationNames\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  spans(first: $first, after: $after, sort: $sort, filterCondition: $filterCondition, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        userId\n        statusCode\n        statusMessage\n        startTime\n        latencyMs\n        tokenCountTotal @skip(if: $rootSpansOnly)\n        costSummary @skip(if: $rootSpansOnly) {\n          total {\n            cost\n          }\n        }\n        cumulativeTokenCountTotal @include(if: $rootSpansOnly)\n        spanId\n        trace {\n          id\n          traceId\n          costSummary @include(if: $rootSpansOnly) {\n            total {\n              cost\n            }\n          }\n          traceAnnotationSummaries {\n            labelFractions {\n              fraction\n              label\n            }\n            count\n            meanScore\n            name\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        ...AnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 30\n  $rootSpansOnly: Boolean = true\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpansTable_spans_xYL0c\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationsNames\n}\n\nfragment SpansTable_spans_xYL0c on Project {\n  name\n  spanAnnotationNames\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  spans(first: $first, after: $after, sort: $sort, filterCondition: $filterCondition, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        userId\n        statusCode\n        statusMessage\n        startTime\n        latencyMs\n        tokenCountTotal @skip(if: $rootSpansOnly)\n        costSummary @skip(if: $rootSpansOnly) {\n          total {\n            cost\n          }\n        }\n        cumulativeTokenCountTotal @include(if: $rootSpansOnly)\n        spanId\n        trace {\n          id\n          traceId\n          costSummary @include(if: $rootSpansOnly) {\n            total {\n              cost\n            }\n          }\n          traceAnnotationSummaries {\n            labelFractions {\n              fraction\n              label\n            }\n            count\n            scoreCount\n            labelCount\n            meanScore\n            name\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          count\n          scoreCount\n          labelCount\n          meanScore\n          name\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        ...AnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "170311ad8e4ffb461895c59f263619ae";
+(node as any).hash = "a8d9779bc24b4055de9408848b099c70";
 
 export default node;

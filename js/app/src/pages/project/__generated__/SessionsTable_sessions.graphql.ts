@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<822783fe6ff84f7d44b72a9be64cdab1>>
+ * @generated SignedSource<<11a028f81d722f8709918e67f37b2c30>>
  * @lightSyntaxTransform
  */
 
@@ -30,12 +30,15 @@ export type SessionsTable_sessions$data = {
         } | null;
         readonly numTraces: number;
         readonly sessionAnnotationSummaries: ReadonlyArray<{
+          readonly count: number;
+          readonly labelCount: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
+          readonly scoreCount: number;
         }>;
         readonly sessionId: string;
         readonly startTime: string;
@@ -365,6 +368,27 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "count",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "scoreCount",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "labelCount",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "meanScore",
                       "storageKey": null
                     },
@@ -442,6 +466,6 @@ return {
 };
 })();
 
-(node as any).hash = "f33ec2c199cfb4626662d26d4e020f3a";
+(node as any).hash = "bf676232aa9f81086d9938ecc2702db3";
 
 export default node;

@@ -105,3 +105,23 @@ export function makeAnnotationColumnId(
       .replace(/[^a-zA-Z0-9]/g, "-")
   );
 }
+
+/**
+ * Converts annotation-name ids from the former grouped columns to the flat
+ * columns' sortable ids while leaving ordinary and already-flat ids unchanged.
+ */
+export function normalizeAnnotationColumnOrder({
+  columnOrder,
+  annotationColumnIdsByName,
+}: {
+  columnOrder: string[];
+  annotationColumnIdsByName: ReadonlyMap<string, string>;
+}) {
+  return [
+    ...new Set(
+      columnOrder.map(
+        (columnId) => annotationColumnIdsByName.get(columnId) ?? columnId
+      )
+    ),
+  ];
+}
