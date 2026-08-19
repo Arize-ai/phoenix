@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
-  CHAT_MODEL_LOCAL_STORAGE_KEY,
   getStoredChatModel,
+  resolveChatModelStorageKey,
   storeChatModel,
 } from "../chatModelStorage";
 
@@ -28,7 +28,24 @@ describe("chat model storage", () => {
   });
 
   it("returns null for unrecognized stored values", () => {
-    localStorage.setItem(CHAT_MODEL_LOCAL_STORAGE_KEY, '{"kind":"martian"}');
+    localStorage.setItem(resolveChatModelStorageKey(), '{"kind":"martian"}');
     expect(getStoredChatModel()).toBeNull();
+  });
+
+  // Phoenix Cloud serves multiple workspaces at distinct root paths on one
+  // origin — the stored model must not leak across them.
+  it("scopes the storage key to the deployment root path", () => {
+    const originalBasename = window.Config.basename;
+    try {
+      window.Config.basename = "/s/phoenix-devs";
+      storeChatModel({ kind: "browser" });
+      expect(
+        localStorage.getItem("arize-phoenix-chat-model:/s/phoenix-devs")
+      ).not.toBeNull();
+      window.Config.basename = "/s/other-workspace";
+      expect(getStoredChatModel()).toBeNull();
+    } finally {
+      window.Config.basename = originalBasename;
+    }
   });
 });

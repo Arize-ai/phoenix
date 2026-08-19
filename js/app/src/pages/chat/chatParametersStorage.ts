@@ -1,10 +1,21 @@
 import { z } from "zod";
 
+import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
+
 import type { ChatParameters } from "./chatParameters";
 import { DEFAULT_CHAT_PARAMETERS } from "./chatParameters";
 
-export const CHAT_PARAMETERS_LOCAL_STORAGE_KEY =
-  "arize-phoenix-chat-parameters";
+const BASE_CHAT_PARAMETERS_STORAGE_KEY = "arize-phoenix-chat-parameters";
+
+/**
+ * Resolves the chat-parameters key, scoped to the deployment's root path so
+ * co-hosted workspaces don't leak system prompts into each other (see
+ * {@link scopeStorageKeyToBasename}). Resolved at read/write time — the key
+ * depends on `window.Config`, which isn't set at module load.
+ */
+export function resolveChatParametersStorageKey(): string {
+  return scopeStorageKeyToBasename(BASE_CHAT_PARAMETERS_STORAGE_KEY);
+}
 
 const CHAT_PARAMETERS_SCHEMA = z.object({
   systemPrompt: z.string(),
@@ -20,7 +31,7 @@ const CHAT_PARAMETERS_SCHEMA = z.object({
  */
 export function getStoredChatParameters(): ChatParameters {
   try {
-    const raw = localStorage.getItem(CHAT_PARAMETERS_LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(resolveChatParametersStorageKey());
     if (!raw) {
       return DEFAULT_CHAT_PARAMETERS;
     }
@@ -36,7 +47,7 @@ export function getStoredChatParameters(): ChatParameters {
  */
 export function storeChatParameters(parameters: ChatParameters): void {
   localStorage.setItem(
-    CHAT_PARAMETERS_LOCAL_STORAGE_KEY,
+    resolveChatParametersStorageKey(),
     JSON.stringify(parameters)
   );
 }
