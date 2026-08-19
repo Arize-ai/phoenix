@@ -22037,14 +22037,6 @@
           "messageId": {
             "title": "Messageid",
             "type": "string"
-          },
-          "persistedToolOutputIds": {
-            "description": "Tool call IDs whose tool outputs were included in the persisted message.",
-            "items": {
-              "type": "string"
-            },
-            "title": "Persistedtooloutputids",
-            "type": "array"
           }
         },
         "required": [

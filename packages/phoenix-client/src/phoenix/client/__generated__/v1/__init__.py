@@ -1277,7 +1277,6 @@ class SessionSummaryChunk(TypedDict):
 
 class TranscriptPersistedData(TypedDict):
     messageId: str
-    persistedToolOutputIds: NotRequired[Sequence[str]]
 
 
 class AddDatasetLabelToDatasetResponseBody(TypedDict):
