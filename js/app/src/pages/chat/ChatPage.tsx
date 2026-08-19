@@ -1,5 +1,4 @@
 import { css, keyframes } from "@emotion/react";
-import { debounce } from "lodash";
 import { Suspense, useRef, useState } from "react";
 import {
   Group,
@@ -46,7 +45,7 @@ import {
 } from "@phoenix/components/generative/browserAI";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
-import { providerRequiresCredentials } from "@phoenix/components/generative/modelProviderUtils";
+import { isProviderProvisioned } from "@phoenix/components/generative/modelProviderUtils";
 import { useModelMenuData } from "@phoenix/components/generative/useModelMenuData";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 
@@ -60,18 +59,6 @@ import {
 } from "./chatParametersStorage";
 import type { DirectChatMessage } from "./useDirectChat";
 import { useDirectChat } from "./useDirectChat";
-
-// Slider drags and system-prompt keystrokes emit a change per step/character;
-// batch the localStorage writes so a gesture costs one serialization, not
-// hundreds. (The sibling model/layout persistence only fires on discrete
-// selections, so it writes synchronously.)
-const storeChatParametersDebounced = debounce(storeChatParameters, 300);
-// The trailing-only debounce writes nothing during continuous typing, so a
-// hard unload (tab close, refresh) could drop the latest edits entirely —
-// flush the pending write on the way out.
-window.addEventListener("pagehide", () => {
-  storeChatParametersDebounced.flush();
-});
 
 const chatFadeUp = keyframes`
   from {
@@ -122,14 +109,6 @@ const chatPageCSS = css`
     min-height: var(--global-dimension-size-450);
     padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
     box-sizing: border-box;
-  }
-
-  .chat-page__scroll-frame {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
   }
 
   .chat-page__scroll {
@@ -294,16 +273,14 @@ function getDefaultModel({
     model: { provider: model.provider, modelName: model.modelName },
   });
 
-  // credentialsSet alone can't rank providers: it is vacuously true for
-  // zero-credential providers like Ollama, which still need server-side
-  // configuration (a base URL) to actually answer.
+  // Empty local credentials matches this surface's server-only execution
+  // path — only server-side keys count as provisioned here.
   const provisionedProviderKeys = new Set<string>(
     visibleProviders
       .filter(
         (provider) =>
           provider.dependenciesInstalled &&
-          provider.credentialsSet &&
-          providerRequiresCredentials({ providerKey: provider.key })
+          isProviderProvisioned({ provider, localCredentials: {} })
       )
       .map((provider) => provider.key)
   );
@@ -355,8 +332,13 @@ function ChatSurface() {
   // Chat sends through the server's chat-completions proxy, which
   // authenticates with server-side credentials only — browser-local keys
   // must not make a provider look usable here (unlike the playground).
+  // store-or-network reuses the response of the child ModelMenu's identical
+  // query instead of issuing a duplicate fetch.
   const { availableBuiltinModels, availableCustomModels, visibleProviders } =
-    useModelMenuData({ credentialSource: "server" });
+    useModelMenuData({
+      credentialSource: "server",
+      fetchPolicy: "store-or-network",
+    });
   const browserAIItem = useBrowserAIMenuItem();
   const [selectedModel, setSelectedModel] = useState<ChatModelSelection | null>(
     getStoredChatModel
@@ -426,16 +408,12 @@ function ChatSurface() {
   const handleParametersChange = (nextParameters: ChatParameters) => {
     parametersRef.current = nextParameters;
     setParameters(nextParameters);
-    storeChatParametersDebounced(nextParameters);
+    storeChatParameters(nextParameters);
   };
 
   const handleSubmit = (text: string) => {
     if (!model) {
-      // The composer is disabled without a model; if a submit slips through,
-      // put the text back rather than dropping it. PromptInput clears its
-      // value right after onSubmit, so the restore must land after that
-      // same-batch clear.
-      queueMicrotask(() => setDraft(text));
+      // Unreachable: the composer and submit are disabled without a model.
       return;
     }
     void scrollToBottom();
@@ -482,54 +460,50 @@ function ChatSurface() {
               </TooltipTrigger>
             )}
           </div>
-          <div className="chat-page__scroll-frame">
-            <div className="chat-page__scroll" ref={scrollRef}>
-              <div className="chat-page__messages" ref={contentRef}>
-                {showsEmptyState && <ChatEmptyHero model={model} />}
-                {messages.map((message, index) => {
-                  const isLast = index === messages.length - 1;
-                  if (message.role === "user") {
-                    return (
-                      <ChatUserMessage key={message.id} message={message} />
-                    );
-                  }
-                  return (
-                    <ChatAssistantMessage
-                      key={message.id}
-                      message={message}
-                      isStreaming={isLast && status === "streaming"}
-                      showActions={!isLast || hasChatSettled}
-                      pinToolbar={isLast && hasChatSettled}
-                      onRegenerate={
-                        isLast && hasChatSettled ? handleRegenerate : undefined
-                      }
-                    />
-                  );
-                })}
-                {status === "submitted" && (
-                  <div className="chat-page__thinking">
-                    <Shimmer size="S" color="text-500" fontStyle="italic">
-                      {downloadProgress != null
-                        ? `Downloading the on-device model… ${Math.round(downloadProgress * 100)}%`
-                        : "Thinking..."}
-                    </Shimmer>
-                  </div>
-                )}
-                {error != null && (
-                  <Alert
-                    variant="danger"
-                    extra={
-                      model ? (
-                        <Button size="S" onPress={handleRegenerate}>
-                          Retry
-                        </Button>
-                      ) : undefined
+          <div className="chat-page__scroll" ref={scrollRef}>
+            <div className="chat-page__messages" ref={contentRef}>
+              {showsEmptyState && <ChatEmptyHero model={model} />}
+              {messages.map((message, index) => {
+                const isLast = index === messages.length - 1;
+                if (message.role === "user") {
+                  return <ChatUserMessage key={message.id} message={message} />;
+                }
+                return (
+                  <ChatAssistantMessage
+                    key={message.id}
+                    message={message}
+                    isStreaming={isLast && status === "streaming"}
+                    showActions={!isLast || hasChatSettled}
+                    pinToolbar={isLast && hasChatSettled}
+                    onRegenerate={
+                      isLast && hasChatSettled ? handleRegenerate : undefined
                     }
-                  >
-                    {error}
-                  </Alert>
-                )}
-              </div>
+                  />
+                );
+              })}
+              {status === "submitted" && (
+                <div className="chat-page__thinking">
+                  <Shimmer size="S" color="text-500" fontStyle="italic">
+                    {downloadProgress != null
+                      ? `Downloading the on-device model… ${Math.round(downloadProgress * 100)}%`
+                      : "Thinking..."}
+                  </Shimmer>
+                </div>
+              )}
+              {error != null && (
+                <Alert
+                  variant="danger"
+                  extra={
+                    model ? (
+                      <Button size="S" onPress={handleRegenerate}>
+                        Retry
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {error}
+                </Alert>
+              )}
             </div>
           </div>
           <div className="chat-page__input">
