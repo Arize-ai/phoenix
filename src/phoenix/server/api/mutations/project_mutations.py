@@ -68,6 +68,25 @@ class ProjectMutationMixin:
                 raise ValueError(f"Unknown project: {id}")
             if project.name == DEFAULT_PROJECT_NAME:
                 raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
+            # A trigger that names a project evaluator is only ever deleted with it, so the
+            # triggers watching this project's evaluators go before the project does.
+            watching_trigger_ids = list(
+                await session.scalars(
+                    select(models.ProjectEvaluatorTriggerEvaluationPredicates.trigger_id)
+                    .join(
+                        models.ProjectEvaluatorCriteria,
+                        models.ProjectEvaluatorTriggerEvaluationPredicates.source_criteria_id
+                        == models.ProjectEvaluatorCriteria.id,
+                    )
+                    .where(models.ProjectEvaluatorCriteria.project_id == project_id)
+                )
+            )
+            if watching_trigger_ids:
+                await session.execute(
+                    delete(models.ProjectEvaluatorTrigger).where(
+                        models.ProjectEvaluatorTrigger.id.in_(watching_trigger_ids)
+                    )
+                )
             await session.delete(project)
         info.context.event_queue.put(ProjectDeleteEvent((project_id,)))
         return Query()
