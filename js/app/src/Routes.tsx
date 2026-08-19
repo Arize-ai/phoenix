@@ -719,6 +719,12 @@ export const appRouteObjects = createRoutesFromElements(
           element={<ChatPage />}
           handle={{
             crumb: () => "Chat",
+            navigation: {
+              section: "Pages",
+              label: "Chat",
+              description: "Chat directly with the configured models",
+              icon: "MessageCircle",
+            },
             agentRoute: {
               label: "Chat",
               description:

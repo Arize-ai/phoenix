@@ -24,6 +24,7 @@ const routeNavigationMetadataSchema = z
       "Grid",
       "Key",
       "Link2",
+      "MessageCircle",
       "MessageSquare",
       "Options",
       "Person",
