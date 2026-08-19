@@ -15,8 +15,7 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
     An evaluator for whether the external information retrieved during a step is
     relevant to the request it was serving.
 
-    Unlike :class:`DocumentRelevanceEvaluator`, which judges a single document
-    against a question, this evaluator is source-agnostic: the retrieved
+    This evaluator is source-agnostic: the retrieved
     information may come from a vector search, a tool or function call, an MCP
     server, a web search, or a database query. It scores the retrieved
     information as a whole (holistically, per retrieval step) against the
@@ -31,9 +30,7 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
         - Evaluates whether the retrieved information contains content that
           materially helps address the request. If any meaningful part of the
           retrieved information is relevant, the step is labeled ``relevant``.
-        - This is a retrieval-quality check, distinct from answer correctness
-          (:class:`QACorrectnessEvaluator`) and answer faithfulness
-          (:class:`FaithfulnessEvaluator`). It judges the retrieved information
+        - This is a retrieval-quality check. It judges the retrieved information
           against the request, not against any final answer.
         - ``input`` should generally be the user's request (e.g. the trace
           root's ``input.value``) rather than a reformulated tool argument or a
