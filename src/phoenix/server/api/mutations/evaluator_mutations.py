@@ -97,13 +97,13 @@ _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
 }
 
 _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
-    "session at the first quiet period after the evaluation delay: it applies the session "
-    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
-    "A filter non-match or sampling miss is permanently declined for that evaluator "
-    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
-    "but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN "
-    "target rejects. The target is fixed at creation."
+    "SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once "
+    "per evaluator configuration at the first quiet period after the evaluation delay: it "
+    "applies the session filter first, then deterministic sampling, and schedules admitted "
+    "evaluations asynchronously. Matching trigger rules and explicit requests can schedule "
+    "additional evaluations. An explicit request supersedes an earlier filter or sampling "
+    "decline. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors "
+    "the evaluation delay, which a SPAN target rejects. The target is fixed at creation."
 )
 
 
@@ -583,8 +583,10 @@ class CreateProjectLLMEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. Background evaluation runs "
+            "once per evaluator configuration; matching trigger rules and explicit requests "
+            "can schedule additional evaluations, and an explicit request supersedes an "
+            "earlier declined decision."
         ),
     )
 
@@ -612,8 +614,9 @@ class UpdateProjectLLMEvaluatorInput:
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit to preserve the current setting, or use null "
             f"to store the current default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            "seconds. Background evaluation runs once per evaluator configuration; matching "
+            "trigger rules and explicit requests can schedule additional evaluations, and an "
+            "explicit request supersedes an earlier declined decision."
         ),
     )
 
@@ -641,8 +644,10 @@ class AddProjectCodeEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. Background evaluation runs "
+            "once per evaluator configuration; matching trigger rules and explicit requests "
+            "can schedule additional evaluations, and an explicit request supersedes an "
+            "earlier declined decision."
         ),
     )
 
@@ -675,8 +680,10 @@ class CreateProjectCodeEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. Background evaluation runs "
+            "once per evaluator configuration; matching trigger rules and explicit requests "
+            "can schedule additional evaluations, and an explicit request supersedes an "
+            "earlier declined decision."
         ),
     )
 
@@ -711,8 +718,9 @@ class UpdateProjectCodeEvaluatorInput:
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit to preserve the current setting, or use null "
             f"to store the current default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            "seconds. Background evaluation runs once per evaluator configuration; matching "
+            "trigger rules and explicit requests can schedule additional evaluations, and an "
+            "explicit request supersedes an earlier declined decision."
         ),
     )
 
