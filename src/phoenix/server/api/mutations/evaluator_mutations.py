@@ -654,8 +654,8 @@ class CreateProjectCodeEvaluatorInput:
     evaluator_input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
     evaluation_target: EvaluationTarget
+    output_configs: list[AnnotationConfigInput]
     description: Optional[str] = None
-    output_configs: Optional[list[AnnotationConfigInput]] = None
     input_mapping: Optional[EvaluatorInputMappingInput] = strawberry.field(
         default=None,
         description=(
@@ -1131,14 +1131,13 @@ class EvaluatorMutationMixin:
             input.evaluation_delay_seconds, input.evaluation_target
         )
         _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
-        if input.output_configs is not None:
-            try:
-                validate_unique_config_names(input.output_configs)
-            except ValueError as error:
-                raise BadRequest(str(error))
+        try:
+            validate_unique_config_names(input.output_configs)
+        except ValueError as error:
+            raise BadRequest(str(error))
         output_configs = cast(
             list[AnnotationConfigType],
-            _convert_output_config_inputs_to_pydantic(input.output_configs or []),
+            _convert_output_config_inputs_to_pydantic(input.output_configs),
         )
 
         user_id: Optional[int] = None
