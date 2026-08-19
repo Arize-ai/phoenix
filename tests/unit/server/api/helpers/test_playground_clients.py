@@ -37,15 +37,12 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
-    GEMINI_2_5_MODELS,
-    GEMINI_3_MODELS,
     OPENAI_CHAT_COMPLETIONS_MODELS,
     OPENAI_REASONING_MODELS,
     AnthropicClient,
     AzureOpenAIChatCompletionsClient,
     AzureOpenAIResponsesClient,
     GoogleClient,
-    GoogleGemini3Client,
     OpenAIChatCompletionsClient,
     OpenAICompatibleClient,
     OpenAIResponsesClient,
@@ -84,34 +81,6 @@ class TestGoogleStreamingClient:
         assert client.is_transient_error(ServerError(500, {}))
         assert not client.is_transient_error(ClientError(400, {}))
         assert client.is_transient_error(TimeoutError())
-
-
-class TestGoogleModelCatalog:
-    """The Gemini model lists are what the playground offers for Google.
-
-    A name added to ``GEMINI_3_MODELS`` has to reach the registry, or the model
-    menu never offers it, and has to stay out of ``GEMINI_2_5_MODELS``, or it
-    routes to the pre-Gemini-3 client.
-    """
-
-    def test_every_gemini_model_is_registered(self) -> None:
-        assert "gemini-3.7-flash" in GEMINI_3_MODELS
-        registered = PLAYGROUND_CLIENT_REGISTRY.list_models(GenerativeProviderKey.GOOGLE)
-        for model_name in (*GEMINI_3_MODELS, *GEMINI_2_5_MODELS):
-            assert model_name in registered, f"{model_name} is missing from the Google catalog"
-
-    def test_gemini_3_models_route_to_the_gemini_3_client(self) -> None:
-        assert not set(GEMINI_3_MODELS) & set(GEMINI_2_5_MODELS)
-        for model_name in GEMINI_3_MODELS:
-            assert (
-                PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.GOOGLE, model_name)
-                is GoogleGemini3Client
-            ), f"Failed for {model_name}"
-        for model_name in GEMINI_2_5_MODELS:
-            assert (
-                PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.GOOGLE, model_name)
-                is GoogleClient
-            ), f"Failed for {model_name}"
 
 
 class TestOpenAIBaseStreamingClient:

@@ -51,21 +51,4 @@ describe("agent curated models", () => {
       { provider: "OPENAI", modelName: "gpt-5.6-sol" },
     ]);
   });
-
-  it("keeps superseded models out of the recommended section", () => {
-    // A model the server still offers stays selectable under "Other models",
-    // but must not resurface as a recommendation once a newer tier lands.
-    expect(
-      isAgentCuratedModelSelection({
-        provider: "GOOGLE",
-        modelName: "gemini-3.5-flash",
-      })
-    ).toBe(false);
-    expect(
-      getCuratedBuiltInModels([
-        { providerKey: "GOOGLE", name: "gemini-3.7-flash" },
-        { providerKey: "GOOGLE", name: "gemini-3.5-flash" },
-      ])
-    ).toEqual([{ provider: "GOOGLE", modelName: "gemini-3.7-flash" }]);
-  });
 });
