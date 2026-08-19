@@ -96,6 +96,7 @@ export type PxiModelPreflightData = {
 
 const RECOMMENDED_PXI_MODELS = [
   { provider: "ANTHROPIC", modelName: "claude-fable-5" },
+  { provider: "ANTHROPIC", modelName: "claude-opus-5" },
   { provider: "ANTHROPIC", modelName: "claude-opus-4-8" },
   { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
   { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
@@ -105,7 +106,6 @@ const RECOMMENDED_PXI_MODELS = [
   { provider: "OPENAI", modelName: "gpt-5.5" },
   { provider: "GOOGLE", modelName: "gemini-3.7-flash" },
   { provider: "GOOGLE", modelName: "gemini-3.1-pro-preview" },
-  { provider: "GOOGLE", modelName: "gemini-3.5-flash" },
 ] as const satisfies readonly {
   provider: BuiltInProvider;
   modelName: string;
