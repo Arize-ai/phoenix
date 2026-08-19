@@ -47,6 +47,7 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_RUNNING_WORK_UNITS,
 )
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
+from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
 from phoenix.tracers import Tracer
 
@@ -107,6 +108,7 @@ class OnlineEvalConsumer(DaemonTask):
         *,
         decrypt: Callable[[bytes], bytes],
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
+        sandbox_runtime: Optional[SandboxRuntimeContext] = None,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
         coordinator: Optional[EvalWorkCoordinator] = None,
         evaluation_target: models.EvaluationTarget = "SPAN",
@@ -130,6 +132,7 @@ class OnlineEvalConsumer(DaemonTask):
             coordinator=self._coordinator,
             decrypt=decrypt,
             sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
             event_queue=event_queue,
             execution_deadline_seconds=execution_deadline_seconds,
             db_semaphore=db_semaphore,
