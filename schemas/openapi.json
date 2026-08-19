@@ -9468,7 +9468,7 @@
           "chat"
         ],
         "summary": "Submit Agent Session Tool Approvals",
-        "description": "Persist answered tool approvals for the session's open turn.\n\nRecording an answer never runs the tool: approved calls run when the\nturn is continued on the chat route.",
+        "description": "Persist answered tool approvals for the session's open turn.",
         "operationId": "submitAgentSessionToolApprovals",
         "parameters": [
           {

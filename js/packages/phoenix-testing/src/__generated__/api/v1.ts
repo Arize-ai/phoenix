@@ -1807,9 +1807,6 @@ export interface paths {
         /**
          * Submit Agent Session Tool Approvals
          * @description Persist answered tool approvals for the session's open turn.
-         *
-         *     Recording an answer never runs the tool: approved calls run when the
-         *     turn is continued on the chat route.
          */
         post: operations["submitAgentSessionToolApprovals"];
         delete?: never;
