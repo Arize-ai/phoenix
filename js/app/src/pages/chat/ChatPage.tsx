@@ -111,11 +111,17 @@ const chatPageCSS = css`
     min-height: 0;
   }
 
-  .chat-page__toolbar {
-    position: absolute;
-    top: var(--global-dimension-size-100);
-    right: var(--global-dimension-size-200);
-    z-index: 3;
+  /* A slim header bar (like the PXI chat panel's) reserving the top-right
+     corner for conversation actions; always rendered so the layout doesn't
+     jump when the first message makes the New Chat button appear. */
+  .chat-page__header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: var(--global-dimension-size-450);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+    box-sizing: border-box;
   }
 
   .chat-page__scroll-frame {
@@ -219,7 +225,7 @@ const chatPageCSS = css`
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     column-gap: var(--global-dimension-size-100);
-    padding-top: var(--global-dimension-size-50);
+    padding: var(--global-dimension-size-100) 0;
   }
 
   .chat-page__input {
@@ -346,8 +352,11 @@ function getDefaultModel({
 }
 
 function ChatSurface() {
+  // Chat sends through the server's chat-completions proxy, which
+  // authenticates with server-side credentials only — browser-local keys
+  // must not make a provider look usable here (unlike the playground).
   const { availableBuiltinModels, availableCustomModels, visibleProviders } =
-    useModelMenuData();
+    useModelMenuData({ credentialSource: "server" });
   const browserAIItem = useBrowserAIMenuItem();
   const [selectedModel, setSelectedModel] = useState<ChatModelSelection | null>(
     getStoredChatModel
@@ -444,16 +453,6 @@ function ChatSurface() {
       css={chatPageCSS}
       className={showsEmptyState ? "chat-page chat-page--empty" : "chat-page"}
     >
-      {!showsEmptyState && (
-        <div className="chat-page__toolbar">
-          <TooltipTrigger>
-            <IconButton size="S" aria-label="New chat" onPress={clear}>
-              <Icon svg={<Icons.MessageCirclePlus />} />
-            </IconButton>
-            <Tooltip>New chat</Tooltip>
-          </TooltipTrigger>
-        </div>
-      )}
       <Group
         id="chat-page-panels"
         orientation="horizontal"
@@ -473,6 +472,16 @@ function ChatSurface() {
         </Panel>
         <Separator css={compactResizeHandleCSS} />
         <Panel id="chat-conversation" className="chat-page__conversation">
+          <div className="chat-page__header">
+            {!showsEmptyState && (
+              <TooltipTrigger>
+                <IconButton size="S" aria-label="New chat" onPress={clear}>
+                  <Icon svg={<Icons.MessageCirclePlus />} />
+                </IconButton>
+                <Tooltip>New chat</Tooltip>
+              </TooltipTrigger>
+            )}
+          </div>
           <div className="chat-page__scroll-frame">
             <div className="chat-page__scroll" ref={scrollRef}>
               <div className="chat-page__messages" ref={contentRef}>
@@ -552,6 +561,7 @@ function ChatSurface() {
                     placement="top start"
                     shouldFlip
                     variant="quiet"
+                    credentialSource="server"
                     leadingItems={browserAIItem ? [browserAIItem] : undefined}
                     selectedLeadingItemId={
                       model?.kind === "browser"

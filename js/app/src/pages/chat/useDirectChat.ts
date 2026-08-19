@@ -1,6 +1,6 @@
 import type { ChatStatus, ModelMessage } from "ai";
 import { streamText } from "ai";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   downloadBrowserModel,
@@ -103,6 +103,16 @@ export function useDirectChat() {
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // The conversation dies with this hook — nothing persists it — so an
+  // in-flight completion left streaming after the user navigates away would
+  // only burn provider tokens into a discarded page. Abort it on unmount.
+  useEffect(() => {
+    const controllers = abortControllerRef;
+    return () => {
+      controllers.current?.abort();
+    };
+  }, []);
+
   const run = async (
     history: DirectChatMessage[],
     selection: ChatModelSelection,
@@ -202,7 +212,11 @@ export function useDirectChat() {
       if (streamError != null) {
         throw streamError;
       }
-      if (!controller.signal.aborted) {
+      // Browser AI is excluded: the Prompt API reports no real token counts,
+      // so the adapter's synthesized numbers (notably completion tokens on
+      // Gemini Nano) are estimates that can be badly wrong. Only accumulate
+      // usage the provider actually measured.
+      if (!controller.signal.aborted && selection.kind !== "browser") {
         // The stream ended normally, so the usage promise has settled. Not
         // every provider reports usage — skip the turn when it doesn't.
         try {
