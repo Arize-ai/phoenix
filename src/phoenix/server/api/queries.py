@@ -91,7 +91,6 @@ from phoenix.server.api.types.Evaluator import (
     CodeEvaluator,
     DatasetEvaluator,
     Evaluator,
-    EvaluatorKind,
     LLMEvaluator,
     ProjectEvaluator,
 )
@@ -208,7 +207,6 @@ def _to_gql_classification_evaluator_config(
             EvaluatorInputDescriptor(
                 name=input_name,
                 description=input_descriptor.description,
-                format=input_descriptor.format,
             )
             for input_name, input_descriptor in config.inputs.items()
         ]
@@ -225,7 +223,6 @@ def _to_gql_classification_evaluator_config(
         scope=EvaluatorScope(config.scope.value) if config.scope else None,
         recommended=config.recommended,
         category=EvaluatorCategory(config.category.value) if config.category else None,
-        kind=EvaluatorKind(config.kind.value),
         details=config.details,
         inputs=inputs,
     )

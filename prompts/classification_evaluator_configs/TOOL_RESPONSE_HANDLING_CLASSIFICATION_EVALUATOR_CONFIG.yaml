@@ -79,7 +79,6 @@ choices:
 scope: trace # todo confirm if this is the right scope
 recommended: false
 category: agents
-kind: LLM
 details: >-
   Determines whether an AI agent correctly processed a tool's result to produce
   an appropriate output. It focuses on what happens after a tool call by checking

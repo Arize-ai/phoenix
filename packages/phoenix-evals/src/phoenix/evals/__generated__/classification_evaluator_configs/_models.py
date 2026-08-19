@@ -28,14 +28,8 @@ class EvaluatorCategory(str, Enum):
     USER_EXPERIENCE = "user_experience"
 
 
-class EvaluatorKind(str, Enum):
-    LLM = "LLM"
-    CODE = "CODE"
-
-
 class EvaluatorInput(BaseModel):
     description: str
-    format: Optional[str] = None
 
     @field_validator("description")
     @classmethod
@@ -56,7 +50,6 @@ class ClassificationEvaluatorConfig(BaseModel):
     scope: Optional[EvaluatorScope] = None
     recommended: bool = False
     category: Optional[EvaluatorCategory] = None
-    kind: EvaluatorKind = EvaluatorKind.LLM
     details: Optional[str] = None
     inputs: Optional[dict[str, EvaluatorInput]] = None
 

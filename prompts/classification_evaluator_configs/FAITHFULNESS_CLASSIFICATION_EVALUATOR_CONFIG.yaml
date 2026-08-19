@@ -40,7 +40,6 @@ choices:
 scope: span
 recommended: false
 category: grounding_and_retrieval
-kind: LLM
 details: >-
   Determines whether an LLM's response is grounded in and faithful to the
   provided context. It detects information that is unsupported by or contradicts

@@ -5,7 +5,6 @@ import strawberry
 from strawberry.scalars import JSON
 
 from phoenix.db.types.annotation_configs import OptimizationDirection
-from phoenix.server.api.types.Evaluator import EvaluatorKind
 from phoenix.server.api.types.PromptVersionTemplate import PromptMessage
 
 
@@ -31,7 +30,6 @@ class EvaluatorCategory(Enum):
 class EvaluatorInputDescriptor:
     name: str
     description: str
-    format: Optional[str] = None
 
 
 @strawberry.type
@@ -45,6 +43,5 @@ class ClassificationEvaluatorConfig:
     scope: Optional[EvaluatorScope]
     recommended: bool
     category: Optional[EvaluatorCategory]
-    kind: EvaluatorKind
     details: Optional[str]
     inputs: Optional[list[EvaluatorInputDescriptor]]

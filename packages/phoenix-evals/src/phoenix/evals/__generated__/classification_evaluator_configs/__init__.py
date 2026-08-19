@@ -19,7 +19,6 @@ from ._models import (
     ClassificationEvaluatorConfig,
     EvaluatorCategory,
     EvaluatorInput,
-    EvaluatorKind,
     EvaluatorScope,
     PromptMessage,
 )
@@ -45,7 +44,6 @@ __all__ = [
     "ClassificationEvaluatorConfig",
     "EvaluatorCategory",
     "EvaluatorInput",
-    "EvaluatorKind",
     "EvaluatorScope",
     "PromptMessage",
     "CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG",

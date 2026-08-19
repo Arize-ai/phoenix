@@ -702,7 +702,6 @@ type ClassificationEvaluatorConfig {
   scope: EvaluatorScope
   recommended: Boolean!
   category: EvaluatorCategory
-  kind: EvaluatorKind!
   details: String
   inputs: [EvaluatorInput!]
 }
@@ -1897,7 +1896,6 @@ enum EvaluatorFilterColumn {
 type EvaluatorInput {
   name: String!
   description: String!
-  format: String
 }
 
 type EvaluatorInputMapping {

@@ -27,12 +27,10 @@ EvaluatorCategory = Literal[
     "safety_and_security",
     "user_experience",
 ]
-EvaluatorKind = Literal["LLM", "CODE"]
 
 
 class EvaluatorInput(BaseModel):
     description: str
-    format: Optional[str] = None
 
     @field_validator("description")
     @classmethod
@@ -53,7 +51,6 @@ class ClassificationEvaluatorConfig(BaseModel):
     scope: Optional[EvaluatorScope] = None
     recommended: bool = False
     category: Optional[EvaluatorCategory] = None
-    kind: EvaluatorKind = "LLM"
     details: Optional[str] = None
     inputs: Optional[dict[str, EvaluatorInput]] = None
 
@@ -199,7 +196,7 @@ if __name__ == "__main__":
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Compile all YAML prompts to TypeScript
-    yaml_files = list(prompts_dir.glob("*.yaml"))
+    yaml_files = list(prompts_dir.glob("*_CLASSIFICATION_EVALUATOR_CONFIG.yaml"))
     config_names = []
 
     for yaml_file in sorted(yaml_files):

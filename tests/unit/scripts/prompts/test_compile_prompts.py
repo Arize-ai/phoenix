@@ -35,10 +35,9 @@ def test_gallery_metadata_contract(compiler_module: ModuleType) -> None:
             scope="trace",
             recommended=True,
             category="response_quality",
-            kind="CODE",
             details="Detailed guidance.",
             substitutions={"unused_placeholder": "available_tools_list"},
-            inputs={"input": {"description": "The user request.", "format": "text"}},
+            inputs={"input": {"description": "The user request."}},
         )
     )
 
@@ -47,10 +46,9 @@ def test_gallery_metadata_contract(compiler_module: ModuleType) -> None:
         "scope": "trace",
         "recommended": True,
         "category": "response_quality",
-        "kind": "CODE",
         "details": "Detailed guidance.",
         "substitutions": {"unused_placeholder": "available_tools_list"},
-        "inputs": {"input": {"description": "The user request.", "format": "text"}},
+        "inputs": {"input": {"description": "The user request."}},
     }
 
 
@@ -90,9 +88,8 @@ def test_python_generator_emits_gallery_metadata() -> None:
             scope="span",
             recommended=True,
             category="response_quality",
-            kind="CODE",
             details="Detailed guidance.",
-            inputs={"input": {"description": "Input", "format": "text"}},
+            inputs={"input": {"description": "Input"}},
         )
     )
 
@@ -101,6 +98,5 @@ def test_python_generator_emits_gallery_metadata() -> None:
     assert "scope=EvaluatorScope.SPAN" in source
     assert "recommended=True" in source
     assert "category=EvaluatorCategory.RESPONSE_QUALITY" in source
-    assert "kind=EvaluatorKind.CODE" in source
     assert "details='Detailed guidance.'" in source
-    assert "inputs={'input': EvaluatorInput(description='Input', format='text')}" in source
+    assert "inputs={'input': EvaluatorInput(description='Input')}" in source

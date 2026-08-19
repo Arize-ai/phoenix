@@ -77,7 +77,6 @@ substitutions:
 scope: span
 recommended: false
 category: agents
-kind: LLM
 details: >-
   Determines whether an LLM invoked a tool correctly with proper arguments,
   formatting, and safe content. It focuses on how the tool was called rather

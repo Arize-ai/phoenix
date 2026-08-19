@@ -51,7 +51,6 @@ choices:
 scope: span
 recommended: false
 category: response_quality
-kind: LLM
 details: >-
   A broad, general purpose metric to determine whether an LLM's response is factually accurate, complete, and
   logically consistent. It evaluates answer quality without requiring external

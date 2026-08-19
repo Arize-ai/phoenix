@@ -56,9 +56,8 @@ async def test_evaluator_gallery_configs_contract(
             "scope": "trace",
             "recommended": True,
             "category": "response_quality",
-            "kind": "LLM",
             "details": "Detailed guidance.",
-            "inputs": {"input": {"description": "The user request.", "format": "text"}},
+            "inputs": {"input": {"description": "The user request."}},
         }
     )
     monkeypatch.setattr(queries, "get_evaluator_gallery_configs", lambda: [config])
@@ -67,8 +66,8 @@ async def test_evaluator_gallery_configs_contract(
         query="""
           query {
             evaluatorGalleryConfigs {
-              name scope recommended category kind details
-              inputs { name description format }
+              name scope recommended category details
+              inputs { name description }
             }
           }
         """
@@ -81,9 +80,8 @@ async def test_evaluator_gallery_configs_contract(
                 "scope": "TRACE",
                 "recommended": True,
                 "category": "RESPONSE_QUALITY",
-                "kind": "LLM",
                 "details": "Detailed guidance.",
-                "inputs": [{"name": "input", "description": "The user request.", "format": "text"}],
+                "inputs": [{"name": "input", "description": "The user request."}],
             }
         ]
     }

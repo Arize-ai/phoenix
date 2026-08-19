@@ -60,7 +60,6 @@ substitutions:
 scope: span
 recommended: false
 category: agents
-kind: LLM
 details: >-
   Determines whether an LLM selected the most appropriate tool or tools for a
   given task. It focuses on what tool was chosen rather than whether the invocation

@@ -34,7 +34,6 @@ choices:
 scope: span
 recommended: false
 category: grounding_and_retrieval
-kind: LLM
 details: >-
   Determines whether a retrieved document contains information relevant to
   answering the input query. This is essential for evaluating RAG systems,

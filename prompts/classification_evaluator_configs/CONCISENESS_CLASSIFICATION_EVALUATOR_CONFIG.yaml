@@ -53,7 +53,6 @@ substitutions:
 scope: span
 recommended: false
 category: response_quality
-kind: LLM
 details: >-
   Assesses whether an LLM's response uses the minimum number of words necessary
   to fully answer the question. It detects unnecessary pleasantries, hedging

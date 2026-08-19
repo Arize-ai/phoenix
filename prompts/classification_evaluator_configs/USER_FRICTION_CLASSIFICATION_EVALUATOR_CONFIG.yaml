@@ -53,7 +53,6 @@ choices:
 scope: trace
 recommended: false
 category: user_experience
-kind: LLM
 details: >-
   Classifies whether the latest user message expresses friction with an assistant's
   preceding behavior. It detects corrections, retries after an unsuccessful response,

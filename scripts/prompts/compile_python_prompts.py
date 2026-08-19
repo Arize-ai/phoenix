@@ -35,14 +35,8 @@ class EvaluatorCategory(str, Enum):
     USER_EXPERIENCE = "user_experience"
 
 
-class EvaluatorKind(str, Enum):
-    LLM = "LLM"
-    CODE = "CODE"
-
-
 class EvaluatorInput(BaseModel):
     description: str
-    format: Optional[str] = None
 
     @field_validator("description")
     @classmethod
@@ -64,7 +58,6 @@ class ClassificationEvaluatorConfig(BaseModel):
     scope: Optional[EvaluatorScope] = None
     recommended: bool = False
     category: Optional[EvaluatorCategory] = None
-    kind: EvaluatorKind = EvaluatorKind.LLM
     details: Optional[str] = None
     inputs: Optional[dict[str, EvaluatorInput]] = None
 
@@ -126,8 +119,6 @@ from pydantic import field_validator, model_validator
 
 {{ evaluator_category_source }}
 
-{{ evaluator_kind_source }}
-
 {{ evaluator_input_source }}
 
 {{ classification_evaluator_config_source }}
@@ -155,7 +146,6 @@ from ._models import (
     ClassificationEvaluatorConfig,
     EvaluatorCategory,
     EvaluatorInput,
-    EvaluatorKind,
     EvaluatorScope,
     PromptMessage,
 )
@@ -167,7 +157,6 @@ __all__ = [
     "ClassificationEvaluatorConfig",
     "EvaluatorCategory",
     "EvaluatorInput",
-    "EvaluatorKind",
     "EvaluatorScope",
     "PromptMessage",
     {{ prompt_names|map('tojson')|join(', ') }}
@@ -183,7 +172,6 @@ def get_models_file_contents() -> str:
     prompt_message_source = inspect.getsource(PromptMessage).strip()
     evaluator_scope_source = inspect.getsource(EvaluatorScope).strip()
     evaluator_category_source = inspect.getsource(EvaluatorCategory).strip()
-    evaluator_kind_source = inspect.getsource(EvaluatorKind).strip()
     evaluator_input_source = inspect.getsource(EvaluatorInput).strip()
     classification_evaluator_config_source = inspect.getsource(
         ClassificationEvaluatorConfig
@@ -193,7 +181,6 @@ def get_models_file_contents() -> str:
         prompt_message_source=prompt_message_source,
         evaluator_scope_source=evaluator_scope_source,
         evaluator_category_source=evaluator_category_source,
-        evaluator_kind_source=evaluator_kind_source,
         evaluator_input_source=evaluator_input_source,
         classification_evaluator_config_source=classification_evaluator_config_source,
         get_template_variables_source=get_template_variables_source,
@@ -225,20 +212,14 @@ def get_prompt_file_contents(config: ClassificationEvaluatorConfig, name: str) -
     if config.category is not None:
         model_imports.add("EvaluatorCategory")
         arguments.append(f"category=EvaluatorCategory.{config.category.name}")
-    if config.kind != EvaluatorKind.LLM:
-        model_imports.add("EvaluatorKind")
-        arguments.append(f"kind=EvaluatorKind.{config.kind.name}")
     if config.details is not None:
         arguments.append(f"details={config.details!r}")
     if config.inputs is not None:
         model_imports.add("EvaluatorInput")
         input_definitions = []
         for input_name, evaluator_input in config.inputs.items():
-            input_arguments = [f"description={evaluator_input.description!r}"]
-            if evaluator_input.format is not None:
-                input_arguments.append(f"format={evaluator_input.format!r}")
             input_definitions.append(
-                f"{input_name!r}: EvaluatorInput({', '.join(input_arguments)})"
+                f"{input_name!r}: EvaluatorInput(description={evaluator_input.description!r})"
             )
         arguments.append(f"inputs={{{', '.join(input_definitions)}}}")
     config_definition = f"ClassificationEvaluatorConfig({', '.join(arguments)})"
@@ -281,7 +262,7 @@ if __name__ == "__main__":
     models_path.write_text(models_content, encoding="utf-8")
 
     # Compile all YAML prompts to Python
-    yaml_files = list(prompts_dir.glob("*.yaml"))
+    yaml_files = list(prompts_dir.glob("*_CLASSIFICATION_EVALUATOR_CONFIG.yaml"))
     prompt_names = []
 
     for yaml_file in sorted(yaml_files):

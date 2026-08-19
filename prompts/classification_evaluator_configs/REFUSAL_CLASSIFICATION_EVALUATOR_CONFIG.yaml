@@ -52,7 +52,6 @@ choices:
 scope: span
 recommended: false
 category: user_experience
-kind: LLM
 details: >-
   Detects when an LLM refuses, declines, or avoids answering a user query. It
   captures explicit refusals, scope disclaimers, lack-of-information responses,
