@@ -72,6 +72,7 @@ from phoenix.server.api.types.Evaluator import (
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectEvaluatorTrigger import (
+    ANNOTATION_TARGET_DESCRIPTION,
     AnnotationChange,
     AnnotationTarget,
     EvaluatorEventKind,
@@ -2666,7 +2667,10 @@ class ProjectEvaluatorTriggerAnnotationPredicatesInput:
     score_above: Optional[float] = UNSET
     annotator_kind: Optional[AnnotatorKind] = UNSET
     annotation_change: Optional[AnnotationChange] = UNSET
-    annotation_target: Optional[AnnotationTarget] = UNSET
+    annotation_target: Optional[AnnotationTarget] = strawberry.field(
+        default=UNSET,
+        description=ANNOTATION_TARGET_DESCRIPTION,
+    )
     matches_evaluator_annotations: Optional[bool] = strawberry.field(
         default=UNSET,
         description=(

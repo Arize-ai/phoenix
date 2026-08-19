@@ -106,7 +106,8 @@ def _matches_result(
 def _matches_annotation(payload: dict[str, Any], rule: AnnotationTriggerRule) -> bool:
     producer_criteria_id = payload.get("criteria_id")
     if producer_criteria_id is not None:
-        # Self-refusal blocks direct feedback; the identity brake is its indirect-cycle twin.
+        # Self-refusal blocks direct feedback; session_sweeper's eligibility-identity
+        # check and insert re-check are its indirect-cycle twin.
         if producer_criteria_id == rule.criteria_id:
             return False
         if not rule.matches_evaluator_annotations:
@@ -132,7 +133,8 @@ def _matches_annotation(payload: dict[str, Any], rule: AnnotationTriggerRule) ->
 
 
 def _matches_evaluation(payload: dict[str, Any], rule: EvaluationTriggerRule) -> bool:
-    # Self-refusal blocks direct feedback; the identity brake is its indirect-cycle twin.
+    # Self-refusal blocks direct feedback; session_sweeper's eligibility-identity check
+    # and insert re-check are its indirect-cycle twin.
     if payload.get("criteria_id") == rule.criteria_id:
         return False
     if not _matches_result(

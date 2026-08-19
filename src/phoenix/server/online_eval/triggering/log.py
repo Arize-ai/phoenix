@@ -62,6 +62,8 @@ class AnnotationUpserted:
         return {
             "annotation_target": self.annotation_target,
             "annotation_id": self.annotation_id,
+            # The annotated entity's rowid; DrainedEvent.target_rowid is the routed
+            # evaluation target's rowid and can therefore name the containing session.
             "target_rowid": self.target_rowid,
             "change": self.change,
             "updated_at": self.updated_at.isoformat(),

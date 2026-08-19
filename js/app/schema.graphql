@@ -3586,7 +3586,9 @@ type ProjectEvaluatorTriggerAnnotationPredicates {
   """Match only new or only replaced annotations."""
   annotationChange: AnnotationChange
 
-  """Match only annotations attached to this kind of entity."""
+  """
+  Match only annotations attached to this kind of entity. Annotations on spans or traces outside any session cannot match SESSION evaluators.
+  """
   annotationTarget: AnnotationTarget
 
   """
@@ -3605,6 +3607,10 @@ input ProjectEvaluatorTriggerAnnotationPredicatesInput {
   scoreAbove: Float
   annotatorKind: AnnotatorKind
   annotationChange: AnnotationChange
+
+  """
+  Match only annotations attached to this kind of entity. Annotations on spans or traces outside any session cannot match SESSION evaluators.
+  """
   annotationTarget: AnnotationTarget
 
   """

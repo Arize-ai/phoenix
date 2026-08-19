@@ -38,6 +38,11 @@ _MATCHES_EVALUATOR_ANNOTATIONS_DESCRIPTION = (
     "by people or through the API. A project evaluator never matches its own annotations."
 )
 
+ANNOTATION_TARGET_DESCRIPTION = (
+    "Match only annotations attached to this kind of entity. Annotations on spans or "
+    "traces outside any session cannot match SESSION evaluators."
+)
+
 
 @strawberry.type(
     description=(
@@ -63,7 +68,7 @@ class ProjectEvaluatorTriggerAnnotationPredicates:
         description="Match only new or only replaced annotations."
     )
     annotation_target: Optional[AnnotationTarget] = strawberry.field(
-        description="Match only annotations attached to this kind of entity."
+        description=ANNOTATION_TARGET_DESCRIPTION
     )
     matches_evaluator_annotations: bool = strawberry.field(
         description=_MATCHES_EVALUATOR_ANNOTATIONS_DESCRIPTION
