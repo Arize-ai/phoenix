@@ -60,13 +60,14 @@ if TYPE_CHECKING:
     from .User import User
 
 _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
-    "session at the first quiet period after the evaluation delay: it applies the session "
-    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
-    "A filter non-match or sampling miss is permanently declined for that evaluator "
-    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
-    "but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. "
-    "The target can change only until evaluation work exists for the project evaluator."
+    "SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once "
+    "per evaluator configuration at the first quiet period after the evaluation delay: it "
+    "applies the session filter first, then deterministic sampling, and schedules admitted "
+    "evaluations asynchronously. Matching trigger rules and explicit requests can schedule "
+    "additional evaluations. An explicit request supersedes an earlier filter or sampling "
+    "decline. TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the "
+    "evaluation delay without using it. The target can change only until evaluation work "
+    "exists for the project evaluator."
 )
 
 
@@ -1349,9 +1350,11 @@ class ProjectEvaluator(Node):
             "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
             f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New criteria store the current "
             f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds when no value is "
-            "provided. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator "
-            "cannot set one, and TRACE evaluators are not scheduled."
+            "provided. Background evaluation runs once per evaluator configuration; matching "
+            "trigger rules and explicit requests can schedule additional evaluations, and an "
+            "explicit request supersedes an earlier declined decision. Only SESSION scheduling "
+            "honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not "
+            "scheduled."
         )
     )
     async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:
