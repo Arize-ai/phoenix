@@ -42,7 +42,7 @@ export function ProjectEvaluatorsEmptyState() {
               {
                 kind: "button",
                 variant: "primary",
-                children: "Browse evaluator gallery",
+                children: "Browse the whole library",
                 onPress: () => navigate(paths.gallery),
               },
             ],
