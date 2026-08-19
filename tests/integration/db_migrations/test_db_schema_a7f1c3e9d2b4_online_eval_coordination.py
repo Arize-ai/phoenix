@@ -376,42 +376,42 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
         )
 
 
-class TestEvaluatorSignals(_OnlineEvalSchemaTest):
-    table_name = "evaluator_signals"
+class TestEvaluatorEvents(_OnlineEvalSchemaTest):
+    table_name = "evaluator_events"
 
     @override
     @classmethod
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
-            "ix_evaluator_signals_undrained",
-            "ix_evaluator_signals_project_id",
-            "ix_evaluator_signals_span_rowid",
-            "ix_evaluator_signals_trace_rowid",
-            "ix_evaluator_signals_project_session_rowid",
+            "ix_evaluator_events_undrained",
+            "ix_evaluator_events_project_id",
+            "ix_evaluator_events_span_rowid",
+            "ix_evaluator_events_trace_rowid",
+            "ix_evaluator_events_project_session_rowid",
         }
         constraint_names = {
-            "pk_evaluator_signals",
-            "uq_evaluator_signals_kind_dedup_key",
-            "fk_evaluator_signals_project_id_projects",
-            "fk_evaluator_signals_span_rowid_spans",
-            "fk_evaluator_signals_trace_rowid_traces",
+            "pk_evaluator_events",
+            "uq_evaluator_events_kind_occurrence_key",
+            "fk_evaluator_events_project_id_projects",
+            "fk_evaluator_events_span_rowid_spans",
+            "fk_evaluator_events_trace_rowid_traces",
             _constraint_name(
-                "fk_evaluator_signals_project_session_rowid_project_sessions",
+                "fk_evaluator_events_project_session_rowid_project_sessions",
                 db_backend,
             ),
-            "ck_evaluator_signals_`valid_signal_kind`",
-            "ck_evaluator_signals_`valid_evaluation_target`",
-            "ck_evaluator_signals_`valid_target_key`",
+            "ck_evaluator_events_`valid_event_kind`",
+            "ck_evaluator_events_`valid_evaluation_target`",
+            "ck_evaluator_events_`valid_target_key`",
         }
         if db_backend == "postgresql":
             index_names.update(
                 {
-                    "pk_evaluator_signals",
-                    "uq_evaluator_signals_kind_dedup_key",
+                    "pk_evaluator_events",
+                    "uq_evaluator_events_kind_occurrence_key",
                 }
             )
         elif db_backend == "sqlite":
-            index_names.add("sqlite_autoindex_evaluator_signals_1")
+            index_names.add("sqlite_autoindex_evaluator_events_1")
         else:
             assert_never(db_backend)
         return _TableSchemaInfo(
@@ -420,7 +420,7 @@ class TestEvaluatorSignals(_OnlineEvalSchemaTest):
                 {
                     "id",
                     "kind",
-                    "dedup_key",
+                    "occurrence_key",
                     "project_id",
                     "evaluation_target",
                     "span_rowid",
@@ -455,18 +455,18 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
         index_names = {"ix_project_evaluator_triggers_criteria_id"}
         constraint_names = {
             "pk_project_evaluator_triggers",
-            "uq_project_evaluator_triggers_id_signal_kind",
+            "uq_project_evaluator_triggers_id_event_kind",
             _constraint_name(
                 "fk_project_evaluator_triggers_criteria_id_project_evaluator_criteria",
                 db_backend,
             ),
-            "ck_project_evaluator_triggers_`valid_signal_kind`",
+            "ck_project_evaluator_triggers_`valid_event_kind`",
         }
         if db_backend == "postgresql":
             index_names.update(
                 {
                     "pk_project_evaluator_triggers",
-                    "uq_project_evaluator_triggers_id_signal_kind",
+                    "uq_project_evaluator_triggers_id_event_kind",
                 }
             )
         elif db_backend == "sqlite":
@@ -479,7 +479,7 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
                 {
                     "id",
                     "criteria_id",
-                    "signal_kind",
+                    "event_kind",
                     "created_at",
                     "updated_at",
                 }
@@ -506,7 +506,7 @@ class TestProjectEvaluatorTriggerAnnotationPredicates(_OnlineEvalSchemaTest):
                 db_backend,
             ),
             _constraint_name(
-                "ck_project_evaluator_trigger_annotation_predicates_`valid_signal_kind`",
+                "ck_project_evaluator_trigger_annotation_predicates_`valid_event_kind`",
                 db_backend,
             ),
             _constraint_name(
@@ -539,7 +539,7 @@ class TestProjectEvaluatorTriggerAnnotationPredicates(_OnlineEvalSchemaTest):
                 {
                     "id",
                     "trigger_id",
-                    "signal_kind",
+                    "event_kind",
                     "name",
                     "label",
                     "score_below",
@@ -555,7 +555,7 @@ class TestProjectEvaluatorTriggerAnnotationPredicates(_OnlineEvalSchemaTest):
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
             # Every predicate column is nullable: NULL means unconstrained, so a trigger
-            # whose predicate row is all NULL fires on every signal of its kind.
+            # whose predicate row is all NULL fires on every event of its kind.
             nullable_column_names=frozenset(
                 {
                     "name",
@@ -591,7 +591,7 @@ class TestProjectEvaluatorTriggerEvaluationPredicates(_OnlineEvalSchemaTest):
                 db_backend,
             ),
             _constraint_name(
-                "ck_project_evaluator_trigger_evaluation_predicates_`valid_signal_kind`",
+                "ck_project_evaluator_trigger_evaluation_predicates_`valid_event_kind`",
                 db_backend,
             ),
         }
@@ -612,7 +612,7 @@ class TestProjectEvaluatorTriggerEvaluationPredicates(_OnlineEvalSchemaTest):
                 {
                     "id",
                     "trigger_id",
-                    "signal_kind",
+                    "event_kind",
                     "name",
                     "label",
                     "score_below",
@@ -811,7 +811,7 @@ async def test_project_session_liveness_schema(
 
 
 class _Seed(NamedTuple):
-    """Rows the constraint tests below route signals to and hang triggers off."""
+    """Rows the constraint tests below route events to and hang triggers off."""
 
     project_id: int
     project_session_rowid: int
@@ -934,17 +934,17 @@ def _seed_rows(conn: Connection) -> _Seed:
     )
 
 
-_INSERT_SIGNAL = sa.text(
-    "INSERT INTO evaluator_signals"
-    " (kind, dedup_key, project_id, evaluation_target,"
+_INSERT_EVENT = sa.text(
+    "INSERT INTO evaluator_events"
+    " (kind, occurrence_key, project_id, evaluation_target,"
     " span_rowid, trace_rowid, project_session_rowid, payload)"
-    " VALUES ('annotation_upserted', :dedup_key, :project_id, :evaluation_target,"
+    " VALUES ('annotation_upserted', :occurrence_key, :project_id, :evaluation_target,"
     " :span_rowid, :trace_rowid, :project_session_rowid, '{}')"
     " RETURNING id"
 )
 
 
-def _signal_insert(
+def _event_insert(
     project_id: int,
     evaluation_target: str,
     *,
@@ -955,9 +955,9 @@ def _signal_insert(
     def _insert(conn: Connection) -> int:
         return _scalar_id(
             conn,
-            _INSERT_SIGNAL,
+            _INSERT_EVENT,
             {
-                "dedup_key": token_hex(8),
+                "occurrence_key": token_hex(8),
                 "project_id": project_id,
                 "evaluation_target": evaluation_target,
                 "span_rowid": span_rowid,
@@ -969,28 +969,26 @@ def _signal_insert(
     return _insert
 
 
-def _predicates_insert(
-    table: str, trigger_id: int, signal_kind: str
-) -> Callable[[Connection], int]:
+def _predicates_insert(table: str, trigger_id: int, event_kind: str) -> Callable[[Connection], int]:
     statement = sa.text(
-        f"INSERT INTO {table} (trigger_id, signal_kind)"  # noqa: S608
-        " VALUES (:trigger_id, :signal_kind) RETURNING id"
+        f"INSERT INTO {table} (trigger_id, event_kind)"  # noqa: S608
+        " VALUES (:trigger_id, :event_kind) RETURNING id"
     )
 
     def _insert(conn: Connection) -> int:
-        return _scalar_id(conn, statement, {"trigger_id": trigger_id, "signal_kind": signal_kind})
+        return _scalar_id(conn, statement, {"trigger_id": trigger_id, "event_kind": event_kind})
 
     return _insert
 
 
-def _insert_trigger(conn: Connection, criteria_id: int, signal_kind: str) -> int:
+def _insert_trigger(conn: Connection, criteria_id: int, event_kind: str) -> int:
     return _scalar_id(
         conn,
         sa.text(
-            "INSERT INTO project_evaluator_triggers (criteria_id, signal_kind)"
-            " VALUES (:criteria_id, :signal_kind) RETURNING id"
+            "INSERT INTO project_evaluator_triggers (criteria_id, event_kind)"
+            " VALUES (:criteria_id, :event_kind) RETURNING id"
         ),
-        {"criteria_id": criteria_id, "signal_kind": signal_kind},
+        {"criteria_id": criteria_id, "event_kind": event_kind},
     )
 
 
@@ -1010,7 +1008,7 @@ def _count(conn: Connection, table: str, row_id: int) -> int:
     return count
 
 
-async def test_evaluator_signal_routes_to_exactly_one_target(
+async def test_evaluator_event_routes_to_exactly_one_target(
     _engine: AsyncEngine,
     _alembic_config: Config,
     _db_backend: _DBBackend,
@@ -1023,11 +1021,11 @@ async def test_evaluator_signal_routes_to_exactly_one_target(
     accepted = {
         target: await _run_with_foreign_keys(_engine, _db_backend, insert)
         for target, insert in (
-            ("SPAN", _signal_insert(seed.project_id, "SPAN", span_rowid=seed.span_rowid)),
-            ("TRACE", _signal_insert(seed.project_id, "TRACE", trace_rowid=seed.trace_rowid)),
+            ("SPAN", _event_insert(seed.project_id, "SPAN", span_rowid=seed.span_rowid)),
+            ("TRACE", _event_insert(seed.project_id, "TRACE", trace_rowid=seed.trace_rowid)),
             (
                 "SESSION",
-                _signal_insert(
+                _event_insert(
                     seed.project_id,
                     "SESSION",
                     project_session_rowid=seed.project_session_rowid,
@@ -1038,13 +1036,13 @@ async def test_evaluator_signal_routes_to_exactly_one_target(
 
     refused = (
         # A target key without its declared target.
-        _signal_insert(seed.project_id, "SESSION", span_rowid=seed.span_rowid),
-        _signal_insert(seed.project_id, "SPAN", project_session_rowid=seed.project_session_rowid),
+        _event_insert(seed.project_id, "SESSION", span_rowid=seed.span_rowid),
+        _event_insert(seed.project_id, "SPAN", project_session_rowid=seed.project_session_rowid),
         # A declared target without its key.
-        _signal_insert(seed.project_id, "SPAN"),
-        _signal_insert(seed.project_id, "SESSION"),
+        _event_insert(seed.project_id, "SPAN"),
+        _event_insert(seed.project_id, "SESSION"),
         # Two keys at once.
-        _signal_insert(
+        _event_insert(
             seed.project_id, "SPAN", span_rowid=seed.span_rowid, trace_rowid=seed.trace_rowid
         ),
     )
@@ -1054,17 +1052,17 @@ async def test_evaluator_signal_routes_to_exactly_one_target(
         with pytest.raises(BaseException, match="valid_target_key"):
             await _run_with_foreign_keys(_engine, _db_backend, insert)
 
-    def _surviving_signals(conn: Connection) -> set[str]:
+    def _surviving_events(conn: Connection) -> set[str]:
         return {
             target
-            for target, signal_id in accepted.items()
-            if _count(conn, "evaluator_signals", signal_id)
+            for target, event_id in accepted.items()
+            if _count(conn, "evaluator_events", event_id)
         }
 
     def _delete_target(table: str, row_id: int) -> Callable[[Connection], set[str]]:
         def _delete_and_count(conn: Connection) -> set[str]:
             _delete(conn, table, row_id)
-            return _surviving_signals(conn)
+            return _surviving_events(conn)
 
         return _delete_and_count
 
@@ -1078,7 +1076,7 @@ async def test_evaluator_signal_routes_to_exactly_one_target(
         assert await _run_with_foreign_keys(_engine, _db_backend, delete_target) == surviving
 
 
-async def test_trigger_predicates_attach_only_to_their_own_signal_kind(
+async def test_trigger_predicates_attach_only_to_their_own_event_kind(
     _engine: AsyncEngine,
     _alembic_config: Config,
     _db_backend: _DBBackend,
@@ -1090,8 +1088,8 @@ async def test_trigger_predicates_attach_only_to_their_own_signal_kind(
 
     def _triggers(conn: Connection) -> dict[str, int]:
         return {
-            signal_kind: _insert_trigger(conn, seed.criteria_id, signal_kind)
-            for signal_kind in ("annotation_upserted", "evaluation_completed")
+            event_kind: _insert_trigger(conn, seed.criteria_id, event_kind)
+            for event_kind in ("annotation_upserted", "evaluation_completed")
         }
 
     triggers = await _run_with_foreign_keys(_engine, _db_backend, _triggers)
@@ -1099,25 +1097,25 @@ async def test_trigger_predicates_attach_only_to_their_own_signal_kind(
         ("project_evaluator_trigger_annotation_predicates", "annotation_upserted"),
         ("project_evaluator_trigger_evaluation_predicates", "evaluation_completed"),
     )
-    for table, signal_kind in families:
-        own_trigger = triggers[signal_kind]
-        other_kind = next(kind for _, kind in families if kind != signal_kind)
+    for table, event_kind in families:
+        own_trigger = triggers[event_kind]
+        other_kind = next(kind for _, kind in families if kind != event_kind)
         other_trigger = triggers[other_kind]
 
         predicates_id = await _run_with_foreign_keys(
-            _engine, _db_backend, _predicates_insert(table, own_trigger, signal_kind)
+            _engine, _db_backend, _predicates_insert(table, own_trigger, event_kind)
         )
 
         # Its own kind against the other family's trigger: the composite foreign key has
         # no parent row to reference.
         with pytest.raises(BaseException, match="(?i)foreign key constraint"):
             await _run_with_foreign_keys(
-                _engine, _db_backend, _predicates_insert(table, other_trigger, signal_kind)
+                _engine, _db_backend, _predicates_insert(table, other_trigger, event_kind)
             )
 
         # The other family's kind, which would have matched that parent: the CHECK pins
         # the child to its own kind.
-        check_name = _constraint_name(f"ck_{table}_`valid_signal_kind`", _db_backend)
+        check_name = _constraint_name(f"ck_{table}_`valid_event_kind`", _db_backend)
         with pytest.raises(BaseException, match=re.escape(check_name)):
             await _run_with_foreign_keys(
                 _engine, _db_backend, _predicates_insert(table, other_trigger, other_kind)
@@ -1146,7 +1144,7 @@ async def test_deleting_a_watched_criterion_never_orphans_its_trigger(
             conn,
             sa.text(
                 "INSERT INTO project_evaluator_trigger_evaluation_predicates"
-                " (trigger_id, signal_kind, source_criteria_id)"
+                " (trigger_id, event_kind, source_criteria_id)"
                 " VALUES (:trigger_id, 'evaluation_completed', :source_criteria_id)"
                 " RETURNING id"
             ),

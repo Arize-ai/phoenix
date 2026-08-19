@@ -1,6 +1,6 @@
 """End-to-end wiring tests for the online-eval runtime behind
 ``PHOENIX_ONLINE_EVAL_ENABLED``: the enabled app composes one runtime owning the
-producer, both consumers, the session sweeper, and the signal drain, and a seeded
+producer, both consumers, the session sweeper, and the event drain, and a seeded
 criteria flows all the way to a published evaluation.
 """
 
@@ -36,7 +36,7 @@ from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.runtime import OnlineEvalRuntime
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
-from phoenix.server.online_eval.triggering.drain import SignalDrain
+from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from tests.unit.conftest import (
     TestBulkInserter,
@@ -116,12 +116,10 @@ async def _add_trigger(
     db: DbSessionFactory,
     criteria_id: int,
     *,
-    signal_kind: models.EvaluatorSignalKind,
+    event_kind: models.EvaluatorEventKind,
 ) -> None:
     async with db() as session:
-        session.add(
-            models.ProjectEvaluatorTrigger(criteria_id=criteria_id, signal_kind=signal_kind)
-        )
+        session.add(models.ProjectEvaluatorTrigger(criteria_id=criteria_id, event_kind=event_kind))
 
 
 async def _requests(db: DbSessionFactory) -> list[models.EvaluationRequest]:
@@ -200,11 +198,11 @@ async def test_session_evaluation_runs_unless_it_is_turned_off(
     if session_daemons_expected:
         assert isinstance(runtime.session_sweeper, SessionEvalSweeper)
         assert isinstance(runtime.session_consumer, OnlineEvalConsumer)
-        assert isinstance(runtime.signal_drain, SignalDrain)
+        assert isinstance(runtime.event_drain, EventDrain)
     else:
         assert runtime.session_sweeper is None
         assert runtime.session_consumer is None
-        assert runtime.signal_drain is None
+        assert runtime.event_drain is None
 
 
 @pytest.mark.parametrize(
@@ -408,14 +406,14 @@ async def test_an_annotation_drives_a_session_evaluation_end_to_end(
         # Every daemon shares the fixture's one connection, so they are quiesced before
         # this test drives the database itself.
         await runtime.stop()
-        drain = runtime.signal_drain
+        drain = runtime.event_drain
         sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
         assert drain is not None
         assert sweeper is not None and session_consumer is not None
 
         project, _, span = await _seed_quiet_session(db)
         _, criteria_id = await _seed_llm_criteria(db, project.id, evaluation_target="SESSION")
-        await _add_trigger(db, criteria_id, signal_kind="annotation_upserted")
+        await _add_trigger(db, criteria_id, event_kind="annotation_upserted")
 
         async with AsyncClient(
             transport=ASGITransport(app=asgi_app),
@@ -464,7 +462,7 @@ async def test_a_completed_span_evaluation_drives_a_session_evaluation_end_to_en
         assert isinstance(runtime, OnlineEvalRuntime)
         await stack.enter_async_context(LifespanManager(app))
         await runtime.stop()
-        consumer, drain = runtime.consumer, runtime.signal_drain
+        consumer, drain = runtime.consumer, runtime.event_drain
         sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
         assert consumer is not None and drain is not None
         assert sweeper is not None and session_consumer is not None
@@ -474,7 +472,7 @@ async def test_a_completed_span_evaluation_drives_a_session_evaluation_end_to_en
         _, session_criteria_id = await _seed_llm_criteria(
             db, project.id, evaluation_target="SESSION"
         )
-        await _add_trigger(db, session_criteria_id, signal_kind="evaluation_completed")
+        await _add_trigger(db, session_criteria_id, event_kind="evaluation_completed")
         await _materialize_unit(db, span.id, span_evaluator_id, span_criteria_id)
 
         await consumer._cycle()
@@ -505,7 +503,7 @@ async def test_a_verdict_never_requests_the_criteria_that_authored_it(
         assert isinstance(runtime, OnlineEvalRuntime)
         await stack.enter_async_context(LifespanManager(app))
         await runtime.stop()
-        drain, session_consumer = runtime.signal_drain, runtime.session_consumer
+        drain, session_consumer = runtime.event_drain, runtime.session_consumer
         assert drain is not None and session_consumer is not None
 
         project, project_session, _ = await _seed_quiet_session(db)
@@ -516,7 +514,7 @@ async def test_a_verdict_never_requests_the_criteria_that_authored_it(
             db, project.id, evaluation_target="SESSION"
         )
         for criteria_id in (authoring_criteria_id, downstream_criteria_id):
-            await _add_trigger(db, criteria_id, signal_kind="evaluation_completed")
+            await _add_trigger(db, criteria_id, event_kind="evaluation_completed")
         await _materialize_session_unit(
             db,
             project_session.id,
@@ -585,7 +583,7 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
         assert isinstance(runtime, OnlineEvalRuntime)
         await stack.enter_async_context(LifespanManager(app))
         await runtime.stop()
-        drain = runtime.signal_drain
+        drain = runtime.event_drain
         sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
         assert drain is not None
         assert sweeper is not None and session_consumer is not None
@@ -599,7 +597,7 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
                 "annotations[\"A\"].label == 'yes' and annotations[\"B\"].label == 'yes'"
             ),
         )
-        await _add_trigger(db, criteria_id, signal_kind="annotation_upserted")
+        await _add_trigger(db, criteria_id, event_kind="annotation_upserted")
 
         await _add_session_annotation(db, project_session, "A")
         await drain._tick()

@@ -52,20 +52,20 @@ async def _add_trigger(
     session: AsyncSession,
     criteria: models.ProjectEvaluatorCriteria,
     *,
-    signal_kind: models.EvaluatorSignalKind = "annotation_upserted",
+    event_kind: models.EvaluatorEventKind = "annotation_upserted",
     **predicates: Any,
 ) -> models.ProjectEvaluatorTrigger:
     """A trigger, with a predicate row of its own family when any predicate is given."""
-    trigger = models.ProjectEvaluatorTrigger(criteria_id=criteria.id, signal_kind=signal_kind)
+    trigger = models.ProjectEvaluatorTrigger(criteria_id=criteria.id, event_kind=event_kind)
     session.add(trigger)
     await session.flush()
     if predicates:
         table = (
             models.ProjectEvaluatorTriggerAnnotationPredicates
-            if signal_kind == "annotation_upserted"
+            if event_kind == "annotation_upserted"
             else models.ProjectEvaluatorTriggerEvaluationPredicates
         )
-        session.add(table(trigger_id=trigger.id, signal_kind=signal_kind, **predicates))
+        session.add(table(trigger_id=trigger.id, event_kind=event_kind, **predicates))
         await session.flush()
     return trigger
 
@@ -95,7 +95,7 @@ async def test_a_live_rule_loads_with_its_predicates_and_its_criteria_s_project(
     assert rule.criteria_id == criteria.id
     assert rule.project_id == project.id
     assert rule.evaluation_target == "SESSION"
-    assert rule.signal_kind == "annotation_upserted"
+    assert rule.event_kind == "annotation_upserted"
     assert rule.name == "human-review"
     assert rule.label == "incorrect"
     assert rule.score_below == 0.5
@@ -116,7 +116,7 @@ async def test_an_evaluation_rule_loads_with_the_predicates_of_its_own_family(
         trigger = await _add_trigger(
             session,
             criteria,
-            signal_kind="evaluation_completed",
+            event_kind="evaluation_completed",
             name="hallucination",
             label="hallucinated",
             source_criteria_id=watched.id,
@@ -127,7 +127,7 @@ async def test_an_evaluation_rule_loads_with_the_predicates_of_its_own_family(
         (rule,) = await load_rules(session)
     assert isinstance(rule, EvaluationTriggerRule)
     assert rule.trigger_id == trigger.id
-    assert rule.signal_kind == "evaluation_completed"
+    assert rule.event_kind == "evaluation_completed"
     assert rule.name == "hallucination"
     assert rule.label == "hallucinated"
     assert rule.source_criteria_id == watched.id

@@ -1,8 +1,8 @@
-"""Reads for `project_evaluator_triggers`, the rules that say which signals demand work.
+"""Reads for `project_evaluator_triggers`, the rules that say which events demand work.
 
-This is the only module that knows a signal can cause an evaluation.
+This is the only module that knows an event can cause an evaluation.
 
-Each signal kind has its own predicate table and its own rule type here. A new kind is a
+Each event kind has its own predicate table and its own rule type here. A new kind is a
 new table and a new rule type; the ones already in place do not change.
 """
 
@@ -24,7 +24,7 @@ from phoenix.server.online_eval.session_policy import session_criteria_is_schedu
 class _Rule:
     """What every live rule carries, whatever it matches on.
 
-    `evaluation_target` is the criteria's, and a signal only matches a rule that routes
+    `evaluation_target` is the criteria's, and an event only matches a rule that routes
     to the same kind of entity.
     """
 
@@ -43,7 +43,7 @@ class AnnotationTriggerRule(_Rule):
     evaluation itself wrote, which need `matches_evaluator_annotations`.
     """
 
-    signal_kind: ClassVar[models.EvaluatorSignalKind] = "annotation_upserted"
+    event_kind: ClassVar[models.EvaluatorEventKind] = "annotation_upserted"
 
     name: Optional[str] = None
     label: Optional[str] = None
@@ -63,7 +63,7 @@ class EvaluationTriggerRule(_Rule):
     unset fires on every verdict in its project except its own criteria's.
     """
 
-    signal_kind: ClassVar[models.EvaluatorSignalKind] = "evaluation_completed"
+    event_kind: ClassVar[models.EvaluatorEventKind] = "evaluation_completed"
 
     name: Optional[str] = None
     label: Optional[str] = None
@@ -99,16 +99,16 @@ def _live_rules(*selected: Any) -> Select[Any]:
 async def annotation_rules_exist(session: AsyncSession) -> bool:
     """Whether any live rule fires on annotations at all.
 
-    Annotation writes append signals only when one does. Without the gate, turning
-    session evaluation on also turns on a signal write per annotation write, plus a day
+    Annotation writes append events only when one does. Without the gate, turning
+    session evaluation on also turns on an event write per annotation write, plus a day
     of retained payload, drained against an empty rule set — an amplification an
     operator never asked for and cannot see.
 
     Like `load_rules`, this read is a linearization point: a rule committed after it
-    does not cause an earlier annotation transaction to append a signal.
+    does not cause an earlier annotation transaction to append an event.
     """
     stmt = _live_rules(models.ProjectEvaluatorTrigger.id).where(
-        models.ProjectEvaluatorTrigger.signal_kind == "annotation_upserted"
+        models.ProjectEvaluatorTrigger.event_kind == "annotation_upserted"
     )
     return await session.scalar(stmt.limit(1)) is not None
 
@@ -137,7 +137,7 @@ async def evaluator_annotation_rules_exist(session: AsyncSession) -> bool:
 
 
 async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
-    """Read every rule that can fire right now, one statement per signal kind.
+    """Read every rule that can fire right now, one statement per event kind.
 
     These statements are the drain's linearization point: a rule committed after they
     run does not participate in the tick that ran them. A trigger with no predicate row
@@ -164,7 +164,7 @@ async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
             annotation_predicates,
             annotation_predicates.trigger_id == models.ProjectEvaluatorTrigger.id,
         )
-        .where(models.ProjectEvaluatorTrigger.signal_kind == "annotation_upserted")
+        .where(models.ProjectEvaluatorTrigger.event_kind == "annotation_upserted")
     )
     evaluation_predicates = models.ProjectEvaluatorTriggerEvaluationPredicates
     evaluation_rows = await session.execute(
@@ -184,7 +184,7 @@ async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
             evaluation_predicates,
             evaluation_predicates.trigger_id == models.ProjectEvaluatorTrigger.id,
         )
-        .where(models.ProjectEvaluatorTrigger.signal_kind == "evaluation_completed")
+        .where(models.ProjectEvaluatorTrigger.event_kind == "evaluation_completed")
     )
     rules: list[TriggerRule] = [
         AnnotationTriggerRule(

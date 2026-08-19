@@ -1,12 +1,12 @@
-"""Turns logged signals into evaluation requests, one leased tick at a time.
+"""Turns logged events into evaluation requests, one leased tick at a time.
 
-A tick reads a page of unacknowledged signals, loads the rules that can fire, matches the
+A tick reads a page of unacknowledged events, loads the rules that can fire, matches the
 two in memory, and writes the resulting requests and the page's acknowledgments in one
 transaction. Nothing is acknowledged unless the requests it produced commit with it, so a
 tick that fails is retried against the same page rather than losing it.
 
 Rules are loaded once per tick, and that read is the drain's linearization point: a rule
-committed after it does not match the signals this tick acknowledges, and there is no
+committed after it does not match the events this tick acknowledges, and there is no
 backfill. "Did my new rule catch that annotation?" therefore has one answer: no.
 """
 
@@ -23,8 +23,8 @@ from typing import Optional, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import (
-    get_env_online_eval_signal_drain_page_size,
-    get_env_online_eval_signal_retention_seconds,
+    get_env_online_eval_event_drain_page_size,
+    get_env_online_eval_event_retention_seconds,
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -37,22 +37,22 @@ from phoenix.server.online_eval.requests import (
     request_evaluations,
 )
 from phoenix.server.online_eval.triggering.log import (
-    DrainedSignal,
+    DrainedEvent,
     acknowledge,
     drain_page,
     purge_acknowledged,
 )
-from phoenix.server.online_eval.triggering.matching import match_signals
+from phoenix.server.online_eval.triggering.matching import match_events
 from phoenix.server.online_eval.triggering.rules import load_rules
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
-SIGNAL_DRAIN_INTERVAL_SECONDS = 5.0
-SIGNAL_DRAIN_LEASE_TTL_SECONDS = 90.0
-SIGNAL_PURGE_INTERVAL_SECONDS = 3600.0
+EVENT_DRAIN_INTERVAL_SECONDS = 5.0
+EVENT_DRAIN_LEASE_TTL_SECONDS = 90.0
+EVENT_PURGE_INTERVAL_SECONDS = 3600.0
 
-_LEASE_NAME = "online-eval-signal-drain"
+_LEASE_NAME = "online-eval-event-drain"
 _REQUESTED_BY = "trigger"
 
 # The evaluation targets this drain can ask for. `requests.EvaluationAsk` takes a
@@ -61,7 +61,7 @@ _REQUESTED_BY = "trigger"
 # `SessionTarget` and naming it here in the same change.
 _DELIVERABLE_TARGETS: frozenset[models.EvaluationTarget] = frozenset({"SESSION"})
 
-# Facts about the signal's target: the pair cannot be evaluated, so the occurrence is
+# Facts about the event's target: the pair cannot be evaluated, so the occurrence is
 # consumed and no request is written. Every other rejection is a failure of the drain's
 # own preconditions and leaves the page for the next tick.
 _CONSUMED_NO_OP_REJECTIONS = frozenset(
@@ -76,31 +76,31 @@ _CONSUMED_NO_OP_REJECTIONS = frozenset(
 )
 
 
-class SignalNotConsumable(Exception):
-    """A rejection that says nothing about the signal's target, so its page must stand."""
+class EventNotConsumable(Exception):
+    """A rejection that says nothing about the event's target, so its page must stand."""
 
     def __init__(self, rejection: RequestRejection) -> None:
         super().__init__(rejection.value)
         self.rejection = rejection
 
 
-class SignalDrain(DaemonTask):
-    """Decide what the logged signals demand, and demand it."""
+class EventDrain(DaemonTask):
+    """Decide what the logged events demand, and demand it."""
 
     def __init__(
         self,
         db: DbSessionFactory,
         *,
-        tick_interval_seconds: float = SIGNAL_DRAIN_INTERVAL_SECONDS,
-        purge_interval_seconds: float = SIGNAL_PURGE_INTERVAL_SECONDS,
+        tick_interval_seconds: float = EVENT_DRAIN_INTERVAL_SECONDS,
+        purge_interval_seconds: float = EVENT_PURGE_INTERVAL_SECONDS,
     ) -> None:
         super().__init__()
         self._db = db
         self._tick_interval_seconds = tick_interval_seconds
         self._purge_interval_seconds = purge_interval_seconds
-        self._page_size = get_env_online_eval_signal_drain_page_size()
-        self._retention_seconds = get_env_online_eval_signal_retention_seconds()
-        self._drain_id = f"signal-drain-{token_hex(8)}"
+        self._page_size = get_env_online_eval_event_drain_page_size()
+        self._retention_seconds = get_env_online_eval_event_retention_seconds()
+        self._drain_id = f"event-drain-{token_hex(8)}"
         self._last_purge_at = time.monotonic()
         self._lease = DatabaseLease(
             db,
@@ -109,7 +109,7 @@ class SignalDrain(DaemonTask):
             holder_column=models.EvalWorkLease.holder,
             heartbeat_column=models.EvalWorkLease.heartbeat_at,
             holder_id=self._drain_id,
-            ttl_seconds=SIGNAL_DRAIN_LEASE_TTL_SECONDS,
+            ttl_seconds=EVENT_DRAIN_LEASE_TTL_SECONDS,
         )
 
     async def _run(self) -> None:
@@ -118,7 +118,7 @@ class SignalDrain(DaemonTask):
                 try:
                     await self._tick()
                 except Exception:
-                    logger.exception("Online-eval signal drain tick failed")
+                    logger.exception("Online-eval event drain tick failed")
                 await asyncio.sleep(self._tick_interval_seconds)
         finally:
             await self._release_lease()
@@ -138,7 +138,7 @@ class SignalDrain(DaemonTask):
             await self._drain()
             await self._purge_if_due()
         except LeaseLost:
-            logger.warning("Online-eval signal drain tick aborted after losing its lease")
+            logger.warning("Online-eval event drain tick aborted after losing its lease")
 
     async def _insert_lease(self, session: AsyncSession) -> None:
         await session.execute(
@@ -152,18 +152,18 @@ class SignalDrain(DaemonTask):
         )
 
     async def _drain(self) -> int:
-        """Decide one page of signals, returning how many pairs were requested.
+        """Decide one page of events, returning how many pairs were requested.
 
         Criteria rows are read before any request row is touched — the rule load takes no
         lock, and `request_evaluations` locks criteria, then sessions, then requests.
         """
         async with self._db() as session:
-            signals = await drain_page(session, limit=self._page_size)
-            if not signals:
+            events = await drain_page(session, limit=self._page_size)
+            if not events:
                 await self._lease.fence(session)
                 return 0
-            deliverable = _deliverable(signals)
-            keys = match_signals(deliverable, await load_rules(session))
+            deliverable = _deliverable(events)
+            keys = match_events(deliverable, await load_rules(session))
             # One ask per distinct occurrence, so several rules matching one occurrence for
             # one pair advance its generation once while two occurrences advance it twice.
             asks = [
@@ -176,7 +176,7 @@ class SignalDrain(DaemonTask):
             ]
             outcome = await request_evaluations(session, asks)
             _consume_rejections(outcome.rejected)
-            await acknowledge(session, [signal.signal_id for signal in signals])
+            await acknowledge(session, [event.event_id for event in events])
             await self._lease.fence(session)
         return len(outcome.granted)
 
@@ -197,25 +197,25 @@ class SignalDrain(DaemonTask):
         try:
             await self._lease.release()
         except Exception:
-            logger.exception("Failed to release online-eval signal drain lease")
+            logger.exception("Failed to release online-eval event drain lease")
 
 
-def _deliverable(signals: Sequence[DrainedSignal]) -> list[DrainedSignal]:
+def _deliverable(events: Sequence[DrainedEvent]) -> list[DrainedEvent]:
     """Return the occurrences this drain can ask for, naming the ones it cannot.
 
     An occurrence routed to a target with no ask target is consumed rather than retried:
     leaving it unacknowledged would hold up every session occurrence behind it on the
     page, and no later tick would decide it differently.
     """
-    deliverable = [signal for signal in signals if signal.evaluation_target in _DELIVERABLE_TARGETS]
-    if undeliverable := len(signals) - len(deliverable):
+    deliverable = [event for event in events if event.evaluation_target in _DELIVERABLE_TARGETS]
+    if undeliverable := len(events) - len(deliverable):
         counts = Counter(
-            signal.evaluation_target
-            for signal in signals
-            if signal.evaluation_target not in _DELIVERABLE_TARGETS
+            event.evaluation_target
+            for event in events
+            if event.evaluation_target not in _DELIVERABLE_TARGETS
         )
         logger.info(
-            f"Signal drain consumed {undeliverable} occurrences it cannot request "
+            f"Event drain consumed {undeliverable} occurrences it cannot request "
             f"evaluations for: {dict(counts)}. Requesting one needs an ask target "
             f"beside SessionTarget in phoenix.server.online_eval.requests."
         )
@@ -226,11 +226,11 @@ def _consume_rejections(rejected: Sequence[RejectedAsk]) -> None:
     """Raise unless every rejection is one the drain may consume.
 
     Raises:
-        SignalNotConsumable: the page must be left for the next tick.
+        EventNotConsumable: the page must be left for the next tick.
     """
     for entry in rejected:
         if entry.rejection not in _CONSUMED_NO_OP_REJECTIONS:
-            raise SignalNotConsumable(entry.rejection)
+            raise EventNotConsumable(entry.rejection)
     if rejected:
         counts = Counter(entry.rejection.value for entry in rejected)
-        logger.debug(f"Signal drain consumed {len(rejected)} asks without requesting: {counts}")
+        logger.debug(f"Event drain consumed {len(rejected)} asks without requesting: {counts}")

@@ -1,4 +1,4 @@
-"""Matches drained signals against trigger rules, in memory and without side effects."""
+"""Matches drained events against trigger rules, in memory and without side effects."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from phoenix.db import models
-from phoenix.server.online_eval.triggering.log import DrainedSignal
+from phoenix.server.online_eval.triggering.log import DrainedEvent
 from phoenix.server.online_eval.triggering.rules import (
     AnnotationTriggerRule,
     EvaluationTriggerRule,
@@ -24,19 +24,19 @@ class RequestKey:
     they ask for one evaluation between them; two occurrences for that pair are two keys.
     """
 
-    signal_id: int
+    event_id: int
     evaluation_target: models.EvaluationTarget
     target_rowid: int
     criteria_id: int
 
 
-def match_signals(
-    signals: Iterable[DrainedSignal],
+def match_events(
+    events: Iterable[DrainedEvent],
     rules: Iterable[TriggerRule],
 ) -> tuple[RequestKey, ...]:
-    """Resolve which pairs these signals demand, in a deterministic order.
+    """Resolve which pairs these events demand, in a deterministic order.
 
-    Rules are indexed by the two things a signal must agree with before any predicate is
+    Rules are indexed by the two things an event must agree with before any predicate is
     worth testing — its project and its kind — so a page is compared against the rules
     that could match it rather than against every rule in the deployment. Nothing caps
     how many rules a deployment holds, and the comparison runs between awaits: the whole
@@ -44,17 +44,17 @@ def match_signals(
     """
     by_project_and_kind: dict[tuple[int, str], list[TriggerRule]] = defaultdict(list)
     for rule in rules:
-        by_project_and_kind[(rule.project_id, rule.signal_kind)].append(rule)
+        by_project_and_kind[(rule.project_id, rule.event_kind)].append(rule)
     keys = {
         RequestKey(
-            signal_id=signal.signal_id,
-            evaluation_target=signal.evaluation_target,
-            target_rowid=signal.target_rowid,
+            event_id=event.event_id,
+            evaluation_target=event.evaluation_target,
+            target_rowid=event.target_rowid,
             criteria_id=rule.criteria_id,
         )
-        for signal in signals
-        for rule in by_project_and_kind.get((signal.project_id, signal.kind), ())
-        if _matches(signal, rule)
+        for event in events
+        for rule in by_project_and_kind.get((event.project_id, event.kind), ())
+        if _matches(event, rule)
     }
     return tuple(
         sorted(
@@ -63,23 +63,23 @@ def match_signals(
                 key.evaluation_target,
                 key.target_rowid,
                 key.criteria_id,
-                key.signal_id,
+                key.event_id,
             ),
         )
     )
 
 
-def _matches(signal: DrainedSignal, rule: TriggerRule) -> bool:
-    # Project and kind are settled by the index `match_signals` matches through: a rule
-    # only ever meets a signal that already agrees with it on both. The other two legs of
-    # signal.project == criteria.project == session.project: the session's project is
+def _matches(event: DrainedEvent, rule: TriggerRule) -> bool:
+    # Project and kind are settled by the index `match_events` matches through: a rule
+    # only ever meets an event that already agrees with it on both. The other two legs of
+    # event.project == criteria.project == session.project: the session's project is
     # checked against the criteria's by `requests.request_evaluations`, which rejects the
     # pair rather than writing a cross-project request.
-    if signal.evaluation_target != rule.evaluation_target:
+    if event.evaluation_target != rule.evaluation_target:
         return False
     if isinstance(rule, AnnotationTriggerRule):
-        return _matches_annotation(signal.payload, rule)
-    return _matches_evaluation(signal.payload, rule)
+        return _matches_annotation(event.payload, rule)
+    return _matches_evaluation(event.payload, rule)
 
 
 def _matches_result(

@@ -105,13 +105,13 @@ class EvalWorkCoordinator(Protocol):
         *,
         work_unit_id: int,
         claimed_by: str,
-        completion_signals: Sequence[EvaluationCompleted] = (),
+        completion_events: Sequence[EvaluationCompleted] = (),
     ) -> bool:
         """Transition a claimed unit RUNNING -> DONE. Returns True when the unit is
         already DONE so callers can safely retry an ambiguous commit. Returns False for
         any other lost claim.
 
-        ``completion_signals`` are appended to the signal log in the same transaction as
+        ``completion_events`` are appended to the event log in the same transaction as
         the transition, and only when this call is the one that performs it — a retry
         against an already-DONE row succeeds without announcing the completion again."""
         ...

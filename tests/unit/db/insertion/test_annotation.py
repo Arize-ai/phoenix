@@ -12,7 +12,7 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
-async def _seed_signal_target(db: DbSessionFactory) -> models.Span:
+async def _seed_event_target(db: DbSessionFactory) -> models.Span:
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
@@ -40,7 +40,7 @@ async def _seed_signal_target(db: DbSessionFactory) -> models.Span:
         session.add(
             models.ProjectEvaluatorTrigger(
                 criteria_id=criteria.id,
-                signal_kind="annotation_upserted",
+                event_kind="annotation_upserted",
             )
         )
     return span
@@ -62,7 +62,7 @@ def _record(span_rowid: int, *, label: str, identifier: str = "") -> dict[str, o
 
 
 async def test_upsert_reports_created_then_updated(db: DbSessionFactory) -> None:
-    span = await _seed_signal_target(db)
+    span = await _seed_event_target(db)
 
     async with db() as session:
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -82,14 +82,12 @@ async def test_upsert_reports_created_then_updated(db: DbSessionFactory) -> None
         )
 
     async with db() as session:
-        signals = list(
-            await session.scalars(
-                select(models.EvaluatorSignal).order_by(models.EvaluatorSignal.id)
-            )
+        events = list(
+            await session.scalars(select(models.EvaluatorEvent).order_by(models.EvaluatorEvent.id))
         )
-    assert [signal.payload["change"] for signal in signals] == ["created", "updated"]
-    assert [signal.payload["label"] for signal in signals] == ["incorrect", "correct"]
-    assert set(signals[0].payload) == {
+    assert [event.payload["change"] for event in events] == ["created", "updated"]
+    assert [event.payload["label"] for event in events] == ["incorrect", "correct"]
+    assert set(events[0].payload) == {
         "annotation_target",
         "annotation_id",
         "target_rowid",
@@ -105,11 +103,11 @@ async def test_upsert_reports_created_then_updated(db: DbSessionFactory) -> None
         "criteria_id",
     }
     # No project evaluator wrote these, so nothing names one.
-    assert [signal.payload["criteria_id"] for signal in signals] == [None, None]
+    assert [event.payload["criteria_id"] for event in events] == [None, None]
 
 
-async def test_annotation_and_signal_roll_back_together(db: DbSessionFactory) -> None:
-    span = await _seed_signal_target(db)
+async def test_annotation_and_event_roll_back_together(db: DbSessionFactory) -> None:
+    span = await _seed_event_target(db)
 
     with pytest.raises(RuntimeError, match="roll back"):
         async with db() as session:
@@ -122,11 +120,11 @@ async def test_annotation_and_signal_roll_back_together(db: DbSessionFactory) ->
 
     async with db() as session:
         assert await session.scalar(select(models.SpanAnnotation.id)) is None
-        assert await session.scalar(select(models.EvaluatorSignal.id)) is None
+        assert await session.scalar(select(models.EvaluatorEvent.id)) is None
 
 
-async def test_online_eval_annotation_is_not_signaled(db: DbSessionFactory) -> None:
-    span = await _seed_signal_target(db)
+async def test_online_eval_annotation_does_not_append_an_event(db: DbSessionFactory) -> None:
+    span = await _seed_event_target(db)
 
     async with db() as session:
         await insert_annotations(
@@ -141,4 +139,4 @@ async def test_online_eval_annotation_is_not_signaled(db: DbSessionFactory) -> N
 
     async with db() as session:
         assert await session.scalar(select(models.SpanAnnotation.id)) is not None
-        assert await session.scalar(select(models.EvaluatorSignal.id)) is None
+        assert await session.scalar(select(models.EvaluatorEvent.id)) is None

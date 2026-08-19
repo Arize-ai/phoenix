@@ -2,7 +2,8 @@
 
 Every write to a request row goes through this module: creation, generation advancement,
 and the acknowledgment that links a request to the work unit answering it. The one
-exception is stand-down, which `phoenix.db.helpers.mark_session_content_incomplete` does
+exception is the content-incomplete transition, which
+`phoenix.db.helpers.mark_session_content_incomplete` does
 itself because deletion runs below the server layer.
 """
 
@@ -63,7 +64,7 @@ class SessionTarget:
 
 @dataclass(frozen=True)
 class EvaluationAsk:
-    """One ask that a pair be evaluated, from one signal occurrence or one explicit call."""
+    """One ask that a pair be evaluated, from one event occurrence or one explicit call."""
 
     target: SessionTarget
     criteria_id: int
@@ -175,7 +176,7 @@ def is_unfulfilled(request: Any) -> ColumnElement[bool]:
 
     There is no status column, so being unfulfilled is a comparison between two counters.
     Every reader spells it through here — the pending read below, and the sweep's ambient
-    stratum, which skips a pair a request already covers.
+    origin, which skips a pair a request already covers.
     """
     unfulfilled: ColumnElement[bool] = (
         request.materialized_generation < request.requested_generation
@@ -325,8 +326,9 @@ async def _read_sessions(
         .order_by(models.ProjectSession.id)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        # Held against stand-down, which locks the same rows: without it a request could
-        # be written after a session lost content and then never be answered or closed.
+        # Held against the content-incomplete transition, which locks the same rows:
+        # without it a request could be written after a session lost content and then
+        # never be answered or closed.
         stmt = stmt.with_for_update(key_share=True)
     return {
         row.id: _SessionFacts(

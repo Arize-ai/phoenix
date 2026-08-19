@@ -1,17 +1,17 @@
 """Materialize session evaluation work after session activity becomes old enough.
 
-Scheduling is one relation with three strata. Ambient sweeping proposes a pair once its
-content is complete and quiet, and it has no terminal evidence yet. On top of that, an
-unfulfilled evaluation request raises the pair into the rule stratum, and an unfulfilled
-forced generation raises it further into the explicit stratum. Precedence runs explicit
-before rule before ambient, and a pair receives at most one decision per sweep.
+Scheduling is one relation with three scheduling origins. Ambient sweeping proposes a
+pair once its content is complete and quiet, and it has no terminal evidence yet. An
+unfulfilled evaluation request assigns the rule origin, while an unfulfilled forced
+generation assigns the explicit origin. Precedence runs explicit before rule before
+ambient, and a pair receives at most one decision per sweep.
 
-Both the ambient and the rule stratum gate on the criteria's own session filter, through
+Both the ambient and rule origins gate on the criteria's own session filter, through
 the same compiled branches: a trigger says when to look and the filter says what is in
 scope. They differ in what a miss means. Ambient sweeping is a scan, so a miss is a
 decision it records and moves on from. A request is standing demand, so a miss leaves it
 unfulfilled with nothing written — the session may satisfy the filter later, and the next
-sweep asks again. The explicit stratum skips the filter: forcing names a session outright.
+sweep asks again. The explicit origin skips the filter: forcing names a session outright.
 """
 
 from __future__ import annotations
@@ -124,7 +124,7 @@ _UNEVALUATED_EXPIRY_ERRORS = (
 _AMBIENT = "AMBIENT"
 _RULE = "RULE"
 _EXPLICIT = "EXPLICIT"
-# Lower rank wins when several strata claim the same pair.
+# Lower rank wins when several scheduling origins claim the same pair.
 _EXPLICIT_RANK, _RULE_RANK, _AMBIENT_RANK = 0, 1, 2
 
 
@@ -286,7 +286,7 @@ def _unfinished_work_exists(criteria_relation: Subquery) -> ColumnElement[bool]:
 def _unfulfilled_request_exists(criteria_relation: Subquery) -> ColumnElement[bool]:
     """Whether an unanswered ask already covers this pair.
 
-    The ambient stratum skips such a pair. The triggered stratum emits its own row for it
+    The ambient origin skips such a pair. A triggered origin emits its own row for it
     and outranks ambient anyway, so an ambient twin only spends a slot in the page that
     yields no decision — halving the sweep's reach under trigger load.
     """
@@ -353,19 +353,19 @@ def _triggered_pairs_statement(
 ) -> Select[Any]:
     """The pairs an unfulfilled evaluation request is asking for.
 
-    A forced generation raises the pair to the explicit stratum, which carries no
+    A forced generation assigns the explicit origin, which carries no
     terminal brake at all: forcing is the one ask allowed to unsettle a finished
     evaluation. Everything else is braked by an outcome covering the same configuration
     and the same session content, and answers the request by linking that outcome
     instead of scheduling again.
 
     ``filter_matches`` is the criteria's own session filter, compiled by the caller for
-    the one criterion this statement covers. A rule fires on an occurrence; the filter
+    the one criterion this statement covers. A rule fires on an event; the filter
     says which sessions are in scope at all, and a request is the composite of the two.
     A pair the filter excludes is simply absent here, so its request stays unfulfilled
     and is re-tested next sweep — a request is intent, not a scan decision, and writing
     a declined row for it would settle a question the session may yet answer. The
-    explicit stratum passes the gate unconditionally: forcing means forcing.
+    explicit origin passes the gate unconditionally: forcing means forcing.
     """
     pending = unfulfilled_requests().subquery("pending_requests")
     due_at, current_time = _quiet_delay_columns(criteria_relation, database_now, dialect)
@@ -408,7 +408,7 @@ def _triggered_pairs_statement(
             due_at.label("effective_due_time"),
             literal(True).label("filter_matches"),
             case((forced, literal(_EXPLICIT)), else_=literal(_RULE)).label("scheduling_origin"),
-            case((forced, literal(_EXPLICIT_RANK)), else_=literal(_RULE_RANK)).label("arm_rank"),
+            case((forced, literal(_EXPLICIT_RANK)), else_=literal(_RULE_RANK)).label("origin_rank"),
             pending.c.evaluation_request_id,
             pending.c.observed_generation,
             case((forced, null()), else_=answering_work_unit_id).label("answering_work_unit_id"),
@@ -441,12 +441,12 @@ def _triggered_pairs_relation(
     database_now: datetime,
     dialect: SupportedSQLDialect,
 ) -> Optional[Select[Any]]:
-    """The rule and explicit strata, batched where they can be and compiled where not.
+    """The rule and explicit origins, batched where possible and compiled otherwise.
 
     Filter conditions compile into structurally different SQL, so a filtered criterion
     cannot ride the shared relation as a predicate on it. Unfiltered criteria batch into
     one branch and each filtered criterion gets its own compiled branch, exactly as the
-    ambient arm does; the branches union into one relation the page then orders and
+    ambient origin does; the branches union into one relation the page then orders and
     limits as a whole.
     """
     statements: list[Select[Any]] = []
@@ -539,7 +539,7 @@ def _eligible_pairs_statement(
             due_at.label("effective_due_time"),
             filter_matches.label("filter_matches"),
             literal(_AMBIENT).label("scheduling_origin"),
-            literal(_AMBIENT_RANK).label("arm_rank"),
+            literal(_AMBIENT_RANK).label("origin_rank"),
             cast(null(), Integer).label("evaluation_request_id"),
             cast(null(), Integer).label("observed_generation"),
             cast(null(), Integer).label("answering_work_unit_id"),
@@ -606,7 +606,7 @@ def _scheduling_relation(
     database_now: datetime,
     dialect: SupportedSQLDialect,
 ) -> Subquery:
-    """The three strata as one relation, one row per pair per stratum that claims it."""
+    """The scheduling origins as one relation, one row per pair and claiming origin."""
     ambient = select(_eligible_pairs_relation(criteria, database_now, dialect))
     triggered = _triggered_pairs_relation(criteria, database_now, dialect)
     if triggered is None:
@@ -616,7 +616,7 @@ def _scheduling_relation(
 
 @dataclass(frozen=True)
 class _Decision:
-    """What this sweep does about one pair, and which stratum decided it."""
+    """What this sweep does about one pair, and which scheduling origin decided it."""
 
     project_session_rowid: int
     session_id: str
@@ -626,7 +626,7 @@ class _Decision:
     evaluated_through: datetime
     status: models.EvalSessionWorkStatus
     scheduling_origin: models.SchedulingOrigin
-    arm_rank: int
+    origin_rank: int
     evaluation_request_id: Optional[int]
     observed_generation: Optional[int]
     answering_work_unit_id: Optional[int]
@@ -637,7 +637,7 @@ class _Decision:
         return self.project_session_rowid, self.criteria_id
 
     @property
-    def coalesces(self) -> bool:
+    def answered_by_existing_work(self) -> bool:
         """Whether existing work already answers this request, so none is created."""
         return self.answering_work_unit_id is not None
 
@@ -654,7 +654,7 @@ class _Decision:
 
 
 def _decision_status(row: Any) -> models.EvalSessionWorkStatus:
-    """The ambient filter and sampling gates; the triggered strata bypass both."""
+    """The ambient filter and sampling gates; triggered origins bypass both."""
     if row.scheduling_origin != _AMBIENT:
         return "PENDING"
     if not row.filter_matches:
@@ -665,7 +665,7 @@ def _decision_status(row: Any) -> models.EvalSessionWorkStatus:
 
 
 def _resolve_decisions(rows: Sequence[Any]) -> list[_Decision]:
-    """Collapse the strata to at most one decision per pair, explicit first."""
+    """Resolve at most one decision per pair, preferring the explicit origin."""
     decisions: dict[tuple[int, int], _Decision] = {}
     for row in rows:
         decision = _Decision(
@@ -677,14 +677,14 @@ def _resolve_decisions(rows: Sequence[Any]) -> list[_Decision]:
             evaluated_through=row.evaluated_through,
             status=_decision_status(row),
             scheduling_origin=row.scheduling_origin,
-            arm_rank=row.arm_rank,
+            origin_rank=row.origin_rank,
             evaluation_request_id=row.evaluation_request_id,
             observed_generation=row.observed_generation,
             answering_work_unit_id=row.answering_work_unit_id,
             declined_work_unit_id=row.declined_work_unit_id,
         )
         held = decisions.get(decision.pair)
-        if held is None or decision.arm_rank < held.arm_rank:
+        if held is None or decision.origin_rank < held.origin_rank:
             decisions[decision.pair] = decision
     return list(decisions.values())
 
@@ -768,7 +768,7 @@ def _braked_session_work_insert_statement(
     decisions: Sequence[_Decision],
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Insert rule-stratum work, re-testing the brake as the insert itself runs.
+    """Insert rule-origin work, re-testing the brake as the insert itself runs.
 
     The eligibility read and this statement take separate snapshots under READ
     COMMITTED, and the consumers that commit outcomes hold no sweep lease, so an
@@ -1032,7 +1032,7 @@ class SessionEvalSweeper(DaemonTask):
                 relation.c.effective_due_time,
                 relation.c.project_session_rowid,
                 relation.c.criteria_id,
-                relation.c.arm_rank,
+                relation.c.origin_rank,
             )
             .limit(limit)
             .subquery("eligible_pair_page")
@@ -1098,7 +1098,7 @@ class SessionEvalSweeper(DaemonTask):
         decisions = _resolve_decisions(rows)
         if not decisions:
             return 0, backlog
-        scheduled = [decision for decision in decisions if not decision.coalesces]
+        scheduled = [decision for decision in decisions if not decision.answered_by_existing_work]
         await self._supersede_declined_work(session, scheduled)
         inserted = await self._insert_work(session, scheduled)
         await self._acknowledge_requests(session, decisions, inserted)
@@ -1192,7 +1192,7 @@ class SessionEvalSweeper(DaemonTask):
         """
         if backlog is not None:
             ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(backlog.get(_AMBIENT, 0))
-            # Every stratum is set every tick, so a burst that ends returns its series to
+            # Every origin is set every tick, so a burst that ends returns its series to
             # zero rather than leaving the last non-zero reading standing.
             for origin in (_AMBIENT, _RULE, _EXPLICIT):
                 ONLINE_EVAL_SESSION_SCHEDULING_BACKLOG.labels(scheduling_origin=origin).set(

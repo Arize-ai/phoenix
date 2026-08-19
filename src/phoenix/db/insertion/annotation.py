@@ -31,7 +31,7 @@ async def insert_annotations(
         return ()
     annotation_ids = tuple(await session.scalars(insert(table).values(records).returning(table.id)))
     annotations = await _load_annotations(session, table, annotation_ids)
-    await _append_signals(session, table, annotations, existing_keys=frozenset())
+    await _append_events(session, table, annotations, existing_keys=frozenset())
     return annotations
 
 
@@ -62,7 +62,7 @@ async def upsert_annotations(
         )
     )
     annotations = await _load_annotations(session, table, annotation_ids)
-    await _append_signals(
+    await _append_events(
         session,
         table,
         annotations,
@@ -83,7 +83,7 @@ async def update_annotations(
         raise TypeError("annotations must belong to one table")
     await session.flush()
     loaded = await _load_annotations(session, table, [annotation.id for annotation in annotations])
-    await _append_signals(
+    await _append_events(
         session,
         table,
         loaded,
@@ -122,7 +122,7 @@ async def _load_annotations(
     return tuple(by_id[annotation_id] for annotation_id in annotation_ids)
 
 
-async def _append_signals(
+async def _append_events(
     session: AsyncSession,
     table: type[AnnotationT],
     annotations: Sequence[AnnotationT],

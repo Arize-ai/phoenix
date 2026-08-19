@@ -637,11 +637,10 @@ async def delete_traces(
     session: AsyncSession,
     trace_filter: sa.ColumnElement[bool],
 ) -> None:
-    """Delete the traces matching this filter, standing down the evaluations of every
-    session that loses content.
+    """Delete the traces matching this filter and mark affected session content incomplete.
 
     Deleting traces is what makes a session's evaluation wrong, so the delete and the
-    stand-down belong to one function rather than to five callers who each have to
+    content-incomplete transition belong to one function rather than to five callers who
     remember. Route new trace deletions through here.
     """
     while trace_rowids := tuple(
@@ -668,11 +667,10 @@ async def delete_spans(
     session: AsyncSession,
     span_filter: sa.ColumnElement[bool],
 ) -> None:
-    """Delete the spans matching this filter, standing down the evaluations of every
-    session that loses content.
+    """Delete the spans matching this filter and mark affected session content incomplete.
 
     Removing a span changes what the session contains whether or not its trace survives,
-    so span deletion stands down the same way trace deletion does. See `delete_traces`.
+    so span deletion marks content incomplete just as trace deletion does. See `delete_traces`.
     """
     while span_rowids := tuple(
         await session.scalars(
@@ -700,7 +698,7 @@ async def mark_session_content_incomplete(
     session: AsyncSession,
     project_session_rowids: Union[Iterable[int], InElementRole],
 ) -> None:
-    """Record that content was removed from these sessions, and stand down their evals.
+    """Record that content was removed from these sessions and retire their evaluations.
 
     A session evaluation scores the session as a whole, so once part of it is gone the
     score describes content that no longer exists. Session scheduling is evaluate-once,
@@ -708,7 +706,7 @@ async def mark_session_content_incomplete(
     call this before or with the delete. `delete_traces` and `delete_spans` are how
     deletion paths get that for free.
 
-    Standing down also closes any evaluation the session had been asked for, leaving it
+    Marking content incomplete also closes any requested evaluation, leaving it
     fulfilled with no work unit behind it — the state the request surface reports as
     failed. This is the one place outside `server/online_eval/requests.py` that writes a
     request row, because deletion runs below the server layer.

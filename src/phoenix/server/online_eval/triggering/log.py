@@ -1,9 +1,9 @@
-"""Reads and writes for `evaluator_signals`, the durable log of things rules can match on.
+"""Reads and writes for `evaluator_events`, the durable log of things rules can match on.
 
-A signal is announced by whoever noticed the fact and consumed by acknowledgment: the
+An event is announced by whoever noticed the fact and consumed by acknowledgment: the
 drain reads unacknowledged rows and stamps the ones it turned into requests, in the same
 transaction. There is deliberately no position cursor here — row ids are handed out when a
-transaction starts, not when it commits, so a signal committed after a higher-id one would
+transaction starts, not when it commits, so an event committed after a higher-id one would
 be behind any cursor that had already advanced past it. Acknowledgment has no such hole.
 """
 
@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.eval_work import undrained_evaluator_signal_predicate
+from phoenix.db.eval_work import undrained_evaluator_event_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 
@@ -33,7 +33,7 @@ class AnnotationUpserted:
     annotations written by a person or an API client.
     """
 
-    kind: ClassVar[models.EvaluatorSignalKind] = "annotation_upserted"
+    kind: ClassVar[models.EvaluatorEventKind] = "annotation_upserted"
 
     annotation_target: models.AnnotationTarget
     annotation_id: int
@@ -52,11 +52,11 @@ class AnnotationUpserted:
     # collapses while a later write of the same annotation is a distinct occurrence. A
     # caller whose write is already identified — a work unit publishing its verdict —
     # passes that identity in; anyone else takes a fresh token.
-    occurrence_id: str = field(default_factory=lambda: token_hex(16), repr=False, compare=False)
+    write_token: str = field(default_factory=lambda: token_hex(16), repr=False, compare=False)
 
     @property
-    def dedup_key(self) -> str:
-        return f"{self.annotation_target}:{self.annotation_id}:{self.occurrence_id}"
+    def occurrence_key(self) -> str:
+        return f"{self.annotation_target}:{self.annotation_id}:{self.write_token}"
 
     def payload(self) -> dict[str, Any]:
         return {
@@ -86,7 +86,7 @@ class EvaluationCompleted:
     distinct occurrences a rule can be authored against separately.
     """
 
-    kind: ClassVar[models.EvaluatorSignalKind] = "evaluation_completed"
+    kind: ClassVar[models.EvaluatorEventKind] = "evaluation_completed"
 
     work_unit_kind: Literal["span", "session"]
     work_unit_id: int
@@ -99,7 +99,7 @@ class EvaluationCompleted:
     previous_label: Optional[str] = None
 
     @property
-    def dedup_key(self) -> str:
+    def occurrence_key(self) -> str:
         return f"{self.work_unit_kind}:{self.work_unit_id}:{self.name}"
 
     def payload(self) -> dict[str, Any]:
@@ -116,7 +116,7 @@ class EvaluationCompleted:
         }
 
 
-Signal: TypeAlias = Union[AnnotationUpserted, EvaluationCompleted]
+Event: TypeAlias = Union[AnnotationUpserted, EvaluationCompleted]
 
 
 # Which column holds the routed entity's rowid, per evaluation target. The table CHECKs
@@ -130,16 +130,16 @@ _TARGET_KEY_COLUMNS: dict[models.EvaluationTarget, str] = {
 
 
 @dataclass(frozen=True)
-class DrainedSignal:
+class DrainedEvent:
     """One unacknowledged occurrence, as the drain reads it.
 
     `evaluation_target` and `target_rowid` say which entity the occurrence demands be
     evaluated; what the occurrence happened to is in the payload.
     """
 
-    signal_id: int
-    kind: models.EvaluatorSignalKind
-    dedup_key: str
+    event_id: int
+    kind: models.EvaluatorEventKind
+    occurrence_key: str
     project_id: int
     evaluation_target: models.EvaluationTarget
     target_rowid: int
@@ -149,15 +149,15 @@ class DrainedSignal:
 
 async def append(
     session: AsyncSession,
-    signal: Signal,
+    event: Event,
     *,
     project_id: int,
     evaluation_target: models.EvaluationTarget,
     target_rowid: int,
 ) -> bool:
-    """Log one occurrence of `signal` against a project and the entity it demands.
+    """Log one occurrence of `event` against a project and the entity it demands.
 
-    Pass the session of the transaction the fact belongs to: the signal then commits or
+    Pass the session of the transaction the fact belongs to: the event then commits or
     rolls back with the fact, which is what keeps an announced change from outliving the
     change that announced it. Only a repeat of the same occurrence is tolerated; anything
     else the row violates — an unknown kind or target, a project or entity that is gone —
@@ -169,50 +169,50 @@ async def append(
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     stmt = insert_on_conflict(
         {
-            "kind": signal.kind,
-            "dedup_key": signal.dedup_key,
+            "kind": event.kind,
+            "occurrence_key": event.occurrence_key,
             "project_id": project_id,
             "evaluation_target": evaluation_target,
             _TARGET_KEY_COLUMNS[evaluation_target]: target_rowid,
-            "payload": signal.payload(),
+            "payload": event.payload(),
         },
-        table=models.EvaluatorSignal,
+        table=models.EvaluatorEvent,
         dialect=dialect,
-        unique_by=("kind", "dedup_key"),
+        unique_by=("kind", "occurrence_key"),
         on_conflict=OnConflict.DO_NOTHING,
-    ).returning(models.EvaluatorSignal.id)
+    ).returning(models.EvaluatorEvent.id)
     return (await session.execute(stmt)).first() is not None
 
 
-async def drain_page(session: AsyncSession, *, limit: int) -> tuple[DrainedSignal, ...]:
+async def drain_page(session: AsyncSession, *, limit: int) -> tuple[DrainedEvent, ...]:
     """Read up to `limit` unacknowledged occurrences in id order.
 
-    The predicate is spelled by `undrained_evaluator_signal_predicate` so that it matches
+    The predicate is spelled by `undrained_evaluator_event_predicate` so that it matches
     the partial index the table carries; PostgreSQL only uses that index for a query whose
     WHERE clause implies its predicate.
     """
     stmt = (
         select(
-            models.EvaluatorSignal.id,
-            models.EvaluatorSignal.kind,
-            models.EvaluatorSignal.dedup_key,
-            models.EvaluatorSignal.project_id,
-            models.EvaluatorSignal.evaluation_target,
-            models.EvaluatorSignal.span_rowid,
-            models.EvaluatorSignal.trace_rowid,
-            models.EvaluatorSignal.project_session_rowid,
-            models.EvaluatorSignal.payload,
-            models.EvaluatorSignal.created_at,
+            models.EvaluatorEvent.id,
+            models.EvaluatorEvent.kind,
+            models.EvaluatorEvent.occurrence_key,
+            models.EvaluatorEvent.project_id,
+            models.EvaluatorEvent.evaluation_target,
+            models.EvaluatorEvent.span_rowid,
+            models.EvaluatorEvent.trace_rowid,
+            models.EvaluatorEvent.project_session_rowid,
+            models.EvaluatorEvent.payload,
+            models.EvaluatorEvent.created_at,
         )
-        .where(text(undrained_evaluator_signal_predicate()))
-        .order_by(models.EvaluatorSignal.id)
+        .where(text(undrained_evaluator_event_predicate()))
+        .order_by(models.EvaluatorEvent.id)
         .limit(limit)
     )
     return tuple(
-        DrainedSignal(
-            signal_id=row.id,
+        DrainedEvent(
+            event_id=row.id,
             kind=row.kind,
-            dedup_key=row.dedup_key,
+            occurrence_key=row.occurrence_key,
             project_id=row.project_id,
             evaluation_target=row.evaluation_target,
             target_rowid=getattr(row, _TARGET_KEY_COLUMNS[row.evaluation_target]),
@@ -223,7 +223,7 @@ async def drain_page(session: AsyncSession, *, limit: int) -> tuple[DrainedSigna
     )
 
 
-async def acknowledge(session: AsyncSession, signal_ids: Iterable[int]) -> int:
+async def acknowledge(session: AsyncSession, event_ids: Iterable[int]) -> int:
     """Record that these occurrences have been consumed, and never any others.
 
     Call this in the transaction that persists everything the page produced, so a page
@@ -233,14 +233,14 @@ async def acknowledge(session: AsyncSession, signal_ids: Iterable[int]) -> int:
     Returns:
         How many of the given occurrences this call acknowledged.
     """
-    ids = sorted(set(signal_ids))
+    ids = sorted(set(event_ids))
     if not ids:
         return 0
     result = await session.execute(
-        update(models.EvaluatorSignal)
+        update(models.EvaluatorEvent)
         .where(
-            models.EvaluatorSignal.id.in_(ids),
-            models.EvaluatorSignal.acknowledged_at.is_(None),
+            models.EvaluatorEvent.id.in_(ids),
+            models.EvaluatorEvent.acknowledged_at.is_(None),
         )
         .values(acknowledged_at=func.now())
     )
@@ -257,9 +257,9 @@ async def purge_acknowledged(session: AsyncSession, *, acknowledged_before: date
         How many occurrences were deleted.
     """
     result = await session.execute(
-        delete(models.EvaluatorSignal).where(
-            models.EvaluatorSignal.acknowledged_at.is_not(None),
-            models.EvaluatorSignal.acknowledged_at < acknowledged_before,
+        delete(models.EvaluatorEvent).where(
+            models.EvaluatorEvent.acknowledged_at.is_not(None),
+            models.EvaluatorEvent.acknowledged_at < acknowledged_before,
         )
     )
     return int(result.rowcount)  # type: ignore[attr-defined]

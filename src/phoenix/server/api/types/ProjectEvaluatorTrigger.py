@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from .Evaluator import ProjectEvaluator
 
 
-@strawberry.enum(description="The kind of occurrence a trigger matches on.")
-class EvaluatorSignalKind(Enum):
+@strawberry.enum(description="The kind of event a trigger matches on.")
+class EvaluatorEventKind(Enum):
     ANNOTATION_UPSERTED = "annotation_upserted"
     EVALUATION_COMPLETED = "evaluation_completed"
 
@@ -112,10 +112,10 @@ class ProjectEvaluatorTriggerEvaluationPredicates:
 
 @strawberry.type(
     description=(
-        "A rule saying which occurrences should make its project evaluator run. Its predicates "
-        "live in the object for its signal kind; leaving that object null means the trigger "
-        "fires on every occurrence of that kind in the project. To match a set of values "
-        "('label A or B'), add one trigger per value. A trigger applies to occurrences recorded "
+        "A rule saying which events should make its project evaluator run. Its predicates "
+        "live in the object for its event kind; leaving that object null means the trigger "
+        "fires on every event of that kind in the project. To match a set of values "
+        "('label A or B'), add one trigger per value. A trigger applies to events recorded "
         "after it is created and never to earlier ones; use requestProjectSessionEvaluation to "
         "evaluate sessions that already match."
     )
@@ -123,17 +123,17 @@ class ProjectEvaluatorTriggerEvaluationPredicates:
 class ProjectEvaluatorTrigger(Node):
     id: NodeID[int]
     criteria_id: strawberry.Private[int]
-    signal_kind: EvaluatorSignalKind
+    event_kind: EvaluatorEventKind
     annotation_predicates: Optional[ProjectEvaluatorTriggerAnnotationPredicates] = strawberry.field(
         description=(
             "What an annotation must look like for this trigger to fire, or null to match every "
-            "annotation. Null unless the signal kind is ANNOTATION_UPSERTED."
+            "annotation. Null unless the event kind is ANNOTATION_UPSERTED."
         )
     )
     evaluation_predicates: Optional[ProjectEvaluatorTriggerEvaluationPredicates] = strawberry.field(
         description=(
             "What a finished evaluation must look like for this trigger to fire, or null to "
-            "match every evaluation. Null unless the signal kind is EVALUATION_COMPLETED."
+            "match every evaluation. Null unless the event kind is EVALUATION_COMPLETED."
         )
     )
     created_at: datetime
@@ -155,7 +155,7 @@ def to_gql_project_evaluator_trigger(
     return ProjectEvaluatorTrigger(
         id=record.id,
         criteria_id=record.criteria_id,
-        signal_kind=EvaluatorSignalKind(record.signal_kind),
+        event_kind=EvaluatorEventKind(record.event_kind),
         annotation_predicates=_to_gql_annotation_predicates(record.annotation_predicates),
         evaluation_predicates=_to_gql_evaluation_predicates(record.evaluation_predicates),
         created_at=record.created_at,

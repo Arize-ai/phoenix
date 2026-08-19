@@ -30,7 +30,7 @@ from phoenix.server.online_eval.coordinator import (
     QueueLag,
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
-from phoenix.server.online_eval.triggering import log as signal_log
+from phoenix.server.online_eval.triggering import log as event_log
 from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 from phoenix.server.types import DbSessionFactory
 
@@ -238,17 +238,17 @@ class DbEvalWorkCoordinator:
         *,
         work_unit_id: int,
         claimed_by: str,
-        completion_signals: Sequence[EvaluationCompleted] = (),
+        completion_events: Sequence[EvaluationCompleted] = (),
     ) -> bool:
         """Complete a claimed unit, treating an already-DONE row as success.
 
-        ``completion_signals`` are logged in the same transaction as the transition, so a
+        ``completion_events`` are logged in the same transaction as the transition, so a
         retry against an already-DONE row completes without announcing them again.
         """
 
         async def announce(session: AsyncSession) -> None:
-            for completion_signal in completion_signals:
-                await self._announce_completion(session, work_unit_id, completion_signal)
+            for completion_event in completion_events:
+                await self._announce_completion(session, work_unit_id, completion_event)
 
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
@@ -262,7 +262,7 @@ class DbEvalWorkCoordinator:
         self,
         session: AsyncSession,
         work_unit_id: int,
-        completion_signal: EvaluationCompleted,
+        completion_event: EvaluationCompleted,
     ) -> None:
         """Log a completion against the session its evaluated target belongs to.
 
@@ -289,9 +289,9 @@ class DbEvalWorkCoordinator:
         project_id, project_session_rowid = (await session.execute(identity_statement)).one()
         if project_session_rowid is None:
             return
-        await signal_log.append(
+        await event_log.append(
             session,
-            completion_signal,
+            completion_event,
             project_id=project_id,
             # Delivery is session-only, so a verdict on any target demands the session
             # it belongs to be evaluated.

@@ -48,7 +48,7 @@ def _annotation(
     )
 
 
-async def test_signal_is_appended_then_drained_then_acknowledged(db: DbSessionFactory) -> None:
+async def test_event_is_appended_then_drained_then_acknowledged(db: DbSessionFactory) -> None:
     project_id, project_session_rowid = await _seed_session(db)
 
     async with db() as session:
@@ -70,13 +70,13 @@ async def test_signal_is_appended_then_drained_then_acknowledged(db: DbSessionFa
     assert drained.payload["label"] == "incorrect"
 
     async with db() as session:
-        assert await acknowledge(session, [drained.signal_id]) == 1
+        assert await acknowledge(session, [drained.event_id]) == 1
 
     async with db() as session:
         assert await drain_page(session, limit=10) == ()
 
 
-async def test_retried_annotation_signal_collapses_while_a_later_write_is_distinct(
+async def test_retried_annotation_event_collapses_while_a_later_write_is_distinct(
     db: DbSessionFactory,
 ) -> None:
     project_id, project_session_rowid = await _seed_session(db)
@@ -110,12 +110,15 @@ async def test_retried_annotation_signal_collapses_while_a_later_write_is_distin
 
     async with db() as session:
         page = await drain_page(session, limit=10)
-    assert [signal.dedup_key for signal in page] == [noticed.dedup_key, rewritten.dedup_key]
+    assert [event.occurrence_key for event in page] == [
+        noticed.occurrence_key,
+        rewritten.occurrence_key,
+    ]
     # The retry did not overwrite what the first write recorded.
     assert page[0].payload["label"] == "incorrect"
 
 
-async def test_retried_completion_collapses_to_one_signal(db: DbSessionFactory) -> None:
+async def test_retried_completion_collapses_to_one_event(db: DbSessionFactory) -> None:
     project_id, project_session_rowid = await _seed_session(db)
     completed = EvaluationCompleted(
         work_unit_kind="session",
@@ -165,7 +168,7 @@ async def test_append_fails_the_transaction_when_the_row_cannot_be_written(
         assert await drain_page(session, limit=10) == ()
 
 
-async def test_acknowledge_stamps_only_the_given_signals_and_repeats_harmlessly(
+async def test_acknowledge_stamps_only_the_given_events_and_repeats_harmlessly(
     db: DbSessionFactory,
 ) -> None:
     project_id, project_session_rowid = await _seed_session(db)
@@ -181,30 +184,30 @@ async def test_acknowledge_stamps_only_the_given_signals_and_repeats_harmlessly(
 
     async with db() as session:
         first, second, third = await drain_page(session, limit=10)
-        assert await acknowledge(session, [first.signal_id, third.signal_id]) == 2
+        assert await acknowledge(session, [first.event_id, third.event_id]) == 2
 
     async with db() as session:
-        assert [signal.signal_id for signal in await drain_page(session, limit=10)] == [
-            second.signal_id
+        assert [event.event_id for event in await drain_page(session, limit=10)] == [
+            second.event_id
         ]
         stamped = await session.scalar(
-            select(models.EvaluatorSignal.acknowledged_at).where(
-                models.EvaluatorSignal.id == first.signal_id
+            select(models.EvaluatorEvent.acknowledged_at).where(
+                models.EvaluatorEvent.id == first.event_id
             )
         )
 
     async with db() as session:
-        assert await acknowledge(session, [first.signal_id, third.signal_id]) == 0
+        assert await acknowledge(session, [first.event_id, third.event_id]) == 0
 
     async with db() as session:
         assert stamped == await session.scalar(
-            select(models.EvaluatorSignal.acknowledged_at).where(
-                models.EvaluatorSignal.id == first.signal_id
+            select(models.EvaluatorEvent.acknowledged_at).where(
+                models.EvaluatorEvent.id == first.event_id
             )
         )
 
 
-async def test_purge_removes_acknowledged_signals_past_the_window_and_nothing_else(
+async def test_purge_removes_acknowledged_events_past_the_window_and_nothing_else(
     db: DbSessionFactory,
 ) -> None:
     project_id, project_session_rowid = await _seed_session(db)
@@ -221,10 +224,10 @@ async def test_purge_removes_acknowledged_signals_past_the_window_and_nothing_el
     now = datetime.now(timezone.utc)
     async with db() as session:
         stale, recent, undrained = await drain_page(session, limit=10)
-        await acknowledge(session, [stale.signal_id, recent.signal_id])
+        await acknowledge(session, [stale.event_id, recent.event_id])
         await session.execute(
-            update(models.EvaluatorSignal)
-            .where(models.EvaluatorSignal.id == stale.signal_id)
+            update(models.EvaluatorEvent)
+            .where(models.EvaluatorEvent.id == stale.event_id)
             .values(acknowledged_at=now - timedelta(hours=1))
         )
 
@@ -235,13 +238,13 @@ async def test_purge_removes_acknowledged_signals_past_the_window_and_nothing_el
 
     async with db() as session:
         surviving = await session.scalars(
-            select(models.EvaluatorSignal.id).order_by(models.EvaluatorSignal.id)
+            select(models.EvaluatorEvent.id).order_by(models.EvaluatorEvent.id)
         )
-        assert list(surviving) == [recent.signal_id, undrained.signal_id]
+        assert list(surviving) == [recent.event_id, undrained.event_id]
 
 
 @pytest.mark.postgres_only
-async def test_signal_committed_after_a_higher_id_signal_is_still_drained(
+async def test_event_committed_after_a_higher_id_event_is_still_drained(
     postgresql_engine: AsyncEngine,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
@@ -250,7 +253,7 @@ async def test_signal_committed_after_a_higher_id_signal_is_still_drained(
 
     async with db() as slow:
         # `late` takes the lower id here, but its transaction stays open past the commit
-        # of the signal that follows it.
+        # of the event that follows it.
         await append(
             slow,
             late,
@@ -268,8 +271,8 @@ async def test_signal_committed_after_a_higher_id_signal_is_still_drained(
             )
         async with db() as reader:
             page = await drain_page(reader, limit=10)
-        assert [signal.dedup_key for signal in page] == [early.dedup_key]
+        assert [event.occurrence_key for event in page] == [early.occurrence_key]
 
     async with db() as reader:
         page = await drain_page(reader, limit=10)
-    assert [signal.dedup_key for signal in page] == [late.dedup_key, early.dedup_key]
+    assert [event.occurrence_key for event in page] == [late.occurrence_key, early.occurrence_key]

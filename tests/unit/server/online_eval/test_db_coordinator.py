@@ -16,7 +16,7 @@ from phoenix.server.online_eval.db_coordinator import (
     DbEvalWorkCoordinator,
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, STALE_FINGERPRINT_ERROR
-from phoenix.server.online_eval.triggering import log as signal_log_module
+from phoenix.server.online_eval.triggering import log as event_log_module
 from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 from phoenix.server.types import DbSessionFactory
 
@@ -140,7 +140,7 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
     assert await coordinator.complete(work_unit_id=unit_ids[0], claimed_by="consumer-1")
 
 
-def _completion_signal(work_unit_id: int, criteria_id: int) -> EvaluationCompleted:
+def _completion_event(work_unit_id: int, criteria_id: int) -> EvaluationCompleted:
     return EvaluationCompleted(
         work_unit_kind="span",
         work_unit_id=work_unit_id,
@@ -154,12 +154,10 @@ def _completion_signal(work_unit_id: int, criteria_id: int) -> EvaluationComplet
     )
 
 
-async def _signals(db: DbSessionFactory) -> list[models.EvaluatorSignal]:
+async def _events(db: DbSessionFactory) -> list[models.EvaluatorEvent]:
     async with db() as session:
         return list(
-            await session.scalars(
-                select(models.EvaluatorSignal).order_by(models.EvaluatorSignal.id)
-            )
+            await session.scalars(select(models.EvaluatorEvent).order_by(models.EvaluatorEvent.id))
         )
 
 
@@ -173,13 +171,13 @@ async def test_completing_a_unit_announces_its_verdict_against_the_target_sessio
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        completion_signals=[_completion_signal(unit_id, claimed.criteria_id)],
+        completion_events=[_completion_event(unit_id, claimed.criteria_id)],
     )
 
-    (signal,) = await _signals(db)
-    assert signal.kind == "evaluation_completed"
+    (event,) = await _events(db)
+    assert event.kind == "evaluation_completed"
     # One occurrence per output, so the key names the output too.
-    assert signal.dedup_key == f"span:{unit_id}:criterion"
+    assert event.occurrence_key == f"span:{unit_id}:criterion"
     async with db() as session:
         span_session_rowid = await session.scalar(
             select(models.Trace.project_session_rowid)
@@ -187,11 +185,11 @@ async def test_completing_a_unit_announces_its_verdict_against_the_target_sessio
             .join(models.EvalWorkUnit, models.EvalWorkUnit.span_rowid == models.Span.id)
             .where(models.EvalWorkUnit.id == unit_id)
         )
-    assert signal.project_session_rowid == span_session_rowid
-    assert signal.payload["criteria_id"] == claimed.criteria_id
-    assert signal.payload["label"] == "incorrect"
-    assert signal.payload["previous_label"] == "correct"
-    assert signal.payload["result_changed"] is True
+    assert event.project_session_rowid == span_session_rowid
+    assert event.payload["criteria_id"] == claimed.criteria_id
+    assert event.payload["label"] == "incorrect"
+    assert event.payload["previous_label"] == "correct"
+    assert event.payload["result_changed"] is True
 
 
 async def test_completing_an_already_done_unit_announces_nothing(db: DbSessionFactory) -> None:
@@ -210,10 +208,10 @@ async def test_completing_an_already_done_unit_announces_nothing(db: DbSessionFa
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        completion_signals=[_completion_signal(unit_id, claimed.criteria_id)],
+        completion_events=[_completion_event(unit_id, claimed.criteria_id)],
     )
 
-    assert await _signals(db) == []
+    assert await _events(db) == []
 
 
 async def test_completing_a_span_outside_any_session_announces_nothing(
@@ -226,11 +224,11 @@ async def test_completing_a_span_outside_any_session_announces_nothing(
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        completion_signals=[_completion_signal(unit_id, claimed.criteria_id)],
+        completion_events=[_completion_event(unit_id, claimed.criteria_id)],
     )
 
     assert (await _get_unit(db, unit_id)).status == "DONE"
-    assert await _signals(db) == []
+    assert await _events(db) == []
 
 
 async def test_a_failed_announcement_leaves_the_unit_uncompleted(
@@ -242,19 +240,19 @@ async def test_a_failed_announcement_leaves_the_unit_uncompleted(
     (claimed,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
 
     async def _failing_append(*args: object, **kwargs: object) -> bool:
-        raise RuntimeError("signal log unavailable")
+        raise RuntimeError("event log unavailable")
 
-    monkeypatch.setattr(signal_log_module, "append", _failing_append)
+    monkeypatch.setattr(event_log_module, "append", _failing_append)
 
-    with pytest.raises(RuntimeError, match="signal log unavailable"):
+    with pytest.raises(RuntimeError, match="event log unavailable"):
         await coordinator.complete(
             work_unit_id=unit_id,
             claimed_by="consumer-1",
-            completion_signals=[_completion_signal(unit_id, claimed.criteria_id)],
+            completion_events=[_completion_event(unit_id, claimed.criteria_id)],
         )
 
     assert (await _get_unit(db, unit_id)).status == "RUNNING"
-    assert await _signals(db) == []
+    assert await _events(db) == []
 
 
 async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(

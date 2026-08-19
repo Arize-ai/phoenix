@@ -18,7 +18,8 @@ SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
 # a reader can tell its own output from a user's or an API client's without a join. It is
 # spelled once here because three sides read it and none of them may drift: the derivation
 # that writes it, the annotation seam that must not announce its own output back into the
-# trigger loop, and the stand-down delete that removes it. The write boundary reserves it
+# trigger loop, and the content-incomplete transition that removes it. The write boundary
+# reserves it
 # so no client can namespace its way into any of the three.
 ONLINE_EVAL_IDENTIFIER_PREFIX = "online:"
 
@@ -28,12 +29,12 @@ def is_reserved_annotation_identifier(identifier: str) -> bool:
     return identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX)
 
 
-# Signal kinds the trigger pipeline understands. Adding a kind is an edit here plus the
+# Event kinds the trigger pipeline understands. Adding a kind is an edit here plus the
 # code that emits and matches it; the CHECK domains are rendered from this tuple.
-EVALUATOR_SIGNAL_KINDS = ("annotation_upserted", "evaluation_completed")
+EVALUATOR_EVENT_KINDS = ("annotation_upserted", "evaluation_completed")
 
 # Entity kinds an online evaluation can be aimed at. The criteria that declare one, the
-# cursors that scan for one, and the signal log that routes to one all render their CHECK
+# cursors that scan for one, and the event log that routes to one all render their CHECK
 # domains from this tuple.
 EVALUATION_TARGETS = ("SPAN", "TRACE", "SESSION")
 
@@ -66,28 +67,28 @@ def live_eval_session_work_index_predicate() -> str:
     return f"{live_eval_work_index_predicate()} OR status IN ({declined})"
 
 
-def evaluator_signal_kind_check(column: str) -> str:
-    """SQL text constraining ``column`` to ``EVALUATOR_SIGNAL_KINDS``.
+def evaluator_event_kind_check(column: str) -> str:
+    """SQL text constraining ``column`` to ``EVALUATOR_EVENT_KINDS``.
 
-    The signal log and the trigger rules that discriminate on kind both spell the
+    The event log and the trigger rules that discriminate on kind both spell the
     vocabulary through this, so a new kind cannot reach one table without the other.
     """
-    kinds = ", ".join(f"'{kind}'" for kind in EVALUATOR_SIGNAL_KINDS)
+    kinds = ", ".join(f"'{kind}'" for kind in EVALUATOR_EVENT_KINDS)
     return f"{column} IN ({kinds})"
 
 
 def evaluation_target_check(column: str) -> str:
     """SQL text constraining ``column`` to ``EVALUATION_TARGETS``.
 
-    Criteria, work cursors and the signal log all spell the vocabulary through this,
+    Criteria, work cursors and the event log all spell the vocabulary through this,
     so a new target cannot reach one table without the others.
     """
     targets = ", ".join(f"'{target}'" for target in EVALUATION_TARGETS)
     return f"{column} IN ({targets})"
 
 
-def undrained_evaluator_signal_predicate() -> str:
-    """SQL text selecting signals the drain has not acknowledged yet.
+def undrained_evaluator_event_predicate() -> str:
+    """SQL text selecting events the drain has not acknowledged yet.
 
     Postgres only uses a partial index for a query whose WHERE clause it can prove
     implies the index predicate, so the drain query, the model's index, and the
