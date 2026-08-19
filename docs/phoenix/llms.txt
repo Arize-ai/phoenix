@@ -229,6 +229,7 @@
 
 ### Developer Tools
 
+- [Agent-Assisted Setup](https://arize.com/docs/phoenix/agent-assisted-setup): Add Phoenix tracing with one command — px setup hands instrumentation to your coding agent and verifies a real trace arrives
 - [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Claude Code, Cursor, and AI coding assistant integration
 - [MCP Overview](https://arize.com/docs/phoenix/integrations/mcp): Compare the Phoenix MCP servers and pick one for your data or docs
 - [Remote MCP Server](https://arize.com/docs/phoenix/integrations/remote-mcp): Connect MCP clients to the /mcp endpoint built into the Phoenix server (beta, recommended)
