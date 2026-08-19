@@ -18,7 +18,10 @@ import {
 } from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import { shouldSendAutomaticallyAfterToolOutput } from "@phoenix/agent/chat/shouldSendAutomatically";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
-import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
+import {
+  createTranscriptPersistenceCoordinator,
+  resolvedClientToolOutputIds,
+} from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import type {
   AgentUIMessage,
@@ -111,6 +114,11 @@ export function createAgentSessionChat({
   // racing its own in-flight change.
   let lastAssertedModelSelection: AgentModelSelection | null = null;
   const transcriptPersistence = createTranscriptPersistenceCoordinator();
+  seedMessages.forEach((message) =>
+    transcriptPersistence.markToolOutputsPersisted(
+      resolvedClientToolOutputIds(message)
+    )
+  );
   const turnCompletionGate = createTurnCompletionGate({
     getShouldSendAutomatically: (messages) =>
       shouldSendAutomaticallyAfterToolOutput({
@@ -238,6 +246,12 @@ export function createAgentSessionChat({
         });
       } else if (dataPart.type === "data-transcript-persisted") {
         transcriptPersistence.acknowledge(dataPart.data);
+        // The server names what it wrote. Deriving this from the local copy of
+        // the message instead would mark outputs that resolved after the
+        // server's snapshot, suppressing their flush forever.
+        transcriptPersistence.markToolOutputsPersisted(
+          dataPart.data.persistedToolOutputIds
+        );
       }
     },
     sendAutomaticallyWhen: async ({ messages }) => {
@@ -253,6 +267,7 @@ export function createAgentSessionChat({
             toolTimings,
             locallyInterruptedToolCallIds:
               store.getState().locallyInterruptedToolCallIds,
+            syncedToolOutputIds: transcriptPersistence.syncedToolOutputIds,
           });
         }
         return false;
