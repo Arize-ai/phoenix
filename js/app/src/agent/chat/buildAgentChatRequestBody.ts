@@ -85,10 +85,7 @@ function getClientToolOutputs(message: AgentUIMessage): ChatToolOutput[] {
 }
 
 /**
- * Extract the assistant message's responded tool approvals — the
- * `toolApprovals` a continuation may carry. The server applies them to its
- * persisted copy of the message and resumes the deferred tool calls: approved
- * calls re-execute server-side and denied calls return a denial to the model.
+ * Extract the assistant message's answered tool approvals.
  */
 function getToolApprovals(message: AgentUIMessage): ChatToolApproval[] {
   return message.parts.flatMap((part) => {

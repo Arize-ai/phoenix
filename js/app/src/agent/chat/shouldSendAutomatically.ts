@@ -29,9 +29,7 @@ export function shouldSendAutomaticallyAfterToolOutput({
     return false;
   }
   // A turn is ready to continue when the last step's tool calls all have
-  // outputs, or when the user has answered every requested approval (the
-  // approved calls re-execute server-side). A still-requested approval keeps
-  // the turn open, waiting on the user.
+  // outputs, or when the user has answered every requested approval.
   return (
     lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
     lastAssistantMessageIsCompleteWithApprovalResponses({ messages })
