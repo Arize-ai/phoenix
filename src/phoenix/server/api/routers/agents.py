@@ -293,10 +293,6 @@ class SessionSummaryChunk(DataChunk):
 
 class TranscriptPersistedData(_CamelBaseModel):
     message_id: str
-    persisted_tool_output_ids: list[str] = Field(
-        default_factory=list,
-        description="Tool call IDs whose tool outputs were included in the persisted message.",
-    )
 
 
 @register_openapi_schema
@@ -1652,19 +1648,6 @@ def _get_tool_execution_environment(
         return None
     metadata = _PhoenixToolCallCallbackProviderMetadataAdapter.validate_python(phoenix_metadata)
     return metadata.tool_execution_environment
-
-
-def _persisted_client_tool_output_ids(message: PhoenixUIMessage) -> list[str]:
-    """Tool call IDs whose client-executed outputs this message actually carries."""
-    client_tool_output_ids: list[str] = []
-    for part in message.parts:
-        if not isinstance(part, ToolOutputUIPart):
-            continue
-        executed_on_client = _get_tool_execution_environment(part) == "client"
-        if not executed_on_client:
-            continue
-        client_tool_output_ids.append(part.tool_call_id)
-    return client_tool_output_ids
 
 
 def _interrupted_tool_output_text(part: _UnresolvedToolUIPart) -> str:
@@ -3385,12 +3368,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         raise _transcript_persistence_error(request.app.state.db) from exc
                     persisted_message = turn_messages[-1]
                     return TranscriptPersistedChunk(
-                        data=TranscriptPersistedData(
-                            message_id=persisted_message.id,
-                            persisted_tool_output_ids=_persisted_client_tool_output_ids(
-                                persisted_message
-                            ),
-                        )
+                        data=TranscriptPersistedData(message_id=persisted_message.id)
                     )
 
                 async def _persist_interrupted_turn() -> None:

@@ -7090,11 +7090,6 @@ export interface components {
         TranscriptPersistedData: {
             /** Messageid */
             messageId: string;
-            /**
-             * Persistedtooloutputids
-             * @description Tool call IDs whose tool outputs were included in the persisted message.
-             */
-            persistedToolOutputIds?: string[];
         };
     };
     responses: never;
