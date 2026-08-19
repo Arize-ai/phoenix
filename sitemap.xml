@@ -293,10 +293,6 @@
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/document-relevance</loc>
-    <lastmod>2026-02-26T23:02:15+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection</loc>
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
@@ -330,26 +326,6 @@
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore</loc>
-    <lastmod>2026-02-26T23:02:15+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data</loc>
-    <lastmod>2026-02-26T23:02:15+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance</loc>
-    <lastmod>2026-02-26T23:02:15+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval</loc>
-    <lastmod>2026-02-26T23:02:15+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval</loc>
-    <lastmod>2026-02-26T23:02:15+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval</loc>
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
   <url>
