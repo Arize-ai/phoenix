@@ -1437,6 +1437,14 @@ async def test_project_evaluator_trigger_crud(
     }
     assert created["evaluationPredicates"] is None
     assert created["projectEvaluator"]["id"] == project_evaluator_id
+    trigger_id = from_global_id_with_expected_type(
+        GlobalID.from_id(created["id"]), "ProjectEvaluatorTrigger"
+    )
+    async with db() as session:
+        trigger = await session.get(models.ProjectEvaluatorTrigger, trigger_id)
+        assert trigger is not None
+        assert trigger.predicates is not None
+        assert trigger.predicates.type == trigger.event_kind
 
     assert await _read_trigger(gql_client, project_evaluator_id) == created
 
@@ -1598,11 +1606,6 @@ async def test_changing_the_event_kind_replaces_the_predicates(
         "sourceProjectEvaluator": None,
     }
     assert await _read_trigger(gql_client, project_evaluator_id) == transitioned
-    async with db() as session:
-        left_behind = await session.scalar(
-            select(func.count()).select_from(models.ProjectEvaluatorTriggerAnnotationPredicates)
-        )
-    assert left_behind == 0
 
 
 async def test_a_trigger_rejects_the_predicates_of_the_other_event_kind(
@@ -1720,6 +1723,15 @@ async def test_source_scoped_trigger_reaches_a_request_from_the_named_evaluator(
         GlobalID.from_id(source_id), "ProjectEvaluator"
     )
     async with db() as session:
+        trigger_id = from_global_id_with_expected_type(
+            GlobalID.from_id(create.data["createProjectEvaluatorTrigger"]["trigger"]["id"]),
+            "ProjectEvaluatorTrigger",
+        )
+        trigger = await session.get(models.ProjectEvaluatorTrigger, trigger_id)
+        assert trigger is not None
+        assert trigger.source_project_evaluator_id == source_project_evaluator_id
+        assert trigger.predicates is not None
+        assert "source_project_evaluator_id" not in trigger.predicates.model_dump()
         project_session = models.ProjectSession(
             session_id=token_hex(8),
             project_id=project.id,

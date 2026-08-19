@@ -657,11 +657,10 @@ async def delete_projects(
     """
     project_ids = sa.select(models.Project.id).where(project_filter)
     watching_trigger_ids = (
-        sa.select(models.ProjectEvaluatorTriggerEvaluationPredicates.trigger_id)
+        sa.select(models.ProjectEvaluatorTrigger.id)
         .join(
             models.ProjectEvaluator,
-            models.ProjectEvaluatorTriggerEvaluationPredicates.source_project_evaluator_id
-            == models.ProjectEvaluator.id,
+            models.ProjectEvaluatorTrigger.source_project_evaluator_id == models.ProjectEvaluator.id,
         )
         .where(models.ProjectEvaluator.project_id.in_(project_ids))
     )

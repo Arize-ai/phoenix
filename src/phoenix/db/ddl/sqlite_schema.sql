@@ -1543,83 +1543,23 @@ CREATE TABLE project_evaluator_triggers (
     event_kind VARCHAR NOT NULL
         CONSTRAINT "ck_project_evaluator_triggers_`valid_event_kind`"
         CHECK (event_kind IN ('annotation_upserted', 'evaluation_completed')),
+    predicates JSONB,
+    source_project_evaluator_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_triggers_id_event_kind UNIQUE (id, event_kind),
     CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_project_evaluators
         FOREIGN KEY (project_evaluator_id)
         REFERENCES project_evaluators (id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_triggers_source_project_evaluator_id_project_evaluators
+        FOREIGN KEY (source_project_evaluator_id)
+        REFERENCES project_evaluators (id)
 );
 
 CREATE INDEX ix_project_evaluator_triggers_project_evaluator_id ON project_evaluator_triggers
     (project_evaluator_id);
-
-
--- Table: project_evaluator_trigger_annotation_predicates
--- ------------------------------------------------------
-CREATE TABLE project_evaluator_trigger_annotation_predicates (
-    id INTEGER NOT NULL,
-    trigger_id INTEGER NOT NULL,
-    event_kind VARCHAR NOT NULL
-        CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`valid_event_kind`"
-        CHECK (event_kind = 'annotation_upserted'),
-    name VARCHAR,
-    label VARCHAR,
-    score_below FLOAT,
-    score_above FLOAT,
-    annotator_kind VARCHAR
-        CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`valid_annotator_kind`"
-        CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN')),
-    annotation_change VARCHAR
-        CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`valid_annotation_change`"
-        CHECK (annotation_change IN ('created', 'updated')),
-    annotation_target VARCHAR
-        CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`valid_annotation_target`"
-        CHECK (annotation_target IN ('span', 'trace', 'session')),
-    matches_evaluator_annotations BOOLEAN DEFAULT false NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_project_evaluator_trigger_annotation_predicates PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_trigger_annotation_predicates_trigger_id
-        UNIQUE (trigger_id),
-    CONSTRAINT fk_project_evaluator_trigger_annotation_predicates_trigger_id_project_evaluator_triggers
-        FOREIGN KEY (trigger_id, event_kind)
-        REFERENCES project_evaluator_triggers (id, event_kind)
-        ON DELETE CASCADE
-);
-
-
--- Table: project_evaluator_trigger_evaluation_predicates
--- ------------------------------------------------------
-CREATE TABLE project_evaluator_trigger_evaluation_predicates (
-    id INTEGER NOT NULL,
-    trigger_id INTEGER NOT NULL,
-    event_kind VARCHAR NOT NULL
-        CONSTRAINT "ck_project_evaluator_trigger_evaluation_predicates_`valid_event_kind`"
-        CHECK (event_kind = 'evaluation_completed'),
-    name VARCHAR,
-    label VARCHAR,
-    score_below FLOAT,
-    score_above FLOAT,
-    source_project_evaluator_id INTEGER,
-    result_changed_only BOOLEAN DEFAULT false NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_project_evaluator_trigger_evaluation_predicates PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_trigger_evaluation_predicates_trigger_id
-        UNIQUE (trigger_id),
-    CONSTRAINT fk_project_evaluator_trigger_evaluation_predicates_source_project_evaluator_id_project_evaluators
-        FOREIGN KEY (source_project_evaluator_id)
-        REFERENCES project_evaluators (id),
-    CONSTRAINT fk_project_evaluator_trigger_evaluation_predicates_trigger_id_project_evaluator_triggers
-        FOREIGN KEY (trigger_id, event_kind)
-        REFERENCES project_evaluator_triggers (id, event_kind)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_trigger_evaluation_predicates_source_project_evaluator_id ON project_evaluator_trigger_evaluation_predicates
+CREATE INDEX ix_project_evaluator_triggers_source_project_evaluator_id ON project_evaluator_triggers
     (source_project_evaluator_id);
 
 

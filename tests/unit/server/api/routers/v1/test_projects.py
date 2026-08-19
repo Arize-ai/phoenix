@@ -307,16 +307,10 @@ class TestProjects:
             trigger = models.ProjectEvaluatorTrigger(
                 project_evaluator_id=watcher.id,
                 event_kind="evaluation_completed",
+                predicates={"type": "evaluation_completed"},
+                source_project_evaluator_id=source.id,
             )
             session.add(trigger)
-            await session.flush()
-            session.add(
-                models.ProjectEvaluatorTriggerEvaluationPredicates(
-                    trigger_id=trigger.id,
-                    event_kind="evaluation_completed",
-                    source_project_evaluator_id=source.id,
-                )
-            )
             await session.flush()
             project_id = project.id
 

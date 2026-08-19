@@ -1619,11 +1619,11 @@ CREATE TABLE public.project_evaluator_triggers (
     id bigserial NOT NULL,
     project_evaluator_id BIGINT NOT NULL,
     event_kind VARCHAR NOT NULL,
+    predicates JSONB,
+    source_project_evaluator_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_triggers_id_event_kind
-        UNIQUE (id, event_kind),
     CONSTRAINT "ck_project_evaluator_triggers_`valid_event_kind`"
         CHECK (((event_kind)::text = ANY ((ARRAY[
             'annotation_upserted'::character varying,
@@ -1632,85 +1632,15 @@ CREATE TABLE public.project_evaluator_triggers (
     CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_project_evalu_acfb
         FOREIGN KEY (project_evaluator_id)
         REFERENCES public.project_evaluators (id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_triggers_source_project_evaluator_id_projec_30d2
+        FOREIGN KEY (source_project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
 );
 
 CREATE INDEX ix_project_evaluator_triggers_project_evaluator_id ON public.project_evaluator_triggers
     USING btree (project_evaluator_id);
-
-
--- Table: project_evaluator_trigger_annotation_predicates
--- ------------------------------------------------------
-CREATE TABLE public.project_evaluator_trigger_annotation_predicates (
-    id bigserial NOT NULL,
-    trigger_id BIGINT NOT NULL,
-    event_kind VARCHAR NOT NULL,
-    name VARCHAR,
-    label VARCHAR,
-    score_below DOUBLE PRECISION,
-    score_above DOUBLE PRECISION,
-    annotator_kind VARCHAR,
-    annotation_change VARCHAR,
-    annotation_target VARCHAR,
-    matches_evaluator_annotations BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_project_evaluator_trigger_annotation_predicates PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_trigger_annotation_predicates_trigger_id
-        UNIQUE (trigger_id),
-    CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`val_a424"
-        CHECK (((annotation_change)::text = ANY ((ARRAY[
-            'created'::character varying,
-            'updated'::character varying
-        ])::text[]))),
-    CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`val_d10c" CHECK (((event_kind)::text = 'annotation_upserted'::text)),
-    CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`val_d859"
-        CHECK (((annotator_kind)::text = ANY ((ARRAY[
-            'LLM'::character varying,
-            'CODE'::character varying,
-            'HUMAN'::character varying
-        ])::text[]))),
-    CONSTRAINT "ck_project_evaluator_trigger_annotation_predicates_`val_e403"
-        CHECK (((annotation_target)::text = ANY ((ARRAY[
-            'span'::character varying,
-            'trace'::character varying,
-            'session'::character varying
-        ])::text[]))),
-    CONSTRAINT fk_project_evaluator_trigger_annotation_predicates_trig_0c9c
-        FOREIGN KEY (trigger_id, event_kind)
-        REFERENCES public.project_evaluator_triggers (id, event_kind)
-        ON DELETE CASCADE
-);
-
-
--- Table: project_evaluator_trigger_evaluation_predicates
--- ------------------------------------------------------
-CREATE TABLE public.project_evaluator_trigger_evaluation_predicates (
-    id bigserial NOT NULL,
-    trigger_id BIGINT NOT NULL,
-    event_kind VARCHAR NOT NULL,
-    name VARCHAR,
-    label VARCHAR,
-    score_below DOUBLE PRECISION,
-    score_above DOUBLE PRECISION,
-    source_project_evaluator_id BIGINT,
-    result_changed_only BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_project_evaluator_trigger_evaluation_predicates PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_trigger_evaluation_predicates_trigger_id
-        UNIQUE (trigger_id),
-    CONSTRAINT "ck_project_evaluator_trigger_evaluation_predicates_`val_e573" CHECK (((event_kind)::text = 'evaluation_completed'::text)),
-    CONSTRAINT fk_project_evaluator_trigger_evaluation_predicates_sour_8bfd
-        FOREIGN KEY (source_project_evaluator_id)
-        REFERENCES public.project_evaluators (id),
-    CONSTRAINT fk_project_evaluator_trigger_evaluation_predicates_trig_baa2
-        FOREIGN KEY (trigger_id, event_kind)
-        REFERENCES public.project_evaluator_triggers (id, event_kind)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_trigger_evaluation_predicates_source_project_evaluator_id ON public.project_evaluator_trigger_evaluation_predicates
+CREATE INDEX ix_project_evaluator_triggers_source_project_evaluator_id ON public.project_evaluator_triggers
     USING btree (source_project_evaluator_id);
 
 

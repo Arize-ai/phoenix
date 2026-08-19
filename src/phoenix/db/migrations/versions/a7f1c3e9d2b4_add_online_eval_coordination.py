@@ -285,122 +285,10 @@ def _create_project_evaluator_triggers_table() -> None:
             sa.CheckConstraint(evaluator_event_kind_check("event_kind"), name="valid_event_kind"),
             nullable=False,
         ),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        # The key each predicate table's foreign key references, so a predicate row can
-        # only attach to a trigger of its own event kind.
-        sa.UniqueConstraint("id", "event_kind"),
-    )
-    op.create_index(
-        "ix_project_evaluator_triggers_project_evaluator_id",
-        "project_evaluator_triggers",
-        ["project_evaluator_id"],
-    )
-
-
-def _create_trigger_annotation_predicates_table() -> None:
-    op.create_table(
-        "project_evaluator_trigger_annotation_predicates",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column("trigger_id", _Integer, nullable=False),
-        sa.Column(
-            "event_kind",
-            sa.String(),
-            sa.CheckConstraint(
-                "event_kind = 'annotation_upserted'",
-                name="valid_event_kind",
-            ),
-            nullable=False,
-        ),
-        sa.Column("name", sa.String(), nullable=True),
-        sa.Column("label", sa.String(), nullable=True),
-        sa.Column("score_below", sa.Float(), nullable=True),
-        sa.Column("score_above", sa.Float(), nullable=True),
-        sa.Column(
-            "annotator_kind",
-            sa.String(),
-            sa.CheckConstraint(
-                "annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
-                name="valid_annotator_kind",
-            ),
-            nullable=True,
-        ),
-        sa.Column(
-            "annotation_change",
-            sa.String(),
-            sa.CheckConstraint(
-                "annotation_change IN ('created', 'updated')",
-                name="valid_annotation_change",
-            ),
-            nullable=True,
-        ),
-        sa.Column(
-            "annotation_target",
-            sa.String(),
-            sa.CheckConstraint(
-                "annotation_target IN ('span', 'trace', 'session')",
-                name="valid_annotation_target",
-            ),
-            nullable=True,
-        ),
-        sa.Column(
-            "matches_evaluator_annotations",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("false"),
-        ),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.ForeignKeyConstraint(
-            ["trigger_id", "event_kind"],
-            ["project_evaluator_triggers.id", "project_evaluator_triggers.event_kind"],
-            ondelete="CASCADE",
-        ),
-        sa.UniqueConstraint("trigger_id"),
-    )
-
-
-def _create_trigger_evaluation_predicates_table() -> None:
-    op.create_table(
-        "project_evaluator_trigger_evaluation_predicates",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column("trigger_id", _Integer, nullable=False),
-        sa.Column(
-            "event_kind",
-            sa.String(),
-            sa.CheckConstraint(
-                "event_kind = 'evaluation_completed'",
-                name="valid_event_kind",
-            ),
-            nullable=False,
-        ),
-        sa.Column("name", sa.String(), nullable=True),
-        sa.Column("label", sa.String(), nullable=True),
-        sa.Column("score_below", sa.Float(), nullable=True),
-        sa.Column("score_above", sa.Float(), nullable=True),
-        # Not ON DELETE CASCADE: cascading here would delete the predicates and leave the
-        # trigger behind, firing on every completion. Deleting a watched project_evaluator is
-        # refused until the trigger that watches it goes with it.
+        sa.Column("predicates", JSON_, nullable=True),
+        # Not ON DELETE CASCADE: cascading here would remove the watched project_evaluator
+        # reference and leave the trigger behind, firing on every completion. Deleting a
+        # watched project_evaluator is refused until the trigger that watches it goes with it.
         sa.Column(
             "source_project_evaluator_id",
             _Integer,
@@ -408,12 +296,6 @@ def _create_trigger_evaluation_predicates_table() -> None:
             nullable=True,
         ),
         sa.Column(
-            "result_changed_only",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("false"),
-        ),
-        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
@@ -425,18 +307,15 @@ def _create_trigger_evaluation_predicates_table() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.ForeignKeyConstraint(
-            ["trigger_id", "event_kind"],
-            ["project_evaluator_triggers.id", "project_evaluator_triggers.event_kind"],
-            ondelete="CASCADE",
-        ),
-        sa.UniqueConstraint("trigger_id"),
     )
-    # Named short: the conventional ix_<table>_<column> spelling exceeds PostgreSQL's
-    # 63-character identifier limit.
     op.create_index(
-        "ix_trigger_evaluation_predicates_source_project_evaluator_id",
-        "project_evaluator_trigger_evaluation_predicates",
+        "ix_project_evaluator_triggers_project_evaluator_id",
+        "project_evaluator_triggers",
+        ["project_evaluator_id"],
+    )
+    op.create_index(
+        "ix_project_evaluator_triggers_source_project_evaluator_id",
+        "project_evaluator_triggers",
         ["source_project_evaluator_id"],
     )
 
@@ -792,8 +671,6 @@ def upgrade() -> None:
     _create_session_work_units_table()
     _create_evaluator_events_table()
     _create_project_evaluator_triggers_table()
-    _create_trigger_annotation_predicates_table()
-    _create_trigger_evaluation_predicates_table()
     _create_evaluation_requests_table()
 
 
@@ -805,13 +682,9 @@ def downgrade() -> None:
     op.drop_table("evaluation_requests")
 
     op.drop_index(
-        "ix_trigger_evaluation_predicates_source_project_evaluator_id",
-        table_name="project_evaluator_trigger_evaluation_predicates",
+        "ix_project_evaluator_triggers_source_project_evaluator_id",
+        table_name="project_evaluator_triggers",
     )
-    op.drop_table("project_evaluator_trigger_evaluation_predicates")
-
-    op.drop_table("project_evaluator_trigger_annotation_predicates")
-
     op.drop_index(
         "ix_project_evaluator_triggers_project_evaluator_id",
         table_name="project_evaluator_triggers",
