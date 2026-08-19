@@ -1603,6 +1603,42 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
     )
 
 
+async def test_code_hydration_supplies_sandbox_runtime(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_code_criteria(
+        db,
+        project.id,
+        criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+    )
+    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    coordinator = DbEvalWorkCoordinator(db)
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    sandbox_runtime = cast(Any, object())
+    received_runtime: Any = None
+
+    async def _build_backend(*_: Any, runtime: Any = None, **__: Any) -> _StubSandboxBackend:
+        nonlocal received_runtime
+        received_runtime = runtime
+        return _StubSandboxBackend()
+
+    monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
+    executor = _executor(
+        db,
+        sandbox_session_manager=cast(Any, _StubSandboxSessionManager()),
+        sandbox_runtime=sandbox_runtime,
+    )
+
+    hydrated = await executor.hydrate(unit)
+
+    assert isinstance(hydrated, HydratedWorkUnit)
+    assert received_runtime is sandbox_runtime
+
+
 async def test_span_code_hydration_supplies_configured_payload_cap(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
