@@ -402,6 +402,12 @@ CASES: tuple[AdmissionCase, ...] = (
         dialect="postgresql",
     ),
     AdmissionCase(
+        sql="SELECT * FROM projects JOIN traces ON traces.project_rowid = projects.id RIGHT JOIN spans USING (start_time)",
+        expect=AdmissionOutcome.ADMIT,
+        note="a USING key on a join with more than one relation to its left; star expansion merges the key across the relations that provide it, and projects is not one of them",
+        dialect="postgresql",
+    ),
+    AdmissionCase(
         sql="SELECT user FROM spans, (SELECT 1) q",
         expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
         note="a foreign source in the FROM clause opens the unqualified-name hatch, and `user` binds to the session rather than to that source; the same identity is refused under its current_user spelling",
