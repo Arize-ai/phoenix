@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.16.1
+
+### Patch Changes
+
+- 2435eba: recommend gemini-3.7-flash for PXI sessions, drop the superseded gemini-3.5-flash from the recommended list, and add the missing claude-opus-5 entry
+
 ## 1.16.0
 
 ### Minor Changes
