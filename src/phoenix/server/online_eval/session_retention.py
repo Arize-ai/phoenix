@@ -1,4 +1,11 @@
-"""Retention for fulfilled session requests and terminal session work history."""
+"""Retention for fulfilled session requests and terminal session work history.
+
+The retained row is scheduling evidence, not only history: ambient DONE rows provide the
+content-independent success brake, declined rows hold the ambient live-key brake, and
+terminal watermarks brake triggered or requested work for a content version. Preserve the
+newest terminal row per (session, evaluator, configuration) key and reap only older rows;
+fulfilled requests may be reaped under their existing rules.
+"""
 
 from __future__ import annotations
 
@@ -11,17 +18,13 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
 
 from phoenix.db import models
-from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_DECLINED_STATUSES
+from phoenix.db.eval_work import MAX_ATTEMPTS, TERMINAL_EVAL_SESSION_WORK_STATUSES
 from phoenix.server.online_eval.requests import is_unfulfilled
-from phoenix.server.online_eval.session_policy import (
-    session_work_answers_request,
-    session_work_records_background_decision,
-)
 
 
 def _terminal_session_work(work: Any) -> ColumnElement[bool]:
     return or_(
-        work.status.in_(("DONE", "EXPIRED", *SESSION_DECLINED_STATUSES)),
+        work.status.in_(TERMINAL_EVAL_SESSION_WORK_STATUSES),
         and_(work.status == "ERROR", work.attempts >= MAX_ATTEMPTS),
     )
 
@@ -33,71 +36,84 @@ async def reap_session_history(
 ) -> None:
     """Delete aged history without removing the evidence that brakes new work.
 
-    Fulfilled requests are deleted before the work they reference. This keeps provenance
-    intact for every retained request instead of relying on the foreign key's ``SET NULL``
-    behavior. An unfulfilled request is never eligible for retention.
-
-    One terminal row can serve two different scheduling decisions: background scheduling
-    reads terminal decisions, while a trigger request reads only completed outcomes. A row
-    covering the session's current content is therefore retained until a newer row can
-    replace it for every decision it serves.
+    Sessions, work, and requests are locked in that order, matching the content-incomplete
+    transition. Fulfilled requests are deleted before the locked work they reference so
+    retained request provenance never relies on the foreign key's ``SET NULL`` behavior.
+    An unfulfilled request is never eligible for retention.
     """
-    await session.execute(
-        delete(models.EvaluationRequest).where(
-            not_(is_unfulfilled(models.EvaluationRequest)),
-            models.EvaluationRequest.updated_at < retention_cutoff,
-        )
-    )
-
+    request = models.EvaluationRequest
     work = models.EvalSessionWorkUnit
-    replacement = aliased(models.EvalSessionWorkUnit)
-    current_content = (
-        select(models.ProjectSession.last_span_ingested_at)
-        .where(models.ProjectSession.id == work.project_session_rowid)
-        .correlate(work)
-        .scalar_subquery()
-    )
-    same_pair_with_newer_current_content = (
-        replacement.project_session_rowid == work.project_session_rowid,
-        replacement.evaluator_id == work.evaluator_id,
-        replacement.config_fingerprint == work.config_fingerprint,
-        replacement.id > work.id,
-        replacement.evaluated_through >= current_content,
-    )
-    newer_background_decision_exists = exists(
+    aged_fulfilled_request_exists = exists(
         select(1).where(
-            *same_pair_with_newer_current_content,
-            session_work_records_background_decision(replacement),
+            request.project_session_rowid == models.ProjectSession.id,
+            not_(is_unfulfilled(request)),
+            request.updated_at < retention_cutoff,
         )
     )
-    newer_request_answer_exists = exists(
+    aged_terminal_work_exists = exists(
         select(1).where(
-            *same_pair_with_newer_current_content,
-            session_work_answers_request(replacement),
-        )
-    )
-    still_referenced = exists(
-        select(1).where(models.EvaluationRequest.materialized_by_session_work_unit_id == work.id)
-    )
-
-    await session.execute(
-        delete(work).where(
+            work.project_session_rowid == models.ProjectSession.id,
             _terminal_session_work(work),
             work.updated_at < retention_cutoff,
-            not_(still_referenced),
+        )
+    )
+    session_ids = tuple(
+        await session.scalars(
+            select(models.ProjectSession.id)
+            .where(or_(aged_fulfilled_request_exists, aged_terminal_work_exists))
+            .order_by(models.ProjectSession.id)
+            .with_for_update()
+        )
+    )
+    if not session_ids:
+        return
+
+    replacement = aliased(models.EvalSessionWorkUnit)
+    newer_terminal_work_exists = exists(
+        select(1).where(
+            replacement.project_session_rowid == work.project_session_rowid,
+            replacement.evaluator_id == work.evaluator_id,
+            replacement.config_fingerprint == work.config_fingerprint,
+            replacement.id > work.id,
+            _terminal_session_work(replacement),
+        )
+    )
+    retained_request_reference_exists = exists(
+        select(1).where(
+            request.materialized_by_session_work_unit_id == work.id,
             or_(
-                current_content.is_(None),
-                work.evaluated_through < current_content,
-                and_(
-                    or_(
-                        not_(session_work_records_background_decision(work)),
-                        newer_background_decision_exists,
-                    ),
-                    or_(
-                        not_(session_work_answers_request(work)),
-                        newer_request_answer_exists,
-                    ),
-                ),
+                is_unfulfilled(request),
+                request.updated_at >= retention_cutoff,
             ),
         )
     )
+    work_ids = tuple(
+        await session.scalars(
+            select(work.id)
+            .where(
+                work.project_session_rowid.in_(session_ids),
+                _terminal_session_work(work),
+                work.updated_at < retention_cutoff,
+                newer_terminal_work_exists,
+                not_(retained_request_reference_exists),
+            )
+            .order_by(work.id)
+            .with_for_update()
+        )
+    )
+    request_ids = tuple(
+        await session.scalars(
+            select(request.id)
+            .where(
+                request.project_session_rowid.in_(session_ids),
+                not_(is_unfulfilled(request)),
+                request.updated_at < retention_cutoff,
+            )
+            .order_by(request.id)
+            .with_for_update()
+        )
+    )
+    if request_ids:
+        await session.execute(delete(request).where(request.id.in_(request_ids)))
+    if work_ids:
+        await session.execute(delete(work).where(work.id.in_(work_ids)))

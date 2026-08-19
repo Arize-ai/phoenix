@@ -1,7 +1,6 @@
-"""For a given session content version (`last_span_ingested_at`, advanced only by span
-ingestion — never by annotations), each evaluator runs at most once per configuration,
-whatever the trigger topology; new content re-arms one round; explicit force is the
-only bypass.
+"""Background (ambient) evaluation runs at most once per evaluator configuration,
+content-independent; triggered and requested evaluation re-arms once per content version;
+explicit force always runs.
 
 The leased sweeper makes at most one decision per (session, criteria) pair per tick
 after session activity becomes old enough.
@@ -354,7 +353,7 @@ def _triggered_pairs_statement(
     due_at, current_time = _quiet_delay_columns(criteria_relation, database_now, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
     answering_work_unit_id = (
-        # Eligibility identity blocks repeats; the insert-time re-check is its race twin.
+        # Eligibility-identity check blocks repeats; the insert re-check is its race twin.
         select(func.max(terminal_work.id))
         .where(
             terminal_work.project_session_rowid == models.ProjectSession.id,
@@ -748,7 +747,7 @@ def _braked_session_work_insert_statement(
     relation = _decision_relation(decisions, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
     answered = (
-        # Insert-time identity closes races; the eligibility brake is its decision twin.
+        # Insert re-check closes races; the eligibility-identity check is its decision twin.
         select(1)
         .select_from(terminal_work)
         .where(
@@ -877,8 +876,8 @@ class SessionEvalSweeper(DaemonTask):
         materialized_work_count = 0
         backlog: Optional[dict[str, int]] = None
         try:
-            # Reap in its own transaction: taking work-row locks inside the sweep
-            # transaction inverts the global criteria -> session -> work lock order.
+            # Reap separately and in the global criteria -> session -> work -> request
+            # order used by mark_session_content_incomplete; the sweep then starts clean.
             async with self._db() as session:
                 await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
                 database_now = await self._database_now(session)

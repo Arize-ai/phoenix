@@ -13,6 +13,12 @@ MAX_ATTEMPTS = 3
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
 
+TERMINAL_EVAL_SESSION_WORK_STATUSES = (
+    "DONE",
+    "EXPIRED",
+    *SESSION_DECLINED_STATUSES,
+)
+
 # Every annotation online evaluation writes carries an identifier starting with this, so
 # a reader can tell its own output from a user's or an API client's without a join. It is
 # spelled once here because three sides read it and none of them may drift: the derivation
@@ -68,9 +74,7 @@ def live_eval_session_work_index_predicate() -> str:
 
 def terminal_eval_session_work_index_predicate() -> str:
     """SQL text selecting session work whose history retention may reap."""
-    terminal = ", ".join(
-        f"'{status}'" for status in ("DONE", "EXPIRED", *SESSION_DECLINED_STATUSES)
-    )
+    terminal = ", ".join(f"'{status}'" for status in TERMINAL_EVAL_SESSION_WORK_STATUSES)
     return f"status IN ({terminal}) OR status = 'ERROR' AND attempts >= {MAX_ATTEMPTS}"
 
 
