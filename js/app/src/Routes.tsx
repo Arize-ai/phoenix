@@ -79,6 +79,7 @@ import {
   PlaygroundPage,
   playgroundPageLoader,
   ProfileAccountPage,
+  ProfileAccessibilityPage,
   ProfileAPIKeysPage,
   ProfileAuthorizedApplicationsPage,
   ProfileGenerativeAIPage,
@@ -208,7 +209,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Profile",
               description:
-                "Open personal account settings, API keys, connected applications, and display preferences.",
+                "Open personal account settings, API keys, connected applications, display preferences, and accessibility options.",
             },
           }}
           element={<ProfilePage />}
@@ -285,6 +286,24 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Preferences",
                 description: "Theme, timezone, and code defaults",
                 icon: "Options",
+              },
+            }}
+          />
+          <Route
+            path="accessibility"
+            element={<ProfileAccessibilityPage />}
+            handle={{
+              crumb: () => "Accessibility",
+              agentRoute: {
+                label: "Profile Accessibility",
+                description:
+                  "Configure accessibility options and use native scrollbars from your browser and operating system.",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Accessibility",
+                description: "Native scrollbar and accessibility options",
+                icon: "Eye",
               },
             }}
           />

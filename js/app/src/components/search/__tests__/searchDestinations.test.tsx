@@ -28,7 +28,14 @@ describe("search destinations", () => {
     expect(sections[0]?.title).toBe("Profile");
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
-    ).toEqual(["Account", "API Keys", "Apps", "Preferences", "Generative AI"]);
+    ).toEqual([
+      "Account",
+      "API Keys",
+      "Apps",
+      "Preferences",
+      "Accessibility",
+      "Generative AI",
+    ]);
   });
 
   it("does not match sections on non-prefix substrings of their title", () => {
@@ -72,7 +79,7 @@ describe("search destinations", () => {
     expect(sections).toHaveLength(1);
     expect(
       sections[0]?.destinations.map((destination) => destination.metadata.label)
-    ).toEqual(["Preferences", "Generative AI"]);
+    ).toEqual(["Preferences", "Accessibility", "Generative AI"]);
   });
 
   it("provides a direct destination and icon for every profile section", () => {
@@ -115,6 +122,13 @@ describe("search destinations", () => {
         label: "Preferences",
         description: "Theme, timezone, and code defaults",
         icon: "Options",
+        requiresViewer: false,
+      },
+      {
+        path: "/profile/accessibility",
+        label: "Accessibility",
+        description: "Native scrollbar and accessibility options",
+        icon: "Eye",
         requiresViewer: false,
       },
       {
