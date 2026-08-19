@@ -1434,7 +1434,7 @@ CREATE INDEX ix_eval_session_work_units_evaluator_id ON eval_session_work_units
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
-    WHERE status IN ('DONE', 'EXPIRED');
+    WHERE status IN ('DONE', 'EXPIRED', 'FILTERED_OUT', 'SAMPLED_OUT') OR status = 'ERROR' AND attempts >= 3;
 CREATE INDEX ix_eval_session_work_units_terminal_watermark ON eval_session_work_units
     (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units

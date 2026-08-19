@@ -14,6 +14,7 @@ from phoenix.db import models
 from phoenix.db.eval_work import (
     SUPERSEDED_BY_REQUEST_ERROR,
     live_eval_session_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
@@ -92,6 +93,27 @@ def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
     assert str(session_sweeper._LIVE_WORK_INDEX_PREDICATE) == predicate
     assert (
         migration.live_eval_session_work_index_predicate is live_eval_session_work_index_predicate
+    )
+
+
+def test_terminal_retention_index_is_single_sourced_from_max_attempts() -> None:
+    migration = import_module(
+        "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
+    )
+    predicate = terminal_eval_session_work_index_predicate()
+    work_table = cast(Table, models.EvalSessionWorkUnit.__table__)
+    terminal_index = next(
+        index for index in work_table.indexes if index.name == "ix_eval_session_work_units_terminal"
+    )
+
+    assert f"attempts >= {MAX_ATTEMPTS}" in predicate
+    assert "FILTERED_OUT" in predicate
+    assert "SAMPLED_OUT" in predicate
+    assert str(terminal_index.dialect_options["postgresql"]["where"]) == predicate
+    assert str(terminal_index.dialect_options["sqlite"]["where"]) == predicate
+    assert (
+        migration.terminal_eval_session_work_index_predicate
+        is terminal_eval_session_work_index_predicate
     )
 
 
@@ -1218,6 +1240,87 @@ async def _work_units(db: DbSessionFactory) -> list[models.EvalSessionWorkUnit]:
                 select(models.EvalSessionWorkUnit).order_by(models.EvalSessionWorkUnit.id)
             )
         )
+
+
+async def test_retention_reaps_fulfilled_history_without_rematerializing_the_pair(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+
+    aged_at = _now() - timedelta(days=8)
+    async with db() as session:
+        original = (await session.scalars(select(models.EvalSessionWorkUnit))).one()
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == original.id)
+            .values(status="DONE", created_at=aged_at, updated_at=aged_at)
+        )
+        replacement = models.EvalSessionWorkUnit(
+            project_session_rowid=original.project_session_rowid,
+            evaluator_id=original.evaluator_id,
+            project_evaluator_id=original.project_evaluator_id,
+            config_fingerprint=original.config_fingerprint,
+            evaluated_through=original.evaluated_through,
+            status="DONE",
+            created_at=aged_at + timedelta(seconds=1),
+            updated_at=aged_at + timedelta(seconds=1),
+        )
+        session.add(replacement)
+        await session.flush()
+        session.add(
+            models.EvaluationRequest(
+                project_session_rowid=project_session_id,
+                project_evaluator_id=project_evaluator_id,
+                requested_generation=1,
+                materialized_generation=1,
+                materialized_by_session_work_unit_id=original.id,
+                requested_at=aged_at,
+                created_at=aged_at,
+                updated_at=aged_at,
+            )
+        )
+        original_id = original.id
+        replacement_id = replacement.id
+
+    await sweeper._tick()
+
+    async with db() as session:
+        retained_ids = list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit.id).order_by(models.EvalSessionWorkUnit.id)
+            )
+        )
+        request_count = await session.scalar(
+            select(func.count()).select_from(models.EvaluationRequest)
+        )
+    assert original_id not in retained_ids
+    assert retained_ids == [replacement_id]
+    assert request_count == 0
+
+
+async def test_retention_never_deletes_an_unfulfilled_request(
+    db: DbSessionFactory,
+    session_evaluation_enabled: None,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        filter_condition="session_id == 'no-such-session'",
+    )
+    await _request(db, project_session_id, project_evaluator_id)
+    aged_at = _now() - timedelta(days=8)
+    async with db() as session:
+        await session.execute(update(models.EvaluationRequest).values(updated_at=aged_at))
+
+    await SessionEvalSweeper(db)._tick()
+
+    request = await _request_row(db)
+    assert request.materialized_generation < request.requested_generation
 
 
 @pytest.mark.parametrize(
