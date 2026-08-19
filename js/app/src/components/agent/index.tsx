@@ -20,9 +20,9 @@ export type {
 export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 export { AssistantMessage, UserMessage } from "./ChatMessage";
 export {
-  AGENT_MODEL_LOCAL_STORAGE_KEY,
   DEFAULT_MODEL_MENU_VALUE,
   getAgentModelConfigFromLocalStorage,
+  resolveAgentModelStorageKey,
   toAgentModelConfig,
   toModelMenuValue,
 } from "./agentModelConfig";
