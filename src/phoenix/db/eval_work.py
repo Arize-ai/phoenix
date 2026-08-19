@@ -6,10 +6,9 @@ This module has no Phoenix imports so the schema (``models``), the queries
 
 from __future__ import annotations
 
-# Retry budget for a work unit before its ERROR state becomes terminal. The producer
-# excludes attempt-exhausted rows from reaping and backstop re-materialization using
-# this value, and the consumer-side coordinator stops reclaiming ERROR rows at it —
-# the two sides drifting apart either resurrects dead work or strands retryable work.
+# Retry budget read by six sites: coordinator claims, producer recovery, session policy,
+# session sweeping, session retention, and evaluator run counts. Drift between them can
+# resurrect terminal work, strand retryable work, or misreport lifecycle state.
 MAX_ATTEMPTS = 3
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")

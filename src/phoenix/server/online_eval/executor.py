@@ -1,8 +1,8 @@
-"""Execution glue for claimed online-eval work units: criteria-first hydration,
-target context assembly, evaluator invocation, and idempotent annotation writes.
-Publication runs through the coordinator, which fences the claim and records any
-coverage watermark in the same transaction; every lifecycle transition, including
-completion, stays with the coordinator and its caller.
+"""Fence publication and announce completed evaluations and opted-in annotations.
+
+Claimed work is hydrated criteria-first, given target context, invoked, and published
+idempotently. The coordinator records any coverage watermark in the publication
+transaction and owns every lifecycle transition with its caller.
 """
 
 from __future__ import annotations
@@ -1169,6 +1169,7 @@ class OnlineEvalExecutor:
                     ).returning(annotation_table.id)
                 )
             ).all()
+            # Opt-in announcement permits feedback; shared-seam exclusion is its default-off twin.
             if inserted_ids and await evaluator_annotation_rules_exist(session):
                 await _announce_annotations(
                     session,

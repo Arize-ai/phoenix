@@ -1,4 +1,4 @@
-"""Turns logged events into evaluation requests, one leased tick at a time.
+"""Lease event matching, request filing, and acknowledgment one tick at a time.
 
 A tick reads a page of unacknowledged events, loads the rules that can fire, matches the
 two in memory, and writes the resulting requests and the page's acknowledgments in one
