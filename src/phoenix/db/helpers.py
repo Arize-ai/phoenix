@@ -633,6 +633,35 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
 _SESSION_CONTENT_DELETE_BATCH_SIZE = 1_000
 
 
+async def delete_projects(
+    session: AsyncSession,
+    project_filter: sa.ColumnElement[bool],
+) -> list[int]:
+    """Delete matching projects after removing triggers that watch their evaluators."""
+    project_ids = sa.select(models.Project.id).where(project_filter)
+    watching_trigger_ids = (
+        sa.select(models.ProjectEvaluatorTriggerEvaluationPredicates.trigger_id)
+        .join(
+            models.ProjectEvaluatorCriteria,
+            models.ProjectEvaluatorTriggerEvaluationPredicates.source_criteria_id
+            == models.ProjectEvaluatorCriteria.id,
+        )
+        .where(models.ProjectEvaluatorCriteria.project_id.in_(project_ids))
+    )
+    await session.execute(
+        sa.delete(models.ProjectEvaluatorTrigger).where(
+            models.ProjectEvaluatorTrigger.id.in_(watching_trigger_ids)
+        )
+    )
+    return list(
+        await session.scalars(
+            sa.delete(models.Project)
+            .where(models.Project.id.in_(project_ids))
+            .returning(models.Project.id)
+        )
+    )
+
+
 async def delete_traces(
     session: AsyncSession,
     trace_filter: sa.ColumnElement[bool],

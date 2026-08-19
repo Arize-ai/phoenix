@@ -9,6 +9,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import (
+    delete_projects,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
 )
@@ -319,7 +320,7 @@ async def delete_project(
                 detail="The default project cannot be deleted",
             )
 
-        await session.delete(project)
+        await delete_projects(session, models.Project.id == project.id)
     return None
 
 

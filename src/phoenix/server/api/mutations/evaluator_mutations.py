@@ -19,7 +19,11 @@ from strawberry.utils.str_converters import to_camel_case
 
 from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    code_evaluator_with_latest_version,
+    delete_projects,
+)
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
@@ -2009,9 +2013,7 @@ class EvaluatorMutationMixin:
                 )
 
             if project_ids:
-                await session.execute(
-                    delete(models.Project).where(models.Project.id.in_(project_ids))
-                )
+                await delete_projects(session, models.Project.id.in_(project_ids))
 
             await _garbage_collect_evaluators(
                 session,

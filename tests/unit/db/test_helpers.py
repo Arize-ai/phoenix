@@ -18,16 +18,74 @@ from phoenix.db.helpers import (
     SupportedSQLDialect,
     create_experiment_examples_snapshot_insert,
     date_trunc,
+    delete_projects,
     get_dataset_example_revisions,
     pg_table_sizes_stmt,
     pg_total_table_size_stmt,
 )
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
 
 # Test constants
 NONEXISTENT_ID = 99999
+
+
+@pytest.mark.postgres_only
+async def test_delete_projects_removes_triggers_watching_project_evaluators(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        evaluators = [
+            models.BuiltinEvaluator(
+                name=Identifier(root=f"eval-{token_hex(4)}"),
+                kind="BUILTIN",
+                key=token_hex(8),
+                input_schema={},
+                output_configs=[],
+            )
+            for _ in range(2)
+        ]
+        session.add_all([project, *evaluators])
+        await session.flush()
+        watcher, source = (
+            models.ProjectEvaluatorCriteria(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"criteria-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SESSION",
+            )
+            for evaluator in evaluators
+        )
+        session.add_all([watcher, source])
+        await session.flush()
+        trigger = models.ProjectEvaluatorTrigger(
+            criteria_id=watcher.id,
+            event_kind="evaluation_completed",
+        )
+        session.add(trigger)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluatorTriggerEvaluationPredicates(
+                trigger_id=trigger.id,
+                event_kind="evaluation_completed",
+                source_criteria_id=source.id,
+            )
+        )
+        await session.flush()
+        project_id = project.id
+        trigger_id = trigger.id
+
+        deleted_ids = await delete_projects(session, models.Project.id == project_id)
+
+    assert deleted_ids == [project_id]
+    async with db() as session:
+        assert await session.get(models.Project, project_id) is None
+        assert await session.get(models.ProjectEvaluatorTrigger, trigger_id) is None
 
 
 def get_example_ids(revisions: Sequence[Any]) -> set[int]:

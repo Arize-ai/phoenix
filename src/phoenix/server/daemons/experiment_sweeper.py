@@ -9,6 +9,7 @@ import sqlalchemy as sa
 
 from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
+from phoenix.db.helpers import delete_projects
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -60,10 +61,9 @@ class ExperimentSweeper(DaemonTask):
                     .select_from(models.Experiment)
                     .where(models.Experiment.project_name == models.Project.name)
                 )
-                await session.execute(
-                    sa.delete(models.Project)
-                    .where(models.Project.name.in_(non_null_project_names))
-                    .where(no_experiment_refs)
+                await delete_projects(
+                    session,
+                    models.Project.name.in_(non_null_project_names) & no_experiment_refs,
                 )
         if num_deleted:
             logger.info(f"Deleted {num_deleted} ephemeral experiment(s).")
