@@ -193,7 +193,7 @@ async def test_cold_start_initializes_cursor_at_current_high_water(
         ).one()
     assert cursor.produced_through_id == spans[-1].id
     assert cursor.claimed_by == producer._producer_id
-    assert await _work_unit_span_rowids(db) == []
+    assert await _work_unit_span_rowids(db) == [span.id for span in spans]
 
 
 async def test_storage_pause_skips_materialization_and_cursor_advance(

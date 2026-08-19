@@ -147,7 +147,7 @@ class OnlineEvalProducer(DaemonTask):
         self._pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
         self._retention_seconds = get_env_online_eval_retention_seconds()
         self._max_outstanding = get_env_online_eval_max_outstanding()
-        self._last_backstop_at = time.monotonic()
+        self._last_backstop_at: Optional[float] = None
         self._publish_metrics = get_env_enable_prometheus()
         self._last_ingest_sample: Optional[tuple[int, float]] = None
         self._lease = DatabaseLease(
@@ -238,8 +238,9 @@ class OnlineEvalProducer(DaemonTask):
             if not pending_observation or observation_consumed:
                 await self._record_observation(produced_through_id)
 
-            if budget > 0 and time.monotonic() - self._last_backstop_at >= (
-                self._backstop_interval_seconds
+            if budget > 0 and (
+                self._last_backstop_at is None
+                or time.monotonic() - self._last_backstop_at >= self._backstop_interval_seconds
             ):
                 await self._lease.renew()
                 await self._backstop_sweep(active, produced_through_id, budget)
