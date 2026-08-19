@@ -42,10 +42,6 @@ const bashMutationApprovalCSS = css`
 
 /**
  * Approval card for a bash command that invokes a GraphQL mutation.
- *
- * The card shows the model's plain-text description of the change; the command
- * itself renders above it. Nothing has executed at this point — the tool call
- * is deferred before the shell runs — so rejecting leaves no side effects.
  */
 function BashMutationApproval({ part }: { part: ToolInvocationPart }) {
   const mutationDescription = getBashToolInput(
