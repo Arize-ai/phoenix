@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy import and_, delete, func, select, true
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased, selectinload
+from sqlalchemy.orm import aliased
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
@@ -34,6 +34,12 @@ from phoenix.db.types.annotation_configs import (
     FreeformOutputConfig,
     OutputConfigType,
     as_output_configs,
+)
+from phoenix.db.types.evaluator_trigger_predicates import (
+    AnnotationPredicates,
+    EvaluationPredicates,
+    TriggerPredicates,
+    TriggerPredicatesType,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
@@ -1469,8 +1475,8 @@ class EvaluatorMutationMixin:
                 # matching every completion, so it goes with the evaluator it watches.
                 watching_trigger_ids = list(
                     await session.scalars(
-                        select(models.ProjectEvaluatorTriggerEvaluationPredicates.trigger_id).where(
-                            models.ProjectEvaluatorTriggerEvaluationPredicates.source_criteria_id.in_(
+                        select(models.ProjectEvaluatorTrigger.id).where(
+                            models.ProjectEvaluatorTrigger.source_criteria_id.in_(
                                 actual_criteria_ids
                             )
                         )
@@ -2762,7 +2768,7 @@ MAX_PROJECT_EVALUATOR_TRIGGERS = 25
 
 @dataclass(frozen=True)
 class _PredicateFamily:
-    """One event kind's predicate table, as the trigger mutations need to see it.
+    """One event kind's JSON predicate model, as trigger mutations need to see it.
 
     A new event kind is a new entry here plus its nested field on the two inputs and on
     ProjectEvaluatorTrigger; nothing below branches on the kind itself.
@@ -2770,10 +2776,8 @@ class _PredicateFamily:
 
     event_kind: EvaluatorEventKind
     field_name: str
-    model: Any
+    predicate_model: Any
     columns: tuple[str, ...]
-    # Columns whose "do not constrain" value is not NULL. A trigger with no predicate row
-    # behaves as if its columns held these.
     defaults: Mapping[str, Any]
 
 
@@ -2781,7 +2785,7 @@ _PREDICATE_FAMILIES = (
     _PredicateFamily(
         event_kind=EvaluatorEventKind.ANNOTATION_UPSERTED,
         field_name="annotation_predicates",
-        model=models.ProjectEvaluatorTriggerAnnotationPredicates,
+        predicate_model=AnnotationPredicates,
         columns=(
             "name",
             "label",
@@ -2797,13 +2801,12 @@ _PREDICATE_FAMILIES = (
     _PredicateFamily(
         event_kind=EvaluatorEventKind.EVALUATION_COMPLETED,
         field_name="evaluation_predicates",
-        model=models.ProjectEvaluatorTriggerEvaluationPredicates,
+        predicate_model=EvaluationPredicates,
         columns=(
             "name",
             "label",
             "score_below",
             "score_above",
-            "source_criteria_id",
             "result_changed_only",
         ),
         defaults={"result_changed_only": False},
@@ -2829,8 +2832,8 @@ async def _predicate_values(
     *,
     family: _PredicateFamily,
     project_id: int,
-) -> dict[str, Any]:
-    """The predicate columns an input object names, leaving out the ones it did not."""
+) -> tuple[dict[str, Any], Any]:
+    """The JSON fields and hoisted foreign key named by an input object."""
     values: dict[str, Any] = {}
     for column in family.columns:
         value = getattr(predicates, column, UNSET)
@@ -2838,23 +2841,43 @@ async def _predicate_values(
             values[column] = _enum_value(value)
     # sourceProjectEvaluatorId is the one input field that is not named for its column:
     # it arrives as a global id and is stored as the criteria row it points at.
+    source_criteria_id: Any = UNSET
     source = getattr(predicates, "source_project_evaluator_id", UNSET)
     if source is not UNSET:
-        values["source_criteria_id"] = await _resolve_trigger_source_criteria_id(
+        source_criteria_id = await _resolve_trigger_source_criteria_id(
             session, source, project_id=project_id
         )
     for column, default in family.defaults.items():
         # Clearing this predicate means "do not constrain", which for a flag is false.
         if values.get(column, UNSET) is None:
             values[column] = default
-    return values
+    return values, source_criteria_id
 
 
-def _stored_predicate_values(record: Any, family: _PredicateFamily) -> Optional[dict[str, Any]]:
-    """The predicate columns a stored row carries, or None when the trigger has no row."""
-    if record is None:
+def _stored_predicate_values(
+    predicates: Optional[TriggerPredicatesType], family: _PredicateFamily
+) -> Optional[dict[str, Any]]:
+    """The JSON fields a stored predicate object carries, without its discriminator."""
+    if predicates is None:
         return None
-    return {column: getattr(record, column) for column in family.columns}
+    try:
+        stored = TriggerPredicates(root=predicates).root
+    except ValidationError as error:
+        raise BadRequest(f"Stored trigger predicates are invalid: {error}")
+    if not isinstance(stored, family.predicate_model) or stored.type != family.event_kind.value:
+        raise BadRequest("Stored trigger predicate type does not match its event kind.")
+    return {column: getattr(stored, column) for column in family.columns}
+
+
+def _serialize_predicates(
+    family: _PredicateFamily,
+    values: Mapping[str, Any],
+) -> TriggerPredicatesType:
+    predicates = family.predicate_model(type=family.event_kind.value, **values)
+    assert predicates.type == family.event_kind.value
+    validated = TriggerPredicates(root=predicates).root
+    assert validated.type == family.event_kind.value
+    return validated
 
 
 def _enum_value(value: Any) -> Any:
@@ -2909,32 +2932,43 @@ async def _raise_on_duplicate_project_evaluator_trigger(
     *,
     criteria_id: int,
     family: _PredicateFamily,
-    values: Optional[Mapping[str, Any]],
+    predicates: Optional[TriggerPredicatesType],
+    source_criteria_id: Optional[int],
     exclude_trigger_id: Optional[int] = None,
 ) -> None:
     """Refuse a second trigger identical to one the evaluator already carries.
 
-    A trigger with no predicate row and one whose predicates are all unconstrained match
-    the same events, so the comparison reads an absent row as its default columns.
+    NULL JSON and a JSON object whose fields are all unconstrained match the same events.
     """
-    wanted: dict[str, Any] = {column: family.defaults.get(column) for column in family.columns}
-    wanted.update(values or {})
-    stmt = (
-        select(models.ProjectEvaluatorTrigger.id)
-        .outerjoin(family.model, family.model.trigger_id == models.ProjectEvaluatorTrigger.id)
-        .where(
-            models.ProjectEvaluatorTrigger.criteria_id == criteria_id,
-            models.ProjectEvaluatorTrigger.event_kind == family.event_kind.value,
-            *(_predicate_column_matches(family, column, value) for column, value in wanted.items()),
-        )
+    wanted = (
+        family.predicate_model(type=family.event_kind.value)
+        if predicates is None
+        else TriggerPredicates(root=predicates).root
+    )
+    stmt = select(
+        models.ProjectEvaluatorTrigger.id,
+        models.ProjectEvaluatorTrigger.predicates,
+        models.ProjectEvaluatorTrigger.source_criteria_id,
+    ).where(
+        models.ProjectEvaluatorTrigger.criteria_id == criteria_id,
+        models.ProjectEvaluatorTrigger.event_kind == family.event_kind.value,
     )
     if exclude_trigger_id is not None:
         stmt = stmt.where(models.ProjectEvaluatorTrigger.id != exclude_trigger_id)
-    if (existing_id := await session.scalar(stmt)) is not None:
-        existing = GlobalID(ProjectEvaluatorTrigger.__name__, str(existing_id))
-        raise Conflict(
-            f"This project evaluator already has a trigger with these predicates: {existing}"
-        )
+    for row in await session.execute(stmt):
+        try:
+            stored = (
+                family.predicate_model(type=family.event_kind.value)
+                if row.predicates is None
+                else TriggerPredicates(root=row.predicates).root
+            )
+        except ValidationError:
+            continue
+        if stored == wanted and row.source_criteria_id == source_criteria_id:
+            existing = GlobalID(ProjectEvaluatorTrigger.__name__, str(row.id))
+            raise Conflict(
+                f"This project evaluator already has a trigger with these predicates: {existing}"
+            )
 
 
 async def _raise_if_project_evaluator_trigger_limit_reached(
@@ -2954,24 +2988,13 @@ async def _raise_if_project_evaluator_trigger_limit_reached(
         )
 
 
-def _predicate_column_matches(family: _PredicateFamily, column: str, value: Any) -> Any:
-    stored = getattr(family.model, column)
-    if column in family.defaults:
-        stored = func.coalesce(stored, family.defaults[column])
-    return stored.is_not_distinct_from(value)
-
-
 async def _load_trigger_with_predicates(
     session: AsyncSession, trigger_id: int
 ) -> models.ProjectEvaluatorTrigger:
-    """Re-read a written trigger with its database-side timestamps and predicate children."""
+    """Re-read a written trigger with its database-side timestamps."""
     trigger = await session.scalar(
         select(models.ProjectEvaluatorTrigger)
         .where(models.ProjectEvaluatorTrigger.id == trigger_id)
-        .options(
-            selectinload(models.ProjectEvaluatorTrigger.annotation_predicates),
-            selectinload(models.ProjectEvaluatorTrigger.evaluation_predicates),
-        )
         .execution_options(populate_existing=True)
     )
     assert trigger is not None
@@ -3018,36 +3041,35 @@ class ProjectEvaluatorTriggerMutationMixin:
                 session,
                 criteria_id=criteria_id,
             )
-            values = (
-                None
-                if predicates is UNSET or predicates is None
-                else await _predicate_values(
+            if predicates is UNSET or predicates is None:
+                values = None
+                source_criteria_id = None
+            else:
+                values, source_criteria_id = await _predicate_values(
                     session, predicates, family=family, project_id=criteria.project_id
                 )
-            )
+                if source_criteria_id is UNSET:
+                    source_criteria_id = None
+            stored_predicates = None if values is None else _serialize_predicates(family, values)
             _raise_if_score_bounds_cannot_match(values or {})
             await _raise_on_duplicate_project_evaluator_trigger(
                 session,
                 criteria_id=criteria_id,
                 family=family,
-                values=values,
+                predicates=stored_predicates,
+                source_criteria_id=source_criteria_id,
             )
             trigger = models.ProjectEvaluatorTrigger(
                 criteria_id=criteria_id,
                 event_kind=input.event_kind.value,
+                predicates=stored_predicates,
+                source_criteria_id=source_criteria_id,
             )
+            if trigger.predicates is not None:
+                assert trigger.predicates.type == trigger.event_kind
             session.add(trigger)
             try:
                 await session.flush()
-                if values is not None:
-                    session.add(
-                        family.model(
-                            trigger_id=trigger.id,
-                            event_kind=input.event_kind.value,
-                            **values,
-                        )
-                    )
-                    await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(f"Could not create trigger: {error}")
             payload = to_gql_project_evaluator_trigger(
@@ -3089,57 +3111,47 @@ class ProjectEvaluatorTriggerMutationMixin:
             criteria = await session.get(models.ProjectEvaluatorCriteria, trigger.criteria_id)
             if criteria is None:
                 raise NotFound(f"Trigger not found: {input.project_evaluator_trigger_id}")
-            # A kind change leaves the old family's row behind; nothing of it carries over.
-            stored = (
-                await session.scalar(
-                    select(family.model).where(family.model.trigger_id == trigger_id)
-                )
+            # Nothing from the previous predicate family carries across a kind change.
+            stored_values = (
+                _stored_predicate_values(trigger.predicates, family)
                 if family is previous_family
                 else None
             )
+            stored_source_criteria_id = (
+                trigger.source_criteria_id if family is previous_family else None
+            )
             if predicates is UNSET:
-                values = _stored_predicate_values(stored, family)
+                values = stored_values
+                source_criteria_id = stored_source_criteria_id
             elif predicates is None:
                 values = None
+                source_criteria_id = None
             else:
-                patch = await _predicate_values(
+                patch, source_patch = await _predicate_values(
                     session, predicates, family=family, project_id=criteria.project_id
                 )
-                values = {**(_stored_predicate_values(stored, family) or {}), **patch}
+                values = {**(stored_values or {}), **patch}
+                source_criteria_id = (
+                    stored_source_criteria_id if source_patch is UNSET else source_patch
+                )
+            if family.event_kind is EvaluatorEventKind.ANNOTATION_UPSERTED:
+                source_criteria_id = None
+            stored_predicates = None if values is None else _serialize_predicates(family, values)
             _raise_if_score_bounds_cannot_match(values or {})
             await _raise_on_duplicate_project_evaluator_trigger(
                 session,
                 criteria_id=trigger.criteria_id,
                 family=family,
-                values=values,
+                predicates=stored_predicates,
+                source_criteria_id=source_criteria_id,
                 exclude_trigger_id=trigger_id,
             )
             try:
-                if family is not previous_family:
-                    # The child's foreign key names (trigger_id, event_kind), so the row of
-                    # the kind being left behind goes before the trigger's kind changes.
-                    await session.execute(
-                        delete(previous_family.model).where(
-                            previous_family.model.trigger_id == trigger_id
-                        )
-                    )
-                    await session.flush()
-                    trigger.event_kind = family.event_kind.value
-                    await session.flush()
-                if values is None:
-                    if stored is not None:
-                        await session.delete(stored)
-                elif stored is not None:
-                    for column, value in values.items():
-                        setattr(stored, column, value)
-                else:
-                    session.add(
-                        family.model(
-                            trigger_id=trigger_id,
-                            event_kind=family.event_kind.value,
-                            **values,
-                        )
-                    )
+                trigger.event_kind = family.event_kind.value
+                trigger.predicates = stored_predicates
+                trigger.source_criteria_id = source_criteria_id
+                if trigger.predicates is not None:
+                    assert trigger.predicates.type == trigger.event_kind
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(f"Could not update trigger: {error}")

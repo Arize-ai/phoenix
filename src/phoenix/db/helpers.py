@@ -640,11 +640,10 @@ async def delete_projects(
     """Delete matching projects after removing triggers that watch their evaluators."""
     project_ids = sa.select(models.Project.id).where(project_filter)
     watching_trigger_ids = (
-        sa.select(models.ProjectEvaluatorTriggerEvaluationPredicates.trigger_id)
+        sa.select(models.ProjectEvaluatorTrigger.id)
         .join(
             models.ProjectEvaluatorCriteria,
-            models.ProjectEvaluatorTriggerEvaluationPredicates.source_criteria_id
-            == models.ProjectEvaluatorCriteria.id,
+            models.ProjectEvaluatorTrigger.source_criteria_id == models.ProjectEvaluatorCriteria.id,
         )
         .where(models.ProjectEvaluatorCriteria.project_id.in_(project_ids))
     )

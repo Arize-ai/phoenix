@@ -1,4 +1,3 @@
-import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from secrets import token_hex
@@ -452,23 +451,24 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
     @override
     @classmethod
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
-        index_names = {"ix_project_evaluator_triggers_criteria_id"}
+        index_names = {
+            "ix_project_evaluator_triggers_criteria_id",
+            "ix_project_evaluator_triggers_source_criteria_id",
+        }
         constraint_names = {
             "pk_project_evaluator_triggers",
-            "uq_project_evaluator_triggers_id_event_kind",
             _constraint_name(
                 "fk_project_evaluator_triggers_criteria_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_project_evaluator_triggers_source_criteria_id_project_evaluator_criteria",
                 db_backend,
             ),
             "ck_project_evaluator_triggers_`valid_event_kind`",
         }
         if db_backend == "postgresql":
-            index_names.update(
-                {
-                    "pk_project_evaluator_triggers",
-                    "uq_project_evaluator_triggers_id_event_kind",
-                }
-            )
+            index_names.add("pk_project_evaluator_triggers")
         elif db_backend == "sqlite":
             index_names.add("sqlite_autoindex_project_evaluator_triggers_1")
         else:
@@ -480,160 +480,15 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
                     "id",
                     "criteria_id",
                     "event_kind",
-                    "created_at",
-                    "updated_at",
-                }
-            ),
-            index_names=frozenset(index_names),
-            constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(),
-        )
-
-
-class TestProjectEvaluatorTriggerAnnotationPredicates(_OnlineEvalSchemaTest):
-    table_name = "project_evaluator_trigger_annotation_predicates"
-
-    @override
-    @classmethod
-    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
-        index_names: set[str] = set()
-        constraint_names = {
-            "pk_project_evaluator_trigger_annotation_predicates",
-            "uq_project_evaluator_trigger_annotation_predicates_trigger_id",
-            _constraint_name(
-                "fk_project_evaluator_trigger_annotation_predicates"
-                "_trigger_id_project_evaluator_triggers",
-                db_backend,
-            ),
-            _constraint_name(
-                "ck_project_evaluator_trigger_annotation_predicates_`valid_event_kind`",
-                db_backend,
-            ),
-            _constraint_name(
-                "ck_project_evaluator_trigger_annotation_predicates_`valid_annotator_kind`",
-                db_backend,
-            ),
-            _constraint_name(
-                "ck_project_evaluator_trigger_annotation_predicates_`valid_annotation_change`",
-                db_backend,
-            ),
-            _constraint_name(
-                "ck_project_evaluator_trigger_annotation_predicates_`valid_annotation_target`",
-                db_backend,
-            ),
-        }
-        if db_backend == "postgresql":
-            index_names.update(
-                {
-                    "pk_project_evaluator_trigger_annotation_predicates",
-                    "uq_project_evaluator_trigger_annotation_predicates_trigger_id",
-                }
-            )
-        elif db_backend == "sqlite":
-            index_names.add("sqlite_autoindex_project_evaluator_trigger_annotation_predicates_1")
-        else:
-            assert_never(db_backend)
-        return _TableSchemaInfo(
-            table_name=cls.table_name,
-            column_names=frozenset(
-                {
-                    "id",
-                    "trigger_id",
-                    "event_kind",
-                    "name",
-                    "label",
-                    "score_below",
-                    "score_above",
-                    "annotator_kind",
-                    "annotation_change",
-                    "annotation_target",
-                    "matches_evaluator_annotations",
-                    "created_at",
-                    "updated_at",
-                }
-            ),
-            index_names=frozenset(index_names),
-            constraint_names=frozenset(constraint_names),
-            # Every predicate column is nullable: NULL means unconstrained, so a trigger
-            # whose predicate row is all NULL fires on every event of its kind.
-            nullable_column_names=frozenset(
-                {
-                    "name",
-                    "label",
-                    "score_below",
-                    "score_above",
-                    "annotator_kind",
-                    "annotation_change",
-                    "annotation_target",
-                }
-            ),
-        )
-
-
-class TestProjectEvaluatorTriggerEvaluationPredicates(_OnlineEvalSchemaTest):
-    table_name = "project_evaluator_trigger_evaluation_predicates"
-
-    @override
-    @classmethod
-    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
-        index_names = {"ix_trigger_evaluation_predicates_source_criteria_id"}
-        constraint_names = {
-            "pk_project_evaluator_trigger_evaluation_predicates",
-            "uq_project_evaluator_trigger_evaluation_predicates_trigger_id",
-            _constraint_name(
-                "fk_project_evaluator_trigger_evaluation_predicates"
-                "_trigger_id_project_evaluator_triggers",
-                db_backend,
-            ),
-            _constraint_name(
-                "fk_project_evaluator_trigger_evaluation_predicates"
-                "_source_criteria_id_project_evaluator_criteria",
-                db_backend,
-            ),
-            _constraint_name(
-                "ck_project_evaluator_trigger_evaluation_predicates_`valid_event_kind`",
-                db_backend,
-            ),
-        }
-        if db_backend == "postgresql":
-            index_names.update(
-                {
-                    "pk_project_evaluator_trigger_evaluation_predicates",
-                    "uq_project_evaluator_trigger_evaluation_predicates_trigger_id",
-                }
-            )
-        elif db_backend == "sqlite":
-            index_names.add("sqlite_autoindex_project_evaluator_trigger_evaluation_predicates_1")
-        else:
-            assert_never(db_backend)
-        return _TableSchemaInfo(
-            table_name=cls.table_name,
-            column_names=frozenset(
-                {
-                    "id",
-                    "trigger_id",
-                    "event_kind",
-                    "name",
-                    "label",
-                    "score_below",
-                    "score_above",
+                    "predicates",
                     "source_criteria_id",
-                    "result_changed_only",
                     "created_at",
                     "updated_at",
                 }
             ),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(
-                {
-                    "name",
-                    "label",
-                    "score_below",
-                    "score_above",
-                    "source_criteria_id",
-                }
-            ),
+            nullable_column_names=frozenset({"predicates", "source_criteria_id"}),
         )
 
 
@@ -969,18 +824,6 @@ def _event_insert(
     return _insert
 
 
-def _predicates_insert(table: str, trigger_id: int, event_kind: str) -> Callable[[Connection], int]:
-    statement = sa.text(
-        f"INSERT INTO {table} (trigger_id, event_kind)"  # noqa: S608
-        " VALUES (:trigger_id, :event_kind) RETURNING id"
-    )
-
-    def _insert(conn: Connection) -> int:
-        return _scalar_id(conn, statement, {"trigger_id": trigger_id, "event_kind": event_kind})
-
-    return _insert
-
-
 def _insert_trigger(conn: Connection, criteria_id: int, event_kind: str) -> int:
     return _scalar_id(
         conn,
@@ -1076,58 +919,6 @@ async def test_evaluator_event_routes_to_exactly_one_target(
         assert await _run_with_foreign_keys(_engine, _db_backend, delete_target) == surviving
 
 
-async def test_trigger_predicates_attach_only_to_their_own_event_kind(
-    _engine: AsyncEngine,
-    _alembic_config: Config,
-    _db_backend: _DBBackend,
-    _schema: str,
-) -> None:
-    await _verify_clean_state(_engine, _schema)
-    await _up(_engine, _alembic_config, _UP, _schema)
-    seed = await _run_with_foreign_keys(_engine, _db_backend, _seed_rows)
-
-    def _triggers(conn: Connection) -> dict[str, int]:
-        return {
-            event_kind: _insert_trigger(conn, seed.criteria_id, event_kind)
-            for event_kind in ("annotation_upserted", "evaluation_completed")
-        }
-
-    triggers = await _run_with_foreign_keys(_engine, _db_backend, _triggers)
-    families = (
-        ("project_evaluator_trigger_annotation_predicates", "annotation_upserted"),
-        ("project_evaluator_trigger_evaluation_predicates", "evaluation_completed"),
-    )
-    for table, event_kind in families:
-        own_trigger = triggers[event_kind]
-        other_kind = next(kind for _, kind in families if kind != event_kind)
-        other_trigger = triggers[other_kind]
-
-        predicates_id = await _run_with_foreign_keys(
-            _engine, _db_backend, _predicates_insert(table, own_trigger, event_kind)
-        )
-
-        # Its own kind against the other family's trigger: the composite foreign key has
-        # no parent row to reference.
-        with pytest.raises(BaseException, match="(?i)foreign key constraint"):
-            await _run_with_foreign_keys(
-                _engine, _db_backend, _predicates_insert(table, other_trigger, event_kind)
-            )
-
-        # The other family's kind, which would have matched that parent: the CHECK pins
-        # the child to its own kind.
-        check_name = _constraint_name(f"ck_{table}_`valid_event_kind`", _db_backend)
-        with pytest.raises(BaseException, match=re.escape(check_name)):
-            await _run_with_foreign_keys(
-                _engine, _db_backend, _predicates_insert(table, other_trigger, other_kind)
-            )
-
-        def _delete_trigger(conn: Connection) -> int:
-            _delete(conn, "project_evaluator_triggers", own_trigger)
-            return _count(conn, table, predicates_id)
-
-        assert await _run_with_foreign_keys(_engine, _db_backend, _delete_trigger) == 0
-
-
 async def test_deleting_a_watched_criterion_never_orphans_its_trigger(
     _engine: AsyncEngine,
     _alembic_config: Config,
@@ -1138,23 +929,19 @@ async def test_deleting_a_watched_criterion_never_orphans_its_trigger(
     await _up(_engine, _alembic_config, _UP, _schema)
     seed = await _run_with_foreign_keys(_engine, _db_backend, _seed_rows)
 
-    def _watching_trigger(conn: Connection) -> tuple[int, int]:
+    def _watching_trigger(conn: Connection) -> int:
         trigger_id = _insert_trigger(conn, seed.criteria_id, "evaluation_completed")
-        predicates_id = _scalar_id(
-            conn,
+        conn.execute(
             sa.text(
-                "INSERT INTO project_evaluator_trigger_evaluation_predicates"
-                " (trigger_id, event_kind, source_criteria_id)"
-                " VALUES (:trigger_id, 'evaluation_completed', :source_criteria_id)"
-                " RETURNING id"
+                "UPDATE project_evaluator_triggers"
+                " SET source_criteria_id = :source_criteria_id"
+                " WHERE id = :trigger_id"
             ),
             {"trigger_id": trigger_id, "source_criteria_id": seed.watched_criteria_id},
         )
-        return trigger_id, predicates_id
+        return trigger_id
 
-    trigger_id, predicates_id = await _run_with_foreign_keys(
-        _engine, _db_backend, _watching_trigger
-    )
+    trigger_id = await _run_with_foreign_keys(_engine, _db_backend, _watching_trigger)
 
     def _delete_watched(conn: Connection) -> None:
         _delete(conn, "project_evaluator_criteria", seed.watched_criteria_id)
@@ -1162,12 +949,9 @@ async def test_deleting_a_watched_criterion_never_orphans_its_trigger(
     with pytest.raises(BaseException, match="(?i)foreign key constraint"):
         await _run_with_foreign_keys(_engine, _db_backend, _delete_watched)
 
-    def _delete_owning(conn: Connection) -> tuple[int, int]:
+    def _delete_owning(conn: Connection) -> int:
         _delete(conn, "project_evaluator_criteria", seed.criteria_id)
-        return (
-            _count(conn, "project_evaluator_triggers", trigger_id),
-            _count(conn, "project_evaluator_trigger_evaluation_predicates", predicates_id),
-        )
+        return _count(conn, "project_evaluator_triggers", trigger_id)
 
-    assert await _run_with_foreign_keys(_engine, _db_backend, _delete_owning) == (0, 0)
+    assert await _run_with_foreign_keys(_engine, _db_backend, _delete_owning) == 0
     await _run_with_foreign_keys(_engine, _db_backend, _delete_watched)

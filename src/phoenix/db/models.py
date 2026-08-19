@@ -76,6 +76,10 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
 )
+from phoenix.db.types.evaluator_trigger_predicates import (
+    TriggerPredicates,
+    TriggerPredicatesType,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
 from phoenix.db.types.experiment_log import ExperimentLogDetail
@@ -507,6 +511,21 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         self, value: Optional[str], _: Dialect
     ) -> Optional[AnnotationConfigType]:
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
+
+
+class _TriggerPredicates(TypeDecorator[TriggerPredicatesType]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[TriggerPredicatesType], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return TriggerPredicates(root=value).model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[TriggerPredicatesType]:
+        return TriggerPredicates.model_validate(value).root if value is not None else None
 
 
 class _AnnotationConfigList(TypeDecorator[list[AnnotationConfigType]]):
@@ -3951,13 +3970,9 @@ class EvaluatorEvent(HasId):
 class ProjectEvaluatorTrigger(HasId):
     """One rule saying which events should make its criteria run.
 
-    The rule's predicates live in the child table for its event kind, at most one row
-    per trigger; no child row means no predicates, so the trigger fires on every event
-    of its kind. Set-valued intent ("label A or B") is several trigger rows on the same
-    criteria. UNIQUE (id, event_kind) is the key each child's foreign key references,
-    which is what stops predicates of one family attaching to a trigger of another —
-    events are matched by a daemon outside the mutation layer and the schema is the
-    only validator that path passes.
+    NULL predicates means the trigger fires on every event of its kind. Set-valued
+    intent ("label A or B") is several trigger rows on the same criteria. Predicate JSON
+    is validated against its event kind by every write and by the rules loader.
     """
 
     __tablename__ = "project_evaluator_triggers"
@@ -3970,146 +3985,26 @@ class ProjectEvaluatorTrigger(HasId):
         CheckConstraint(evaluator_event_kind_check("event_kind"), name="valid_event_kind"),
         nullable=False,
     )
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-    )
-
-    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship("ProjectEvaluatorCriteria")
-    annotation_predicates: Mapped[Optional["ProjectEvaluatorTriggerAnnotationPredicates"]] = (
-        relationship(
-            "ProjectEvaluatorTriggerAnnotationPredicates",
-            back_populates="trigger",
-        )
-    )
-    evaluation_predicates: Mapped[Optional["ProjectEvaluatorTriggerEvaluationPredicates"]] = (
-        relationship(
-            "ProjectEvaluatorTriggerEvaluationPredicates",
-            back_populates="trigger",
-        )
-    )
-
-    __table_args__ = (UniqueConstraint("id", "event_kind"),)
-
-
-class ProjectEvaluatorTriggerAnnotationPredicates(HasId):
-    """What an annotation_upserted event must look like for its trigger to fire.
-
-    Every predicate column is nullable and NULL means unconstrained. The row attaches
-    by (trigger_id, event_kind), so it can only reach a trigger whose kind is
-    annotation_upserted.
-    """
-
-    __tablename__ = "project_evaluator_trigger_annotation_predicates"
-    trigger_id: Mapped[int] = mapped_column(nullable=False, unique=True)
-    event_kind: Mapped[EvaluatorEventKind] = mapped_column(
-        CheckConstraint(
-            "event_kind = 'annotation_upserted'",
-            name="valid_event_kind",
-        ),
-        nullable=False,
-    )
-    name: Mapped[Optional[str]] = mapped_column(String)
-    label: Mapped[Optional[str]] = mapped_column(String)
-    score_below: Mapped[Optional[float]] = mapped_column(Float)
-    score_above: Mapped[Optional[float]] = mapped_column(Float)
-    annotator_kind: Mapped[Optional[Literal["LLM", "CODE", "HUMAN"]]] = mapped_column(
-        CheckConstraint(
-            "annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
-            name="valid_annotator_kind",
-        ),
-    )
-    annotation_change: Mapped[Optional[AnnotationChange]] = mapped_column(
-        CheckConstraint(
-            "annotation_change IN ('created', 'updated')",
-            name="valid_annotation_change",
-        ),
-    )
-    annotation_target: Mapped[Optional[AnnotationTarget]] = mapped_column(
-        CheckConstraint(
-            "annotation_target IN ('span', 'trace', 'session')",
-            name="valid_annotation_target",
-        ),
-    )
-    # Annotations written by online evaluation are excluded from matching unless the rule
-    # asks for them, so one evaluator can run on another evaluator's output.
-    matches_evaluator_annotations: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
-    )
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-    )
-
-    trigger: Mapped["ProjectEvaluatorTrigger"] = relationship(
-        "ProjectEvaluatorTrigger",
-        back_populates="annotation_predicates",
-    )
-
-    __table_args__ = (
-        ForeignKeyConstraint(
-            ["trigger_id", "event_kind"],
-            ["project_evaluator_triggers.id", "project_evaluator_triggers.event_kind"],
-            ondelete="CASCADE",
-        ),
-    )
-
-
-class ProjectEvaluatorTriggerEvaluationPredicates(HasId):
-    """What an evaluation_completed event must look like for its trigger to fire.
-
-    Every predicate column is nullable and NULL means unconstrained. The row attaches
-    by (trigger_id, event_kind), so it can only reach a trigger whose kind is
-    evaluation_completed.
-    """
-
-    __tablename__ = "project_evaluator_trigger_evaluation_predicates"
-    trigger_id: Mapped[int] = mapped_column(nullable=False, unique=True)
-    event_kind: Mapped[EvaluatorEventKind] = mapped_column(
-        CheckConstraint(
-            "event_kind = 'evaluation_completed'",
-            name="valid_event_kind",
-        ),
-        nullable=False,
-    )
-    name: Mapped[Optional[str]] = mapped_column(String)
-    label: Mapped[Optional[str]] = mapped_column(String)
-    score_below: Mapped[Optional[float]] = mapped_column(Float)
-    score_above: Mapped[Optional[float]] = mapped_column(Float)
-    # Not ON DELETE CASCADE: cascading here would delete the predicates and leave the
-    # trigger behind, firing on every completion. Deleting a watched criterion is
-    # refused until the trigger that watches it goes with it.
+    predicates: Mapped[Optional[TriggerPredicatesType]] = mapped_column(_TriggerPredicates)
+    # Not ON DELETE CASCADE: cascading here would delete the watched criterion reference
+    # and leave the trigger behind, firing on every completion. Deleting a watched
+    # criterion is refused until the trigger that watches it goes with it.
     source_criteria_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("project_evaluator_criteria.id"),
-    )
-    result_changed_only: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
+        index=True,
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    trigger: Mapped["ProjectEvaluatorTrigger"] = relationship(
-        "ProjectEvaluatorTrigger",
-        back_populates="evaluation_predicates",
+    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship(
+        "ProjectEvaluatorCriteria",
+        foreign_keys=[criteria_id],
     )
     source_criteria: Mapped[Optional["ProjectEvaluatorCriteria"]] = relationship(
-        "ProjectEvaluatorCriteria"
-    )
-
-    __table_args__ = (
-        ForeignKeyConstraint(
-            ["trigger_id", "event_kind"],
-            ["project_evaluator_triggers.id", "project_evaluator_triggers.event_kind"],
-            ondelete="CASCADE",
-        ),
-        # Named short: the conventional ix_<table>_<column> spelling exceeds
-        # PostgreSQL's 63-character identifier limit.
-        Index(
-            "ix_trigger_evaluation_predicates_source_criteria_id",
-            "source_criteria_id",
-        ),
+        "ProjectEvaluatorCriteria",
+        foreign_keys=[source_criteria_id],
     )
 
 

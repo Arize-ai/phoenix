@@ -1,7 +1,9 @@
+import logging
 from secrets import token_hex
 from typing import Any
 
-from sqlalchemy import delete
+import pytest
+from sqlalchemy import bindparam, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import EVALUATORS_PROJECT_NAME
@@ -10,6 +12,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval.triggering.rules import (
     AnnotationTriggerRule,
     EvaluationTriggerRule,
+    annotation_rules_exist,
     evaluator_annotation_rules_exist,
     load_rules,
 )
@@ -55,18 +58,17 @@ async def _add_trigger(
     event_kind: models.EvaluatorEventKind = "annotation_upserted",
     **predicates: Any,
 ) -> models.ProjectEvaluatorTrigger:
-    """A trigger, with a predicate row of its own family when any predicate is given."""
-    trigger = models.ProjectEvaluatorTrigger(criteria_id=criteria.id, event_kind=event_kind)
+    """A trigger with predicate JSON when any predicate is given."""
+    has_predicates = bool(predicates)
+    source_criteria_id = predicates.pop("source_criteria_id", None)
+    trigger = models.ProjectEvaluatorTrigger(
+        criteria_id=criteria.id,
+        event_kind=event_kind,
+        predicates={"type": event_kind, **predicates} if has_predicates else None,
+        source_criteria_id=source_criteria_id,
+    )
     session.add(trigger)
     await session.flush()
-    if predicates:
-        table = (
-            models.ProjectEvaluatorTriggerAnnotationPredicates
-            if event_kind == "annotation_upserted"
-            else models.ProjectEvaluatorTriggerEvaluationPredicates
-        )
-        session.add(table(trigger_id=trigger.id, event_kind=event_kind, **predicates))
-        await session.flush()
     return trigger
 
 
@@ -151,6 +153,55 @@ async def test_a_trigger_without_predicates_loads_unconstrained(db: DbSessionFac
     assert rule.annotation_change is None
     assert rule.annotation_target is None
     assert rule.matches_evaluator_annotations is False
+
+
+async def test_invalid_or_mismatched_predicate_json_is_skipped(
+    db: DbSessionFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        criteria = await _add_criteria(session, project)
+        valid = await _add_trigger(session, criteria)
+        malformed = await _add_trigger(session, criteria, name="before corruption")
+        mismatched = await _add_trigger(session, criteria, name="before corruption")
+        overwrite_predicates = text(
+            "UPDATE project_evaluator_triggers SET predicates = :predicates WHERE id = :id"
+        ).bindparams(bindparam("predicates", type_=models.JSON_))
+        await session.execute(
+            overwrite_predicates,
+            {"id": malformed.id, "predicates": {"type": "annotation_upserted", "unexpected": True}},
+        )
+        await session.execute(
+            overwrite_predicates,
+            {"id": mismatched.id, "predicates": {"type": "evaluation_completed"}},
+        )
+
+    with caplog.at_level(logging.ERROR):
+        async with db() as session:
+            rules = await load_rules(session)
+
+    assert [rule.trigger_id for rule in rules] == [valid.id]
+    assert "invalid predicates" in caplog.text
+    assert "disagrees with event kind" in caplog.text
+
+
+async def test_invalid_predicate_json_does_not_make_annotation_rules_exist(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        criteria = await _add_criteria(session, project)
+        mismatched = await _add_trigger(session, criteria)
+        await session.execute(
+            text(
+                "UPDATE project_evaluator_triggers SET predicates = :predicates WHERE id = :id"
+            ).bindparams(bindparam("predicates", type_=models.JSON_)),
+            {"id": mismatched.id, "predicates": {"type": "evaluation_completed"}},
+        )
+
+    async with db() as session:
+        assert await annotation_rules_exist(session) is False
 
 
 async def test_only_an_opted_in_annotation_rule_makes_evaluator_annotations_worth_logging(

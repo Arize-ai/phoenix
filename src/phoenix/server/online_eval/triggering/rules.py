@@ -2,22 +2,37 @@
 
 This is the only module that knows an event can cause an evaluation.
 
-Each event kind has its own predicate table and its own rule type here. A new kind is a
-new table and a new rule type; the ones already in place do not change.
+Each event kind has its own predicate model and rule type here. A new kind is a new
+model and a new rule type; the ones already in place do not change.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, ClassVar, Optional, Union
 
-from sqlalchemy import Select, select
+from pydantic import ValidationError
+from sqlalchemy import Select, select, type_coerce
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.helpers import exclude_criteria_targeting_evaluator_traces
+from phoenix.db.types.evaluator_trigger_predicates import (
+    AnnotationPredicates,
+    EvaluationPredicates,
+    TriggerPredicates,
+    TriggerPredicatesType,
+)
 from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
+
+logger = logging.getLogger(__name__)
+
+_raw_predicates = type_coerce(
+    models.ProjectEvaluatorTrigger.__table__.c.predicates,
+    models.JSON_,
+).label("predicates")
 
 
 @dataclass(frozen=True)
@@ -96,8 +111,50 @@ def _live_rules(*selected: Any) -> Select[Any]:
     )
 
 
+def _validated_predicates(
+    trigger_id: int,
+    event_kind: models.EvaluatorEventKind,
+    value: Any,
+) -> tuple[bool, Optional[TriggerPredicatesType]]:
+    """Validate one stored predicate object without letting a bad row broaden a rule."""
+    if value is None:
+        return True, None
+    try:
+        predicates = TriggerPredicates.model_validate(value).root
+    except ValidationError as error:
+        logger.error(
+            "Skipping project evaluator trigger %s: invalid predicates: %s",
+            trigger_id,
+            error,
+        )
+        return False, None
+    if predicates.type != event_kind:
+        logger.error(
+            "Skipping project evaluator trigger %s: predicate type %s disagrees with event kind %s",
+            trigger_id,
+            predicates.type,
+            event_kind,
+        )
+        return False, None
+    return True, predicates
+
+
+async def _rules_exist_for_event_kind(
+    session: AsyncSession,
+    event_kind: models.EvaluatorEventKind,
+) -> bool:
+    rows = await session.execute(
+        _live_rules(
+            models.ProjectEvaluatorTrigger.id,
+            models.ProjectEvaluatorTrigger.event_kind,
+            _raw_predicates,
+        ).where(models.ProjectEvaluatorTrigger.event_kind == event_kind)
+    )
+    return any(_validated_predicates(row.id, row.event_kind, row.predicates)[0] for row in rows)
+
+
 async def annotation_rules_exist(session: AsyncSession) -> bool:
-    """Whether any live rule fires on annotations at all.
+    """Whether any valid live rule fires on annotations at all.
 
     Annotation writes append events only when one does. Without the gate, turning
     session evaluation on also turns on an event write per annotation write, plus a day
@@ -107,23 +164,17 @@ async def annotation_rules_exist(session: AsyncSession) -> bool:
     Like `load_rules`, this read is a linearization point: a rule committed after it
     does not cause an earlier annotation transaction to append an event.
     """
-    stmt = _live_rules(models.ProjectEvaluatorTrigger.id).where(
-        models.ProjectEvaluatorTrigger.event_kind == "annotation_upserted"
-    )
-    return await session.scalar(stmt.limit(1)) is not None
+    return await _rules_exist_for_event_kind(session, "annotation_upserted")
 
 
 async def evaluation_rules_exist(session: AsyncSession) -> bool:
-    """Whether any live rule fires on completed evaluations at all.
+    """Whether any valid live rule fires on completed evaluations at all.
 
     Evaluation completion appends events only when one does, matching the annotation
     write seam's no-cost-without-rules behavior. The read is in the work completion
     transaction, so a rule committed afterwards does not retroactively receive the event.
     """
-    stmt = _live_rules(models.ProjectEvaluatorTrigger.id).where(
-        models.ProjectEvaluatorTrigger.event_kind == "evaluation_completed"
-    )
-    return await session.scalar(stmt.limit(1)) is not None
+    return await _rules_exist_for_event_kind(session, "evaluation_completed")
 
 
 async def evaluator_annotation_rules_exist(session: AsyncSession) -> bool:
@@ -133,102 +184,69 @@ async def evaluator_annotation_rules_exist(session: AsyncSession) -> bool:
     same no-cost-without-rules footing as `annotation_rules_exist`. Whether a given rule
     wants a given one of those writes is the matcher's question, not this one's.
     """
-    stmt = (
-        _live_rules(models.ProjectEvaluatorTrigger.id)
-        .join(
-            models.ProjectEvaluatorTriggerAnnotationPredicates,
-            models.ProjectEvaluatorTriggerAnnotationPredicates.trigger_id
-            == models.ProjectEvaluatorTrigger.id,
-        )
-        .where(
-            models.ProjectEvaluatorTriggerAnnotationPredicates.matches_evaluator_annotations.is_(
-                True
-            )
-        )
+    rows = await session.execute(
+        _live_rules(
+            models.ProjectEvaluatorTrigger.id,
+            models.ProjectEvaluatorTrigger.event_kind,
+            _raw_predicates,
+        ).where(models.ProjectEvaluatorTrigger.event_kind == "annotation_upserted")
     )
-    return await session.scalar(stmt.limit(1)) is not None
+    for row in rows:
+        valid, predicates = _validated_predicates(row.id, row.event_kind, row.predicates)
+        if valid and isinstance(predicates, AnnotationPredicates):
+            if predicates.matches_evaluator_annotations:
+                return True
+    return False
 
 
 async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
-    """Read every rule that can fire right now, one statement per event kind.
+    """Read every valid rule that can fire right now.
 
-    These statements are the drain's linearization point: a rule committed after they
-    run does not participate in the tick that ran them. A trigger with no predicate row
-    is a rule with no constraints, which is why each family is read through an outer
-    join and its columns come back NULL.
+    This statement is the drain's linearization point: a rule committed after it runs
+    does not participate in that tick. NULL predicate JSON becomes a rule with no
+    constraints; invalid or kind-mismatched JSON is logged and omitted.
     """
-    annotation_predicates = models.ProjectEvaluatorTriggerAnnotationPredicates
-    annotation_rows = await session.execute(
+    rows = await session.execute(
         _live_rules(
             models.ProjectEvaluatorTrigger.id,
             models.ProjectEvaluatorTrigger.criteria_id,
             models.ProjectEvaluatorCriteria.project_id,
             models.ProjectEvaluatorCriteria.evaluation_target,
-            annotation_predicates.name,
-            annotation_predicates.label,
-            annotation_predicates.score_below,
-            annotation_predicates.score_above,
-            annotation_predicates.annotator_kind,
-            annotation_predicates.annotation_change,
-            annotation_predicates.annotation_target,
-            annotation_predicates.matches_evaluator_annotations,
+            models.ProjectEvaluatorTrigger.event_kind,
+            _raw_predicates,
+            models.ProjectEvaluatorTrigger.source_criteria_id,
         )
-        .outerjoin(
-            annotation_predicates,
-            annotation_predicates.trigger_id == models.ProjectEvaluatorTrigger.id,
-        )
-        .where(models.ProjectEvaluatorTrigger.event_kind == "annotation_upserted")
     )
-    evaluation_predicates = models.ProjectEvaluatorTriggerEvaluationPredicates
-    evaluation_rows = await session.execute(
-        _live_rules(
-            models.ProjectEvaluatorTrigger.id,
-            models.ProjectEvaluatorTrigger.criteria_id,
-            models.ProjectEvaluatorCriteria.project_id,
-            models.ProjectEvaluatorCriteria.evaluation_target,
-            evaluation_predicates.name,
-            evaluation_predicates.label,
-            evaluation_predicates.score_below,
-            evaluation_predicates.score_above,
-            evaluation_predicates.source_criteria_id,
-            evaluation_predicates.result_changed_only,
-        )
-        .outerjoin(
-            evaluation_predicates,
-            evaluation_predicates.trigger_id == models.ProjectEvaluatorTrigger.id,
-        )
-        .where(models.ProjectEvaluatorTrigger.event_kind == "evaluation_completed")
-    )
-    rules: list[TriggerRule] = [
-        AnnotationTriggerRule(
+    rules: list[TriggerRule] = []
+    for row in rows:
+        valid, predicates = _validated_predicates(row.id, row.event_kind, row.predicates)
+        if not valid:
+            continue
+        common = dict(
             trigger_id=row.id,
             criteria_id=row.criteria_id,
             project_id=row.project_id,
             evaluation_target=row.evaluation_target,
-            name=row.name,
-            label=row.label,
-            score_below=row.score_below,
-            score_above=row.score_above,
-            annotator_kind=row.annotator_kind,
-            annotation_change=row.annotation_change,
-            annotation_target=row.annotation_target,
-            matches_evaluator_annotations=bool(row.matches_evaluator_annotations),
         )
-        for row in annotation_rows
-    ]
-    rules.extend(
-        EvaluationTriggerRule(
-            trigger_id=row.id,
-            criteria_id=row.criteria_id,
-            project_id=row.project_id,
-            evaluation_target=row.evaluation_target,
-            name=row.name,
-            label=row.label,
-            score_below=row.score_below,
-            score_above=row.score_above,
-            source_criteria_id=row.source_criteria_id,
-            result_changed_only=bool(row.result_changed_only),
-        )
-        for row in evaluation_rows
-    )
+        if row.event_kind == "annotation_upserted":
+            annotation_predicates = predicates or AnnotationPredicates(type="annotation_upserted")
+            if not isinstance(annotation_predicates, AnnotationPredicates):
+                continue
+            rules.append(
+                AnnotationTriggerRule(
+                    **common,
+                    **annotation_predicates.model_dump(exclude={"type"}),
+                )
+            )
+        elif row.event_kind == "evaluation_completed":
+            evaluation_predicates = predicates or EvaluationPredicates(type="evaluation_completed")
+            if not isinstance(evaluation_predicates, EvaluationPredicates):
+                continue
+            rules.append(
+                EvaluationTriggerRule(
+                    **common,
+                    **evaluation_predicates.model_dump(exclude={"type"}),
+                    source_criteria_id=row.source_criteria_id,
+                )
+            )
     return tuple(sorted(rules, key=lambda rule: rule.trigger_id))

@@ -6,6 +6,11 @@ import strawberry
 from strawberry.relay import Node, NodeID
 
 from phoenix.db import models
+from phoenix.db.types.evaluator_trigger_predicates import (
+    AnnotationPredicates,
+    EvaluationPredicates,
+    TriggerPredicates,
+)
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
 if TYPE_CHECKING:
@@ -156,55 +161,70 @@ class ProjectEvaluatorTrigger(Node):
 def to_gql_project_evaluator_trigger(
     record: models.ProjectEvaluatorTrigger,
 ) -> ProjectEvaluatorTrigger:
-    """Build the GraphQL trigger from a record whose predicate children are already loaded."""
+    """Build the GraphQL trigger from its validated predicate JSON."""
+    predicates = (
+        TriggerPredicates(root=record.predicates).root if record.predicates is not None else None
+    )
+    if predicates is not None and predicates.type != record.event_kind:
+        raise ValueError(
+            f"Trigger {record.id} predicate type {predicates.type} disagrees with "
+            f"event kind {record.event_kind}"
+        )
     return ProjectEvaluatorTrigger(
         id=record.id,
         criteria_id=record.criteria_id,
         event_kind=EvaluatorEventKind(record.event_kind),
-        annotation_predicates=_to_gql_annotation_predicates(record.annotation_predicates),
-        evaluation_predicates=_to_gql_evaluation_predicates(record.evaluation_predicates),
+        annotation_predicates=_to_gql_annotation_predicates(predicates),
+        evaluation_predicates=_to_gql_evaluation_predicates(
+            predicates,
+            source_criteria_id=record.source_criteria_id,
+        ),
         created_at=record.created_at,
         updated_at=record.updated_at,
     )
 
 
 def _to_gql_annotation_predicates(
-    record: Optional[models.ProjectEvaluatorTriggerAnnotationPredicates],
+    predicates: Optional[AnnotationPredicates | EvaluationPredicates],
 ) -> Optional[ProjectEvaluatorTriggerAnnotationPredicates]:
-    if record is None:
+    if not isinstance(predicates, AnnotationPredicates):
         return None
     return ProjectEvaluatorTriggerAnnotationPredicates(
-        name=record.name,
-        label=record.label,
-        score_below=record.score_below,
-        score_above=record.score_above,
+        name=predicates.name,
+        label=predicates.label,
+        score_below=predicates.score_below,
+        score_above=predicates.score_above,
         annotator_kind=(
-            AnnotatorKind(record.annotator_kind) if record.annotator_kind is not None else None
+            AnnotatorKind(predicates.annotator_kind)
+            if predicates.annotator_kind is not None
+            else None
         ),
         annotation_change=(
-            AnnotationChange(record.annotation_change)
-            if record.annotation_change is not None
+            AnnotationChange(predicates.annotation_change)
+            if predicates.annotation_change is not None
             else None
         ),
         annotation_target=(
-            AnnotationTarget(record.annotation_target)
-            if record.annotation_target is not None
+            AnnotationTarget(predicates.annotation_target)
+            if predicates.annotation_target is not None
             else None
         ),
-        matches_evaluator_annotations=record.matches_evaluator_annotations,
+        matches_evaluator_annotations=predicates.matches_evaluator_annotations,
     )
 
 
 def _to_gql_evaluation_predicates(
-    record: Optional[models.ProjectEvaluatorTriggerEvaluationPredicates],
+    predicates: Optional[AnnotationPredicates | EvaluationPredicates],
+    *,
+    source_criteria_id: Optional[int],
 ) -> Optional[ProjectEvaluatorTriggerEvaluationPredicates]:
-    if record is None:
+    if not isinstance(predicates, EvaluationPredicates):
         return None
     return ProjectEvaluatorTriggerEvaluationPredicates(
-        source_criteria_id=record.source_criteria_id,
-        name=record.name,
-        label=record.label,
-        score_below=record.score_below,
-        score_above=record.score_above,
-        result_changed_only=record.result_changed_only,
+        source_criteria_id=source_criteria_id,
+        name=predicates.name,
+        label=predicates.label,
+        score_below=predicates.score_below,
+        score_above=predicates.score_above,
+        result_changed_only=predicates.result_changed_only,
     )
