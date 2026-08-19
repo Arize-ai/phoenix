@@ -13,12 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from phoenix.db import models
 from phoenix.db.eval_work import (
     SUPERSEDED_BY_REQUEST_ERROR,
+    TERMINAL_EVAL_SESSION_WORK_STATUSES,
     live_eval_session_work_index_predicate,
     terminal_eval_session_work_index_predicate,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
-from phoenix.server.online_eval import session_sweeper
+from phoenix.server.online_eval import session_retention, session_sweeper
 from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
@@ -107,8 +108,14 @@ def test_terminal_retention_index_is_single_sourced_from_max_attempts() -> None:
     )
 
     assert f"attempts >= {MAX_ATTEMPTS}" in predicate
-    assert "FILTERED_OUT" in predicate
-    assert "SAMPLED_OUT" in predicate
+    reap_predicate = str(
+        session_retention._terminal_session_work(models.EvalSessionWorkUnit).compile(
+            compile_kwargs={"literal_binds": True}
+        )
+    )
+    for status in TERMINAL_EVAL_SESSION_WORK_STATUSES:
+        assert status in predicate
+        assert status in reap_predicate
     assert str(terminal_index.dialect_options["postgresql"]["where"]) == predicate
     assert str(terminal_index.dialect_options["sqlite"]["where"]) == predicate
     assert (
@@ -1299,6 +1306,35 @@ async def test_retention_reaps_fulfilled_history_without_rematerializing_the_pai
     assert original_id not in retained_ids
     assert retained_ids == [replacement_id]
     assert request_count == 0
+
+
+async def test_retention_preserves_ambient_success_after_content_advances(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+
+    aged_at = _now() - timedelta(days=8)
+    async with db() as session:
+        original = (await session.scalars(select(models.EvalSessionWorkUnit))).one()
+        original_id = original.id
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == original_id)
+            .values(status="DONE", created_at=aged_at, updated_at=aged_at)
+        )
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == original.project_session_rowid)
+            .values(last_span_ingested_at=_now())
+        )
+
+    await sweeper._tick()
+
+    work = await _work_units(db)
+    assert [(unit.id, unit.status) for unit in work] == [(original_id, "DONE")]
 
 
 async def test_retention_never_deletes_an_unfulfilled_request(
