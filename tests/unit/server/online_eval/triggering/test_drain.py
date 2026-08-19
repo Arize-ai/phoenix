@@ -28,7 +28,6 @@ from phoenix.server.online_eval.triggering.log import (
 from phoenix.server.online_eval.triggering.rules import (
     AnnotationTriggerRule,
     TriggerRule,
-    evaluator_annotation_rules_exist,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -493,7 +492,7 @@ async def _publish(
                 ).returning(models.ProjectSessionAnnotation.id)
             )
         ).all()
-        if inserted and await evaluator_annotation_rules_exist(session):
+        if inserted:
             await _announce_annotations(
                 session,
                 unit,
@@ -678,6 +677,41 @@ async def test_publishing_logs_no_annotation_when_no_rule_asked_for_evaluator_ou
     await SessionEvalSweeper(db)._tick()
     units = await _claim_pending(db)
     await _publish(db, units[project_evaluator_id], name=_A_ANNOTATION)
+
+    assert await _generated_events(db) == []
+
+
+async def test_evaluator_annotation_rule_gate_is_project_scoped(
+    db: DbSessionFactory,
+) -> None:
+    opted_in_project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    _, opted_in_project_evaluator_id = await _seed_criteria(
+        db,
+        opted_in_project_id,
+        evaluation_target="SESSION",
+    )
+    async with db() as session:
+        opted_in_criteria = await session.get(
+            models.ProjectEvaluator,
+            opted_in_project_evaluator_id,
+        )
+        assert opted_in_criteria is not None
+        await _add_trigger(
+            session,
+            opted_in_criteria,
+            matches_evaluator_annotations=True,
+        )
+
+    bystander_project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    _, bystander_project_evaluator_id = await _seed_criteria(
+        db,
+        bystander_project_id,
+        evaluation_target="SESSION",
+    )
+    await SessionEvalSweeper(db)._tick()
+    units = await _claim_pending(db)
+
+    await _publish(db, units[bystander_project_evaluator_id], name=_A_ANNOTATION)
 
     assert await _generated_events(db) == []
 

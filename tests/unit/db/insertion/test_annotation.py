@@ -141,3 +141,23 @@ async def test_online_eval_annotation_does_not_append_an_event(db: DbSessionFact
         assert await session.scalar(select(models.SpanAnnotation.id)) is not None
         assert await session.scalar(select(models.EvaluatorEvent.id)) is None
 
+
+async def test_annotation_rule_gate_is_project_scoped(db: DbSessionFactory) -> None:
+    await _seed_event_target(db)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        span = await _add_span(session, trace)
+
+    async with db() as session:
+        await insert_annotations(
+            session,
+            _record(span.id, label="incorrect"),
+            table=models.SpanAnnotation,
+        )
+
+    async with db() as session:
+        assert await session.scalar(select(models.SpanAnnotation.id)) is not None
+        assert await session.scalar(select(models.EvaluatorEvent.id)) is None
+

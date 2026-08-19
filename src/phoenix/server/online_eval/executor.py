@@ -419,6 +419,8 @@ async def _announce_annotations(
     routed = (await session.execute(routing)).one_or_none()
     if routed is None or routed.project_session_rowid is None:
         return
+    if not await evaluator_annotation_rules_exist(session, project_id=routed.project_id):
+        return
     written = await session.execute(
         select(
             annotation_table.id,
@@ -1176,7 +1178,7 @@ class OnlineEvalExecutor:
                 )
             ).all()
             # Opt-in announcement permits feedback; shared-seam exclusion is its default-off twin.
-            if inserted_ids and await evaluator_annotation_rules_exist(session):
+            if inserted_ids:
                 await _announce_annotations(
                     session,
                     unit,
