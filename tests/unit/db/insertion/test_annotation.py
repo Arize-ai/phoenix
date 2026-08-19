@@ -102,7 +102,10 @@ async def test_upsert_reports_created_then_updated(db: DbSessionFactory) -> None
         "source",
         "user_id",
         "identifier",
+        "criteria_id",
     }
+    # No project evaluator wrote these, so nothing names one.
+    assert [signal.payload["criteria_id"] for signal in signals] == [None, None]
 
 
 async def test_annotation_and_signal_roll_back_together(db: DbSessionFactory) -> None:

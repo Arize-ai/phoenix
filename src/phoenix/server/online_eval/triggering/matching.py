@@ -5,10 +5,15 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
+from phoenix.db import models
 from phoenix.server.online_eval.triggering.log import DrainedSignal
-from phoenix.server.online_eval.triggering.rules import TriggerRule
+from phoenix.server.online_eval.triggering.rules import (
+    AnnotationTriggerRule,
+    EvaluationTriggerRule,
+    TriggerRule,
+)
 
 
 @dataclass(frozen=True)
@@ -20,7 +25,8 @@ class RequestKey:
     """
 
     signal_id: int
-    project_session_rowid: int
+    evaluation_target: models.EvaluationTarget
+    target_rowid: int
     criteria_id: int
 
 
@@ -42,7 +48,8 @@ def match_signals(
     keys = {
         RequestKey(
             signal_id=signal.signal_id,
-            project_session_rowid=signal.project_session_rowid,
+            evaluation_target=signal.evaluation_target,
+            target_rowid=signal.target_rowid,
             criteria_id=rule.criteria_id,
         )
         for signal in signals
@@ -50,7 +57,15 @@ def match_signals(
         if _matches(signal, rule)
     }
     return tuple(
-        sorted(keys, key=lambda key: (key.project_session_rowid, key.criteria_id, key.signal_id))
+        sorted(
+            keys,
+            key=lambda key: (
+                key.evaluation_target,
+                key.target_rowid,
+                key.criteria_id,
+                key.signal_id,
+            ),
+        )
     )
 
 
@@ -60,24 +75,51 @@ def _matches(signal: DrainedSignal, rule: TriggerRule) -> bool:
     # signal.project == criteria.project == session.project: the session's project is
     # checked against the criteria's by `requests.request_evaluations`, which rejects the
     # pair rather than writing a cross-project request.
-    payload = signal.payload
-    if rule.annotation_name is not None and payload.get("name") != rule.annotation_name:
+    if signal.evaluation_target != rule.evaluation_target:
         return False
-    if rule.label is not None and payload.get("label") != rule.label:
+    if isinstance(rule, AnnotationTriggerRule):
+        return _matches_annotation(signal.payload, rule)
+    return _matches_evaluation(signal.payload, rule)
+
+
+def _matches_result(
+    payload: dict[str, Any],
+    *,
+    name: Optional[str],
+    label: Optional[str],
+    score_below: Optional[float],
+    score_above: Optional[float],
+) -> bool:
+    """Test the predicates every family spells for itself over what the payload verdicts."""
+    if name is not None and payload.get("name") != name:
+        return False
+    if label is not None and payload.get("label") != label:
         return False
     score = payload.get("score")
-    if rule.score_below is not None and not (score is not None and score < rule.score_below):
+    if score_below is not None and not (score is not None and score < score_below):
         return False
-    if rule.score_above is not None and not (score is not None and score > rule.score_above):
+    if score_above is not None and not (score is not None and score > score_above):
         return False
-    if signal.kind == "annotation_upserted":
-        return _matches_annotation(payload, rule)
-    if signal.kind == "evaluation_completed":
-        return _matches_evaluation(payload, rule)
-    return False
+    return True
 
 
-def _matches_annotation(payload: dict[str, Any], rule: TriggerRule) -> bool:
+def _matches_annotation(payload: dict[str, Any], rule: AnnotationTriggerRule) -> bool:
+    producer_criteria_id = payload.get("criteria_id")
+    if producer_criteria_id is not None:
+        # A criteria never re-triggers on an annotation it wrote itself, whatever the
+        # rule's predicates say; anyone else's output takes an explicit opt-in.
+        if producer_criteria_id == rule.criteria_id:
+            return False
+        if not rule.matches_evaluator_annotations:
+            return False
+    if not _matches_result(
+        payload,
+        name=rule.name,
+        label=rule.label,
+        score_below=rule.score_below,
+        score_above=rule.score_above,
+    ):
+        return False
     if rule.annotator_kind is not None and payload.get("annotator_kind") != rule.annotator_kind:
         return False
     if rule.annotation_change is not None and payload.get("change") != rule.annotation_change:
@@ -90,9 +132,17 @@ def _matches_annotation(payload: dict[str, Any], rule: TriggerRule) -> bool:
     return True
 
 
-def _matches_evaluation(payload: dict[str, Any], rule: TriggerRule) -> bool:
+def _matches_evaluation(payload: dict[str, Any], rule: EvaluationTriggerRule) -> bool:
     # A criteria never re-triggers on its own verdict, whatever the rule's predicates say.
     if payload.get("criteria_id") == rule.criteria_id:
+        return False
+    if not _matches_result(
+        payload,
+        name=rule.name,
+        label=rule.label,
+        score_below=rule.score_below,
+        score_above=rule.score_above,
+    ):
         return False
     if rule.source_criteria_id is not None and payload.get("criteria_id") != (
         rule.source_criteria_id

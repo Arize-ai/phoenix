@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Sequence
+from typing import Any, AsyncIterator, Callable, Container, Literal, Mapping, Optional, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,7 +63,9 @@ from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
     persist_evaluator_traces,
 )
-from phoenix.server.online_eval.triggering.log import EvaluationCompleted
+from phoenix.server.online_eval.triggering import log as signal_log
+from phoenix.server.online_eval.triggering.log import AnnotationUpserted, EvaluationCompleted
+from phoenix.server.online_eval.triggering.rules import evaluator_annotation_rules_exist
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
@@ -84,6 +86,10 @@ _SCHEDULING_ORIGIN_METADATA_VALUES: dict[models.SchedulingOrigin, str] = {
     "EXPLICIT": "REQUESTED",
 }
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
+_ANNOTATION_TARGETS: dict[models.EvaluationTarget, models.AnnotationTarget] = {
+    "SPAN": "span",
+    "SESSION": "session",
+}
 
 AnnotatorKind = Literal["LLM", "CODE"]
 EvaluatorKind = Literal["LLM", "CODE", "BUILTIN"]
@@ -379,6 +385,72 @@ def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
     open the evaluation behind a score."""
     trace_id = result.get("trace_id")
     return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
+
+
+async def _announce_annotations(
+    session: AsyncSession,
+    unit: ClaimedWorkUnit,
+    annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation],
+    annotation_ids: Sequence[int],
+    *,
+    replaced_names: Container[str],
+) -> None:
+    """Log the annotations this publication wrote, so other evaluators' rules see them.
+
+    The occurrence is the publication, so a retry of it repeats each key and collapses.
+    An evaluated span outside any session announces nothing — no session-target rule
+    could match it — and that is an ordinary outcome, not a failure.
+    """
+    routing: Any
+    if unit.evaluation_target == "SESSION":
+        routing = select(
+            models.ProjectSession.project_id,
+            models.ProjectSession.id.label("project_session_rowid"),
+        ).where(models.ProjectSession.id == unit.target_rowid)
+    else:
+        routing = (
+            select(
+                models.Trace.project_rowid.label("project_id"),
+                models.Trace.project_session_rowid,
+            )
+            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Span.id == unit.target_rowid)
+        )
+    routed = (await session.execute(routing)).one_or_none()
+    if routed is None or routed.project_session_rowid is None:
+        return
+    written = await session.execute(
+        select(
+            annotation_table.id,
+            annotation_table.name,
+            annotation_table.label,
+            annotation_table.score,
+            annotation_table.annotator_kind,
+            annotation_table.updated_at,
+        ).where(annotation_table.id.in_(annotation_ids))
+    )
+    for annotation in written:
+        await signal_log.append(
+            session,
+            AnnotationUpserted(
+                annotation_target=_ANNOTATION_TARGETS[unit.evaluation_target],
+                annotation_id=annotation.id,
+                target_rowid=unit.target_rowid,
+                change="updated" if annotation.name in replaced_names else "created",
+                updated_at=annotation.updated_at,
+                name=annotation.name,
+                label=annotation.label,
+                score=annotation.score,
+                annotator_kind=annotation.annotator_kind,
+                source="API",
+                identifier=unit.identifier,
+                criteria_id=unit.criteria_id,
+                occurrence_id=f"work-unit:{unit.work_unit_id}",
+            ),
+            project_id=routed.project_id,
+            evaluation_target="SESSION",
+            target_rowid=routed.project_session_rowid,
+        )
 
 
 def _transcript_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
@@ -1097,6 +1169,14 @@ class OnlineEvalExecutor:
                     ).returning(annotation_table.id)
                 )
             ).all()
+            if inserted_ids and await evaluator_annotation_rules_exist(session):
+                await _announce_annotations(
+                    session,
+                    unit,
+                    annotation_table,
+                    inserted_ids,
+                    replaced_names=frozenset(previous_by_name),
+                )
 
         async with self._db_phase():
             if self._db.should_not_insert_or_update:
