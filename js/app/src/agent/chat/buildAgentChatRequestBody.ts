@@ -11,7 +11,12 @@ import {
   type AgentServerConfig,
 } from "@phoenix/store/agentStore";
 
-import { isResolvedClientToolOutputPart } from "./chatUtils";
+import {
+  isAnsweredToolApprovalPart,
+  isResolvedClientToolOutputPart,
+  toSubmittedToolApproval,
+  type SubmittedToolApproval,
+} from "./chatUtils";
 import type { ClientToolTimingRecorder } from "./clientToolTimings";
 import { toServerSafeUIMessages } from "./serverSafeMessages";
 import type { LocallyInterruptedToolCallIds } from "./shouldSendAutomatically";
@@ -69,11 +74,6 @@ type ChatToolOutput = NonNullable<
   BuildAgentChatRequestBodyResult["toolOutputs"]
 >[number];
 
-/** A user approval response, as the chat endpoint's `toolApprovals` field models it. */
-type ChatToolApproval = NonNullable<
-  BuildAgentChatRequestBodyResult["toolApprovals"]
->[number];
-
 /**
  * Extract the assistant message's resolved client-executed tool parts — the
  * `toolOutputs` a send may carry. The server matches them by `toolCallId`,
@@ -85,20 +85,14 @@ function getClientToolOutputs(message: AgentUIMessage): ChatToolOutput[] {
 }
 
 /**
- * Extract the assistant message's answered tool approvals.
+ * Extract the assistant message's answered tool approvals. Shares its
+ * projection with the tool-approvals flush so answers the flush already
+ * persisted resend verbatim here, where the server skips them.
  */
-function getToolApprovals(message: AgentUIMessage): ChatToolApproval[] {
-  return message.parts.flatMap((part) => {
-    if (!isToolUIPart(part) || part.state !== "approval-responded") {
-      return [];
-    }
-    return [
-      {
-        toolCallId: part.toolCallId,
-        approved: part.approval.approved,
-      },
-    ];
-  });
+function getToolApprovals(message: AgentUIMessage): SubmittedToolApproval[] {
+  return message.parts
+    .filter((part) => isAnsweredToolApprovalPart(part))
+    .map((part) => toSubmittedToolApproval(part));
 }
 
 export type AgentChatRequestBodyPatch = Pick<
