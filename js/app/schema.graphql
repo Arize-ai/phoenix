@@ -1020,8 +1020,8 @@ input CreateProjectCodeEvaluatorInput {
   evaluatorInputMapping: EvaluatorInputMappingInput!
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
+  outputConfigs: [AnnotationConfigInput!]!
   description: String = null
-  outputConfigs: [AnnotationConfigInput!] = null
 
   """
   Project-specific CODE input mapping. Null inherits the evaluator input mapping; an object overrides it.

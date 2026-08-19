@@ -154,6 +154,16 @@ def _code_create_input(
         "evaluatorInputMapping": _mapping(output="value"),
         "samplingRate": 0.5,
         "evaluationTarget": "SPAN",
+        "outputConfigs": [
+            {
+                "continuous": {
+                    "name": "score",
+                    "optimizationDirection": "NONE",
+                    "lowerBound": 0,
+                    "upperBound": 1,
+                }
+            }
+        ],
         "inputMapping": None,
         "filterCondition": filter_condition,
         "enabled": True,
@@ -235,6 +245,22 @@ def _llm_input(project: models.Project, *, name: str, text: str) -> dict[str, An
         "filterCondition": "",
         "enabled": True,
     }
+
+
+async def test_create_project_code_evaluator_requires_output_configs(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    create_input = _code_create_input(project, sandbox_config)
+    create_input.pop("outputConfigs", None)
+
+    result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
+
+    assert result.errors
+    assert result.data is None
+    assert await _project_evaluator_count(db) == 0
 
 
 async def test_project_code_evaluator_crud_and_connection(
