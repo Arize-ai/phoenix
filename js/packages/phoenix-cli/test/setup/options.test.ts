@@ -56,7 +56,7 @@ describe("resolveSetupInputs", () => {
         },
       }
     );
-    expect(inputs.endpoint).toBe("http://host:6006");
+    expect(inputs.endpoint).toBe("http://collector:6006");
     expect(inputs.project).toBe("px-project");
   });
 

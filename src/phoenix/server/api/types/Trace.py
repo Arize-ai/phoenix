@@ -280,7 +280,7 @@ class Trace(Node):
     async def spans(
         self,
         info: Info[Context, None],
-        first: Optional[int] = UNSET,
+        first: int,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
@@ -288,8 +288,6 @@ class Trace(Node):
         orphan_span_as_root_span: Optional[bool] = True,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
-        assert isinstance(first, int)
-
         # Build base query for spans in this trace
         base_query = (
             select(models.Span.id)

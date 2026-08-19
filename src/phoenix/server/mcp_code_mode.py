@@ -131,3 +131,16 @@ class MontyPoolSandboxProvider:
             ) from exc
         except MontyShuttingDown as exc:
             raise ToolError("Code mode sandbox is shutting down.") from exc
+        except RuntimeError as exc:
+            # Work around Monty #631, which discards some multi-line exception payloads.
+            # https://github.com/pydantic/monty/issues/631
+            if not str(exc).startswith("monty worker protocol error: invalid exception payload"):
+                raise
+            logger.warning(
+                "Monty rejected an exception payload with an invalid source span; "
+                "returning a descriptive result instead."
+            )
+            return (
+                "A tool call failed, but the sandbox could not transfer its error details. "
+                "Retry the tool call with simpler code, or inspect the server logs."
+            )

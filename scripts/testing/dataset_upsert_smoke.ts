@@ -17,8 +17,9 @@
  * Run:
  *   pnpm --dir js --filter @arizeai/phoenix-client exec tsx ../../../scripts/testing/dataset_upsert_smoke.ts
  *
- * Set PHOENIX_HOST (for example http://localhost:6148) and/or PHOENIX_API_KEY
- * if your server is not on the default http://localhost:6006 with no auth.
+ * Set PHOENIX_ENDPOINT (for example http://localhost:6148) and/or
+ * PHOENIX_API_KEY if your server is not on the default http://localhost:6006
+ * with no auth.
  */
 
 import { createClient } from "../../js/packages/phoenix-client/src/client";

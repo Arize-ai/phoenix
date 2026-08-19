@@ -8,7 +8,7 @@
  *     --config examples/vitest/phoenix.vitest.config.ts examples/vitest/sql.eval.ts
  *
  * Expected env vars (when tracking to a Phoenix server):
- *   PHOENIX_HOST=https://app.phoenix.arize.com
+ *   PHOENIX_ENDPOINT=https://phoenix.example.com
  *   PHOENIX_API_KEY=...
  *   OPENAI_API_KEY=...
  *

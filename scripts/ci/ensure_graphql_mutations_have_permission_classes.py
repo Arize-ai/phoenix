@@ -39,12 +39,15 @@ ISSUE_DESCRIPTIONS: dict[IssueType, str] = {
 # patch_viewer allows viewers to update their own profile
 # create_user_api_key and delete_user_api_key allow viewers to manage their own API keys
 # revoke_oauth2_grant allows users to revoke their own OAuth2 authorized-application sessions
+# delete_agent_session allows viewers to delete their own assistant chat
+# sessions (ownership is enforced by the resolver's user_id filter)
 SKIP_IS_NOT_VIEWER_CHECK = frozenset(
     {
         "patch_viewer",
         "create_user_api_key",
         "delete_user_api_key",
         "revoke_oauth2_grant",
+        "delete_agent_session",
     }
 )
 

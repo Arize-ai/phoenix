@@ -1,0 +1,44 @@
+schema_version = "1.3"
+multi_step_reward_strategy = "mean"
+
+[task]
+name = "arize/phoenix-regression-triage"
+description = "Phoenix ServerAgent triages an experiment regression via GraphQL"
+keywords = ["server_agent"]
+
+[environment]
+os = "linux"
+cpus = 2
+memory_mb = 4096
+network_mode = "public"
+build_timeout_sec = 1200.0
+
+[environment.env]
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+HARBOR_PHOENIX_COLLECTOR_ENDPOINT = "${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}"
+HARBOR_PHOENIX_API_KEY = "${HARBOR_PHOENIX_API_KEY:-}"
+HARBOR_PHOENIX_PROJECT_NAME = "${HARBOR_PHOENIX_PROJECT_NAME:-}"
+
+[[steps]]
+name = "step_01_aggregate"
+min_reward = 1.0
+[steps.agent]
+timeout_sec = 900.0
+[steps.verifier]
+timeout_sec = 120.0
+
+[[steps]]
+name = "step_02_diagnose"
+[steps.agent]
+timeout_sec = 900.0
+
+[[steps]]
+name = "step_03_trace_drilldown"
+[steps.agent]
+timeout_sec = 900.0
+
+[[steps]]
+name = "step_04_create_split"
+[steps.agent]
+timeout_sec = 900.0

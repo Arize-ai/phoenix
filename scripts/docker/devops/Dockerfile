@@ -5,25 +5,26 @@ ARG NODE_VERSION=22
 
 # Stage 1: Frontend Builder
 FROM node:${NODE_VERSION}-slim AS frontend-builder
-WORKDIR /phoenix/app
-# Copy only package files first for better dependency caching
-COPY ./app/package*.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./app/.pnpmfile.cjs ./
-# Install dependencies
+WORKDIR /phoenix/js
+# The app lives in the js/ pnpm workspace and depends on workspace packages
+# (@arizeai/phoenix-client, @arizeai/phoenix-evals), so the whole workspace is
+# copied. schemas/ is needed by phoenix-client's prebuild OpenAPI codegen.
+COPY ./js ./
+COPY ./schemas /phoenix/schemas
 RUN npm i -g corepack && \
     corepack enable && \
     pnpm install --frozen-lockfile
-# Copy source and build
-COPY ./app ./
 # Create directory structure that vite expects
 RUN mkdir -p /phoenix/src/phoenix/server/static
-RUN pnpm build
+# Build the app (phoenix-ui) and its workspace dependencies in topological order
+RUN pnpm --filter 'phoenix-ui...' run build
 
 # Stage 2: Backend Builder  
 FROM python:${PYTHON_VERSION}-slim-bullseye AS backend-builder
 WORKDIR /phoenix
 
 # Install uv - pin version to match pyproject.toml [tool.uv] required-version
-RUN pip install uv==0.11.12
+RUN pip install uv==0.12.1
 
 # Copy dependency files first for better layer caching
 COPY ./pyproject.toml ./uv.lock ./LICENSE ./IP_NOTICE ./README.md ./
@@ -106,6 +107,13 @@ COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ ./env/phoenix/s
 COPY --chmod=755 --from=deno-binary /deno /usr/local/bin/deno
 COPY --from=backend-builder /wasm/python-3.12.0.wasm /opt/phoenix/wasm/python-3.12.0.wasm
 ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
+
+# The `monty` worker binary that the Monty sandbox and MCP code mode spawn.
+# pydantic-monty-runtime installs it into the builder venv's bin directory,
+# which the site-packages-only copy above does not carry, so it has to come
+# across on its own. /usr/local/bin is both this image's scripts directory
+# and on PATH, so find_monty_binary() in pydantic_monty._binary resolves it.
+COPY --from=backend-builder /phoenix/.venv/bin/monty /usr/local/bin/monty
 
 # Environment setup
 ENV PYTHONPATH="/phoenix/env"

@@ -1,5 +1,6 @@
 import strawberry
 
+from phoenix.server.api.mutations.agent_session_mutations import AgentSessionMutationMixin
 from phoenix.server.api.mutations.annotation_config_mutations import AnnotationConfigMutationMixin
 from phoenix.server.api.mutations.api_key_mutations import ApiKeyMutationMixin
 from phoenix.server.api.mutations.chat_mutations import (
@@ -42,6 +43,7 @@ from phoenix.server.api.mutations.user_mutations import UserMutationMixin
 
 @strawberry.type
 class Mutation(
+    AgentSessionMutationMixin,
     AnnotationConfigMutationMixin,
     ApiKeyMutationMixin,
     ChatCompletionMutationMixin,

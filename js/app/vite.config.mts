@@ -1,0 +1,129 @@
+import { resolve } from "path";
+import { lezer } from "@lezer/generator/rollup";
+import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+// Uncomment below to visualize the bundle size after running the build command, also uncomment plugins.push(visualizer());
+// import { visualizer } from "rollup-plugin-visualizer";
+/// <reference types="vitest/config" />
+import { defineConfig } from "vite";
+import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
+import relay from "vite-plugin-relay";
+
+// We default to not exporting source maps since the JS bundle gets added to the python package.
+// We however want to enable source maps on the containers for debugging purposes.
+const enableSourceMap = process.env.PHOENIX_ENABLE_SOURCE_MAP === "True";
+
+// Configure React Compiler preset with custom options
+// reactCompilerPreset() provides optimized filters; we customize the babel plugin options
+const compilerPreset = reactCompilerPreset();
+compilerPreset.preset = () => ({
+  plugins: [["babel-plugin-react-compiler", { panicThreshold: "none" }]],
+});
+
+export default defineConfig(() => {
+  const plugins = [
+    // disable react's built-in 300ms suspense fallback timer
+    // without this build plugin we see a 300ms delay on most UI interactions
+    reactFallbackThrottlePlugin(),
+    react(),
+    // Use @rolldown/plugin-babel with React Compiler
+    // This is required in Vite 8+ as plugin-react v6 removed babel integration
+    babel({
+      presets: [compilerPreset],
+    }),
+    relay,
+    lezer(),
+  ];
+  // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
+  // plugins.push(visualizer());
+  return {
+    // Use a relative base so lazy-loaded chunk deps (__vite__mapDeps) resolve
+    // relative to the importing module's URL instead of being baked in as
+    // absolute "/assets/..." paths. This lets the bundle work when Phoenix is
+    // served under a path prefix (PHOENIX_HOST_ROOT_PATH, e.g. "/phoenix")
+    // behind a reverse proxy. The server's index.html template handles the
+    // prefix for entry assets via `basename`; this handles everything loaded
+    // from within the JS bundle. See https://github.com/Arize-ai/phoenix/issues/15178
+    base: "./",
+    root: resolve(__dirname, "src"),
+    plugins,
+    publicDir: resolve(__dirname, "static"),
+    server: {
+      port: parseInt(process.env.VITE_PORT || "5173"),
+      warmup: {
+        clientFiles: ["./index.tsx", "./App.tsx", "./Routes.tsx"],
+      },
+      headers: {
+        // Prevent browser caching during development to ensure fresh assets
+        // after code changes. This fixes 304 responses causing stale files.
+        "Cache-Control": "no-store",
+      },
+    },
+    preview: {
+      port: 6006,
+    },
+    resolve: {
+      alias: {
+        "@phoenix": resolve(__dirname, "src"),
+        "@codemirror/state": resolve(
+          __dirname,
+          "./node_modules/@codemirror/state/dist/index.cjs"
+        ),
+      },
+    },
+    test: {
+      include: ["../__tests__/*.test.{ts,tsx}", "**/__tests__/*.test.{ts,tsx}"],
+      exclude: ["../node_modules/**"],
+      environment: "jsdom",
+      setupFiles: [resolve(__dirname, "./vitest.setup.ts")],
+      globals: true,
+      server: {
+        deps: {
+          // codemirror-json-schema ships ESM with extensionless relative
+          // imports that Node's resolver rejects when externalized
+          inline: ["codemirror-json-schema"],
+        },
+      },
+    },
+    build: {
+      manifest: true,
+      outDir: resolve(__dirname, "../../src/phoenix/server/static"),
+      emptyOutDir: true,
+      sourcemap: enableSourceMap,
+      rolldownOptions: {
+        input: resolve(__dirname, "src/index.tsx"),
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: "vendor-codemirror",
+                test: /codemirror/,
+              },
+              {
+                name: "vendor-recharts",
+                test: /recharts/,
+              },
+              {
+                name: "vendor-shiki",
+                test: /shiki/,
+              },
+              {
+                name: "vendor-ai-sdk-react",
+                test: /@ai-sdk\/react|\/node_modules\/ai\//,
+              },
+              {
+                name: "vendor-streamdown",
+                test: /streamdown/,
+              },
+              // Catch-all for remaining node_modules
+              {
+                name: "vendor",
+                test: /node_modules/,
+              },
+            ],
+          },
+        },
+      },
+    },
+  };
+});

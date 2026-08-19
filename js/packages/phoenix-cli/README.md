@@ -38,21 +38,23 @@ px self update
 ## Configuration
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 ```
 
 CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables. For interactive local use, `px auth login` stores an OAuth session in your active profile; the session acts with the permissions of the user who logged in. API keys take precedence when both are configured.
 
-| Variable                                 | Description                                   |
-| ---------------------------------------- | --------------------------------------------- |
-| `PHOENIX_HOST`                           | Phoenix API endpoint                          |
-| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                |
-| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)          |
-| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
-| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
-| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
+| Variable                                 | Description                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `PHOENIX_ENDPOINT`                       | Phoenix base URL (canonical)                                                                   |
+| `PHOENIX_COLLECTOR_ENDPOINT`             | Trace-export base URL, usually the same as `PHOENIX_ENDPOINT`; `px` uses it when that is unset |
+| `PHOENIX_HOST`                           | Legacy fallback for the base URL                                                               |
+| `PHOENIX_PROJECT`                        | Project name or ID (canonical)                                                                 |
+| `PHOENIX_PROJECT_NAME`                   | Project name or ID (alias for above)                                                           |
+| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                                                                   |
+| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                                                                  |
+| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true`                                                  |
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
@@ -60,7 +62,7 @@ The CLI also discovers the nearest `.env.phoenix` file at or above the current
 working directory. Configuration precedence is: CLI flags, process environment,
 active profile, `.env.phoenix`, then built-in defaults. Credentials are resolved
 as one group, so a process API key is never combined with file-provided client
-headers. If a higher-priority credential is paired with `PHOENIX_HOST` from the
+headers. If a higher-priority credential is paired with an endpoint from the
 file, the CLI warns once and continues. Set
 `PHOENIX_DISCOVER_CONFIG=false` to disable discovery.
 
@@ -122,12 +124,13 @@ that powers the in-browser assistant — investigate failing traces, iterate on
 prompts, and drive Phoenix from your terminal.
 
 ```bash
-pxi                                                          # uses PHOENIX_HOST / PHOENIX_API_KEY
+pxi                                                          # uses PHOENIX_ENDPOINT / PHOENIX_API_KEY
 pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
 npx -y @arizeai/phoenix-cli pxi                              # run without installing
 ```
 
-Inside the chat, `/help`, `/clear`, and `/exit` are handled locally. See the
+Inside the chat, slash commands (`/help`, `/clear`, `/new`, `/temporary`,
+`/sessions`, `/model`, `/compact`, `/exit`) are handled locally. See the
 [PXI documentation](https://arize.com/docs/phoenix/pxi) for the full flag and
 slash-command reference, model setup, and privacy controls.
 
@@ -169,6 +172,32 @@ px setup --no-input --instrument --agent claude --yolo --language python --forma
 px setup --no-input --instrument --agent claude --yolo --docs-mcp --format raw
 ```
 
+A run that instruments is only a success if a trace actually arrived — the
+agent's own claim that it finished doesn't count. Every output says so, and so
+does the exit code:
+
+| Exit | Meaning                                                              |
+| ---- | -------------------------------------------------------------------- |
+| `0`  | Verified, registered only, or you chose "verify later" at the prompt |
+| `1`  | Unexpected error                                                     |
+| `2`  | Cancelled                                                            |
+| `3`  | Missing or invalid flags (the error prints the correct invocation)   |
+| `4`  | Not authenticated, or the credentials lack permission                |
+| `5`  | Could not reach the Phoenix endpoint                                 |
+| `6`  | The wait ran out with no trace — tracing is not confirmed working    |
+
+Only a wait that ran out gives `6`. Registering without `--instrument`, and
+answering "Finish setup — I'll verify later" at the timeout prompt, both exit
+`0` — so `px setup && npm run dev` and `set -e` scripts keep working when you
+deliberately defer.
+
+In `--format json|raw`, `verification` is `verified`, `notVerified`, or
+`deferred`, and is absent when there was nothing to verify; `tracesVerified` is
+the boolean shorthand for `verification == "verified"`. `--format pretty`
+prints a `traces:` line. Don't score a run on the hand-off agent's own exit
+code — it may edit the app correctly and then exit badly, or exit cleanly
+having delivered nothing.
+
 Re-run pieces later with:
 
 ```bash
@@ -180,7 +209,7 @@ px setup skills                     # install coding-agent skills only
 
 Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding
 agent, so the agent can search, query, and operate on your Phoenix data. The
-endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_HOST` —
+endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` —
 you never re-type it.
 
 ```bash

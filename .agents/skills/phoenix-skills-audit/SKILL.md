@@ -285,7 +285,7 @@ cost of poisoning every future agent with a hallucinated API.
 | Question | Answer |
 |---|---|
 | Commit message says `refactor:` — skip? | Read the diff. Refactors often add exports. |
-| Frontend-only change (`app/src/`) — does it affect any of the three skills? | Almost never. Skip and note in "out-of-scope findings". |
+| Frontend-only change (`js/app/src/`) — does it affect any of the three skills? | Almost never. Skip and note in "out-of-scope findings". |
 | New env var — feature flag? | Skip. Feature flags (`*_DANGEROUSLY_*`, `*_EXPERIMENTAL_*`) stay out of public skills. |
 | New env var that controls a public surface? | Update the relevant skill's setup or environment section. |
 | Server-only change (`src/phoenix/server/`) — relevant to the three skills? | Only if it changes what a client/CLI sees. A new GraphQL field consumed by the CLI is in scope; an internal server refactor is not. |

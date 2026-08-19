@@ -62,6 +62,14 @@ px setup --no-input --endpoint http://localhost:6006 --project my-app
 px setup --no-input --instrument --agent claude --yolo --format raw
 ```
 
+A run that instruments only succeeds if a trace actually arrived — the agent's
+own claim that it finished doesn't count. **Exit code `6` means the wait ran out
+with no trace**, so tracing isn't confirmed working even though the connection,
+`.env.phoenix`, and the agent's edits are all in place. In a pipeline, treat `6`
+as "configured but unverified" rather than a hard failure: re-run
+`px setup instrument` or check the exporter. In `--format json|raw`, the
+`verification` field carries the same verdict.
+
 See the [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli#px-setup) for the full list of flags.
 
 ## Use an unsupported agent

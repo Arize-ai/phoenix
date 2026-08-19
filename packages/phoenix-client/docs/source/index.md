@@ -25,19 +25,20 @@ Configure the Phoenix Client using environment variables for seamless use across
 
 ```bash
 # For local Phoenix server (default)
-export PHOENIX_BASE_URL="http://localhost:6006"
+export PHOENIX_ENDPOINT="http://localhost:6006"
 
-# Cloud Instance
-export PHOENIX_API_KEY="your-api-key"
-export PHOENIX_BASE_URL="https://app.phoenix.arize.com/s/your-space"
-
-# For custom Phoenix instances with API key authentication
-export PHOENIX_BASE_URL="https://your-phoenix-instance.com"
+# A hosted or self-hosted instance with authentication
+export PHOENIX_ENDPOINT="https://phoenix.example.com"
 export PHOENIX_API_KEY="your-api-key"
 
 # Customize headers
 export PHOENIX_CLIENT_HEADERS="Authorization=Bearer your-api-key,custom-header=value"
 ```
+
+`PHOENIX_ENDPOINT` is a base URL and is the canonical setting for the client. If
+your app also exports traces, set `PHOENIX_COLLECTOR_ENDPOINT` for the OTel SDK
+— usually to the same value. When only `PHOENIX_COLLECTOR_ENDPOINT` is set, the
+client infers its base URL from it.
 
 ### Client Initialization
 
@@ -51,8 +52,8 @@ client = Client()
 
 client = Client(base_url="http://localhost:6006")  # Local Phoenix server
 
-# Cloud instance with API key
-client = Client(base_url="https://app.phoenix.arize.com/s/your-space", api_key="your-api-key")
+# Remote instance with API key
+client = Client(base_url="https://your-phoenix-instance.com", api_key="your-api-key")
 
 # Custom authentication headers
 client = Client(
@@ -62,9 +63,7 @@ client = Client(
 # Asynchronous client (same configuration options)
 async_client = AsyncClient()
 async_client = AsyncClient(base_url="http://localhost:6006")
-async_client = AsyncClient(
-    base_url="https://app.phoenix.arize.com/s/your-space", api_key="your-api-key"
-)
+async_client = AsyncClient(base_url="https://your-phoenix-instance.com", api_key="your-api-key")
 ```
 
 ## Resources

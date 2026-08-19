@@ -99,7 +99,7 @@ def test_answers(question, expected):
 Run it with your Phoenix connection set:
 
 ```bash
-export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix-host
+export PHOENIX_ENDPOINT=https://your-phoenix-host
 export PHOENIX_API_KEY=your-api-key        # if required
 pytest tests/evals/test_qa.py
 ```
@@ -326,7 +326,7 @@ The plugin is configured entirely through environment variables, so the same sui
 | `PHOENIX_TEST_TRACKING` | `true` | Master switch. Set to `0` or `false` to run offline — tests execute but nothing is sent to Phoenix. |
 | `PHOENIX_TEST_REPETITIONS` | `1` | Default repetitions per marked test. |
 | `PHOENIX_TEST_DATASET` | _(file path)_ | Override the dataset name for all collected tests. |
-| `PHOENIX_COLLECTOR_ENDPOINT` | — | Your Phoenix server URL. |
+| `PHOENIX_ENDPOINT` | — | Your Phoenix server URL. |
 | `PHOENIX_API_KEY` | — | Bearer token for Phoenix. |
 | `PHOENIX_CLIENT_HEADERS` | — | Optional JSON headers forwarded to the Phoenix client. |
 
@@ -416,7 +416,7 @@ jobs:
       - run: pip install "arize-phoenix-client[pytest,evals]" pytest
       - name: Run eval suite
         env:
-          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_ENDPOINT: ${{ secrets.PHOENIX_ENDPOINT }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
         run: pytest tests/evals/
 ```

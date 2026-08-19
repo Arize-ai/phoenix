@@ -29,11 +29,13 @@ from opentelemetry.sdk.trace.export import (
 from opentelemetry.sdk.util.instrumentation import InstrumentationScope
 from opentelemetry.trace import (
     SpanContext,
-    SpanKind,
     Status,
     TraceFlags,
     format_span_id,
     format_trace_id,
+)
+from opentelemetry.trace import (
+    SpanKind as OtelSpanKind,
 )
 from opentelemetry.util.types import AttributeValue
 
@@ -46,6 +48,7 @@ from phoenix.db.insertion.helpers import should_calculate_span_cost
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.trace.attributes import get_attribute_value, load_json_strings, unflatten
+from phoenix.trace.schemas import SpanKind
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +303,7 @@ def build_synthetic_readable_span(
     attributes: Mapping[str, AttributeValue],
     status: Status,
     resource: Resource,
-    kind: SpanKind = SpanKind.CLIENT,
+    kind: OtelSpanKind = OtelSpanKind.CLIENT,
     events: Sequence[Event] = (),
     instrumentation_scope: InstrumentationScope | None = None,
 ) -> ReadableSpan:
@@ -381,7 +384,7 @@ def _get_db_span(
         attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND
     )
     if isinstance(span_kind_attribute_value, str):
-        span_kind = span_kind_attribute_value
+        span_kind = SpanKind(span_kind_attribute_value).value
     else:
         span_kind = OpenInferenceSpanKindValues.UNKNOWN.value
 

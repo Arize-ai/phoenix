@@ -1210,7 +1210,7 @@ async def execute(self):
 
 ### Connecting to Current Codebase
 
-The current `PlaygroundRateLimiter` and `PlaygroundStreamingClient` can be adapted:
+The current `PlaygroundRateLimiter` and `PlaygroundClient` can be adapted:
 
 #### Token Bucket Access
 
@@ -1226,7 +1226,7 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
 
 # Access for Experiment
 class Experiment:
-    def __init__(self, client: PlaygroundStreamingClient):
+    def __init__(self, client: PlaygroundClient):
         self._token_bucket = client.rate_limiter._throttler
 ```
 
@@ -1269,7 +1269,7 @@ class ProviderRateLimitError(Exception):
     """Unified rate limit error."""
     pass
 
-class PlaygroundStreamingClient:
+class PlaygroundClient:
     async def chat_stream(self, ...):
         try:
             async for chunk in self._provider_client.stream(...):
@@ -1301,13 +1301,13 @@ Understanding what is created when, and what is shared:
 │   PER EXPERIMENT (created when experiment starts)                           │
 │   ═══════════════════════════════════════════════                           │
 │                                                                             │
-│   PlaygroundStreamingClient  ◄─── Created via get_playground_client()       │
+│   PlaygroundClient  ◄─── Created via get_playground_client()                │
 │       ├── _client_factory: Closure (captures credentials)                   │
 │       ├── model_name, provider                                              │
 │       └── rate_limiter: Reference to SINGLETON                              │
 │                                                                             │
 │   Experiment                                                                │
-│       ├── _client: PlaygroundStreamingClient                                │
+│       ├── _client: PlaygroundClient                                         │
 │       ├── _token_bucket: Reference to singleton's _throttler                │
 │       ├── _task_queue, _eval_queue, _retry_queue                            │
 │       └── create_job() method                                               │
@@ -1364,7 +1364,7 @@ def get_rate_limiter_key(provider: str, model_name: str) -> str:
     return provider
 
 
-# In PlaygroundStreamingClient.__init__
+# In PlaygroundClient.__init__
 self.rate_limiter = PlaygroundRateLimiter(
     get_rate_limiter_key(provider, model_name),
     rate_limit_error,
