@@ -118,7 +118,7 @@ The job lock does not exist at `on_job_start`. The compatibility adapter builds 
 
 ## 4. Plugin design
 
-Phoenix owns and releases `arize-phoenix-harbor` from `packages/phoenix-harbor/`. The `phoenix_harbor` module registers `phoenix` in Harbor's `harbor.plugins` entry-point group.
+The plugin ships inside `arize-phoenix-client` as `phoenix.client.harbor`, which registers `phoenix` in Harbor's `harbor.plugins` entry-point group. Harbor is never imported unless the plugin is selected, so the optional dependency costs nothing to users who do not run Harbor. An earlier revision of this specification proposed a separate `arize-phoenix-harbor` distribution; that was dropped because the plugin's only hard dependency is the Phoenix client itself, and a second distribution would have to be released in lockstep with it.
 
 The package has three main components:
 
