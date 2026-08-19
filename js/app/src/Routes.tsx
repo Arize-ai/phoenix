@@ -86,6 +86,9 @@ import {
   LoggedOutPage,
   LoginPage,
   NewCodeProjectEvaluatorPage,
+  NewGalleryCodeProjectEvaluatorPage,
+  NewGalleryLlmFromTemplateProjectEvaluatorPage,
+  NewGalleryLlmProjectEvaluatorPage,
   NewLlmFromTemplateProjectEvaluatorPage,
   NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
@@ -99,6 +102,7 @@ import {
   ProfilePage,
   ProfilePreferencesPage,
   ProjectEvaluatorsPage,
+  ProjectEvaluatorGalleryPage,
   projectEvaluatorsLoader,
   ProjectIndexPage,
   projectLoader,
@@ -552,6 +556,52 @@ export const appRouteObjects = createRoutesFromElements(
                   }}
                 />
               </Route>
+            </Route>
+            <Route
+              path="evaluator-gallery"
+              element={<ProjectEvaluatorGalleryPage />}
+              handle={{
+                crumb: () => "Evaluator gallery",
+                agentRoute: {
+                  label: "Project Evaluator Gallery",
+                  description:
+                    "Browse evaluator templates and start a project evaluator from a template or from scratch.",
+                },
+              }}
+            >
+              <Route
+                path="new/llm"
+                element={<NewGalleryLlmProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project LLM Evaluator From Gallery",
+                    description:
+                      "Author a new LLM-as-a-judge evaluator from scratch while browsing the evaluator gallery.",
+                  },
+                }}
+              />
+              <Route
+                path="new/code"
+                element={<NewGalleryCodeProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project Code Evaluator From Gallery",
+                    description:
+                      "Author a new Python or TypeScript code evaluator from scratch while browsing the evaluator gallery.",
+                  },
+                }}
+              />
+              <Route
+                path="new/template/:templateName"
+                element={<NewGalleryLlmFromTemplateProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project Evaluator From Gallery Template",
+                    description:
+                      "Create a project LLM evaluator seeded from the selected evaluator gallery template.",
+                  },
+                }}
+              />
             </Route>
             {/* The evaluator details page is a full page rather than a tab,
                 mirroring the dataset evaluator details route. The edit

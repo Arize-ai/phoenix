@@ -77,6 +77,20 @@ export function NewLlmProjectEvaluatorPage() {
   );
 }
 
+export function NewGalleryLlmProjectEvaluatorPage() {
+  const projectId = useRouteProjectId();
+  const { gallery } = useProjectEvaluatorPaths();
+  const onOpenChange = useCloseSlideover(gallery);
+  return (
+    <CreateProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      projectId={projectId}
+      creationMode={{ kind: "scratch" }}
+    />
+  );
+}
+
 export function NewCodeProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
@@ -90,11 +104,38 @@ export function NewCodeProjectEvaluatorPage() {
   );
 }
 
+export function NewGalleryCodeProjectEvaluatorPage() {
+  const projectId = useRouteProjectId();
+  const { gallery } = useProjectEvaluatorPaths();
+  const onOpenChange = useCloseSlideover(gallery);
+  return (
+    <CreateProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      projectId={projectId}
+      creationMode={{ kind: "newCode" }}
+    />
+  );
+}
+
 export function NewLlmFromTemplateProjectEvaluatorPage() {
+  return <NewLlmFromTemplateProjectEvaluatorSlideover />;
+}
+
+export function NewGalleryLlmFromTemplateProjectEvaluatorPage() {
+  const { gallery } = useProjectEvaluatorPaths();
+  return <NewLlmFromTemplateProjectEvaluatorSlideover closeTo={gallery} />;
+}
+
+function NewLlmFromTemplateProjectEvaluatorSlideover({
+  closeTo,
+}: {
+  closeTo?: string;
+}) {
   const projectId = useRouteProjectId();
   const { templateName } = useParams();
   invariant(templateName, "templateName is required");
-  const onOpenChange = useCloseSlideover();
+  const onOpenChange = useCloseSlideover(closeTo);
   const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
     projectEvaluatorTemplatesQuery,
     {},
