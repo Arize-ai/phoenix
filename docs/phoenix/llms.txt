@@ -126,7 +126,6 @@
 
 - [Conciseness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/conciseness): Evaluate whether LLM responses are concise and free of unnecessary content
 - [Correctness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness): Evaluate whether LLM responses are generally correct and complete
-- [Document Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/document-relevance): Evaluate whether retrieved documents are relevant to user queries
 - [Exact Match](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match): Evaluate if output exactly matches expected value
 - [Faithfulness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness): Evaluate whether LLM responses are faithful to the provided context
 - [Hallucination](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination): Detect claims unsupported by the conversation, including fabricated tool results

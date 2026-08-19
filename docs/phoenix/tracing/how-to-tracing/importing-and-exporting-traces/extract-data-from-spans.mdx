@@ -117,7 +117,7 @@ client.spans.get_spans_dataframe(query=query, project_name="<my-project>")
 
 Let's say we want to extract the retrieved documents into a DataFrame that looks something like the table below, where `input` denotes the query for the retriever, `reference` denotes the content of each document, and `document_position` denotes the (zero-based) index in each span's list of retrieved documents.
 
-Note that this DataFrame can be used directly as input for [Document Relevance evaluations](/docs/phoenix/evaluation/pre-built-metrics/document-relevance).
+Note that this DataFrame can be used directly as input for [pre-built evaluations](/docs/phoenix/evaluation/pre-built-metrics).
 
 | context.span\_id | document\_position | input                                            | reference                                                |
 | :---------------- | :------------------ | :------------------------------------------------ | :-------------------------------------------------------- |
@@ -295,10 +295,6 @@ query = SpanQuery().where(
 # The Phoenix Client can take this query and return a dataframe.
 client.spans.get_spans_dataframe(query=query)
 ```
-
-### Document Relevance Evaluations
-
-To extract the dataframe input for [Document Relevance evaluations](/docs/phoenix/evaluation/pre-built-metrics/document-relevance), apply the query described in [Querying for Retrieved Documents](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#querying-for-retrieved-documents).
 
 ### Correctness Evaluations
 
