@@ -1,3 +1,5 @@
+import type { z } from "zod";
+
 /**
  * Scopes a local-storage key to the deployment's root path.
  *
@@ -19,4 +21,45 @@
 export function scopeStorageKeyToBasename(baseKey: string): string {
   const basename = (window.Config?.basename ?? "").replace(/\/+$/, "");
   return basename ? `${baseKey}:${basename}` : baseKey;
+}
+
+/**
+ * A workspace-scoped, schema-validated localStorage slot. The key is
+ * resolved through {@link scopeStorageKeyToBasename} at read/write time (not
+ * module load — `window.Config` must be present), and anything missing or
+ * malformed reads back as `fallback` rather than surfacing a broken
+ * half-state.
+ */
+export function createScopedStorageItem<T, F>({
+  baseKey,
+  schema,
+  fallback,
+}: {
+  baseKey: string;
+  schema: z.ZodType<T>;
+  fallback: F;
+}): {
+  resolveKey: () => string;
+  get: () => T | F;
+  set: (value: T) => void;
+} {
+  const resolveKey = () => scopeStorageKeyToBasename(baseKey);
+  return {
+    resolveKey,
+    get: () => {
+      try {
+        const raw = localStorage.getItem(resolveKey());
+        if (!raw) {
+          return fallback;
+        }
+        const parsed = schema.safeParse(JSON.parse(raw));
+        return parsed.success ? parsed.data : fallback;
+      } catch {
+        return fallback;
+      }
+    },
+    set: (value: T) => {
+      localStorage.setItem(resolveKey(), JSON.stringify(value));
+    },
+  };
 }
