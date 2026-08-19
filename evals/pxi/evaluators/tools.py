@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from phoenix.evals import create_evaluator
@@ -47,6 +48,129 @@ def _tool_args(call: dict[str, Any]) -> dict[str, Any]:
             return {}
         return decoded if isinstance(decoded, dict) else {}
     return {}
+
+
+# The search_ui/execute_ui migration replaced these client-action tools with
+# catalog operations. Keep the existing behavioral datasets useful by treating
+# an execute_ui script that invokes the replacement operation as the legacy
+# tool call the example describes.
+_LEGACY_UI_OPERATION_NAMES: dict[str, str] = {
+    "add_prompt_instance": "playground.instance.add",
+    "cancel_playground_run": "playground.run.cancel",
+    "clone_prompt_instance": "playground.instance.clone",
+    "edit_code_evaluator_draft": "evaluators.code.edit",
+    "edit_llm_evaluator_draft": "evaluators.llm.edit",
+    "edit_prompt_instance": "playground.prompt.edit",
+    "list_playground_model_targets": "playground.model.list",
+    "load_dataset": "playground.dataset.load",
+    "open_code_evaluator_form": "evaluators.code.openForm",
+    "open_dataset_evaluator_for_edit": "evaluators.openForEdit",
+    "open_llm_evaluator_form": "evaluators.llm.openForm",
+    "read_code_evaluator_draft": "evaluators.code.read",
+    "read_dataset_evaluator_definition": "evaluators.readDefinition",
+    "read_llm_evaluator_draft": "evaluators.llm.read",
+    "read_playground_output": "playground.run.readOutput",
+    "read_prompt_instance": "playground.prompt.read",
+    "read_prompt_tools": "playground.prompt.tools.read",
+    "remove_prompt_instance": "playground.instance.remove",
+    "run_playground": "playground.run",
+    "save_prompt": "playground.prompt.save",
+    "set_appended_messages_path": "playground.messages.setPath",
+    "set_dataset_evaluator_selection": "evaluators.select",
+    "set_playground_experiment_recording": "playground.experiment.setRecording",
+    "set_playground_model": "playground.model.set",
+    "set_playground_repetitions": "playground.repetitions.set",
+    "set_spans_filter": "spansFilter.set",
+    "set_template_variables_path": "playground.variables.setPath",
+    "set_time_range": "timeRange.set",
+    "set_variable_values": "playground.variables.set",
+    "submit_code_evaluator_draft": "evaluators.code.submit",
+    "submit_llm_evaluator_draft": "evaluators.llm.submit",
+    "test_code_evaluator_draft": "evaluators.code.test",
+    "test_llm_evaluator_draft": "evaluators.llm.test",
+    "write_prompt_tools": "playground.prompt.tools.write",
+}
+
+
+def _extract_ui_operation_arguments(script: str, operation_name: str) -> list[str]:
+    """Return argument source for calls to one ``ui.<operation>`` in a script."""
+    marker = f"ui.{operation_name}"
+    arguments: list[str] = []
+    search_start = 0
+    while (marker_index := script.find(marker, search_start)) >= 0:
+        marker_end = marker_index + len(marker)
+        opening_parenthesis = script.find("(", marker_end)
+        if opening_parenthesis < 0:
+            break
+        if script[marker_end:opening_parenthesis].strip():
+            search_start = marker_end
+            continue
+        cursor = opening_parenthesis + 1
+        depth = 1
+        quote: str | None = None
+        is_escaped = False
+        while cursor < len(script):
+            character = script[cursor]
+            if quote is not None:
+                if is_escaped:
+                    is_escaped = False
+                elif character == "\\":
+                    is_escaped = True
+                elif character == quote:
+                    quote = None
+            elif character in {"'", '"', "`"}:
+                quote = character
+            elif character == "(":
+                depth += 1
+            elif character == ")":
+                depth -= 1
+                if depth == 0:
+                    arguments.append(script[opening_parenthesis + 1 : cursor])
+                    search_start = cursor + 1
+                    break
+            cursor += 1
+        else:
+            break
+        if depth != 0:
+            break
+    return arguments
+
+
+def _legacy_ui_operation_arguments(calls: list[dict[str, Any]], legacy_tool_name: str) -> list[str]:
+    operation_name = _LEGACY_UI_OPERATION_NAMES.get(legacy_tool_name)
+    if operation_name is None:
+        return []
+    arguments: list[str] = []
+    for call in calls:
+        if _tool_name(call) != "execute_ui":
+            continue
+        script = _tool_args(call).get("script")
+        if isinstance(script, str):
+            arguments.extend(_extract_ui_operation_arguments(script, operation_name))
+    return arguments
+
+
+def _logical_tool_names(calls: list[dict[str, Any]], expected_tool_names: list[str]) -> list[str]:
+    """Project execute_ui operations onto legacy names used by eval datasets."""
+    projects_legacy_names = any(name in _LEGACY_UI_OPERATION_NAMES for name in expected_tool_names)
+    observed: list[str] = []
+    for call in calls:
+        name = _tool_name(call)
+        if name is None:
+            continue
+        if name != "execute_ui":
+            observed.append(name)
+            continue
+        matched_legacy_names = [
+            legacy_name
+            for legacy_name in _LEGACY_UI_OPERATION_NAMES
+            if _legacy_ui_operation_arguments([call], legacy_name)
+        ]
+        if projects_legacy_names and matched_legacy_names:
+            observed.extend(matched_legacy_names)
+        else:
+            observed.append(name)
+    return observed
 
 
 def _expected_tools(expected: Any) -> dict[str, Any]:
@@ -98,9 +222,8 @@ def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     forbidden = list(tool_expectation.get("forbidden") or [])
     exact_match = bool(tool_expectation.get("exact_match", False))
 
-    observed = [
-        name for call in tool_calls_from_output(output) if (name := _tool_name(call)) is not None
-    ]
+    calls = tool_calls_from_output(output)
+    observed = _logical_tool_names(calls, [*required, *forbidden])
 
     forbidden_observed = [name for name in forbidden if name in observed]
     if forbidden_observed:
@@ -456,6 +579,80 @@ def _invalid_arg_expectation_reason(expected_for_tool: Any) -> str | None:
     return "expected tool arguments must be an object or a non-empty list of objects"
 
 
+def _source_has_key(source: str, key: str) -> bool:
+    quoted_key = re.escape(key)
+    return bool(re.search(rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:", source))
+
+
+def _source_has_literal(source: str, value: Any) -> bool:
+    if isinstance(value, dict):
+        return all(
+            _source_has_key(source, key) and _source_has_literal(source, item)
+            for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return all(_source_has_literal(source, item) for item in value)
+    if isinstance(value, str):
+        return value in source
+    if value is True:
+        return "true" in source
+    if value is False:
+        return "false" in source
+    if value is None:
+        return "null" in source
+    return str(value) in source
+
+
+def _source_pair_passes(source: str, key: str, expected_value: Any) -> bool:
+    has_key = _source_has_key(source, key)
+    if not _is_matcher_dict(expected_value):
+        return has_key and _source_has_literal(source, expected_value)
+    if "absent" in expected_value:
+        return not has_key
+    if "empty_or_absent" in expected_value:
+        if not has_key:
+            return True
+        quoted_key = re.escape(key)
+        return bool(
+            re.search(
+                rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:\s*(?:''|\"\"|\[\s*\]|\{{\s*\}})",
+                source,
+            )
+        )
+    if not has_key:
+        return False
+    if "non_empty" in expected_value:
+        quoted_key = re.escape(key)
+        if not re.search(
+            rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:\s*(['\"])(?:(?!\1).)+\1",
+            source,
+        ):
+            return False
+    if "equals" in expected_value and not _source_has_literal(source, expected_value["equals"]):
+        return False
+    if "has_keys" in expected_value and not all(
+        _source_has_key(source, nested_key) for nested_key in expected_value["has_keys"]
+    ):
+        return False
+    if "contains_all" in expected_value and not all(
+        needle in source for needle in expected_value["contains_all"]
+    ):
+        return False
+    if "contains_any" in expected_value and not any(
+        needle in source for needle in expected_value["contains_any"]
+    ):
+        return False
+    if "not_contains" in expected_value and any(
+        needle in source for needle in expected_value["not_contains"]
+    ):
+        return False
+    return True
+
+
+def _ui_operation_variant_passes(source: str, variant: dict[str, Any]) -> bool:
+    return all(_source_pair_passes(source, key, value) for key, value in variant.items())
+
+
 def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
     """Pure-Python implementation of :func:`tool_call_args_match`.
 
@@ -496,19 +693,27 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
             }
             continue
         matching_calls = [call for call in observed_calls if _tool_name(call) == tool_name]
-        if not matching_calls:
-            failures[tool_name] = {"reason": "tool was not called"}
+        operation_arguments = _legacy_ui_operation_arguments(observed_calls, tool_name)
+        if not matching_calls and not operation_arguments:
+            failures[tool_name] = {"reason": "tool or replacement UI operation was not called"}
             continue
-        # Pass if ANY (variant, call) pair satisfies the subset check.
+        # Pass if ANY (variant, call) pair satisfies the subset check, or if an
+        # execute_ui script invokes the replacement operation with equivalent
+        # literal argument evidence.
         if any(
             all(_pair_passes(_tool_args(call), key, value) for key, value in variant.items())
             for variant in variants
             for call in matching_calls
+        ) or any(
+            _ui_operation_variant_passes(source, variant)
+            for variant in variants
+            for source in operation_arguments
         ):
             continue
         failures[tool_name] = {
             "expected": ([dict(v) for v in variants] if len(variants) > 1 else dict(variants[0])),
             "observed": [dict(_tool_args(call)) for call in matching_calls],
+            "observed_ui_operation_arguments": operation_arguments,
         }
 
     if failures:
