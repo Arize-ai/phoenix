@@ -53,6 +53,7 @@ describe("approval marker coverage", () => {
       .toMatchInlineSnapshot(`
         [
           "shared/pendingApproval/bindPendingApproval.ts",
+          "shared/pendingApproval/stageApprovalOperation.ts",
           "tools/approval.ts",
           "tools/batchSpanAnnotate/pendingBatchSpanAnnotate.ts",
           "tools/patchExperiment/pendingPatchExperiment.ts",
