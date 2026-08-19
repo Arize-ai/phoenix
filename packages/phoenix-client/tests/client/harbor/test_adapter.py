@@ -15,10 +15,12 @@ import pytest
 from phoenix.client.harbor._adapter import (
     _agent_identity_digest,  # pyright: ignore[reportPrivateUsage]
     _build_slices,  # pyright: ignore[reportPrivateUsage]
+    _build_task_records,  # pyright: ignore[reportPrivateUsage]
     _build_trial_slots,  # pyright: ignore[reportPrivateUsage]
     _redact_env,  # pyright: ignore[reportPrivateUsage]
     _reject_unsupported_job_shape,  # pyright: ignore[reportPrivateUsage]
     _resolve_dataset_identity,  # pyright: ignore[reportPrivateUsage]
+    _TaskContent,  # pyright: ignore[reportPrivateUsage]
 )
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import TaskRecord
@@ -119,6 +121,41 @@ class TestSlices:
     def test_agents_differing_only_in_kwargs_are_separate_slices(self) -> None:
         slices = _build_slices([agent(), agent(kwargs={"temperature": 0.2})])
         assert len({s.identity_digest for s in slices}) == 2
+
+
+class TestTaskRecords:
+    def test_task_lock_version_is_optional_for_harbor_before_0_21(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Harbor 0.18-0.20 TaskLock records do not expose ``version``."""
+        task_config = SimpleNamespace(source="phoenix-evals")
+        task_lock = SimpleNamespace(
+            name="task-a",
+            type="local",
+            digest="sha256:" + "0" * 64,
+        )
+        content = _TaskContent(
+            name="arize/task-a",
+            instruction="do the thing",
+            steps=(),
+            config={},
+        )
+        monkeypatch.setattr(
+            "phoenix.client.harbor._adapter._lookup_download",
+            lambda task_config, downloads: SimpleNamespace(path="/unused"),
+        )
+        monkeypatch.setattr(
+            "phoenix.client.harbor._adapter._build_task_lock",
+            lambda task_config, download: task_lock,
+        )
+        monkeypatch.setattr(
+            "phoenix.client.harbor._adapter._read_task_content",
+            lambda task_dir: content,
+        )
+
+        (record,) = _build_task_records([task_config], {})
+
+        assert record.version is None
 
 
 class TestJobShape:

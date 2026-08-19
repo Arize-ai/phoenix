@@ -180,7 +180,9 @@ def _build_task_records(
                 name=content.name,
                 source=getattr(task_config, "source", None),
                 task_type=str(task_lock.type),
-                version=task_lock.version,
+                # Harbor added ``TaskLock.version`` in 0.21. Keep the field
+                # optional for the plugin's supported 0.18-0.20 releases.
+                version=getattr(task_lock, "version", None),
                 digest=str(task_lock.digest),
                 instruction=content.instruction,
                 steps=content.steps,
