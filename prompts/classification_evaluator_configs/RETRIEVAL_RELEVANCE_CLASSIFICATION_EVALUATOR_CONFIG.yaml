@@ -36,7 +36,6 @@ messages:
       4. Judge the retrieved information as a whole. Do not require every sentence or every retrieved item to be relevant individually; ask whether the set collectively contains something useful.
       5. Superficial topical overlap is not enough. Sharing an entity name, keyword, or category with the request does not make information relevant if it doesn't actually address what the request needed.
 
-      When you are genuinely unsure whether the retrieved information helps address the request, label it RELEVANT.
 
       <data>
 
