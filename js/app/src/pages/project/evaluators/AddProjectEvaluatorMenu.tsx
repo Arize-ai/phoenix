@@ -72,13 +72,23 @@ function AddProjectEvaluatorMenuItems() {
       <Menu
         aria-label="Add evaluator"
         onAction={(action) => {
-          if (action === "createEvaluator") {
+          if (action === "browseGallery") {
+            navigate(paths.gallery);
+          } else if (action === "createEvaluator") {
             navigate(paths.newLlm);
           } else if (action === "createCodeEvaluator") {
             navigate(paths.newCode);
           }
         }}
       >
+        <MenuSection>
+          <MenuItem
+            leadingContent={<Icon svg={<Icons.Grid />} />}
+            id="browseGallery"
+          >
+            Browse evaluator gallery
+          </MenuItem>
+        </MenuSection>
         <MenuSection>
           <MenuSectionTitle title="LLM evaluator" />
           <MenuItem

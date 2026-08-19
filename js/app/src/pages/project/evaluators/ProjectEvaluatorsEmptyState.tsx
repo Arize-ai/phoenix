@@ -1,458 +1,187 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import type { ReactNode } from "react";
+import { Suspense } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
+import { Flex, Icon, Icons, Skeleton, Text } from "@phoenix/components";
 import {
-  Badge,
-  Button,
-  Counter,
-  Flex,
-  Heading,
-  Skeleton,
-  Text,
-} from "@phoenix/components";
+  EmptyState,
+  EmptyStateArea,
+  EmptyStateGraphic,
+} from "@phoenix/components/core/empty";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
+import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
+import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import {
-  getProjectEvaluatorTemplateChoices,
-  getProjectEvaluatorTemplateMetadata,
-  type ProjectEvaluatorTemplate,
-  projectEvaluatorTemplatesQuery,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
-const RECOMMENDED_CATEGORY = "Recommended";
-const GALLERY_SKELETON_HEIGHT = 440;
-
-type TemplateWithMetadata = {
-  config: ProjectEvaluatorTemplate;
-  metadata: ReturnType<typeof getProjectEvaluatorTemplateMetadata>;
-};
+const MAX_COPY_CARDS = 4;
+const MAX_ATTACH_CARDS = 3;
+const EVALUATOR_CARD_HEIGHT = 90;
 
 export function ProjectEvaluatorsEmptyState() {
+  const navigate = useNavigate();
+  const paths = useProjectEvaluatorPaths();
   return (
-    <div css={galleryOuterCSS}>
-      <ErrorBoundary fallback={EvaluatorGalleryError}>
-        <Suspense fallback={<EvaluatorGallerySkeleton />}>
-          <EvaluatorGallery />
-        </Suspense>
-      </ErrorBoundary>
-    </div>
+    <EmptyStateArea>
+      <Flex
+        direction="column"
+        gap="size-300"
+        width="100%"
+        maxWidth="700px"
+        marginTop="var(--global-dimension-size-300)"
+      >
+        <EmptyState
+          graphic={<EmptyStateGraphic variant="evaluator" />}
+          title="No evaluators for this project"
+          description="Add an evaluator to score spans, traces, or sessions automatically as they arrive."
+          action={{
+            type: "strip",
+            items: [
+              {
+                kind: "button",
+                variant: "primary",
+                children: "Browse evaluator gallery",
+                onPress: () => navigate(paths.gallery),
+              },
+            ],
+          }}
+        />
+        <ErrorBoundary fallback={EvaluatorOptionsError}>
+          <Suspense fallback={<EvaluatorOptionsSkeleton />}>
+            <EvaluatorOptions />
+          </Suspense>
+        </ErrorBoundary>
+      </Flex>
+    </EmptyStateArea>
   );
 }
 
-function EvaluatorGallery() {
+function EvaluatorOptions() {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
-  const [selectedCategory, setSelectedCategory] =
-    useState(RECOMMENDED_CATEGORY);
-  const [selectedTemplateName, setSelectedTemplateName] = useState<
-    string | null
-  >(null);
-  const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
-    projectEvaluatorTemplatesQuery,
+  const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
+    projectEvaluatorOptionsQueryNode,
     {},
     { fetchPolicy: "store-and-network" }
   );
-  const templates: TemplateWithMetadata[] =
-    data.classificationEvaluatorConfigs.map((config) => ({
-      config,
-      metadata: getProjectEvaluatorTemplateMetadata(config.name),
-    }));
-  const useCases = Array.from(
-    new Set(templates.map(({ metadata }) => metadata.useCase))
-  );
-  const categoryItems = [
-    {
-      name: RECOMMENDED_CATEGORY,
-      count: templates.filter(({ metadata }) => metadata.recommended).length,
-    },
-    ...useCases.map((useCase) => ({
-      name: useCase,
-      count: templates.filter(({ metadata }) => metadata.useCase === useCase)
-        .length,
-    })),
-  ];
-  const visibleTemplates = templates.filter(({ metadata }) =>
-    selectedCategory === RECOMMENDED_CATEGORY
-      ? metadata.recommended
-      : metadata.useCase === selectedCategory
-  );
-  const selectedTemplate =
-    visibleTemplates.find(
-      ({ config }) => config.name === selectedTemplateName
-    ) ?? visibleTemplates[0];
-
+  const evaluators = data.evaluators.edges.map(({ evaluator }) => evaluator);
+  const copyEvaluators = evaluators
+    .filter((evaluator) => evaluator.__typename === "LLMEvaluator")
+    .slice(0, MAX_COPY_CARDS);
+  const attachEvaluators = evaluators
+    .filter((evaluator) => evaluator.__typename === "CodeEvaluator")
+    .slice(0, MAX_ATTACH_CARDS);
   return (
-    <div css={galleryCSS} className="project-evaluator-gallery">
-      <nav
-        className="project-evaluator-gallery__categories"
-        aria-label="Evaluator template categories"
-      >
-        <Heading level={2} css={sectionHeadingCSS}>
-          Use case
-        </Heading>
-        <ul className="project-evaluator-gallery__category-list">
-          {categoryItems.map(({ name, count }) => {
-            const isSelected = name === selectedCategory;
-            return (
-              <li key={name}>
-                <button
-                  className="project-evaluator-gallery__category-button"
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedCategory(name)}
-                >
-                  <Text size="S">{name}</Text>
-                  <Counter variant={isSelected ? "quiet" : "default"}>
-                    {count}
-                  </Counter>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        <Flex
-          direction="column"
-          gap="size-50"
-          className="project-evaluator-gallery__scratch-actions"
-        >
-          <Button
-            size="S"
-            variant="quiet"
-            onPress={() => navigate(paths.newLlm)}
-          >
-            Start from a blank prompt
-          </Button>
-          <Button
-            size="S"
-            variant="quiet"
-            onPress={() => navigate(paths.newCode)}
-          >
-            Create a code evaluator
-          </Button>
-        </Flex>
-      </nav>
-
-      <section
-        className="project-evaluator-gallery__templates"
-        aria-labelledby="evaluator-template-list-title"
-      >
-        <Heading
-          id="evaluator-template-list-title"
-          level={2}
-          css={sectionHeadingCSS}
-        >
-          {selectedCategory}
-        </Heading>
-        <ul className="project-evaluator-gallery__template-list">
-          {visibleTemplates.map(({ config, metadata }) => {
-            const isSelected = config.name === selectedTemplate?.config.name;
-            return (
-              <li key={config.name}>
-                <button
-                  className="project-evaluator-gallery__template-card"
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedTemplateName(config.name)}
-                >
-                  <Flex direction="row" justifyContent="space-between">
-                    <Text size="S" weight="heavy">
-                      {config.name}
-                    </Text>
-                    <Badge size="S">{metadata.kind}</Badge>
-                  </Flex>
-                  <LineClamp lines={3}>
-                    <Text size="XS" color="text-700">
-                      {config.description}
-                    </Text>
-                  </LineClamp>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      <aside className="project-evaluator-gallery__details" aria-live="polite">
-        {selectedTemplate ? (
-          <EvaluatorTemplateDetails
-            template={selectedTemplate}
-            onUseTemplate={() =>
-              navigate(paths.newLlmFromTemplate(selectedTemplate.config.name))
-            }
+    <Flex direction="row" gap="size-125" width="100%">
+      <div css={evaluatorColumnCSS}>
+        <EvaluatorCard
+          icon={<Icon svg={<Icons.Plus />} />}
+          title="Create new LLM evaluator"
+          description="Author an LLM-as-a-judge evaluator from scratch."
+          onPress={() => navigate(paths.newLlm)}
+        />
+        {copyEvaluators.map((evaluator) => (
+          <EvaluatorCard
+            key={evaluator.id}
+            title={`Copy ${evaluator.name}`}
+            description={evaluator.description}
+            onPress={() => navigate(paths.copyLlm(evaluator.id))}
           />
-        ) : (
-          <Text size="S" color="text-500">
-            No templates are available in this category.
-          </Text>
-        )}
-      </aside>
-    </div>
-  );
-}
-
-function EvaluatorTemplateDetails({
-  template,
-  onUseTemplate,
-}: {
-  template: TemplateWithMetadata;
-  onUseTemplate: () => void;
-}) {
-  const { config, metadata } = template;
-  const choices = getProjectEvaluatorTemplateChoices(config);
-  return (
-    <Flex direction="column" gap="size-200" height="100%">
-      <Flex direction="column" gap="size-100">
-        <Heading level={2}>{config.name}</Heading>
-        <Flex direction="row" gap="size-75" wrap>
-          <Badge size="S">{metadata.kind}</Badge>
-          <Badge size="S">{metadata.useCase}</Badge>
-        </Flex>
-        <Text size="S" color="text-700">
-          {config.description}
-        </Text>
-        {metadata.longDescription ? (
-          <Text size="S" color="text-700">
-            {metadata.longDescription}
-          </Text>
-        ) : null}
-      </Flex>
-      <dl className="project-evaluator-gallery__definition-list">
-        <div>
-          <dt>Scope</dt>
-          <dd>{capitalize(metadata.scope)}</dd>
-        </div>
-        <div>
-          <dt>Optimization</dt>
-          <dd>{capitalize(config.optimizationDirection.toLowerCase())}</dd>
-        </div>
-      </dl>
-      <Flex direction="column" gap="size-75">
-        <Heading level={3} css={sectionHeadingCSS}>
-          Output choices
-        </Heading>
-        <ul className="project-evaluator-gallery__choice-list">
-          {choices.map(({ label, score }) => (
-            <li key={label}>
-              <Text size="S">{label}</Text>
-              <Text size="XS" color="text-500">
-                {score}
-              </Text>
-            </li>
-          ))}
-        </ul>
-      </Flex>
-      <Button
-        variant="primary"
-        onPress={onUseTemplate}
-        css={css`
-          margin-top: auto;
-        `}
-      >
-        Use this evaluator
-      </Button>
+        ))}
+      </div>
+      <div css={evaluatorColumnCSS}>
+        <EvaluatorCard
+          icon={<Icon svg={<Icons.Code />} />}
+          title="Create new code evaluator"
+          description="Author a Python or TypeScript evaluator from scratch."
+          onPress={() => navigate(paths.newCode)}
+        />
+        {attachEvaluators.map((evaluator) => (
+          <EvaluatorCard
+            key={evaluator.id}
+            title={`Attach ${evaluator.name}`}
+            description={evaluator.description}
+            onPress={() => navigate(paths.attachCode(evaluator.id))}
+          />
+        ))}
+      </div>
     </Flex>
   );
 }
 
-function capitalize(value: string): string {
-  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
-}
-
-function EvaluatorGallerySkeleton() {
+function EvaluatorCard({
+  icon,
+  title,
+  description,
+  onPress,
+}: {
+  icon?: ReactNode;
+  title: string;
+  description: ReactNode;
+  onPress: () => void;
+}) {
   return (
-    <Skeleton width="100%" height="100%" borderRadius="none" animation="wave" />
+    <button css={evaluatorItemButtonCSS} onClick={onPress}>
+      <Flex direction="row" alignItems="center" gap="size-50">
+        {icon}
+        <Text size="S" weight="heavy">
+          {title}
+        </Text>
+      </Flex>
+      <LineClamp lines={2}>
+        <Text size="XS" color="text-700">
+          {description}
+        </Text>
+      </LineClamp>
+    </button>
   );
 }
 
-function EvaluatorGalleryError() {
+function EvaluatorOptionsSkeleton() {
+  const column = (
+    <div css={evaluatorColumnCSS}>
+      <Skeleton height={EVALUATOR_CARD_HEIGHT} />
+      <Skeleton height={EVALUATOR_CARD_HEIGHT} />
+    </div>
+  );
+  return (
+    <Flex direction="row" gap="size-125" width="100%" aria-hidden="true">
+      {column}
+      {column}
+    </Flex>
+  );
+}
+
+function EvaluatorOptionsError() {
   return (
     <Text size="S" color="text-500">
-      Evaluator templates could not be loaded.
+      Existing evaluators could not be loaded.
     </Text>
   );
 }
 
-const galleryCSS = css`
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: minmax(160px, 0.65fr) minmax(320px, 1.5fr) minmax(
-      260px,
-      1fr
-    );
-  height: 100%;
-  min-height: ${GALLERY_SKELETON_HEIGHT}px;
-  overflow: hidden;
-  background-color: var(--global-background-color-default);
-
-  .project-evaluator-gallery__categories,
-  .project-evaluator-gallery__templates,
-  .project-evaluator-gallery__details {
-    padding: var(--global-dimension-size-200);
-  }
-
-  .project-evaluator-gallery__categories {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .project-evaluator-gallery__categories,
-  .project-evaluator-gallery__templates {
-    border-right: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
-  }
-
-  .project-evaluator-gallery__category-list,
-  .project-evaluator-gallery__template-list,
-  .project-evaluator-gallery__choice-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .project-evaluator-gallery__category-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-50);
-    margin-top: var(--global-dimension-size-100);
-  }
-
-  .project-evaluator-gallery__scratch-actions {
-    margin-top: auto;
-    padding-top: var(--global-dimension-size-200);
-    border-top: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
-  }
-
-  .project-evaluator-gallery__category-button,
-  .project-evaluator-gallery__template-card {
-    width: 100%;
-    border: var(--global-border-size-thin) solid transparent;
-    border-radius: var(--global-rounding-small);
-    background-color: transparent;
-    color: inherit;
-    cursor: pointer;
-    text-align: left;
-
-    &:hover {
-      background-color: var(--global-list-item-hover-background-color);
-    }
-
-    &:focus-visible {
-      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-      outline-offset: var(--focus-ring-offset);
-    }
-
-    &[aria-pressed="true"] {
-      border-color: var(--global-border-color-default);
-      background-color: var(--global-list-item-selected-background-color);
-    }
-  }
-
-  .project-evaluator-gallery__category-button {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-75) var(--global-dimension-size-100);
-  }
-
-  .project-evaluator-gallery__template-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: var(--global-dimension-size-100);
-    margin-top: var(--global-dimension-size-100);
-  }
-
-  .project-evaluator-gallery__template-card {
-    display: flex;
-    min-height: var(--global-dimension-size-1400);
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-150);
-    border-color: var(--global-border-color-default);
-  }
-
-  .project-evaluator-gallery__definition-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--global-dimension-size-100);
-    margin: 0;
-
-    div {
-      display: flex;
-      flex-direction: column;
-      gap: var(--global-dimension-size-25);
-    }
-
-    dt {
-      color: var(--global-text-color-500);
-      font-size: var(--global-font-size-xs);
-    }
-
-    dd {
-      margin: 0;
-      font-size: var(--global-font-size-s);
-    }
-  }
-
-  .project-evaluator-gallery__choice-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-50);
-
-    li {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--global-dimension-size-100);
-      padding-bottom: var(--global-dimension-size-50);
-      border-bottom: var(--global-border-size-thin) solid
-        var(--global-border-color-default);
-    }
-  }
-
-  @media (max-width: 900px) {
-    grid-template-columns: minmax(160px, 0.65fr) minmax(320px, 1.5fr);
-
-    .project-evaluator-gallery__templates {
-      border-right: 0;
-    }
-
-    .project-evaluator-gallery__details {
-      grid-column: 1 / -1;
-      border-top: var(--global-border-size-thin) solid
-        var(--global-border-color-default);
-    }
-  }
-
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-
-    .project-evaluator-gallery__categories,
-    .project-evaluator-gallery__templates {
-      border-right: 0;
-      border-bottom: var(--global-border-size-thin) solid
-        var(--global-border-color-default);
-    }
-
-    .project-evaluator-gallery__details {
-      grid-column: auto;
-      border-top: 0;
-    }
+const evaluatorItemButtonCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-50);
+  height: ${EVALUATOR_CARD_HEIGHT}px;
+  padding: var(--global-dimension-size-200);
+  border-radius: var(--global-rounding-small);
+  border: 1px solid var(--global-border-color-default);
+  background-color: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s ease;
+  &:hover {
+    background-color: var(--global-color-gray-200);
   }
 `;
 
-const galleryOuterCSS = css`
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-  min-height: ${GALLERY_SKELETON_HEIGHT}px;
-`;
-
-const sectionHeadingCSS = css`
-  font-size: var(--global-font-size-s);
-  line-height: var(--global-line-height-s);
-  font-weight: 600;
+const evaluatorColumnCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-125);
+  flex: 1;
 `;
