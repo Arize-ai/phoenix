@@ -66,7 +66,7 @@ from phoenix.server.online_eval.tracing import (
 from phoenix.server.online_eval.triggering import log as event_log
 from phoenix.server.online_eval.triggering.log import AnnotationUpserted, EvaluationCompleted
 from phoenix.server.online_eval.triggering.rules import evaluator_annotation_rules_exist
-from phoenix.server.sandbox import SandboxRuntimeContext, SecretsContext, build_sandbox_backend
+from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
