@@ -295,12 +295,7 @@ class TranscriptPersistedData(_CamelBaseModel):
     message_id: str
     persisted_tool_output_ids: list[str] = Field(
         default_factory=list,
-        description=(
-            "Tool call IDs whose client-executed outputs are in the message that "
-            "was just written. The client skips these in its eager flush. Derived "
-            "from the persisted message itself rather than from the client's copy, "
-            "which can have moved on since the server took its snapshot."
-        ),
+        description="Tool call IDs whose tool outputs were included in the persisted message.",
     )
 
 
@@ -366,18 +361,7 @@ class SubmittedToolApproval(_CamelBaseModel):
     """A user's response to a tool call awaiting approval."""
 
     tool_call_id: str
-    approved: StrictBool = Field(
-        description=(
-            "Whether the user approved the tool call. Strict for the same "
-            "reason as ``ToolApprovalResponded.approved``: this field is the "
-            "user-controlled gate on a deferred tool call, so a non-boolean "
-            "value must fail validation rather than coerce to an approval."
-        ),
-    )
-    reason: str | None = Field(
-        default=None,
-        description="Optional reason for the approval or denial, shown to the model on denial.",
-    )
+    approved: StrictBool = Field(description="Whether the user approved the tool call.")
 
 
 class ChatRequestBody(_CamelBaseModel):
@@ -435,11 +419,8 @@ class ChatRequestBody(_CamelBaseModel):
     tool_approvals: list[SubmittedToolApproval] = Field(
         default_factory=list,
         description=(
-            "User responses to tool calls awaiting approval on the "
-            "transcript's trailing assistant message, matched by "
-            "``toolCallId``. They continue the assistant turn: approved calls "
-            "execute server-side and denied calls return a denial to the "
-            "model. Cannot be combined with ``message``."
+            "Responses to tool calls awaiting approval on the trailing assistant "
+            "message, matched by ``toolCallId``. Cannot be combined with ``message``."
         ),
     )
     last_message_id: str | None = Field(
@@ -1775,10 +1756,6 @@ def _resolve_interrupted_tool_parts(
     """Rewrite an assistant message's unresolved tool parts as interrupted.
 
     Returns the rewritten message, or None when nothing was unresolved.
-
-    ``keep_responded_approvals`` preserves ``approval-responded`` parts on a
-    continued turn: they are consumed as deferred tool results when the run
-    resumes, so closing them out here would discard the user's response.
     """
     if message.role != "assistant":
         return None
@@ -1815,6 +1792,28 @@ _ToolCallId = str
 _MessageId = str
 _PartIndex = int
 """A tool part's position within its message's ``parts`` list."""
+
+
+_MessageRewrite = Callable[[PhoenixUIMessage], PhoenixUIMessage | None]
+"""Rewrites an assistant message, returning None when it changed nothing."""
+
+
+def _apply_rewrites(
+    message: PhoenixUIMessage,
+    *rewrites: _MessageRewrite,
+) -> PhoenixUIMessage | None:
+    """Chain rewrites, each seeing the previous one's result.
+
+    Obeys the same contract as its parts, so a chain is itself a rewrite.
+    """
+    rewritten = message
+    changed = False
+    for rewrite in rewrites:
+        result = rewrite(rewritten)
+        if result is not None:
+            rewritten = result
+            changed = True
+    return rewritten if changed else None
 
 
 def _apply_tool_outputs(
@@ -1876,7 +1875,6 @@ def _to_approval_responded_part(
     responded = ToolApprovalResponded(
         id=approval_id,
         approved=approval.approved,
-        reason=approval.reason,
     )
     if isinstance(part, DynamicToolApprovalRequestedPart):
         return DynamicToolApprovalRespondedPart(
@@ -1907,8 +1905,10 @@ def _to_approval_responded_part(
 def _apply_tool_approvals(
     message: PhoenixUIMessage,
     tool_approvals: Sequence[SubmittedToolApproval],
-) -> PhoenixUIMessage:
+) -> PhoenixUIMessage | None:
     """Respond to the assistant message's approval-requested tool calls."""
+    if not tool_approvals:
+        return None
     tool_calls_by_id: dict[_ToolCallId, tuple[_PartIndex, ToolUIPart | DynamicToolUIPart]] = {}
     for index, part in enumerate(message.parts):
         if isinstance(part, ToolUIPart | DynamicToolUIPart):
@@ -1983,6 +1983,14 @@ def _merge_messages(
 ) -> _MergedTranscript:
     messages = list(old_messages)
     updated_messages: dict[_MessageId, PhoenixUIMessage] = {}
+
+    def _record(index: int, rewritten: PhoenixUIMessage | None) -> None:
+        """Track a rewritten message for persistence and swap it into the transcript."""
+        if rewritten is None:
+            return
+        updated_messages[rewritten.id] = rewritten
+        messages[index] = rewritten
+
     if tool_outputs or tool_approvals:
         if not messages or messages[-1].role != "assistant":
             raise AgentSessionConflict(
@@ -1993,25 +2001,24 @@ def _merge_messages(
                     "the conversation"
                 ),
             )
-        if tool_outputs:
-            merged_tail = _apply_tool_outputs(messages[-1], tool_outputs)
-            if merged_tail is not None:
-                updated_messages[merged_tail.id] = merged_tail
-                messages[-1] = merged_tail
-        if tool_approvals:
-            merged_tail = _apply_tool_approvals(messages[-1], tool_approvals)
-            updated_messages[merged_tail.id] = merged_tail
-            messages[-1] = merged_tail
+        _record(
+            len(messages) - 1,
+            _apply_rewrites(
+                messages[-1],
+                lambda tail: _apply_tool_outputs(tail, tool_outputs),
+                lambda tail: _apply_tool_approvals(tail, tool_approvals),
+            ),
+        )
     continuing_assistant_turn = new_message is None
     for index, message in enumerate(messages):
         is_continued_assistant_message = continuing_assistant_turn and index == len(messages) - 1
-        repaired_message = _resolve_interrupted_tool_parts(
-            message,
-            keep_responded_approvals=is_continued_assistant_message,
+        _record(
+            index,
+            _resolve_interrupted_tool_parts(
+                message,
+                keep_responded_approvals=is_continued_assistant_message,
+            ),
         )
-        if repaired_message is not None:
-            updated_messages[repaired_message.id] = repaired_message
-            messages[index] = repaired_message
     if new_message is not None:
         assert new_message.role == "user", "request validation rejects non-user messages"
         # A rewritten assistant tail means it still had pending tool calls —
@@ -3408,11 +3415,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 exclude_unset=True,
                             )
                         )
-                        resolved_assistant_message = _resolve_interrupted_tool_parts(
-                            generated_assistant_message
+                        generated_assistant_message = (
+                            _resolve_interrupted_tool_parts(generated_assistant_message)
+                            or generated_assistant_message
                         )
-                        if resolved_assistant_message is not None:
-                            generated_assistant_message = resolved_assistant_message
                         existing_metadata = generated_assistant_message.metadata
                         if existing_metadata is not None and isinstance(
                             existing_metadata.phoenix, PhoenixAssistantMessageMetadata

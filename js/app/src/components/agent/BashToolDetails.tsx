@@ -53,11 +53,7 @@ function BashMutationApproval({ part }: { part: ToolInvocationPart }) {
   )?.mutation_description;
   return (
     <div css={bashMutationApprovalCSS}>
-      <ToolApprovalRequest
-        part={part}
-        label="Approval required to change data"
-        denialReason="The user rejected the GraphQL mutation."
-      >
+      <ToolApprovalRequest part={part} label="Approval required to change data">
         {mutationDescription ? (
           <p className="bash-mutation-approval__description">
             {mutationDescription}
