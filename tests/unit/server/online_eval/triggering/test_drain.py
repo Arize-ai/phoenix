@@ -20,7 +20,7 @@ from phoenix.server.online_eval.executor import _announce_annotations
 from phoenix.server.online_eval.leases import LeaseLost
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.online_eval.triggering import drain as drain_module
-from phoenix.server.online_eval.triggering.drain import EventDrain, EventNotConsumable
+from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.online_eval.triggering.log import (
     AnnotationUpserted,
     EvaluationCompleted,
@@ -346,7 +346,7 @@ async def test_rules_sharing_a_criteria_advance_one_generation_per_occurrence(
     assert request.requested_generation == 3
 
 
-async def test_a_rejection_that_is_not_about_the_target_leaves_the_page_unacknowledged(
+async def test_runtime_disabled_is_consumed_instead_of_wedging_the_page(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -364,12 +364,11 @@ async def test_a_rejection_that_is_not_about_the_target_leaves_the_page_unacknow
         )
 
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "false")
-    with pytest.raises(EventNotConsumable):
-        await EventDrain(db)._tick()
+    await EventDrain(db)._tick()
 
     async with db() as session:
         assert await _requests(session) == []
-    assert len(await _unacknowledged(db)) == 1
+    assert await _unacknowledged(db) == ()
 
 
 async def test_losing_the_lease_leaves_the_page_unacknowledged(
@@ -402,7 +401,7 @@ async def test_losing_the_lease_leaves_the_page_unacknowledged(
     assert len(await _unacknowledged(db)) == 1
 
 
-async def test_the_drain_purges_acknowledged_events_past_the_safety_window(
+async def test_the_drain_purges_acknowledged_events_on_its_first_tick(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -417,12 +416,6 @@ async def test_the_drain_purges_acknowledged_events_past_the_safety_window(
                 evaluation_target="SESSION",
                 target_rowid=project_session.id,
             )
-
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS, "1800")
-    drain = EventDrain(db, purge_interval_seconds=0.0)
-    await drain._tick()
-
-    async with db() as session:
         stale = await session.scalar(select(models.EvaluatorEvent.id))
         await session.execute(
             update(models.EvaluatorEvent)
@@ -430,11 +423,13 @@ async def test_the_drain_purges_acknowledged_events_past_the_safety_window(
             .values(acknowledged_at=datetime.now(timezone.utc) - timedelta(hours=1))
         )
 
-    assert await drain._purge_if_due() == 1
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS, "1800")
+    await EventDrain(db)._tick()
 
     async with db() as session:
-        surviving = await session.scalars(select(models.EvaluatorEvent.id))
-        assert stale not in list(surviving)
+        surviving = list(await session.scalars(select(models.EvaluatorEvent.id)))
+        assert stale not in surviving
+        assert len(surviving) == 1
 
 
 @pytest.mark.postgres_only

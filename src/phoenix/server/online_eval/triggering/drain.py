@@ -61,11 +61,12 @@ _REQUESTED_BY = "trigger"
 # `SessionTarget` and naming it here in the same change.
 _DELIVERABLE_TARGETS: frozenset[models.EvaluationTarget] = frozenset({"SESSION"})
 
-# Facts about the event's target: the pair cannot be evaluated, so the occurrence is
-# consumed and no request is written. Every other rejection is a failure of the drain's
-# own preconditions and leaves the page for the next tick.
+# These rejections cannot become deliverable while this drain is running, so the event is
+# consumed without a request. In particular, treating a disabled runtime as retryable would
+# wedge the drain on the same page if daemon construction and request gating ever diverged.
 _CONSUMED_NO_OP_REJECTIONS = frozenset(
     {
+        RequestRejection.RUNTIME_DISABLED,
         RequestRejection.CRITERIA_NOT_FOUND,
         RequestRejection.CRITERIA_TARGET_MISMATCH,
         RequestRejection.SESSION_NOT_FOUND,
@@ -101,7 +102,7 @@ class EventDrain(DaemonTask):
         self._page_size = get_env_online_eval_event_drain_page_size()
         self._retention_seconds = get_env_online_eval_event_retention_seconds()
         self._drain_id = f"event-drain-{token_hex(8)}"
-        self._last_purge_at = time.monotonic()
+        self._last_purge_at: Optional[float] = None
         self._lease = DatabaseLease(
             db,
             entity=models.EvalWorkLease,
@@ -181,7 +182,10 @@ class EventDrain(DaemonTask):
         return len(outcome.granted)
 
     async def _purge_if_due(self) -> int:
-        if time.monotonic() - self._last_purge_at < self._purge_interval_seconds:
+        if (
+            self._last_purge_at is not None
+            and time.monotonic() - self._last_purge_at < self._purge_interval_seconds
+        ):
             return 0
         async with self._db() as session:
             now = await self._lease.database_now(session)
