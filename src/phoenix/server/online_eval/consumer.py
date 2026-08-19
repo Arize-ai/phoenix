@@ -1,6 +1,5 @@
-"""Online-eval consumer daemon.
+"""Execute bounded online-eval work on any replica through fenced coordinator claims.
 
-Runs on every replica; instances compete for work through coordinator claims.
 Each cycle claims a batch of work units and awaits the whole batch before claiming
 again. The batch size bounds fetched work; shared semaphores bound evaluation and
 database-phase concurrency across SPAN and SESSION consumers:

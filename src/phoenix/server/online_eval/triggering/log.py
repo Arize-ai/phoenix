@@ -1,4 +1,4 @@
-"""Reads and writes for `evaluator_events`, the durable log of things rules can match on.
+"""Store rule-matchable occurrences durably in `evaluator_events`.
 
 An event is announced by whoever noticed the fact and consumed by acknowledgment: the
 drain reads unacknowledged rows and stamps the ones it turned into requests, in the same

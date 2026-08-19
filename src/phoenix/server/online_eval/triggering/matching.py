@@ -1,4 +1,4 @@
-"""Matches drained events against trigger rules, in memory and without side effects."""
+"""Evaluate trigger-rule predicates purely in memory over drained events."""
 
 from __future__ import annotations
 
@@ -106,8 +106,7 @@ def _matches_result(
 def _matches_annotation(payload: dict[str, Any], rule: AnnotationTriggerRule) -> bool:
     producer_project_evaluator_id = payload.get("project_evaluator_id")
     if producer_project_evaluator_id is not None:
-        # A project_evaluators never re-triggers on an annotation it wrote itself, whatever the
-        # rule's predicates say; anyone else's output takes an explicit opt-in.
+        # Self-refusal blocks direct feedback; the identity brake is its indirect-cycle twin.
         if producer_project_evaluator_id == rule.project_evaluator_id:
             return False
         if not rule.matches_evaluator_annotations:
@@ -133,7 +132,7 @@ def _matches_annotation(payload: dict[str, Any], rule: AnnotationTriggerRule) ->
 
 
 def _matches_evaluation(payload: dict[str, Any], rule: EvaluationTriggerRule) -> bool:
-    # A project_evaluators never re-triggers on its own verdict, whatever the rule's predicates say.
+    # Self-refusal blocks direct feedback; the identity brake is its indirect-cycle twin.
     if payload.get("project_evaluator_id") == rule.project_evaluator_id:
         return False
     if not _matches_result(

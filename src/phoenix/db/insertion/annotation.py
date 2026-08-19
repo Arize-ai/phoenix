@@ -1,3 +1,5 @@
+"""Persist annotations and announce matching writes at the same transactional seams."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
@@ -134,6 +136,7 @@ async def _append_events(
         return
     annotation_ids = [annotation.id for annotation in annotations]
     stmt: Any
+    # Shared-seam exclusion blocks default feedback; executor opt-in is its off-seam twin.
     if table is models.SpanAnnotation:
         stmt = (
             select(

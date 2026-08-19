@@ -1,4 +1,4 @@
-"""Reads for `project_evaluator_triggers`, the rules that say which events demand work.
+"""Load live, schema-validated rule shapes that say which events demand work.
 
 This is the only module that knows an event can cause an evaluation.
 

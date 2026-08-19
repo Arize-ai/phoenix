@@ -1,4 +1,4 @@
-"""Reads and writes for `evaluation_requests`, the standing ask for a (session, project_evaluators) pair.
+"""Store evaluation demand as commutative counters for each (session, project_evaluators) pair.
 
 Every write to a request row goes through this module: creation, generation advancement,
 and the acknowledgment that links a request to the work unit answering it. The one

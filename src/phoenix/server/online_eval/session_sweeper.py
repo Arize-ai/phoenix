@@ -1,4 +1,10 @@
-"""Materialize session evaluation work after session activity becomes old enough.
+"""For a given session content version (`last_span_ingested_at`, advanced only by span
+ingestion — never by annotations), each evaluator runs at most once per configuration,
+whatever the trigger topology; new content re-arms one round; explicit force is the
+only bypass.
+
+The leased sweeper makes at most one decision per (session, project_evaluators) pair per tick
+after session activity becomes old enough.
 
 Scheduling is one relation with three scheduling origins. Ambient sweeping proposes a
 pair once its content is complete and quiet, and it has no terminal evidence yet. An
@@ -85,7 +91,6 @@ from phoenix.server.online_eval.session_policy import (
     session_project_evaluator_is_schedulable,
     session_matches_project_evaluator_filter,
     session_work_answers_request,
-    session_work_may_still_produce_a_result,
     session_work_records_background_decision,
 )
 from phoenix.server.online_eval.session_retention import reap_session_history
@@ -233,28 +238,39 @@ def _project_evaluator_relation(
     )
 
 
-def _live_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
-    """Whether the session still holds a live dedup key for this criterion."""
-    live_work = aliased(models.EvalSessionWorkUnit)
+def _work_exists(
+    project_evaluator_relation: Subquery,
+    *,
+    include_declined: bool,
+) -> ColumnElement[bool]:
+    """Whether work for this pair is unfinished, optionally including declined holders."""
+    work = aliased(models.EvalSessionWorkUnit)
+    status_predicate = or_(
+        work.status.in_(("PENDING", "RUNNING")),
+        and_(work.status == "ERROR", work.attempts < MAX_ATTEMPTS),
+    )
+    if include_declined:
+        status_predicate = or_(
+            status_predicate,
+            work.status.in_(SESSION_DECLINED_STATUSES),
+        )
     return (
         select(1)
-        .select_from(live_work)
+        .select_from(work)
         .where(
-            live_work.project_session_rowid == models.ProjectSession.id,
-            live_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
-            live_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
-            or_(
-                live_work.status.in_(("PENDING", "RUNNING")),
-                live_work.status.in_(SESSION_DECLINED_STATUSES),
-                and_(
-                    live_work.status == "ERROR",
-                    live_work.attempts < MAX_ATTEMPTS,
-                ),
-            ),
+            work.project_session_rowid == models.ProjectSession.id,
+            work.evaluator_id == project_evaluator_relation.c.evaluator_id,
+            work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
+            status_predicate,
         )
         .correlate(models.ProjectSession, project_evaluator_relation)
         .exists()
     )
+
+
+def _live_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
+    """Whether the session still holds a live dedup key for this criterion."""
+    return _work_exists(project_evaluator_relation, include_declined=True)
 
 
 def _unfinished_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
@@ -263,19 +279,7 @@ def _unfinished_work_exists(project_evaluator_relation: Subquery) -> ColumnEleme
     Declined decisions are excluded on purpose: a request displaces them, while work
     that can still run is waited for rather than duplicated.
     """
-    unfinished = aliased(models.EvalSessionWorkUnit)
-    return (
-        select(1)
-        .select_from(unfinished)
-        .where(
-            unfinished.project_session_rowid == models.ProjectSession.id,
-            unfinished.evaluator_id == project_evaluator_relation.c.evaluator_id,
-            unfinished.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
-            session_work_may_still_produce_a_result(unfinished),
-        )
-        .correlate(models.ProjectSession, project_evaluator_relation)
-        .exists()
-    )
+    return _work_exists(project_evaluator_relation, include_declined=False)
 
 
 def _unfulfilled_request_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
@@ -347,6 +351,7 @@ def _triggered_pairs_statement(
     due_at, current_time = _quiet_delay_columns(project_evaluator_relation, database_now, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
     answering_work_unit_id = (
+        # Eligibility identity blocks repeats; the insert-time re-check is its race twin.
         select(func.max(terminal_work.id))
         .where(
             terminal_work.project_session_rowid == models.ProjectSession.id,
@@ -740,6 +745,7 @@ def _braked_session_work_insert_statement(
     relation = _decision_relation(decisions, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
     answered = (
+        # Insert-time identity closes races; the eligibility brake is its decision twin.
         select(1)
         .select_from(terminal_work)
         .where(
