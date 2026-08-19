@@ -113,6 +113,19 @@ async def annotation_rules_exist(session: AsyncSession) -> bool:
     return await session.scalar(stmt.limit(1)) is not None
 
 
+async def evaluation_rules_exist(session: AsyncSession) -> bool:
+    """Whether any live rule fires on completed evaluations at all.
+
+    Evaluation completion appends events only when one does, matching the annotation
+    write seam's no-cost-without-rules behavior. The read is in the work completion
+    transaction, so a rule committed afterwards does not retroactively receive the event.
+    """
+    stmt = _live_rules(models.ProjectEvaluatorTrigger.id).where(
+        models.ProjectEvaluatorTrigger.event_kind == "evaluation_completed"
+    )
+    return await session.scalar(stmt.limit(1)) is not None
+
+
 async def evaluator_annotation_rules_exist(session: AsyncSession) -> bool:
     """Whether any live rule asks to match annotations online evaluation wrote.
 

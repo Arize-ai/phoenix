@@ -12,6 +12,7 @@ from phoenix.config import (
     EVALUATORS_PROJECT_NAME,
 )
 from phoenix.db import models
+from phoenix.server.api.mutations.evaluator_mutations import MAX_PROJECT_EVALUATOR_TRIGGERS
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.online_eval.triggering.log import EvaluationCompleted, append
@@ -1422,6 +1423,43 @@ async def test_project_evaluator_trigger_crud(
         created["id"]
     ]
     assert await _trigger_count(db) == 0
+
+
+async def test_project_evaluator_trigger_limit_is_refused(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    session_evaluation_enabled: None,
+) -> None:
+    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
+    criteria_id = from_global_id_with_expected_type(
+        GlobalID.from_id(project_evaluator_id),
+        "ProjectEvaluator",
+    )
+    async with db() as session:
+        session.add_all(
+            models.ProjectEvaluatorTrigger(
+                criteria_id=criteria_id,
+                event_kind="annotation_upserted",
+            )
+            for _ in range(MAX_PROJECT_EVALUATOR_TRIGGERS)
+        )
+
+    result = await gql_client.execute(
+        _CREATE_TRIGGER,
+        {
+            "input": {
+                "projectEvaluatorId": project_evaluator_id,
+                "eventKind": "EVALUATION_COMPLETED",
+            }
+        },
+    )
+
+    assert result.errors
+    assert result.errors[0].message == (
+        f"A project evaluator can have at most {MAX_PROJECT_EVALUATOR_TRIGGERS} triggers."
+    )
+    assert await _trigger_count(db) == MAX_PROJECT_EVALUATOR_TRIGGERS
 
 
 async def test_omitting_a_predicate_object_keeps_it_and_nulling_it_matches_everything(

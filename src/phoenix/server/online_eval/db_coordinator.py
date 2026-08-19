@@ -32,6 +32,7 @@ from phoenix.server.online_eval.coordinator import (
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
 from phoenix.server.online_eval.triggering import log as event_log
 from phoenix.server.online_eval.triggering.log import EvaluationCompleted
+from phoenix.server.online_eval.triggering.rules import evaluation_rules_exist
 from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
@@ -269,6 +270,8 @@ class DbEvalWorkCoordinator:
         A completed span outside any session announces nothing — no session-target rule
         could match it — and that is an ordinary outcome, not a failure.
         """
+        if not await evaluation_rules_exist(session):
+            return
         work_unit_model = self._work_unit_model
         identity_statement: Any
         if self._evaluation_target == "SESSION":
