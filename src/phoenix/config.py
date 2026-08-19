@@ -373,8 +373,9 @@ Defaults to 0 (disabled).
 """
 ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
 """
-How long terminal online-eval work units are kept before the reaper deletes them.
-Defaults to 604800 (7 days).
+How long terminal online-eval work history and fulfilled session evaluation requests are
+kept before the reapers delete history that is no longer needed to prevent duplicate
+evaluation. Defaults to 604800 (7 days).
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
 """

@@ -67,6 +67,14 @@ def live_eval_session_work_index_predicate() -> str:
     return f"{live_eval_work_index_predicate()} OR status IN ({declined})"
 
 
+def terminal_eval_session_work_index_predicate() -> str:
+    """SQL text selecting session work whose history retention may reap."""
+    terminal = ", ".join(
+        f"'{status}'" for status in ("DONE", "EXPIRED", *SESSION_DECLINED_STATUSES)
+    )
+    return f"status IN ({terminal}) OR status = 'ERROR' AND attempts >= {MAX_ATTEMPTS}"
+
+
 def evaluator_event_kind_check(column: str) -> str:
     """SQL text constraining ``column`` to ``EVALUATOR_EVENT_KINDS``.
 

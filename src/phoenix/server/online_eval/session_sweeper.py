@@ -54,10 +54,13 @@ from sqlalchemy.sql import Select
 from sqlalchemy.sql.selectable import Subquery
 from typing_extensions import assert_never
 
-from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
+from phoenix.config import (
+    get_env_enable_prometheus,
+    get_env_online_eval_max_session_outstanding,
+    get_env_online_eval_retention_seconds,
+)
 from phoenix.db import models
 from phoenix.db.eval_work import (
-    SESSION_CONTENT_INCOMPLETE_ERROR,
     SESSION_DECLINED_STATUSES,
     SUPERSEDED_BY_REQUEST_ERROR,
     live_eval_session_work_index_predicate,
@@ -71,7 +74,6 @@ from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
-    STALE_FINGERPRINT_ERROR,
     config_fingerprint,
     sample_key,
 )
@@ -85,8 +87,11 @@ from phoenix.server.online_eval.session_policy import (
     admitted_session_work_count_statement,
     session_criteria_is_schedulable,
     session_matches_criteria_filter,
+    session_work_answers_request,
     session_work_may_still_produce_a_result,
+    session_work_records_background_decision,
 )
+from phoenix.server.online_eval.session_retention import reap_session_history
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS,
@@ -107,19 +112,12 @@ SESSION_SWEEP_INTERVAL_SECONDS = 10.0
 _CONSUMER_GROUP = "default"
 _SESSION_SWEEP_LEASE_NAME = "session-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
-# Only work terminated within this window feeds the watermark-lag gauge; the table has
-# no retention, so an unbounded aggregate would scan more rows on every tick forever.
+# Only work terminated within this window feeds the watermark-lag gauge. The bound is
+# intentionally shorter than the default retention window so metric cost stays stable
+# even when operators configure a longer history window.
 _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
 _LIVE_WORK_INDEX_PREDICATE = text(live_eval_session_work_index_predicate())
-
-# EXPIRED work carrying one of these was retired for a reason unrelated to its outcome,
-# so it answers no request.
-_UNEVALUATED_EXPIRY_ERRORS = (
-    STALE_FINGERPRINT_ERROR,
-    SESSION_CONTENT_INCOMPLETE_ERROR,
-    SUPERSEDED_BY_REQUEST_ERROR,
-)
 
 _AMBIENT = "AMBIENT"
 _RULE = "RULE"
@@ -304,25 +302,6 @@ def _unfulfilled_request_exists(criteria_relation: Subquery) -> ColumnElement[bo
     )
 
 
-def _answers_a_request(work: Any) -> ColumnElement[bool]:
-    """Whether ``work`` reached an outcome that a request can be answered with.
-
-    Declined decisions are not outcomes — a rule's own predicate is its filter, so
-    triggered work must not inherit an earlier filter or sampling decision.
-    """
-    return or_(
-        work.status == "DONE",
-        and_(work.status == "ERROR", work.attempts >= MAX_ATTEMPTS),
-        and_(
-            work.status == "EXPIRED",
-            or_(
-                work.error.is_(None),
-                work.error.not_in(_UNEVALUATED_EXPIRY_ERRORS),
-            ),
-        ),
-    )
-
-
 def _quiet_delay_columns(
     criteria_relation: Subquery,
     database_now: datetime,
@@ -377,7 +356,7 @@ def _triggered_pairs_statement(
             terminal_work.evaluator_id == criteria_relation.c.evaluator_id,
             terminal_work.config_fingerprint == criteria_relation.c.config_fingerprint,
             terminal_work.evaluated_through >= models.ProjectSession.last_span_ingested_at,
-            _answers_a_request(terminal_work),
+            session_work_answers_request(terminal_work),
         )
         .correlate(models.ProjectSession, criteria_relation)
         .scalar_subquery()
@@ -495,21 +474,7 @@ def _eligible_pairs_statement(
             terminal_work.project_session_rowid == models.ProjectSession.id,
             terminal_work.evaluator_id == criteria_relation.c.evaluator_id,
             terminal_work.config_fingerprint == criteria_relation.c.config_fingerprint,
-            or_(
-                terminal_work.status == "DONE",
-                terminal_work.status.in_(SESSION_DECLINED_STATUSES),
-                and_(
-                    terminal_work.status == "EXPIRED",
-                    or_(
-                        terminal_work.error.is_(None),
-                        terminal_work.error != STALE_FINGERPRINT_ERROR,
-                    ),
-                ),
-                and_(
-                    terminal_work.status == "ERROR",
-                    terminal_work.attempts >= MAX_ATTEMPTS,
-                ),
-            ),
+            session_work_records_background_decision(terminal_work),
         )
         .correlate(models.ProjectSession, criteria_relation)
         .scalar_subquery()
@@ -785,7 +750,7 @@ def _braked_session_work_insert_statement(
             terminal_work.evaluator_id == relation.c.evaluator_id,
             terminal_work.config_fingerprint == relation.c.config_fingerprint,
             terminal_work.evaluated_through >= relation.c.evaluated_through,
-            _answers_a_request(terminal_work),
+            session_work_answers_request(terminal_work),
         )
         .correlate(relation)
         .exists()
@@ -839,6 +804,7 @@ class SessionEvalSweeper(DaemonTask):
         self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
         self._max_outstanding = get_env_online_eval_max_session_outstanding()
+        self._retention_seconds = get_env_online_eval_retention_seconds()
         self._publish_metrics = get_env_enable_prometheus()
         self._sweeper_id = f"session-sweeper-{token_hex(8)}"
         self._lease_name = f"{_SESSION_SWEEP_LEASE_NAME}:{consumer_group}"
@@ -909,6 +875,11 @@ class SessionEvalSweeper(DaemonTask):
             # transaction inverts the global criteria -> session -> work lock order.
             async with self._db() as session:
                 await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
+                database_now = await self._database_now(session)
+                await reap_session_history(
+                    session,
+                    retention_cutoff=database_now - timedelta(seconds=self._retention_seconds),
+                )
             async with self._db() as session:
                 database_now = await self._database_now(session)
                 materialized_work_count, backlog = await self._sweep(session, database_now)

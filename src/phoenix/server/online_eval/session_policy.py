@@ -18,7 +18,13 @@ from phoenix.config import (
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_transcript_bytes,
 )
-from phoenix.db.eval_work import MAX_ATTEMPTS
+from phoenix.db.eval_work import (
+    MAX_ATTEMPTS,
+    SESSION_CONTENT_INCOMPLETE_ERROR,
+    SESSION_DECLINED_STATUSES,
+    SUPERSEDED_BY_REQUEST_ERROR,
+)
+from phoenix.server.online_eval.derivation import STALE_FINGERPRINT_ERROR
 
 if TYPE_CHECKING:
     from phoenix.db import models
@@ -121,6 +127,39 @@ def session_work_may_still_produce_a_result(work: Any) -> ColumnElement[bool]:
     return or_(
         work.status.in_(("PENDING", "RUNNING")),
         and_(work.status == "ERROR", work.attempts < MAX_ATTEMPTS),
+    )
+
+
+def session_work_answers_request(work: Any) -> ColumnElement[bool]:
+    """Whether ``work`` reached an outcome that can answer a trigger request."""
+    unevaluated_expiry_errors = (
+        STALE_FINGERPRINT_ERROR,
+        SESSION_CONTENT_INCOMPLETE_ERROR,
+        SUPERSEDED_BY_REQUEST_ERROR,
+    )
+    return or_(
+        work.status == "DONE",
+        and_(work.status == "ERROR", work.attempts >= MAX_ATTEMPTS),
+        and_(
+            work.status == "EXPIRED",
+            or_(
+                work.error.is_(None),
+                work.error.not_in(unevaluated_expiry_errors),
+            ),
+        ),
+    )
+
+
+def session_work_records_background_decision(work: Any) -> ColumnElement[bool]:
+    """Whether ``work`` is terminal evidence for background scheduling."""
+    return or_(
+        work.status == "DONE",
+        work.status.in_(SESSION_DECLINED_STATUSES),
+        and_(
+            work.status == "EXPIRED",
+            or_(work.error.is_(None), work.error != STALE_FINGERPRINT_ERROR),
+        ),
+        and_(work.status == "ERROR", work.attempts >= MAX_ATTEMPTS),
     )
 
 

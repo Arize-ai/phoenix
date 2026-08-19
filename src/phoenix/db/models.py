@@ -58,6 +58,7 @@ from phoenix.db.eval_work import (
     evaluation_target_check,
     evaluator_event_kind_check,
     live_eval_session_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
     undrained_evaluator_event_predicate,
 )
 from phoenix.db.types.annotation_configs import (
@@ -3841,8 +3842,8 @@ class EvalSessionWorkUnit(HasId):
         Index(
             "ix_eval_session_work_units_terminal",
             "updated_at",
-            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
-            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+            postgresql_where=text(terminal_eval_session_work_index_predicate()),
+            sqlite_where=text(terminal_eval_session_work_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_terminal_watermark",

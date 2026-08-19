@@ -1508,7 +1508,7 @@ CREATE INDEX ix_eval_session_work_units_error_attempts ON public.eval_session_wo
 CREATE INDEX ix_eval_session_work_units_evaluator_id ON public.eval_session_work_units
     USING btree (evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_units
-    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+    USING btree (updated_at) WHERE (((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying, 'FILTERED_OUT'::character varying, 'SAMPLED_OUT'::character varying])::text[])) OR (((status)::text = 'ERROR'::text) AND (attempts >= 3)));
 CREATE INDEX ix_eval_session_work_units_terminal_watermark ON public.eval_session_work_units
     USING btree (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON public.eval_session_work_units

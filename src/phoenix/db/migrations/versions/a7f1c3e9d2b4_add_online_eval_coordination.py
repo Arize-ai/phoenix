@@ -18,6 +18,7 @@ from phoenix.db.eval_work import (
     evaluation_target_check,
     evaluator_event_kind_check,
     live_eval_session_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
     undrained_evaluator_event_predicate,
 )
 
@@ -136,8 +137,8 @@ def _create_session_work_units_table() -> None:
         "ix_eval_session_work_units_terminal",
         "eval_session_work_units",
         ["updated_at"],
-        postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
-        sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+        postgresql_where=sa.text(terminal_eval_session_work_index_predicate()),
+        sqlite_where=sa.text(terminal_eval_session_work_index_predicate()),
     )
     op.create_index(
         "ix_eval_session_work_units_terminal_watermark",
