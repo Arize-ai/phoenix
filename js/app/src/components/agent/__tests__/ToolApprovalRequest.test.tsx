@@ -68,7 +68,7 @@ describe("ToolApprovalRequest", () => {
     act(() => {
       root.render(
         <AgentContext.Provider value={store}>
-          <ToolApprovalRequest part={part} denialReason="Too destructive" />
+          <ToolApprovalRequest part={part} />
         </AgentContext.Provider>
       );
     });
@@ -99,7 +99,7 @@ describe("ToolApprovalRequest", () => {
     });
   });
 
-  it("sends a denial with its reason on Reject", () => {
+  it("sends a denial on Reject", () => {
     renderRequest();
 
     act(() => {
@@ -109,7 +109,6 @@ describe("ToolApprovalRequest", () => {
     expect(addToolApprovalResponse).toHaveBeenCalledWith({
       id: APPROVAL_ID,
       approved: false,
-      reason: "Too destructive",
     });
   });
 

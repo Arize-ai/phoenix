@@ -99,7 +99,6 @@ function getToolApprovals(message: AgentUIMessage): ChatToolApproval[] {
       {
         toolCallId: part.toolCallId,
         approved: part.approval.approved,
-        ...(part.approval.reason ? { reason: part.approval.reason } : null),
       },
     ];
   });

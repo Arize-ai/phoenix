@@ -2337,7 +2337,7 @@ export interface components {
             toolOutputs?: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**
              * Toolapprovals
-             * @description User responses to tool calls awaiting approval on the transcript's trailing assistant message, matched by ``toolCallId``. They continue the assistant turn: approved calls execute server-side and denied calls return a denial to the model. Cannot be combined with ``message``.
+             * @description Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``.
              */
             toolApprovals?: components["schemas"]["SubmittedToolApproval"][];
             /**
@@ -5904,14 +5904,9 @@ export interface components {
             toolCallId: string;
             /**
              * Approved
-             * @description Whether the user approved the tool call. Strict for the same reason as ``ToolApprovalResponded.approved``: this field is the user-controlled gate on a deferred tool call, so a non-boolean value must fail validation rather than coerce to an approval.
+             * @description Whether the user approved the tool call.
              */
             approved: boolean;
-            /**
-             * Reason
-             * @description Optional reason for the approval or denial, shown to the model on denial.
-             */
-            reason?: string | null;
         };
         /** TextContentPart */
         TextContentPart: {
@@ -7097,7 +7092,7 @@ export interface components {
             messageId: string;
             /**
              * Persistedtooloutputids
-             * @description Tool call IDs whose client-executed outputs are in the message that was just written. The client skips these in its eager flush. Derived from the persisted message itself rather than from the client's copy, which can have moved on since the server took its snapshot.
+             * @description Tool call IDs whose tool outputs were included in the persisted message.
              */
             persistedToolOutputIds?: string[];
         };

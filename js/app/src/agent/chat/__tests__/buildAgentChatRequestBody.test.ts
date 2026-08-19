@@ -480,7 +480,7 @@ describe("buildAgentChatRequestBody tool approvals", () => {
     } as unknown as AgentUIMessage;
   }
 
-  it("carries a responded approval as a continuation, with its denial reason", () => {
+  it("carries a responded approval as a continuation", () => {
     const body = buildAgentChatRequestBody({
       ...baseOptions,
       messages: [
@@ -490,17 +490,13 @@ describe("buildAgentChatRequestBody tool approvals", () => {
           toolCallId: "tool-call-1",
           state: "approval-responded",
           input: {},
-          approval: {
-            id: "approval-1",
-            approved: false,
-            reason: "Too destructive",
-          },
+          approval: { id: "approval-1", approved: false },
         }),
       ],
     });
 
     expect(body.toolApprovals).toEqual([
-      { toolCallId: "tool-call-1", approved: false, reason: "Too destructive" },
+      { toolCallId: "tool-call-1", approved: false },
     ]);
     expect(body).not.toHaveProperty("toolOutputs");
   });

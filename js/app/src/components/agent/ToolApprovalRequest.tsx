@@ -8,21 +8,17 @@ import type { ToolInvocationPart } from "./toolPartTypes";
 
 /**
  * Resolves a server-deferred tool call's approval on the active session's chat:
- * an approved call re-executes server-side, a denied one returns the `reason` to
- * the model. This is the single place tool detail components go through to
- * answer an `approval-requested` part — they stay presentational and never touch
- * the chat runtime directly.
+ * an approved call re-executes server-side, a denied one returns a generic
+ * denial to the model. This is the single place tool detail components go
+ * through to answer an `approval-requested` part — they stay presentational and
+ * never touch the chat runtime directly.
  *
  * `canRespond` reports whether a chat is actually reachable. Callers must
  * disable their controls when it is false: the answer cannot be delivered, and
  * accepting the click silently drops the user's decision.
  */
 export function useRespondToToolApproval(): {
-  respondToApproval: (args: {
-    approvalId: string;
-    approved: boolean;
-    reason?: string;
-  }) => void;
+  respondToApproval: (args: { approvalId: string; approved: boolean }) => void;
   canRespond: boolean;
 } {
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
@@ -30,7 +26,7 @@ export function useRespondToToolApproval(): {
   const chat = activeSessionId ? chatRuntime.getChat(activeSessionId) : null;
   return {
     canRespond: chat !== null,
-    respondToApproval: ({ approvalId, approved, reason }) => {
+    respondToApproval: ({ approvalId, approved }) => {
       if (!chat) {
         // Unreachable while the controls honour `canRespond`; kept so a future
         // caller that forgets cannot deliver an approval to nothing.
@@ -39,7 +35,6 @@ export function useRespondToToolApproval(): {
       void chat.addToolApprovalResponse({
         id: approvalId,
         approved,
-        ...(reason ? { reason } : null),
       });
     },
   };
@@ -58,13 +53,10 @@ export const UNREACHABLE_CHAT_MESSAGE =
 export function ToolApprovalRequest({
   part,
   label = "Approval required",
-  denialReason = "The user denied the tool call.",
   children,
 }: {
   part: ToolInvocationPart;
   label?: string;
-  /** Sent to the model as the approval response's reason on Reject. */
-  denialReason?: string;
   /** Tool-specific preview of what the user is approving. */
   children?: ReactNode;
 }) {
@@ -81,13 +73,7 @@ export function ToolApprovalRequest({
         isDisabled={!canRespond}
         staleMessage={UNREACHABLE_CHAT_MESSAGE}
         onAccept={() => respondToApproval({ approvalId, approved: true })}
-        onReject={() =>
-          respondToApproval({
-            approvalId,
-            approved: false,
-            reason: denialReason,
-          })
-        }
+        onReject={() => respondToApproval({ approvalId, approved: false })}
       />
     </>
   );
