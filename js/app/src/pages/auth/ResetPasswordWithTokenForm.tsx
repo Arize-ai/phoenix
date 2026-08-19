@@ -101,6 +101,7 @@ export function ResetPasswordWithTokenForm({
               type="password"
               isRequired
               name={name}
+              autoFocus
               isInvalid={invalid}
               id="new-password"
               autoComplete="new-password"

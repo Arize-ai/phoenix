@@ -135,6 +135,7 @@
               platformVersion: "{{platform_version}}",
               authenticationEnabled: Boolean("{{authentication_enabled}}" == "True"),
               oAuth2Idps: {{ oauth2_idps | tojson }},
+              passwordResetEmailEnabled: Boolean("{{password_reset_email_enabled}}" == "True"),
               basicAuthDisabled: Boolean("{{basic_auth_disabled}}" == "True"),
               ldapEnabled: Boolean("{{ldap_enabled}}" == "True"),
               ldapManualUserCreationEnabled: Boolean("{{ldap_manual_user_creation_enabled}}" == "True"),
