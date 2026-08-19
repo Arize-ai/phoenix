@@ -76,7 +76,6 @@ async function installAgentDefaults({ page }: { page: Page }) {
               hasAcknowledgedConsent: false,
             },
             capabilities: {
-              "graphql.mutations": false,
               "web.access": false,
             },
           },

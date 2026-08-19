@@ -2330,6 +2330,11 @@ export interface components {
              */
             toolOutputs?: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
             /**
+             * Toolapprovals
+             * @description Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``.
+             */
+            toolApprovals?: components["schemas"]["SubmittedToolApproval"][];
+            /**
              * Lastmessageid
              * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
              */
@@ -3508,7 +3513,8 @@ export interface components {
         };
         /**
          * GraphQLContext
-         * @description GraphQL runtime state.
+         * @deprecated
+         * @description Deprecated GraphQL mutations opt-in.
          */
         GraphQLContext: {
             /**
@@ -5882,6 +5888,19 @@ export interface components {
          */
         SubmitAgentSessionToolOutputsResponseBody: {
             data: components["schemas"]["PhoenixUIMessage"];
+        };
+        /**
+         * SubmittedToolApproval
+         * @description A user's response to a tool call awaiting approval.
+         */
+        SubmittedToolApproval: {
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * Approved
+             * @description Whether the user approved the tool call.
+             */
+            approved: boolean;
         };
         /** TextContentPart */
         TextContentPart: {

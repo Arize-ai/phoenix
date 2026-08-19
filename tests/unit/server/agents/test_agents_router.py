@@ -9,16 +9,19 @@ import json
 import warnings
 from collections.abc import AsyncIterator, MutableMapping
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import UUID
 
 import httpx
 import pytest
+from bashkit import Bash
 from fastapi import FastAPI
 from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import TracerProvider
+from pydantic import ValidationError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
@@ -62,6 +65,8 @@ from phoenix.server.api.routers.agents import (
     _APPROVAL_DECISION_ATTRIBUTE,
     _APPROVAL_SOURCE_ATTRIBUTE,
     AgentSessionConflict,
+    ChatRequestBody,
+    SubmittedToolApproval,
     _approval_attributes,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
@@ -131,6 +136,17 @@ class TestApprovalAttributes:
         ]
         for result in results:
             assert _approval_attributes(result) == {}
+
+
+@lru_cache(maxsize=1)
+def _restorable_bashkit_snapshot() -> bytes:
+    """Snapshot bytes a real shell can be restored from.
+
+    Routes that attach the bash tool restore the session's shell from these
+    bytes, so a seed has to be a genuine snapshot -- a placeholder like
+    ``b"shell-state"`` fails to deserialize and surfaces as a 500.
+    """
+    return Bash(python=False, network=None).snapshot()
 
 
 def _user_message(text: str, *, message_id: str = _DEFAULT_USER_MESSAGE_ID) -> dict[str, Any]:
@@ -505,13 +521,14 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         title="Existing session",
         messages=transcript,
     )
+    seeded_snapshot = _restorable_bashkit_snapshot()
     async with db() as session:
         seeded_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert seeded_session_rowid is not None
         session.add(
             models.AgentSessionSnapshot(
                 agent_session_id=seeded_session_rowid,
-                bashkit_snapshot=b"shell-state",
+                bashkit_snapshot=seeded_snapshot,
             )
         )
 
@@ -549,7 +566,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     async with db() as session:
         snapshot = await session.scalar(select(models.AgentSessionSnapshot))
         assert snapshot is not None
-        assert snapshot.bashkit_snapshot == b"shell-state"
+        assert snapshot.bashkit_snapshot == seeded_snapshot
         agent_session_rowid = snapshot.agent_session_id
         original_messages = await _load_session_messages(session, agent_session_rowid)
         compaction_message_count = await session.scalar(
@@ -2707,6 +2724,254 @@ def test_merge_rejects_tool_outputs_without_a_trailing_assistant_message() -> No
     assert exc_info.value.code == "agent_session_tool_outputs_conflict"
 
 
+def _assistant_message_with_approval_request() -> dict[str, Any]:
+    return {
+        "id": _message_uuid("assistant-1"),
+        "role": "assistant",
+        "parts": [
+            {"type": "text", "text": "This mutation needs approval"},
+            {
+                "type": "tool-bash",
+                "toolCallId": "tool-call-approval",
+                "state": "approval-requested",
+                "input": {
+                    "command": "phoenix-gql 'mutation { deleteEverything }'",
+                    "mutation_description": "This command will delete everything.",
+                },
+                "approval": {"id": "approval-1"},
+                "callProviderMetadata": {"phoenix": {"toolExecutionEnvironment": "server"}},
+            },
+        ],
+    }
+
+
+def test_merge_applies_tool_approvals_to_the_trailing_assistant_message() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    assert continued.id == _message_uuid("assistant-1")
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    # The responded approval survives the interrupted-repair sweep: it is
+    # consumed as a deferred tool result when the run resumes.
+    assert part.state == "approval-responded"
+    assert part.approval.id == "approval-1"
+    assert part.approval.approved is True
+
+
+def test_merge_applies_tool_denials() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=False)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    assert part.state == "approval-responded"
+    assert part.approval.approved is False
+
+
+def test_merge_rejects_tool_approvals_that_match_no_tool_call() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-missing", approved=True)],
+        )
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+def test_merge_rejects_tool_approvals_for_calls_not_awaiting_approval() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-done", approved=True)],
+        )
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+def _assistant_message_with_a_responded_approval() -> dict[str, Any]:
+    """A tail whose approval was recorded but whose call never produced output.
+
+    Only reachable when a run was interrupted between persisting the response
+    and persisting the result: a call that finished would be ``output-available``.
+    """
+    message = _assistant_message_with_approval_request()
+    message["parts"][1] = {
+        **message["parts"][1],
+        "state": "approval-responded",
+        "approval": {"id": "approval-1", "approved": True},
+    }
+    return message
+
+
+def test_merge_rejects_a_resubmitted_approval_instead_of_resuming_the_turn() -> None:
+    """A duplicate submission must not resume the turn.
+
+    An identical duplicate used to be skipped, leaving nothing rewritten -- but
+    the merge still returned the tail as ``continued_assistant_message``, so the
+    run resumed and the approved call executed a second time. For a bash command
+    carrying a mutation that is a second commit, so the resubmission is refused
+    and the client is told to reload.
+    """
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_a_responded_approval()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[
+                SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)
+            ],
+        )
+
+    assert exc_info.value.code == "agent_session_tool_outputs_conflict"
+
+
+def test_merge_answers_an_approval_alongside_an_already_resolved_call() -> None:
+    """Strictness about duplicates must not break the ordinary multi-call flow.
+
+    A resumed run rewrites an answered call to ``output-available``, so a second
+    approval request later in the same message is answered on its own without
+    the first one looking like a duplicate.
+    """
+    assistant_message = _assistant_message_with_approval_request()
+    assistant_message["parts"] = [
+        assistant_message["parts"][0],
+        {
+            "type": "tool-bash",
+            "toolCallId": "tool-call-first",
+            "state": "output-available",
+            "input": {"command": "echo first"},
+            "output": {"stdout": "first\n", "exitCode": 0},
+            "callProviderMetadata": {"phoenix": {"toolExecutionEnvironment": "server"}},
+        },
+        assistant_message["parts"][1],
+    ]
+    persisted = _validated_messages([_user_message("delete everything"), assistant_message])
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    parts = _parts_by_tool_call_id(continued)
+    assert parts["tool-call-approval"].state == "approval-responded"
+    assert parts["tool-call-first"].state == "output-available"
+
+
+def test_merge_with_new_user_message_repairs_an_unanswered_approval_request() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=PhoenixUIMessage.model_validate(
+            _user_message("never mind", message_id=_message_uuid("msg-user-2"))
+        ),
+    )
+
+    repaired = merged.updated_messages[_message_uuid("assistant-1")]
+    part = _parts_by_tool_call_id(repaired)["tool-call-approval"]
+    assert part.state == "output-available"
+    assert "interrupted" in part.output
+
+
+def test_approved_call_carries_its_own_arguments_without_extra_metadata() -> None:
+    """The approved re-run needs nothing threaded through: mutation_description
+    lives in the tool call's own input, which pydantic-ai replays on resume."""
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[SubmittedToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    assert part.state == "approval-responded"
+    assert part.input == {
+        "command": "phoenix-gql 'mutation { deleteEverything }'",
+        "mutation_description": "This command will delete everything.",
+    }
+
+
+def test_chat_request_body_rejects_tool_approvals_with_a_new_message() -> None:
+    with pytest.raises(ValidationError, match="toolApprovals cannot be combined"):
+        ChatRequestBody.model_validate(
+            {
+                "headless": False,
+                "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+                "trigger": "submit-message",
+                "id": "chat-1",
+                "message": _user_message("hello"),
+                "toolApprovals": [{"toolCallId": "tool-call-approval", "approved": True}],
+            }
+        )
+
+
+def test_chat_request_body_accepts_a_tool_approvals_only_continuation() -> None:
+    body = ChatRequestBody.model_validate(
+        {
+            "headless": False,
+            "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+            "trigger": "submit-message",
+            "id": "chat-1",
+            "toolApprovals": [{"toolCallId": "tool-call-approval", "approved": True}],
+        }
+    )
+    assert body.tool_approvals[0].tool_call_id == "tool-call-approval"
+    assert body.tool_approvals[0].approved is True
+
+
+def test_chat_request_body_rejects_duplicate_tool_approval_ids() -> None:
+    with pytest.raises(ValidationError, match="distinct toolCallId"):
+        ChatRequestBody.model_validate(
+            {
+                "headless": False,
+                "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+                "trigger": "submit-message",
+                "id": "chat-1",
+                "toolApprovals": [
+                    {"toolCallId": "tool-call-approval", "approved": True},
+                    {"toolCallId": "tool-call-approval", "approved": False},
+                ],
+            }
+        )
+
+
 async def test_chat_endpoint_rejects_assistant_message_submissions(
     httpx_client: httpx.AsyncClient,
 ) -> None:
@@ -3075,6 +3340,80 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
         if chunk.get("type") == "tool-output-available" and "output" in chunk
     ]
     assert any(output.get("stdout") == "hello\n" for output in bash_outputs)
+
+
+# A mutation document naming a field the schema does not have. The permission
+# gate runs off the parsed operation type, before the document is executed, so
+# this is enough to observe whether mutations were permitted -- and it cannot
+# change any data if they were.
+_UNKNOWN_MUTATION = "phoenix-gql 'mutation { thisFieldDoesNotExist }'"
+
+
+def _bash_stderr(response_text: str) -> str:
+    return "".join(
+        chunk["output"].get("stderr", "")
+        for chunk in _stream_chunks(response_text)
+        if chunk.get("type") == "tool-output-available" and isinstance(chunk.get("output"), dict)
+    )
+
+
+async def test_headless_chat_in_manual_mode_cannot_run_a_mutation(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A headless run has no client that could answer an approval request, so
+    manual mode withholds mutation access entirely rather than running mutations
+    with the approval flow silently skipped.
+
+    ``headless`` is client-supplied, so before this gate any caller could opt
+    out of mutation approval by setting it.
+    """
+    session_id = "58585858-5858-4858-8858-585858585858"
+    agent_session_id = await _create_agent_session_row(db)
+    _mock_turn_models(monkeypatch, _scripted_model(bash_command=_UNKNOWN_MUTATION))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_headless_chat_body(session_id, _user_message("delete it")),
+    )
+
+    assert response.status_code == 200
+    assert "Mutations are not permitted." in _bash_stderr(response.text)
+
+
+async def test_headless_chat_in_bypass_mode_runs_a_mutation_without_approval(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The other half of the gate: an explicit bypass still grants mutation
+    access, and does so without an approval round-trip the headless caller
+    could not complete."""
+    session_id = "59595959-5959-4959-8959-595959595959"
+    agent_session_id = await _create_agent_session_row(db)
+    _mock_turn_models(monkeypatch, _scripted_model(bash_command=_UNKNOWN_MUTATION))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_headless_chat_body(
+            session_id,
+            _user_message("delete it"),
+            editPermission="bypass",
+        ),
+    )
+
+    assert response.status_code == 200
+    stderr = _bash_stderr(response.text)
+    # Permitted, so the document reached the schema and failed on its own terms.
+    assert "Mutations are not permitted." not in stderr
+    assert "thisFieldDoesNotExist" in stderr
+    # Nothing was deferred for an approval no headless caller could answer.
+    assert not [
+        chunk
+        for chunk in _stream_chunks(response.text)
+        if chunk.get("type") == "tool-approval-request"
+    ]
 
 
 async def test_headless_chat_is_forbidden_when_bash_is_disabled(

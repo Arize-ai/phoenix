@@ -69,6 +69,11 @@ type ChatToolOutput = NonNullable<
   BuildAgentChatRequestBodyResult["toolOutputs"]
 >[number];
 
+/** A user approval response, as the chat endpoint's `toolApprovals` field models it. */
+type ChatToolApproval = NonNullable<
+  BuildAgentChatRequestBodyResult["toolApprovals"]
+>[number];
+
 /**
  * Extract the assistant message's resolved client-executed tool parts — the
  * `toolOutputs` a send may carry. The server matches them by `toolCallId`,
@@ -79,23 +84,27 @@ function getClientToolOutputs(message: AgentUIMessage): ChatToolOutput[] {
   return message.parts.filter((part) => isResolvedClientToolOutputPart(part));
 }
 
+/**
+ * Extract the assistant message's answered tool approvals.
+ */
+function getToolApprovals(message: AgentUIMessage): ChatToolApproval[] {
+  return message.parts.flatMap((part) => {
+    if (!isToolUIPart(part) || part.state !== "approval-responded") {
+      return [];
+    }
+    return [
+      {
+        toolCallId: part.toolCallId,
+        approved: part.approval.approved,
+      },
+    ];
+  });
+}
+
 export type AgentChatRequestBodyPatch = Pick<
   BuildAgentChatRequestBodyResult,
   "requestedSkills"
 >;
-
-/**
- * Build GraphQL context from the current capability snapshot.
- *
- * Forwards the user's mutations toggle to the backend as a typed context so
- * the agent's server-side instructions can render the matching guidance.
- */
-function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
-  return {
-    type: "graphql",
-    mutationsEnabled: capabilities["graphql.mutations"] ?? false,
-  };
-}
 
 /**
  * Build web access context from the current capability snapshot.
@@ -143,7 +152,6 @@ export function buildAgentChatRequestBody({
     observability,
   });
   const requestContexts = [
-    buildGraphQLContext(capabilities),
     buildWebAccessContext(capabilities),
     buildSubagentsContext(capabilities),
     ...contexts,
@@ -165,22 +173,25 @@ export function buildAgentChatRequestBody({
   }
   if (trailingMessage.role === "assistant") {
     // Client-tool continuation: the server owns the assistant message, so
-    // only the resolved client tool outputs are sent, not the message itself.
+    // only the resolved client tool outputs and responded approvals are
+    // sent, not the message itself.
     const enrichedAssistant = enrichMessageWithClientToolMetadata({
       message: trailingMessage,
       toolTimings,
       locallyInterruptedToolCallIds,
     });
     const toolOutputs = getClientToolOutputs(enrichedAssistant);
-    if (toolOutputs.length === 0) {
+    const toolApprovals = getToolApprovals(enrichedAssistant);
+    if (toolOutputs.length === 0 && toolApprovals.length === 0) {
       throw new Error(
-        "A chat continuation requires resolved client tool outputs to send"
+        "A chat continuation requires resolved client tool outputs or approvals to send"
       );
     }
     return {
       ...base,
       trigger: "submit-message",
-      toolOutputs,
+      ...(toolOutputs.length > 0 ? { toolOutputs } : {}),
+      ...(toolApprovals.length > 0 ? { toolApprovals } : {}),
       lastMessageId: getLastPersistedMessageId(messages),
     };
   }

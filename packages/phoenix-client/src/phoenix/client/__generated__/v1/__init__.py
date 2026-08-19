@@ -893,6 +893,11 @@ class SubagentsContext(TypedDict):
     enabled: bool
 
 
+class SubmittedToolApproval(TypedDict):
+    toolCallId: str
+    approved: bool
+
+
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
@@ -2132,6 +2137,7 @@ class ChatRequestBody(TypedDict):
             ]
         ]
     ]
+    toolApprovals: NotRequired[Sequence[SubmittedToolApproval]]
     lastMessageId: NotRequired[str]
     recordLocalTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]

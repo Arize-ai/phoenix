@@ -10753,6 +10753,14 @@
             "title": "Tooloutputs",
             "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs."
           },
+          "toolApprovals": {
+            "items": {
+              "$ref": "#/components/schemas/SubmittedToolApproval"
+            },
+            "type": "array",
+            "title": "Toolapprovals",
+            "description": "Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``."
+          },
           "lastMessageId": {
             "anyOf": [
               {
@@ -13810,7 +13818,8 @@
           "mutationsEnabled"
         ],
         "title": "GraphQLContext",
-        "description": "GraphQL runtime state."
+        "description": "Deprecated GraphQL mutations opt-in.",
+        "deprecated": true
       },
       "HTTPValidationError": {
         "properties": {
@@ -19220,6 +19229,26 @@
         ],
         "title": "SubmitAgentSessionToolOutputsResponseBody",
         "description": "The trailing assistant message with the submitted outputs applied."
+      },
+      "SubmittedToolApproval": {
+        "properties": {
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "description": "Whether the user approved the tool call."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolCallId",
+          "approved"
+        ],
+        "title": "SubmittedToolApproval",
+        "description": "A user's response to a tool call awaiting approval."
       },
       "TextContentPart": {
         "properties": {
