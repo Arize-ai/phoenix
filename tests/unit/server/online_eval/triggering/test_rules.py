@@ -201,7 +201,7 @@ async def test_invalid_predicate_json_does_not_make_annotation_rules_exist(
         )
 
     async with db() as session:
-        assert await annotation_rules_exist(session) is False
+        assert await annotation_rules_exist(session, project_id=project.id) is False
 
 
 async def test_only_an_opted_in_annotation_rule_makes_evaluator_annotations_worth_logging(
@@ -213,14 +213,14 @@ async def test_only_an_opted_in_annotation_rule_makes_evaluator_annotations_wort
         await _add_trigger(session, criteria, matches_evaluator_annotations=False)
 
     async with db() as session:
-        assert await evaluator_annotation_rules_exist(session) is False
+        assert await evaluator_annotation_rules_exist(session, project_id=project.id) is False
 
     async with db() as session:
         opted_in = await _add_criteria(session, project)
         await _add_trigger(session, opted_in, matches_evaluator_annotations=True)
 
     async with db() as session:
-        assert await evaluator_annotation_rules_exist(session) is True
+        assert await evaluator_annotation_rules_exist(session, project_id=project.id) is True
 
 
 async def test_a_trigger_whose_criteria_is_disabled_is_dormant(db: DbSessionFactory) -> None:

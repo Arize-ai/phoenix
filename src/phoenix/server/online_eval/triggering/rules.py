@@ -142,19 +142,23 @@ def _validated_predicates(
 async def _rules_exist_for_event_kind(
     session: AsyncSession,
     event_kind: models.EvaluatorEventKind,
+    project_id: int,
 ) -> bool:
     rows = await session.execute(
         _live_rules(
             models.ProjectEvaluatorTrigger.id,
             models.ProjectEvaluatorTrigger.event_kind,
             _raw_predicates,
-        ).where(models.ProjectEvaluatorTrigger.event_kind == event_kind)
+        ).where(
+            models.ProjectEvaluatorCriteria.project_id == project_id,
+            models.ProjectEvaluatorTrigger.event_kind == event_kind,
+        )
     )
     return any(_validated_predicates(row.id, row.event_kind, row.predicates)[0] for row in rows)
 
 
-async def annotation_rules_exist(session: AsyncSession) -> bool:
-    """Whether any valid live rule fires on annotations at all.
+async def annotation_rules_exist(session: AsyncSession, *, project_id: int) -> bool:
+    """Whether any valid live rule fires on annotations in the project.
 
     Annotation writes append events only when one does. Without the gate, turning
     session evaluation on also turns on an event write per annotation write, plus a day
@@ -164,21 +168,21 @@ async def annotation_rules_exist(session: AsyncSession) -> bool:
     Like `load_rules`, this read is a linearization point: a rule committed after it
     does not cause an earlier annotation transaction to append an event.
     """
-    return await _rules_exist_for_event_kind(session, "annotation_upserted")
+    return await _rules_exist_for_event_kind(session, "annotation_upserted", project_id)
 
 
-async def evaluation_rules_exist(session: AsyncSession) -> bool:
-    """Whether any valid live rule fires on completed evaluations at all.
+async def evaluation_rules_exist(session: AsyncSession, *, project_id: int) -> bool:
+    """Whether any valid live rule fires on completed evaluations in the project.
 
     Evaluation completion appends events only when one does, matching the annotation
     write seam's no-cost-without-rules behavior. The read is in the work completion
     transaction, so a rule committed afterwards does not retroactively receive the event.
     """
-    return await _rules_exist_for_event_kind(session, "evaluation_completed")
+    return await _rules_exist_for_event_kind(session, "evaluation_completed", project_id)
 
 
-async def evaluator_annotation_rules_exist(session: AsyncSession) -> bool:
-    """Whether any live rule asks to match annotations online evaluation wrote.
+async def evaluator_annotation_rules_exist(session: AsyncSession, *, project_id: int) -> bool:
+    """Whether any project rule asks to match annotations online evaluation wrote.
 
     Online evaluation announces its own annotation writes only when one does, on the
     same no-cost-without-rules footing as `annotation_rules_exist`. Whether a given rule
@@ -189,7 +193,10 @@ async def evaluator_annotation_rules_exist(session: AsyncSession) -> bool:
             models.ProjectEvaluatorTrigger.id,
             models.ProjectEvaluatorTrigger.event_kind,
             _raw_predicates,
-        ).where(models.ProjectEvaluatorTrigger.event_kind == "annotation_upserted")
+        ).where(
+            models.ProjectEvaluatorCriteria.project_id == project_id,
+            models.ProjectEvaluatorTrigger.event_kind == "annotation_upserted",
+        )
     )
     for row in rows:
         valid, predicates = _validated_predicates(row.id, row.event_kind, row.predicates)

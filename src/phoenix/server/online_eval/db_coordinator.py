@@ -270,8 +270,6 @@ class DbEvalWorkCoordinator:
         A completed span outside any session announces nothing — no session-target rule
         could match it — and that is an ordinary outcome, not a failure.
         """
-        if not await evaluation_rules_exist(session):
-            return
         work_unit_model = self._work_unit_model
         identity_statement: Any
         if self._evaluation_target == "SESSION":
@@ -291,6 +289,8 @@ class DbEvalWorkCoordinator:
             )
         project_id, project_session_rowid = (await session.execute(identity_statement)).one()
         if project_session_rowid is None:
+            return
+        if not await evaluation_rules_exist(session, project_id=project_id):
             return
         await event_log.append(
             session,

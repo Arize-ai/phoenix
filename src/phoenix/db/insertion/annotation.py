@@ -132,7 +132,7 @@ async def _append_events(
     existing_keys: frozenset[tuple[Any, ...]],
     unique_by: Sequence[str] = (),
 ) -> None:
-    if not annotations or not await annotation_rules_exist(session):
+    if not annotations:
         return
     annotation_ids = [annotation.id for annotation in annotations]
     stmt: Any
@@ -204,7 +204,15 @@ async def _append_events(
     else:
         raise TypeError(f"unsupported annotation table: {table.__name__}")
 
-    for annotation, project_id, project_session_rowid in await session.execute(stmt):
+    routed_annotations = tuple(await session.execute(stmt))
+    project_ids_with_rules = {
+        project_id
+        for project_id in {row.project_id for row in routed_annotations}
+        if await annotation_rules_exist(session, project_id=project_id)
+    }
+    for annotation, project_id, project_session_rowid in routed_annotations:
+        if project_id not in project_ids_with_rules:
+            continue
         key = tuple(getattr(annotation, name) for name in unique_by)
         change: Literal["created", "updated"] = "updated" if key in existing_keys else "created"
         await append(
