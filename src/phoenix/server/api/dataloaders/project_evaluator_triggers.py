@@ -1,6 +1,7 @@
 from typing import Iterable
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -24,6 +25,10 @@ class ProjectEvaluatorTriggersDataLoader(DataLoader[Key, Result]):
             records = await session.stream_scalars(
                 select(models.ProjectEvaluatorTrigger)
                 .where(models.ProjectEvaluatorTrigger.project_evaluator_id.in_(project_evaluator_ids))
+                .options(
+                    selectinload(models.ProjectEvaluatorTrigger.annotation_predicates),
+                    selectinload(models.ProjectEvaluatorTrigger.evaluation_predicates),
+                )
                 .order_by(models.ProjectEvaluatorTrigger.id)
             )
             async for record in records:

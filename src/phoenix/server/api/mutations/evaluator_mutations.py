@@ -1,19 +1,21 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from secrets import token_hex
-from typing import Any, Optional, cast
+from typing import Any, Mapping, Optional, cast
 
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import and_, delete, select, true
+from sqlalchemy import and_, delete, func, select, true
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
+from strawberry.utils.str_converters import to_camel_case
 
 from phoenix.db import models
 from phoenix.db.helpers import (
@@ -1490,6 +1492,23 @@ class EvaluatorMutationMixin:
                     if prompt_id is not None:
                         prompt_ids.add(prompt_id)
             if actual_project_evaluator_ids:
+                # A trigger that watches one of these evaluators would otherwise be left
+                # matching every completion, so it goes with the evaluator it watches.
+                watching_trigger_ids = list(
+                    await session.scalars(
+                        select(models.ProjectEvaluatorTriggerEvaluationPredicates.trigger_id).where(
+                            models.ProjectEvaluatorTriggerEvaluationPredicates.source_project_evaluator_id.in_(
+                                actual_project_evaluator_ids
+                            )
+                        )
+                    )
+                )
+                if watching_trigger_ids:
+                    await session.execute(
+                        delete(models.ProjectEvaluatorTrigger).where(
+                            models.ProjectEvaluatorTrigger.id.in_(watching_trigger_ids)
+                        )
+                    )
                 await session.execute(
                     delete(models.ProjectEvaluator).where(
                         models.ProjectEvaluator.id.in_(actual_project_evaluator_ids)
@@ -2665,39 +2684,79 @@ class EvaluatorMutationMixin:
         )
 
 
-@strawberry.input
-class CreateProjectEvaluatorTriggerInput:
-    project_evaluator_id: GlobalID
-    signal_kind: EvaluatorSignalKind
-    annotation_name: Optional[str] = UNSET
+@strawberry.input(
+    description=(
+        "What an annotation must look like for an ANNOTATION_UPSERTED trigger to fire. Fields "
+        "left out do not constrain the match."
+    )
+)
+class ProjectEvaluatorTriggerAnnotationPredicatesInput:
+    name: Optional[str] = UNSET
     label: Optional[str] = UNSET
     score_below: Optional[float] = UNSET
     score_above: Optional[float] = UNSET
     annotator_kind: Optional[AnnotatorKind] = UNSET
     annotation_change: Optional[AnnotationChange] = UNSET
     annotation_target: Optional[AnnotationTarget] = UNSET
-    source_project_evaluator_id: Optional[GlobalID] = UNSET
+    matches_evaluator_annotations: Optional[bool] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Also match annotations written by other project evaluators, not only the ones "
+            "written by people or through the API. A project evaluator never matches its own "
+            "annotations."
+        ),
+    )
+
+
+@strawberry.input(
+    description=(
+        "What a finished evaluation must look like for an EVALUATION_COMPLETED trigger to fire. "
+        "Fields left out do not constrain the match."
+    )
+)
+class ProjectEvaluatorTriggerEvaluationPredicatesInput:
+    name: Optional[str] = UNSET
+    label: Optional[str] = UNSET
+    score_below: Optional[float] = UNSET
+    score_above: Optional[float] = UNSET
+    source_project_evaluator_id: Optional[GlobalID] = strawberry.field(
+        default=UNSET,
+        description=(
+            "Match only evaluations produced by this project evaluator, in the same project as "
+            "the trigger. A project evaluator never triggers on its own result."
+        ),
+    )
     result_changed_only: Optional[bool] = UNSET
 
 
 @strawberry.input(
     description=(
-        "Fields left out are unchanged; fields set to null stop constraining the match. The "
-        "signal kind is fixed when the trigger is created, since the predicates that apply "
-        "follow from it."
+        "The predicate object must be the one that goes with the signal kind; the other one is "
+        "refused. Leaving both out makes a trigger that fires on every occurrence of its kind "
+        "in the project."
+    )
+)
+class CreateProjectEvaluatorTriggerInput:
+    project_evaluator_id: GlobalID
+    signal_kind: EvaluatorSignalKind
+    annotation_predicates: Optional[ProjectEvaluatorTriggerAnnotationPredicatesInput] = UNSET
+    evaluation_predicates: Optional[ProjectEvaluatorTriggerEvaluationPredicatesInput] = UNSET
+
+
+@strawberry.input(
+    description=(
+        "A predicate object left out is unchanged; one set to null drops every predicate it "
+        "held, so the trigger fires on every occurrence of its kind. Inside a predicate object, "
+        "fields left out are unchanged and fields set to null stop constraining the match. "
+        "Leaving the signal kind out keeps it; changing it drops the predicates of the kind "
+        "being left behind, since they cannot describe occurrences of the new one."
     )
 )
 class PatchProjectEvaluatorTriggerInput:
     project_evaluator_trigger_id: GlobalID
-    annotation_name: Optional[str] = UNSET
-    label: Optional[str] = UNSET
-    score_below: Optional[float] = UNSET
-    score_above: Optional[float] = UNSET
-    annotator_kind: Optional[AnnotatorKind] = UNSET
-    annotation_change: Optional[AnnotationChange] = UNSET
-    annotation_target: Optional[AnnotationTarget] = UNSET
-    source_project_evaluator_id: Optional[GlobalID] = UNSET
-    result_changed_only: Optional[bool] = UNSET
+    signal_kind: Optional[EvaluatorSignalKind] = UNSET
+    annotation_predicates: Optional[ProjectEvaluatorTriggerAnnotationPredicatesInput] = UNSET
+    evaluation_predicates: Optional[ProjectEvaluatorTriggerEvaluationPredicatesInput] = UNSET
 
 
 @strawberry.input
@@ -2717,9 +2776,6 @@ class DeleteProjectEvaluatorTriggersPayload:
     query: Query
 
 
-_ANNOTATION_ONLY_FIELDS = ("annotatorKind", "annotationChange", "annotationTarget")
-_EVALUATION_ONLY_FIELDS = ("sourceProjectEvaluatorId", "resultChangedOnly")
-
 # Only SESSION evaluators are ever loaded as trigger rules, so a trigger on any other
 # target is inert the moment it is written while every surface still reads it as live.
 # Refused at creation, in the same words the evaluate-now mutation refuses the same
@@ -2729,79 +2785,109 @@ _TRIGGER_TARGET_MISMATCH = (
     "is SESSION can be given a trigger."
 )
 
-_SHARED_PREDICATE_COLUMNS = (
-    "annotation_name",
-    "label",
-    "score_below",
-    "score_above",
-)
-_KIND_SCOPED_PREDICATE_COLUMNS = (
-    "annotator_kind",
-    "annotation_change",
-    "annotation_target",
-    "source_project_evaluator_id",
-    "result_changed_only",
-)
 
+@dataclass(frozen=True)
+class _PredicateFamily:
+    """One signal kind's predicate table, as the trigger mutations need to see it.
 
-def _validate_project_evaluator_trigger_predicates(
-    signal_kind: EvaluatorSignalKind,
-    *,
-    annotator_kind: Any,
-    annotation_change: Any,
-    annotation_target: Any,
-    source_project_evaluator_id: Any,
-    result_changed_only: Any,
-) -> None:
-    """Refuse predicates that do not apply to the declared signal kind.
-
-    The same split the schema enforces, restated here so the mutation answers with a
-    message naming the offending fields instead of a constraint violation.
+    A new signal kind is a new entry here plus its nested field on the two inputs and on
+    ProjectEvaluatorTrigger; nothing below branches on the kind itself.
     """
-    if signal_kind is EvaluatorSignalKind.ANNOTATION_UPSERTED:
-        provided = zip(_EVALUATION_ONLY_FIELDS, (source_project_evaluator_id, result_changed_only))
-    else:
-        provided = zip(
-            _ANNOTATION_ONLY_FIELDS, (annotator_kind, annotation_change, annotation_target)
-        )
-    offending = [name for name, value in provided if value is not UNSET]
-    if offending:
-        raise BadRequest(f"{', '.join(offending)} cannot be set on a {signal_kind.name} trigger.")
+
+    signal_kind: EvaluatorSignalKind
+    field_name: str
+    model: Any
+    columns: tuple[str, ...]
+    # Columns whose "do not constrain" value is not NULL. A trigger with no predicate row
+    # behaves as if its columns held these.
+    defaults: Mapping[str, Any]
 
 
-def _project_evaluator_trigger_values(
+_PREDICATE_FAMILIES = (
+    _PredicateFamily(
+        signal_kind=EvaluatorSignalKind.ANNOTATION_UPSERTED,
+        field_name="annotation_predicates",
+        model=models.ProjectEvaluatorTriggerAnnotationPredicates,
+        columns=(
+            "name",
+            "label",
+            "score_below",
+            "score_above",
+            "annotator_kind",
+            "annotation_change",
+            "annotation_target",
+            "matches_evaluator_annotations",
+        ),
+        defaults={"matches_evaluator_annotations": False},
+    ),
+    _PredicateFamily(
+        signal_kind=EvaluatorSignalKind.EVALUATION_COMPLETED,
+        field_name="evaluation_predicates",
+        model=models.ProjectEvaluatorTriggerEvaluationPredicates,
+        columns=(
+            "name",
+            "label",
+            "score_below",
+            "score_above",
+            "source_project_evaluator_id",
+            "result_changed_only",
+        ),
+        defaults={"result_changed_only": False},
+    ),
+)
+_PREDICATE_FAMILY_BY_SIGNAL_KIND = {family.signal_kind: family for family in _PREDICATE_FAMILIES}
+
+
+def _selected_predicates(input: Any, family: _PredicateFamily) -> Any:
+    """The predicate object for this signal kind, refusing one meant for another kind."""
+    for other in _PREDICATE_FAMILIES:
+        if other is not family and getattr(input, other.field_name) is not UNSET:
+            raise BadRequest(
+                f"{to_camel_case(other.field_name)} cannot be set on a trigger whose signal "
+                f"kind is {family.signal_kind.name}."
+            )
+    return getattr(input, family.field_name)
+
+
+async def _predicate_values(
+    session: AsyncSession,
+    predicates: Any,
     *,
-    annotation_name: Any,
-    label: Any,
-    score_below: Any,
-    score_above: Any,
-    annotator_kind: Any,
-    annotation_change: Any,
-    annotation_target: Any,
-    source_project_evaluator_id: Any,
-    result_changed_only: Any,
+    family: _PredicateFamily,
+    project_id: int,
 ) -> dict[str, Any]:
-    """The column values an input asks for, leaving out the fields it did not mention."""
-    provided = {
-        "annotation_name": annotation_name,
-        "label": label,
-        "score_below": score_below,
-        "score_above": score_above,
-        "annotator_kind": _enum_value(annotator_kind),
-        "annotation_change": _enum_value(annotation_change),
-        "annotation_target": _enum_value(annotation_target),
-        "source_project_evaluator_id": source_project_evaluator_id,
+    """The predicate columns an input object names, leaving out the ones it did not."""
+    values: dict[str, Any] = {}
+    for column in family.columns:
+        value = getattr(predicates, column, UNSET)
+        if value is not UNSET:
+            values[column] = _enum_value(value)
+    # sourceProjectEvaluatorId is the one input field that is not named for its column:
+    # it arrives as a global id and is stored as the project_evaluators row it points at.
+    source = getattr(predicates, "source_project_evaluator_id", UNSET)
+    if source is not UNSET:
+        values["source_project_evaluator_id"] = await _resolve_trigger_source_project_evaluator_id(
+            session, source, project_id=project_id
+        )
+    for column, default in family.defaults.items():
         # Clearing this predicate means "do not constrain", which for a flag is false.
-        "result_changed_only": False if result_changed_only is None else result_changed_only,
-    }
-    return {column: value for column, value in provided.items() if value is not UNSET}
+        if values.get(column, UNSET) is None:
+            values[column] = default
+    return values
+
+
+def _stored_predicate_values(record: Any, family: _PredicateFamily) -> Optional[dict[str, Any]]:
+    """The predicate columns a stored row carries, or None when the trigger has no row."""
+    if record is None:
+        return None
+    return {column: getattr(record, column) for column in family.columns}
 
 
 def _enum_value(value: Any) -> Any:
     return value.value if isinstance(value, Enum) else value
 
 
-def _raise_if_score_bounds_cannot_match(values: dict[str, Any]) -> None:
+def _raise_if_score_bounds_cannot_match(values: Mapping[str, Any]) -> None:
     """Refuse a score window no score can fall inside.
 
     Both bounds are strict and they are conjoined, so `above` must sit below `below`.
@@ -2848,21 +2934,25 @@ async def _raise_on_duplicate_project_evaluator_trigger(
     session: AsyncSession,
     *,
     project_evaluator_id: int,
-    signal_kind: str,
-    values: dict[str, Any],
+    family: _PredicateFamily,
+    values: Optional[Mapping[str, Any]],
     exclude_trigger_id: Optional[int] = None,
 ) -> None:
-    """Refuse a second trigger identical to one the evaluator already carries."""
-    columns = _SHARED_PREDICATE_COLUMNS + _KIND_SCOPED_PREDICATE_COLUMNS
-    stmt = select(models.ProjectEvaluatorTrigger.id).where(
-        models.ProjectEvaluatorTrigger.project_evaluator_id == project_evaluator_id,
-        models.ProjectEvaluatorTrigger.signal_kind == signal_kind,
-        *(
-            getattr(models.ProjectEvaluatorTrigger, column).is_not_distinct_from(
-                values.get(column, False if column == "result_changed_only" else None)
-            )
-            for column in columns
-        ),
+    """Refuse a second trigger identical to one the evaluator already carries.
+
+    A trigger with no predicate row and one whose predicates are all unconstrained match
+    the same occurrences, so the comparison reads an absent row as its default columns.
+    """
+    wanted: dict[str, Any] = {column: family.defaults.get(column) for column in family.columns}
+    wanted.update(values or {})
+    stmt = (
+        select(models.ProjectEvaluatorTrigger.id)
+        .outerjoin(family.model, family.model.trigger_id == models.ProjectEvaluatorTrigger.id)
+        .where(
+            models.ProjectEvaluatorTrigger.project_evaluator_id == project_evaluator_id,
+            models.ProjectEvaluatorTrigger.signal_kind == family.signal_kind.value,
+            *(_predicate_column_matches(family, column, value) for column, value in wanted.items()),
+        )
     )
     if exclude_trigger_id is not None:
         stmt = stmt.where(models.ProjectEvaluatorTrigger.id != exclude_trigger_id)
@@ -2871,6 +2961,30 @@ async def _raise_on_duplicate_project_evaluator_trigger(
         raise Conflict(
             f"This project evaluator already has a trigger with these predicates: {existing}"
         )
+
+
+def _predicate_column_matches(family: _PredicateFamily, column: str, value: Any) -> Any:
+    stored = getattr(family.model, column)
+    if column in family.defaults:
+        stored = func.coalesce(stored, family.defaults[column])
+    return stored.is_not_distinct_from(value)
+
+
+async def _load_trigger_with_predicates(
+    session: AsyncSession, trigger_id: int
+) -> models.ProjectEvaluatorTrigger:
+    """Re-read a written trigger with its database-side timestamps and predicate children."""
+    trigger = await session.scalar(
+        select(models.ProjectEvaluatorTrigger)
+        .where(models.ProjectEvaluatorTrigger.id == trigger_id)
+        .options(
+            selectinload(models.ProjectEvaluatorTrigger.annotation_predicates),
+            selectinload(models.ProjectEvaluatorTrigger.evaluation_predicates),
+        )
+        .execution_options(populate_existing=True)
+    )
+    assert trigger is not None
+    return trigger
 
 
 @strawberry.type
@@ -2894,61 +3008,54 @@ class ProjectEvaluatorTriggerMutationMixin:
             )
         except ValueError as error:
             raise BadRequest(str(error))
-        _validate_project_evaluator_trigger_predicates(
-            input.signal_kind,
-            annotator_kind=input.annotator_kind,
-            annotation_change=input.annotation_change,
-            annotation_target=input.annotation_target,
-            source_project_evaluator_id=input.source_project_evaluator_id,
-            result_changed_only=input.result_changed_only,
-        )
+        family = _PREDICATE_FAMILY_BY_SIGNAL_KIND[input.signal_kind]
+        predicates = _selected_predicates(input, family)
         async with info.context.db() as session:
             project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
             if project_evaluator is None:
                 raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
             if project_evaluators.evaluation_target != "SESSION":
                 raise BadRequest(_TRIGGER_TARGET_MISMATCH)
-            source_project_evaluator_id = await _resolve_trigger_source_project_evaluator_id(
-                session,
-                input.source_project_evaluator_id,
-                project_id=project_evaluator.project_id,
+            values = (
+                None
+                if predicates is UNSET or predicates is None
+                else await _predicate_values(
+                    session, predicates, family=family, project_id=project_evaluators.project_id
+                )
             )
-            values = _project_evaluator_trigger_values(
-                annotation_name=input.annotation_name,
-                label=input.label,
-                score_below=input.score_below,
-                score_above=input.score_above,
-                annotator_kind=input.annotator_kind,
-                annotation_change=input.annotation_change,
-                annotation_target=input.annotation_target,
-                source_project_evaluator_id=source_project_evaluator_id,
-                result_changed_only=input.result_changed_only,
-            )
-            _raise_if_score_bounds_cannot_match(values)
+            _raise_if_score_bounds_cannot_match(values or {})
             await _raise_on_duplicate_project_evaluator_trigger(
                 session,
                 project_evaluator_id=project_evaluator_id,
-                signal_kind=input.signal_kind.value,
+                family=family,
                 values=values,
             )
             trigger = models.ProjectEvaluatorTrigger(
                 project_evaluator_id=project_evaluator_id,
                 signal_kind=input.signal_kind.value,
-                **values,
             )
             session.add(trigger)
             try:
                 await session.flush()
+                if values is not None:
+                    session.add(
+                        family.model(
+                            trigger_id=trigger.id,
+                            signal_kind=input.signal_kind.value,
+                            **values,
+                        )
+                    )
+                    await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(f"Could not create trigger: {error}")
-            # The timestamps are database-side, so read them back before the row detaches.
-            await session.refresh(trigger)
-            payload = to_gql_project_evaluator_trigger(trigger)
+            payload = to_gql_project_evaluator_trigger(
+                await _load_trigger_with_predicates(session, trigger.id)
+            )
         return ProjectEvaluatorTriggerMutationPayload(trigger=payload, query=Query())
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description="Change the predicates of an existing trigger.",
+        description="Change the signal kind or the predicates of an existing trigger.",
     )  # type: ignore
     async def patch_project_evaluator_trigger(
         self, info: Info[Context, None], input: PatchProjectEvaluatorTriggerInput
@@ -2968,57 +3075,75 @@ class ProjectEvaluatorTriggerMutationMixin:
                 raise NotFound(
                     f"Trigger not found: {input.project_evaluator_trigger_id}",
                 )
-            signal_kind = EvaluatorSignalKind(trigger.signal_kind)
-            _validate_project_evaluator_trigger_predicates(
-                signal_kind,
-                annotator_kind=input.annotator_kind,
-                annotation_change=input.annotation_change,
-                annotation_target=input.annotation_target,
-                source_project_evaluator_id=input.source_project_evaluator_id,
-                result_changed_only=input.result_changed_only,
+            previous_family = _PREDICATE_FAMILY_BY_SIGNAL_KIND[
+                EvaluatorSignalKind(trigger.signal_kind)
+            ]
+            family = (
+                previous_family
+                if input.signal_kind is UNSET or input.signal_kind is None
+                else _PREDICATE_FAMILY_BY_SIGNAL_KIND[input.signal_kind]
             )
+            predicates = _selected_predicates(input, family)
             project_evaluators = await session.get(models.ProjectEvaluator, trigger.project_evaluator_id)
             if project_evaluator is None:
                 raise NotFound(f"Trigger not found: {input.project_evaluator_trigger_id}")
-            source_project_evaluator_id = await _resolve_trigger_source_project_evaluator_id(
-                session,
-                input.source_project_evaluator_id,
-                project_id=project_evaluator.project_id,
-            )
-            values = _project_evaluator_trigger_values(
-                annotation_name=input.annotation_name,
-                label=input.label,
-                score_below=input.score_below,
-                score_above=input.score_above,
-                annotator_kind=input.annotator_kind,
-                annotation_change=input.annotation_change,
-                annotation_target=input.annotation_target,
-                source_project_evaluator_id=source_project_evaluator_id,
-                result_changed_only=input.result_changed_only,
-            )
-            patched = {
-                column: values.get(
-                    column,
-                    getattr(trigger, column),
+            # A kind change leaves the old family's row behind; nothing of it carries over.
+            stored = (
+                await session.scalar(
+                    select(family.model).where(family.model.trigger_id == trigger_id)
                 )
-                for column in _SHARED_PREDICATE_COLUMNS + _KIND_SCOPED_PREDICATE_COLUMNS
-            }
-            _raise_if_score_bounds_cannot_match(patched)
+                if family is previous_family
+                else None
+            )
+            if predicates is UNSET:
+                values = _stored_predicate_values(stored, family)
+            elif predicates is None:
+                values = None
+            else:
+                patch = await _predicate_values(
+                    session, predicates, family=family, project_id=project_evaluators.project_id
+                )
+                values = {**(_stored_predicate_values(stored, family) or {}), **patch}
+            _raise_if_score_bounds_cannot_match(values or {})
             await _raise_on_duplicate_project_evaluator_trigger(
                 session,
                 project_evaluator_id=trigger.project_evaluator_id,
-                signal_kind=trigger.signal_kind,
-                values=patched,
+                family=family,
+                values=values,
                 exclude_trigger_id=trigger_id,
             )
-            for column, value in values.items():
-                setattr(trigger, column, value)
             try:
+                if family is not previous_family:
+                    # The child's foreign key names (trigger_id, signal_kind), so the row of
+                    # the kind being left behind goes before the trigger's kind changes.
+                    await session.execute(
+                        delete(previous_family.model).where(
+                            previous_family.model.trigger_id == trigger_id
+                        )
+                    )
+                    await session.flush()
+                    trigger.signal_kind = family.signal_kind.value
+                    await session.flush()
+                if values is None:
+                    if stored is not None:
+                        await session.delete(stored)
+                elif stored is not None:
+                    for column, value in values.items():
+                        setattr(stored, column, value)
+                else:
+                    session.add(
+                        family.model(
+                            trigger_id=trigger_id,
+                            signal_kind=family.signal_kind.value,
+                            **values,
+                        )
+                    )
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(f"Could not update trigger: {error}")
-            await session.refresh(trigger)
-            payload = to_gql_project_evaluator_trigger(trigger)
+            payload = to_gql_project_evaluator_trigger(
+                await _load_trigger_with_predicates(session, trigger_id)
+            )
         return ProjectEvaluatorTriggerMutationPayload(trigger=payload, query=Query())
 
     @strawberry.mutation(

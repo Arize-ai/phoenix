@@ -8,7 +8,7 @@ from typing import cast as type_cast
 
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
-from sqlalchemy.orm import joinedload, load_only, with_polymorphic
+from sqlalchemy.orm import joinedload, load_only, selectinload, with_polymorphic
 from sqlalchemy.sql.expression import tuple_
 from starlette.authentication import UnauthenticatedUser
 from strawberry import UNSET
@@ -1201,7 +1201,15 @@ class Query:
             return SandboxConfig(id=node_id)
         elif type_name == ProjectEvaluatorTrigger.__name__:
             async with info.context.db.read() as session:
-                if trigger := await session.get(models.ProjectEvaluatorTrigger, node_id):
+                trigger = await session.get(
+                    models.ProjectEvaluatorTrigger,
+                    node_id,
+                    options=[
+                        selectinload(models.ProjectEvaluatorTrigger.annotation_predicates),
+                        selectinload(models.ProjectEvaluatorTrigger.evaluation_predicates),
+                    ],
+                )
+                if trigger:
                     return to_gql_project_evaluator_trigger(trigger)
                 raise NotFound(f"Unknown project evaluator trigger: {id}")
         elif type_name == EvaluationRequest.__name__:
