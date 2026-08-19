@@ -65,6 +65,7 @@ from phoenix.server.online_eval.tracing import (
 )
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
+from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import Tracer
 
@@ -401,6 +402,7 @@ class OnlineEvalExecutor:
         coordinator: EvalWorkCoordinator,
         decrypt: Callable[[bytes], bytes],
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
+        sandbox_runtime: Optional[SandboxRuntimeContext] = None,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
         execution_deadline_seconds: float = _DEFAULT_EXECUTION_DEADLINE_SECONDS,
         db_semaphore: Optional[asyncio.Semaphore] = None,
@@ -410,6 +412,7 @@ class OnlineEvalExecutor:
         self._coordinator = coordinator
         self._decrypt = decrypt
         self._sandbox_session_manager = sandbox_session_manager
+        self._sandbox_runtime = sandbox_runtime
         self._event_queue = event_queue
         self._tracer_factory = tracer_factory
         self._execution_deadline_seconds = execution_deadline_seconds
@@ -847,6 +850,7 @@ class OnlineEvalExecutor:
         backend = await build_sandbox_backend(
             sandbox_config,
             secrets=SecretsContext(session=session, decrypt=self._decrypt),
+            runtime=self._sandbox_runtime,
         )
         if backend is None:
             raise ValueError(
