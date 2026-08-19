@@ -38,6 +38,10 @@ export function useProjectEvaluatorPaths() {
     return {
       list: withCurrentSearch(list),
       newLlm: withCurrentSearch(newLlmProjectEvaluatorPath(rootPath)),
+      newLlmFromTemplate: (templateName: string) =>
+        withCurrentSearch(
+          `${list}/new/template/${encodeURIComponent(templateName)}`
+        ),
       newCode: withCurrentSearch(newCodeProjectEvaluatorPath(rootPath)),
       copyLlm: (evaluatorId: string) =>
         withCurrentSearch(

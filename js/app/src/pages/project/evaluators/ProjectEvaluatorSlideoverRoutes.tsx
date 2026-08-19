@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
+import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { CreateProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import {
   EditProjectEvaluatorSlideover,
@@ -19,6 +20,10 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorSlideoverError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideoverError";
+import {
+  buildTemplateCreationMode,
+  projectEvaluatorTemplatesQuery,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
 /**
  * Closes the slideover by leaving its route — to the evaluators list unless
@@ -81,6 +86,38 @@ export function NewCodeProjectEvaluatorPage() {
       onOpenChange={onOpenChange}
       projectId={projectId}
       creationMode={{ kind: "newCode" }}
+    />
+  );
+}
+
+export function NewLlmFromTemplateProjectEvaluatorPage() {
+  const projectId = useRouteProjectId();
+  const { templateName } = useParams();
+  invariant(templateName, "templateName is required");
+  const onOpenChange = useCloseSlideover();
+  const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
+    projectEvaluatorTemplatesQuery,
+    {},
+    { fetchPolicy: "store-and-network" }
+  );
+  const template = data.classificationEvaluatorConfigs.find(
+    (config) => config.name === templateName
+  );
+  if (!template) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title="Cannot create evaluator"
+        message="This link does not name an evaluator template."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return (
+    <CreateProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      projectId={projectId}
+      creationMode={buildTemplateCreationMode(template)}
     />
   );
 }
