@@ -2246,6 +2246,7 @@
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/hallucinations",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/hallucination"
       "destination": "/docs/phoenix/evaluation/pre-built-metrics/faithfulness"
     },
     {
