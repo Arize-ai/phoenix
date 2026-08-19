@@ -55,9 +55,20 @@ def _tool_args(call: dict[str, Any]) -> dict[str, Any]:
 # an execute_ui script that invokes the replacement operation as the legacy
 # tool call the example describes.
 _LEGACY_UI_OPERATION_NAMES: dict[str, str] = {
+    "add_dataset_examples": "dataset.examples.add",
     "add_prompt_instance": "playground.instance.add",
+    "add_spans_to_dataset": "dataset.addSpans",
+    "batch_span_annotate": "spans.annotate",
     "cancel_playground_run": "playground.run.cancel",
     "clone_prompt_instance": "playground.instance.clone",
+    "create_annotation_config": "annotationConfig.create",
+    "create_dataset": "dataset.create",
+    "create_dataset_label": "dataset.label.create",
+    "create_dataset_split": "dataset.split.create",
+    "delete_dataset": "dataset.delete",
+    "delete_dataset_examples": "dataset.examples.delete",
+    "delete_dataset_labels": "dataset.label.delete",
+    "delete_dataset_splits": "dataset.split.delete",
     "edit_code_evaluator_draft": "evaluators.code.edit",
     "edit_llm_evaluator_draft": "evaluators.llm.edit",
     "edit_prompt_instance": "playground.prompt.edit",
@@ -66,6 +77,10 @@ _LEGACY_UI_OPERATION_NAMES: dict[str, str] = {
     "open_code_evaluator_form": "evaluators.code.openForm",
     "open_dataset_evaluator_for_edit": "evaluators.openForEdit",
     "open_llm_evaluator_form": "evaluators.llm.openForm",
+    "patch_dataset": "dataset.patch",
+    "patch_dataset_examples": "dataset.examples.patch",
+    "patch_dataset_split": "dataset.split.patch",
+    "patch_experiment": "experiment.patch",
     "read_code_evaluator_draft": "evaluators.code.read",
     "read_dataset_evaluator_definition": "evaluators.readDefinition",
     "read_llm_evaluator_draft": "evaluators.llm.read",
@@ -77,6 +92,8 @@ _LEGACY_UI_OPERATION_NAMES: dict[str, str] = {
     "save_prompt": "playground.prompt.save",
     "set_appended_messages_path": "playground.messages.setPath",
     "set_dataset_evaluator_selection": "evaluators.select",
+    "set_dataset_example_splits": "dataset.split.setExampleSplits",
+    "set_dataset_labels": "dataset.label.set",
     "set_playground_experiment_recording": "playground.experiment.setRecording",
     "set_playground_model": "playground.model.set",
     "set_playground_repetitions": "playground.repetitions.set",
@@ -88,6 +105,7 @@ _LEGACY_UI_OPERATION_NAMES: dict[str, str] = {
     "submit_llm_evaluator_draft": "evaluators.llm.submit",
     "test_code_evaluator_draft": "evaluators.code.test",
     "test_llm_evaluator_draft": "evaluators.llm.test",
+    "update_annotation_config": "annotationConfig.update",
     "write_prompt_tools": "playground.prompt.tools.write",
 }
 

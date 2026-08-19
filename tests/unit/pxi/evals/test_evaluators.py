@@ -85,6 +85,16 @@ class TestCorrectToolsCalled:
         assert result["score"] == 0.0
         assert result["label"] == "called_forbidden"
 
+    def test_execute_ui_write_operation_satisfies_subsumed_tool(self) -> None:
+        result = evaluate_tools_called(
+            output=_execute_ui_output(
+                "return await ui.experiment.patch({experimentId: 'RXhwZXJpbWVudDox'});"
+            ),
+            expected=_expected(required=["patch_experiment"]),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "correct"
+
     def test_correct_when_no_constraints_and_no_calls(self) -> None:
         result = evaluate_tools_called(output=_output(), expected=_expected())
         assert result["score"] == 1.0
