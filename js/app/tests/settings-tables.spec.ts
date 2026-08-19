@@ -16,6 +16,9 @@ test.describe("Settings Tables", () => {
 
     await expect(page.getByRole("heading", { name: "Users" })).toBeVisible();
 
+    const tableContainer = page.getByRole("table").locator("..");
+    await expect(tableContainer).toHaveCSS("max-height", "none");
+
     const userHeader = page.getByRole("columnheader", { name: "user" }).first();
     await clickSortableHeaderAndExpect(userHeader, "ascending");
   });
