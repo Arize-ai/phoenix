@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { DEFAULT_CHAT_PARAMETERS } from "../chatParameters";
 import {
-  CHAT_PARAMETERS_LOCAL_STORAGE_KEY,
   getStoredChatParameters,
+  resolveChatParametersStorageKey,
   storeChatParameters,
 } from "../chatParametersStorage";
 
@@ -31,9 +31,26 @@ describe("chat parameters storage", () => {
   // rather than sending malformed sampling values with every request.
   it("falls back to the defaults for unrecognized stored values", () => {
     localStorage.setItem(
-      CHAT_PARAMETERS_LOCAL_STORAGE_KEY,
+      resolveChatParametersStorageKey(),
       '{"temperature":"hot"}'
     );
     expect(getStoredChatParameters()).toEqual(DEFAULT_CHAT_PARAMETERS);
+  });
+
+  // Phoenix Cloud serves multiple workspaces at distinct root paths on one
+  // origin — a system prompt must not leak across them.
+  it("scopes the storage key to the deployment root path", () => {
+    const originalBasename = window.Config.basename;
+    try {
+      window.Config.basename = "/s/phoenix-devs";
+      storeChatParameters({
+        ...DEFAULT_CHAT_PARAMETERS,
+        systemPrompt: "You are terse.",
+      });
+      window.Config.basename = "/s/other-workspace";
+      expect(getStoredChatParameters()).toEqual(DEFAULT_CHAT_PARAMETERS);
+    } finally {
+      window.Config.basename = originalBasename;
+    }
   });
 });
