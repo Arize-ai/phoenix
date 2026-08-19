@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@phoenix/components/exception";
 import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
+  getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
   getProjectEvaluatorTemplateMetadata,
   type ProjectEvaluatorTemplate,
@@ -64,24 +65,40 @@ function EvaluatorGallery() {
       config,
       metadata: getProjectEvaluatorTemplateMetadata(config.name),
     }));
-  const useCases = Array.from(
-    new Set(templates.map(({ metadata }) => metadata.useCase))
+  const categories = Array.from(
+    new Set(
+      templates.map(({ metadata }) =>
+        getProjectEvaluatorTemplateCategoryLabel(metadata.category)
+      )
+    )
   );
+  const recommendedTemplateCount = templates.filter(
+    ({ metadata }) => metadata.recommended
+  ).length;
   const categoryItems = [
     {
       name: RECOMMENDED_CATEGORY,
-      count: templates.filter(({ metadata }) => metadata.recommended).length,
+      count: recommendedTemplateCount,
     },
-    ...useCases.map((useCase) => ({
-      name: useCase,
-      count: templates.filter(({ metadata }) => metadata.useCase === useCase)
-        .length,
+    ...categories.map((category) => ({
+      name: category,
+      count: templates.filter(
+        ({ metadata }) =>
+          getProjectEvaluatorTemplateCategoryLabel(metadata.category) ===
+          category
+      ).length,
     })),
   ];
+  const activeCategory = categoryItems.some(
+    ({ name }) => name === selectedCategory
+  )
+    ? selectedCategory
+    : (categoryItems[0]?.name ?? RECOMMENDED_CATEGORY);
   const visibleTemplates = templates.filter(({ metadata }) =>
-    selectedCategory === RECOMMENDED_CATEGORY
+    activeCategory === RECOMMENDED_CATEGORY
       ? metadata.recommended
-      : metadata.useCase === selectedCategory
+      : getProjectEvaluatorTemplateCategoryLabel(metadata.category) ===
+        activeCategory
   );
   const selectedTemplate =
     visibleTemplates.find(
@@ -99,7 +116,7 @@ function EvaluatorGallery() {
         </Heading>
         <ul className="project-evaluator-gallery__category-list">
           {categoryItems.map(({ name, count }) => {
-            const isSelected = name === selectedCategory;
+            const isSelected = name === activeCategory;
             return (
               <li key={name}>
                 <button
@@ -147,7 +164,7 @@ function EvaluatorGallery() {
           level={2}
           css={sectionHeadingCSS}
         >
-          {selectedCategory}
+          {activeCategory}
         </Heading>
         <ul className="project-evaluator-gallery__template-list">
           {visibleTemplates.map(({ config, metadata }) => {
@@ -212,21 +229,25 @@ function EvaluatorTemplateDetails({
         <Heading level={2}>{config.name}</Heading>
         <Flex direction="row" gap="size-75" wrap>
           <Badge size="S">{metadata.kind}</Badge>
-          <Badge size="S">{metadata.useCase}</Badge>
+          <Badge size="S">
+            {getProjectEvaluatorTemplateCategoryLabel(metadata.category)}
+          </Badge>
         </Flex>
         <Text size="S" color="text-700">
           {config.description}
         </Text>
-        {metadata.longDescription ? (
+        {metadata.details ? (
           <Text size="S" color="text-700">
-            {metadata.longDescription}
+            {metadata.details}
           </Text>
         ) : null}
       </Flex>
       <dl className="project-evaluator-gallery__definition-list">
         <div>
           <dt>Scope</dt>
-          <dd>{capitalize(metadata.scope)}</dd>
+          <dd>
+            {metadata.scope ? capitalize(metadata.scope.toLowerCase()) : "—"}
+          </dd>
         </div>
         <div>
           <dt>Optimization</dt>
