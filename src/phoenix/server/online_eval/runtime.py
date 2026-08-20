@@ -22,7 +22,6 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
-from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
@@ -49,7 +48,6 @@ class OnlineEvalRuntime:
         self.consumer: Optional[OnlineEvalConsumer] = None
         self.session_consumer: Optional[OnlineEvalConsumer] = None
         self.session_sweeper: Optional[SessionEvalSweeper] = None
-        self.event_drain: Optional[EventDrain] = None
         self._stack: Optional[AsyncExitStack] = None
         if read_only:
             return
@@ -92,7 +90,6 @@ class OnlineEvalRuntime:
             tracer_factory=tracer_factory,
         )
         self.session_sweeper = SessionEvalSweeper(db)
-        self.event_drain = EventDrain(db)
 
     @property
     def daemons(self) -> tuple[DaemonTask, ...]:
@@ -102,7 +99,6 @@ class OnlineEvalRuntime:
             self.session_consumer,
             self.producer,
             self.session_sweeper,
-            self.event_drain,
         )
         return tuple(daemon for daemon in ordered if daemon is not None)
 

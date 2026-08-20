@@ -96,7 +96,6 @@ from phoenix.server.online_eval.tracing import (
     PROJECT_EVALUATOR_ID_ATTRIBUTE,
     PROJECT_EVALUATOR_NAME_ATTRIBUTE,
 )
-from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
@@ -3027,7 +3026,6 @@ async def test_an_online_eval_annotation_requests_every_matching_criteria_includ
         ),
     )
     assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer")
-    await EventDrain(db)._tick()
 
     async with db() as session:
         requests = list(
@@ -3044,16 +3042,21 @@ async def test_an_online_eval_annotation_requests_every_matching_criteria_includ
     assert annotation.metadata_["phoenix.online_eval.scheduling_origin"] == "ON_DEMAND"
 
 
-async def test_every_evaluator_output_is_announced_as_its_own_event(
+async def test_every_evaluator_output_is_matched_on_its_own(
     db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A rule authored against a two-output evaluator's second output must be able to
-    fire, so each output is announced separately and keyed separately."""
+    fire, so each output is matched on its own."""
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
+    ingested_at = datetime.now(timezone.utc) - timedelta(minutes=10)
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
-        span = await _add_span(session, trace)
+        project_session.last_span_ingested_at = ingested_at
+        trace = await _add_trace(session, project, project_session, start_time=ingested_at)
+        span = await _add_span(session, trace, start_time=ingested_at)
     evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
     _, watching_criteria_id = await _seed_builtin_criteria(
         db,
@@ -3065,9 +3068,10 @@ async def test_every_evaluator_output_is_announced_as_its_own_event(
             models.ProjectEvaluatorTrigger(
                 criteria_id=watching_criteria_id,
                 event_kind="annotation_upserted",
+                predicates={"type": "annotation_upserted", "name": "safety"},
             )
         )
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
     coordinator = DbEvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     executor = _executor(db)
@@ -3082,10 +3086,11 @@ async def test_every_evaluator_output_is_announced_as_its_own_event(
     )
 
     async with db() as session:
-        events = list(
-            await session.scalars(select(models.EvaluatorEvent).order_by(models.EvaluatorEvent.id))
+        requests = list(
+            await session.scalars(
+                select(models.EvaluationRequest).order_by(models.EvaluationRequest.id)
+            )
         )
-    assert sorted(event.payload["name"] for event in events) == ["quality", "safety"]
-    # One occurrence per annotation, each naming the publication that wrote it.
-    assert len({event.occurrence_key for event in events}) == 2
-    assert all(event.occurrence_key.endswith(f":work-unit:{unit_id}") for event in events)
+    assert [request.criteria_id for request in requests] == [watching_criteria_id]
+    # The rule names the second output, so only that annotation asked for anything.
+    assert requests[0].requested_generation == 1

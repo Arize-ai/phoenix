@@ -138,10 +138,12 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
     assert await coordinator.complete(work_unit_id=unit_ids[0], claimed_by="consumer-1")
 
 
-async def _events(db: DbSessionFactory) -> list[models.EvaluatorEvent]:
+async def _requests(db: DbSessionFactory) -> list[models.EvaluationRequest]:
     async with db() as session:
         return list(
-            await session.scalars(select(models.EvaluatorEvent).order_by(models.EvaluatorEvent.id))
+            await session.scalars(
+                select(models.EvaluationRequest).order_by(models.EvaluationRequest.id)
+            )
         )
 
 
@@ -160,7 +162,7 @@ async def test_completing_a_unit_only_transitions_it_and_announces_nothing(
     assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-1")
 
     assert (await _get_unit(db, unit_id)).status == "DONE"
-    assert await _events(db) == []
+    assert await _requests(db) == []
 
 
 async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(

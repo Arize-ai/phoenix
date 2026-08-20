@@ -1,7 +1,7 @@
 """End-to-end wiring tests for the online-eval runtime behind
 ``PHOENIX_ONLINE_EVAL_ENABLED``: the enabled app composes one runtime owning the
-producer, both consumers, the session sweeper, and the event drain, and a seeded
-criteria flows all the way to a published evaluation.
+producer, both consumers, and the session sweeper, and a seeded criteria flows all
+the way to a published evaluation.
 """
 
 import asyncio
@@ -36,7 +36,6 @@ from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.runtime import OnlineEvalRuntime
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
-from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from tests.unit.conftest import (
     TestBulkInserter,
@@ -196,11 +195,9 @@ async def test_session_evaluation_runs_unless_it_is_turned_off(
     if session_daemons_expected:
         assert isinstance(runtime.session_sweeper, SessionEvalSweeper)
         assert isinstance(runtime.session_consumer, OnlineEvalConsumer)
-        assert isinstance(runtime.event_drain, EventDrain)
     else:
         assert runtime.session_sweeper is None
         assert runtime.session_consumer is None
-        assert runtime.event_drain is None
 
 
 @pytest.mark.parametrize(
@@ -404,9 +401,7 @@ async def test_an_annotation_drives_a_session_evaluation_end_to_end(
         # Every daemon shares the fixture's one connection, so they are quiesced before
         # this test drives the database itself.
         await runtime.stop()
-        drain = runtime.event_drain
         sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
-        assert drain is not None
         assert sweeper is not None and session_consumer is not None
 
         project, _, span = await _seed_quiet_session(db)
@@ -432,7 +427,6 @@ async def test_an_annotation_drives_a_session_evaluation_end_to_end(
             )
         assert response.status_code == 200
 
-        await drain._tick()
         await sweeper._tick()
         await session_consumer._cycle()
 
@@ -447,7 +441,7 @@ async def test_a_published_span_evaluation_drives_a_session_evaluation_end_to_en
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A span evaluator's annotation reaches a published session evaluation through the
-    composed runtime: span consumer -> drain -> sweeper -> session consumer.
+    composed runtime: span consumer -> sweeper -> session consumer.
     """
     _enable_online_eval(monkeypatch)
     _patch_playground_client(monkeypatch, _StubLLMClient())
@@ -460,9 +454,9 @@ async def test_a_published_span_evaluation_drives_a_session_evaluation_end_to_en
         assert isinstance(runtime, OnlineEvalRuntime)
         await stack.enter_async_context(LifespanManager(app))
         await runtime.stop()
-        consumer, drain = runtime.consumer, runtime.event_drain
+        consumer = runtime.consumer
         sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
-        assert consumer is not None and drain is not None
+        assert consumer is not None
         assert sweeper is not None and session_consumer is not None
 
         project, _, span = await _seed_quiet_session(db)
@@ -474,7 +468,6 @@ async def test_a_published_span_evaluation_drives_a_session_evaluation_end_to_en
         await _materialize_unit(db, span.id, span_evaluator_id, span_criteria_id)
 
         await consumer._cycle()
-        await drain._tick()
         await sweeper._tick()
         await session_consumer._cycle()
 
@@ -539,9 +532,7 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
         assert isinstance(runtime, OnlineEvalRuntime)
         await stack.enter_async_context(LifespanManager(app))
         await runtime.stop()
-        drain = runtime.event_drain
         sweeper, session_consumer = runtime.session_sweeper, runtime.session_consumer
-        assert drain is not None
         assert sweeper is not None and session_consumer is not None
 
         project, project_session, _ = await _seed_quiet_session(db)
@@ -556,7 +547,6 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
         await _add_trigger(db, criteria_id, event_kind="annotation_upserted")
 
         await _add_session_annotation(db, project_session, "A")
-        await drain._tick()
         await sweeper._tick()
 
         # The ask was recorded and is being held, not answered and not declined.
@@ -571,7 +561,6 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
         )
 
         await _add_session_annotation(db, project_session, "B")
-        await drain._tick()
         await sweeper._tick()
         await session_consumer._cycle()
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, ClassVar, Optional
 
@@ -117,12 +118,20 @@ async def _rules_exist_for_event_kind(
 
 async def annotation_rules_exist(session: AsyncSession, *, project_id: int) -> bool:
     """Whether any valid live rule fires on annotations in the project; annotation writes
-    append events only when one does."""
+    load rules only when one does."""
     return await _rules_exist_for_event_kind(session, "annotation_upserted", project_id)
 
 
-async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
-    """Read every valid rule that can fire right now; invalid JSON is logged and omitted."""
+async def load_rules(
+    session: AsyncSession,
+    *,
+    project_ids: Iterable[int],
+) -> tuple[TriggerRule, ...]:
+    """Read every valid rule that can fire right now in `project_ids`; invalid JSON is
+    logged and omitted."""
+    ids = sorted(set(project_ids))
+    if not ids:
+        return ()
     rows = await session.execute(
         _live_rules(
             models.ProjectEvaluatorTrigger.id,
@@ -131,7 +140,7 @@ async def load_rules(session: AsyncSession) -> tuple[TriggerRule, ...]:
             models.ProjectEvaluatorCriteria.evaluation_target,
             models.ProjectEvaluatorTrigger.event_kind,
             _raw_predicates,
-        )
+        ).where(models.ProjectEvaluatorCriteria.project_id.in_(ids))
     )
     rules: list[TriggerRule] = []
     for row in rows:

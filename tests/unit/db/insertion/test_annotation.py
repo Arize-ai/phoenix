@@ -1,8 +1,13 @@
+from datetime import datetime, timezone
 from secrets import token_hex
 
 import pytest
 from sqlalchemy import select
 
+from phoenix.config import (
+    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
+    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
+)
 from phoenix.db import models
 from phoenix.db.eval_work import ONLINE_EVAL_IDENTIFIER_PREFIX
 from phoenix.db.helpers import SupportedSQLDialect
@@ -12,10 +17,18 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
-async def _seed_event_target(db: DbSessionFactory) -> models.Span:
+@pytest.fixture(autouse=True)
+def session_evaluation_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
+
+
+async def _seed_annotation_target(db: DbSessionFactory) -> models.Span:
+    """A span whose annotations route to a live session in a project carrying one rule."""
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
+        project_session.last_span_ingested_at = datetime.now(timezone.utc)
         trace = await _add_trace(session, project, project_session)
         span = await _add_span(session, trace)
         evaluator = models.BuiltinEvaluator(
@@ -61,8 +74,16 @@ def _record(span_rowid: int, *, label: str, identifier: str = "") -> dict[str, o
     }
 
 
-async def test_upsert_reports_created_then_updated(db: DbSessionFactory) -> None:
-    span = await _seed_event_target(db)
+async def _requests(db: DbSessionFactory) -> list[models.EvaluationRequest]:
+    async with db() as session:
+        rows = await session.scalars(
+            select(models.EvaluationRequest).order_by(models.EvaluationRequest.id)
+        )
+        return list(rows)
+
+
+async def test_a_write_matching_a_rule_asks_for_an_evaluation(db: DbSessionFactory) -> None:
+    span = await _seed_annotation_target(db)
 
     async with db() as session:
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -73,38 +94,13 @@ async def test_upsert_reports_created_then_updated(db: DbSessionFactory) -> None
             dialect=dialect,
             unique_by=("name", "span_rowid", "identifier"),
         )
-        await upsert_annotations(
-            session,
-            _record(span.id, label="correct"),
-            table=models.SpanAnnotation,
-            dialect=dialect,
-            unique_by=("name", "span_rowid", "identifier"),
-        )
 
-    async with db() as session:
-        events = list(
-            await session.scalars(select(models.EvaluatorEvent).order_by(models.EvaluatorEvent.id))
-        )
-    assert [event.payload["change"] for event in events] == ["created", "updated"]
-    assert [event.payload["label"] for event in events] == ["incorrect", "correct"]
-    assert set(events[0].payload) == {
-        "annotation_target",
-        "annotation_id",
-        "target_rowid",
-        "change",
-        "updated_at",
-        "name",
-        "label",
-        "score",
-        "annotator_kind",
-        "source",
-        "user_id",
-        "identifier",
-    }
+    (request,) = await _requests(db)
+    assert request.requested_generation == 1
 
 
-async def test_annotation_and_event_roll_back_together(db: DbSessionFactory) -> None:
-    span = await _seed_event_target(db)
+async def test_annotation_and_request_roll_back_together(db: DbSessionFactory) -> None:
+    span = await _seed_annotation_target(db)
 
     with pytest.raises(RuntimeError, match="roll back"):
         async with db() as session:
@@ -117,11 +113,11 @@ async def test_annotation_and_event_roll_back_together(db: DbSessionFactory) -> 
 
     async with db() as session:
         assert await session.scalar(select(models.SpanAnnotation.id)) is None
-        assert await session.scalar(select(models.EvaluatorEvent.id)) is None
+    assert await _requests(db) == []
 
 
-async def test_online_eval_annotation_appends_an_event(db: DbSessionFactory) -> None:
-    span = await _seed_event_target(db)
+async def test_online_eval_annotation_asks_like_any_other_write(db: DbSessionFactory) -> None:
+    span = await _seed_annotation_target(db)
 
     async with db() as session:
         await insert_annotations(
@@ -136,11 +132,11 @@ async def test_online_eval_annotation_appends_an_event(db: DbSessionFactory) -> 
 
     async with db() as session:
         assert await session.scalar(select(models.SpanAnnotation.id)) is not None
-        assert await session.scalar(select(models.EvaluatorEvent.id)) is not None
+    assert len(await _requests(db)) == 1
 
 
 async def test_annotation_rule_gate_is_project_scoped(db: DbSessionFactory) -> None:
-    await _seed_event_target(db)
+    await _seed_annotation_target(db)
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
@@ -156,4 +152,4 @@ async def test_annotation_rule_gate_is_project_scoped(db: DbSessionFactory) -> N
 
     async with db() as session:
         assert await session.scalar(select(models.SpanAnnotation.id)) is not None
-        assert await session.scalar(select(models.EvaluatorEvent.id)) is None
+    assert await _requests(db) == []

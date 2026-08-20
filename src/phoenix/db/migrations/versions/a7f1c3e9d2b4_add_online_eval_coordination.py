@@ -15,11 +15,9 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
 from phoenix.db.eval_work import (
-    evaluation_target_check,
     evaluator_event_kind_check,
     live_eval_session_work_index_predicate,
     terminal_eval_session_work_index_predicate,
-    undrained_evaluator_event_predicate,
 )
 
 _Integer = sa.Integer().with_variant(
@@ -164,104 +162,6 @@ def _create_session_work_units_table() -> None:
     )
 
 
-def _create_evaluator_events_table() -> None:
-    op.create_table(
-        "evaluator_events",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "kind",
-            sa.String(),
-            sa.CheckConstraint(evaluator_event_kind_check("kind"), name="valid_event_kind"),
-            nullable=False,
-        ),
-        sa.Column("occurrence_key", sa.String(), nullable=False),
-        sa.Column(
-            "project_id",
-            _Integer,
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "evaluation_target",
-            sa.String(),
-            sa.CheckConstraint(
-                evaluation_target_check("evaluation_target"),
-                name="valid_evaluation_target",
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "span_rowid",
-            _Integer,
-            sa.ForeignKey("spans.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column(
-            "trace_rowid",
-            _Integer,
-            sa.ForeignKey("traces.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column(
-            "project_session_rowid",
-            _Integer,
-            sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column("payload", JSON_, nullable=False),
-        sa.Column("acknowledged_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.UniqueConstraint("kind", "occurrence_key"),
-        sa.CheckConstraint(
-            "(evaluation_target = 'SPAN' AND span_rowid IS NOT NULL"
-            " AND trace_rowid IS NULL AND project_session_rowid IS NULL)"
-            " OR (evaluation_target = 'TRACE' AND trace_rowid IS NOT NULL"
-            " AND span_rowid IS NULL AND project_session_rowid IS NULL)"
-            " OR (evaluation_target = 'SESSION' AND project_session_rowid IS NOT NULL"
-            " AND span_rowid IS NULL AND trace_rowid IS NULL)",
-            name="valid_target_key",
-        ),
-    )
-    op.create_index(
-        "ix_evaluator_events_undrained",
-        "evaluator_events",
-        ["id"],
-        postgresql_where=sa.text(undrained_evaluator_event_predicate()),
-        sqlite_where=sa.text(undrained_evaluator_event_predicate()),
-    )
-    op.create_index(
-        "ix_evaluator_events_project_id",
-        "evaluator_events",
-        ["project_id"],
-    )
-    op.create_index(
-        "ix_evaluator_events_span_rowid",
-        "evaluator_events",
-        ["span_rowid"],
-        postgresql_where=sa.text("span_rowid IS NOT NULL"),
-        sqlite_where=sa.text("span_rowid IS NOT NULL"),
-    )
-    op.create_index(
-        "ix_evaluator_events_trace_rowid",
-        "evaluator_events",
-        ["trace_rowid"],
-        postgresql_where=sa.text("trace_rowid IS NOT NULL"),
-        sqlite_where=sa.text("trace_rowid IS NOT NULL"),
-    )
-    op.create_index(
-        "ix_evaluator_events_project_session_rowid",
-        "evaluator_events",
-        ["project_session_rowid"],
-        postgresql_where=sa.text("project_session_rowid IS NOT NULL"),
-        sqlite_where=sa.text("project_session_rowid IS NOT NULL"),
-    )
-
-
 def _create_project_evaluator_triggers_table() -> None:
     op.create_table(
         "project_evaluator_triggers",
@@ -317,7 +217,12 @@ def _create_evaluation_requests_table() -> None:
         ),
         sa.Column("requested_generation", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("materialized_generation", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("force_requested_generation", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "force_requested",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
         sa.Column(
             "materialized_by_session_work_unit_id",
             _Integer,
@@ -330,7 +235,6 @@ def _create_evaluation_requests_table() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.Column("requested_by", sa.String(), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -351,11 +255,6 @@ def _create_evaluation_requests_table() -> None:
         sa.CheckConstraint(
             "0 <= materialized_generation AND materialized_generation <= requested_generation",
             name="valid_materialized_generation",
-        ),
-        sa.CheckConstraint(
-            "0 <= force_requested_generation "
-            "AND force_requested_generation <= requested_generation",
-            name="valid_force_requested_generation",
         ),
     )
     op.create_index(
@@ -630,7 +529,6 @@ def upgrade() -> None:
         ["criteria_id"],
     )
     _create_session_work_units_table()
-    _create_evaluator_events_table()
     _create_project_evaluator_triggers_table()
     _create_evaluation_requests_table()
 
@@ -647,13 +545,6 @@ def downgrade() -> None:
         table_name="project_evaluator_triggers",
     )
     op.drop_table("project_evaluator_triggers")
-
-    op.drop_index("ix_evaluator_events_project_session_rowid", table_name="evaluator_events")
-    op.drop_index("ix_evaluator_events_trace_rowid", table_name="evaluator_events")
-    op.drop_index("ix_evaluator_events_span_rowid", table_name="evaluator_events")
-    op.drop_index("ix_evaluator_events_project_id", table_name="evaluator_events")
-    op.drop_index("ix_evaluator_events_undrained", table_name="evaluator_events")
-    op.drop_table("evaluator_events")
 
     op.drop_index("ix_eval_session_work_units_criteria_id", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")

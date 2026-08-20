@@ -743,6 +743,7 @@ async def mark_session_content_incomplete(
         .values(
             materialized_generation=models.EvaluationRequest.requested_generation,
             materialized_by_session_work_unit_id=None,
+            force_requested=False,
         )
     )
     await session.execute(

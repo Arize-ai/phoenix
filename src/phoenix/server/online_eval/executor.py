@@ -1038,7 +1038,6 @@ class OnlineEvalExecutor:
                 dialect=self._db.dialect,
                 unique_by=unique_by,
                 on_conflict=on_conflict,
-                write_token=f"work-unit:{unit.work_unit_id}",
             )
             inserted_ids = [annotation.id for annotation in written]
 

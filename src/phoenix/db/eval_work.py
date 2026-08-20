@@ -74,9 +74,3 @@ def evaluation_target_check(column: str) -> str:
     """SQL text constraining ``column`` to ``EVALUATION_TARGETS``."""
     targets = ", ".join(f"'{target}'" for target in EVALUATION_TARGETS)
     return f"{column} IN ({targets})"
-
-
-def undrained_evaluator_event_predicate() -> str:
-    """SQL text selecting events the drain has not acknowledged yet; the drain query, the
-    model's index, and the migration that creates it must all spell it the same way."""
-    return "acknowledged_at IS NULL"

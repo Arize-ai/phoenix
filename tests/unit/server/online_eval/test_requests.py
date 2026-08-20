@@ -90,35 +90,64 @@ async def _seed_pair(session: AsyncSession) -> _Pair:
     )
 
 
-async def test_requesting_an_evaluation_advances_the_generation_and_sticks_the_force_boundary(
+async def test_requesting_an_evaluation_advances_the_generation_and_latches_the_force_flag(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
         pair = await _seed_pair(session)
 
     async with db() as session:
-        first = await request_evaluation(
-            session, pair.target, pair.criteria_id, requested_by="tester"
-        )
+        first = await request_evaluation(session, pair.target, pair.criteria_id)
     assert first.requested_generation == 1
-    assert first.force_requested_generation == 0
 
     async with db() as session:
         forced = await request_evaluation(session, pair.target, pair.criteria_id, force=True)
     assert forced.requested_generation == 2
-    assert forced.force_requested_generation == 2
 
+    # A later unforced ask does not unset what the forced one latched.
     async with db() as session:
         unforced = await request_evaluation(session, pair.target, pair.criteria_id)
     assert unforced.requested_generation == 3
-    assert unforced.force_requested_generation == 2
 
     async with db() as session:
         (pending,) = await select_pending_requests(session, criteria_ids=[pair.criteria_id])
     assert pending.evaluation_request_id == first.evaluation_request_id
     assert pending.observed_generation == 3
-    assert pending.materialized_generation == 0
     assert pending.forced is True
+
+
+async def test_the_force_flag_clears_only_when_no_later_ask_raced_the_acknowledgment(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        pair = await _seed_pair(session)
+
+    async with db() as session:
+        forced = await request_evaluation(session, pair.target, pair.criteria_id, force=True)
+        # An unforced ask arrives after the eligibility read observed the forced one.
+        await request_evaluation(session, pair.target, pair.criteria_id)
+        await acknowledge_materialization(
+            session,
+            evaluation_request_id=forced.evaluation_request_id,
+            observed_generation=forced.requested_generation,
+            session_work_unit_id=pair.work_unit_id,
+        )
+
+    async with db() as session:
+        (pending,) = await select_pending_requests(session, criteria_ids=[pair.criteria_id])
+        assert pending.forced is True
+
+        await acknowledge_materialization(
+            session,
+            evaluation_request_id=pending.evaluation_request_id,
+            observed_generation=pending.observed_generation,
+            session_work_unit_id=pair.work_unit_id,
+        )
+
+    async with db() as session:
+        answered = await session.get(models.EvaluationRequest, forced.evaluation_request_id)
+        assert answered is not None
+        assert answered.force_requested is False
 
 
 async def test_a_batch_advances_one_generation_per_ask_and_none_for_a_rejected_pair(
@@ -167,7 +196,7 @@ async def test_standing_a_session_down_closes_its_request_and_bars_the_next_one(
             observed_generation=requested.requested_generation,
             session_work_unit_id=pair.work_unit_id,
         )
-        await request_evaluation(session, pair.target, pair.criteria_id)
+        await request_evaluation(session, pair.target, pair.criteria_id, force=True)
 
     async with db() as session:
         await mark_session_content_incomplete(session, [pair.project_session_rowid])
@@ -178,6 +207,7 @@ async def test_standing_a_session_down_closes_its_request_and_bars_the_next_one(
         assert closed.requested_generation == 2
         assert closed.materialized_generation == 2
         assert closed.materialized_by_session_work_unit_id is None
+        assert closed.force_requested is False
         assert await select_pending_requests(session, criteria_ids=[pair.criteria_id]) == ()
 
     async with db() as session:

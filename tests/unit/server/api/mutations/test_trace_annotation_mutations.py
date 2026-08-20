@@ -3,11 +3,9 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
-from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -92,7 +90,6 @@ class TestTraceAnnotationMutations:
     async def test_trace_annotations_create_upsert_patch_delete(
         self,
         _trace_data: models.Trace,
-        db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
     ) -> None:
         """End-to-end CRUD:
@@ -104,33 +101,6 @@ class TestTraceAnnotationMutations:
         - Delete
         """
         trace_gid = str(GlobalID("Trace", str(_trace_data.id)))
-
-        async with db() as session:
-            evaluator = models.BuiltinEvaluator(
-                name=Identifier(root=f"eval-{token_hex(4)}"),
-                kind="BUILTIN",
-                key=token_hex(8),
-                input_schema={},
-                output_configs=[],
-            )
-            session.add(evaluator)
-            await session.flush()
-            criteria = models.ProjectEvaluatorCriteria(
-                project_id=_trace_data.project_rowid,
-                evaluator_id=evaluator.id,
-                name=Identifier(root=f"criteria-{token_hex(4)}"),
-                filter_condition="",
-                sampling_rate=1.0,
-                evaluation_target="SESSION",
-            )
-            session.add(criteria)
-            await session.flush()
-            session.add(
-                models.ProjectEvaluatorTrigger(
-                    criteria_id=criteria.id,
-                    event_kind="annotation_upserted",
-                )
-            )
 
         # 1) Basic create (no identifier)
         create_input: dict[str, Any] = {
@@ -255,16 +225,6 @@ class TestTraceAnnotationMutations:
         assert patched["score"] == 3.5
         assert patched["explanation"] == "Patched explanation"
         assert patched["metadata"] == {"patched": True}
-
-        patched_id = int(GlobalID.from_id(patched["id"]).node_id)
-        async with db() as session:
-            events = list(
-                await session.scalars(
-                    select(models.EvaluatorEvent).order_by(models.EvaluatorEvent.id)
-                )
-            )
-        patched_events = [event for event in events if event.payload["annotation_id"] == patched_id]
-        assert patched_events[-1].payload["change"] == "updated"
 
         delete_input = {"annotationIds": [ann4["id"]]}
         res_delete = await gql_client.execute(

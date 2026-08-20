@@ -59,7 +59,6 @@ from phoenix.db.eval_work import (
     evaluator_event_kind_check,
     live_eval_session_work_index_predicate,
     terminal_eval_session_work_index_predicate,
-    undrained_evaluator_event_predicate,
 )
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
@@ -3874,84 +3873,6 @@ class EvalSessionWorkUnit(HasId):
     )
 
 
-class EvaluatorEvent(HasId):
-    """Append-only log of things trigger rules can match on, one row per occurrence;
-    evaluation_target names the entity to evaluate, the payload what happened to it."""
-
-    __tablename__ = "evaluator_events"
-    kind: Mapped[EvaluatorEventKind] = mapped_column(
-        CheckConstraint(evaluator_event_kind_check("kind"), name="valid_event_kind"),
-        nullable=False,
-    )
-    occurrence_key: Mapped[str] = mapped_column(String, nullable=False)
-    project_id: Mapped[int] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    evaluation_target: Mapped[EvaluationTarget] = mapped_column(
-        CheckConstraint(
-            evaluation_target_check("evaluation_target"),
-            name="valid_evaluation_target",
-        ),
-        nullable=False,
-    )
-    span_rowid: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("spans.id", ondelete="CASCADE"),
-    )
-    trace_rowid: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("traces.id", ondelete="CASCADE"),
-    )
-    project_session_rowid: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("project_sessions.id", ondelete="CASCADE"),
-    )
-    payload: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
-    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-
-    project: Mapped["Project"] = relationship("Project")
-    span: Mapped[Optional["Span"]] = relationship("Span")
-    trace: Mapped[Optional["Trace"]] = relationship("Trace")
-    project_session: Mapped[Optional["ProjectSession"]] = relationship("ProjectSession")
-
-    __table_args__ = (
-        UniqueConstraint("kind", "occurrence_key"),
-        CheckConstraint(
-            "(evaluation_target = 'SPAN' AND span_rowid IS NOT NULL"
-            " AND trace_rowid IS NULL AND project_session_rowid IS NULL)"
-            " OR (evaluation_target = 'TRACE' AND trace_rowid IS NOT NULL"
-            " AND span_rowid IS NULL AND project_session_rowid IS NULL)"
-            " OR (evaluation_target = 'SESSION' AND project_session_rowid IS NOT NULL"
-            " AND span_rowid IS NULL AND trace_rowid IS NULL)",
-            name="valid_target_key",
-        ),
-        Index(
-            "ix_evaluator_events_undrained",
-            "id",
-            postgresql_where=text(undrained_evaluator_event_predicate()),
-            sqlite_where=text(undrained_evaluator_event_predicate()),
-        ),
-        Index(
-            "ix_evaluator_events_span_rowid",
-            "span_rowid",
-            postgresql_where=text("span_rowid IS NOT NULL"),
-            sqlite_where=text("span_rowid IS NOT NULL"),
-        ),
-        Index(
-            "ix_evaluator_events_trace_rowid",
-            "trace_rowid",
-            postgresql_where=text("trace_rowid IS NOT NULL"),
-            sqlite_where=text("trace_rowid IS NOT NULL"),
-        ),
-        Index(
-            "ix_evaluator_events_project_session_rowid",
-            "project_session_rowid",
-            postgresql_where=text("project_session_rowid IS NOT NULL"),
-            sqlite_where=text("project_session_rowid IS NOT NULL"),
-        ),
-    )
-
-
 class ProjectEvaluatorTrigger(HasId):
     """One rule saying which events should make its criteria run; NULL predicates fire on
     every event of that kind."""
@@ -3997,14 +3918,13 @@ class EvaluationRequest(HasId):
     materialized_generation: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
-    force_requested_generation: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
+    force_requested: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
     )
     materialized_by_session_work_unit_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("eval_session_work_units.id", ondelete="SET NULL"),
     )
     requested_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    requested_by: Mapped[Optional[str]] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -4025,11 +3945,6 @@ class EvaluationRequest(HasId):
         CheckConstraint(
             "0 <= materialized_generation AND materialized_generation <= requested_generation",
             name="valid_materialized_generation",
-        ),
-        CheckConstraint(
-            "0 <= force_requested_generation AND force_requested_generation <= "
-            "requested_generation",
-            name="valid_force_requested_generation",
         ),
         Index(
             "ix_evaluation_requests_criteria_id_project_session_rowid",

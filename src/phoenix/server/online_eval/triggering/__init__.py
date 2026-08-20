@@ -1,1 +1,1 @@
-"""Persist trigger demand across restarts as counters fed by durable event occurrences."""
+"""Turn annotation writes into standing evaluation demand by matching project rules."""

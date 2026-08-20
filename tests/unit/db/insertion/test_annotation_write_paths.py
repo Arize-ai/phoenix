@@ -15,8 +15,8 @@ _ANNOTATION_FIELDS = {
     "user_id",
 }
 _SHARED_MODULE = Path("db/insertion/annotation.py")
-# The executor publishes through a fenced work-unit transition, and its explicit
-# evaluator-annotation event gate pairs with the shared seam's self-exclusion guard.
+# The executor names the annotation table to pick a conflict target, then writes
+# through the shared seam inside its fenced work-unit transition.
 _SANCTIONED_CORE_WRITERS = frozenset({Path("server/online_eval/executor.py")})
 
 

@@ -334,77 +334,6 @@ CREATE INDEX ix_spans_user_id ON spans (JSON_EXTRACT(attributes, '$."user"."id"'
     WHERE JSON_EXTRACT(attributes, '$."user"."id"') IS NOT NULL;
 
 
--- Table: evaluator_events
--- -----------------------
-CREATE TABLE evaluator_events (
-    id INTEGER NOT NULL,
-    kind VARCHAR NOT NULL
-        CONSTRAINT "ck_evaluator_events_`valid_event_kind`"
-        CHECK (kind IN ('annotation_upserted')),
-    occurrence_key VARCHAR NOT NULL,
-    project_id INTEGER NOT NULL,
-    evaluation_target VARCHAR NOT NULL
-        CONSTRAINT "ck_evaluator_events_`valid_evaluation_target`"
-        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
-    span_rowid INTEGER,
-    trace_rowid INTEGER,
-    project_session_rowid INTEGER,
-    payload JSONB NOT NULL,
-    acknowledged_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_evaluator_events PRIMARY KEY (id),
-    CONSTRAINT uq_evaluator_events_kind_occurrence_key UNIQUE (kind, occurrence_key),
-    CONSTRAINT "ck_evaluator_events_`valid_target_key`"
-        CHECK (
-            (
-                evaluation_target = 'SPAN'
-                AND span_rowid IS NOT NULL
-                AND trace_rowid IS NULL
-                AND project_session_rowid IS NULL
-            )
-            OR (
-                evaluation_target = 'TRACE'
-                AND trace_rowid IS NOT NULL
-                AND span_rowid IS NULL
-                AND project_session_rowid IS NULL
-            )
-            OR (
-                evaluation_target = 'SESSION'
-                AND project_session_rowid IS NOT NULL
-                AND span_rowid IS NULL
-                AND trace_rowid IS NULL
-            )
-        ),
-    CONSTRAINT fk_evaluator_events_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES projects (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_events_project_session_rowid_project_sessions
-        FOREIGN KEY (project_session_rowid)
-        REFERENCES project_sessions (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_events_span_rowid_spans
-        FOREIGN KEY (span_rowid)
-        REFERENCES spans (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_events_trace_rowid_traces
-        FOREIGN KEY (trace_rowid)
-        REFERENCES traces (id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_evaluator_events_project_id ON evaluator_events (project_id);
-CREATE INDEX ix_evaluator_events_project_session_rowid ON evaluator_events
-    (project_session_rowid)
-    WHERE project_session_rowid IS NOT NULL;
-CREATE INDEX ix_evaluator_events_span_rowid ON evaluator_events (span_rowid)
-    WHERE span_rowid IS NOT NULL;
-CREATE INDEX ix_evaluator_events_trace_rowid ON evaluator_events (trace_rowid)
-    WHERE trace_rowid IS NOT NULL;
-CREATE INDEX ix_evaluator_events_undrained ON evaluator_events (id)
-    WHERE acknowledged_at IS NULL;
-
-
 -- Table: span_costs
 -- -----------------
 CREATE TABLE span_costs (
@@ -1490,20 +1419,14 @@ CREATE TABLE evaluation_requests (
     criteria_id INTEGER NOT NULL,
     requested_generation INTEGER DEFAULT '0' NOT NULL,
     materialized_generation INTEGER DEFAULT '0' NOT NULL,
-    force_requested_generation INTEGER DEFAULT '0' NOT NULL,
+    force_requested BOOLEAN DEFAULT false NOT NULL,
     materialized_by_session_work_unit_id INTEGER,
     requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    requested_by VARCHAR,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_evaluation_requests PRIMARY KEY (id),
     CONSTRAINT uq_evaluation_requests_project_session_rowid_criteria_id
         UNIQUE (project_session_rowid, criteria_id),
-    CONSTRAINT "ck_evaluation_requests_`valid_force_requested_generation`"
-        CHECK (
-            0 <= force_requested_generation
-            AND force_requested_generation <= requested_generation
-        ),
     CONSTRAINT "ck_evaluation_requests_`valid_materialized_generation`"
         CHECK (
             0 <= materialized_generation

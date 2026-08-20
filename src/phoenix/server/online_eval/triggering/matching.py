@@ -1,29 +1,47 @@
-"""Evaluate trigger-rule predicates purely in memory over drained events."""
+"""Evaluate trigger-rule predicates purely in memory over annotation writes."""
 
 from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import ClassVar, Optional
 
 from phoenix.db import models
-from phoenix.server.online_eval.triggering.log import DrainedEvent
 from phoenix.server.online_eval.triggering.rules import TriggerRule
+
+
+@dataclass(frozen=True)
+class AnnotationEvent:
+    """An annotation as it stood when it was written, with the entity it routes to.
+    `target_rowid` is that entity's rowid, not the annotated one's."""
+
+    kind: ClassVar[models.EvaluatorEventKind] = "annotation_upserted"
+
+    annotation_id: int
+    annotation_target: models.AnnotationTarget
+    project_id: int
+    evaluation_target: models.EvaluationTarget
+    target_rowid: int
+    change: models.AnnotationChange
+    name: str
+    label: Optional[str] = None
+    score: Optional[float] = None
+    annotator_kind: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class RequestKey:
     """One occurrence demanding one pair be evaluated."""
 
-    event_id: int
+    annotation_id: int
     evaluation_target: models.EvaluationTarget
     target_rowid: int
     criteria_id: int
 
 
 def match_events(
-    events: Iterable[DrainedEvent],
+    events: Iterable[AnnotationEvent],
     rules: Iterable[TriggerRule],
 ) -> tuple[RequestKey, ...]:
     """Resolve which pairs these events demand, in a deterministic order."""
@@ -32,7 +50,7 @@ def match_events(
         by_project_and_kind[(rule.project_id, rule.event_kind)].append(rule)
     keys = {
         RequestKey(
-            event_id=event.event_id,
+            annotation_id=event.annotation_id,
             evaluation_target=event.evaluation_target,
             target_rowid=event.target_rowid,
             criteria_id=rule.criteria_id,
@@ -48,54 +66,31 @@ def match_events(
                 key.evaluation_target,
                 key.target_rowid,
                 key.criteria_id,
-                key.event_id,
+                key.annotation_id,
             ),
         )
     )
 
 
-def _matches(event: DrainedEvent, rule: TriggerRule) -> bool:
+def _matches(event: AnnotationEvent, rule: TriggerRule) -> bool:
     if event.evaluation_target != rule.evaluation_target:
         return False
-    return _matches_annotation(event.payload, rule)
-
-
-def _matches_result(
-    payload: dict[str, Any],
-    *,
-    name: Optional[str],
-    label: Optional[str],
-    score_below: Optional[float],
-    score_above: Optional[float],
-) -> bool:
-    if name is not None and payload.get("name") != name:
+    if rule.name is not None and event.name != rule.name:
         return False
-    if label is not None and payload.get("label") != label:
+    if rule.label is not None and event.label != rule.label:
         return False
-    score = payload.get("score")
-    if score_below is not None and not (score is not None and score < score_below):
-        return False
-    if score_above is not None and not (score is not None and score > score_above):
-        return False
-    return True
-
-
-def _matches_annotation(payload: dict[str, Any], rule: TriggerRule) -> bool:
-    if not _matches_result(
-        payload,
-        name=rule.name,
-        label=rule.label,
-        score_below=rule.score_below,
-        score_above=rule.score_above,
+    if rule.score_below is not None and not (
+        event.score is not None and event.score < rule.score_below
     ):
         return False
-    if rule.annotator_kind is not None and payload.get("annotator_kind") != rule.annotator_kind:
-        return False
-    if rule.annotation_change is not None and payload.get("change") != rule.annotation_change:
-        return False
-    if (
-        rule.annotation_target is not None
-        and payload.get("annotation_target") != rule.annotation_target
+    if rule.score_above is not None and not (
+        event.score is not None and event.score > rule.score_above
     ):
+        return False
+    if rule.annotator_kind is not None and event.annotator_kind != rule.annotator_kind:
+        return False
+    if rule.annotation_change is not None and event.change != rule.annotation_change:
+        return False
+    if rule.annotation_target is not None and event.annotation_target != rule.annotation_target:
         return False
     return True
