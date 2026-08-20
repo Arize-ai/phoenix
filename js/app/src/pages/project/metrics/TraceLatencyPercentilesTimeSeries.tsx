@@ -30,7 +30,7 @@ import {
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import type { EvaluatorScopedProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   PROJECT_METRICS_CHART_SYNC_ID,
   useMetricQueryFetchOptions,
@@ -75,7 +75,8 @@ export function TraceLatencyPercentilesTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
-}: ProjectMetricViewProps) {
+  projectEvaluatorId,
+}: EvaluatorScopedProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
@@ -85,12 +86,14 @@ export function TraceLatencyPercentilesTimeSeries({
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
+        $projectEvaluatorId: ID
       ) {
         project: node(id: $projectId) {
           ... on Project {
             traceLatencyMsPercentileTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
+              projectEvaluatorId: $projectEvaluatorId
             ) {
               data {
                 timestamp
@@ -117,6 +120,7 @@ export function TraceLatencyPercentilesTimeSeries({
         scale,
         utcOffsetMinutes,
       },
+      projectEvaluatorId,
     },
     useMetricQueryFetchOptions()
   );

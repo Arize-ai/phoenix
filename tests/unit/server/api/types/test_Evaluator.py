@@ -2096,3 +2096,131 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
     assert [edge["node"]["name"] for edge in trace_project["spans"]["edges"]] == [
         f"Evaluator: {project_evaluator_ids[0]}"
     ]
+
+
+async def test_project_evaluator_trace_time_series_are_scoped_to_the_evaluator(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """The trace metrics an evaluator's details page charts must count only its
+    own traces, even though every evaluator traces into one shared project."""
+    start = datetime(2024, 1, 1, 12, 30, tzinfo=timezone.utc)
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluators_project = models.Project(name=EVALUATORS_PROJECT_NAME)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluators_project, evaluator])
+        await session.flush()
+        criteria = [
+            models.ProjectEvaluatorCriteria(
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(f"criteria-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+            for _ in range(2)
+        ]
+        session.add_all(criteria)
+        await session.flush()
+        criteria_ids = [c.id for c in criteria]
+        # One trace per evaluator, each with a distinct latency and cost, so a
+        # metric leaking across evaluators changes every assertion below.
+        for criteria_id, latency_seconds, cost in zip(criteria_ids, (10, 100), (1.0, 50.0)):
+            trace = models.Trace(
+                trace_id=token_hex(8),
+                project_rowid=evaluators_project.id,
+                start_time=start,
+                end_time=start + timedelta(seconds=latency_seconds),
+            )
+            session.add(trace)
+            await session.flush()
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                parent_id=None,
+                name=f"Evaluator: {criteria_id}",
+                span_kind="EVALUATOR",
+                start_time=start,
+                end_time=start + timedelta(seconds=latency_seconds),
+                attributes={
+                    "phoenix": {
+                        "evaluator_trace": True,
+                        "project_evaluator_id": str(GlobalID("ProjectEvaluator", str(criteria_id))),
+                    }
+                },
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+            session.add(
+                models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start,
+                    total_cost=cost,
+                    prompt_cost=cost,
+                )
+            )
+        await session.flush()
+
+    response = await gql_client.execute(
+        """query ($id: ID!, $timeRange: TimeRange!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    traceProject {
+                        traceCountByStatusTimeSeries(
+                            timeRange: $timeRange
+                            projectEvaluatorId: $id
+                        ) {
+                            data { totalCount okCount errorCount }
+                        }
+                        traceLatencyMsPercentileTimeSeries(
+                            timeRange: $timeRange
+                            projectEvaluatorId: $id
+                        ) {
+                            data { max }
+                        }
+                        traceTokenCostTimeSeries(
+                            timeRange: $timeRange
+                            projectEvaluatorId: $id
+                        ) {
+                            data { totalCost }
+                        }
+                    }
+                }
+            }
+        }""",
+        variables={
+            "id": str(GlobalID("ProjectEvaluator", str(criteria_ids[0]))),
+            "timeRange": {
+                "start": start.isoformat(),
+                "end": (start + timedelta(hours=1)).isoformat(),
+            },
+        },
+    )
+
+    assert not response.errors and response.data
+    trace_project = response.data["node"]["traceProject"]
+    count_points = [
+        p for p in trace_project["traceCountByStatusTimeSeries"]["data"] if p["totalCount"]
+    ]
+    assert count_points == [{"totalCount": 1, "okCount": 1, "errorCount": 0}]
+    latency_points = [
+        p for p in trace_project["traceLatencyMsPercentileTimeSeries"]["data"] if p["max"]
+    ]
+    assert latency_points == [{"max": 10_000.0}]
+    cost_points = [p for p in trace_project["traceTokenCostTimeSeries"]["data"] if p["totalCost"]]
+    assert cost_points == [{"totalCost": 1.0}]

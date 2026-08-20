@@ -14,9 +14,13 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         id
         name
         enabled
+        evaluationTarget
         evaluator {
           kind
           description
+        }
+        project {
+          id
         }
         traceProject {
           id

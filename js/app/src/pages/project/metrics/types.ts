@@ -19,6 +19,18 @@ export interface ProjectMetricViewProps {
 }
 
 /**
+ * Props for the trace-derived metric charts that can be scoped to a single
+ * project evaluator's traces. Every evaluator traces into one shared project,
+ * so charts on an evaluator's details page must pass the scope; project-wide
+ * pages omit it. Only charts typed with this prop honor the scope — a chart
+ * typed with the plain {@link ProjectMetricViewProps} renders project-wide
+ * data no matter where it is placed.
+ */
+export type EvaluatorScopedProjectMetricViewProps = ProjectMetricViewProps & {
+  projectEvaluatorId?: string;
+};
+
+/**
  * A Relay fetchKey for the metric chart queries. Containers that want their
  * charts to refetch when new data is streamed in (e.g. the strip of charts
  * above the spans table) provide it; elsewhere it is undefined and queries
