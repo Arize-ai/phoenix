@@ -10,17 +10,28 @@ It builds on the session-evaluation pipeline described in
 `server_evaluators.md` and `online-evals.md`: a project evaluator scores
 completed sessions and writes its result back as a session annotation.
 
-## The one rule everything enforces
+## Core constraint
+
+The pipeline consumes its own output: evaluators are triggered by
+annotations and produce annotations, and one annotation can match many
+rules. Without a bound, this feedback structure allows infinite loops and
+unbounded fan-out. The bound is:
 
 An evaluator runs at most once per session per version of that session's
 content, and only newly ingested spans advance the content version.
-Annotations never advance it, so a burst of annotations on one session
-produces at most one new evaluation run. A user can override the rule with a
-forced run, which runs once per request.
 
-Every other mechanism in the pipeline exists to serve or observe this rule,
-never to duplicate it. This is deliberate: safety is enforced at exactly one
-layer, so a reader can audit the guarantee in one place.
+This constraint closes both failure modes:
+
+- **Infinite loops.** An evaluator's result annotation can match a rule,
+  but the resulting request finds the content version unchanged —
+  annotations never advance it — so no new run is scheduled.
+- **Unbounded fan-out.** Any number of matching annotations against one
+  content version produce at most one new run.
+
+A user can override the constraint with a forced run, which runs once per
+request. The constraint is enforced at exactly one layer (the scheduler's
+work-creation step, described below); every other mechanism serves or
+observes it but does not duplicate it.
 
 ## Lifecycle
 
@@ -30,11 +41,11 @@ layer, so a reader can audit the guarantee in one place.
    project's triggers and records an **evaluation request** in the same
    database transaction.
 3. A background **scheduler** turns unanswered requests into **work units**,
-   applying the once-per-content-version rule.
+   applying the once-per-content-version constraint.
 4. An **executor** claims work units, runs the evaluator, and writes the
    result back as a session annotation.
 5. A **retention job** deletes aged bookkeeping rows while preserving the
-   evidence the rule depends on.
+   evidence the constraint depends on.
 
 ## Subsystems
 
@@ -146,8 +157,8 @@ claim and lease fields so replicas cannot double-run it, a bounded retry
 budget, and `evaluated_through` — the content version the run covered.
 
 The newest terminal work unit per triple is the permanent record behind the
-once-per-content-version rule: the scheduler compares the session's latest
-span time against it, and the insert that creates new work re-tests the rule
+once-per-content-version constraint: the scheduler compares the session's
+latest span time against it, and the insert that creates new work re-tests it
 as it runs, so racing passes cannot double-schedule.
 
 ### Execution and results
