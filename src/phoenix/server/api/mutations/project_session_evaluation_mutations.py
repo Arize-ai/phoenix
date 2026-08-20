@@ -24,7 +24,6 @@ from phoenix.server.online_eval.requests import (
     request_evaluation,
 )
 
-# Provenance stamped on requests this mutation records, beside the drain's "trigger".
 _REQUESTED_BY = "user"
 
 _REJECTION_MESSAGES: dict[RequestRejection, str] = {
@@ -128,7 +127,7 @@ class ProjectSessionEvaluationMutationMixin:
 
 
 def _rejection_error(rejection: RequestRejection) -> Exception:
-    """Give each way an ask can be refused its own error, so callers can act on it."""
+    """Give each way an ask can be refused its own error."""
     message = _REJECTION_MESSAGES[rejection]
     if rejection in _NOT_FOUND_REJECTIONS:
         return NotFound(message)

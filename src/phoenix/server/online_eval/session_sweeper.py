@@ -1,23 +1,7 @@
 """Background (ambient) evaluation runs at most once per evaluator configuration,
 content-independent; triggered and requested evaluation re-arms once per content version;
-explicit force always runs.
-
-The leased sweeper makes at most one decision per (session, project_evaluators) pair per tick
-after session activity becomes old enough.
-
-Scheduling is one relation with three scheduling origins. Ambient sweeping proposes a
-pair once its content is complete and quiet, and it has no terminal evidence yet. An
-unfulfilled evaluation request assigns the rule origin, while an unfulfilled forced
-generation assigns the explicit origin. Precedence runs explicit before rule before
-ambient, and a pair receives at most one decision per sweep.
-
-Both the ambient and rule origins gate on the project_evaluators's own session filter, through
-the same compiled branches: a trigger says when to look and the filter says what is in
-scope. They differ in what a miss means. Ambient sweeping is a scan, so a miss is a
-decision it records and moves on from. A request is standing demand, so a miss leaves it
-unfulfilled with nothing written — the session may satisfy the filter later, and the next
-sweep asks again. The explicit origin skips the filter: forcing names a session outright.
-"""
+explicit force always runs. The leased sweeper makes at most one decision per (session,
+project_evaluators) pair per tick, taking explicit over rule over ambient."""
 
 from __future__ import annotations
 
@@ -113,9 +97,6 @@ SESSION_SWEEP_INTERVAL_SECONDS = 10.0
 _CONSUMER_GROUP = "default"
 _SESSION_SWEEP_LEASE_NAME = "session-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
-# Only work terminated within this window feeds the watermark-lag gauge. The bound is
-# intentionally shorter than the default retention window so metric cost stays stable
-# even when operators configure a longer history window.
 _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
 _LIVE_WORK_INDEX_PREDICATE = text(live_eval_session_work_index_predicate())
@@ -152,22 +133,12 @@ def _values_relation(
     name: str,
     bind_prefix: str,
 ) -> Subquery:
-    """Return a portable inline VALUES relation, one row per entry in ``rows``.
-
-    SQLite caps a compound SELECT at 500 branches and PostgreSQL plans one slowly, so
-    configuration rows enter a statement as an inline relation rather than as unioned
-    selects. Only the first row is cast; the rest take their types from it.
-
-    Each entry is ``(identity, values)``, and bind names are keyed off that identity
-    rather than off row position. Several of these relations are unioned into one
-    statement, ``text()`` binds are not unique, and position-keyed names from different
-    relations silently overwrite each other — one relation's row would then carry
-    another's values. Identity must be unique within a relation, and two relations built
-    over overlapping identities in one statement need distinct ``bind_prefix`` values.
-    """
+    """Return a portable inline VALUES relation, one row per entry in ``rows``."""
+    # SQLite caps a compound SELECT at 500 branches and PostgreSQL plans one slowly.
     values_rows = []
     parameters: dict[str, Any] = {}
     for index, (identity, values) in enumerate(rows):
+        # Two relations over overlapping identities need distinct `bind_prefix` values.
         prefix = f"{bind_prefix}{identity}"
         row_parameters = {f"{prefix}_{key}": value for key, value in values.items()}
         parameters.update(row_parameters)
@@ -192,11 +163,7 @@ def _project_evaluator_relation(
     *,
     bind_prefix: str = "sc",
 ) -> Subquery:
-    """Return a portable inline relation for resolved session project evaluators.
-
-    One project_evaluator can appear in both an ambient and a triggered relation of the same
-    statement, so those relations pass distinct ``bind_prefix`` values.
-    """
+    """Return a portable inline relation for resolved session project_evaluators."""
     return _values_relation(
         [
             (
@@ -273,21 +240,12 @@ def _live_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[boo
 
 
 def _unfinished_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
-    """Whether work for this pair may still produce a result.
-
-    Declined decisions are excluded on purpose: a request displaces them, while work
-    that can still run is waited for rather than duplicated.
-    """
+    """Whether work for this pair may still produce a result, declined decisions aside."""
     return _work_exists(project_evaluator_relation, include_declined=False)
 
 
 def _unfulfilled_request_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
-    """Whether an unanswered ask already covers this pair.
-
-    The ambient origin skips such a pair. A triggered origin emits its own row for it
-    and outranks ambient anyway, so an ambient twin only spends a slot in the page that
-    yields no decision — halving the sweep's reach under trigger load.
-    """
+    """Whether an unanswered ask already covers this pair, which the ambient origin skips."""
     request = aliased(models.EvaluationRequest)
     return (
         select(1)
@@ -330,22 +288,8 @@ def _triggered_pairs_statement(
     *,
     filter_matches: Optional[ColumnElement[bool]] = None,
 ) -> Select[Any]:
-    """The pairs an unfulfilled evaluation request is asking for.
-
-    A forced generation assigns the explicit origin, which carries no
-    terminal brake at all: forcing is the one ask allowed to unsettle a finished
-    evaluation. Everything else is braked by an outcome covering the same configuration
-    and the same session content, and answers the request by linking that outcome
-    instead of scheduling again.
-
-    ``filter_matches`` is the project_evaluators's own session filter, compiled by the caller for
-    the one project_evaluator this statement covers. A rule fires on an event; the filter
-    says which sessions are in scope at all, and a request is the composite of the two.
-    A pair the filter excludes is simply absent here, so its request stays unfulfilled
-    and is re-tested next sweep — a request is intent, not a scan decision, and writing
-    a declined row for it would settle a question the session may yet answer. The
-    explicit origin passes the gate unconditionally: forcing means forcing.
-    """
+    """The pairs an unfulfilled evaluation request is asking for. ``filter_matches`` is the
+    project_evaluators's own session filter, compiled by the caller for the one project_evaluator covered."""
     pending = unfulfilled_requests().subquery("pending_requests")
     due_at, current_time = _quiet_delay_columns(project_evaluator_relation, database_now, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
@@ -362,7 +306,6 @@ def _triggered_pairs_statement(
         .scalar_subquery()
     )
     declined_work = aliased(models.EvalSessionWorkUnit)
-    # At most one row holds the live key, so this names the single declined holder.
     declined_work_unit_id = (
         select(func.max(declined_work.id))
         .where(
@@ -420,14 +363,7 @@ def _triggered_pairs_relation(
     database_now: datetime,
     dialect: SupportedSQLDialect,
 ) -> Optional[Select[Any]]:
-    """The rule and explicit origins, batched where possible and compiled otherwise.
-
-    Filter conditions compile into structurally different SQL, so a filtered project_evaluator
-    cannot ride the shared relation as a predicate on it. Unfiltered project_evaluators batch into
-    one branch and each filtered project_evaluator gets its own compiled branch, exactly as the
-    ambient origin does; the branches union into one relation the page then orders and
-    limits as a whole.
-    """
+    """The rule and explicit origins, batched where possible and compiled otherwise."""
     statements: list[Select[Any]] = []
     unfiltered = [pe for pe in project_evaluators if not pe.filter_condition]
     if unfiltered:
@@ -733,13 +669,7 @@ def _braked_session_work_insert_statement(
     decisions: Sequence[_Decision],
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Insert rule-origin work, re-testing the brake as the insert itself runs.
-
-    The eligibility read and this statement take separate snapshots under READ
-    COMMITTED, and the consumers that commit outcomes hold no sweep lease, so an
-    outcome can land in between. Repeating the test here narrows that window to this
-    statement's own execution.
-    """
+    """Insert rule-origin work, re-testing the brake as the insert itself runs."""
     relation = _decision_relation(decisions, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
     answered = (
@@ -871,8 +801,8 @@ class SessionEvalSweeper(DaemonTask):
         materialized_work_count = 0
         backlog: Optional[dict[str, int]] = None
         try:
-            # Reap separately and in the global project_evaluators -> session -> work -> request
-            # order used by mark_session_content_incomplete; the sweep then starts clean.
+            # Reaped separately, in the project_evaluators -> session -> work -> request order
+            # `mark_session_content_incomplete` uses.
             async with self._db() as session:
                 await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
                 database_now = await self._database_now(session)
@@ -952,11 +882,7 @@ class SessionEvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[dict[str, int]]]:
         """Materialize this tick's work, returning (work created, pairs waiting by origin).
-
-        Lapsed-lease reaping runs in a separate committed transaction before this one
-        (see _materialize_and_renew), so this transaction only ever locks project_evaluators and
-        session rows before inserting work — preserving the global C -> S -> W order.
-        """
+        Project evaluators and session rows are locked before the insert, preserving the global order."""
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None
@@ -1081,11 +1007,7 @@ class SessionEvalSweeper(DaemonTask):
         session: AsyncSession,
         decisions: Sequence[_Decision],
     ) -> None:
-        """Retire the declined decisions a request displaces, freeing their dedup key.
-
-        A rule carries its own predicate, so triggered work must not be held back by an
-        earlier filter or sampling decision for the same pair.
-        """
+        """Retire the declined decisions a request displaces, freeing their dedup key."""
         displaced = [
             decision.declined_work_unit_id
             for decision in decisions
@@ -1135,13 +1057,7 @@ class SessionEvalSweeper(DaemonTask):
         decisions: Sequence[_Decision],
         inserted: dict[tuple[int, int], tuple[int, str]],
     ) -> None:
-        """Link each request to the work unit answering it, through its own module.
-
-        Only the generation the eligibility read observed is acknowledged; a request
-        that arrived since then is a later generation and waits for the next sweep. A
-        request that vanished mid-sweep raises, which rolls the whole sweep back — the
-        work insert sharing this transaction must not outlive the request it answers.
-        """
+        """Link each request to the work unit answering it, through its own module."""
         for decision in decisions:
             if decision.evaluation_request_id is None or decision.observed_generation is None:
                 continue
@@ -1166,8 +1082,6 @@ class SessionEvalSweeper(DaemonTask):
         """
         if backlog is not None:
             ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(backlog.get(_AMBIENT, 0))
-            # Every origin is set every tick, so a burst that ends returns its series to
-            # zero rather than leaving the last non-zero reading standing.
             for origin in (_AMBIENT, _RULE, _EXPLICIT):
                 ONLINE_EVAL_SESSION_SCHEDULING_BACKLOG.labels(scheduling_origin=origin).set(
                     backlog.get(origin, 0)

@@ -87,11 +87,7 @@ class AnnotationData(V1RoutesBaseModel):
     @field_validator("identifier")
     @classmethod
     def _reject_reserved_identifier(cls, identifier: str) -> str:
-        """Keep the prefix that marks Phoenix's own annotations out of client hands.
-
-        A client able to write it could collide with the key online evaluation publishes
-        under.
-        """
+        """Keep the prefix that marks Phoenix's own annotations out of client hands."""
         if is_reserved_annotation_identifier(identifier):
             raise ValueError(
                 f"identifiers starting with {ONLINE_EVAL_IDENTIFIER_PREFIX!r} are reserved for "

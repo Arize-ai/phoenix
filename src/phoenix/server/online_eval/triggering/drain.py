@@ -1,14 +1,4 @@
-"""Lease event matching, request filing, and acknowledgment in bounded ticks.
-
-A tick reads up to MAX_PAGES_PER_TICK pages of unacknowledged events. Each page loads
-the rules that can fire, matches the two in memory, and writes the resulting requests and
-that page's acknowledgments in one transaction. Nothing is acknowledged unless the requests
-it produced commit with it, so a page that fails is retried rather than lost.
-
-Rules are loaded once per page, and that read is the page's linearization point: a rule
-committed after it does not match the events that page acknowledges, and there is no
-backfill. "Did my new rule catch that annotation?" therefore has one answer: no.
-"""
+"""Lease event matching, request filing, and acknowledgment in bounded ticks."""
 
 from __future__ import annotations
 
@@ -52,23 +42,16 @@ EVENT_DRAIN_INTERVAL_SECONDS = 5.0
 EVENT_DRAIN_LEASE_TTL_SECONDS = 90.0
 EVENT_PURGE_INTERVAL_SECONDS = 3600.0
 
-# The most event pages one tick may process, so a tick's compute budget is the page size
-# times this, per tick interval. A page shorter than the page size means the backlog is
-# drained and ends the tick early.
 MAX_PAGES_PER_TICK = 4
 
 _LEASE_NAME = "online-eval-event-drain"
 _REQUESTED_BY = "trigger"
 
-# The evaluation targets this drain can ask for. `requests.EvaluationAsk` takes a
-# `SessionTarget` and nothing else, so an occurrence routed to a span or a trace is
-# acknowledged without a request. Adding a target means adding an ask target beside
-# `SessionTarget` and naming it here in the same change.
+# Adding a target here means adding an ask target beside `SessionTarget` in
+# `phoenix.server.online_eval.requests` in the same change.
 _DELIVERABLE_TARGETS: frozenset[models.EvaluationTarget] = frozenset({"SESSION"})
 
-# These rejections cannot become deliverable while this drain is running, so the event is
-# consumed without a request. In particular, treating a disabled runtime as retryable would
-# wedge the drain on the same page if daemon construction and request gating ever diverged.
+# Only rejections that cannot become deliverable while the drain is running belong here.
 _CONSUMED_NO_OP_REJECTIONS = frozenset(
     {
         RequestRejection.RUNTIME_DISABLED,
@@ -167,11 +150,8 @@ class EventDrain(DaemonTask):
         )
 
     async def _drain(self) -> int:
-        """Decide one page of events, returning how many events were processed.
-
-        Project evaluators rows are read before any request row is touched — the rule load takes no
-        lock, and `request_evaluations` locks project_evaluators, then sessions, then requests.
-        """
+        """Decide one page of events, returning how many events were processed. Project evaluators
+        rows are read first, matching the lock order `request_evaluations` takes."""
         async with self._db() as session:
             events = await drain_page(session, limit=self._page_size)
             if not events:
@@ -179,8 +159,6 @@ class EventDrain(DaemonTask):
                 return 0
             deliverable = _deliverable(events)
             keys = match_events(deliverable, await load_rules(session))
-            # One ask per distinct occurrence, so several rules matching one occurrence for
-            # one pair advance its generation once while two occurrences advance it twice.
             asks = [
                 EvaluationAsk(
                     target=SessionTarget(project_session_rowid=key.target_rowid),
@@ -219,12 +197,7 @@ class EventDrain(DaemonTask):
 
 
 def _deliverable(events: Sequence[DrainedEvent]) -> list[DrainedEvent]:
-    """Return the occurrences this drain can ask for, naming the ones it cannot.
-
-    An occurrence routed to a target with no ask target is consumed rather than retried:
-    leaving it unacknowledged would hold up every session occurrence behind it on the
-    page, and no later tick would decide it differently.
-    """
+    """Return the occurrences this drain can ask for, naming the ones it cannot."""
     deliverable = [event for event in events if event.evaluation_target in _DELIVERABLE_TARGETS]
     if undeliverable := len(events) - len(deliverable):
         counts = Counter(
@@ -241,11 +214,7 @@ def _deliverable(events: Sequence[DrainedEvent]) -> list[DrainedEvent]:
 
 
 def _consume_rejections(rejected: Sequence[RejectedAsk]) -> None:
-    """Raise unless every rejection is one the drain may consume.
-
-    Raises:
-        EventNotConsumable: the page must be left for the next tick.
-    """
+    """Raise unless every rejection is one the drain may consume."""
     for entry in rejected:
         if entry.rejection not in _CONSUMED_NO_OP_REJECTIONS:
             raise EventNotConsumable(entry.rejection)

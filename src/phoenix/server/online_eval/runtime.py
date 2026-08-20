@@ -1,11 +1,5 @@
-"""Composes the online-eval daemons into a single lifecycle the app can hold.
-
-Construction follows the two enable flags: nothing is built while online evaluation is
-off, and SESSION delivery — its consumer, its sweeper, and the event drain — is built
-only while session evaluation is on as well. Those are the same flags
-`request_evaluations` reads, so the drain can never be left asking a runtime that
-refuses to answer.
-"""
+"""Composes the online-eval daemons into a single lifecycle the app can hold. Construction
+follows the same two enable flags `request_evaluations` reads."""
 
 from __future__ import annotations
 
@@ -102,12 +96,7 @@ class OnlineEvalRuntime:
 
     @property
     def daemons(self) -> tuple[DaemonTask, ...]:
-        """The constructed daemons in startup order.
-
-        Each one starts after whatever consumes what it produces, so the reversed
-        teardown stops the drain before the sweeper and every scheduler before the
-        consumer it feeds.
-        """
+        """The constructed daemons in startup order."""
         ordered = (
             self.consumer,
             self.session_consumer,
@@ -151,9 +140,6 @@ def _warn_if_pending_work_can_expire_under_backpressure(
     tick_interval_seconds: float,
 ) -> None:
     pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
-    # Worst case, a full admission-gate backlog drains at claim_batch_size /
-    # tick_interval per replica; a smaller TTL sheds work during routine backpressure
-    # rather than only when consumers are down.
     min_safe_ttl_seconds = (
         get_env_online_eval_max_outstanding() * tick_interval_seconds / claim_batch_size
     )

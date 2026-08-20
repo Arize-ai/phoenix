@@ -2744,10 +2744,6 @@ class DeleteProjectEvaluatorTriggersPayload:
     query: Query
 
 
-# Only SESSION evaluators are ever loaded as trigger rules, so a trigger on any other
-# target is inert the moment it is written while every surface still reads it as live.
-# Refused at creation, in the same words the evaluate-now mutation refuses the same
-# mistake with.
 _TRIGGER_TARGET_MISMATCH = (
     "This evaluator does not evaluate sessions. Only an evaluator whose evaluation target "
     "is SESSION can be given a trigger."
@@ -2757,11 +2753,7 @@ MAX_PROJECT_EVALUATOR_TRIGGERS = 25
 
 @dataclass(frozen=True)
 class _PredicateFamily:
-    """One event kind's JSON predicate model, as trigger mutations need to see it.
-
-    A new event kind is a new entry here plus its nested field on the two inputs and on
-    ProjectEvaluatorTrigger; nothing below branches on the kind itself.
-    """
+    """One event kind's JSON predicate model, as trigger mutations need to see it."""
 
     event_kind: EvaluatorEventKind
     field_name: str
@@ -2846,11 +2838,7 @@ def _enum_value(value: Any) -> Any:
 
 
 def _raise_if_score_bounds_cannot_match(values: Mapping[str, Any]) -> None:
-    """Refuse a score window no score can fall inside.
-
-    Both bounds are strict and they are conjoined, so `above` must sit below `below`.
-    Reversed, the rule is accepted, valid, and fires never.
-    """
+    """Refuse a score window no score can fall inside."""
     above, below = values.get("score_above"), values.get("score_below")
     if above is None or below is None or above is UNSET or below is UNSET:
         return
@@ -2868,10 +2856,7 @@ async def _raise_on_duplicate_project_evaluator_trigger(
     predicates: Optional[TriggerPredicatesType],
     exclude_trigger_id: Optional[int] = None,
 ) -> None:
-    """Refuse a second trigger identical to one the evaluator already carries.
-
-    NULL JSON and a JSON object whose fields are all unconstrained match the same events.
-    """
+    """Refuse a second trigger identical to one the evaluator already carries."""
     wanted = (
         family.predicate_model(type=family.event_kind.value)
         if predicates is None
@@ -2961,8 +2946,7 @@ class ProjectEvaluatorTriggerMutationMixin:
         family = _PREDICATE_FAMILY_BY_EVENT_KIND[input.event_kind]
         predicates = _selected_predicates(input, family)
         async with info.context.db() as session:
-            # Serialize trigger creation per evaluator so concurrent authors cannot pass
-            # the cap together. The cap bounds the synchronous event-matching cross-product.
+            # Serialized per evaluator so concurrent authors cannot pass the cap together.
             project_evaluator = await session.scalar(
                 select(models.ProjectEvaluator)
                 .where(models.ProjectEvaluator.id == project_evaluator_id)
@@ -3033,7 +3017,6 @@ class ProjectEvaluatorTriggerMutationMixin:
                 else _PREDICATE_FAMILY_BY_EVENT_KIND[input.event_kind]
             )
             predicates = _selected_predicates(input, family)
-            # Nothing from the previous predicate family carries across a kind change.
             stored_values = (
                 _stored_predicate_values(trigger.predicates, family)
                 if family is previous_family

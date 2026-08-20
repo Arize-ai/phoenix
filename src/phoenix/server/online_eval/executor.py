@@ -1,9 +1,4 @@
-"""Fence publication and announce completed evaluations and opted-in annotations.
-
-Claimed work is hydrated project_evaluators-first, given target context, invoked, and published
-idempotently. The coordinator records any coverage watermark in the publication
-transaction and owns every lifecycle transition with its caller.
-"""
+"""Fence publication and announce completed evaluations and opted-in annotations."""
 
 from __future__ import annotations
 
@@ -76,8 +71,8 @@ _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
 _EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
 _SCHEDULING_ORIGIN_METADATA_KEY = "phoenix.online_eval.scheduling_origin"
-# Annotation metadata is rendered verbatim in the app and the REST API, so the column's
-# internal vocabulary is translated on the way out. The stored values stay as they are.
+# Annotation metadata is rendered verbatim in the app and the REST API, so the stored
+# vocabulary is translated on the way out.
 _SCHEDULING_ORIGIN_METADATA_VALUES: dict[models.SchedulingOrigin, str] = {
     "AMBIENT": "SCHEDULED",
     "RULE": "TRIGGERED",
@@ -924,8 +919,7 @@ class OnlineEvalExecutor:
         the unit's identifier. Span results are first-write-wins; session results
         replace a prior attempt so the annotation stays paired with its transcript
         coverage. Raises before writing unless the evaluator returns one complete,
-        error-free result set. No DB session is open while the evaluator runs.
-        """
+        error-free result set. No DB session is open while the evaluator runs."""
         tracer = (
             marked_evaluator_tracer(
                 self._tracer_factory(),
@@ -1050,8 +1044,6 @@ class OnlineEvalExecutor:
                 dialect=self._db.dialect,
                 unique_by=unique_by,
                 on_conflict=on_conflict,
-                # A publication can be retried in a new transaction, so the work unit
-                # names the write and the retry announces the same occurrence.
                 write_token=f"work-unit:{unit.work_unit_id}",
             )
             inserted_ids = [annotation.id for annotation in written]
@@ -1069,8 +1061,6 @@ class OnlineEvalExecutor:
                     else None
                 ),
             )
-        # Span duplicates return no id and need no cache invalidation. Session
-        # replacements return their id because the annotation genuinely changed.
         if self._event_queue is not None and inserted_ids:
             if unit.evaluation_target == "SPAN":
                 self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))

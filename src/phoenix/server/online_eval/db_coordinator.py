@@ -101,7 +101,6 @@ class DbEvalWorkCoordinator:
         # Only SESSION work carries a coverage watermark: a span is evaluated whole,
         # while a session is evaluated up to the content the transcript actually read.
         self._coverage_column: Optional[InstrumentedAttribute[Optional[datetime]]] = None
-        # Only SESSION work can be scheduled by a trigger; span work is always ambient.
         self._scheduling_origin_column: Any
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
@@ -414,8 +413,6 @@ class DbEvalWorkCoordinator:
             )
             rowcount = result.rowcount  # type: ignore[attr-defined]
             transitioned = bool(rowcount == 1)
-            # Runs only for the call that moved the row, never for one that found the
-            # transition already made.
             if transitioned and on_transition is not None:
                 await on_transition(session)
             if not transitioned and already_status is not None:

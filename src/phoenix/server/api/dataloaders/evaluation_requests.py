@@ -41,12 +41,7 @@ class EvaluationRequestBlockingReason(Enum):
 
 
 class EvaluationRequestFailureReason(Enum):
-    """Why a requested evaluation will never produce a result.
-
-    The three collapse into one terminal state but call for different things: asking
-    again works after a configuration change, is futile after the evaluator gave up, and
-    has nothing left to act on once the session's content is gone.
-    """
+    """Why a requested evaluation will never produce a result."""
 
     EVALUATOR_CHANGED = "EVALUATOR_CHANGED"
     EVALUATOR_ERROR = "EVALUATOR_ERROR"
@@ -87,13 +82,7 @@ class EvaluationRequestsDataLoader(DataLoader[Key, Optional[SessionEvaluationReq
 
 
 def _state(fulfilled: bool, outcome: Optional[str]) -> EvaluationRequestState:
-    """The state the pair reports, in the one order the four cases must be tested.
-
-    Whether the ask has been answered is read first, so a newer ask outranks whatever
-    outcome an older one left attached. An answered ask with nothing attached is a pair
-    closed without an evaluation ever running — stand-down does this, and so does the
-    link's ON DELETE SET NULL — which is a failure to evaluate, not a success.
-    """
+    """The state the pair reports, in the one order the four cases must be tested."""
     if not fulfilled:
         return EvaluationRequestState.REQUESTED
     if outcome is None:
@@ -105,11 +94,7 @@ def _failure_reason(
     state: EvaluationRequestState,
     row: Any,
 ) -> Optional[EvaluationRequestFailureReason]:
-    """Which of the three ways this ask ended without a result, in the order they rank.
-
-    A retired-for-configuration-change row is read first because it is the one a user can
-    act on, and the one the evaluator's own health summary deliberately leaves out.
-    """
+    """Which of the three ways this ask ended without a result, in the order they rank."""
     if state is not EvaluationRequestState.FAILED:
         return None
     if row.work_unit_id is None:
@@ -122,13 +107,8 @@ def _failure_reason(
 
 
 def _outcome(work: Any) -> sa.Case[Optional[str]]:
-    """Bucket the work answering a request, mirroring the project-wide funnel.
-
-    One deliberate difference: work retired because the evaluator's configuration
-    changed under it is failure for the request that asked for it, though the
-    evaluator's own health summary leaves it out. The request named a session and an
-    evaluator, and no annotation will ever answer it.
-    """
+    """Bucket the work answering a request, mirroring the project-wide funnel, except that
+    a configuration change counts as failure here and not in the evaluator health summary."""
     superseded_by_config_change = sa.and_(
         work.status == "EXPIRED",
         work.error == STALE_FINGERPRINT_ERROR,

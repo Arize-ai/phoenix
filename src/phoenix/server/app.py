@@ -699,8 +699,7 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Entered after the sandbox manager so teardown stops every online-eval
-            # daemon before it.
+            # Entered after the sandbox manager so teardown stops the daemons first.
             await stack.enter_async_context(online_eval_runtime)
             if docs_mcp_server is not None:
                 # The docs MCP server connects to an external host during

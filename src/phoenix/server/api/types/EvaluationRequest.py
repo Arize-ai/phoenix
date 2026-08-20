@@ -17,8 +17,6 @@ if TYPE_CHECKING:
     from .Evaluator import ProjectEvaluator
     from .ProjectSession import ProjectSession
 
-# Both vocabularies are declared beside the derivation that produces them, in the
-# dataloader; this only registers them with the schema.
 strawberry.enum(
     EvaluationRequestState,
     description=(

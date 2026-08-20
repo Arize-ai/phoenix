@@ -14,11 +14,7 @@ from phoenix.server.online_eval.triggering.rules import TriggerRule
 
 @dataclass(frozen=True)
 class RequestKey:
-    """One occurrence demanding one pair be evaluated.
-
-    Several rules matching the same occurrence for the same pair resolve to one key, so
-    they ask for one evaluation between them; two occurrences for that pair are two keys.
-    """
+    """One occurrence demanding one pair be evaluated."""
 
     event_id: int
     evaluation_target: models.EvaluationTarget
@@ -30,14 +26,7 @@ def match_events(
     events: Iterable[DrainedEvent],
     rules: Iterable[TriggerRule],
 ) -> tuple[RequestKey, ...]:
-    """Resolve which pairs these events demand, in a deterministic order.
-
-    Rules are indexed by the two things an event must agree with before any predicate is
-    worth testing — its project and its kind — so a page is compared against the rules
-    that could match it rather than against every rule in the deployment. Nothing caps
-    how many rules a deployment holds, and the comparison runs between awaits: the whole
-    cross-product would land as an event-loop stall on the API process.
-    """
+    """Resolve which pairs these events demand, in a deterministic order."""
     by_project_and_kind: dict[tuple[int, str], list[TriggerRule]] = defaultdict(list)
     for rule in rules:
         by_project_and_kind[(rule.project_id, rule.event_kind)].append(rule)
@@ -66,11 +55,6 @@ def match_events(
 
 
 def _matches(event: DrainedEvent, rule: TriggerRule) -> bool:
-    # Project and kind are settled by the index `match_events` matches through: a rule
-    # only ever meets an event that already agrees with it on both. The other two legs of
-    # event.project == evaluator.project == session.project: the session's project is
-    # checked against the project evaluator's by `requests.request_evaluations`, which
-    # rejects the pair rather than writing a cross-project request.
     if event.evaluation_target != rule.evaluation_target:
         return False
     return _matches_annotation(event.payload, rule)
@@ -84,7 +68,6 @@ def _matches_result(
     score_below: Optional[float],
     score_above: Optional[float],
 ) -> bool:
-    """Test the name, label and score predicates over what the payload verdicts."""
     if name is not None and payload.get("name") != name:
         return False
     if label is not None and payload.get("label") != label:

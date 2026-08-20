@@ -1,11 +1,4 @@
-"""Retention for fulfilled session requests and terminal session work history.
-
-The retained row is scheduling evidence, not only history: ambient DONE rows provide the
-content-independent success brake, declined rows hold the ambient live-key brake, and
-terminal watermarks brake triggered or requested work for a content version. Preserve the
-newest terminal row per (session, evaluator, configuration) key and reap only older rows;
-fulfilled requests may be reaped under their existing rules.
-"""
+"""Retention for fulfilled session requests and terminal session work history."""
 
 from __future__ import annotations
 
@@ -34,13 +27,8 @@ async def reap_session_history(
     *,
     retention_cutoff: datetime,
 ) -> None:
-    """Delete aged history without removing the evidence that brakes new work.
-
-    Sessions, work, and requests are locked in that order, matching the content-incomplete
-    transition. Fulfilled requests are deleted before the locked work they reference so
-    retained request provenance never relies on the foreign key's ``SET NULL`` behavior.
-    An unfulfilled request is never eligible for retention.
-    """
+    """Delete aged history without removing the evidence that brakes new work. Sessions,
+    work, and requests are locked in that order, matching the content-incomplete transition."""
     request = models.EvaluationRequest
     work = models.EvalSessionWorkUnit
     aged_fulfilled_request_exists = exists(
