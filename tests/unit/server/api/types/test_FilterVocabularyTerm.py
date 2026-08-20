@@ -1,5 +1,3 @@
-"""Exercises the filter AI-query vocabulary generators and their drift checks."""
-
 import ast
 import re
 import subprocess

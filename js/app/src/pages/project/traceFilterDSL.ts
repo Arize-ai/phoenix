@@ -15,7 +15,6 @@ export type TraceFilterVocabularyTerm = Omit<
   readonly iterableName?: string | null;
 };
 
-/** Loop variables used to qualify fields that only bind inside comprehensions. */
 export const traceFilterLoopVariables: Partial<Record<string, string>> = {
   spans: "span",
   trace_annotations: "annotation",
