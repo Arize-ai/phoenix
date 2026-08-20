@@ -63,7 +63,7 @@ describe("LegacyTraceFilterParamNotice", () => {
 
 let currentSearch = "";
 function SearchProbe() {
-  // eslint-disable-next-line react/globals -- Existing React Compiler bailout; new violations remain blocking.
+  // eslint-disable-next-line react/globals
   currentSearch = useLocation().search;
   return null;
 }

@@ -56,7 +56,7 @@ export function Shimmer({
         },
       };
 
-  /* eslint-disable react/static-components -- Existing React Compiler bailout; new violations remain blocking. */
+  /* eslint-disable react/static-components */
   return (
     <MotionComponent
       ref={ref as React.Ref<never>}

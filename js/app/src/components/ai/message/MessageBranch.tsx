@@ -38,7 +38,7 @@ export function MessageBranch({
     setActiveBranch(Math.max(0, Math.min(index, branchCountRef.current - 1)));
   };
 
-  /* eslint-disable react/refs -- Existing React Compiler bailout; new violations remain blocking. */
+  /* eslint-disable react/refs */
   return (
     <MessageBranchContext.Provider
       value={{

@@ -20,7 +20,7 @@ export function UserPicture({
   const wordColor = useWordColor(name);
   const { theme } = useTheme();
 
-  // eslint-disable-next-line react/preserve-manual-memoization -- Existing React Compiler bailout; new violations remain blocking.
+  // eslint-disable-next-line react/preserve-manual-memoization
   const styles = useMemo(() => {
     return css`
       width: ${size}px;

@@ -238,7 +238,7 @@ export function usePromptSkillCommand(
   // index resets only when the *query string* changes, not on caret-only syncs
   // (e.g. arrow-key navigation), which would otherwise snap back to the top.
   const activeQueryRef = useRef<ActiveQuery | null>(null);
-  // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+  // eslint-disable-next-line react/refs
   activeQueryRef.current = activeQuery;
   // When the user dismisses the menu with Escape, suppress re-opening until the
   // dismissed `/query` is edited, so the literal `/` can be typed normally.

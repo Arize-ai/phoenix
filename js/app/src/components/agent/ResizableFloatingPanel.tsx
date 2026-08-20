@@ -669,14 +669,14 @@ export function ResizableFloatingPanel({
   const [isMoving, setIsMoving] = useState(false);
   const [isResizeHandleHovered, setIsResizeHandleHovered] = useState(false);
   const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
-    // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+    // eslint-disable-next-line react/refs
     () => boundaryRef?.current ?? null
   );
-  // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+  // eslint-disable-next-line react/refs
   const [currentBounds, setCurrentBounds] = useState(() =>
     getPanelBounds({ boundary: boundaryRef?.current ?? null })
   );
-  // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+  // eslint-disable-next-line react/refs
   const [currentGeometry, setCurrentGeometry] = useState(() =>
     getDefaultGeometry({
       bounds: getPanelBounds({ boundary: boundaryRef?.current ?? null }),
@@ -693,7 +693,7 @@ export function ResizableFloatingPanel({
   });
   const isResizeHandleHighlighted =
     isResizeHandleHovered || resizingEdge != null;
-  // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+  // eslint-disable-next-line react/refs
   latestGeometryRef.current = displayedGeometry;
 
   const commitSize = (nextGeometry: FloatingPanelGeometry) => {
@@ -1007,7 +1007,7 @@ export function ResizableFloatingPanel({
   }, [minSize, placement, resolvedBoundary]);
 
   useEffect(() => {
-    // eslint-disable-next-line react/set-state-in-effect -- Existing React Compiler bailout; new violations remain blocking.
+    // eslint-disable-next-line react/set-state-in-effect
     setCurrentGeometry((geometry) =>
       clampGeometry({
         bounds: currentBounds,

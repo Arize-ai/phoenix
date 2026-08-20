@@ -220,10 +220,10 @@ export function AgentFabPositioner({
   const suppressNextClickRef = useRef(false);
   const suppressClickResetTimeoutIdRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+  // eslint-disable-next-line react/refs
   const requiresBoundary = Boolean(boundaryRef);
   const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
-    // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+    // eslint-disable-next-line react/refs
     () => boundaryRef?.current ?? null
   );
 
@@ -304,7 +304,7 @@ export function AgentFabPositioner({
     applyPosition(nextPosition);
   };
 
-  // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+  // eslint-disable-next-line react/refs
   finishDragSessionRef.current = ({
     activateOnClick,
     point,
@@ -475,7 +475,7 @@ export function AgentFabPositioner({
 
   useLayoutEffect(() => {
     if (!requiresBoundary) {
-      // eslint-disable-next-line react/set-state-in-effect -- Existing React Compiler bailout; new violations remain blocking.
+      // eslint-disable-next-line react/set-state-in-effect
       setResolvedBoundary(null);
       return undefined;
     }
