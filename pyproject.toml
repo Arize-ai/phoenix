@@ -264,6 +264,7 @@ exclude = [
   "src/phoenix/otel/",
 ]
 artifacts = [
+  "src/phoenix/datagen/corpora",
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
@@ -288,6 +289,7 @@ exclude = [
   "js/",
 ]
 artifacts = [
+  "src/phoenix/datagen/corpora",
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",

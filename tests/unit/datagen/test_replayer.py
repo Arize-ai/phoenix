@@ -1,9 +1,18 @@
 import json
 from pathlib import Path
+from typing import Iterator
 
+import pytest
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+    ExportTraceServiceRequest,
+)
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
 from phoenix.datagen import AnomalyManifest, Corpus, Replayer, load_corpus
+
+_PROMPT_TOKENS = "llm.token_count.prompt"
+_COMPLETION_TOKENS = "llm.token_count.completion"
+_TOTAL_TOKENS = "llm.token_count.total"
 
 
 def test_replayer_groups_trace_spans_across_jsonl_lines() -> None:
@@ -84,6 +93,80 @@ def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> Non
     assert emitted_session_ids["turn-1"] != emitted_session_ids["other-session"]
 
 
+@pytest.mark.parametrize("seed", range(10))
+def test_replayer_preserves_temporal_and_token_contracts_across_seeds(seed: int) -> None:
+    corpus = load_corpus("langchain_agent_rag")
+    replayer = Replayer(corpus, epsilon=0, seed=seed)
+
+    for _ in range(corpus.manifest["trace_count"]):
+        spans = tuple(_iter_spans(replayer.emit(now_ns=10_000_000_000).request))
+        spans_by_id = {span.span_id: span for span in spans}
+        for span in spans:
+            if parent := spans_by_id.get(span.parent_span_id):
+                assert parent.end_time_unix_nano > span.end_time_unix_nano
+            _assert_token_contract(span)
+
+
+def test_replayer_rebases_events_and_preserves_dangling_parent() -> None:
+    corpus = _fixture_corpus()
+    request = ExportTraceServiceRequest()
+    request.CopyFrom(corpus.requests[0])
+    recorded_spans = tuple(_iter_spans(request))
+    recorded_first_start = min(span.start_time_unix_nano for span in recorded_spans)
+    recorded_root = next(span for span in recorded_spans if span.name == "turn-1")
+    recorded_child = next(span for span in recorded_spans if span.name == "chat")
+    recorded_parent_id = b"\xff" * 8
+    recorded_root.parent_span_id = recorded_parent_id
+    early_event_time = recorded_child.start_time_unix_nano + 1
+    late_event_time = recorded_child.end_time_unix_nano
+    recorded_child.events.add(name="early", time_unix_nano=early_event_time)
+    recorded_child.events.add(name="late", time_unix_nano=late_event_time)
+    one_trace_corpus = Corpus(
+        manifest=corpus.manifest,
+        requests=(request,),
+        source=corpus.source,
+    )
+
+    now_ns = 10_000_000_000
+    spans = tuple(
+        _iter_spans(Replayer(one_trace_corpus, epsilon=0, seed=7).emit(now_ns=now_ns).request)
+    )
+    emitted_root = next(span for span in spans if span.name == "turn-1")
+    emitted_child = next(span for span in spans if span.name == "chat")
+    emitted_span_ids = {span.span_id for span in spans}
+    event_times = [event.time_unix_nano for event in emitted_child.events]
+    time_offset = now_ns - recorded_first_start
+
+    assert emitted_root.parent_span_id
+    assert emitted_root.parent_span_id != recorded_parent_id
+    assert emitted_root.parent_span_id not in emitted_span_ids
+    assert event_times == [
+        early_event_time + time_offset,
+        min(late_event_time + time_offset, emitted_child.end_time_unix_nano),
+    ]
+    assert all(
+        emitted_child.start_time_unix_nano <= event_time <= emitted_child.end_time_unix_nano
+        for event_time in event_times
+    )
+
+
+def test_same_seed_emits_byte_identical_requests() -> None:
+    corpus = _fixture_corpus()
+    first = Replayer(corpus, epsilon=0.25, seed=7)
+    second = Replayer(corpus, epsilon=0.25, seed=7)
+
+    first_requests = tuple(
+        first.emit(now_ns=10_000_000_000).request.SerializeToString()
+        for _ in range(corpus.manifest["trace_count"])
+    )
+    second_requests = tuple(
+        second.emit(now_ns=10_000_000_000).request.SerializeToString()
+        for _ in range(corpus.manifest["trace_count"])
+    )
+
+    assert first_requests == second_requests
+
+
 def test_contamination_labels_match_anomaly_manifest(tmp_path: Path) -> None:
     replayer = Replayer(_fixture_corpus(), epsilon=1, seed=11)
     emitted = replayer.emit(now_ns=10_000_000_000)
@@ -101,7 +184,17 @@ def test_contamination_labels_match_anomaly_manifest(tmp_path: Path) -> None:
     manifest_ids = {(row["trace_id"], row["span_id"]) for row in manifest_rows}
     assert labeled_ids == manifest_ids
     assert len(labeled_ids) == len(spans)
-    assert all("latency_ms" in row["inflated_fields"] for row in manifest_rows)
+    spans_by_id = {(span.trace_id.hex(), span.span_id.hex()): span for span in spans}
+    for row in manifest_rows:
+        span = spans_by_id[(row["trace_id"], row["span_id"])]
+        inflated_fields = row["inflated_fields"]
+        assert inflated_fields[_PROMPT_TOKENS] == _attribute(span, _PROMPT_TOKENS)
+        assert inflated_fields[_COMPLETION_TOKENS] == _attribute(span, _COMPLETION_TOKENS)
+        assert inflated_fields[_TOTAL_TOKENS] == _attribute(span, _TOTAL_TOKENS)
+        assert (
+            inflated_fields["latency_ms"]
+            == (span.end_time_unix_nano - span.start_time_unix_nano) / 1_000_000
+        )
     assert all(
         not any(attribute.key.startswith("llm.cost.") for attribute in span.attributes)
         for span in spans
@@ -112,7 +205,7 @@ def _fixture_corpus() -> Corpus:
     return load_corpus(Path(__file__).parent / "fixtures" / "corpus")
 
 
-def _iter_spans(request):  # type: ignore[no-untyped-def]
+def _iter_spans(request: ExportTraceServiceRequest) -> Iterator[Span]:
     for resource_spans in request.resource_spans:
         for scope_spans in resource_spans.scope_spans:
             yield from scope_spans.spans
@@ -121,4 +214,17 @@ def _iter_spans(request):  # type: ignore[no-untyped-def]
 def _attribute(span: Span, key: str):  # type: ignore[no-untyped-def]
     attribute = next(attribute for attribute in span.attributes if attribute.key == key)
     value_type = attribute.value.WhichOneof("value")
+    assert value_type is not None
     return getattr(attribute.value, value_type)
+
+
+def _assert_token_contract(span: Span) -> None:
+    attributes = {attribute.key: attribute.value for attribute in span.attributes}
+    token_keys = (_PROMPT_TOKENS, _COMPLETION_TOKENS, _TOTAL_TOKENS)
+    if not any(key in attributes for key in token_keys):
+        return
+    assert all(attributes[key].WhichOneof("value") == "int_value" for key in token_keys)
+    assert (
+        attributes[_PROMPT_TOKENS].int_value + attributes[_COMPLETION_TOKENS].int_value
+        == attributes[_TOTAL_TOKENS].int_value
+    )

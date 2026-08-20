@@ -23,6 +23,7 @@ _COMPLETION_TOKENS = "llm.token_count.completion"
 _TOTAL_TOKENS = "llm.token_count.total"
 _ANOMALY = "datagen.anomaly"
 _COST_PREFIX = "llm.cost."
+_PARENT_END_MARGIN_NS = 1
 
 
 @dataclass(frozen=True)
@@ -168,22 +169,44 @@ class Replayer:
         request.CopyFrom(template.request)
         spans = tuple(_iter_spans(request))
         first_start = min(span.start_time_unix_nano for span in spans)
+        time_offset = now_ns - first_start
         trace_id = self._fresh_id(16)
         span_ids = {span.span_id: self._fresh_id(8) for span in spans}
+        resolved_span_ids = set(span_ids.values())
+        dangling_parent_ids: dict[bytes, bytes] = {}
+        for span in spans:
+            recorded_parent_id = span.parent_span_id
+            if not recorded_parent_id or recorded_parent_id in span_ids:
+                continue
+            if recorded_parent_id not in dangling_parent_ids:
+                parent_id = self._fresh_id(8)
+                while parent_id in resolved_span_ids:
+                    parent_id = self._fresh_id(8)
+                dangling_parent_ids[recorded_parent_id] = parent_id
+                resolved_span_ids.add(parent_id)
 
         for span in spans:
             duration = max(1, span.end_time_unix_nano - span.start_time_unix_nano)
-            span.start_time_unix_nano = now_ns + (span.start_time_unix_nano - first_start)
+            span.start_time_unix_nano += time_offset
             span.end_time_unix_nano = span.start_time_unix_nano + duration
+            for event in span.events:
+                event.time_unix_nano += time_offset
             span.trace_id = trace_id
             old_span_id = span.span_id
             span.span_id = span_ids[old_span_id]
             if span.parent_span_id:
-                span.parent_span_id = span_ids.get(span.parent_span_id, b"")
+                span.parent_span_id = (
+                    span_ids[span.parent_span_id]
+                    if span.parent_span_id in span_ids
+                    else dangling_parent_ids[span.parent_span_id]
+                )
             if session_id is not None:
                 _set_string_attribute(span, _SESSION_ID, session_id)
 
         anomalies = self._numerics.apply(spans)
+        _extend_parent_end_times(spans)
+        _clamp_event_times(spans)
+        anomalies = _refresh_anomaly_latencies(anomalies, spans)
         return EmittedTrace(request=request, anomalies=anomalies)
 
     def _fresh_id(self, size: int) -> bytes:
@@ -307,6 +330,66 @@ class _NumericsEngine:
                     )
                 )
         return tuple(anomalies)
+
+
+def _extend_parent_end_times(spans: Sequence[Span]) -> None:
+    spans_by_id = {span.span_id: span for span in spans}
+    children_by_parent_id: dict[bytes, list[Span]] = defaultdict(list)
+    for span in spans:
+        if span.parent_span_id in spans_by_id:
+            children_by_parent_id[span.parent_span_id].append(span)
+
+    visiting: set[bytes] = set()
+    finished: set[bytes] = set()
+
+    def extend(span: Span) -> None:
+        if span.span_id in finished or span.span_id in visiting:
+            return
+        visiting.add(span.span_id)
+        children = children_by_parent_id[span.span_id]
+        for child in children:
+            extend(child)
+        if children:
+            span.end_time_unix_nano = max(
+                span.end_time_unix_nano,
+                max(child.end_time_unix_nano for child in children) + _PARENT_END_MARGIN_NS,
+            )
+        visiting.remove(span.span_id)
+        finished.add(span.span_id)
+
+    for span in spans:
+        extend(span)
+
+
+def _clamp_event_times(spans: Sequence[Span]) -> None:
+    for span in spans:
+        for event in span.events:
+            event.time_unix_nano = min(
+                span.end_time_unix_nano,
+                max(span.start_time_unix_nano, event.time_unix_nano),
+            )
+
+
+def _refresh_anomaly_latencies(
+    anomalies: Sequence[Anomaly],
+    spans: Sequence[Span],
+) -> tuple[Anomaly, ...]:
+    spans_by_id = {span.span_id.hex(): span for span in spans}
+    refreshed = []
+    for anomaly in anomalies:
+        span = spans_by_id[anomaly.span_id]
+        inflated_fields = dict(anomaly.inflated_fields)
+        inflated_fields["latency_ms"] = (
+            span.end_time_unix_nano - span.start_time_unix_nano
+        ) / 1_000_000
+        refreshed.append(
+            Anomaly(
+                trace_id=anomaly.trace_id,
+                span_id=anomaly.span_id,
+                inflated_fields=inflated_fields,
+            )
+        )
+    return tuple(refreshed)
 
 
 def _split_traces(

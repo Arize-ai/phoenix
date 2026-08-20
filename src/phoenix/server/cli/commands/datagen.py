@@ -23,6 +23,7 @@ _Value = TypeVar("_Value")
 class _Config:
     endpoint: str
     api_key: str | None
+    headers: Mapping[str, str]
     corpus: str
     rate: float
     burstiness: float
@@ -87,7 +88,11 @@ def run(args: Namespace) -> None:
     anomaly_manifest = AnomalyManifest(config.anomaly_manifest) if config.anomaly_manifest else None
 
     try:
-        with OTLPHTTPExporter(config.endpoint, api_key=config.api_key) as exporter:
+        with OTLPHTTPExporter(
+            config.endpoint,
+            api_key=config.api_key,
+            headers=config.headers,
+        ) as exporter:
             while True:
                 emitted_trace = replayer.emit()
                 exporter.export(emitted_trace.request)
@@ -104,6 +109,8 @@ def run(args: Namespace) -> None:
 
 
 def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
+    from phoenix.utilities.re import parse_env_headers
+
     return _Config(
         endpoint=_setting(
             args.endpoint,
@@ -113,6 +120,7 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
             str,
         ),
         api_key=args.api_key or environ.get("PHOENIX_API_KEY"),
+        headers=parse_env_headers(environ.get("PHOENIX_CLIENT_HEADERS")),
         corpus=_setting(
             args.corpus,
             environ,

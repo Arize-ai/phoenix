@@ -34,12 +34,14 @@ def test_datagen_cli_flags_override_environment() -> None:
         {
             "PHOENIX_COLLECTOR_ENDPOINT": "https://env.example",
             "PHOENIX_API_KEY": "env-key",
+            "PHOENIX_CLIENT_HEADERS": "x-tenant=tenant%20one,x-route=blue",
             "PHOENIX_DATAGEN_RATE": "1",
         },
     )
 
     assert config.endpoint == "https://collector.example"
     assert config.api_key == "cli-key"
+    assert config.headers == {"x-tenant": "tenant one", "x-route": "blue"}
     assert config.corpus == "chat"
     assert config.rate == 30
     assert config.burstiness == 0.8

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import TracebackType
+from typing import Mapping
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -19,13 +20,15 @@ class OTLPHTTPExporter:
         endpoint: str,
         *,
         api_key: str | None = None,
+        headers: Mapping[str, str] | None = None,
         timeout: float = 30.0,
     ) -> None:
-        headers = {"Content-Type": "application/x-protobuf"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
+        request_headers = dict(headers or {})
+        request_headers["Content-Type"] = "application/x-protobuf"
+        if api_key and not any(key.lower() == "authorization" for key in request_headers):
+            request_headers["Authorization"] = f"Bearer {api_key}"
         self._endpoint = _trace_endpoint(endpoint)
-        self._client = httpx.Client(headers=headers, timeout=timeout)
+        self._client = httpx.Client(headers=request_headers, timeout=timeout)
 
     def export(self, request: ExportTraceServiceRequest) -> None:
         """Export one protobuf trace request, raising on an HTTP error."""
