@@ -8,7 +8,7 @@ few operational consequences.
 ### Agent session persistence
 
 Conversations with the Phoenix agent are now persisted server-side. Sessions survive page reloads and can be browsed,
-restored, and continued later — from the browser or from the `pxi` terminal client, interchangeably. The terminal
+restored, and continued later — from the browser or from the `phoenix-cli pxi` terminal client, interchangeably. The terminal
 client gains session management commands (`/new`, `/temporary`, `/sessions`, `/model`, and `/compact` for summarizing
 older context into a checkpoint on long-running sessions).
 
@@ -21,9 +21,9 @@ older context into a checkpoint on long-running sessions).
   temporary chats are removed 24 hours after their last activity. Administrators can change the persisted-chat limits
   under **Settings → Assistant** (set a limit to 0 to disable it); the 24-hour temporary window is fixed. See
   [Data Retention](https://arize.com/docs/phoenix/settings/data-retention#agent-session-retention).
-- **`pxi` requires a matching server.** The `pxi` terminal client, and the `/v1/agent_sessions` routes it depends on,
-  require a Phoenix server on 20.0.0 or newer. `pxi` 20+ checks the server version at startup and exits with an upgrade
-  message against an older server, so upgrade the server before or alongside the CLI.
+- **`phoenix-cli pxi` requires a matching server.** The `phoenix-cli pxi` terminal client, and the `/v1/agent_sessions`
+  routes it depends on, require a Phoenix server on 20.0.0 or newer. `phoenix-cli pxi` 20+ checks the server version at
+  startup and exits with an upgrade message against an older server, so upgrade the server before or alongside the CLI.
 - **A legacy chat route is deprecated.** `POST /agents/server/sessions/{session_id}/chat` still works but is marked
   deprecated in the OpenAPI spec; new integrations should use the `/v1/agent_sessions` routes instead.
 - **The OTel `session.id` format changed.** Recorded assistant sessions now use a new `session.id` shape, so saved
