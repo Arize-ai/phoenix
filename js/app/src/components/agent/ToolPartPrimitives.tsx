@@ -52,6 +52,18 @@ export function ToolPartLabel({
 }
 
 /**
+ * A plain sans-serif text line for tool part sections — human-readable
+ * status sentences rather than code or payloads.
+ */
+export function ToolPartText({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="tool-part__line">
+      <span className="tool-part__text">{children}</span>
+    </div>
+  );
+}
+
+/**
  * A preformatted code block for tool part content with optional copy button.
  */
 export function ToolPartCodeBlock({

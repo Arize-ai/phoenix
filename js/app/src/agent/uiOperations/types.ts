@@ -72,6 +72,13 @@ export type UiOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
    * flight.
    */
   longRunning?: boolean;
+  /**
+   * Marks an `approval`-kind operation that stages a user-facing approval
+   * card even in bypass edit mode (e.g. navigation, which always asks).
+   * Dispatch uses this to know a card is about to appear regardless of the
+   * edit permission, so it can open the host tool part.
+   */
+  alwaysRequiresApproval?: boolean;
   /** Capability keys that must be enabled for this operation to dispatch. */
   requiredCapabilities?: AgentCapabilityKey[];
   /** Whether an active agent session is required to dispatch. */

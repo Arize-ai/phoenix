@@ -75,6 +75,20 @@ const LOGS_CHAR_BUDGET = 2_000;
 const LOG_LINE_CHAR_BUDGET = 300;
 
 /**
+ * Section markers for the plain-text run output. The renderer and
+ * {@link parseExecuteUiRunOutput} share these so the chat card can split the
+ * model-facing text back into status/logs/return-value for display without a
+ * second, structured output channel.
+ */
+const RUN_STATUS_PREFIX = "Script completed after ";
+const LOGS_SECTION_HEADER = "Logs:\n";
+const RETURN_VALUE_SECTION_HEADER = "Return value:\n";
+const TRUNCATION_NOTE =
+  "Note: the return value was truncated. Constrain the return value in " +
+  "the script itself — slice arrays, project the fields you need, or " +
+  "return counts — and re-run if you are missing data.";
+
+/**
  * Cap `text` at `budget` characters, keeping the head and tail. The head
  * usually carries a JSON payload's shape and scalar fields; the tail keeps
  * closing context (totals, the last array items). The marker states how
@@ -113,9 +127,10 @@ function renderLogs(logs: string[]): string {
     }
     kept.unshift(cappedLines[i]);
   }
-  return [`…[${cappedLines.length - kept.length} earlier logs omitted]…`, ...kept].join(
-    "\n"
-  );
+  return [
+    `…[${cappedLines.length - kept.length} earlier logs omitted]…`,
+    ...kept,
+  ].join("\n");
 }
 
 /** Render a completed run as the model-facing tool output. */
@@ -129,23 +144,69 @@ function renderRunOutput({
   logs: string[];
 }): string {
   const sections = [
-    `Script completed after ${callCount} ui call${callCount === 1 ? "" : "s"}.`,
+    `${RUN_STATUS_PREFIX}${callCount} ui call${callCount === 1 ? "" : "s"}.`,
   ];
   if (logs.length > 0) {
-    sections.push(`Logs:\n${renderLogs(logs)}`);
+    sections.push(`${LOGS_SECTION_HEADER}${renderLogs(logs)}`);
   }
   const truncated = returnValue.length > RETURN_VALUE_CHAR_BUDGET;
   sections.push(
-    `Return value:\n${truncateMiddle(returnValue, RETURN_VALUE_CHAR_BUDGET)}`
+    `${RETURN_VALUE_SECTION_HEADER}${truncateMiddle(returnValue, RETURN_VALUE_CHAR_BUDGET)}`
   );
   if (truncated) {
-    sections.push(
-      "Note: the return value was truncated. Constrain the return value in " +
-        "the script itself — slice arrays, project the fields you need, or " +
-        "return counts — and re-run if you are missing data."
-    );
+    sections.push(TRUNCATION_NOTE);
   }
   return sections.join("\n\n");
+}
+
+/** A completed run output split back into sections for display. */
+export type ExecuteUiRunOutputView = {
+  /** "Script completed after N ui calls." — human-readable as-is. */
+  status: string;
+  /** The log lines the script emitted, or null when it logged nothing. */
+  logs: string | null;
+  /** The JSON-serialized (possibly truncated) return value. */
+  returnValue: string;
+  /** The truncation notice, when the return value was cut. */
+  note: string | null;
+};
+
+/**
+ * Split a {@link renderRunOutput} string back into its sections so the chat
+ * card can render each appropriately (status as text, the return value
+ * behind a collapsible code view) instead of one undifferentiated blob.
+ * Returns null when the text is not a run output (e.g. output from an older
+ * format), in which case callers should fall back to raw rendering.
+ */
+export function parseExecuteUiRunOutput(
+  output: string
+): ExecuteUiRunOutputView | null {
+  if (!output.startsWith(RUN_STATUS_PREFIX)) {
+    return null;
+  }
+  const returnValueMarker = `\n\n${RETURN_VALUE_SECTION_HEADER}`;
+  const returnValueIndex = output.indexOf(returnValueMarker);
+  if (returnValueIndex === -1) {
+    return null;
+  }
+  const head = output.slice(0, returnValueIndex);
+  let tail = output.slice(returnValueIndex + returnValueMarker.length);
+
+  const noteMarker = `\n\n${TRUNCATION_NOTE}`;
+  let note: string | null = null;
+  if (tail.endsWith(noteMarker)) {
+    note = TRUNCATION_NOTE;
+    tail = tail.slice(0, -noteMarker.length);
+  }
+
+  const logsMarker = `\n\n${LOGS_SECTION_HEADER}`;
+  const logsIndex = head.indexOf(logsMarker);
+  return {
+    status: logsIndex === -1 ? head : head.slice(0, logsIndex),
+    logs: logsIndex === -1 ? null : head.slice(logsIndex + logsMarker.length),
+    returnValue: tail,
+    note,
+  };
 }
 
 /**
@@ -167,9 +228,12 @@ export const executeUiAgentTool = defineTool<ExecuteUiInput>({
   parseInput: parseExecuteUiInput,
   invalidInputErrorText:
     "Invalid execute_ui input. Expected { script: string } with a non-empty script body.",
-  // Scripts can stage Accept/Reject approvals inside their card; auto-open
-  // so a pending approval is never hidden behind a collapsed details element.
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  // The card stays collapsed by default — most scripts run and finish
+  // without needing the user's attention. When an inner operation stages an
+  // Accept/Reject approval, dispatch requests the card open through the
+  // store (see `dispatchUiOperationCall`); `scrollIntoViewOnMount` makes
+  // that store-driven open also scroll the card into view.
+  uiBehavior: { scrollIntoViewOnMount: true },
   execute: async ({
     toolCall,
     input,
@@ -187,6 +251,7 @@ export const executeUiAgentTool = defineTool<ExecuteUiInput>({
           // Approval handlers key pending entries by this id; interrupt
           // cleanup finds them again by the toolCallId prefix.
           callId: `${toolCall.toolCallId}:${callSequence}`,
+          hostToolCallId: toolCall.toolCallId,
           agentStore,
           sessionId,
           capabilities,

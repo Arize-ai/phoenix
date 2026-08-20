@@ -56,6 +56,7 @@ import { Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
 import { MarkdownBlock } from "@phoenix/components/markdown";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -283,6 +284,12 @@ export const toolPartCSS = css`
   .tool-part__code {
     flex: 1;
     min-width: 0;
+  }
+
+  .tool-part__text {
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
   }
 
   .tool-part__summary {
@@ -598,7 +605,14 @@ function ToolInvocationPartDetails({
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
     getToolPresentation(toolName, part);
-  const shouldAutoOpen = shouldAutoOpenToolPart(part);
+  // Store-driven open request: set when this call stages a user-facing
+  // approval (see `requestToolPartOpen`), so Accept/Reject is never hidden
+  // behind a collapsed disclosure. It layers under the same manual-toggle
+  // override as the static heuristic — a card the user closed stays closed.
+  const isOpenRequested = useAgentContext((state) =>
+    Boolean(state.toolPartOpenRequests[part.toolCallId])
+  );
+  const shouldAutoOpen = isOpenRequested || shouldAutoOpenToolPart(part);
   const {
     ref: detailsRef,
     isOpen: isRenderedOpen,
