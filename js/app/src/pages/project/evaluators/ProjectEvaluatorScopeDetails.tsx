@@ -1,8 +1,12 @@
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Alert, Flex, Heading, Text } from "@phoenix/components";
-import { evaluatorDetailsCardCSS } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
+import { Alert, Card, Flex, Text, View } from "@phoenix/components";
+import { Token } from "@phoenix/components/core/token";
+import {
+  EvaluatorDetailList,
+  EvaluatorDetailRow,
+} from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import type {
   ProjectEvaluatorScopeDetails_projectEvaluator$data,
   ProjectEvaluatorScopeDetails_projectEvaluator$key,
@@ -40,34 +44,41 @@ export function ProjectEvaluatorScopeDetails({
   const isSessionTarget = projectEvaluator.evaluationTarget === "SESSION";
 
   return (
-    <Flex direction="column" gap="size-100">
-      <Heading level={2}>Scope</Heading>
-      <div css={evaluatorDetailsCardCSS}>
-        <Flex direction="column" gap="size-100">
-          <Text size="S">
-            <Text weight="heavy">Target:</Text>{" "}
-            {formatEvaluationTarget(projectEvaluator.evaluationTarget)}
-          </Text>
-          <Text size="S">
-            <Text weight="heavy">Filter:</Text>{" "}
-            {projectEvaluator.filterCondition ? (
-              <Text size="S" fontFamily="mono">
-                {projectEvaluator.filterCondition}
+    <Card title="Scope">
+      <View padding="size-200">
+        <Flex direction="column" gap="size-200">
+          <EvaluatorDetailList>
+            <EvaluatorDetailRow label="Target">
+              <Token>
+                {formatEvaluationTarget(projectEvaluator.evaluationTarget)}
+              </Token>
+            </EvaluatorDetailRow>
+            <EvaluatorDetailRow label="Filter">
+              {projectEvaluator.filterCondition ? (
+                <Text size="S" fontFamily="mono">
+                  {projectEvaluator.filterCondition}
+                </Text>
+              ) : (
+                <Text size="S">
+                  {`All ${formatEvaluationTargetPlural(projectEvaluator.evaluationTarget)}`}
+                </Text>
+              )}
+            </EvaluatorDetailRow>
+            <EvaluatorDetailRow label="Sampling rate">
+              <Text size="S">
+                {formatSamplingRate(projectEvaluator.samplingRate)}
               </Text>
-            ) : (
-              `All ${formatEvaluationTargetPlural(projectEvaluator.evaluationTarget)}`
-            )}
-          </Text>
-          <Text size="S">
-            <Text weight="heavy">Sampling Rate:</Text>{" "}
-            {formatSamplingRate(projectEvaluator.samplingRate)}
-          </Text>
-          {isSessionTarget ? (
-            <Text size="S">
-              <Text weight="heavy">Evaluation Delay:</Text>{" "}
-              {formatEvaluationDelay(projectEvaluator.evaluationDelaySeconds)}
-            </Text>
-          ) : null}
+            </EvaluatorDetailRow>
+            {isSessionTarget ? (
+              <EvaluatorDetailRow label="Evaluation delay">
+                <Text size="S">
+                  {formatEvaluationDelay(
+                    projectEvaluator.evaluationDelaySeconds
+                  )}
+                </Text>
+              </EvaluatorDetailRow>
+            ) : null}
+          </EvaluatorDetailList>
           {projectEvaluator.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
             <Alert variant="warning" title="This evaluator is not scheduled">
               {getSchedulabilityExplanation(
@@ -76,8 +87,8 @@ export function ProjectEvaluatorScopeDetails({
             </Alert>
           ) : null}
         </Flex>
-      </div>
-    </Flex>
+      </View>
+    </Card>
   );
 }
 
