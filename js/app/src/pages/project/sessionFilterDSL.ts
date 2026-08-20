@@ -15,7 +15,7 @@ export type SessionFilterVocabularyTerm = {
  * The session compiler rejects a bare element name, so element fields are
  * qualified by these loop variables.
  */
-export const sessionFilterLoopVariables: Partial<Record<string, string>> = {
+const sessionFilterLoopVariables: Partial<Record<string, string>> = {
   spans: "span",
   traces: "trace",
   session_annotations: "annotation",
@@ -30,7 +30,15 @@ export function getSessionFilterLoopVariable(iterableName: string): string {
   );
 }
 
-function getAIQueryFieldName(term: SessionFilterVocabularyTerm): string {
+function getSessionFilterAIFieldName(
+  term: SessionFilterVocabularyTerm
+): string {
+  // The vocabulary's placeholder term for arbitrary attribute subscripts is
+  // spelled `attributes[...]`, which the compiler rejects verbatim; teach the
+  // model the writable form instead.
+  if (term.name === "attributes[...]") {
+    return "attributes['key']";
+  }
   if (!term.iterableName) {
     return term.name;
   }
@@ -41,7 +49,7 @@ function getSessionFilterAICompletions(
   vocabulary: readonly SessionFilterVocabularyTerm[]
 ): Completion[] {
   return vocabulary.map((term) => ({
-    label: getAIQueryFieldName(term),
+    label: getSessionFilterAIFieldName(term),
     type: "variable",
     detail: term.type,
     info: term.description,

@@ -157,8 +157,14 @@ export function SessionFilterConditionField(
   } = props;
   const { filterCondition, setFilterCondition } = useSessionFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  // An empty vocabulary means the project's terms haven't arrived (the field
+  // renders ahead of them, see the Suspense fallback in SessionsTable), so AI
+  // query waits rather than prompting the model with no field names.
   const sessionFilterAIQuery = useMemo<DSLFilterAIQueryProps>(
-    () => ({ dsl: createSessionFilterAIQueryDSL(vocabulary) }),
+    () => ({
+      dsl: createSessionFilterAIQueryDSL(vocabulary),
+      isDisabled: vocabulary.length === 0,
+    }),
     [vocabulary]
   );
 

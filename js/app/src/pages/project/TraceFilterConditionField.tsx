@@ -288,8 +288,14 @@ export function TraceFilterConditionField(
   } = props;
   const { filterCondition, setFilterCondition } = useTraceFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  // An empty vocabulary means the project's terms haven't arrived (the field
+  // renders ahead of them, see the Suspense fallback in TracesTable), so AI
+  // query waits rather than prompting the model with no field names.
   const traceFilterAIQuery = useMemo<DSLFilterAIQueryProps>(
-    () => ({ dsl: createTraceFilterAIQueryDSL(vocabulary) }),
+    () => ({
+      dsl: createTraceFilterAIQueryDSL(vocabulary),
+      isDisabled: vocabulary.length === 0,
+    }),
     [vocabulary]
   );
 

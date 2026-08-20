@@ -11,7 +11,7 @@ export type TraceFilterVocabularyTerm = {
   readonly iterableName?: string | null;
 };
 
-export const traceFilterLoopVariables: Partial<Record<string, string>> = {
+const traceFilterLoopVariables: Partial<Record<string, string>> = {
   spans: "span",
   trace_annotations: "annotation",
   span_annotations: "annotation",
@@ -25,9 +25,10 @@ export function getTraceFilterLoopVariable(iterableName: string): string {
   );
 }
 
-export function getTraceFilterAIFieldName(
-  term: TraceFilterVocabularyTerm
-): string {
+function getTraceFilterAIFieldName(term: TraceFilterVocabularyTerm): string {
+  // The vocabulary's placeholder term for arbitrary attribute subscripts is
+  // spelled `attributes[...]`, which the compiler rejects verbatim; teach the
+  // model the writable form instead.
   if (term.name === "attributes[...]") {
     return "attributes['key']";
   }

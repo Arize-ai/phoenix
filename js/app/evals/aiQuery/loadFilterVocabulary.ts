@@ -8,15 +8,10 @@ type FilterVocabulary = {
 
 type FilterVocabularyResponse = {
   data?: {
-    projects?: {
-      edges: ReadonlyArray<{
-        node: {
-          name: string;
-          sessionFilterVocabulary?: readonly SessionFilterVocabularyTerm[];
-          traceFilterVocabulary?: readonly TraceFilterVocabularyTerm[];
-        };
-      }>;
-    };
+    project?: {
+      sessionFilterVocabulary?: readonly SessionFilterVocabularyTerm[];
+      traceFilterVocabulary?: readonly TraceFilterVocabularyTerm[];
+    } | null;
   };
   errors?: ReadonlyArray<{ message: string }>;
 };
@@ -24,26 +19,21 @@ type FilterVocabularyResponse = {
 const DEFAULT_PROJECT_NAME = "default";
 
 const query = `
-  query AIQueryEvalFilterVocabulary($filter: ProjectFilter) {
-    projects(first: 10, filter: $filter) {
-      edges {
-        node {
-          name
-          sessionFilterVocabulary {
-            name
-            type
-            description
-            category
-            iterableName
-          }
-          traceFilterVocabulary {
-            name
-            type
-            description
-            category
-            iterableName
-          }
-        }
+  query AIQueryEvalFilterVocabulary($name: String!) {
+    project: getProjectByName(name: $name) {
+      sessionFilterVocabulary {
+        name
+        type
+        description
+        category
+        iterableName
+      }
+      traceFilterVocabulary {
+        name
+        type
+        description
+        category
+        iterableName
       }
     }
   }
@@ -52,7 +42,12 @@ const query = `
 let vocabularyPromise: Promise<FilterVocabulary> | undefined;
 
 export function loadFilterVocabulary(): Promise<FilterVocabulary> {
-  vocabularyPromise ??= fetchFilterVocabulary();
+  // A rejection is not cached: a transient fetch failure in one suite should
+  // not doom every later suite in the same run to the stale error.
+  vocabularyPromise ??= fetchFilterVocabulary().catch((error) => {
+    vocabularyPromise = undefined;
+    throw error;
+  });
   return vocabularyPromise;
 }
 
@@ -65,13 +60,13 @@ async function fetchFilterVocabulary(): Promise<FilterVocabulary> {
   if (apiKey) {
     headers.set("Authorization", `Bearer ${apiKey}`);
   }
-  const response = await fetch(new URL("/graphql", phoenixHost), {
+  // Appended rather than resolved with `new URL("/graphql", host)`, which
+  // would drop the path prefix of a subpath-deployed Phoenix.
+  const graphqlUrl = `${phoenixHost.replace(/\/+$/, "")}/graphql`;
+  const response = await fetch(graphqlUrl, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      query,
-      variables: { filter: { col: "name", value: projectName } },
-    }),
+    body: JSON.stringify({ query, variables: { name: projectName } }),
   });
   if (!response.ok) {
     throw new Error(
@@ -84,11 +79,7 @@ async function fetchFilterVocabulary(): Promise<FilterVocabulary> {
       `Could not load filter vocabulary from Phoenix: ${payload.errors.map(({ message }) => message).join("; ")}`
     );
   }
-  // The server's project name filter is a substring match, so narrow to the
-  // exact project client-side.
-  const project = payload.data?.projects?.edges
-    .map(({ node }) => node)
-    .find(({ name }) => name === projectName);
+  const project = payload.data?.project;
   if (!project) {
     throw new Error(
       `AI query filter evals require a Phoenix project named "${projectName}" (set PHOENIX_EVAL_VOCABULARY_PROJECT to target a different one).`
