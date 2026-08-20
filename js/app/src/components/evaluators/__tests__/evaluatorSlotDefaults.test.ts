@@ -4,7 +4,7 @@ import { parsePathSegments } from "@phoenix/utils/objectUtils";
 import {
   EVALUATOR_SLOT_NAMES,
   getEvaluatorSlotDefault,
-  getEvaluatorSlotSuggestedKeys,
+  getEvaluatorSlotSuggestedPaths,
 } from "../evaluatorSlotDefaults";
 
 const GRAINS: ProjectEvaluatorMappingSourceGrain[] = ["span", "session"];
@@ -44,16 +44,27 @@ describe("evaluator slot defaults", () => {
     }
   });
 
-  it("pins a shortcut only where the record offers one", () => {
-    expect(getEvaluatorSlotSuggestedKeys("span", "input")).toEqual([
+  it("pins worked examples of what each slot's mapping can reach", () => {
+    expect(getEvaluatorSlotSuggestedPaths("span", "input")).toEqual([
       "input_value",
+      "attributes.llm.input_messages",
+      "attributes.input",
     ]);
-    expect(getEvaluatorSlotSuggestedKeys("span", "output")).toEqual([
+    expect(getEvaluatorSlotSuggestedPaths("span", "output")).toEqual([
       "output_value",
+      "attributes.llm.output_messages",
     ]);
-    expect(getEvaluatorSlotSuggestedKeys("span", "metadata")).toEqual([]);
-    for (const slotName of EVALUATOR_SLOT_NAMES) {
-      expect(getEvaluatorSlotSuggestedKeys("session", slotName)).toEqual([]);
-    }
+    expect(getEvaluatorSlotSuggestedPaths("span", "metadata")).toEqual([
+      "attributes",
+      "attributes.llm",
+    ]);
+    expect(getEvaluatorSlotSuggestedPaths("session", "input")).toEqual([
+      "turns",
+      "turns[0].input",
+    ]);
+    expect(getEvaluatorSlotSuggestedPaths("session", "output")).toEqual([
+      "turns[0].output",
+    ]);
+    expect(getEvaluatorSlotSuggestedPaths("session", "metadata")).toEqual([]);
   });
 });

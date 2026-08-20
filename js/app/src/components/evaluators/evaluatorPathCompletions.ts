@@ -185,19 +185,21 @@ export type EvaluatorPathCompletionResult = {
  *
  * The vocabulary is the record itself: `rootToken` (`span`, `session`) names it,
  * the root level offers the record's own fields, and each `.` opens the level
- * below. `suggestedKeys` names root-level fields worth pinning above the rest;
- * they are offered only at the root, where a shortcut is still a shortcut.
+ * below. `suggestedPaths` names root-relative paths worth pinning above the
+ * rest — worked examples of what a mapping can reach. They are offered only at
+ * the root, and only when they resolve on the record, so a suggestion is
+ * always a path that would actually bind.
  */
 export function getEvaluatorPathCompletions({
   source,
   rootToken,
-  suggestedKeys = [],
+  suggestedPaths = [],
   textBeforeCursor,
 }: {
   /** The mapping source a path is resolved against. */
   source: Record<string, unknown>;
   rootToken: string;
-  suggestedKeys?: readonly string[];
+  suggestedPaths?: readonly string[];
   textBeforeCursor: string;
 }): EvaluatorPathCompletionResult | null {
   const cursor = getEvaluatorPathCursor(textBeforeCursor);
@@ -216,15 +218,27 @@ export function getEvaluatorPathCompletions({
   }
 
   const isBrowsing = cursor.partial === "";
-  const suggested = isRoot
-    ? members.filter((member) => suggestedKeys.includes(member.key))
-    : [];
+  const suggested: EvaluatorPathCompletion[] = [];
+  if (isRoot) {
+    for (const relativePath of suggestedPaths) {
+      const path = `${rootToken}.${relativePath}`;
+      const resolution = resolveEvaluatorPath({ source, path });
+      if (resolution.status === "resolved") {
+        suggested.push({
+          key: relativePath,
+          path,
+          preview: toMemberPreview(resolution.value),
+          section: "suggested",
+        });
+      }
+    }
+  }
 
   return {
     from: cursor.from,
     containerPath,
     completions: [
-      ...suggested.map((member) => toCompletion(member, "suggested")),
+      ...suggested,
       ...(isBrowsing ? members.slice(0, MAX_BROWSE_MEMBERS) : members).map(
         (member) => toCompletion(member, "members")
       ),
