@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass, field, replace
+from typing import Any, cast
 from unittest.mock import Mock
 
 import httpx
@@ -25,11 +25,13 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.native_tools import WebFetchTool, WebSearchTool
 from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.tools import ToolDefinition
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.server.agents.agent_factory import build_agent as _build_agent
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPServer,
+    assert_tools_deferred,
     build_anthropic_prompt_cache_capability,
 )
 from phoenix.server.agents.context import (
@@ -1706,7 +1708,7 @@ class TestWebAccessCapabilities:
 
 
 class TestToolSearchCapability:
-    async def test_external_tools_use_native_anthropic_tool_search(
+    async def test_all_tools_use_native_anthropic_tool_search(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -1718,11 +1720,10 @@ class TestToolSearchCapability:
 
         tools_by_name = {tool.get("name"): tool for tool in captured_request.body.get("tools", [])}
         assert "tool_search_tool_bm25" in tools_by_name
-        assert tools_by_name["list_datasets"].get("defer_loading") is True
-        assert "defer_loading" not in tools_by_name["get_route_info"]
-        assert "defer_loading" not in tools_by_name["write_span_note"]
+        for name in ("list_datasets", "get_route_info", "write_span_note"):
+            assert tools_by_name[name].get("defer_loading") is True
 
-    async def test_external_tools_are_deferred_to_local_search_fallback(self) -> None:
+    async def test_all_tools_are_deferred_to_local_search_fallback(self) -> None:
         model = TestModel(call_tools=[])
         agent = build_agent(model=model)
         deps = AgentDependencies(contexts=ResolvedContexts())
@@ -1739,15 +1740,17 @@ class TestToolSearchCapability:
         assert tools_by_name["search_tools"].tool_kind == "tool-search"
         tool_visibility = request_parameters.tool_visibility
         assert tool_visibility is not None
-        assert "list_datasets" in tools_by_name
-        assert tools_by_name["list_datasets"].defer_loading is True
-        assert tool_visibility["list_datasets"] == "withheld"
-        assert "get_route_info" in tools_by_name
-        assert tools_by_name["get_route_info"].defer_loading is False
-        assert tool_visibility["get_route_info"] == "visible"
-        assert "write_span_note" in tools_by_name
-        assert tools_by_name["write_span_note"].defer_loading is False
-        assert tool_visibility["write_span_note"] == "visible"
+        for name in ("list_datasets", "get_route_info", "write_span_note"):
+            assert name in tools_by_name
+            assert tools_by_name[name].defer_loading is True
+            assert tool_visibility[name] == "withheld"
+
+    def test_assert_tools_deferred_rejects_an_eager_tool(self) -> None:
+        eager = ToolDefinition(name="forgot_to_defer", description="", parameters_json_schema={})
+        deferred = replace(eager, name="remembered", defer_loading=True)
+
+        with pytest.raises(AssertionError, match="forgot_to_defer"):
+            assert_tools_deferred(cast(RunContext[AgentDependencies], None), [deferred, eager])
 
 
 class TestDatasetEvaluatorSelectAndEditToolGates:

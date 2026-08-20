@@ -2,6 +2,7 @@ from phoenix.server.agents.capabilities.anthropic_prompt_cache import (
     AnthropicPromptCacheCapability,
     build_anthropic_prompt_cache_capability,
 )
+from phoenix.server.agents.capabilities.base import assert_tools_deferred
 from phoenix.server.agents.capabilities.contexts import get_context_capability_function
 from phoenix.server.agents.capabilities.docs_mcp import (
     MintlifyDocsMCPCapability,
@@ -23,6 +24,7 @@ __all__ = [
     "MintlifyDocsMCPServer",
     "NativeToolRetryCapability",
     "SkillsCapability",
+    "assert_tools_deferred",
     "get_context_capability_function",
     "get_external_tool_capability_function",
     "get_external_tool_definition",

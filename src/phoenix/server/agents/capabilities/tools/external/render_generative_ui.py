@@ -85,6 +85,7 @@ RENDER_GENERATIVE_UI_TOOL_DEFINITION = ToolDefinition(
     description=DESCRIPTION,
     parameters_json_schema=PARAMETERS,
     kind="external",
+    defer_loading=True,
 )
 
 

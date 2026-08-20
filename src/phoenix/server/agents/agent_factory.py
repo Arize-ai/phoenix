@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import replace
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -18,13 +17,13 @@ from pydantic_ai.capabilities import (
 )
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
-from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     NativeToolRetryCapability,
     SkillsCapability,
+    assert_tools_deferred,
     build_anthropic_prompt_cache_capability,
     get_context_capability_function,
 )
@@ -49,32 +48,6 @@ from phoenix.server.agents.web_access import (
 from phoenix.server.api.context import Context
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
-
-# These secondary tools are present across contexts and are useful on demand.
-# Context-gated action tools stay eager so direct UI requests remain one step.
-_DEFERRED_EXTERNAL_TOOL_NAMES = frozenset(
-    {
-        "batch_span_annotate",
-        "list_datasets",
-        "list_labels",
-        "list_splits",
-        "render_generative_ui",
-    }
-)
-
-
-def _defer_external_tools(
-    _: RunContext[AgentDependencies],
-    tool_definitions: list[ToolDefinition],
-) -> list[ToolDefinition]:
-    """Defer secondary global tools while keeping contextual actions eager."""
-    return [
-        replace(tool_definition, defer_loading=True)
-        if tool_definition.kind == "external"
-        and tool_definition.name in _DEFERRED_EXTERNAL_TOOL_NAMES
-        else tool_definition
-        for tool_definition in tool_definitions
-    ]
 
 
 def get_skills_capability_function(
@@ -138,7 +111,7 @@ def build_agent(
         config=TraceConfig(),
     )
     capabilities: list[AbstractCapability[AgentDependencies]] = [
-        PrepareTools(prepare_func=_defer_external_tools),
+        PrepareTools(prepare_func=assert_tools_deferred),
         WriteSpanNoteCapability(
             db=db,
             event_queue=event_queue,

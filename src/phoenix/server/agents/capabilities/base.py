@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from pydantic_ai import RunContext
 from pydantic_ai.capabilities import AbstractCapability
-from pydantic_ai.tools import AgentDepsT, SystemPromptFunc
+from pydantic_ai.tools import AgentDepsT, SystemPromptFunc, ToolDefinition
 
 
 @dataclass
@@ -45,3 +45,25 @@ class AbstractDynamicCapability(AbstractCapability[AgentDepsT], ABC):
 
     def get_instructions(self) -> SystemPromptFunc[AgentDepsT]:
         return self.get_dynamic_instructions()
+
+
+def assert_tools_deferred(
+    _: RunContext[AgentDepsT],
+    tool_definitions: list[ToolDefinition],
+) -> list[ToolDefinition]:
+    """Assert every tool opted into deferred loading at its definition site.
+
+    Nothing is advertised up front: the model reaches each tool through tool
+    search. Each tool sets ``defer_loading=True`` itself, so this only guards
+    against a new tool forgetting to. Output tools are exempt -- ``PrepareTools``
+    only sees function, external, and unapproved tools.
+    """
+    if eager := sorted(
+        tool_definition.name
+        for tool_definition in tool_definitions
+        if not tool_definition.defer_loading
+    ):
+        raise AssertionError(
+            f"tools must set defer_loading=True at their definition site: {', '.join(eager)}"
+        )
+    return tool_definitions

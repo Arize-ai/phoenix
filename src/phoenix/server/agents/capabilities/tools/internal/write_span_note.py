@@ -88,6 +88,7 @@ class WriteSpanNoteToolset(FunctionToolset[AgentDepsT]):
                     name=WRITE_SPAN_NOTE_TOOL_NAME,
                     description=_WRITE_SPAN_NOTE_DESCRIPTION,
                     takes_ctx=False,
+                    defer_loading=True,
                 )
             ]
         )
