@@ -1647,3 +1647,33 @@ async def test_a_forced_request_passes_the_filter_a_rule_request_waits_behind(
         assert request.materialized_generation == request.requested_generation
     else:
         assert request.materialized_generation < request.requested_generation
+
+
+async def test_a_pair_carrying_an_unfulfilled_request_yields_one_decision(
+    db: DbSessionFactory,
+    session_evaluation_enabled: None,
+) -> None:
+    """The ambient and triggered origins never claim the same pair.
+
+    The ambient arm excludes any pair holding an unfulfilled request, the triggered arm
+    selects exactly those pairs, and a pair holds at most one request row. Were a pair to
+    surface under both origins, which one decided it would come down to union order.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _request(db, project_session_id, criteria_id)
+
+    sweeper = SessionEvalSweeper(db)
+    async with db() as session:
+        criteria = await sweeper._load_criteria(session)
+        database_now = await sweeper._database_now(session)
+        relation = session_sweeper._scheduling_relation(criteria, database_now, db.dialect)
+        origins = list(await session.scalars(select(relation.c.scheduling_origin)))
+    assert origins == ["RULE"]
+
+    await sweeper._tick()
+
+    units = await _work_units(db)
+    assert [(unit.criteria_id, unit.scheduling_origin) for unit in units] == [
+        (criteria_id, "RULE"),
+    ]
