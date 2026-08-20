@@ -1,7 +1,7 @@
 """Background (ambient) evaluation runs at most once per evaluator configuration,
 content-independent; triggered and requested evaluation re-arms once per content version;
 explicit force always runs. The leased sweeper makes at most one decision per (session,
-project_evaluators) pair per tick, taking explicit over rule over ambient."""
+project_evaluators) pair per tick."""
 
 from __future__ import annotations
 
@@ -104,8 +104,6 @@ _LIVE_WORK_INDEX_PREDICATE = text(live_eval_session_work_index_predicate())
 _AMBIENT = "AMBIENT"
 _RULE = "RULE"
 _EXPLICIT = "EXPLICIT"
-# Lower rank wins when several scheduling origins claim the same pair.
-_EXPLICIT_RANK, _RULE_RANK, _AMBIENT_RANK = 0, 1, 2
 
 
 @dataclass(frozen=True)
@@ -330,7 +328,6 @@ def _triggered_pairs_statement(
             due_at.label("effective_due_time"),
             literal(True).label("filter_matches"),
             case((forced, literal(_EXPLICIT)), else_=literal(_RULE)).label("scheduling_origin"),
-            case((forced, literal(_EXPLICIT_RANK)), else_=literal(_RULE_RANK)).label("origin_rank"),
             pending.c.evaluation_request_id,
             pending.c.observed_generation,
             case((forced, null()), else_=answering_work_unit_id).label("answering_work_unit_id"),
@@ -440,7 +437,6 @@ def _eligible_pairs_statement(
             due_at.label("effective_due_time"),
             filter_matches.label("filter_matches"),
             literal(_AMBIENT).label("scheduling_origin"),
-            literal(_AMBIENT_RANK).label("origin_rank"),
             cast(null(), Integer).label("evaluation_request_id"),
             cast(null(), Integer).label("observed_generation"),
             cast(null(), Integer).label("answering_work_unit_id"),
@@ -527,7 +523,6 @@ class _Decision:
     evaluated_through: datetime
     status: models.EvalSessionWorkStatus
     scheduling_origin: models.SchedulingOrigin
-    origin_rank: int
     evaluation_request_id: Optional[int]
     observed_generation: Optional[int]
     answering_work_unit_id: Optional[int]
@@ -566,7 +561,7 @@ def _decision_status(row: Any) -> models.EvalSessionWorkStatus:
 
 
 def _resolve_decisions(rows: Sequence[Any]) -> list[_Decision]:
-    """Resolve at most one decision per pair, preferring the explicit origin."""
+    """Collect the decisions this sweep acts on, one per (session, project_evaluators) pair."""
     decisions: dict[tuple[int, int], _Decision] = {}
     for row in rows:
         decision = _Decision(
@@ -578,15 +573,12 @@ def _resolve_decisions(rows: Sequence[Any]) -> list[_Decision]:
             evaluated_through=row.evaluated_through,
             status=_decision_status(row),
             scheduling_origin=row.scheduling_origin,
-            origin_rank=row.origin_rank,
             evaluation_request_id=row.evaluation_request_id,
             observed_generation=row.observed_generation,
             answering_work_unit_id=row.answering_work_unit_id,
             declined_work_unit_id=row.declined_work_unit_id,
         )
-        held = decisions.get(decision.pair)
-        if held is None or decision.origin_rank < held.origin_rank:
-            decisions[decision.pair] = decision
+        decisions[decision.pair] = decision
     return list(decisions.values())
 
 
@@ -929,7 +921,6 @@ class SessionEvalSweeper(DaemonTask):
                 relation.c.effective_due_time,
                 relation.c.project_session_rowid,
                 relation.c.project_evaluator_id,
-                relation.c.origin_rank,
             )
             .limit(limit)
             .subquery("eligible_pair_page")
