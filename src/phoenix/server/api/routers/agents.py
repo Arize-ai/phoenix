@@ -144,7 +144,7 @@ from phoenix.server.agents.skill_requests import (
     iter_requested_skill_response_chunks,
     resolve_requested_skills,
 )
-from phoenix.server.agents.skills import get_skills_for_contexts
+from phoenix.server.agents.skills import get_all_skills
 from phoenix.server.agents.summarization import (
     summarize_messages,
     summarize_messages_for_compaction,
@@ -3355,7 +3355,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     on_bash_snapshot=_capture_bash_snapshot,
                 )
                 if body.requested_skills:
-                    available_skills = get_skills_for_contexts(resolved_contexts)
+                    available_skills = get_all_skills()
                     forced_skills = resolve_requested_skills(
                         messages=model_transcript_messages,
                         requested_skill_names=body.requested_skills,
