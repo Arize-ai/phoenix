@@ -57,6 +57,6 @@ the LLM spans under the test's task span.
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `GOOGLE_GENERATIVE_AI_API_KEY` (or `GEMINI_API_KEY`) | Required — the suites skip without it                                                                                 |
 | `PHOENIX_HOST` / `PHOENIX_API_KEY`                   | Where runs record as experiments — defaults to http://localhost:6006; set `PHOENIX_TEST_TRACKING=false` for a dry run |
-| `PHOENIX_EVAL_VOCABULARY_PROJECT`                    | Exact-name project the session/trace suites pull filter vocabulary from — defaults to `"default"`                    |
+| `PHOENIX_EVAL_VOCABULARY_PROJECT`                    | Exact-name project the session/trace suites pull filter vocabulary from — defaults to `"default"`                     |
 
 Variables are read from `js/app/.env` (shell variables win).
