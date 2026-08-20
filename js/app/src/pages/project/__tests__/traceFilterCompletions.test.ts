@@ -58,13 +58,7 @@ const vocabulary: TraceFilterVocabularyTerm[] = [
 
 const completionModel = buildTraceFilterCompletionModel(vocabulary);
 
-/**
- * Expands a snippet completion against state alone. The applier only reads
- * `state` and dispatches the transaction it builds, so the snippet expands for
- * real — a live `EditorView` would instead measure a viewport against a layout
- * jsdom does not compute. Importing state primitives directly keeps CodeMirror
- * from resolving state through a React wrapper re-export.
- */
+/** Expands a snippet against state alone — jsdom cannot host a live `EditorView`, and the applier only reads `state`. */
 function applySnippetCompletion(
   completion: (typeof completionModel.completions)[number]
 ) {
