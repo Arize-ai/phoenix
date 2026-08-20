@@ -36,6 +36,7 @@ import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LL
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { ProjectEvaluatorMetrics } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMetrics";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorRunDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRunDetails";
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
@@ -135,6 +136,7 @@ function ProjectEvaluatorDetailsPageLoaded({
             {/* The key stays `configuration` -- it is the tab's identity, not its
               label, and a Traces deep link selects by it. */}
             <Tab id="configuration">Overview</Tab>
+            <Tab id="metrics">Metrics</Tab>
             <Tab id="traces">Traces</Tab>
           </TabList>
           <LazyTabPanel id="configuration">
@@ -161,6 +163,17 @@ function ProjectEvaluatorDetailsPageLoaded({
                 </Flex>
               </View>
             </View>
+          </LazyTabPanel>
+          <LazyTabPanel id="metrics">
+            <Suspense fallback={<Loading />}>
+              <ProjectEvaluatorMetrics
+                projectEvaluatorId={projectEvaluator.id}
+                evaluatedProjectId={projectEvaluator.project.id}
+                traceProjectId={projectEvaluator.traceProject?.id ?? null}
+                evaluatorName={projectEvaluator.name}
+                evaluationTarget={projectEvaluator.evaluationTarget}
+              />
+            </Suspense>
           </LazyTabPanel>
           <LazyTabPanel id="traces">
             <Suspense fallback={<Loading />}>

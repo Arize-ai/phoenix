@@ -291,6 +291,35 @@ def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> Any:
     )
 
 
+def _project_evaluator_trace_scope(project_evaluator_id: GlobalID) -> Any:
+    """Match only the traces an evaluator execution stamped with its own identity.
+
+    Every span an evaluator emits carries its id, so a trace belongs to the
+    evaluator when any of its spans does.
+    """
+    return (
+        select(models.Span.id)
+        .where(models.Span.trace_rowid == models.Trace.id)
+        # Every evaluator span carries the id, so probing only root spans keeps
+        # the attribute check to about one span per candidate trace.
+        .where(models.Span.parent_id.is_(None))
+        .where(_project_evaluator_span_scope(project_evaluator_id))
+        .exists()
+    )
+
+
+_ProjectEvaluatorTraceScopeArg = Annotated[
+    Optional[GlobalID],
+    strawberry.argument(
+        description=(
+            "Restrict to traces produced by this project evaluator. Every evaluator "
+            "traces into one shared project, so its own traces are only reachable "
+            "through this scope."
+        )
+    ),
+]
+
+
 def _unknown_annotation_name_warning(name: str, observed_names: Sequence[str]) -> str:
     """Warn about an unrecognized annotation name, naming its closest observed neighbors."""
     if not observed_names:
@@ -1721,6 +1750,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        project_evaluator_id: _ProjectEvaluatorTraceScopeArg = UNSET,
     ) -> "TraceCountByStatusTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
@@ -1769,6 +1799,8 @@ class Project(Node):
             .group_by(bucket)
             .order_by(bucket)
         )
+        if project_evaluator_id:
+            stmt = stmt.where(_project_evaluator_trace_scope(project_evaluator_id))
         if time_range:
             if time_range.start:
                 stmt = stmt.where(time_range.start <= models.Trace.start_time)
@@ -1814,6 +1846,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        project_evaluator_id: _ProjectEvaluatorTraceScopeArg = UNSET,
     ) -> "TraceLatencyPercentileTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
@@ -1838,6 +1871,8 @@ class Project(Node):
         bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
 
         stmt = select(bucket).where(models.Trace.project_rowid == self.id)
+        if project_evaluator_id:
+            stmt = stmt.where(_project_evaluator_trace_scope(project_evaluator_id))
         if time_range.start:
             stmt = stmt.where(time_range.start <= models.Trace.start_time)
         if time_range.end:
@@ -2061,6 +2096,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        project_evaluator_id: _ProjectEvaluatorTraceScopeArg = UNSET,
     ) -> "TraceTokenCostTimeSeries":
         if time_range.start is None:
             raise BadRequest("Start time is required")
@@ -2099,6 +2135,8 @@ class Project(Node):
             .group_by(bucket)
             .order_by(bucket)
         )
+        if project_evaluator_id:
+            stmt = stmt.where(_project_evaluator_trace_scope(project_evaluator_id))
         if time_range:
             if time_range.start:
                 stmt = stmt.where(time_range.start <= models.Trace.start_time)
