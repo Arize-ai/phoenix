@@ -3,6 +3,7 @@ import {
   formatProjectEvaluatorRunCounts,
   getProjectEvaluatorMappingDiagnostics,
   getProjectEvaluatorStatus,
+  parseLastError,
   toProjectEvaluatorSamplingFraction,
 } from "../projectEvaluatorTypes";
 
@@ -145,5 +146,44 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         status: "optional-missing",
       },
     ]);
+  });
+});
+
+describe("parseLastError", () => {
+  it("splits a leading error code from its detail", () => {
+    expect(
+      parseLastError(
+        "RENDERED_MESSAGE_TOO_LARGE: Rendered online-eval messages are 99874 bytes"
+      )
+    ).toEqual({
+      code: "RENDERED_MESSAGE_TOO_LARGE",
+      detail: "Rendered online-eval messages are 99874 bytes",
+    });
+  });
+
+  it("treats an error with no code as all detail", () => {
+    expect(parseLastError("something went sideways")).toEqual({
+      code: null,
+      detail: "something went sideways",
+    });
+  });
+
+  it("does not mistake prose for a code", () => {
+    // A capitalized first word followed by a colon is a sentence, not a code.
+    expect(parseLastError("Timeout: the judge never answered")).toEqual({
+      code: null,
+      detail: "Timeout: the judge never answered",
+    });
+  });
+
+  it("keeps a multi-line detail intact", () => {
+    expect(parseLastError("CODE_X: first line\nsecond line")).toEqual({
+      code: "CODE_X",
+      detail: "first line\nsecond line",
+    });
+  });
+
+  it("handles a code with no detail after it", () => {
+    expect(parseLastError("CODE_X:")).toEqual({ code: "CODE_X", detail: "" });
   });
 });

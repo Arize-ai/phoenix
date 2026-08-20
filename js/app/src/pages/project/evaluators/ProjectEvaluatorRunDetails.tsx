@@ -12,6 +12,7 @@ import type { ProjectEvaluatorRunDetails_projectEvaluator$key } from "@phoenix/p
 import {
   formatLastRun,
   formatLastRunTimestamp,
+  parseLastError,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 const lastErrorCSS = css`
@@ -107,21 +108,4 @@ export function ProjectEvaluatorRunDetails({
       ) : null}
     </Flex>
   );
-}
-
-const ERROR_CODE_PATTERN = /^([A-Z][A-Z0-9_]*):\s*(.*)$/s;
-
-/**
- * Errors arrive as `CODE: detail`. Splitting them lets the code read as a label
- * and keeps the detail from swallowing it; an error without a code is all
- * detail.
- */
-function parseLastError(lastError: string): {
-  code: string | null;
-  detail: string;
-} {
-  const match = ERROR_CODE_PATTERN.exec(lastError);
-  return match == null
-    ? { code: null, detail: lastError }
-    : { code: match[1], detail: match[2] };
 }
