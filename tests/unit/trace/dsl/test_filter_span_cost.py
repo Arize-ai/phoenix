@@ -466,6 +466,79 @@ async def test_reductions_skip_null_elements_where_quantifiers_do_not(
     assert await _matching(db, condition) == expected
 
 
+# span_id -> annotation score. `priced` and `cheap` are both annotated so the annotation
+# half of a mixed condition cannot be what discriminates between them -- only the cost half
+# can. See `test_cost_and_annotation_in_one_condition_read_the_same_span`.
+_SCORES = {"priced": 1.0, "cheap": 1.0, "untokenized": 0.0}
+
+
+@pytest.fixture
+async def annotated_cost_project(db: DbSessionFactory, cost_project: None) -> None:
+    async with db() as session:
+        rowids = dict(
+            (await session.execute(select(models.Span.span_id, models.Span.id))).all()  # type: ignore[arg-type]
+        )
+        for span_id, score in _SCORES.items():
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    span_rowid=rowids[span_id],
+                    name="q",
+                    label="ok",
+                    score=score,
+                    explanation="",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    identifier="",
+                    source="APP",
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        # `cheap` is annotated too, and its own cost is 0.1. It may only be excluded by
+        # reading *its* cost row -- if the cost half is satisfied by any cost row in the
+        # table, `cheap` comes back as well.
+        pytest.param(
+            "annotations['q'].score > 0.5 and total_cost > 0.5",
+            ["priced"],
+            id="scalar-reads-this-spans-cost",
+        ),
+        # Mirror image: `priced` is annotated and has no `cache_read` detail of its own.
+        # It may only be excluded by reading *its* detail rows.
+        pytest.param(
+            "annotations['q'].score > 0.5 and any(d.token_type == 'cache_read' for d in cost_details)",
+            ["cheap"],
+            id="comprehension-reads-this-spans-details",
+        ),
+        pytest.param(
+            "annotations['q'].score > 0.5 and total_cost > 0.5 "
+            "and any(d.token_type == 'input' for d in cost_details)",
+            ["priced"],
+            id="scalar-and-comprehension-together",
+        ),
+    ],
+)
+async def test_cost_and_annotation_in_one_condition_read_the_same_span(
+    db: DbSessionFactory,
+    annotated_cost_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    """Cost and annotations in one condition must both resolve to the row being filtered.
+
+    An annotation predicate is evaluated inside a correlated `EXISTS`, and the whole
+    compiled predicate rides along inside it -- the cost half included. Two relations have
+    to reach back out of that subquery to the filtered span: the joined `span_costs` alias
+    the scalars are bound against, and the `spans` table the `cost_details` subquery
+    correlates on. Either one re-rendered inside the `EXISTS` instead is an unconstrained
+    cross join, which reads as "some span has a cost like this" rather than "this one
+    does" -- valid SQL that quietly over-matches, which is why this is asserted on rows.
+    """
+    assert await _matching(db, condition) == expected
+
+
 @pytest.mark.parametrize(
     "condition,message",
     [
