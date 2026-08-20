@@ -40,7 +40,7 @@ describe("createRetrievalRelevanceEvaluator", () => {
           expect.objectContaining({
             role: "user",
             content: expect.stringContaining(
-              "whether the external information retrieved during a single step is RELEVANT"
+              "retrieved information is RELEVANT to the request"
             ),
           }),
         ]),
