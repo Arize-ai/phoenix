@@ -1,6 +1,5 @@
-import { parsePathSegments } from "@phoenix/utils/objectUtils";
-
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { parsePathSegments } from "@phoenix/utils/objectUtils";
 
 import {
   EVALUATOR_SLOT_NAMES,
