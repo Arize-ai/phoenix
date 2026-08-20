@@ -392,9 +392,7 @@ def _upsert_set(dialect: SupportedSQLDialect) -> dict[str, Any]:
         "requested_generation": (
             models.EvaluationRequest.requested_generation + excluded.requested_generation
         ),
-        "force_requested": or_(
-            models.EvaluationRequest.force_requested, excluded.force_requested
-        ),
+        "force_requested": or_(models.EvaluationRequest.force_requested, excluded.force_requested),
         "requested_at": excluded.requested_at,
         "updated_at": func.now(),
     }
