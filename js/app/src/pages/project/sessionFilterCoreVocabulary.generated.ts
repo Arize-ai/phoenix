@@ -35,14 +35,14 @@ export const sessionFilterCoreVocabulary: SessionFilterCoreVocabularyTerm[] = [
   {
     name: "start_time",
     type: "datetime",
-    description: "Session start timestamp (earliest trace) \u2014 a point comparison against the session's own bound, unlike the view's time range, which selects sessions that overlap a window. Compare against ISO 8601 strings, e.g. start_time > '2026-07-01T00:00:00+00:00'; values without a timezone are read as UTC, so prefer an offset-bearing literal.",
+    description: "Session start timestamp (earliest trace) \u2014 a point comparison against the session's own bound, unlike the view's time range, which selects sessions that overlap a window. Compare against ISO 8601 strings, e.g. start_time > '2026-07-01T00:00:00+00:00'; a literal without a timezone offset is rejected, so include one (e.g. a trailing 'Z').",
     category: "session",
     iterableName: null,
   },
   {
     name: "end_time",
     type: "datetime",
-    description: "Session end timestamp (latest trace) \u2014 a point comparison against the session's own bound, unlike the view's time range, which selects sessions that overlap a window. Compare against ISO 8601 strings, e.g. end_time < '2026-07-04T12:00:00+00:00'; values without a timezone are read as UTC, so prefer an offset-bearing literal.",
+    description: "Session end timestamp (latest trace) \u2014 a point comparison against the session's own bound, unlike the view's time range, which selects sessions that overlap a window. Compare against ISO 8601 strings, e.g. end_time < '2026-07-04T12:00:00+00:00'; a literal without a timezone offset is rejected, so include one (e.g. a trailing 'Z').",
     category: "session",
     iterableName: null,
   },

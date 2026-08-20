@@ -102,6 +102,7 @@ from phoenix.server.api.types.GenerativeProvider import (
 from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
+    import httpx2
     from anthropic import AsyncAnthropic
     from anthropic.lib.streaming import AsyncMessageStreamManager
     from anthropic.types import MessageParam, TextBlockParam, ToolUseBlockParam
@@ -2900,6 +2901,7 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
 
 
 GEMINI_3_MODELS = [
+    "gemini-3.7-flash",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
@@ -2963,19 +2965,27 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLE
 
 
 class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
+    """Records the outgoing request URL on the span without altering the request.
+
+    Provider SDKs disagree on their HTTP library: the openai SDK is built on httpx2, the
+    others on httpx. Both are accepted because only ``request.url`` is read.
+    """
+
     def __init__(
         self,
-        wrapped: httpx.AsyncClient,
+        wrapped: httpx.AsyncClient | httpx2.AsyncClient,
         span: OTelSpan,
     ):
         super().__init__(wrapped)
         self._self_span = span
 
-    async def send(self, request: httpx.Request, **kwargs: Any) -> httpx.Response:
+    async def send(
+        self, request: httpx.Request | httpx2.Request, **kwargs: Any
+    ) -> httpx.Response | httpx2.Response:
         self._self_span.set_attribute(URL_FULL, str(request.url))
         self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
         response = await self.__wrapped__.send(request, **kwargs)
-        return cast(httpx.Response, response)
+        return cast("httpx.Response | httpx2.Response", response)
 
 
 CustomProviderId: TypeAlias = int

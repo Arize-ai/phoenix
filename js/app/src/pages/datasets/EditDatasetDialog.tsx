@@ -1,4 +1,8 @@
-import { Dialog, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  Dialog,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -35,8 +39,8 @@ export function EditDatasetDialog({
   };
 
   return (
-    <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal size="S">
+    <ViewportModalOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
+      <ViewportModal size="S">
         <Dialog>
           <DialogContent>
             <DialogHeader>
@@ -54,7 +58,7 @@ export function EditDatasetDialog({
             />
           </DialogContent>
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }

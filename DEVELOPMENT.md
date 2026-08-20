@@ -36,19 +36,19 @@ The fastest path from a fresh clone to a running Phoenix dev server. See the sec
 # 1. Install Python dependencies (installs Phoenix and all sub-packages in editable mode)
 uv sync --all-extras
 
-# 2. Install the pinned Node.js version (reads .nvmrc) and pnpm
+# 2. Install the pinned Node.js and pnpm versions
 nvm install
 npm i -g pnpm@11.11.0
 
-# 3. Install and build the web app
-cd js/app
-cp .env.example .env
-# edit .env and change PHOENIX_AUTH to `false` if you do not want to manage API keys during development
+# 3. Install the JavaScript workspace and build the web app
+cd js
 pnpm install
-pnpm run build:deps
-pnpm run build
+pnpm build
+cp app/.env.example app/.env
+# Set PHOENIX_ENABLE_AUTH=False in app/.env to disable authentication locally
 
 # 4. Start the dev server (Python API + frontend with hot reload)
+cd app
 pnpm dev
 ```
 
@@ -81,7 +81,7 @@ The sub-packages (`phoenix.evals`, `phoenix.otel`, and `phoenix.client`) located
 **Next**, install the web build dependencies.
 
 We recommend installing [nodejs via nvm](https://github.com/nvm-sh/nvm) and then
-installing `pnpm` globally to manage the web frontend dependencies.
+installing `pnpm` globally to manage the JavaScript workspace dependencies.
 
 ```bash
 # install nvm
@@ -91,24 +91,17 @@ installing `pnpm` globally to manage the web frontend dependencies.
 nvm install
 # set it as default (optional)
 nvm alias default <version-that-was-installed>
-# install pnpm globally for v22
-npm i -g pnpm@9.15.5
+# install pnpm globally
+npm i -g pnpm@11.11.0
 ```
 
-Then we will build the web app.
-
-Change directory to `js/app`:
+Then install the JavaScript workspace from its root and build the web app:
 
 ```bash
-cd js/app
-```
-
-and run:
-
-```bash
+cd js
 pnpm install
-pnpm run build:deps
-pnpm run build
+pnpm build
+cp app/.env.example app/.env
 ```
 
 Check out the `README.md` file in the `js/app` directory for more information on developing the web application.

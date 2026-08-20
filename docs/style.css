@@ -1,3 +1,489 @@
+/* ============================================================================
+   Phoenix docs — 2026 brand
+
+   Shares the Arize AX docs design system (neutral ramp, surfaces, radii, Geist,
+   component treatments) but keeps Phoenix's own cyan accent, per the
+   `[data-mode="phoenix"]` block in the brand token set.
+
+   Accent colours come from docs.json `colors`, not this file:
+     colors.primary -> emphasis in light mode        (#00769E)
+     colors.light   -> emphasis in dark mode         (#39C7FF)
+     colors.dark    -> button/hover fills, both modes (#009DD2)
+
+   The token set defines Phoenix as dark-only, so light-mode values are derived.
+   The brand cyan #009DD2 is only 3.1:1 on white, so light-mode emphasis uses a
+   darkened #00769E — 5.1:1 on the page and 4.6:1 on the accent-soft pill.
+
+   Mintlify injects its theme into `:root` as space-separated RGB triples
+   consumed via `rgb(var(--x))`, so overrides here use triples, not hex. Its
+   component hooks (`card`, `callout`, `code-block`, …) are class names despite
+   being documented as element selectors.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&display=swap');
+
+/* --------------------------------------------------------------------------
+   1. Fonts — Geist comes from docs.json; there is no config slot for mono.
+   -------------------------------------------------------------------------- */
+
+html:root {
+  --font-family-mono-custom: 'Geist Mono';
+}
+
+/* --------------------------------------------------------------------------
+   2. Neutral ramp
+   Drives surfaces, hairlines and body/muted text across the whole bundle.
+   Mintlify otherwise derives this from `colors.primary`, which tints every
+   neutral. Each stop serves light mode and dark mode inversely. The 400, 900
+   and 950 stops are the token set's own Phoenix values.
+   -------------------------------------------------------------------------- */
+
+html:root {
+  --gray-50: 247 247 248;   /* #F7F7F8  light: surface     · dark: brightest text */
+  --gray-100: 241 242 243;  /* #F1F2F3  light: code bg     · dark: body text */
+  --gray-200: 228 229 232;  /* #E4E5E8  light: chip, rule  · dark: secondary text */
+  --gray-300: 201 203 208;  /* #C9CBD0  light: strong border */
+  --gray-400: 161 164 171;  /* #A1A4AB  light: placeholder · dark: muted text */
+  --gray-500: 124 128 136;  /* #7C8088 */
+  --gray-600: 86 90 98;     /* #565A62  light: muted text */
+  --gray-700: 61 64 70;     /* #3D4046  light: tertiary text */
+  --gray-800: 43 45 49;     /* #2B2D31  light: body text   · dark: hairline */
+  --gray-900: 21 22 22;     /* #151616  light: headings     · dark: surface */
+  --gray-950: 8 9 10;       /* #08090A  light: headings     · dark: page bg */
+}
+
+/* --------------------------------------------------------------------------
+   3. Design tokens
+   Section 4 reads only from here, so retuning the palette means editing only
+   this section.
+   -------------------------------------------------------------------------- */
+
+html:root {
+  --px-radius-sm: 2px;
+  --px-radius-md: 6px;
+  --px-radius-lg: 8px;
+
+  --px-accent-bg: #009DD2;
+}
+
+html:not(.dark) {
+  --px-bg: #FFFFFF;
+  --px-surface: #F7F7F8;
+  --px-code-bg: #F1F2F3;
+  --px-chip: #E9EAEC;
+  --px-line: rgba(8, 9, 10, 0.18);
+
+  --px-t1: #08090A;
+  --px-t2: #2B2D31;
+  --px-t3: #3D4046;
+
+  --px-accent: #00769E; /* darkened from the brand cyan, for AA on white */
+  --px-accent-line: rgba(0, 157, 210, 0.55);
+  --px-accent-soft: #E7F3FD;
+  --px-on-accent: #08090A;
+
+  --px-note: #E8F3EC;
+  --px-note-line: rgba(30, 70, 50, 0.24);
+  --px-note-t: #1B4230;
+  --px-warn: #FBEEE0;
+  --px-warn-line: rgba(90, 50, 0, 0.24);
+  --px-warn-t: #54300A;
+  --px-blue: #E7F3FD;
+  --px-blue-line: rgba(0, 82, 125, 0.24);
+  --px-blue-t: #00527D;
+  --px-danger: #FFEBE9;
+  --px-danger-line: rgba(207, 34, 46, 0.28);
+  --px-danger-t: #A40E26;
+}
+
+html.dark {
+  --px-bg: #08090A;
+  --px-surface: #151616;
+  --px-code-bg: #050506;
+  --px-chip: #1E2226;
+  --px-line: rgba(194, 196, 234, 0.20);
+
+  --px-t1: #FFFFFF;
+  --px-t2: #D5D7DB;
+  --px-t3: #A1A4AB;
+
+  --px-accent: #39C7FF;
+  --px-accent-line: rgba(57, 199, 255, 0.45);
+  --px-accent-soft: #122F3B;
+  --px-on-accent: #08090A;
+
+  --px-note: #10241A;
+  --px-note-line: rgba(159, 224, 188, 0.30);
+  --px-note-t: #9FE0BC;
+  --px-warn: #2A1B0A;
+  --px-warn-line: rgba(255, 201, 138, 0.30);
+  --px-warn-t: #FFC98A;
+  --px-blue: #0A1A24;
+  --px-blue-line: rgba(57, 195, 255, 0.30);
+  --px-blue-t: #97D8FF;
+  --px-danger: #2A0F12;
+  --px-danger-line: rgba(255, 138, 148, 0.30);
+  --px-danger-t: #FFB3B8;
+}
+
+/* --------------------------------------------------------------------------
+   4. Components
+   -------------------------------------------------------------------------- */
+
+/* --- Type ---------------------------------------------------------------- */
+/* The H1 is the only size set here; everything else keeps Mintlify's
+   responsive scale. Note that card titles are also <h2>, so a blanket
+   `#content h2` font-size would inflate them too. */
+
+#content {
+  line-height: 1.75;
+}
+
+#page-title,
+#content h1 {
+  font-size: clamp(2rem, 1.4rem + 2.1vw, 2.875rem); /* 32 -> 46px */
+  line-height: 1.12; /* stock 36px was set for a 30px font */
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+#content h2,
+#content h3,
+#content h4 {
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+/* Tabular figures keep columns of numbers aligned. */
+#content code,
+#content kbd,
+#content samp {
+  font-feature-settings: 'tnum' 1;
+}
+
+/* --- Links and focus ----------------------------------------------------- */
+
+/* Prose links render as `<a class="link">`, so an earlier `:not(.link)` here
+   excluded exactly the links this was meant to style. Cards are also anchors, so
+   they stay excluded. Colour is set explicitly rather than left to Mintlify's
+   link token, which does not resolve to the brand accent. */
+#content a:not(.card) {
+  color: var(--px-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--px-accent-line);
+  border-radius: var(--px-radius-sm);
+}
+
+::selection {
+  background: var(--px-accent-soft);
+}
+
+/* --- Top navigation ------------------------------------------------------ */
+
+#navbar {
+  background: var(--px-bg);
+  border-bottom: 1px solid var(--px-line);
+}
+
+/* Rule between the logo row and the tab row. Anchored to the tab row so the
+   vertical position needs no hardcoded header height, and drawn as a 100vw
+   pseudo-element to break out of the `max-w-8xl` container it sits in. */
+#navbar div:has(> .nav-tabs) {
+  position: relative;
+}
+
+#navbar div:has(> .nav-tabs)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  border-top: 1px solid var(--px-line);
+  pointer-events: none;
+}
+
+.nav-tabs-item[data-active] {
+  box-shadow: inset 0 -2px 0 var(--px-accent);
+}
+
+#search-bar-entry {
+  background: var(--px-surface);
+  border: 1px solid var(--px-line);
+  border-radius: var(--px-radius-md);
+}
+
+#assistant-entry {
+  background: var(--px-surface);
+  border: 1px solid var(--px-accent-line);
+  border-radius: var(--px-radius-md);
+}
+
+/* Inline <svg> with a real <path>, unlike the site's masked icons, so it takes
+   `color`. Setting `background` here would paint a block behind the glyph. */
+#assistant-entry svg {
+  color: var(--px-accent);
+}
+
+/* --- Copy page control --------------------------------------------------- */
+/* Two separate buttons: the label carries the id, the chevron has a generated
+   one and is reached via `aria-haspopup`. Do NOT match it positionally —
+   opening the menu injects sibling positioning elements into this container, so
+   `:last-child` stops matching and the chevron snaps back to its native
+   `h-[34px] aspect-square`, visibly shrinking mid-interaction.
+   `align-items: stretch` keeps both halves the same height. */
+
+#page-context-menu {
+  font-size: 0.9375rem;
+  align-items: stretch;
+}
+
+#page-context-menu-button {
+  padding: 10px 14px;
+  border-radius: var(--px-radius-md) 0 0 var(--px-radius-md);
+  background: var(--px-surface);
+  border-color: var(--px-line);
+}
+
+#page-context-menu-button > div {
+  font-size: 0.9375rem;
+  gap: 9px;
+}
+
+/* A fixed height defeats the container's `align-items: stretch` (stretch only
+   applies when the cross-size is auto), so clearing it and the aspect ratio
+   lets this half match the label and take its width from the padding. */
+#page-context-menu > button[aria-haspopup] {
+  height: auto;
+  align-self: stretch;
+  aspect-ratio: auto;
+  padding: 10px 11px;
+  border-radius: 0 var(--px-radius-md) var(--px-radius-md) 0;
+  background: var(--px-surface);
+  border-color: var(--px-line);
+}
+
+/* --- Sidebar ------------------------------------------------------------- */
+
+#sidebar-content li[data-active] > a {
+  background: var(--px-accent-soft);
+  color: var(--px-accent);
+  border-radius: var(--px-radius-md);
+  font-weight: 500;
+}
+
+.sidebar-group-header {
+  font-weight: 600;
+  color: var(--px-t1);
+}
+
+/* --- Table of contents --------------------------------------------------- */
+/* `data-active` is applied client-side on scroll, so it is absent from SSR. */
+
+/* Active entry is marked by colour alone — Mintlify also bolds it, which the
+   design does not. */
+.toc-item[data-active],
+.toc-item[data-active] a {
+  color: var(--px-accent);
+  font-weight: 400;
+}
+
+/* --- Surfaces ------------------------------------------------------------ */
+/* Selectors are doubled (`.card.card`) throughout this section. Mintlify styles
+   these with `dark:` utilities, which compile to `.foo:is(.dark *)` —
+   specificity (0,2,0). A single class is (0,1,0) and silently loses in dark mode
+   only. Doubling matches that specificity and wins on source order, in both
+   modes. Do not simplify these back to a single class.
+
+   Cards keep Mintlify's hover: `hover:!border-primary` already resolves to the
+   brand accent, as do card icons via `bg-primary dark:bg-primary-light`. */
+
+.card.card {
+  background: var(--px-surface);
+  border-color: var(--px-line);
+  border-radius: var(--px-radius-lg);
+  box-shadow: none;
+}
+
+.frame.frame {
+  background: var(--px-surface);
+  border: 1px solid var(--px-line);
+  border-radius: var(--px-radius-lg);
+}
+
+.accordion.accordion,
+.accordion-group.accordion-group {
+  border-radius: var(--px-radius-md);
+  border-color: var(--px-line);
+}
+
+.accordion.accordion {
+  background: var(--px-surface);
+}
+
+/* --- Code ---------------------------------------------------------------- */
+
+.code-block.code-block,
+.code-group.code-group {
+  background: var(--px-code-bg);
+  border-color: var(--px-line);
+  border-radius: var(--px-radius-md);
+}
+
+/* The inner scroll surface needs `!important` twice over: Shiki writes its theme
+   background INLINE on this element (beating any normal rule), and in dark mode
+   `html.dark .code-block-background { … !important }` also applies — which
+   outranks a bare class even when important, hence the second rule. */
+.code-block-background {
+  background: var(--px-code-bg) !important;
+}
+
+html.dark .code-block-background {
+  background: var(--px-code-bg) !important;
+}
+
+#content :not(pre) > code {
+  background: var(--px-chip);
+  border-radius: var(--px-radius-sm);
+}
+
+/* Code inside a callout sits on the page background, not the code surface — the
+   callout is already a tinted field, so a second tint muddies it. Mintlify ships
+   these as `bg-transparent`; the rules above would otherwise override that.
+   `html.dark` on the last selector only outranks Mintlify's dark-scoped fill. */
+.callout .code-block.code-block,
+.callout .code-group.code-group,
+.callout .code-block-background,
+html.dark .callout .code-block-background {
+  background: var(--px-bg) !important;
+}
+
+/* --- Callouts ------------------------------------------------------------ */
+/* `data-callout-type` is undocumented but present on every callout. Callout
+   text is coloured by `!important` utilities, so overrides need it too. */
+
+.callout {
+  border-radius: var(--px-radius-lg);
+}
+
+.callout[data-callout-type='callout'],
+.callout[data-callout-type='info'] {
+  background: var(--px-surface);
+  border-color: var(--px-line);
+}
+
+.callout[data-callout-type='callout'] [data-component-part='callout-content'],
+.callout[data-callout-type='info'] [data-component-part='callout-content'] {
+  color: var(--px-t2) !important;
+}
+
+.callout[data-callout-type='tip'],
+.callout[data-callout-type='check'] {
+  background: var(--px-note);
+  border-color: var(--px-note-line);
+}
+
+.callout[data-callout-type='tip'] [data-component-part='callout-content'],
+.callout[data-callout-type='check'] [data-component-part='callout-content'] {
+  color: var(--px-note-t) !important;
+}
+
+.callout[data-callout-type='warning'] {
+  background: var(--px-warn);
+  border-color: var(--px-warn-line);
+}
+
+.callout[data-callout-type='warning'] [data-component-part='callout-content'] {
+  color: var(--px-warn-t) !important;
+}
+
+.callout[data-callout-type='note'] {
+  background: var(--px-blue);
+  border-color: var(--px-blue-line);
+}
+
+.callout[data-callout-type='note'] [data-component-part='callout-content'] {
+  color: var(--px-blue-t) !important;
+}
+
+.callout[data-callout-type='danger'] {
+  background: var(--px-danger);
+  border-color: var(--px-danger-line);
+}
+
+.callout[data-callout-type='danger'] [data-component-part='callout-content'] {
+  color: var(--px-danger-t) !important;
+}
+
+/* --- Steps --------------------------------------------------------------- */
+/* The numbered indicator ships as a plain grey disc. The design draws it as an
+   accent-soft disc with a hairline accent ring and accent numeral. Reached via
+   `data-component-part`, which is stabler than the generated
+   `group/step-indicator` class (and needs no escaping). */
+
+[data-component-part='step-number'] > div {
+  background: var(--px-accent-soft);
+  border: 1px solid var(--px-accent-line);
+  color: var(--px-accent);
+  font-weight: 500;
+}
+
+/* --- Changelog ----------------------------------------------------------- */
+/* Mintlify lays each <Update> out as a 160px sticky date column beside a
+   narrowed content column at `lg:` and up, stacking only on mobile. Stack it at
+   every width instead, so the date heads a full-width section and the content
+   gets the whole measure. A hairline separates entries, which otherwise run
+   together once they share one column. */
+
+.update.update-container {
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--px-line);
+}
+
+.update.update-container:first-of-type {
+  border-top: none;
+}
+
+/* First child is the date column, second the body. The date column is also
+   `lg:sticky`, which has to be cancelled now that it is a full-width header. */
+.update.update-container > div:first-child {
+  width: 100%;
+  position: static;
+}
+
+.update.update-container > div:last-child {
+  width: 100%;
+  max-width: none;
+}
+
+/* --- Tables -------------------------------------------------------------- */
+
+#content th {
+  color: var(--px-t1);
+  font-weight: 600;
+  border-bottom: 1px solid var(--px-line);
+}
+
+#content td {
+  border-bottom: 1px solid var(--px-line);
+}
+
+/* --- Footer -------------------------------------------------------------- */
+
+footer {
+  border-top: 1px solid var(--px-line);
+}
+
+/* --------------------------------------------------------------------------
+   5. Pre-existing Phoenix rules, carried over unchanged.
+   -------------------------------------------------------------------------- */
+
 /* sr-only: Visually hidden but accessible to screen readers and AI agents */
 /* Used for AI context blocks that should be in DOM but not visible to users */
 .sr-only {

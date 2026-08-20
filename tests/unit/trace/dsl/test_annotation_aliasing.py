@@ -1,8 +1,8 @@
-"""Annotation aliasing, pinned through both grains that share the filter compiler.
+"""Annotation aliasing, pinned through every grain that shares the filter compiler.
 
-`annotations[...]` is rewritten to private relation aliases before the predicate is
-compiled. The rewrite is structural, so what it may and may not reach is the same on
-either grain: only real annotation expressions, never text that merely spells one.
+Entity-appropriate annotation accessors are rewritten to private relation aliases before the
+predicate is compiled. The rewrite is structural: only real annotation expressions are reached,
+never text that merely spells one.
 """
 
 from ast import unparse
@@ -18,17 +18,24 @@ from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
 from phoenix.trace.dsl.session_filter import SessionFilter
+from phoenix.trace.dsl.trace_filter import TraceFilter
 from tests.unit._helpers import _add_project, _add_span, _add_trace
 
 _NIL = "00000000000000000000000000000000"
 
-Grain = Union[type[SpanFilter], type[SessionFilter]]
+Grain = Union[type[SpanFilter], type[SessionFilter], type[TraceFilter]]
 
-# Each grain with the table prefix its aliases carry and a string-typed name to search,
-# so one expectation covers both compilers.
+# Each grain with its accessor, alias prefix, and a string-typed name to search.
 _GRAINS = [
-    pytest.param(SpanFilter, "span_annotation", "name", id="span"),
-    pytest.param(SessionFilter, "project_session_annotation", "first_input", id="session"),
+    pytest.param(SpanFilter, "annotations", "span_annotation", "name", id="span"),
+    pytest.param(
+        SessionFilter,
+        "session_annotations",
+        "project_session_annotation",
+        "first_input",
+        id="session",
+    ),
+    pytest.param(TraceFilter, "trace_annotations", "trace_annotation", "input", id="trace"),
 ]
 
 
@@ -41,27 +48,27 @@ def _compile(grain: Grain, condition: str) -> Any:
         return grain(condition)
 
 
-@pytest.mark.parametrize("grain,prefix,text_name", _GRAINS)
+@pytest.mark.parametrize("grain,accessor,prefix,text_name", _GRAINS)
 @pytest.mark.parametrize(
-    "condition,expected",
+    "condition_template,expected",
     [
         pytest.param(
-            "evals['Hallucination'].label == 'correct' or evals['Hallucination'].score < 0.5",
+            "{a}['Hallucination'].label == 'correct' or {a}['Hallucination'].score < 0.5",
             "or_({p}_0_label_{u} == 'correct', cast({p}_0_score_{u}, Float) < 0.5)",
             id="both-attributes-of-one-name",
         ),
         pytest.param(
-            'annotations["Q&A Correctness"].label is not None',
+            '{a}["Q&A Correctness"].label is not None',
             "{p}_0_label_{u} != None",
             id="double-quoted-annotation-name",
         ),
         pytest.param(
-            "evals['Hallucination']",
+            "{a}['Hallucination']",
             "{p}_0_exists_{u}",
             id="bare-reference-is-an-existence-check",
         ),
         pytest.param(
-            "annotations['a'].score > 0 and annotations['b'].label == 'x'",
+            "{a}['a'].score > 0 and {a}['b'].label == 'x'",
             "and_(cast({p}_0_score_{u}, Float) > 0, {p}_1_label_{u} == 'x')",
             id="distinct-names-take-distinct-relations",
         ),
@@ -69,24 +76,26 @@ def _compile(grain: Grain, condition: str) -> Any:
 )
 def test_annotation_expressions_compile_to_relation_aliases(
     grain: Grain,
+    accessor: str,
     prefix: str,
     text_name: str,
-    condition: str,
+    condition_template: str,
     expected: str,
 ) -> None:
-    compiled = _compile(grain, condition)
+    compiled = _compile(grain, condition_template.format(a=accessor))
     assert unparse(compiled.translated).strip() == expected.format(p=prefix, u=_NIL)
 
 
-@pytest.mark.parametrize("grain,prefix,text_name", _GRAINS)
+@pytest.mark.parametrize("grain,accessor,prefix,text_name", _GRAINS)
 def test_annotation_text_inside_a_string_literal_stays_data(
     grain: Grain,
+    accessor: str,
     prefix: str,
     text_name: str,
 ) -> None:
     # An IO-search DSL invites exactly this input: traces can legitimately contain text
     # describing annotations. The needle has to survive verbatim, and no join may appear.
-    needle = 'annotations["q"].score'
+    needle = f'{accessor}["q"].score'
     compiled = _compile(grain, f"'{needle}' in {text_name}")
     assert (
         unparse(compiled.translated).strip() == f"CaseInsensitiveContains({text_name}, '{needle}')"
@@ -94,64 +103,67 @@ def test_annotation_text_inside_a_string_literal_stays_data(
     assert compiled._aliased_annotation_relations == ()
 
 
-@pytest.mark.parametrize("grain,prefix,text_name", _GRAINS)
+@pytest.mark.parametrize("grain,accessor,prefix,text_name", _GRAINS)
 @pytest.mark.parametrize(
-    "condition,name",
+    "condition_template,name",
     [
-        pytest.param(r'annotations["a\\b"].score > 0', "a\\b", id="backslash"),
-        pytest.param(r'annotations["a\"b"].score > 0', 'a"b', id="escaped-quote"),
-        pytest.param(r'annotations["a\nb"].score > 0', "a\nb", id="newline"),
-        pytest.param('annotations["ünïcødé 名前"].score > 0', "ünïcødé 名前", id="unicode"),
+        pytest.param(r'{a}["a\\b"].score > 0', "a\\b", id="backslash"),
+        pytest.param(r'{a}["a\"b"].score > 0', 'a"b', id="escaped-quote"),
+        pytest.param(r'{a}["a\nb"].score > 0', "a\nb", id="newline"),
+        pytest.param('{a}["ünïcødé 名前"].score > 0', "ünïcødé 名前", id="unicode"),
     ],
 )
 def test_annotation_name_is_the_decoded_literal(
     grain: Grain,
+    accessor: str,
     prefix: str,
     text_name: str,
-    condition: str,
+    condition_template: str,
     name: str,
 ) -> None:
     # The join key is the name Python reads, which is the name the validator vouches for.
     # Anything else validates true and then silently matches nothing.
-    compiled = _compile(grain, condition)
+    compiled = _compile(grain, condition_template.format(a=accessor))
     assert [relation.name for relation in compiled._aliased_annotation_relations] == [name]
 
 
-@pytest.mark.parametrize("grain,prefix,text_name", _GRAINS)
+@pytest.mark.parametrize("grain,accessor,prefix,text_name", _GRAINS)
 @pytest.mark.parametrize(
-    "condition",
+    "condition_template",
     [
-        'annotations["q"].score.label > 0',
-        'annotations["q"].score.label.other > 0',
-        'annotations["q"]["k"] > 0',
+        '{a}["q"].score.label > 0',
+        '{a}["q"].score.label.other > 0',
+        '{a}["q"]["k"] > 0',
     ],
 )
 def test_rejects_traversal_past_an_annotation(
     grain: Grain,
+    accessor: str,
     prefix: str,
     text_name: str,
-    condition: str,
+    condition_template: str,
 ) -> None:
     with pytest.raises(SyntaxError) as exc_info:
-        _compile(grain, condition)
+        _compile(grain, condition_template.format(a=accessor))
     message = str(exc_info.value)
-    assert "annotations['q']" in message
-    assert prefix not in message
+    assert f"{accessor}['q']" in message
+    assert f"{prefix}_0_" not in message
 
 
-@pytest.mark.parametrize("grain,prefix,text_name", _GRAINS)
+@pytest.mark.parametrize("grain,accessor,prefix,text_name", _GRAINS)
 def test_explanation_is_accepted_and_suggested(
     grain: Grain,
+    accessor: str,
     prefix: str,
     text_name: str,
 ) -> None:
     # `.explanation` joined the annotation surface with the span filter
-    # validation rework (#14295); both grains expose it through the shared
+    # validation rework (#14295); all grains expose it through the shared
     # aliasing phase, and a near-miss gets the did-you-mean treatment.
-    compiled = _compile(grain, 'annotations["q"].explanation == "x"')
+    compiled = _compile(grain, f'{accessor}["q"].explanation == "x"')
     assert [relation.name for relation in compiled._aliased_annotation_relations] == ["q"]
     with pytest.raises(SyntaxError) as exc_info:
-        _compile(grain, 'annotations["q"].explanatio == "x"')
+        _compile(grain, f'{accessor}["q"].explanatio == "x"')
     assert "explanation" in str(exc_info.value)
 
 
@@ -159,11 +171,78 @@ def test_annotation_inside_a_comprehension_points_at_session_annotations() -> No
     # The annotation join is built at session scope, so it has nothing to bind to one
     # element down; the error names the collection that does read annotations element-wise.
     with pytest.raises(SyntaxError) as exc_info:
-        SessionFilter('any(annotations["q"].score > 0 for span in spans)')
+        SessionFilter('any(session_annotations["q"].score > 0 for span in spans)')
     message = str(exc_info.value)
-    assert "annotations['q'].score" in message
+    assert "session_annotations['q'].score" in message
     assert "session_annotations" in message
     assert "project_session_annotation" not in message
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "annotations['q'].score > 0",
+        "evals['q'].label == 'x'",
+        "trace_annotations['q']",
+    ],
+)
+def test_span_filter_keeps_legacy_annotation_accessors(condition: str) -> None:
+    _compile(SpanFilter, condition)
+
+
+@pytest.mark.parametrize(
+    "grain,condition,message",
+    [
+        pytest.param(
+            TraceFilter,
+            "annotations['q'].score > 0",
+            "`annotations[...]` is not available in the trace filter; use "
+            "`trace_annotations[...]` for trace annotations, or iterate "
+            "`span_annotations` for span-level annotations",
+            id="trace-annotations",
+        ),
+        pytest.param(
+            TraceFilter,
+            "evals['q'].score > 0",
+            "`evals[...]` is not available in the trace filter; use "
+            "`trace_annotations[...]` for trace annotations, or iterate "
+            "`span_annotations` for span-level annotations",
+            id="trace-evals",
+        ),
+        pytest.param(
+            SessionFilter,
+            "annotations['q'].score > 0",
+            "`annotations[...]` is not available in the session filter; use "
+            "`session_annotations[...]` for session annotations, or iterate "
+            "`span_annotations` for span-level annotations",
+            id="session-annotations",
+        ),
+        pytest.param(
+            SessionFilter,
+            "evals['q'].score > 0",
+            "`evals[...]` is not available in the session filter; use "
+            "`session_annotations[...]` for session annotations, or iterate "
+            "`span_annotations` for span-level annotations",
+            id="session-evals",
+        ),
+        pytest.param(
+            SessionFilter,
+            "trace_annotations['q'].score > 0",
+            "`trace_annotations[...]` is not available in the session filter; sessions "
+            "do not expose a trace-annotation accessor; use `session_annotations[...]` "
+            "for session annotations, or iterate `span_annotations` for span-level annotations",
+            id="session-trace-annotations",
+        ),
+    ],
+)
+def test_rejects_annotation_accessors_outside_their_grain(
+    grain: Grain,
+    condition: str,
+    message: str,
+) -> None:
+    with pytest.raises(SyntaxError) as exc_info:
+        _compile(grain, condition)
+    assert str(exc_info.value) == message
 
 
 async def test_span_filter_annotation_conditions_return_the_same_rows(

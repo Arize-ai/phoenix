@@ -86,25 +86,8 @@ function TraceAnnotationSummaryValue(props: {
         timeRange: { type: "TimeRange!" }
         filterCondition: { type: "String", defaultValue: null }
       ) {
-        annotationConfigs {
-          edges {
-            node {
-              ... on AnnotationConfigBase {
-                annotationType
-              }
-              ... on CategoricalAnnotationConfig {
-                annotationType
-                id
-                optimizationDirection
-                name
-                values {
-                  label
-                  score
-                }
-              }
-            }
-          }
-        }
+        ...ProjectAnnotationConfigsByNameFragment
+          @arguments(annotationConfigNames: [$annotationName], first: 1)
         traceAnnotationSummary(
           annotationName: $annotationName
           timeRange: $timeRange
@@ -135,7 +118,7 @@ function TraceAnnotationSummaryValue(props: {
     <AnnotationSummaryValueView
       name={annotationName}
       summary={data?.traceAnnotationSummary}
-      annotationConfigs={data?.annotationConfigs}
+      project={data}
     />
   );
 }

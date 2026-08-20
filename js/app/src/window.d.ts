@@ -14,6 +14,7 @@ declare global {
       platformVersion: string;
       authenticationEnabled: boolean;
       basicAuthDisabled: boolean;
+      passwordResetEmailEnabled: boolean;
       oAuth2Idps: OAuth2Idp[];
       ldapEnabled: boolean;
       /**

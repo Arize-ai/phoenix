@@ -144,14 +144,14 @@ Axial coding categorizes the entities you took notes on during open coding. Use 
 
 ## Wrapping up
 
-After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's traces table filtered by the `coding_session_id` annotation. The search param is `spanFilterCondition`, and the traces tab compiles a **span** filter — so the accessor must match the grain the annotation was written at: `trace_annotations['coding_session_id']` for a trace-grain run, `annotations['coding_session_id']` for a span-grain run. Both mistakes fail silently (see [open-coding.md](open-coding.md#wrapping-up)). The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
+After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's **spans** table filtered by the `coding_session_id` annotation. The search param is `spanFilterCondition`, which only applies on the `/spans` tab — the traces tab compiles a trace filter it keeps in component state, so the same link at `/traces` renders unfiltered behind a "Traces now use trace-level filters" notice. The spans tab compiles a **span** filter, so the accessor must match the grain the annotation was written at: `trace_annotations['coding_session_id']` for a trace-grain run, `annotations['coding_session_id']` for a span-grain run. Both mistakes fail silently (see [open-coding.md](open-coding.md#wrapping-up)). The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
 
 ```bash
 project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
-# Trace-grain run. For a span-grain run swap in annotations[...] and the /spans tab.
+# Trace-grain run. For a span-grain run swap in annotations[...].
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
   "trace_annotations['coding_session_id'].label == '$CODING_ANNOTATION_IDENTIFIER'")
-echo "Phoenix UI: $PHOENIX_ENDPOINT/projects/$project_id/traces?spanFilterCondition=$encoded"
+echo "Phoenix UI: $PHOENIX_ENDPOINT/projects/$project_id/spans?spanFilterCondition=$encoded"
 ```
 
 If the user wants to discard everything this run produced (open-coding notes, axial-coding labels, and `coding_session_id` annotations on the server, plus the local sidecars), three identifier-bound deletes handle the server side and one `rm` handles the local sidecars. **Confirm before running** — destructive. Each `px <entity>-annotations delete` call requires `--all` to authorize the unbounded sweep; `--identifier` only narrows. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first if not already exported:

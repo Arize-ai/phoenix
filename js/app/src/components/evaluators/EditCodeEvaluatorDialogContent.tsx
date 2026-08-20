@@ -53,7 +53,9 @@ import {
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
+  DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -500,23 +502,7 @@ export const EditCodeEvaluatorDialogContent = ({
           {mode === "create" ? "Create Code Evaluator" : "Edit Code Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
-          {onCancel ? (
-            <Button isDisabled={isSubmitting} onPress={handleCancel}>
-              Cancel
-            </Button>
-          ) : (
-            <Button slot="close" isDisabled={isSubmitting}>
-              Cancel
-            </Button>
-          )}
-          <Button
-            variant="primary"
-            isDisabled={isSubmitting}
-            isPending={isSubmitting}
-            onPress={handleSubmit}
-          >
-            {mode === "create" ? "Create" : "Update"}
-          </Button>
+          <DialogCloseButton />
         </DialogTitleExtra>
       </DialogHeader>
 
@@ -620,6 +606,25 @@ export const EditCodeEvaluatorDialogContent = ({
           </Group>
         </CodeEvaluatorInputVariablesProvider>
       </fieldset>
+      <DialogFooter>
+        {onCancel ? (
+          <Button isDisabled={isSubmitting} onPress={handleCancel}>
+            Cancel
+          </Button>
+        ) : (
+          <Button slot="close" isDisabled={isSubmitting}>
+            Cancel
+          </Button>
+        )}
+        <Button
+          variant="primary"
+          isDisabled={isSubmitting}
+          isPending={isSubmitting}
+          onPress={handleSubmit}
+        >
+          {mode === "create" ? "Create" : "Update"}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 };
@@ -647,10 +652,10 @@ const EvaluatorMetadataForm = ({
 }) => {
   return (
     <div css={metadataFormCSS}>
-      <div style={{ flex: "0 0 260px" }}>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
         <EvaluatorNameInput isRequired />
       </div>
-      <div style={{ flex: "0 0 260px" }}>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
         <CodeEvaluatorLanguageField
           language={language}
           onChange={onLanguageChange}
@@ -658,7 +663,7 @@ const EvaluatorMetadataForm = ({
           isRequired
         />
       </div>
-      <div style={{ flex: "0 0 260px" }}>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
         <CodeEvaluatorSandboxField
           sandboxConfigs={sandboxConfigs}
           language={language}
@@ -667,7 +672,7 @@ const EvaluatorMetadataForm = ({
           isRequired={isSandboxRequired}
         />
       </div>
-      <div style={{ flex: "1 1 240px", minWidth: 180 }}>
+      <div style={{ flex: "2 1 240px", minWidth: 240 }}>
         <EvaluatorDescriptionInput placeholder="e.g. code evaluator description" />
       </div>
     </div>
@@ -1252,6 +1257,10 @@ const fieldsetCSS = css`
 const metadataFormCSS = css`
   display: flex;
   flex-direction: row;
+  // The form lives in a splitter-resizable panel, so wrapping keys off the
+  // fields' flex bases rather than a viewport breakpoint: fields share one
+  // row while they fit and wrap onto additional rows as the panel narrows.
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--global-dimension-size-150);
   flex-shrink: 0;
@@ -1274,6 +1283,9 @@ const editorPanelCSS = css`
   padding-top: var(--global-dimension-size-100);
   box-sizing: border-box;
   overflow-y: auto;
+  // keep trackpad overscroll from chaining to the dialog and
+  // dragging the header/footer with it
+  overscroll-behavior: contain;
   gap: var(--global-dimension-size-150);
 `;
 
@@ -1300,6 +1312,9 @@ const sidebarScrollAreaCSS = css`
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  // keep trackpad overscroll from chaining to the dialog and
+  // dragging the header/footer with it
+  overscroll-behavior: contain;
 `;
 
 // The "Sandbox Config" region is pinned to the bottom of the panel and stays
@@ -1309,6 +1324,7 @@ const sidebarFooterCSS = css`
   flex: 0 0 auto;
   max-height: 50%;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-top: 1px solid var(--global-border-color-default);
 `;
 

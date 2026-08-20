@@ -137,6 +137,7 @@ describe("search destinations", () => {
       ["/dashboards", "Dashboards"],
       ["/datasets", "Datasets & Experiments"],
       ["/playground", "Playground"],
+      ["/chat", "Chat"],
       ["/evaluators", "Evaluators"],
       ["/prompts", "Prompts"],
       ["/apis/rest", "REST API"],

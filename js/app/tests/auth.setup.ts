@@ -2,10 +2,11 @@ import fs from "fs/promises";
 import type { Page } from "@playwright/test";
 import { expect, test as setup } from "@playwright/test";
 
+// The app-frame project runs against its own Phoenix server (fresh database,
+// different signing secret), so its setup persists to a separate directory —
+// storage states are only valid against the server that issued them.
 const AUTH_DIR = "playwright/.auth";
-const ADMIN_STORAGE_STATE = `${AUTH_DIR}/admin.json`;
-const MEMBER_STORAGE_STATE = `${AUTH_DIR}/member.json`;
-const VIEWER_STORAGE_STATE = `${AUTH_DIR}/viewer.json`;
+const APP_FRAME_AUTH_DIR = `${AUTH_DIR}/app-frame`;
 
 async function login({
   page,
@@ -66,12 +67,20 @@ async function resetPasswordAndReLogin({
 
 setup(
   "authenticate and persist role storage states",
-  async ({ browser, baseURL }) => {
+  async ({ browser, baseURL }, testInfo) => {
     if (!baseURL) {
       throw new Error("Playwright baseURL must be configured.");
     }
 
-    await fs.mkdir(AUTH_DIR, { recursive: true });
+    const authDir =
+      testInfo.project.name === "app-frame-setup"
+        ? APP_FRAME_AUTH_DIR
+        : AUTH_DIR;
+    const adminStorageState = `${authDir}/admin.json`;
+    const memberStorageState = `${authDir}/member.json`;
+    const viewerStorageState = `${authDir}/viewer.json`;
+
+    await fs.mkdir(authDir, { recursive: true });
 
     const bootstrapContext = await browser.newContext();
     const page = await bootstrapContext.newPage();
@@ -185,17 +194,17 @@ setup(
     await saveStorageStateForUser({
       email: "admin@localhost",
       password: "admin123",
-      storageStatePath: ADMIN_STORAGE_STATE,
+      storageStatePath: adminStorageState,
     });
     await saveStorageStateForUser({
       email: "member@localhost.com",
       password: "member123",
-      storageStatePath: MEMBER_STORAGE_STATE,
+      storageStatePath: memberStorageState,
     });
     await saveStorageStateForUser({
       email: "viewer@localhost.com",
       password: "viewer123",
-      storageStatePath: VIEWER_STORAGE_STATE,
+      storageStatePath: viewerStorageState,
     });
   }
 );

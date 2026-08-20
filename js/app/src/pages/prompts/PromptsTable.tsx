@@ -36,13 +36,13 @@ import {
   ColumnOrderingProvider,
   TextCell,
   useColumnOrder,
-  UserCell,
 } from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { useViewerCanModify } from "@phoenix/contexts";
 import { usePromptsTableContext } from "@phoenix/contexts/PromptsTableContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
@@ -370,13 +370,13 @@ export function PromptsTable(props: PromptsTableProps) {
         header: "created by",
         accessorKey: "createdBy",
         enableSorting: false,
-        cell: ({ row }) => <UserCell user={row.original.createdBy} />,
+        cell: ({ row }) => <UserDisplay user={row.original.createdBy} />,
       },
       {
         header: "last updated by",
         accessorKey: "updatedBy",
         enableSorting: false,
-        cell: ({ row }) => <UserCell user={row.original.updatedBy} />,
+        cell: ({ row }) => <UserDisplay user={row.original.updatedBy} />,
       },
       {
         header: "last updated",
@@ -454,6 +454,12 @@ export function PromptsTable(props: PromptsTableProps) {
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    // Key rows by prompt ID rather than by index. Row cells host overlays
+    // (the action menu and its label submenu) that are bound to
+    // `row.original.id`; with index-based keys a refetch that re-orders the
+    // list hands the still-open overlay a different prompt's ID, so the next
+    // click writes to the wrong prompt.
+    getRowId: (row) => row.id,
   });
 
   const { columnSizingInfo, columnSizing: columnSizingState } =

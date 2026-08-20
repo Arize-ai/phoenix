@@ -11,11 +11,27 @@ import { defineConfig, devices } from "@playwright/test";
 // Skip WebKit for CI because of recurring issues with caching binaries.
 const isCI = !!process.env.CI;
 const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
+const basePort = Number(process.env.PHOENIX_PORT ?? "6006");
 const baseURL =
-  process.env.PLAYWRIGHT_BASE_URL ??
-  `http://localhost:${process.env.PHOENIX_PORT ?? "6006"}`;
+  process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${basePort}`;
 const isPxiE2E = process.env.PXI_E2E === "true";
 const pxiTestIgnore = isPxiE2E ? [] : ["**/pxi/**"];
+
+/**
+ * The app-frame overlay contract suites assert behavior that only exists when
+ * the PXI assistant is enabled (the rail staying interactive over Tier 1
+ * modals, toast placement beside it). The standard suite runs against an
+ * assistant-*disabled* server — the floating "Ask PXI" button intercepts
+ * clicks in unrelated specs — and server env is process-wide, so these specs
+ * get their own project wired to a second, assistant-enabled server.
+ */
+const appFrameSpecs = [
+  "**/app-frame-overlays.spec.ts",
+  "**/overlay-audit.spec.ts",
+];
+const appFramePort = basePort + 1;
+const appFrameGrpcPort = Number(process.env.PHOENIX_GRPC_PORT ?? "4317") + 1;
+const appFrameBaseURL = `http://localhost:${appFramePort}`;
 
 const projects: Project[] = [
   {
@@ -30,7 +46,12 @@ const projects: Project[] = [
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts", ...pxiTestIgnore],
+    testIgnore: [
+      "**/*.rate-limit.spec.ts",
+      "**/*.setup.ts",
+      ...appFrameSpecs,
+      ...pxiTestIgnore,
+    ],
   },
   {
     name: "firefox",
@@ -40,7 +61,12 @@ const projects: Project[] = [
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts", ...pxiTestIgnore],
+    testIgnore: [
+      "**/*.rate-limit.spec.ts",
+      "**/*.setup.ts",
+      ...appFrameSpecs,
+      ...pxiTestIgnore,
+    ],
   },
 ];
 
@@ -53,8 +79,39 @@ if (!skipWebKit) {
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts", ...pxiTestIgnore],
+    testIgnore: [
+      "**/*.rate-limit.spec.ts",
+      "**/*.setup.ts",
+      ...appFrameSpecs,
+      ...pxiTestIgnore,
+    ],
   });
+}
+
+if (!isPxiE2E) {
+  // The app-frame server has a fresh database and its own signing secret, so
+  // the shared storage states don't authenticate against it — the project
+  // runs auth.setup.ts a second time against its own baseURL, persisting to
+  // playwright/.auth/app-frame/. Chromium only: the suites assert geometry
+  // and stacking contracts that are engine-agnostic, so extra browsers add
+  // runtime without signal.
+  projects.push(
+    {
+      name: "app-frame-setup",
+      testMatch: "**/auth.setup.ts",
+      use: { baseURL: appFrameBaseURL },
+    },
+    {
+      name: "app-frame",
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: appFrameBaseURL,
+        storageState: "playwright/.auth/app-frame/admin.json",
+      },
+      dependencies: ["app-frame-setup"],
+      testMatch: appFrameSpecs,
+    }
+  );
 }
 
 projects.push({
@@ -101,10 +158,32 @@ export default defineConfig({
   projects: projects,
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command: "pnpm run dev:server:test",
-    url: baseURL,
-    reuseExistingServer: !isCI,
-    timeout: isCI ? 240_000 : 120_000,
-  },
+  webServer: [
+    {
+      command: "pnpm run dev:server:test",
+      url: baseURL,
+      reuseExistingServer: !isCI,
+      timeout: isCI ? 240_000 : 120_000,
+    },
+    // Second Phoenix server for the app-frame project (see appFrameSpecs
+    // above): assistant enabled, ports offset by one, Prometheus off because
+    // its exporter binds a fixed :9090 that the main server owns. PXI runs
+    // bring their own single server and never select the app-frame project.
+    ...(isPxiE2E
+      ? []
+      : [
+          {
+            command: "pnpm run dev:server:test",
+            url: appFrameBaseURL,
+            reuseExistingServer: !isCI,
+            timeout: isCI ? 240_000 : 120_000,
+            env: {
+              PHOENIX_PORT: String(appFramePort),
+              PHOENIX_GRPC_PORT: String(appFrameGrpcPort),
+              PHOENIX_E2E_ENABLE_AGENT_ASSISTANT: "true",
+              PHOENIX_ENABLE_PROMETHEUS: "False",
+            },
+          },
+        ]),
+  ],
 });

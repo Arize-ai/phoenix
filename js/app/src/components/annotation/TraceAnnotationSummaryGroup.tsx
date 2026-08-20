@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import type { TraceAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/TraceAnnotationSummaryGroup.graphql";
@@ -8,7 +8,11 @@ import {
   Summary,
   SummaryValue,
 } from "@phoenix/pages/project/AnnotationSummary";
-import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
+import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
+import { useTraceFilters } from "@phoenix/pages/project/TraceFiltersContext";
+
+import { groupAnnotationsByName, hasAnnotationValue } from "./annotationUtils";
+import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 
 const useTraceAnnotationSummaryGroup = (
   trace: TraceAnnotationSummaryGroup$key
@@ -16,40 +20,25 @@ const useTraceAnnotationSummaryGroup = (
   const data = useFragment<TraceAnnotationSummaryGroup$key>(
     graphql`
       fragment TraceAnnotationSummaryGroup on Trace {
-        project {
-          id
-          annotationConfigs {
-            edges {
-              node {
-                ... on AnnotationConfigBase {
-                  annotationType
-                }
-                ... on CategoricalAnnotationConfig {
-                  id
-                  name
-                  optimizationDirection
-                  values {
-                    label
-                    score
-                  }
-                }
-              }
-            }
-          }
-        }
-        traceAnnotations {
+        summaryTraceAnnotations: traceAnnotations(
+          filter: { exclude: { names: ["note"] } }
+        ) {
           id
           name
           label
           score
+          explanation
           annotatorKind
           createdAt
+          updatedAt
           user {
             username
             profilePictureUrl
           }
         }
-        traceAnnotationSummaries {
+        summaryTraceAnnotationSummaries: traceAnnotationSummaries(
+          filter: { exclude: { names: ["note"] } }
+        ) {
           count
           scoreCount
           labelCount
@@ -64,106 +53,88 @@ const useTraceAnnotationSummaryGroup = (
     `,
     trace
   );
-  const { traceAnnotations, traceAnnotationSummaries } = data;
-  const sortedSummariesByName = useMemo(
-    () =>
-      traceAnnotationSummaries
-        // Note annotations are not displayed in summary groups
-        .filter((summary) => summary.name !== "note")
-        .sort((a, b) => {
-          return a.name.localeCompare(b.name);
-        }),
-    [traceAnnotationSummaries]
+  const { summaryTraceAnnotations, summaryTraceAnnotationSummaries } = data;
+  const sortedSummariesByName = [...summaryTraceAnnotationSummaries].sort(
+    (a, b) => {
+      return a.name.localeCompare(b.name);
+    }
   );
-  // newest first
-  const annotationsByName = useMemo(
-    () =>
-      traceAnnotations.reduce<Record<string, typeof traceAnnotations>>(
-        (acc, annotation) => {
-          if (annotation.label == null && annotation.score == null) {
-            return acc;
-          }
-          if (!acc[annotation.name]) {
-            acc[annotation.name] = [annotation];
-          } else {
-            acc[annotation.name] = [annotation, ...acc[annotation.name]].sort(
-              (a, b) => {
-                return (
-                  new Date(b.createdAt).getTime() -
-                  new Date(a.createdAt).getTime()
-                );
-              }
-            );
-          }
-          return acc;
-        },
-        {}
-      ),
-    [traceAnnotations]
-  );
-  const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce<
-      Record<string, AnnotationConfigCategorical>
-    >((acc, edge) => {
-      const name = edge.node.name;
-      if (name && edge.node.annotationType === "CATEGORICAL") {
-        acc[name] = edge.node as AnnotationConfigCategorical;
-      }
-      return acc;
-    }, {});
-  }, [data.project.annotationConfigs]);
+  const annotationsByName = groupAnnotationsByName(summaryTraceAnnotations);
   return {
     sortedSummariesByName,
     annotationsByName,
-    categoricalAnnotationConfigsByName,
   };
 };
 
 type TraceAnnotationSummaryGroupProps = {
   trace: TraceAnnotationSummaryGroup$key;
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
   renderEmptyState?: () => React.ReactNode;
 };
 
+function TraceAnnotationTooltipFilterActions({
+  annotation,
+}: {
+  annotation: {
+    name: string;
+    label?: string | null;
+    score?: number | null;
+  };
+}) {
+  const { appendFilterCondition } = useTraceFilters();
+  return (
+    <AnnotationTooltipFilterActions
+      annotation={annotation}
+      onAppendFilterCondition={appendFilterCondition}
+    />
+  );
+}
+
 export const TraceAnnotationSummaryGroupTokens = ({
   trace,
+  annotationConfigsByName,
   showFilterActions = false,
   renderEmptyState,
 }: TraceAnnotationSummaryGroupProps) => {
-  const {
-    sortedSummariesByName,
-    annotationsByName,
-    categoricalAnnotationConfigsByName,
-  } = useTraceAnnotationSummaryGroup(trace);
+  const { sortedSummariesByName, annotationsByName } =
+    useTraceAnnotationSummaryGroup(trace);
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
+  const summariesWithTokens = sortedSummariesByName.filter(
+    (summary) =>
+      annotationsByName[summary.name]?.some(hasAnnotationValue) === true
+  );
+
+  if (summariesWithTokens.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
 
   return (
     <AnnotationSummaryTokens
-      summaries={sortedSummariesByName}
+      summaries={summariesWithTokens}
       annotationsByName={annotationsByName}
-      categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+      annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
+      renderFilterActions={(annotation) => (
+        <TraceAnnotationTooltipFilterActions annotation={annotation} />
+      )}
     />
   );
 };
 
 export const TraceAnnotationSummaryGroupStacks = ({
   trace,
+  annotationConfigsByName,
   renderEmptyState,
   leadingDivider = false,
 }: TraceAnnotationSummaryGroupProps & { leadingDivider?: boolean }) => {
-  const {
-    sortedSummariesByName,
-    annotationsByName,
-    categoricalAnnotationConfigsByName,
-  } = useTraceAnnotationSummaryGroup(trace);
+  const { sortedSummariesByName, annotationsByName } =
+    useTraceAnnotationSummaryGroup(trace);
 
   const stacks = sortedSummariesByName
     .map((summary) => {
-      const latestAnnotation = annotationsByName[summary.name]?.[0];
+      const latestAnnotation =
+        annotationsByName[summary.name]?.find(hasAnnotationValue);
       if (!latestAnnotation) {
         return null;
       }
@@ -176,9 +147,9 @@ export const TraceAnnotationSummaryGroupStacks = ({
             count={summary.count}
             scoreCount={summary.scoreCount}
             labelCount={summary.labelCount}
-            annotationConfig={
-              categoricalAnnotationConfigsByName[latestAnnotation.name]
-            }
+            annotationConfig={annotationConfigsByName.get(
+              latestAnnotation.name
+            )}
           />
         </Summary>
       );
