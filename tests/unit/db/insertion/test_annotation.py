@@ -100,10 +100,7 @@ async def test_upsert_reports_created_then_updated(db: DbSessionFactory) -> None
         "source",
         "user_id",
         "identifier",
-        "criteria_id",
     }
-    # No project evaluator wrote these, so nothing names one.
-    assert [event.payload["criteria_id"] for event in events] == [None, None]
 
 
 async def test_annotation_and_event_roll_back_together(db: DbSessionFactory) -> None:
@@ -123,7 +120,7 @@ async def test_annotation_and_event_roll_back_together(db: DbSessionFactory) -> 
         assert await session.scalar(select(models.EvaluatorEvent.id)) is None
 
 
-async def test_online_eval_annotation_does_not_append_an_event(db: DbSessionFactory) -> None:
+async def test_online_eval_annotation_appends_an_event(db: DbSessionFactory) -> None:
     span = await _seed_event_target(db)
 
     async with db() as session:
@@ -139,7 +136,7 @@ async def test_online_eval_annotation_does_not_append_an_event(db: DbSessionFact
 
     async with db() as session:
         assert await session.scalar(select(models.SpanAnnotation.id)) is not None
-        assert await session.scalar(select(models.EvaluatorEvent.id)) is None
+        assert await session.scalar(select(models.EvaluatorEvent.id)) is not None
 
 
 async def test_annotation_rule_gate_is_project_scoped(db: DbSessionFactory) -> None:

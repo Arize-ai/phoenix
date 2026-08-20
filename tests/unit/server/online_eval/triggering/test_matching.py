@@ -5,14 +5,10 @@ from phoenix.db import models
 from phoenix.server.online_eval.triggering.log import (
     AnnotationUpserted,
     DrainedEvent,
-    EvaluationCompleted,
     Event,
 )
 from phoenix.server.online_eval.triggering.matching import RequestKey, match_events
-from phoenix.server.online_eval.triggering.rules import (
-    AnnotationTriggerRule,
-    EvaluationTriggerRule,
-)
+from phoenix.server.online_eval.triggering.rules import AnnotationTriggerRule
 
 _NOTICED_AT = datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc)
 _PROJECT_ID = 1
@@ -49,7 +45,7 @@ def _annotation(
     annotator_kind: Optional[str] = "HUMAN",
     change: models.AnnotationChange = "created",
     annotation_target: models.AnnotationTarget = "span",
-    criteria_id: Optional[int] = None,
+    identifier: Optional[str] = None,
 ) -> DrainedEvent:
     return _drained(
         AnnotationUpserted(
@@ -62,32 +58,11 @@ def _annotation(
             label=label,
             score=score,
             annotator_kind=annotator_kind,  # type: ignore[arg-type]
-            criteria_id=criteria_id,
+            identifier=identifier,
         ),
         event_id=event_id,
         project_id=project_id,
         evaluation_target=evaluation_target,
-    )
-
-
-def _completion(
-    *,
-    event_id: int = 1,
-    criteria_id: int,
-    label: Optional[str] = "hallucinated",
-    result_changed: bool = True,
-) -> DrainedEvent:
-    return _drained(
-        EvaluationCompleted(
-            work_unit_kind="session",
-            work_unit_id=event_id,
-            criteria_id=criteria_id,
-            evaluator_name="hallucination",
-            name="hallucination",
-            label=label,
-            result_changed=result_changed,
-        ),
-        event_id=event_id,
     )
 
 
@@ -104,22 +79,6 @@ def _rule(
         criteria_id=criteria_id,
         project_id=project_id,
         evaluation_target=evaluation_target,
-        **predicates,
-    )
-
-
-def _completion_rule(
-    *,
-    trigger_id: int = 1,
-    criteria_id: int = 100,
-    project_id: int = _PROJECT_ID,
-    **predicates: Any,
-) -> EvaluationTriggerRule:
-    return EvaluationTriggerRule(
-        trigger_id=trigger_id,
-        criteria_id=criteria_id,
-        project_id=project_id,
-        evaluation_target="SESSION",
         **predicates,
     )
 
@@ -164,10 +123,9 @@ def test_two_rules_on_one_criteria_resolve_to_one_key_per_occurrence() -> None:
     )
 
 
-def test_an_unconstrained_rule_fires_on_every_event_of_its_kind_in_its_project() -> None:
+def test_an_unconstrained_rule_fires_on_every_event_in_its_project() -> None:
     rule = _rule()
     assert len(match_events([_annotation(event_id=1), _annotation(event_id=2)], [rule])) == 2
-    assert match_events([_completion(event_id=3, criteria_id=999)], [rule]) == ()
 
 
 def test_a_rule_in_another_project_never_matches() -> None:
@@ -199,37 +157,8 @@ def test_annotation_predicates_match_the_edge_the_event_carries() -> None:
     assert match_events([event], [_rule(annotator_kind="HUMAN")]) == ()
 
 
-def test_an_evaluator_written_annotation_needs_the_opt_in_and_never_its_own_author() -> None:
-    written_by_another = _annotation(criteria_id=101)
-    assert match_events([written_by_another], [_rule(criteria_id=100)]) == ()
-    assert (
-        match_events(
-            [written_by_another],
-            [_rule(criteria_id=100, matches_evaluator_annotations=True)],
-        )
-        != ()
-    )
-    written_by_itself = _annotation(criteria_id=100)
-    assert (
-        match_events(
-            [written_by_itself],
-            [_rule(criteria_id=100, matches_evaluator_annotations=True)],
-        )
-        == ()
-    )
-
-
-def test_a_rule_declines_the_verdict_its_own_criteria_authored() -> None:
-    rule = _completion_rule(criteria_id=100)
-    assert match_events([_completion(criteria_id=100)], [rule]) == ()
-    assert match_events([_completion(criteria_id=101)], [rule]) != ()
-
-
-def test_evaluation_predicates_select_the_author_and_the_changed_result() -> None:
-    rule = _completion_rule(criteria_id=100, source_criteria_id=101)
-    assert match_events([_completion(criteria_id=101)], [rule]) != ()
-    assert match_events([_completion(criteria_id=102)], [rule]) == ()
-
-    changed_only = _completion_rule(criteria_id=100, result_changed_only=True)
-    assert match_events([_completion(criteria_id=101, result_changed=True)], [changed_only]) != ()
-    assert match_events([_completion(criteria_id=101, result_changed=False)], [changed_only]) == ()
+def test_an_evaluator_written_annotation_matches_like_any_other() -> None:
+    written_by_an_evaluator = _annotation(annotator_kind="LLM", identifier="online:abc123")
+    assert match_events([written_by_an_evaluator], [_rule(criteria_id=100)]) != ()
+    by_name = _rule(criteria_id=100, name="human-review")
+    assert match_events([written_by_an_evaluator], [by_name]) != ()

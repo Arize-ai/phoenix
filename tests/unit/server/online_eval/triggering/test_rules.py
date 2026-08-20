@@ -11,9 +11,7 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval.triggering.rules import (
     AnnotationTriggerRule,
-    EvaluationTriggerRule,
     annotation_rules_exist,
-    evaluator_annotation_rules_exist,
     load_rules,
 )
 from phoenix.server.types import DbSessionFactory
@@ -59,13 +57,10 @@ async def _add_trigger(
     **predicates: Any,
 ) -> models.ProjectEvaluatorTrigger:
     """A trigger with predicate JSON when any predicate is given."""
-    has_predicates = bool(predicates)
-    source_criteria_id = predicates.pop("source_criteria_id", None)
     trigger = models.ProjectEvaluatorTrigger(
         criteria_id=criteria.id,
         event_kind=event_kind,
-        predicates={"type": event_kind, **predicates} if has_predicates else None,
-        source_criteria_id=source_criteria_id,
+        predicates={"type": event_kind, **predicates} if predicates else None,
     )
     session.add(trigger)
     await session.flush()
@@ -87,7 +82,6 @@ async def test_a_live_rule_loads_with_its_predicates_and_its_criteria_s_project(
             annotator_kind="HUMAN",
             annotation_change="created",
             annotation_target="span",
-            matches_evaluator_annotations=True,
         )
 
     async with db() as session:
@@ -105,35 +99,6 @@ async def test_a_live_rule_loads_with_its_predicates_and_its_criteria_s_project(
     assert rule.annotator_kind == "HUMAN"
     assert rule.annotation_change == "created"
     assert rule.annotation_target == "span"
-    assert rule.matches_evaluator_annotations is True
-
-
-async def test_an_evaluation_rule_loads_with_the_predicates_of_its_own_family(
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        criteria = await _add_criteria(session, project)
-        watched = await _add_criteria(session, project)
-        trigger = await _add_trigger(
-            session,
-            criteria,
-            event_kind="evaluation_completed",
-            name="hallucination",
-            label="hallucinated",
-            source_criteria_id=watched.id,
-            result_changed_only=True,
-        )
-
-    async with db() as session:
-        (rule,) = await load_rules(session)
-    assert isinstance(rule, EvaluationTriggerRule)
-    assert rule.trigger_id == trigger.id
-    assert rule.event_kind == "evaluation_completed"
-    assert rule.name == "hallucination"
-    assert rule.label == "hallucinated"
-    assert rule.source_criteria_id == watched.id
-    assert rule.result_changed_only is True
 
 
 async def test_a_trigger_without_predicates_loads_unconstrained(db: DbSessionFactory) -> None:
@@ -152,10 +117,9 @@ async def test_a_trigger_without_predicates_loads_unconstrained(db: DbSessionFac
     assert rule.annotator_kind is None
     assert rule.annotation_change is None
     assert rule.annotation_target is None
-    assert rule.matches_evaluator_annotations is False
 
 
-async def test_invalid_or_mismatched_predicate_json_is_skipped(
+async def test_invalid_or_retired_predicate_json_is_skipped(
     db: DbSessionFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -164,7 +128,7 @@ async def test_invalid_or_mismatched_predicate_json_is_skipped(
         criteria = await _add_criteria(session, project)
         valid = await _add_trigger(session, criteria)
         malformed = await _add_trigger(session, criteria, name="before corruption")
-        mismatched = await _add_trigger(session, criteria, name="before corruption")
+        retired = await _add_trigger(session, criteria, name="before corruption")
         overwrite_predicates = text(
             "UPDATE project_evaluator_triggers SET predicates = :predicates WHERE id = :id"
         ).bindparams(bindparam("predicates", type_=models.JSON_))
@@ -174,7 +138,7 @@ async def test_invalid_or_mismatched_predicate_json_is_skipped(
         )
         await session.execute(
             overwrite_predicates,
-            {"id": mismatched.id, "predicates": {"type": "evaluation_completed"}},
+            {"id": retired.id, "predicates": {"type": "evaluation_completed"}},
         )
 
     with caplog.at_level(logging.ERROR):
@@ -182,8 +146,8 @@ async def test_invalid_or_mismatched_predicate_json_is_skipped(
             rules = await load_rules(session)
 
     assert [rule.trigger_id for rule in rules] == [valid.id]
-    assert "invalid predicates" in caplog.text
-    assert "disagrees with event kind" in caplog.text
+    assert caplog.text.count("invalid predicates") == 2
+    assert "evaluation_completed" in caplog.text
 
 
 async def test_invalid_predicate_json_does_not_make_annotation_rules_exist(
@@ -202,25 +166,6 @@ async def test_invalid_predicate_json_does_not_make_annotation_rules_exist(
 
     async with db() as session:
         assert await annotation_rules_exist(session, project_id=project.id) is False
-
-
-async def test_only_an_opted_in_annotation_rule_makes_evaluator_annotations_worth_logging(
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        criteria = await _add_criteria(session, project)
-        await _add_trigger(session, criteria, matches_evaluator_annotations=False)
-
-    async with db() as session:
-        assert await evaluator_annotation_rules_exist(session, project_id=project.id) is False
-
-    async with db() as session:
-        opted_in = await _add_criteria(session, project)
-        await _add_trigger(session, opted_in, matches_evaluator_annotations=True)
-
-    async with db() as session:
-        assert await evaluator_annotation_rules_exist(session, project_id=project.id) is True
 
 
 async def test_a_trigger_whose_criteria_is_disabled_is_dormant(db: DbSessionFactory) -> None:

@@ -286,15 +286,6 @@ def _create_project_evaluator_triggers_table() -> None:
             nullable=False,
         ),
         sa.Column("predicates", JSON_, nullable=True),
-        # Not ON DELETE CASCADE: cascading here would remove the watched criterion
-        # reference and leave the trigger behind, firing on every completion. Deleting a
-        # watched criterion is refused until the trigger that watches it goes with it.
-        sa.Column(
-            "source_criteria_id",
-            _Integer,
-            sa.ForeignKey("project_evaluator_criteria.id"),
-            nullable=True,
-        ),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -312,11 +303,6 @@ def _create_project_evaluator_triggers_table() -> None:
         "ix_project_evaluator_triggers_criteria_id",
         "project_evaluator_triggers",
         ["criteria_id"],
-    )
-    op.create_index(
-        "ix_project_evaluator_triggers_source_criteria_id",
-        "project_evaluator_triggers",
-        ["source_criteria_id"],
     )
 
 
@@ -670,10 +656,6 @@ def downgrade() -> None:
     )
     op.drop_table("evaluation_requests")
 
-    op.drop_index(
-        "ix_project_evaluator_triggers_source_criteria_id",
-        table_name="project_evaluator_triggers",
-    )
     op.drop_index(
         "ix_project_evaluator_triggers_criteria_id",
         table_name="project_evaluator_triggers",

@@ -97,7 +97,6 @@ from phoenix.server.online_eval.tracing import (
     PROJECT_EVALUATOR_NAME_ATTRIBUTE,
 )
 from phoenix.server.online_eval.triggering.drain import EventDrain
-from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
@@ -1323,7 +1322,7 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
     (first_claim,) = await coordinator.claim(claimed_by="attempt-a", limit=1)
     first_hydrated = await executor.hydrate(first_claim)
     assert isinstance(first_hydrated, HydratedWorkUnit)
-    (first_completion,) = await executor.evaluate_and_annotate(first_claim, first_hydrated)
+    await executor.evaluate_and_annotate(first_claim, first_hydrated)
 
     async with db() as session:
         second_trace = await _add_trace(
@@ -1354,18 +1353,12 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
     (second_claim,) = await coordinator.claim(claimed_by="attempt-b", limit=1)
     second_hydrated = await executor.hydrate(second_claim)
     assert isinstance(second_hydrated, HydratedWorkUnit)
-    (second_completion,) = await executor.evaluate_and_annotate(second_claim, second_hydrated)
+    await executor.evaluate_and_annotate(second_claim, second_hydrated)
     assert await coordinator.complete(
         work_unit_id=unit_id,
         claimed_by=second_claim.claimed_by,
     )
 
-    # Re-evaluating a session overwrites its annotation, so the verdict it replaced is
-    # only readable at publication — and an unchanged verdict is not a change.
-    assert first_completion.previous_label is None
-    assert first_completion.result_changed is True
-    assert second_completion.previous_label == first_completion.label
-    assert second_completion.result_changed is False
     unit = await _get_session_unit(db, unit_id)
     (annotation,) = await _session_annotations(db)
     policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
@@ -2630,13 +2623,12 @@ async def test_shared_evaluator_limit_applies_across_target_consumers(
     async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
         return hydrated
 
-    async def _evaluate(*_: Any, **__: Any) -> tuple[EvaluationCompleted, ...]:
+    async def _evaluate(*_: Any, **__: Any) -> None:
         nonlocal active, max_active
         active += 1
         max_active = max(max_active, active)
         await asyncio.sleep(0)
         active -= 1
-        return ()
 
     async def _complete(**_: Any) -> bool:
         return True
@@ -2675,8 +2667,8 @@ async def test_complete_retries_after_ambiguous_commit(
     async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
         return hydrated
 
-    async def _evaluate(*_: Any, **__: Any) -> tuple[EvaluationCompleted, ...]:
-        return ()
+    async def _evaluate(*_: Any, **__: Any) -> None:
+        return None
 
     original_complete = consumer._coordinator.complete
     complete_calls = 0
@@ -2974,10 +2966,15 @@ async def test_session_content_incomplete_is_visible_on_the_expired_gauge(
     expired_gauge.labels.return_value.set.assert_called_once_with(1)
 
 
-async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
+async def test_an_online_eval_annotation_requests_every_matching_criteria_including_its_author(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """An evaluator's own annotation reaches every rule that matches it.
+
+    Nothing at the matcher declines the annotation an evaluator wrote, its own included.
+    Repeat work is bounded by the identity brake, which only span ingest releases.
+    """
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
     ingested_at = datetime.now(timezone.utc) - timedelta(minutes=10)
@@ -2998,13 +2995,13 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
         evaluation_target="SESSION",
     )
     async with db() as session:
-        # Both rules fire on any completed evaluation in the project; only the one owned
-        # by the criteria that authored the verdict has to decline it.
+        # Both rules fire on any annotation written in the project, and the one owned by
+        # the criteria that wrote it is no exception.
         session.add_all(
             [
                 models.ProjectEvaluatorTrigger(
                     criteria_id=criteria_id,
-                    event_kind="evaluation_completed",
+                    event_kind="annotation_upserted",
                 )
                 for criteria_id in (authoring_criteria_id, downstream_criteria_id)
             ]
@@ -3021,7 +3018,7 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
     assert unit.scheduling_origin == "EXPLICIT"
     executor = _executor(db, evaluation_target="SESSION")
 
-    completion_events = await executor.evaluate_and_annotate(
+    await executor.evaluate_and_annotate(
         unit,
         _hydrated_stub(
             results=[_evaluation_result("criterion")],
@@ -3029,24 +3026,18 @@ async def test_an_online_eval_verdict_never_requests_its_authoring_criteria(
             output_configs=[],
         ),
     )
-    assert await coordinator.complete(
-        work_unit_id=unit_id,
-        claimed_by="consumer",
-        completion_events=completion_events,
-    )
+    assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer")
     await EventDrain(db)._tick()
 
-    (completion_event,) = completion_events
-    assert completion_event.criteria_id == authoring_criteria_id
-    assert completion_event.result_changed is True
-    assert completion_event.previous_label is None
     async with db() as session:
         requests = list(
             await session.scalars(
                 select(models.EvaluationRequest).order_by(models.EvaluationRequest.id)
             )
         )
-    assert [request.criteria_id for request in requests] == [downstream_criteria_id]
+    assert sorted(request.criteria_id for request in requests) == sorted(
+        [authoring_criteria_id, downstream_criteria_id]
+    )
     (annotation,) = await _session_annotations(db)
     # Metadata is rendered verbatim to users, so it carries the translated word rather
     # than the column's own vocabulary.
@@ -3060,15 +3051,28 @@ async def test_every_evaluator_output_is_announced_as_its_own_event(
     fire, so each output is announced separately and keyed separately."""
     async with db() as session:
         project = await _add_project(session)
-        trace = await _add_trace(session, project)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
         span = await _add_span(session, trace)
     evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    _, watching_criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    async with db() as session:
+        session.add(
+            models.ProjectEvaluatorTrigger(
+                criteria_id=watching_criteria_id,
+                event_kind="annotation_upserted",
+            )
+        )
     unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
     coordinator = DbEvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     executor = _executor(db)
 
-    completions = await executor.evaluate_and_annotate(
+    await executor.evaluate_and_annotate(
         unit,
         _hydrated_stub(
             results=[_evaluation_result("quality"), _evaluation_result("safety")],
@@ -3077,11 +3081,11 @@ async def test_every_evaluator_output_is_announced_as_its_own_event(
         ),
     )
 
-    assert [completion.name for completion in completions] == ["quality", "safety"]
-    assert {completion.occurrence_key for completion in completions} == {
-        f"span:{unit_id}:quality",
-        f"span:{unit_id}:safety",
-    }
-    # Each output carries its own verdict history, not the first output's.
-    assert all(completion.previous_label is None for completion in completions)
-    assert all(completion.result_changed for completion in completions)
+    async with db() as session:
+        events = list(
+            await session.scalars(select(models.EvaluatorEvent).order_by(models.EvaluatorEvent.id))
+        )
+    assert sorted(event.payload["name"] for event in events) == ["quality", "safety"]
+    # One occurrence per annotation, each naming the publication that wrote it.
+    assert len({event.occurrence_key for event in events}) == 2
+    assert all(event.occurrence_key.endswith(f":work-unit:{unit_id}") for event in events)

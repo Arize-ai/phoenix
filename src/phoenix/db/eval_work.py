@@ -21,11 +21,9 @@ TERMINAL_EVAL_SESSION_WORK_STATUSES = (
 
 # Every annotation online evaluation writes carries an identifier starting with this, so
 # a reader can tell its own output from a user's or an API client's without a join. It is
-# spelled once here because three sides read it and none of them may drift: the derivation
-# that writes it, the annotation seam that must not announce its own output back into the
-# trigger loop, and the content-incomplete transition that removes it. The write boundary
-# reserves it
-# so no client can namespace its way into any of the three.
+# spelled once here because two sides read it and neither may drift: the derivation that
+# writes it, and the content-incomplete transition that removes it. The write boundary
+# reserves it so no client can namespace its way into either.
 ONLINE_EVAL_IDENTIFIER_PREFIX = "online:"
 
 
@@ -36,7 +34,7 @@ def is_reserved_annotation_identifier(identifier: str) -> bool:
 
 # Event kinds the trigger pipeline understands. Adding a kind is an edit here plus the
 # code that emits and matches it; the CHECK domains are rendered from this tuple.
-EVALUATOR_EVENT_KINDS = ("annotation_upserted", "evaluation_completed")
+EVALUATOR_EVENT_KINDS = ("annotation_upserted",)
 
 # Entity kinds an online evaluation can be aimed at. The criteria that declare one, the
 # cursors that scan for one, and the event log that routes to one all render their CHECK

@@ -340,7 +340,7 @@ CREATE TABLE evaluator_events (
     id INTEGER NOT NULL,
     kind VARCHAR NOT NULL
         CONSTRAINT "ck_evaluator_events_`valid_event_kind`"
-        CHECK (kind IN ('annotation_upserted', 'evaluation_completed')),
+        CHECK (kind IN ('annotation_upserted')),
     occurrence_key VARCHAR NOT NULL,
     project_id INTEGER NOT NULL,
     evaluation_target VARCHAR NOT NULL
@@ -1536,25 +1536,19 @@ CREATE TABLE project_evaluator_triggers (
     criteria_id INTEGER NOT NULL,
     event_kind VARCHAR NOT NULL
         CONSTRAINT "ck_project_evaluator_triggers_`valid_event_kind`"
-        CHECK (event_kind IN ('annotation_upserted', 'evaluation_completed')),
+        CHECK (event_kind IN ('annotation_upserted')),
     predicates JSONB,
-    source_criteria_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
     CONSTRAINT fk_project_evaluator_triggers_criteria_id_project_evaluator_criteria
         FOREIGN KEY (criteria_id)
         REFERENCES project_evaluator_criteria (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_project_evaluator_triggers_source_criteria_id_project_evaluator_criteria
-        FOREIGN KEY (source_criteria_id)
-        REFERENCES project_evaluator_criteria (id)
+        ON DELETE CASCADE
 );
 
 CREATE INDEX ix_project_evaluator_triggers_criteria_id ON project_evaluator_triggers
     (criteria_id);
-CREATE INDEX ix_project_evaluator_triggers_source_criteria_id ON project_evaluator_triggers
-    (source_criteria_id);
 
 
 -- Table: project_session_annotations

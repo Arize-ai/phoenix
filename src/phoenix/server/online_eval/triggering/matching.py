@@ -9,11 +9,7 @@ from typing import Any, Optional
 
 from phoenix.db import models
 from phoenix.server.online_eval.triggering.log import DrainedEvent
-from phoenix.server.online_eval.triggering.rules import (
-    AnnotationTriggerRule,
-    EvaluationTriggerRule,
-    TriggerRule,
-)
+from phoenix.server.online_eval.triggering.rules import TriggerRule
 
 
 @dataclass(frozen=True)
@@ -77,9 +73,7 @@ def _matches(event: DrainedEvent, rule: TriggerRule) -> bool:
     # pair rather than writing a cross-project request.
     if event.evaluation_target != rule.evaluation_target:
         return False
-    if isinstance(rule, AnnotationTriggerRule):
-        return _matches_annotation(event.payload, rule)
-    return _matches_evaluation(event.payload, rule)
+    return _matches_annotation(event.payload, rule)
 
 
 def _matches_result(
@@ -90,7 +84,7 @@ def _matches_result(
     score_below: Optional[float],
     score_above: Optional[float],
 ) -> bool:
-    """Test the predicates every family spells for itself over what the payload verdicts."""
+    """Test the name, label and score predicates over what the payload verdicts."""
     if name is not None and payload.get("name") != name:
         return False
     if label is not None and payload.get("label") != label:
@@ -103,15 +97,7 @@ def _matches_result(
     return True
 
 
-def _matches_annotation(payload: dict[str, Any], rule: AnnotationTriggerRule) -> bool:
-    producer_criteria_id = payload.get("criteria_id")
-    if producer_criteria_id is not None:
-        # Self-refusal blocks direct feedback; session_sweeper's eligibility-identity
-        # check and insert re-check are its indirect-cycle twin.
-        if producer_criteria_id == rule.criteria_id:
-            return False
-        if not rule.matches_evaluator_annotations:
-            return False
+def _matches_annotation(payload: dict[str, Any], rule: TriggerRule) -> bool:
     if not _matches_result(
         payload,
         name=rule.name,
@@ -128,27 +114,5 @@ def _matches_annotation(payload: dict[str, Any], rule: AnnotationTriggerRule) ->
         rule.annotation_target is not None
         and payload.get("annotation_target") != rule.annotation_target
     ):
-        return False
-    return True
-
-
-def _matches_evaluation(payload: dict[str, Any], rule: EvaluationTriggerRule) -> bool:
-    # Self-refusal blocks direct feedback; session_sweeper's eligibility-identity check
-    # and insert re-check are its indirect-cycle twin.
-    if payload.get("criteria_id") == rule.criteria_id:
-        return False
-    if not _matches_result(
-        payload,
-        name=rule.name,
-        label=rule.label,
-        score_below=rule.score_below,
-        score_above=rule.score_above,
-    ):
-        return False
-    if rule.source_criteria_id is not None and payload.get("criteria_id") != (
-        rule.source_criteria_id
-    ):
-        return False
-    if rule.result_changed_only and not payload.get("result_changed"):
         return False
     return True

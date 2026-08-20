@@ -353,7 +353,6 @@ def _triggered_pairs_statement(
     due_at, current_time = _quiet_delay_columns(criteria_relation, database_now, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
     answering_work_unit_id = (
-        # Eligibility-identity check blocks repeats; the insert re-check is its race twin.
         select(func.max(terminal_work.id))
         .where(
             terminal_work.project_session_rowid == models.ProjectSession.id,
@@ -747,7 +746,6 @@ def _braked_session_work_insert_statement(
     relation = _decision_relation(decisions, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
     answered = (
-        # Insert re-check closes races; the eligibility-identity check is its decision twin.
         select(1)
         .select_from(terminal_work)
         .where(

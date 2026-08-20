@@ -453,16 +453,11 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
             "ix_project_evaluator_triggers_criteria_id",
-            "ix_project_evaluator_triggers_source_criteria_id",
         }
         constraint_names = {
             "pk_project_evaluator_triggers",
             _constraint_name(
                 "fk_project_evaluator_triggers_criteria_id_project_evaluator_criteria",
-                db_backend,
-            ),
-            _constraint_name(
-                "fk_project_evaluator_triggers_source_criteria_id_project_evaluator_criteria",
                 db_backend,
             ),
             "ck_project_evaluator_triggers_`valid_event_kind`",
@@ -481,14 +476,13 @@ class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
                     "criteria_id",
                     "event_kind",
                     "predicates",
-                    "source_criteria_id",
                     "created_at",
                     "updated_at",
                 }
             ),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset({"predicates", "source_criteria_id"}),
+            nullable_column_names=frozenset({"predicates"}),
         )
 
 
@@ -673,7 +667,6 @@ class _Seed(NamedTuple):
     trace_rowid: int
     span_rowid: int
     criteria_id: int
-    watched_criteria_id: int
 
 
 async def _run_with_foreign_keys(
@@ -771,13 +764,10 @@ def _seed_rows(conn: Connection) -> _Seed:
         " (project_id, evaluator_id, name, evaluation_target, sampling_rate)"
         " VALUES (:project_id, :evaluator_id, :name, 'SESSION', 1.0) RETURNING id"
     )
-    criteria_id, watched_criteria_id = (
-        _scalar_id(
-            conn,
-            criteria_statement,
-            {"project_id": project_id, "evaluator_id": evaluator_id, "name": name},
-        )
-        for name in ("downstream", "watched")
+    criteria_id = _scalar_id(
+        conn,
+        criteria_statement,
+        {"project_id": project_id, "evaluator_id": evaluator_id, "name": "downstream"},
     )
     return _Seed(
         project_id=project_id,
@@ -785,7 +775,6 @@ def _seed_rows(conn: Connection) -> _Seed:
         trace_rowid=trace_rowid,
         span_rowid=span_rowid,
         criteria_id=criteria_id,
-        watched_criteria_id=watched_criteria_id,
     )
 
 
@@ -822,17 +811,6 @@ def _event_insert(
         )
 
     return _insert
-
-
-def _insert_trigger(conn: Connection, criteria_id: int, event_kind: str) -> int:
-    return _scalar_id(
-        conn,
-        sa.text(
-            "INSERT INTO project_evaluator_triggers (criteria_id, event_kind)"
-            " VALUES (:criteria_id, :event_kind) RETURNING id"
-        ),
-        {"criteria_id": criteria_id, "event_kind": event_kind},
-    )
 
 
 def _delete(conn: Connection, table: str, row_id: int) -> None:
@@ -917,41 +895,3 @@ async def test_evaluator_event_routes_to_exactly_one_target(
     )
     for delete_target, surviving in cascades:
         assert await _run_with_foreign_keys(_engine, _db_backend, delete_target) == surviving
-
-
-async def test_deleting_a_watched_criterion_never_orphans_its_trigger(
-    _engine: AsyncEngine,
-    _alembic_config: Config,
-    _db_backend: _DBBackend,
-    _schema: str,
-) -> None:
-    await _verify_clean_state(_engine, _schema)
-    await _up(_engine, _alembic_config, _UP, _schema)
-    seed = await _run_with_foreign_keys(_engine, _db_backend, _seed_rows)
-
-    def _watching_trigger(conn: Connection) -> int:
-        trigger_id = _insert_trigger(conn, seed.criteria_id, "evaluation_completed")
-        conn.execute(
-            sa.text(
-                "UPDATE project_evaluator_triggers"
-                " SET source_criteria_id = :source_criteria_id"
-                " WHERE id = :trigger_id"
-            ),
-            {"trigger_id": trigger_id, "source_criteria_id": seed.watched_criteria_id},
-        )
-        return trigger_id
-
-    trigger_id = await _run_with_foreign_keys(_engine, _db_backend, _watching_trigger)
-
-    def _delete_watched(conn: Connection) -> None:
-        _delete(conn, "project_evaluator_criteria", seed.watched_criteria_id)
-
-    with pytest.raises(BaseException, match="(?i)foreign key constraint"):
-        await _run_with_foreign_keys(_engine, _db_backend, _delete_watched)
-
-    def _delete_owning(conn: Connection) -> int:
-        _delete(conn, "project_evaluator_criteria", seed.criteria_id)
-        return _count(conn, "project_evaluator_triggers", trigger_id)
-
-    assert await _run_with_foreign_keys(_engine, _db_backend, _delete_owning) == 0
-    await _run_with_foreign_keys(_engine, _db_backend, _delete_watched)

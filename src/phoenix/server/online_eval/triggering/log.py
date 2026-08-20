@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from secrets import token_hex
-from typing import Any, ClassVar, Literal, Optional, Union
+from typing import Any, ClassVar, Literal, Optional
 
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,11 +27,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 
 @dataclass(frozen=True)
 class AnnotationUpserted:
-    """An annotation as it stood when it was written, with its change kind.
-
-    `criteria_id` names the project evaluator that wrote it, and is absent for
-    annotations written by a person or an API client.
-    """
+    """An annotation as it stood when it was written, with its change kind."""
 
     kind: ClassVar[models.EvaluatorEventKind] = "annotation_upserted"
 
@@ -47,7 +43,6 @@ class AnnotationUpserted:
     source: Optional[Literal["API", "APP"]] = None
     user_id: Optional[int] = None
     identifier: Optional[str] = None
-    criteria_id: Optional[int] = None
     # Names the write this announces, so a retry of that write repeats the dedup key and
     # collapses while a later write of the same annotation is a distinct occurrence. A
     # caller whose write is already identified — a work unit publishing its verdict —
@@ -74,51 +69,10 @@ class AnnotationUpserted:
             "source": self.source,
             "user_id": self.user_id,
             "identifier": self.identifier,
-            "criteria_id": self.criteria_id,
         }
 
 
-@dataclass(frozen=True)
-class EvaluationCompleted:
-    """One verdict a work unit published, announced as the unit reaches DONE.
-
-    A work unit publishes one verdict per evaluator output, so the occurrence identity is
-    the unit and the output together: a unit reaches DONE once, so a retry of that
-    transition repeats each key and collapses, while a two-output evaluator announces two
-    distinct occurrences a rule can be authored against separately.
-    """
-
-    kind: ClassVar[models.EvaluatorEventKind] = "evaluation_completed"
-
-    work_unit_kind: Literal["span", "session"]
-    work_unit_id: int
-    criteria_id: int
-    evaluator_name: str
-    name: str
-    label: Optional[str] = None
-    score: Optional[float] = None
-    result_changed: bool = False
-    previous_label: Optional[str] = None
-
-    @property
-    def occurrence_key(self) -> str:
-        return f"{self.work_unit_kind}:{self.work_unit_id}:{self.name}"
-
-    def payload(self) -> dict[str, Any]:
-        return {
-            "work_unit_kind": self.work_unit_kind,
-            "work_unit_id": self.work_unit_id,
-            "criteria_id": self.criteria_id,
-            "evaluator_name": self.evaluator_name,
-            "name": self.name,
-            "label": self.label,
-            "score": self.score,
-            "result_changed": self.result_changed,
-            "previous_label": self.previous_label,
-        }
-
-
-Event: TypeAlias = Union[AnnotationUpserted, EvaluationCompleted]
+Event: TypeAlias = AnnotationUpserted
 
 
 # Which column holds the routed entity's rowid, per evaluation target. The table CHECKs

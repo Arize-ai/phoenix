@@ -18,8 +18,8 @@ def raise_if_identifier_is_reserved(identifier: str) -> None:
     """Refuse an identifier only online evaluation may write.
 
     The prefix is what tells online evaluation's own annotations from everyone else's, so
-    a client that could write it could exempt its annotations from every trigger and
-    collide with the idempotency key online evaluation publishes under.
+    a client that could write it could collide with the idempotency key online evaluation
+    publishes under.
 
     Raises:
         BadRequest: the identifier is reserved.

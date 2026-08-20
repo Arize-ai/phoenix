@@ -30,9 +30,6 @@ from phoenix.server.online_eval.coordinator import (
     QueueLag,
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
-from phoenix.server.online_eval.triggering import log as event_log
-from phoenix.server.online_eval.triggering.log import EvaluationCompleted
-from phoenix.server.online_eval.triggering.rules import evaluation_rules_exist
 from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
@@ -239,67 +236,13 @@ class DbEvalWorkCoordinator:
         *,
         work_unit_id: int,
         claimed_by: str,
-        completion_events: Sequence[EvaluationCompleted] = (),
     ) -> bool:
-        """Complete a claimed unit, treating an already-DONE row as success.
-
-        ``completion_events`` are logged in the same transaction as the transition, so a
-        retry against an already-DONE row completes without announcing them again.
-        """
-
-        async def announce(session: AsyncSession) -> None:
-            for completion_event in completion_events:
-                await self._announce_completion(session, work_unit_id, completion_event)
-
+        """Complete a claimed unit, treating an already-DONE row as success."""
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claim_owner=claimed_by,
             already_status="DONE",
-            on_transition=announce,
             status="DONE",
-        )
-
-    async def _announce_completion(
-        self,
-        session: AsyncSession,
-        work_unit_id: int,
-        completion_event: EvaluationCompleted,
-    ) -> None:
-        """Log a completion against the session its evaluated target belongs to.
-
-        A completed span outside any session announces nothing — no session-target rule
-        could match it — and that is an ordinary outcome, not a failure.
-        """
-        work_unit_model = self._work_unit_model
-        identity_statement: Any
-        if self._evaluation_target == "SESSION":
-            identity_statement = (
-                select(models.ProjectSession.project_id, models.ProjectSession.id)
-                .select_from(work_unit_model)
-                .join(models.ProjectSession, self._target_row_column == models.ProjectSession.id)
-                .where(work_unit_model.id == work_unit_id)
-            )
-        else:
-            identity_statement = (
-                select(models.Trace.project_rowid, models.Trace.project_session_rowid)
-                .select_from(work_unit_model)
-                .join(models.Span, self._target_row_column == models.Span.id)
-                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                .where(work_unit_model.id == work_unit_id)
-            )
-        project_id, project_session_rowid = (await session.execute(identity_statement)).one()
-        if project_session_rowid is None:
-            return
-        if not await evaluation_rules_exist(session, project_id=project_id):
-            return
-        await event_log.append(
-            session,
-            completion_event,
-            project_id=project_id,
-            # Delivery is session-only, so a verdict on any target demands the session
-            # it belongs to be evaluated.
-            evaluation_target="SESSION",
-            target_rowid=project_session_rowid,
         )
 
     async def publish(

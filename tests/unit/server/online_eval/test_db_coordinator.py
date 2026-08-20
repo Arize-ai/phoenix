@@ -16,8 +16,6 @@ from phoenix.server.online_eval.db_coordinator import (
     DbEvalWorkCoordinator,
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, STALE_FINGERPRINT_ERROR
-from phoenix.server.online_eval.triggering import log as event_log_module
-from phoenix.server.online_eval.triggering.log import EvaluationCompleted
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
@@ -140,20 +138,6 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
     assert await coordinator.complete(work_unit_id=unit_ids[0], claimed_by="consumer-1")
 
 
-def _completion_event(work_unit_id: int, criteria_id: int) -> EvaluationCompleted:
-    return EvaluationCompleted(
-        work_unit_kind="span",
-        work_unit_id=work_unit_id,
-        criteria_id=criteria_id,
-        evaluator_name="criterion",
-        name="criterion",
-        label="incorrect",
-        score=0.25,
-        result_changed=True,
-        previous_label="correct",
-    )
-
-
 async def _events(db: DbSessionFactory) -> list[models.EvaluatorEvent]:
     async with db() as session:
         return list(
@@ -161,146 +145,21 @@ async def _events(db: DbSessionFactory) -> list[models.EvaluatorEvent]:
         )
 
 
-async def _add_completion_trigger(db: DbSessionFactory, work_unit_id: int) -> None:
-    async with db() as session:
-        project_id = await session.scalar(
-            select(models.Trace.project_rowid)
-            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
-            .join(models.EvalWorkUnit, models.EvalWorkUnit.span_rowid == models.Span.id)
-            .where(models.EvalWorkUnit.id == work_unit_id)
-        )
-        source = await session.get(models.EvalWorkUnit, work_unit_id)
-        assert project_id is not None
-        assert source is not None
-        criteria = models.ProjectEvaluatorCriteria(
-            project_id=project_id,
-            evaluator_id=source.evaluator_id,
-            name=Identifier(root=f"triggered-{token_hex(4)}"),
-            filter_condition="",
-            sampling_rate=1.0,
-            evaluation_target="SESSION",
-        )
-        session.add(criteria)
-        await session.flush()
-        session.add(
-            models.ProjectEvaluatorTrigger(
-                criteria_id=criteria.id,
-                event_kind="evaluation_completed",
-            )
-        )
-
-
-async def test_completing_a_unit_announces_its_verdict_against_the_target_session(
+async def test_completing_a_unit_only_transitions_it_and_announces_nothing(
     db: DbSessionFactory,
 ) -> None:
-    (unit_id,) = await _seed_work_units(db, 1, in_session=True)
-    await _add_completion_trigger(db, unit_id)
-    coordinator = DbEvalWorkCoordinator(db)
-    (claimed,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
+    """Completion owns the fenced RUNNING -> DONE step and nothing else.
 
-    assert await coordinator.complete(
-        work_unit_id=unit_id,
-        claimed_by="consumer-1",
-        completion_events=[_completion_event(unit_id, claimed.criteria_id)],
-    )
-
-    (event,) = await _events(db)
-    assert event.kind == "evaluation_completed"
-    # One occurrence per output, so the key names the output too.
-    assert event.occurrence_key == f"span:{unit_id}:criterion"
-    async with db() as session:
-        span_session_rowid = await session.scalar(
-            select(models.Trace.project_session_rowid)
-            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
-            .join(models.EvalWorkUnit, models.EvalWorkUnit.span_rowid == models.Span.id)
-            .where(models.EvalWorkUnit.id == unit_id)
-        )
-    assert event.project_session_rowid == span_session_rowid
-    assert event.payload["criteria_id"] == claimed.criteria_id
-    assert event.payload["label"] == "incorrect"
-    assert event.payload["previous_label"] == "correct"
-    assert event.payload["result_changed"] is True
-
-
-async def test_completing_a_unit_without_a_completion_rule_writes_no_event(
-    db: DbSessionFactory,
-) -> None:
+    A published verdict is announced by the annotation write that carried it, in the
+    publication's own transaction.
+    """
     (unit_id,) = await _seed_work_units(db, 1, in_session=True)
     coordinator = DbEvalWorkCoordinator(db)
-    (claimed,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
+    await coordinator.claim(claimed_by="consumer-1", limit=1)
 
-    assert await coordinator.complete(
-        work_unit_id=unit_id,
-        claimed_by="consumer-1",
-        completion_events=[_completion_event(unit_id, claimed.criteria_id)],
-    )
-
-    assert await _events(db) == []
-
-
-async def test_completing_an_already_done_unit_announces_nothing(db: DbSessionFactory) -> None:
-    (unit_id,) = await _seed_work_units(db, 1, in_session=True)
-    await _add_completion_trigger(db, unit_id)
-    coordinator = DbEvalWorkCoordinator(db)
-    (claimed,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
-    # The publication committed and the row reached DONE, but the acknowledgement was
-    # lost; the consumer retries the completion it already made.
-    async with db() as session:
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == unit_id)
-            .values(status="DONE")
-        )
-
-    assert await coordinator.complete(
-        work_unit_id=unit_id,
-        claimed_by="consumer-1",
-        completion_events=[_completion_event(unit_id, claimed.criteria_id)],
-    )
-
-    assert await _events(db) == []
-
-
-async def test_completing_a_span_outside_any_session_announces_nothing(
-    db: DbSessionFactory,
-) -> None:
-    (unit_id,) = await _seed_work_units(db, 1)
-    await _add_completion_trigger(db, unit_id)
-    coordinator = DbEvalWorkCoordinator(db)
-    (claimed,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
-
-    assert await coordinator.complete(
-        work_unit_id=unit_id,
-        claimed_by="consumer-1",
-        completion_events=[_completion_event(unit_id, claimed.criteria_id)],
-    )
+    assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-1")
 
     assert (await _get_unit(db, unit_id)).status == "DONE"
-    assert await _events(db) == []
-
-
-async def test_a_failed_announcement_leaves_the_unit_uncompleted(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    (unit_id,) = await _seed_work_units(db, 1, in_session=True)
-    await _add_completion_trigger(db, unit_id)
-    coordinator = DbEvalWorkCoordinator(db)
-    (claimed,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
-
-    async def _failing_append(*args: object, **kwargs: object) -> bool:
-        raise RuntimeError("event log unavailable")
-
-    monkeypatch.setattr(event_log_module, "append", _failing_append)
-
-    with pytest.raises(RuntimeError, match="event log unavailable"):
-        await coordinator.complete(
-            work_unit_id=unit_id,
-            claimed_by="consumer-1",
-            completion_events=[_completion_event(unit_id, claimed.criteria_id)],
-        )
-
-    assert (await _get_unit(db, unit_id)).status == "RUNNING"
     assert await _events(db) == []
 
 

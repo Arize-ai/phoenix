@@ -46,10 +46,8 @@ from tests.unit.conftest import (
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from .test_consumer import (
-    _materialize_session_unit,
     _materialize_unit,
     _patch_playground_client,
-    _seed_builtin_criteria,
     _seed_llm_criteria,
     _StubLLMClient,
 )
@@ -116,7 +114,7 @@ async def _add_trigger(
     db: DbSessionFactory,
     criteria_id: int,
     *,
-    event_kind: models.EvaluatorEventKind,
+    event_kind: models.EvaluatorEventKind = "annotation_upserted",
 ) -> None:
     async with db() as session:
         session.add(models.ProjectEvaluatorTrigger(criteria_id=criteria_id, event_kind=event_kind))
@@ -445,10 +443,10 @@ async def test_an_annotation_drives_a_session_evaluation_end_to_end(
         assert annotation.label == "good"
 
 
-async def test_a_completed_span_evaluation_drives_a_session_evaluation_end_to_end(
+async def test_a_published_span_evaluation_drives_a_session_evaluation_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A span evaluator's verdict reaches a published session evaluation through the
+    """A span evaluator's annotation reaches a published session evaluation through the
     composed runtime: span consumer -> drain -> sweeper -> session consumer.
     """
     _enable_online_eval(monkeypatch)
@@ -472,7 +470,7 @@ async def test_a_completed_span_evaluation_drives_a_session_evaluation_end_to_en
         _, session_criteria_id = await _seed_llm_criteria(
             db, project.id, evaluation_target="SESSION"
         )
-        await _add_trigger(db, session_criteria_id, event_kind="evaluation_completed")
+        await _add_trigger(db, session_criteria_id)
         await _materialize_unit(db, span.id, span_evaluator_id, span_criteria_id)
 
         await consumer._cycle()
@@ -484,48 +482,6 @@ async def test_a_completed_span_evaluation_drives_a_session_evaluation_end_to_en
         evaluation = await _evaluation_answering(db, session_criteria_id)
         assert evaluation.status == "DONE"
         assert evaluation.criteria_id == session_criteria_id
-
-
-async def test_a_verdict_never_requests_the_criteria_that_authored_it(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Both rules fire on any completed evaluation in the project; only the one owned by
-    the criteria that authored the verdict has to decline it.
-    """
-    _enable_online_eval(monkeypatch)
-    _patch_playground_client(monkeypatch, _StubLLMClient())
-
-    async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
-        await stack.enter_async_context(patch_grpc_server())
-        app = _create_app(db)
-        runtime = app.state.online_eval_runtime
-        assert isinstance(runtime, OnlineEvalRuntime)
-        await stack.enter_async_context(LifespanManager(app))
-        await runtime.stop()
-        drain, session_consumer = runtime.event_drain, runtime.session_consumer
-        assert drain is not None and session_consumer is not None
-
-        project, project_session, _ = await _seed_quiet_session(db)
-        authoring_evaluator_id, authoring_criteria_id = await _seed_llm_criteria(
-            db, project.id, evaluation_target="SESSION"
-        )
-        _, downstream_criteria_id = await _seed_builtin_criteria(
-            db, project.id, evaluation_target="SESSION"
-        )
-        for criteria_id in (authoring_criteria_id, downstream_criteria_id):
-            await _add_trigger(db, criteria_id, event_kind="evaluation_completed")
-        await _materialize_session_unit(
-            db,
-            project_session.id,
-            authoring_evaluator_id,
-            authoring_criteria_id,
-        )
-
-        await session_consumer._cycle()
-        await drain._tick()
-
-        assert [request.criteria_id for request in await _requests(db)] == [downstream_criteria_id]
 
 
 async def _add_session_annotation(

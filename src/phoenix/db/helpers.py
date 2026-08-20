@@ -637,21 +637,8 @@ async def delete_projects(
     session: AsyncSession,
     project_filter: sa.ColumnElement[bool],
 ) -> list[int]:
-    """Delete matching projects after removing triggers that watch their evaluators."""
+    """Delete the projects matching this filter, returning their rowids."""
     project_ids = sa.select(models.Project.id).where(project_filter)
-    watching_trigger_ids = (
-        sa.select(models.ProjectEvaluatorTrigger.id)
-        .join(
-            models.ProjectEvaluatorCriteria,
-            models.ProjectEvaluatorTrigger.source_criteria_id == models.ProjectEvaluatorCriteria.id,
-        )
-        .where(models.ProjectEvaluatorCriteria.project_id.in_(project_ids))
-    )
-    await session.execute(
-        sa.delete(models.ProjectEvaluatorTrigger).where(
-            models.ProjectEvaluatorTrigger.id.in_(watching_trigger_ids)
-        )
-    )
     return list(
         await session.scalars(
             sa.delete(models.Project)
