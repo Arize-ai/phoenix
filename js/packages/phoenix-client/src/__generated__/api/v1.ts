@@ -1185,6 +1185,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/model_providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all model providers
+         * @description Retrieve the built-in model provider families along with a paginated list of user-defined custom providers. Built-in families are a fixed set and are only returned on the first page, i.e. when no `cursor` is supplied; `cursor`, `next_cursor`, and `limit` apply exclusively to the custom-provider portion of the list. Encrypted custom-provider credentials are never returned.
+         */
+        get: operations["getModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_identifier}": {
         parameters: {
             query?: never;
@@ -2135,6 +2155,24 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** BuiltInModelProvider */
+        BuiltInModelProvider: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "builtin";
+            /**
+             * Provider Key
+             * @description The stable key identifying the built-in provider family (e.g. 'OPENAI').
+             */
+            provider_key: string;
+            /**
+             * Name
+             * @description The human-readable name of the provider family (e.g. 'OpenAI').
+             */
+            name: string;
+        };
         /**
          * BuiltInProviderModelSelection
          * @description Chat against a Phoenix built-in provider.
@@ -2774,6 +2812,52 @@ export interface components {
              * @description The API key. This is the only time it is returned; it cannot be recovered from the listing endpoints.
              */
             key: string;
+        };
+        /** CustomModelProvider */
+        CustomModelProvider: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "custom";
+            /**
+             * Id
+             * @description The ID of the custom provider.
+             */
+            id: string;
+            /**
+             * Name
+             * @description The unique name of the custom provider.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of the custom provider.
+             */
+            description?: string | null;
+            /**
+             * Provider
+             * @description The provider label of the custom provider.
+             */
+            provider: string;
+            /**
+             * Sdk
+             * @description The SDK used to communicate with the custom provider.
+             * @enum {string}
+             */
+            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock";
+            /**
+             * Created At
+             * Format: date-time
+             * @description The time the custom provider was created.
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description The time the custom provider was last updated.
+             */
+            updated_at: string;
         };
         /**
          * CustomProviderModelSelection
@@ -3436,6 +3520,13 @@ export interface components {
         GetIncompleteExperimentRunsResponseBody: {
             /** Data */
             data: components["schemas"]["IncompleteExperimentRun"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetModelProvidersResponseBody */
+        GetModelProvidersResponseBody: {
+            /** Data */
+            data: (components["schemas"]["BuiltInModelProvider"] | components["schemas"]["CustomModelProvider"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -11211,6 +11302,49 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getModelProviders: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (custom provider ID) */
+                cursor?: string | null;
+                /** @description The max number of custom providers to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of model providers with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetModelProvidersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

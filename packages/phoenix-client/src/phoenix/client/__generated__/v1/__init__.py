@@ -80,6 +80,12 @@ class AssistantMessageMetadataUsageTokens(TypedDict):
     total: int
 
 
+class BuiltInModelProvider(TypedDict):
+    provider_key: str
+    name: str
+    kind: NotRequired[Literal["builtin"]]
+
+
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -181,6 +187,17 @@ class CreatedApiKey(TypedDict):
     key: str
     description: NotRequired[str]
     expires_at: NotRequired[str]
+
+
+class CustomModelProvider(TypedDict):
+    id: str
+    name: str
+    provider: str
+    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"]
+    created_at: str
+    updated_at: str
+    kind: NotRequired[Literal["custom"]]
+    description: NotRequired[str]
 
 
 class CustomProviderModelSelection(TypedDict):
@@ -323,6 +340,11 @@ class GetDatasetResponseBody(TypedDict):
 
 class GetExperimentResponseBody(TypedDict):
     data: Experiment
+
+
+class GetModelProvidersResponseBody(TypedDict):
+    data: Sequence[Union[BuiltInModelProvider, CustomModelProvider]]
+    next_cursor: Optional[str]
 
 
 class GraphQLContext(TypedDict):
