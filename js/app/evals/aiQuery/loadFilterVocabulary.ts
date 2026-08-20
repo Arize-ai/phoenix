@@ -11,6 +11,7 @@ type FilterVocabularyResponse = {
     projects?: {
       edges: ReadonlyArray<{
         node: {
+          name: string;
           sessionFilterVocabulary?: readonly SessionFilterVocabularyTerm[];
           traceFilterVocabulary?: readonly TraceFilterVocabularyTerm[];
         };
@@ -20,11 +21,14 @@ type FilterVocabularyResponse = {
   errors?: ReadonlyArray<{ message: string }>;
 };
 
+const DEFAULT_PROJECT_NAME = "default";
+
 const query = `
-  query AIQueryEvalFilterVocabulary {
-    projects(first: 1) {
+  query AIQueryEvalFilterVocabulary($filter: ProjectFilter) {
+    projects(first: 10, filter: $filter) {
       edges {
         node {
+          name
           sessionFilterVocabulary {
             name
             type
@@ -54,6 +58,8 @@ export function loadFilterVocabulary(): Promise<FilterVocabulary> {
 
 async function fetchFilterVocabulary(): Promise<FilterVocabulary> {
   const phoenixHost = process.env.PHOENIX_HOST ?? "http://localhost:6006";
+  const projectName =
+    process.env.PHOENIX_EVAL_VOCABULARY_PROJECT ?? DEFAULT_PROJECT_NAME;
   const headers = new Headers({ "Content-Type": "application/json" });
   const apiKey = process.env.PHOENIX_API_KEY;
   if (apiKey) {
@@ -62,7 +68,10 @@ async function fetchFilterVocabulary(): Promise<FilterVocabulary> {
   const response = await fetch(new URL("/graphql", phoenixHost), {
     method: "POST",
     headers,
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({
+      query,
+      variables: { filter: { col: "name", value: projectName } },
+    }),
   });
   if (!response.ok) {
     throw new Error(
@@ -75,10 +84,14 @@ async function fetchFilterVocabulary(): Promise<FilterVocabulary> {
       `Could not load filter vocabulary from Phoenix: ${payload.errors.map(({ message }) => message).join("; ")}`
     );
   }
-  const project = payload.data?.projects?.edges[0]?.node;
+  // The server's project name filter is a substring match, so narrow to the
+  // exact project client-side.
+  const project = payload.data?.projects?.edges
+    .map(({ node }) => node)
+    .find(({ name }) => name === projectName);
   if (!project) {
     throw new Error(
-      "AI query filter evals require at least one project in Phoenix."
+      `AI query filter evals require a Phoenix project named "${projectName}" (set PHOENIX_EVAL_VOCABULARY_PROJECT to target a different one).`
     );
   }
   return {
