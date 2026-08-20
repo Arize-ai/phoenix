@@ -10599,6 +10599,16 @@
           "total_tokens": {
             "type": "integer",
             "title": "Total Tokens"
+          },
+          "prompt_tokens_details": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatCompletionUsagePromptTokensDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -10608,6 +10618,19 @@
           "total_tokens"
         ],
         "title": "ChatCompletionUsage"
+      },
+      "ChatCompletionUsagePromptTokensDetails": {
+        "properties": {
+          "cached_tokens": {
+            "type": "integer",
+            "title": "Cached Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cached_tokens"
+        ],
+        "title": "ChatCompletionUsagePromptTokensDetails"
       },
       "ChatContext": {
         "oneOf": [
