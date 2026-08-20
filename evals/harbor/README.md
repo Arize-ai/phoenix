@@ -20,6 +20,26 @@ Run the real ServerAgent adapter:
 make harbor-run
 ```
 
+Test the Harbor plugin against a local Phoenix server with the direct task path used by
+the PXI workflow:
+
+```bash
+make dev-backend
+# In another terminal:
+uv build --wheel packages/phoenix-client
+CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
+uvx --python 3.13 --from 'harbor[daytona]==0.18.0' --with "$CLIENT_WHEEL" \
+  harbor run -p evals/harbor/tasks/regression-triage -a oracle -e docker \
+  --plugin phoenix \
+  --plugin-kwarg endpoint=http://127.0.0.1:6006 \
+  --plugin-kwarg trace_mode=none \
+  --yes
+```
+
+A single direct task uses `harbor-task/<declared task name>` as its Phoenix dataset.
+For several direct tasks, pass `--plugin-kwarg dataset=<name>` to name the synthetic
+dataset explicitly.
+
 Both trial targets accept overrides, e.g.:
 
 ```bash

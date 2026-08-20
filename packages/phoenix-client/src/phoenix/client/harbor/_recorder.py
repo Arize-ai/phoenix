@@ -1,9 +1,4 @@
-"""Maps a resolved Harbor job onto Phoenix datasets and experiments.
-
-Nothing in this module imports Harbor. It works entirely against the frozen
-records the compatibility adapter produces, which keeps it testable without a
-Harbor installation and keeps Harbor's private surface in one place.
-"""
+"""Write a resolved Harbor job to Phoenix."""
 
 from __future__ import annotations
 
@@ -33,23 +28,14 @@ _INTEGRATION = "harbor"
 
 @dataclass(frozen=True)
 class DatasetSnapshot:
-    """The Phoenix dataset version a job's experiments are pinned to."""
-
     dataset_id: str
     version_id: str
     example_ids: Mapping[str, str]
-    """Harbor task ID -> Phoenix example node ID (a GlobalID).
-
-    Phoenix returns two identifiers per example: ``id`` holds the external
-    Harbor task ID we uploaded, while ``node_id`` holds the GlobalID. Only the
-    GlobalID is accepted when logging experiment runs.
-    """
+    """Harbor task ID to Phoenix example GlobalID."""
 
 
 @dataclass(frozen=True)
 class ExperimentHandle:
-    """A Phoenix experiment recording one agent/model configuration."""
-
     experiment_id: str
     name: str
     project_name: str | None
@@ -58,7 +44,7 @@ class ExperimentHandle:
 
 
 class PhoenixRecorder:
-    """Creates and recovers the Phoenix objects a Harbor job records into."""
+    """Create or recover Phoenix records for a Harbor job."""
 
     def __init__(
         self,
@@ -70,27 +56,13 @@ class PhoenixRecorder:
         self._experiment_name_template = experiment_name_template
 
     async def sync_dataset(self, plan: JobPlan) -> DatasetSnapshot:
-        """Upload the job's complete task set as one Phoenix dataset version.
-
-        The upload is a declarative full snapshot: Phoenix reconciles the
-        uploaded examples against the dataset by external ID, and only mints a
-        new version when something actually changed. Re-running an unchanged
-        job therefore reuses the existing version rather than accumulating
-        empty ones.
-        """
-        examples = plan.examples()
+        """Upload the job's tasks as one dataset version."""
+        examples = [task.to_example() for task in plan.tasks]
         try:
-            # `action="update"` is what makes this a snapshot rather than an
-            # append: Phoenix matches the uploaded examples against the dataset
-            # by external ID and deletes any it no longer sees. The public
-            # `create_dataset` wrapper hard-codes the same action, but the
-            # distinction matters enough here to state it at the call site.
+            # Update mode treats the upload as a complete snapshot keyed by external ID.
             dataset = await self._client.datasets._upload_json_dataset(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
                 dataset_name=plan.dataset.name,
-                dataset_description=(
-                    f"Harbor dataset {plan.dataset.name!r} ({plan.dataset.kind}), "
-                    "synchronized by the Phoenix Harbor plugin."
-                ),
+                dataset_description=f"Harbor dataset {plan.dataset.name!r} ({plan.dataset.kind}).",
                 inputs=[example["input"] for example in examples],
                 outputs=[example["output"] for example in examples],
                 metadata=[example["metadata"] for example in examples],
@@ -99,27 +71,24 @@ class PhoenixRecorder:
             )
         except Exception as error:
             raise HarborPluginError(
-                f"Could not synchronize Harbor tasks into Phoenix dataset "
-                f"{plan.dataset.name!r}: {error}"
+                f"Failed to upload Harbor tasks to Phoenix dataset {plan.dataset.name!r}: {error}"
             ) from error
 
         version_id = dataset.version_id
         if not version_id:
             raise HarborPluginError(
-                f"Phoenix did not report a version for dataset {plan.dataset.name!r}; "
-                "experiments cannot be pinned to a dataset version."
+                f"Phoenix returned no version for dataset {plan.dataset.name!r}."
             )
 
         example_ids = _example_ids_by_task(dataset.examples)
         missing = [task.task_id for task in plan.tasks if task.task_id not in example_ids]
         if missing:
             raise HarborPluginError(
-                "Phoenix did not return examples for these Harbor tasks: "
-                f"{', '.join(sorted(missing))}. Stable external example IDs require "
-                "Phoenix server >=15.0."
+                f"Missing Phoenix examples for Harbor tasks: {', '.join(sorted(missing))}. "
+                "Requires Phoenix server >=15.0."
             )
         logger.info(
-            "Phoenix dataset %r synchronized: %d task(s) at version %s.",
+            "Phoenix dataset %r: %d task(s), version %s.",
             plan.dataset.name,
             len(plan.tasks),
             version_id,
@@ -135,7 +104,7 @@ class PhoenixRecorder:
         plan: JobPlan,
         snapshot: DatasetSnapshot,
     ) -> dict[str, ExperimentHandle]:
-        """Create or recover one experiment per agent/model configuration."""
+        """Resolve one experiment per agent configuration."""
         try:
             existing = await self._client.experiments.list(dataset_id=snapshot.dataset_id)
         except Exception as error:
@@ -157,6 +126,72 @@ class PhoenixRecorder:
             )
         return handles
 
+    async def existing_run_keys(
+        self,
+        experiments: Mapping[str, ExperimentHandle],
+    ) -> set[tuple[str, str, int]]:
+        """Return recorded (agent identity, example, repetition) keys."""
+        keys: set[tuple[str, str, int]] = set()
+        for identity, experiment in experiments.items():
+            try:
+                runs = await self._client.experiments._get_all_experiment_runs(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+                    experiment_id=experiment.experiment_id
+                )
+            except Exception as error:
+                raise HarborPluginError(
+                    f"Could not list runs for Phoenix experiment {experiment.name!r}: {error}"
+                ) from error
+            keys.update(
+                (
+                    identity,
+                    str(run["dataset_example_id"]),
+                    int(run["repetition_number"]),
+                )
+                for run in runs
+            )
+        return keys
+
+    async def record_trial(
+        self,
+        *,
+        plan: JobPlan,
+        snapshot: DatasetSnapshot,
+        experiments: Mapping[str, ExperimentHandle],
+        trial_result: Any,
+    ) -> v1.ExperimentRun:
+        """Record one terminal Harbor trial as a Phoenix experiment run."""
+        trial_name = str(trial_result.trial_name)
+        try:
+            slot = plan.trial_for(trial_name)
+        except KeyError as error:
+            raise HarborPluginError(
+                f"Harbor returned unplanned trial {trial_name!r}; cannot record it in Phoenix."
+            ) from error
+        experiment = experiments[slot.identity_digest]
+        example_id = snapshot.example_ids[slot.task_id]
+        start_time = getattr(trial_result, "started_at", None)
+        end_time = getattr(trial_result, "finished_at", None)
+        if start_time is None or end_time is None:
+            raise HarborPluginError(
+                f"Harbor trial {trial_name!r} has no complete start and end timestamps."
+            )
+
+        try:
+            return await self._client.experiments.log_run(
+                experiment_id=experiment.experiment_id,
+                dataset_example_id=example_id,
+                output=_trial_output(trial_result),
+                start_time=start_time,
+                end_time=end_time,
+                repetition_number=slot.repetition,
+                error=_trial_error(trial_result),
+            )
+        except Exception as error:
+            raise HarborPluginError(
+                f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
+                f"{experiment.name!r}: {error}"
+            ) from error
+
     async def _resolve_experiment(
         self,
         *,
@@ -175,44 +210,36 @@ class PhoenixRecorder:
         if len(matches) > 1:
             ids = ", ".join(sorted(str(match["id"]) for match in matches))
             raise HarborPluginError(
-                f"{len(matches)} Phoenix experiments already claim the identity of "
-                f"{name!r} ({ids}). The plugin will not guess which one to extend; "
-                "delete the duplicates or run this Harbor job under a new job name."
+                f"{len(matches)} Phoenix experiments share identity {name!r} ({ids}). "
+                "Delete duplicates, or use a new Harbor job name."
             )
         if matches:
-            match = matches[0]
-            _require_consistent(match, snapshot=snapshot, plan=plan, name=name)
-            logger.info("Recovered Phoenix experiment %r (%s).", name, match["id"])
-            return ExperimentHandle(
-                experiment_id=str(match["id"]),
-                name=str(match.get("name") or name),
-                project_name=match.get("project_name"),
-                identity_digest=identity,
-                created=False,
-            )
-
-        try:
-            experiment = await self._client.experiments.create(
-                dataset_id=snapshot.dataset_id,
-                dataset_version_id=snapshot.version_id,
-                experiment_name=name,
-                experiment_description=(
-                    f"Harbor job {plan.job_name or plan.job_id} ({experiment_slice.agent_name})"
-                ),
-                experiment_metadata=_experiment_metadata(plan, experiment_slice, identity),
-                repetitions=plan.repetitions,
-            )
-        except Exception as error:
-            raise HarborPluginError(
-                f"Could not create Phoenix experiment {name!r}: {error}"
-            ) from error
-        logger.info("Created Phoenix experiment %r (%s).", name, experiment["id"])
+            experiment = matches[0]
+            _require_consistent(experiment, snapshot=snapshot, plan=plan, name=name)
+            created = False
+        else:
+            try:
+                experiment = await self._client.experiments.create(
+                    dataset_id=snapshot.dataset_id,
+                    dataset_version_id=snapshot.version_id,
+                    experiment_name=name,
+                    experiment_description=(
+                        f"Harbor job {plan.job_name or plan.job_id} ({experiment_slice.agent_name})"
+                    ),
+                    experiment_metadata=_experiment_metadata(plan, experiment_slice, identity),
+                    repetitions=plan.repetitions,
+                )
+            except Exception as error:
+                raise HarborPluginError(
+                    f"Could not create Phoenix experiment {name!r}: {error}"
+                ) from error
+            created = True
         return ExperimentHandle(
             experiment_id=str(experiment["id"]),
             name=str(experiment.get("name") or name),
             project_name=experiment.get("project_name"),
             identity_digest=identity,
-            created=True,
+            created=created,
         )
 
 
@@ -221,13 +248,10 @@ def experiment_identity(
     snapshot: DatasetSnapshot,
     experiment_slice: ExperimentSlice,
 ) -> str:
-    """Return the immutable identity of one experiment.
+    """Return an identity that separates job, dataset, and agent configuration.
 
-    A Harbor job ID is part of the identity so two executions of the same
-    benchmark become two experiments. Without it their runs would collide on
-    ``(experiment, example, repetition)``, and Phoenix refuses to overwrite a
-    successful run -- so the second execution could not be recorded at all.
-    Comparison over time is expressed as several experiments on one dataset.
+    The job ID keeps separate executions from competing for the same immutable
+    experiment run keys.
     """
     return canonical_digest(
         {
@@ -258,12 +282,6 @@ def _experiment_metadata(
 
 
 def _identity_of(metadata: Any) -> str | None:
-    """Return the Harbor identity an experiment claims, if it claims one.
-
-    Experiments on the same dataset may come from anywhere -- a notebook, the
-    pytest plugin, another integration -- so the ``integration`` discriminator
-    is checked before the digest is trusted.
-    """
     if not isinstance(metadata, Mapping):
         return None
     fields = cast(Mapping[str, Any], metadata)
@@ -280,55 +298,63 @@ def _require_consistent(
     plan: JobPlan,
     name: str,
 ) -> None:
-    """Refuse to reuse an experiment whose shape no longer matches the plan.
-
-    The identity digest already covers the dataset version, so a mismatch here
-    means the stored metadata and the stored columns disagree -- something the
-    plugin cannot repair and must not paper over.
-    """
+    """Reject a recovered experiment that no longer matches the plan."""
     stored_version = experiment.get("dataset_version_id")
-    if stored_version and stored_version != snapshot.version_id:
+    if stored_version is not None and stored_version != snapshot.version_id:
         raise HarborPluginError(
             f"Phoenix experiment {name!r} ({experiment['id']}) is pinned to dataset "
             f"version {stored_version}, but this job resolved version "
             f"{snapshot.version_id}."
         )
     stored_repetitions = experiment.get("repetitions")
-    if stored_repetitions and int(stored_repetitions) != plan.repetitions:
+    if stored_repetitions is not None and int(stored_repetitions) != plan.repetitions:
         raise HarborPluginError(
-            f"Phoenix experiment {name!r} ({experiment['id']}) records "
-            f"{stored_repetitions} repetition(s), but this job plans "
-            f"{plan.repetitions}. Phoenix cannot change an experiment's repetition "
-            "count; run the job under a new job name."
+            f"Phoenix experiment {name!r} ({experiment['id']}) has "
+            f"{stored_repetitions} repetition(s); this job plans {plan.repetitions}. "
+            "Use a new Harbor job name."
         )
 
 
 def _example_ids_by_task(examples: Sequence[v1.DatasetExample]) -> dict[str, str]:
-    """Map each Harbor task ID to the Phoenix example GlobalID it resolved to.
-
-    Phoenix returns the external ID we uploaded in ``id`` and its own GlobalID
-    in ``node_id``. Only the GlobalID is accepted when logging experiment runs.
-    """
+    """Map Harbor task IDs to Phoenix example GlobalIDs."""
     from phoenix.client.resources.experiments import (
         _example_global_id,  # pyright: ignore[reportPrivateUsage]
     )
 
-    # The uploaded version holds exactly the snapshot we just sent, so every
-    # example's external ID is a Harbor task ID.
     return {
         str(example["id"]): _example_global_id(example) for example in examples if example.get("id")
     }
 
 
-def _experiment_names(plan: JobPlan, template: str) -> dict[str, str]:
-    """Render experiment names, disambiguating any that collide.
+def _trial_output(trial_result: Any) -> dict[str, Any]:
+    n_input, n_cache, n_output, cost = trial_result.compute_token_cost_totals()
+    output: dict[str, Any] = {
+        "harbor_trial_id": str(trial_result.id),
+        "harbor_trial_name": str(trial_result.trial_name),
+        "harbor_trial_uri": str(trial_result.trial_uri),
+        "task_name": str(trial_result.task_name),
+    }
+    token_usage = {
+        "input": n_input,
+        "cache": n_cache,
+        "output": n_output,
+    }
+    if any(value is not None for value in token_usage.values()):
+        output["token_usage"] = token_usage
+    if cost is not None:
+        output["cost_usd"] = cost
+    return output
 
-    Phoenix's compare view identifies experiments by name, so two agent
-    configurations that render the same name would be indistinguishable there.
-    Configurations differing only in skills, keyword arguments, or environment
-    do collide under the default template, so the short configuration digest is
-    appended to every member of a colliding group.
-    """
+
+def _trial_error(trial_result: Any) -> str | None:
+    error = getattr(trial_result, "exception_info", None)
+    if error is None:
+        return None
+    return f"{error.exception_type}: {error.exception_message}"
+
+
+def _experiment_names(plan: JobPlan, template: str) -> dict[str, str]:
+    """Render experiment names and add a digest to collisions."""
     rendered: dict[str, str] = {}
     for experiment_slice in plan.slices:
         rendered[experiment_slice.identity_digest] = _render_name(template, plan, experiment_slice)

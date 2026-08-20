@@ -8,9 +8,6 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 
-# The plugin owns the connection pool it hands to ``AsyncClient`` (see
-# ``_open_client``), so it needs the same defaults ``AsyncClient`` would apply.
-# These live in a sibling module of the same distribution, not another package.
 from phoenix.client.client import (
     _DEFAULT_CLIENT_TIMEOUT,  # pyright: ignore[reportPrivateUsage]
     AsyncClient,
@@ -31,9 +28,11 @@ from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key, g
 if TYPE_CHECKING and sys.version_info >= (3, 12):
     from harbor.job import Job
     from harbor.models.job.result import JobResult
+    from harbor.trial.hooks import TrialHookEvent
 else:
     Job = Any
     JobResult = Any
+    TrialHookEvent = Any
 
 logger = logging.getLogger(__name__)
 
@@ -43,24 +42,7 @@ _TRACE_MODES: tuple[str, ...] = ("atif", "otlp", "none")
 
 
 class PhoenixJobPlugin:
-    """Records Harbor evaluation jobs in Phoenix.
-
-    Registered in Harbor's ``harbor.plugins`` entry-point group as ``phoenix``,
-    so a job records to Phoenix with ``harbor run --plugin phoenix``.
-
-    At job start the plugin resolves Harbor's task and trial plan, synchronizes
-    the tasks into a Phoenix dataset as one version, and creates or recovers one
-    Phoenix experiment for each agent and model configuration in the job.
-
-    Selecting this plugin makes Phoenix recording a requirement of the job:
-    anything that would leave the job unrecorded is raised from
-    ``on_job_start``, which Harbor propagates, stopping the job before any trial
-    compute is spent.
-
-    Not yet implemented: experiment runs, evaluation scores, and trace linkage.
-    Those land in follow-up work; until then a recorded job produces a dataset
-    and empty experiments.
-    """
+    """Record a Harbor job as a Phoenix dataset and experiments."""
 
     def __init__(
         self,
@@ -86,6 +68,9 @@ class PhoenixJobPlugin:
         self.plan: JobPlan | None = None
         self.snapshot: DatasetSnapshot | None = None
         self.experiments: dict[str, ExperimentHandle] = {}
+        self._recorded_run_keys: set[tuple[str, str, int]] = set()
+        self._attempts: dict[str, int] = {}
+        self._retry_config: Any = None
 
     async def on_job_start(self, job: Job) -> None:
         plan = build_job_plan(job, dataset_override=self.dataset)
@@ -96,48 +81,98 @@ class PhoenixJobPlugin:
             )
             snapshot = await recorder.sync_dataset(plan)
             experiments = await recorder.resolve_experiments(plan, snapshot)
+            recorded_run_keys = await recorder.existing_run_keys(experiments)
 
         self.plan = plan
         self.snapshot = snapshot
         self.experiments = experiments
+        self._recorded_run_keys = recorded_run_keys
+        self._retry_config = job.config.retry
+        try:
+            job.on_trial_started(self._on_trial_started)
+            job.on_trial_ended(self._on_trial_ended)
+        except AttributeError as error:
+            raise HarborPluginError(
+                "Harbor does not expose trial lifecycle hooks. Install a supported Harbor version."
+            ) from error
         self._report_started(plan, experiments)
 
     async def on_job_end(self, job_result: JobResult) -> None:
-        del job_result
-        # Harbor logs and swallows exceptions from this hook, so nothing the job
-        # depends on may be written here.
+        # Reconcile trials loaded by Harbor during resume; live trials are recorded by hooks.
         if self.plan is None:
             return
+        for trial_result in getattr(job_result, "trial_results", ()) or ():
+            await self._record_trial(trial_result)
         logger.info(
-            "Harbor job %s recorded in Phoenix dataset %r across %d experiment(s).",
+            "Harbor job %s recorded in Phoenix dataset %r (%d experiment(s)).",
             self.plan.job_id,
             self.plan.dataset.name,
             len(self.experiments),
         )
 
+    async def _on_trial_started(self, event: TrialHookEvent) -> None:
+        trial_name = str(event.trial_name)
+        self._attempts[trial_name] = self._attempts.get(trial_name, 0) + 1
+
+    async def _on_trial_ended(self, event: TrialHookEvent) -> None:
+        if self._will_retry(event):
+            return
+        await self._record_trial(event.result)
+
+    def _will_retry(self, event: TrialHookEvent) -> bool:
+        error = getattr(event.result, "exception_info", None)
+        if error is None or error.exception_type == "CancelledError":
+            return False
+        retry = self._retry_config
+        if retry is None:
+            return False
+        excluded = getattr(retry, "exclude_exceptions", ()) or ()
+        if error.exception_type in excluded:
+            return False
+        included = getattr(retry, "include_exceptions", ()) or ()
+        if included and error.exception_type not in included:
+            return False
+        attempts = self._attempts.get(str(event.trial_name), 1)
+        return attempts <= int(getattr(retry, "max_retries", 0) or 0)
+
+    async def _record_trial(self, trial_result: Any) -> None:
+        if self.plan is None or self.snapshot is None:
+            raise HarborPluginError("Phoenix trial recording started before job setup completed.")
+        try:
+            slot = self.plan.trial_for(str(trial_result.trial_name))
+        except KeyError as error:
+            raise HarborPluginError(
+                f"Harbor returned unplanned trial {trial_result.trial_name!r}."
+            ) from error
+        key = (
+            slot.identity_digest,
+            self.snapshot.example_ids[slot.task_id],
+            slot.repetition,
+        )
+        if key in self._recorded_run_keys:
+            return
+        async with self._open_client() as client:
+            recorder = PhoenixRecorder(
+                client,
+                experiment_name_template=self.experiment_name_template,
+            )
+            await recorder.record_trial(
+                plan=self.plan,
+                snapshot=self.snapshot,
+                experiments=self.experiments,
+                trial_result=trial_result,
+            )
+        self._recorded_run_keys.add(key)
+
     @contextlib.asynccontextmanager
     async def _open_client(self) -> AsyncIterator[AsyncClient]:
-        """Yield a Phoenix client bound to a connection pool this plugin owns.
-
-        ``AsyncClient`` has no close method, so the underlying ``httpx`` client
-        is constructed here and closed on exit rather than left to the
-        interpreter. Every Phoenix call in this stage happens inside
-        ``on_job_start``; when runs start streaming from trial-end callbacks the
-        pool will need to stay open for the life of the job instead.
-        """
+        """Open a Phoenix client and close its HTTP connection pool on exit."""
         async with httpx.AsyncClient(
             base_url=self.endpoint,
             headers=_update_headers(None, self._api_key),
             timeout=_DEFAULT_CLIENT_TIMEOUT,
         ) as http_client:
-            try:
-                yield AsyncClient(http_client=http_client)
-            except HarborPluginError:
-                raise
-            except Exception as error:
-                raise HarborPluginError(
-                    f"Phoenix recording failed for this Harbor job: {error}"
-                ) from error
+            yield AsyncClient(http_client=http_client)
 
     def _report_started(
         self,
@@ -154,8 +189,7 @@ class PhoenixJobPlugin:
                 experiment_slice.agent_name,
                 experiment_slice.model_name or "default",
             )
-        logger.warning(
-            "The Phoenix Harbor plugin records the dataset and experiments only. "
-            "Trial results, scores%s are not recorded yet.",
-            "" if self.trace_mode == "none" else f", and {self.trace_mode} traces",
-        )
+        missing = ["scores"]
+        if self.trace_mode != "none":
+            missing.append(f"{self.trace_mode} traces")
+        logger.warning("Not recorded yet: %s.", ", ".join(missing))

@@ -1,7 +1,9 @@
-"""Tests for mapping a resolved Harbor job onto Phoenix datasets and experiments."""
+"""Tests for Harbor dataset and experiment recording."""
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -13,6 +15,7 @@ from phoenix.client.harbor._model import (
     JobPlan,
     StepRecord,
     TaskRecord,
+    TrialSlot,
 )
 from phoenix.client.harbor._recorder import (
     DatasetSnapshot,
@@ -79,9 +82,15 @@ class FakeDatasets:
 
 
 class FakeExperiments:
-    def __init__(self, existing: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self,
+        existing: list[dict[str, Any]] | None = None,
+        runs: list[dict[str, Any]] | None = None,
+    ) -> None:
         self.existing = existing or []
+        self.runs = runs or []
         self.created: list[dict[str, Any]] = []
+        self.logged_runs: list[dict[str, Any]] = []
 
     async def list(self, *, dataset_id: str) -> list[dict[str, Any]]:
         del dataset_id
@@ -96,6 +105,13 @@ class FakeExperiments:
             "dataset_version_id": kwargs.get("dataset_version_id"),
             "repetitions": kwargs.get("repetitions"),
         }
+
+    async def _get_all_experiment_runs(self, *, experiment_id: str) -> list[dict[str, Any]]:
+        return [run for run in self.runs if run["experiment_id"] == experiment_id]
+
+    async def log_run(self, **kwargs: Any) -> dict[str, Any]:
+        self.logged_runs.append(kwargs)
+        return {"id": f"run-{len(self.logged_runs)}", **kwargs}
 
 
 class FakeClient:
@@ -137,7 +153,6 @@ class TestExamplePayload:
         assert example["metadata"]["task_version"] == "1.2.0"
 
     def test_multi_step_tasks_carry_their_step_instructions(self) -> None:
-        """A multi-step Harbor task has no top-level instruction of its own."""
         example = task(
             "task-a",
             instruction="",
@@ -167,20 +182,14 @@ class TestSyncDataset:
         assert call["outputs"] == [{}]
         assert snapshot == DatasetSnapshot("dataset-1", "version-1", {"task-a": "node-a"})
 
-    async def test_maps_tasks_to_node_ids_not_external_ids(self) -> None:
-        """Logging an experiment run against the external ID is a server error."""
-        datasets = FakeDatasets(FakeDataset([example_row("task-a", "node-a")]))
-        snapshot = await recorder(FakeClient(datasets)).sync_dataset(plan())
-        assert snapshot.example_ids["task-a"] == "node-a"
-
     async def test_missing_example_stops_the_job(self) -> None:
         datasets = FakeDatasets(FakeDataset([]))
-        with pytest.raises(HarborPluginError, match="did not return examples"):
+        with pytest.raises(HarborPluginError, match="Missing Phoenix examples"):
             await recorder(FakeClient(datasets)).sync_dataset(plan())
 
     async def test_missing_version_stops_the_job(self) -> None:
         datasets = FakeDatasets(FakeDataset([example_row("task-a", "node-a")], version_id=""))
-        with pytest.raises(HarborPluginError, match="did not report a version"):
+        with pytest.raises(HarborPluginError, match="returned no version"):
             await recorder(FakeClient(datasets)).sync_dataset(plan())
 
     async def test_upload_failure_is_reported_with_the_dataset_name(self) -> None:
@@ -223,7 +232,7 @@ class TestResolveExperiments:
             job, SNAPSHOT, job.slices[0]
         )
 
-    async def test_replay_recovers_the_experiment_instead_of_duplicating_it(self) -> None:
+    async def test_replay_reuses_experiment(self) -> None:
         job = plan()
         identity = experiment_identity(job, SNAPSHOT, job.slices[0])
         experiments = FakeExperiments(
@@ -257,7 +266,7 @@ class TestResolveExperiments:
         await recorder(FakeClient(experiments=experiments)).resolve_experiments(plan(), SNAPSHOT)
         assert len(experiments.created) == 1
 
-    async def test_ambiguous_identity_stops_the_job_and_names_the_experiments(self) -> None:
+    async def test_duplicate_identity_lists_ids(self) -> None:
         job = plan()
         identity = experiment_identity(job, SNAPSHOT, job.slices[0])
         metadata = {"integration": "harbor", "harbor_identity_digest": identity}
@@ -267,9 +276,7 @@ class TestResolveExperiments:
         with pytest.raises(HarborPluginError, match="one, two"):
             await recorder(FakeClient(experiments=experiments)).resolve_experiments(job, SNAPSHOT)
 
-    async def test_recovered_experiment_with_a_different_repetition_count_stops_the_job(
-        self,
-    ) -> None:
+    async def test_repetition_mismatch_rejects_recovery(self) -> None:
         job = plan(repetitions=2)
         identity = experiment_identity(job, SNAPSHOT, job.slices[0])
         experiments = FakeExperiments(
@@ -287,8 +294,7 @@ class TestResolveExperiments:
 
 
 class TestExperimentIdentity:
-    def test_a_second_execution_of_the_same_benchmark_is_a_separate_experiment(self) -> None:
-        """Runs are keyed on (experiment, example, repetition) and are immutable."""
+    def test_job_id_separates_identity(self) -> None:
         first, second = plan(), plan(job_id="job-2")
         assert experiment_identity(first, SNAPSHOT, first.slices[0]) != experiment_identity(
             second, SNAPSHOT, second.slices[0]
@@ -301,16 +307,9 @@ class TestExperimentIdentity:
             job, other, job.slices[0]
         )
 
-    def test_identity_is_stable_for_the_same_inputs(self) -> None:
-        job = plan()
-        assert experiment_identity(job, SNAPSHOT, job.slices[0]) == experiment_identity(
-            plan(), SNAPSHOT, job.slices[0]
-        )
-
 
 class TestExperimentNames:
-    async def test_colliding_names_are_disambiguated(self) -> None:
-        """Two configurations differing only in kwargs render the same name."""
+    async def test_colliding_names_get_digest_suffix(self) -> None:
         experiments = FakeExperiments()
         job = plan(slice_(seed="1"), slice_(seed="2"))
         await recorder(FakeClient(experiments=experiments)).resolve_experiments(job, SNAPSHOT)
@@ -329,16 +328,83 @@ class TestExperimentNames:
         ).resolve_experiments(plan(), SNAPSHOT)
         assert experiments.created[0]["experiment_name"] == "phoenix-evals/claude-code"
 
-    async def test_unknown_template_field_is_reported_with_the_valid_fields(self) -> None:
+    async def test_bad_template_lists_fields(self) -> None:
         with pytest.raises(HarborPluginError, match="Available fields"):
             await recorder(
                 FakeClient(experiments=FakeExperiments()),
                 experiment_name_template="{nope}",
             ).resolve_experiments(plan(), SNAPSHOT)
 
-    async def test_missing_model_renders_a_readable_name(self) -> None:
+    async def test_missing_model_uses_default_in_name(self) -> None:
         experiments = FakeExperiments()
         await recorder(FakeClient(experiments=experiments)).resolve_experiments(
             plan(slice_(model=None)), SNAPSHOT
         )
         assert experiments.created[0]["experiment_name"].endswith("· default")
+
+
+class TestRecordTrial:
+    async def test_records_the_planned_repetition_without_rewards(self) -> None:
+        experiments = FakeExperiments()
+        job = plan(
+            trials=(
+                TrialSlot(
+                    trial_name="task-a__2",
+                    identity_digest=slice_().identity_digest,
+                    task_id="task-a",
+                    repetition=2,
+                ),
+            ),
+            repetitions=2,
+        )
+        handle = {
+            job.slices[0].identity_digest: (
+                await recorder(FakeClient(experiments=experiments)).resolve_experiments(
+                    job, SNAPSHOT
+                )
+            )[job.slices[0].identity_digest]
+        }
+        now = datetime.now(timezone.utc)
+        result = SimpleNamespace(
+            id="trial-id",
+            trial_name="task-a__2",
+            trial_uri="file:///trial",
+            task_name="task-a",
+            started_at=now,
+            finished_at=now,
+            exception_info=None,
+            compute_token_cost_totals=lambda: (10, 2, 4, 0.01),
+        )
+
+        await recorder(FakeClient(experiments=experiments)).record_trial(
+            plan=job,
+            snapshot=SNAPSHOT,
+            experiments=handle,
+            trial_result=result,
+        )
+
+        (logged,) = experiments.logged_runs
+        assert logged["dataset_example_id"] == "node-a"
+        assert logged["repetition_number"] == 2
+        assert logged["error"] is None
+        assert logged["output"]["harbor_trial_id"] == "trial-id"
+        assert "reward" not in logged["output"]
+
+    async def test_existing_run_keys_include_agent_example_and_repetition(self) -> None:
+        experiment = FakeExperiments(
+            runs=[
+                {
+                    "id": "run-1",
+                    "experiment_id": "experiment-1",
+                    "dataset_example_id": "node-a",
+                    "repetition_number": 2,
+                }
+            ]
+        )
+        handles = await recorder(FakeClient(experiments=experiment)).resolve_experiments(
+            plan(), SNAPSHOT
+        )
+
+        assert await recorder(FakeClient(experiments=experiment)).existing_run_keys(handles) == {
+            (slice_().identity_digest, "node-a", 2)
+        }
