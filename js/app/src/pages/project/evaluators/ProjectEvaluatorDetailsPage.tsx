@@ -67,6 +67,12 @@ const configurationPairCSS = css`
   /* Stretch so the pair reads as one band rather than two ragged columns. */
   align-items: stretch;
 
+  /* A code evaluator has no annotation card, so let Scope take the whole row
+     rather than sit at half width beside an empty cell. */
+  > :only-child {
+    grid-column: 1 / -1;
+  }
+
   @container (max-width: 800px) {
     grid-template-columns: minmax(0, 1fr);
   }
