@@ -19,6 +19,7 @@ installTestStorage();
 let agentStore: AgentStore | null = null;
 
 function AgentStoreCapture() {
+  // eslint-disable-next-line react/globals -- Existing React Compiler bailout; new violations remain blocking.
   agentStore = useAgentStore();
   return null;
 }

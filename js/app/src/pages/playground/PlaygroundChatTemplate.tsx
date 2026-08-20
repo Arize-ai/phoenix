@@ -340,6 +340,7 @@ function SortableMessageItem({
     [playgroundInstanceId, messageId, updateMessage]
   );
 
+  /* eslint-disable react/refs -- Existing React Compiler bailout; new violations remain blocking. */
   return (
     <li ref={sortable.ref} style={dragAndDropLiStyles}>
       <Card
@@ -470,4 +471,5 @@ function SortableMessageItem({
       </Card>
     </li>
   );
+  /* eslint-enable react/refs */
 }

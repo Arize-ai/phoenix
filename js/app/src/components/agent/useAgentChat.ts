@@ -159,7 +159,8 @@ export function useAgentChat({
     : null;
   const chatInstance =
     chatApiUrl && persistedSessionId
-      ? runtime.getOrCreateChat({
+      ? // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+        runtime.getOrCreateChat({
           sessionId: persistedSessionId,
           chatApiUrl,
           createChat: (previousMessages) =>

@@ -385,6 +385,7 @@ export function AIQueryDSLFilterField<
   // win.
   const aiKeymap = useMemo(
     () =>
+      // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
       keymap.of([
         {
           key: "Enter",

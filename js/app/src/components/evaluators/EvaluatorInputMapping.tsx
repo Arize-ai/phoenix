@@ -69,10 +69,12 @@ const useEvaluatorInputMappingControlsForm = () => {
   const { pathMapping, literalMapping } = initialInputMappingRef.current;
   // Escape keys for react-hook-form to prevent dots from being interpreted as nested paths
   const escapedPathMapping = useMemo(
+    // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
     () => escapeMapping(pathMapping),
     [pathMapping]
   );
   const escapedLiteralMapping = useMemo(
+    // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
     () => escapeMapping(literalMapping),
     [literalMapping]
   );

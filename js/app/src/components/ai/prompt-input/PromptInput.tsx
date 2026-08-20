@@ -58,6 +58,7 @@ export function PromptInput({
     onValueChange?.(next);
   };
   const valueRef = useRef(value);
+  // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
   valueRef.current = value;
 
   const handleSubmit = () => {

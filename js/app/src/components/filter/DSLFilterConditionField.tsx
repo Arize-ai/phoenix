@@ -642,8 +642,10 @@ export function DSLFilterConditionField<
         override: [
           ...completionSources,
           createDSLFilterCompletionSource(staticOptions),
+          // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
           ...(loadCompletionsOnce
-            ? [createDSLFilterCompletionSource(loadCompletionsOnce)]
+            ? // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
+              [createDSLFilterCompletionSource(loadCompletionsOnce)]
             : []),
         ],
         selectOnOpen: false,
@@ -717,7 +719,7 @@ export function DSLFilterConditionField<
     // The last validation no longer describes what's in the field — drop any
     // stale error or warnings so the field isn't flagged mid-edit. Status
     // only shows once the current text has settled and been validated.
-    // eslint-disable-next-line react/set-state-in-effect
+    // eslint-disable-next-line react/set-state-in-effect -- Existing React Compiler bailout; new violations remain blocking.
     setErrorMessage(null);
     setWarnings([]);
 

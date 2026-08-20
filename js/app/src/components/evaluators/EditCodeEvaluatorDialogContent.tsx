@@ -493,6 +493,7 @@ export const EditCodeEvaluatorDialogContent = ({
       sandboxConfigId: nextSandboxConfigId,
     });
   };
+  // eslint-disable-next-line react/refs -- Existing React Compiler bailout; new violations remain blocking.
   handleSubmitRef.current = handleSubmit;
 
   return (

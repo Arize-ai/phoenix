@@ -199,7 +199,7 @@ function Tier1StoryFrameContent({ children }: { children: ReactNode }) {
         />
         <div css={tier1ModalHostCSS} ref={frame?.setViewportModalHostElement} />
       </div>
-      <aside aria-label="Assistant" css={tier1RailCSS} role="complementary">
+      <aside aria-label="Assistant" css={tier1RailCSS}>
         <label>
           <Text>Collaborative rail</Text>
           <input placeholder="Type while the form is open" />
