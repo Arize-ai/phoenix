@@ -1,13 +1,13 @@
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { ApprovalCard } from "./ApprovalCard";
+import { ApprovalCard, payloadToApprovalSummaryRows } from "./ApprovalCard";
 
 type PreviewDescriptor = {
   /** Short action label shown at the top of the card. */
   label: string;
-  /** The JSON body rendered for review. */
-  payload: unknown;
+  /** The curated fields rendered for review as summary rows. */
+  payload: Record<string, unknown>;
   /**
    * A permanence/scope warning for destructive (`delete-*`) kinds, or `null`.
    * Surfaces that label/split deletes are instance-wide (not a per-dataset
@@ -87,7 +87,11 @@ function describePreview(pending: PendingDatasetWrite): PreviewDescriptor {
         note: null,
       };
     case "patch-dataset":
-      return { label: "Edit dataset", payload: preview.changes, note: null };
+      return {
+        label: "Edit dataset",
+        payload: { ...preview.changes },
+        note: null,
+      };
     case "delete-dataset":
       return {
         label: "Delete dataset",
@@ -156,7 +160,11 @@ export function DatasetWriteApprovalCard({
   const { label, payload, note } = describePreview(pending);
   return (
     <ApprovalCard
-      preview={{ title: label, danger: note, body: { kind: "json", payload } }}
+      preview={{
+        title: label,
+        danger: note,
+        body: { kind: "summary", rows: payloadToApprovalSummaryRows(payload) },
+      }}
       onAccept={() => void pending.accept?.()}
       onReject={() => void pending.reject?.()}
       isDisabled={!(pending.accept && pending.reject)}

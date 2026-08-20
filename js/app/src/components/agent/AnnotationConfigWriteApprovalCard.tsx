@@ -3,7 +3,7 @@ import type {
   PendingAnnotationConfigWrite,
 } from "@phoenix/agent/tools/annotationConfig";
 
-import { ApprovalCard } from "./ApprovalCard";
+import { ApprovalCard, payloadToApprovalSummaryRows } from "./ApprovalCard";
 
 /**
  * Reduce a config draft to the fields relevant to its type, dropping empties so
@@ -59,7 +59,11 @@ export function AnnotationConfigWriteApprovalCard({
       : null;
   return (
     <ApprovalCard
-      preview={{ title: label, danger: note, body: { kind: "json", payload } }}
+      preview={{
+        title: label,
+        danger: note,
+        body: { kind: "summary", rows: payloadToApprovalSummaryRows(payload) },
+      }}
       onAccept={() => void pending.accept?.()}
       onReject={() => void pending.reject?.()}
       isDisabled={!(pending.accept && pending.reject)}
