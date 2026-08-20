@@ -34,12 +34,12 @@ const completionsFor = (
   textBeforeCursor: string,
   source = SPAN_SOURCE,
   rootToken = "span",
-  suggestedKeys: readonly string[] = []
+  suggestedPaths: readonly string[] = []
 ) =>
   getEvaluatorPathCompletions({
     source,
     rootToken,
-    suggestedKeys,
+    suggestedPaths,
     textBeforeCursor,
   });
 
@@ -164,17 +164,25 @@ describe("getEvaluatorPathCompletions", () => {
     ]);
   });
 
-  it("pins suggested fields above the record's own list, at the root only", () => {
-    const rooted = completionsFor("", SPAN_SOURCE, "span", ["input_value"]);
+  it("pins suggested paths above the record's own list, at the root only", () => {
+    const rooted = completionsFor("", SPAN_SOURCE, "span", [
+      "input_value",
+      "attributes.llm",
+    ]);
 
     expect(rooted?.completions[0]).toMatchObject({
       key: "input_value",
       path: "span.input_value",
       section: "suggested",
     });
+    expect(rooted?.completions[1]).toMatchObject({
+      key: "attributes.llm",
+      path: "span.attributes.llm",
+      section: "suggested",
+    });
     expect(
       rooted?.completions.filter((c) => c.section === "suggested")
-    ).toHaveLength(1);
+    ).toHaveLength(2);
 
     const drilled = completionsFor("span.attributes.", SPAN_SOURCE, "span", [
       "input_value",
@@ -185,13 +193,26 @@ describe("getEvaluatorPathCompletions", () => {
     );
   });
 
-  it("pins nothing for a session, which has no suggested fields", () => {
+  it("offers a suggestion only when it resolves on the record", () => {
+    // The record has no attributes.retrieval, so suggesting it would pin a
+    // path that fails the moment it is accepted.
+    const rooted = completionsFor("", SPAN_SOURCE, "span", [
+      "attributes.retrieval.documents",
+      "input_value",
+    ]);
+
+    const suggested = rooted?.completions.filter(
+      (c) => c.section === "suggested"
+    );
+    expect(suggested?.map((c) => c.key)).toEqual(["input_value"]);
+  });
+
+  it("pins nothing when the grain is configured with no suggestions", () => {
     const result = completionsFor(
       "",
       SESSION_SOURCE,
       "session",
-      // The session grain is configured with no suggestions at all; this
-      // asserts the root list is what is left, not that a key was filtered.
+      // Asserts the root list is what is left, not that a key was filtered.
       []
     );
 

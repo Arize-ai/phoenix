@@ -23,13 +23,13 @@ import type {
 } from "./evaluatorSlotDefaults";
 import {
   getEvaluatorSlotDefault,
-  getEvaluatorSlotSuggestedKeys,
+  getEvaluatorSlotSuggestedPaths,
 } from "./evaluatorSlotDefaults";
 
 /** What the badge says about a path that names something the record lacks. */
 const UNRESOLVED_PATH_MESSAGE = "No such field";
 
-const suggestedSection: CompletionSection = { name: "Suggested", rank: 1 };
+const suggestedSection: CompletionSection = { name: "Suggestions", rank: 1 };
 
 const NO_COMPLETIONS: Completion[] = [];
 const EMPTY_SOURCE: Record<string, unknown> = {};
@@ -83,7 +83,7 @@ export function EvaluatorPathField({
   slotName: EvaluatorSlotName;
 }) {
   const mappingSource = source ?? EMPTY_SOURCE;
-  const suggestedKeys = getEvaluatorSlotSuggestedKeys(grain, slotName);
+  const suggestedPaths = getEvaluatorSlotSuggestedPaths(grain, slotName);
   const slotDefault = getEvaluatorSlotDefault(grain, slotName);
 
   // CodeMirror is reconfigured whenever these change identity, which discards
@@ -93,10 +93,10 @@ export function EvaluatorPathField({
       createEvaluatorPathCompletionSource({
         source: mappingSource,
         rootToken: grain,
-        suggestedKeys,
+        suggestedPaths,
       }),
     ],
-    [mappingSource, grain, suggestedKeys]
+    [mappingSource, grain, suggestedPaths]
   );
 
   const validatePath = useCallback(
@@ -170,17 +170,17 @@ function toGhostText(slotDefault: EvaluatorSlotDefault): string {
 function createEvaluatorPathCompletionSource({
   source,
   rootToken,
-  suggestedKeys,
+  suggestedPaths,
 }: {
   source: Record<string, unknown>;
   rootToken: string;
-  suggestedKeys: readonly string[];
+  suggestedPaths: readonly string[];
 }): CompletionSource {
   return (context: CompletionContext) => {
     const result = getEvaluatorPathCompletions({
       source,
       rootToken,
-      suggestedKeys,
+      suggestedPaths,
       textBeforeCursor: context.state.doc.sliceString(0, context.pos),
     });
     if (result === null) {
@@ -192,10 +192,13 @@ function createEvaluatorPathCompletionSource({
     };
     return {
       from: result.from,
-      options: result.completions.map((completion) => ({
+      options: result.completions.map((completion, index) => ({
         label: completion.key,
         detail: completion.preview,
         type: "property",
+        // Suggestions keep their configured order — the plain narrowing
+        // first, the deeper cuts after — instead of sorting alphabetically.
+        ...(completion.section === "suggested" ? { boost: 99 - index } : {}),
         section:
           completion.section === "suggested"
             ? suggestedSection

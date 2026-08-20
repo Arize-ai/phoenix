@@ -46,21 +46,21 @@ const SLOT_DEFAULTS: BySlot<EvaluatorSlotDefault> = {
 };
 
 /**
- * Root fields pinned above the record's own field list while a slot is still
- * unmapped — the narrowing an author reaches for often enough that finding it
- * by drilling is the slower path.
- *
- * A session's fields carry no comparable shortcut, so its slots pin nothing.
+ * Paths pinned above the record's own field list while a slot is still
+ * unmapped — worked examples of what a mapping can reach, from the plain
+ * narrowing to the deeper cuts an author would otherwise have to discover
+ * by drilling. Root-relative; each is offered only when it resolves on the
+ * sampled record, so nothing here can suggest a path that would fail.
  */
-const SLOT_SUGGESTED_KEYS: BySlot<readonly string[]> = {
+const SLOT_SUGGESTED_PATHS: BySlot<readonly string[]> = {
   span: {
-    input: ["input_value"],
-    output: ["output_value"],
-    metadata: [],
+    input: ["input_value", "attributes.llm.input_messages", "attributes.input"],
+    output: ["output_value", "attributes.llm.output_messages"],
+    metadata: ["attributes", "attributes.llm"],
   },
   session: {
-    input: [],
-    output: [],
+    input: ["turns", "turns[0].input"],
+    output: ["turns[0].output"],
     metadata: [],
   },
 };
@@ -72,9 +72,9 @@ export function getEvaluatorSlotDefault(
   return SLOT_DEFAULTS[grain][slotName];
 }
 
-export function getEvaluatorSlotSuggestedKeys(
+export function getEvaluatorSlotSuggestedPaths(
   grain: ProjectEvaluatorMappingSourceGrain,
   slotName: EvaluatorSlotName
 ): readonly string[] {
-  return SLOT_SUGGESTED_KEYS[grain][slotName];
+  return SLOT_SUGGESTED_PATHS[grain][slotName];
 }
