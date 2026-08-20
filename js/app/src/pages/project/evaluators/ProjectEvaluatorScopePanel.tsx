@@ -1556,7 +1556,10 @@ function getBoundValueSnippet(value: unknown): string {
 function hasEvaluatorMappingSourceShape(
   value: unknown
 ): value is EvaluatorMappingSource<"span" | "session"> {
-  return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
+  return (
+    isStringKeyedObject(value) &&
+    (isStringKeyedObject(value.span) || isStringKeyedObject(value.session))
+  );
 }
 
 function useEvaluatorPreviewRuns({

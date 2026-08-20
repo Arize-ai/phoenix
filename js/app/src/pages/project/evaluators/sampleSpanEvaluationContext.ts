@@ -1,9 +1,8 @@
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /**
- * Mirrors the server's `span_eval_context()`: `input` and `output` are the raw
- * `input.value`/`output.value` attribute values, `metadata.attributes` roots
- * the OpenInference attribute tree, and `span` is the whole span.
+ * Mirrors the server's `span_eval_context()`: `input` and `span` hold the same
+ * whole-span document, and `output` is the raw `output.value` attribute value.
  */
 export type SampleSpanEvaluationContext = {
   /** OpenInference span kind (e.g. "LLM"). */
@@ -47,39 +46,34 @@ const LLM_ATTRIBUTES = {
   output: { value: LLM_OUTPUT_TEXT, mime_type: "text/plain" },
 };
 
+const LLM_SPAN_DOCUMENT: Record<string, unknown> = {
+  span_id: "7f3b1c9a2d5e4081",
+  trace_id: "4a1e6d0c9b8f47a2b3c5d7e9f1a2b3c4",
+  parent_id: null,
+  name: "ChatCompletion",
+  span_kind: "LLM",
+  status_code: "OK",
+  status_message: "",
+  latency_ms: 842.5,
+  start_time: "2026-01-14T18:22:04.118000+00:00",
+  end_time: "2026-01-14T18:22:04.960500+00:00",
+  cumulative_llm_token_count_prompt: 42,
+  cumulative_llm_token_count_completion: 58,
+  cumulative_llm_token_count_total: 100,
+  input_value: JSON.stringify({ messages: LLM_INPUT_MESSAGES }),
+  output_value: LLM_OUTPUT_TEXT,
+  attributes: LLM_ATTRIBUTES,
+  events: [],
+};
+
 const LLM_SAMPLE: SampleSpanEvaluationContext = {
   spanKind: "LLM",
   context: {
-    // Instrumentors record `input.value` for LLM spans as the serialized
-    // request payload, so it stays a JSON string.
-    input: JSON.stringify({ messages: LLM_INPUT_MESSAGES }),
+    // `input` and `span` hold the same document, exactly as the server
+    // builds the context.
+    input: LLM_SPAN_DOCUMENT,
     output: LLM_OUTPUT_TEXT,
-    metadata: {
-      attributes: LLM_ATTRIBUTES,
-      name: "ChatCompletion",
-      span_kind: "LLM",
-      status_code: "OK",
-      status_message: "",
-    },
-    span: {
-      span_id: "7f3b1c9a2d5e4081",
-      trace_id: "4a1e6d0c9b8f47a2b3c5d7e9f1a2b3c4",
-      parent_id: null,
-      name: "ChatCompletion",
-      span_kind: "LLM",
-      status_code: "OK",
-      status_message: "",
-      latency_ms: 842.5,
-      start_time: "2026-01-14T18:22:04.118000+00:00",
-      end_time: "2026-01-14T18:22:04.960500+00:00",
-      cumulative_llm_token_count_prompt: 42,
-      cumulative_llm_token_count_completion: 58,
-      cumulative_llm_token_count_total: 100,
-      input_value: JSON.stringify({ messages: LLM_INPUT_MESSAGES }),
-      output_value: LLM_OUTPUT_TEXT,
-      attributes: LLM_ATTRIBUTES,
-      events: [],
-    },
+    span: LLM_SPAN_DOCUMENT,
   },
   boundVariables: {
     span_id: "7f3b1c9a2d5e4081",
