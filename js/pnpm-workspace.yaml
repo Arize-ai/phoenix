@@ -9,8 +9,10 @@ managePackageManagerVersions: true
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
   - "@arizeai/*"
-  # Adopt Oxc's React Compiler release immediately; these packages and their
-  # platform bindings were published together on August 18, 2026.
+  # Adopt the native Vite/Oxc React Compiler releases immediately.
+  - "@vitejs/plugin-react@6.1.0"
+  # These packages and their platform bindings were published together on
+  # August 18, 2026.
   - "oxlint@1.79.0"
   - "@oxlint/binding-android-arm-eabi@1.79.0"
   - "@oxlint/binding-android-arm64@1.79.0"

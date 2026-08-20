@@ -146,7 +146,7 @@
     "@types/react-dom": "19.2.3",
     "@types/react-relay": "^18.2.1",
     "@types/relay-runtime": "^20.1.1",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "@vitest/browser-playwright": "4.1.10",
     "@vitest/coverage-v8": "4.1.10",
     "babel-plugin-relay": "^21.0.1",
