@@ -24,12 +24,44 @@ export function maskNonCode(source: string): string {
   // Chars that cannot end an expression — a `/` after one of these (or at the
   // start) opens a regex literal rather than dividing.
   const REGEX_PREFIX_CHARS = new Set([
-    "(", ")", ",", "=", ":", "[", "]", "!", "&", "|", "?", "{", "}",
-    "+", "-", "*", "%", "^", "~", "<", ">", ";",
+    "(",
+    ")",
+    ",",
+    "=",
+    ":",
+    "[",
+    "]",
+    "!",
+    "&",
+    "|",
+    "?",
+    "{",
+    "}",
+    "+",
+    "-",
+    "*",
+    "%",
+    "^",
+    "~",
+    "<",
+    ">",
+    ";",
   ]);
   const REGEX_PREFIX_WORDS = new Set([
-    "return", "typeof", "case", "throw", "in", "of", "new", "delete",
-    "void", "do", "else", "yield", "await", "instanceof",
+    "return",
+    "typeof",
+    "case",
+    "throw",
+    "in",
+    "of",
+    "new",
+    "delete",
+    "void",
+    "do",
+    "else",
+    "yield",
+    "await",
+    "instanceof",
   ]);
   // Stack of lexical modes. "code" frames nested inside `${...}` track their
   // own brace depth so a `}` at depth 0 closes the interpolation.

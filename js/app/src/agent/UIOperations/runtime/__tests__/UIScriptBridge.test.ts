@@ -227,8 +227,6 @@ describe("runUIScript worker failure backstop", () => {
 
 describe("createUiScriptWorker bundler contract", () => {
   it("imports the worker with ?worker&url so Vite emits a JS chunk", () => {
-    expect(uiScriptBridgeSource).toMatch(
-      /uiScriptWorker\.ts\?worker&url/
-    );
+    expect(uiScriptBridgeSource).toMatch(/uiScriptWorker\.ts\?worker&url/);
   });
 });

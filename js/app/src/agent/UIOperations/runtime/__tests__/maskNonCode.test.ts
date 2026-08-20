@@ -37,14 +37,18 @@ describe("maskNonCode", () => {
   });
 
   it("keeps nested interpolations with braces and nested templates", () => {
-    expect(visible(maskNonCode("`a${ { b: `c${x}` }.b }d`"))).toBe("{ b: x }.b");
+    expect(visible(maskNonCode("`a${ { b: `c${x}` }.b }d`"))).toBe(
+      "{ b: x }.b"
+    );
   });
 
   it("masks regex literals after expression-openers", () => {
-    expect(visible(maskNonCode('const r = /["\']+/g; f();'))).toBe(
+    expect(visible(maskNonCode("const r = /[\"']+/g; f();"))).toBe(
       "const r = ; f();"
     );
-    expect(visible(maskNonCode("if (ok) /x/.test(s);"))).toBe("if (ok) .test(s);");
+    expect(visible(maskNonCode("if (ok) /x/.test(s);"))).toBe(
+      "if (ok) .test(s);"
+    );
   });
 
   it("does not mistake division for a regex", () => {
@@ -54,7 +58,11 @@ describe("maskNonCode", () => {
   });
 
   it("handles unterminated constructs without running past the end", () => {
-    expect(maskNonCode("const s = 'oops").length).toBe("const s = 'oops".length);
-    expect(maskNonCode("/* never closed").length).toBe("/* never closed".length);
+    expect(maskNonCode("const s = 'oops").length).toBe(
+      "const s = 'oops".length
+    );
+    expect(maskNonCode("/* never closed").length).toBe(
+      "/* never closed".length
+    );
   });
 });

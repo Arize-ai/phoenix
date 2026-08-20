@@ -192,17 +192,20 @@ export function runUIScript({
       // one could fire later and time out an already-finished run).
       clearTimer();
       timerStartedAt = Date.now();
-      timerId = setTimeout(() => {
-        settle({
-          ok: false,
-          error:
-            pauseDepth > 0
-              ? `Script exceeded the ${maxPausedMs}ms budget for awaiting approvals and long-running operations and was terminated.`
-              : `Script exceeded the ${timeoutMs}ms execution budget and was terminated.`,
-          callCount,
-          logs,
-        });
-      }, Math.max(0, ms));
+      timerId = setTimeout(
+        () => {
+          settle({
+            ok: false,
+            error:
+              pauseDepth > 0
+                ? `Script exceeded the ${maxPausedMs}ms budget for awaiting approvals and long-running operations and was terminated.`
+                : `Script exceeded the ${timeoutMs}ms execution budget and was terminated.`,
+            callCount,
+            logs,
+          });
+        },
+        Math.max(0, ms)
+      );
     };
 
     // First pausing op in flight: bank the execution budget and start
