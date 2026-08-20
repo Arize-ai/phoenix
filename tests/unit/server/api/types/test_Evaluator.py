@@ -2224,3 +2224,45 @@ async def test_project_evaluator_trace_time_series_are_scoped_to_the_evaluator(
     assert latency_points == [{"max": 10_000.0}]
     cost_points = [p for p in trace_project["traceTokenCostTimeSeries"]["data"] if p["totalCost"]]
     assert cost_points == [{"totalCost": 1.0}]
+
+    # The scope is opt-in: omitting it must report the whole project, which is
+    # what the project-wide metrics pages rely on. Asserted from the same two
+    # traces, so this pins the contract rather than restating the case above.
+    unscoped = await gql_client.execute(
+        """query ($id: ID!, $timeRange: TimeRange!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    traceProject {
+                        traceCountByStatusTimeSeries(timeRange: $timeRange) {
+                            data { totalCount }
+                        }
+                        traceLatencyMsPercentileTimeSeries(timeRange: $timeRange) {
+                            data { max }
+                        }
+                        traceTokenCostTimeSeries(timeRange: $timeRange) {
+                            data { totalCost }
+                        }
+                    }
+                }
+            }
+        }""",
+        variables={
+            "id": str(GlobalID("ProjectEvaluator", str(criteria_ids[0]))),
+            "timeRange": {
+                "start": start.isoformat(),
+                "end": (start + timedelta(hours=1)).isoformat(),
+            },
+        },
+    )
+
+    assert not unscoped.errors and unscoped.data
+    all_traces = unscoped.data["node"]["traceProject"]
+    assert [p for p in all_traces["traceCountByStatusTimeSeries"]["data"] if p["totalCount"]] == [
+        {"totalCount": 2}
+    ]
+    assert [p for p in all_traces["traceLatencyMsPercentileTimeSeries"]["data"] if p["max"]] == [
+        {"max": 100_000.0}
+    ]
+    assert [p for p in all_traces["traceTokenCostTimeSeries"]["data"] if p["totalCost"]] == [
+        {"totalCost": 51.0}
+    ]
