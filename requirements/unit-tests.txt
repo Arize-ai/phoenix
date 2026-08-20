@@ -10,14 +10,13 @@ httpx
 litellm>=1.83.14; python_version < '3.14'
 nest-asyncio # for executor testing
 numpy
-# The tox env resolves fresh (unlike the exclude-newer-pinned dev env), and two
-# releases in the week of 2026-08-18 broke the OpenAI test doubles: openai 3.x
-# moved to httpx2, which respx cannot intercept, so mocked chat-completions
-# calls escape to the real API; and pydantic-ai-slim >=2.30 eagerly touches
-# client.responses at model construction, which dummy clients lack. Lift the
-# caps once the respx mocks are migrated to the httpx2 transport and the test
-# doubles grow the resource attributes.
-openai<3
+# The tox env resolves fresh, unlike the exclude-newer-pinned dev env, so it
+# picks up releases the lockfile has not seen. pydantic-ai-slim >=2.30 eagerly
+# touches client.responses at model construction, which the dummy clients lack.
+# Lift this once the test doubles grow the resource attributes.
+#
+# openai is capped in [tool.uv] override-dependencies instead: an override
+# replaces every requirement for that package, so a cap here would be discarded.
 pydantic-ai-slim<2.30
 pandas-stubs==2.0.3.230814
 pandas>=1.0

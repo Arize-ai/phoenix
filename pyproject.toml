@@ -448,8 +448,15 @@ exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-p
 # python-dotenv>=1.1.0). Override the over-restrictive pins so resolution
 # succeeds; phoenix uses litellm purely as a client library and does not
 # exercise the pinned-version code paths.
+#
+# The openai upper bound belongs here rather than in a requirements file: an
+# override replaces *every* requirement for that package, so a cap declared
+# anywhere else is silently discarded. openai 3.x escapes respx's interception,
+# which sends the mocked chat-completions calls in
+# tests/unit/server/api/helpers/test_evaluators.py to the real API. Lift the
+# bound once those mocks are migrated.
 override-dependencies = [
-  "openai>=2.30.0",
+  "openai>=2.30.0,<3",
   "python-dotenv>=1.1.0",
 ]
 

@@ -29,7 +29,7 @@ members = [
     "arize-phoenix-otel",
 ]
 overrides = [
-    { name = "openai", specifier = ">=2.30.0" },
+    { name = "openai", specifier = ">=2.30.0,<3" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
 ]
 
