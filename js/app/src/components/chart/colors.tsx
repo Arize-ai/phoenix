@@ -284,3 +284,26 @@ export const useGrayscaleCategoricalColors = (): Record<
 export const GRAYSCALE_CATEGORICAL_COLORS = Object.keys(
   GrayscaleCategoricalLightColors
 ) as GrayscaleCategoricalColor[];
+
+type BinaryOptimizationChartColor = "positive" | "negative";
+
+/**
+ * Palette for a two-label distribution with a known optimization direction:
+ * the good label green, the bad one red.
+ *
+ * Built from the semantic chart colors, so a good label reads the same here as
+ * an optimized score does elsewhere. Distributions with no good-versus-bad
+ * reading belong on the categorical palette, which implies neither.
+ */
+const binaryOptimizationChartColors: Record<
+  BinaryOptimizationChartColor,
+  string
+> = {
+  positive: semanticChartColors.success,
+  negative: semanticChartColors.danger,
+};
+
+export const useBinaryOptimizationChartColors = (): Record<
+  BinaryOptimizationChartColor,
+  string
+> => binaryOptimizationChartColors;

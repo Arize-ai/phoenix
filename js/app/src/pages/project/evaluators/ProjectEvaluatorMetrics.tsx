@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { memo } from "react";
 
 import { Flex, useTimeRange } from "@phoenix/components";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import {
   ChartEmptyStateOverlay,
   ChartPanel,
@@ -22,6 +23,9 @@ import { TraceTokenCostTimeSeries } from "@phoenix/pages/project/metrics/TraceTo
 import type { EvaluatorScopedProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 
+import type { useProjectEvaluatorOutputConfigFragment$key } from "./__generated__/useProjectEvaluatorOutputConfigFragment.graphql";
+import { useProjectEvaluatorOutputConfig } from "./useProjectEvaluatorOutputConfig";
+
 type ProjectEvaluatorMetricsProps = {
   projectEvaluatorId: string;
   /** The project whose spans or sessions this evaluator annotates. */
@@ -31,6 +35,7 @@ type ProjectEvaluatorMetricsProps = {
   /** The evaluator's results are annotations carrying its name. */
   evaluatorName: string;
   evaluationTarget: EvaluationTarget;
+  projectEvaluatorRef: useProjectEvaluatorOutputConfigFragment$key;
 };
 
 type EvaluatorTraceChart = {
@@ -95,13 +100,20 @@ function getAnnotationLevel(
  * and how long they take, read from its traces in the shared evaluator-trace
  * project scoped to this evaluator.
  */
-export function ProjectEvaluatorMetrics(props: ProjectEvaluatorMetricsProps) {
+export function ProjectEvaluatorMetrics({
+  projectEvaluatorRef,
+  ...props
+}: ProjectEvaluatorMetricsProps) {
   const timeRange = useClosedTimeRange();
   const { setCustomTimeRange } = useTimeRange();
+  // The evaluated project has no annotation config for this evaluator's name,
+  // so the results chart takes its optimization metadata from the evaluator.
+  const annotationConfig = useProjectEvaluatorOutputConfig(projectEvaluatorRef);
   return (
     <div css={metricsScrollContainerCSS}>
       <ProjectEvaluatorMetricPanels
         {...props}
+        annotationConfig={annotationConfig}
         timeRange={timeRange}
         onTimeRangeSelected={setCustomTimeRange}
       />
@@ -116,9 +128,11 @@ const ProjectEvaluatorMetricPanels = memo(
     traceProjectId,
     evaluatorName,
     evaluationTarget,
+    annotationConfig,
     timeRange,
     onTimeRangeSelected,
-  }: ProjectEvaluatorMetricsProps & {
+  }: Omit<ProjectEvaluatorMetricsProps, "projectEvaluatorRef"> & {
+    annotationConfig?: AnnotationOptimizationConfig;
     timeRange: TimeRange;
     onTimeRangeSelected: (timeRange: TimeRange) => void;
   }) {
@@ -129,7 +143,8 @@ const ProjectEvaluatorMetricPanels = memo(
             projectId={evaluatedProjectId}
             annotationLevel={getAnnotationLevel(evaluationTarget)}
             annotationName={evaluatorName}
-            title="Results"
+            annotationConfig={annotationConfig}
+            title="Evaluation Results"
             subtitle="Scores and labels produced over time"
             timeRange={timeRange}
             onTimeRangeSelected={onTimeRangeSelected}
