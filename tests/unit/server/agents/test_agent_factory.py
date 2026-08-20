@@ -162,7 +162,7 @@ class TestPromptCacheCapabilityMounting:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_PROMPTS.base.render() in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_PROMPTS.base in _get_concatenated_text(cached_blocks)
 
 
 class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
@@ -304,7 +304,7 @@ class TestSystemBlockCacheBoundary:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_PROMPTS.base.render() in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_PROMPTS.base in _get_concatenated_text(cached_blocks)
 
     async def test_static_capability_instructions_are_inside_cache_boundary(
         self,
@@ -351,7 +351,7 @@ class TestSystemBlockCacheBoundary:
         uncached_text = _get_concatenated_text(uncached_blocks)
 
         for static_fragment in (
-            _DEFAULT_PROMPTS.base.render(),
+            _DEFAULT_PROMPTS.base,
             "<available_skills>",
             "<phoenix_app_context>",
         ):
@@ -998,7 +998,7 @@ class TestDocsMCPToolset:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_PROMPTS.docs_tool.render() in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_PROMPTS.docs_tool in _get_concatenated_text(cached_blocks)
 
     async def test_docs_tool_instructions_are_absent_when_docs_mcp_server_is_omitted(
         self,
@@ -1010,7 +1010,7 @@ class TestDocsMCPToolset:
 
         await agent.run("hello", deps=deps)
 
-        assert _DEFAULT_PROMPTS.docs_tool.render() not in "\n".join(
+        assert _DEFAULT_PROMPTS.docs_tool not in "\n".join(
             _get_system_texts(captured_request.body)
         )
 
@@ -1590,7 +1590,7 @@ class TestCapabilityInstructionsOverride:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        custom = AgentPrompts(base=Template("CUSTOM_STATIC_SENTINEL"))
+        custom = AgentPrompts(base="CUSTOM_STATIC_SENTINEL")
         agent = build_agent(model=anthropic_model, prompts=custom)
         deps = AgentDependencies(contexts=ResolvedContexts())
 
@@ -1599,7 +1599,7 @@ class TestCapabilityInstructionsOverride:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "CUSTOM_STATIC_SENTINEL" in cached_text
-        assert _DEFAULT_PROMPTS.base.render() not in cached_text
+        assert _DEFAULT_PROMPTS.base not in cached_text
 
     async def test_overridden_skills_instruction_replaces_default_in_system_blocks(
         self,

@@ -56,8 +56,6 @@ def get_skills_capability_function(
             toolset=SkillsToolset[AgentDependencies](
                 skills=get_skills_for_contexts(ctx.deps.contexts),
                 load_skill_template=prompts.load_skill,
-                load_skill_tool_template=prompts.load_skill_tool,
-                read_skill_resource_tool_template=prompts.read_skill_resource_tool,
             ),
             instructions=prompts.skills,
         )
@@ -180,7 +178,7 @@ def build_agent(
         name="PXIAgent",
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
-        instructions=resolved_prompts.base.render(),
+        instructions=resolved_prompts.base,
         capabilities=[traced_capability, NativeToolRetryCapability()],
     )
     return agent
