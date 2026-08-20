@@ -213,14 +213,7 @@ export const ProjectEvaluatorScopePanel = (
       <div css={panelScrollCSS}>
         {props.showScopeFields !== false ? (
           <>
-            <Flex direction="column" gap="size-25">
-              <Heading level={2}>Scope</Heading>
-              <Text color="text-500" size="S">
-                {isSessionTarget
-                  ? "Select which sessions this evaluator runs on and how often."
-                  : "Select which spans this evaluator runs on and how often."}
-              </Text>
-            </Flex>
+            <Heading level={2}>Scope</Heading>
             <ScopeEditorCard
               projectId={projectId}
               scope={scope}

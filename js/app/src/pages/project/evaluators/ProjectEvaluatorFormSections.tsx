@@ -41,16 +41,9 @@ export const ProjectLlmEvaluatorFormSections = ({
       <EvaluatorNameAndDescriptionFields />
       <View marginBottom="size-200" flex="none">
         <Flex direction="column" gap="size-200">
-          <Flex direction="column" gap="size-25">
-            <Heading level={2} weight="heavy">
-              Evaluator Scope
-            </Heading>
-            <Text color="text-500" size="S">
-              {scope.targetType === "SESSION"
-                ? "Select which sessions this evaluator runs on and how often."
-                : "Select which spans this evaluator runs on and how often."}
-            </Text>
-          </Flex>
+          <Heading level={2} weight="heavy">
+            Evaluator Scope
+          </Heading>
           <ProjectEvaluatorScopeFieldGroup
             projectId={projectId}
             scope={scope}
@@ -138,11 +131,11 @@ export const ProjectCodeEvaluatorFormSections = ({
       <Flex direction="column" gap="size-200" flex="none">
         <Flex direction="column" gap="size-25">
           <Heading level={2}>Evaluator</Heading>
-          <Text color="text-500" size="S">
-            {codeDefinition
-              ? "Define your evaluator's source code and annotation output."
-              : "Attach the selected code evaluator to this project."}
-          </Text>
+          {codeDefinition ? null : (
+            <Text color="text-500" size="S">
+              Attach the selected code evaluator to this project.
+            </Text>
+          )}
         </Flex>
         {codeDefinition ?? (
           <View

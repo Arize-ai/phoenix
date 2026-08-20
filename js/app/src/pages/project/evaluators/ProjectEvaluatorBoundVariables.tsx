@@ -65,8 +65,7 @@ export const ProjectEvaluatorBoundVariables = ({
             Available from the {GRAIN_NOUN[grain]}
           </Heading>
           <Text color="text-500" size="S">
-            Use any of these names directly in your prompt or code. No mapping
-            required.
+            Use these names in your prompt or code.
           </Text>
         </Flex>
       ) : null}
@@ -97,7 +96,7 @@ export const ProjectEvaluatorBoundVariables = ({
       </dl>
       {hasValues ? null : (
         <Text size="S" color="text-500">
-          Values appear once you select a {GRAIN_NOUN[grain]} to test against.
+          Select a {GRAIN_NOUN[grain]} to see values.
         </Text>
       )}
     </Flex>

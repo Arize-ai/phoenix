@@ -606,7 +606,7 @@ function EditCodeProjectEvaluator({
                 sourceCode.trim().length === 0
                   ? "Source code is required."
                   : sandboxConfigId == null
-                    ? "Please select a sandbox configuration."
+                    ? "A sandbox configuration is required."
                     : outputConfigErrors.length
                       ? outputConfigErrors.join("\n")
                       : undefined;

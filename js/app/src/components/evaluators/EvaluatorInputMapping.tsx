@@ -169,7 +169,7 @@ const EvaluatorInputMappingControls = () => {
       })}
       {variables.length === 0 && (
         <Text color="text-500">
-          Variables that you add to your prompt will be available to map here.
+          Add variables to your prompt to map them here.
         </Text>
       )}
     </Flex>

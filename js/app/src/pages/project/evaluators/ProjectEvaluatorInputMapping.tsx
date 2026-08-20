@@ -24,36 +24,7 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
-type InputMappingSlot = {
-  name: "input" | "output" | "metadata";
-  /** What the slot holds when the author leaves it alone. */
-  defaultDescription: string;
-};
-
-const SPAN_SLOTS: InputMappingSlot[] = [
-  { name: "input", defaultDescription: "Defaults to the span's input." },
-  { name: "output", defaultDescription: "Defaults to the span's output." },
-  {
-    name: "metadata",
-    defaultDescription:
-      "Defaults to the span's attributes, name, kind, and status.",
-  },
-];
-
-const SESSION_SLOTS: InputMappingSlot[] = [
-  {
-    name: "input",
-    defaultDescription: "Defaults to the session's transcript.",
-  },
-  {
-    name: "output",
-    defaultDescription: "Defaults to the last response in the session.",
-  },
-  {
-    name: "metadata",
-    defaultDescription: "Defaults to the session's turns.",
-  },
-];
+const SLOT_NAMES = ["input", "output", "metadata"] as const;
 
 const GRAIN_LABEL: Record<ProjectEvaluatorMappingSourceGrain, string> = {
   span: "Span",
@@ -91,15 +62,13 @@ export const ProjectEvaluatorInputMapping = ({
       : undefined;
   const entityValue = source?.[grain];
   const entity = isStringKeyedObject(entityValue) ? entityValue : {};
-  const slots = grain === "session" ? SESSION_SLOTS : SPAN_SLOTS;
   return (
     <Flex direction="column" gap="size-200" width="100%">
-      {slots.map((slot) => (
+      {SLOT_NAMES.map((slotName) => (
         <SwitchableEvaluatorInput
-          key={slot.name}
-          fieldName={slot.name}
-          label={slot.name}
-          description={slot.defaultDescription}
+          key={slotName}
+          fieldName={slotName}
+          label={slotName}
           size="M"
           defaultMode="path"
           control={control}
@@ -164,7 +133,7 @@ function EvaluatorEntityPathField({
         size="M"
         id={id}
       >
-        <Input placeholder={`Leave empty, or read from ${grain}`} />
+        <Input placeholder="Default" />
         {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
       </TextField>
       <DialogTrigger>
@@ -184,8 +153,7 @@ function EvaluatorEntityPathField({
                 paddingBottom="size-50"
               >
                 <Text size="S" color="text-500">
-                  Choose a field to read this input from. Values shown are from
-                  the selected {grain}.
+                  Values are from the selected {grain}.
                 </Text>
               </View>
               <EvaluatorEntityTree
