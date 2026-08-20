@@ -168,6 +168,7 @@ function ProjectEvaluatorDetailsPageLoaded({
                 traceProjectId={projectEvaluator.traceProject?.id ?? null}
                 evaluatorName={projectEvaluator.name}
                 evaluationTarget={projectEvaluator.evaluationTarget}
+                projectEvaluatorRef={projectEvaluator}
               />
             </Suspense>
           </LazyTabPanel>

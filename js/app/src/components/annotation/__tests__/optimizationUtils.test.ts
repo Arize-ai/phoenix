@@ -1,4 +1,6 @@
 import {
+  getBinaryLabelOptimizations,
+  toAnnotationOptimizationConfig,
   getOptimizationBounds,
   getPositiveOptimization,
   getPositiveOptimizationFromConfig,
@@ -560,5 +562,185 @@ describe("getPositiveOptimizationFromConfig", () => {
         score: 0.75,
       })
     ).toBe(false);
+  });
+});
+
+describe("getBinaryLabelOptimizations", () => {
+  const binaryConfig: AnnotationConfigCategorical = {
+    annotationType: "CATEGORICAL",
+    name: "correctness",
+    optimizationDirection: "MAXIMIZE",
+    values: [
+      { label: "correct", score: 1 },
+      { label: "incorrect", score: 0 },
+    ],
+  };
+
+  it("maps each label to its polarity, aligned by the labels passed in", () => {
+    expect(
+      getBinaryLabelOptimizations({
+        config: binaryConfig,
+        labels: ["correct", "incorrect"],
+      })
+    ).toEqual([true, false]);
+  });
+
+  it("follows label order rather than config order", () => {
+    expect(
+      getBinaryLabelOptimizations({
+        config: binaryConfig,
+        labels: ["incorrect", "correct"],
+      })
+    ).toEqual([false, true]);
+  });
+
+  it("inverts polarity for MINIMIZE", () => {
+    expect(
+      getBinaryLabelOptimizations({
+        config: { ...binaryConfig, optimizationDirection: "MINIMIZE" },
+        labels: ["correct", "incorrect"],
+      })
+    ).toEqual([false, true]);
+  });
+
+  it("returns null when the distribution is not binary", () => {
+    expect(
+      getBinaryLabelOptimizations({
+        config: categoricalConfig,
+        labels: ["negative", "neutral", "positive"],
+      })
+    ).toBeNull();
+    expect(
+      getBinaryLabelOptimizations({
+        config: binaryConfig,
+        labels: ["correct"],
+      })
+    ).toBeNull();
+  });
+
+  it("returns null when no optimization direction is set", () => {
+    expect(
+      getBinaryLabelOptimizations({
+        config: { ...binaryConfig, optimizationDirection: "NONE" },
+        labels: ["correct", "incorrect"],
+      })
+    ).toBeNull();
+  });
+
+  it("returns null when the config is missing", () => {
+    expect(
+      getBinaryLabelOptimizations({
+        config: undefined,
+        labels: ["correct", "incorrect"],
+      })
+    ).toBeNull();
+  });
+
+  it("returns null when a charted label has no scored config value", () => {
+    expect(
+      getBinaryLabelOptimizations({
+        config: binaryConfig,
+        labels: ["correct", "unscored"],
+      })
+    ).toBeNull();
+    expect(
+      getBinaryLabelOptimizations({
+        config: {
+          ...binaryConfig,
+          values: [
+            { label: "correct", score: 1 },
+            { label: "incorrect", score: null },
+          ],
+        },
+        labels: ["correct", "incorrect"],
+      })
+    ).toBeNull();
+  });
+
+  it("returns null when both charted labels land on the same side of the pivot", () => {
+    // The pivot comes from all three config values (midpoint 0.5), so a chart
+    // showing only these two has no positive label to contrast against.
+    expect(
+      getBinaryLabelOptimizations({
+        config: categoricalConfig,
+        labels: ["negative", "neutral"],
+      })
+    ).toBeNull();
+  });
+
+  it("returns null when the two labels share a score", () => {
+    expect(
+      getBinaryLabelOptimizations({
+        config: {
+          ...binaryConfig,
+          values: [
+            { label: "correct", score: 1 },
+            { label: "incorrect", score: 1 },
+          ],
+        },
+        labels: ["correct", "incorrect"],
+      })
+    ).toBeNull();
+  });
+});
+
+describe("toAnnotationOptimizationConfig", () => {
+  it("carries the optimization metadata through", () => {
+    expect(
+      toAnnotationOptimizationConfig({
+        annotationType: "CATEGORICAL",
+        optimizationDirection: "MAXIMIZE",
+        values: [{ label: "correct", score: 1 }],
+      })
+    ).toEqual({
+      annotationType: "CATEGORICAL",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: undefined,
+      upperBound: undefined,
+      threshold: undefined,
+      values: [{ label: "correct", score: 1 }],
+    });
+  });
+
+  it("carries continuous bounds and a freeform threshold through", () => {
+    expect(
+      toAnnotationOptimizationConfig({
+        annotationType: "CONTINUOUS",
+        optimizationDirection: "MINIMIZE",
+        lowerBound: 0,
+        upperBound: 10,
+      })
+    ).toMatchObject({ lowerBound: 0, upperBound: 10 });
+    expect(
+      toAnnotationOptimizationConfig({
+        annotationType: "FREEFORM",
+        threshold: 0.7,
+      })
+    ).toMatchObject({ annotationType: "FREEFORM", threshold: 0.7 });
+  });
+
+  it("returns undefined without an annotation type", () => {
+    // What an unmatched inline fragment leaves behind.
+    expect(toAnnotationOptimizationConfig({})).toBeUndefined();
+    expect(
+      toAnnotationOptimizationConfig({ annotationType: null })
+    ).toBeUndefined();
+  });
+
+  it("feeds the optimization helpers it is built for", () => {
+    const config = toAnnotationOptimizationConfig({
+      annotationType: "CATEGORICAL",
+      optimizationDirection: "MAXIMIZE",
+      values: [
+        { label: "correct", score: 1 },
+        { label: "incorrect", score: 0 },
+      ],
+    });
+    expect(
+      getBinaryLabelOptimizations({
+        config,
+        labels: ["correct", "incorrect"],
+      })
+    ).toEqual([true, false]);
   });
 });
