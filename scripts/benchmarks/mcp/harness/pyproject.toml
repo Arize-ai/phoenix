@@ -8,7 +8,9 @@ requires-python = ">=3.10"
 # replays transcripts into. Both are pure Python with nothing under them.
 dependencies = [
     "pyyaml>=6.0",
-    "openinference-semantic-conventions>=0.1.26",
+    # 0.1.29 is where `llm.finish_reason` appears; below it `export` raises
+    # AttributeError on its first span.
+    "openinference-semantic-conventions>=0.1.29",
 ]
 
 # Only sending the spans needs an SDK. Building them does not, so a replay can

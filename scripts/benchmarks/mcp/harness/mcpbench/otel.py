@@ -89,6 +89,39 @@ def _clip(text: str, limit: int) -> str:
     return f"{text[:limit]}… [{len(text) - limit} more characters]"
 
 
+def _clip_json(payload: Any, limit: int) -> str:
+    """Serialise a payload, cutting it down without cutting it open.
+
+    The cap has to fall inside the strings rather than across the document:
+    a reader parses these attributes, and a JSON string with the tail sliced
+    off is not shorter JSON, it is a string that happens to start with a brace.
+    One tool input in the stored corpus is over the cap, and it arrived as
+    exactly that -- an unparseable value still labelled `application/json`.
+    """
+    serialized = json.dumps(payload, default=str)
+    if limit <= 0 or len(serialized) <= limit:
+        return serialized
+
+    def shrink(node: Any, budget: int) -> Any:
+        if isinstance(node, str):
+            return _clip(node, budget)
+        if isinstance(node, dict):
+            return {k: shrink(v, budget) for k, v in node.items()}
+        if isinstance(node, list):
+            return [shrink(v, budget) for v in node]
+        return node
+
+    # Divided among the leaves rather than spent on the first one, so a payload
+    # of many fields keeps a readable sample of each.
+    leaves = max(1, serialized.count('"') // 2)
+    clipped = json.dumps(shrink(payload, max(64, limit // leaves)), default=str)
+    if len(clipped) <= limit:
+        return clipped
+    # Structure too large to survive on its own -- a deep object of short
+    # strings. Still valid JSON, and still says what it was.
+    return json.dumps({"clipped": _clip(serialized, limit)})
+
+
 def _text_of(content: Any) -> str:
     """Readable text for a message body, whatever shape it arrived in."""
     if isinstance(content, str):
@@ -229,7 +262,7 @@ def _assistant_message(content: list[Any], limit: int) -> dict[str, Any]:
                 {
                     "id": str(block.get("id") or ""),
                     "name": str(block.get("name") or ""),
-                    "arguments": _clip(json.dumps(block.get("input"), default=str), limit),
+                    "arguments": _clip_json(block.get("input"), limit),
                 }
             )
     message: dict[str, Any] = {"role": "assistant"}
@@ -331,10 +364,19 @@ def build_spans(
                         **_flatten(SpanAttributes.LLM_INPUT_MESSAGES, history),
                     },
                 )
-                if request_id := event.get("request_id"):
-                    span.attributes[SpanAttributes.METADATA] = json.dumps(
-                        {"request_id": request_id}
-                    )
+                span.attributes[SpanAttributes.METADATA] = json.dumps(
+                    {
+                        "request_id": event.get("request_id"),
+                        # Named on the span because nothing downstream can tell
+                        # a derived number from a measured one: the cost model
+                        # prices this completion count, and a reader comparing
+                        # a single call would otherwise read an estimate as a
+                        # measurement. See `_allocate_completion` and the span
+                        # start, which the transcript's clock cannot give.
+                        "derived": ["start_time"],
+                        "estimated": [SpanAttributes.LLM_TOKEN_COUNT_COMPLETION],
+                    }
+                )
                 spans.append(span)
                 turn = _Turn(span=span, index=len(history))
                 turns[message_id] = turn
@@ -354,13 +396,18 @@ def build_spans(
             turn.span.attributes.update(
                 _flatten(SpanAttributes.LLM_OUTPUT_MESSAGES, [rendered], detailed=True)
             )
+            # Only the output. The input is already on the span as flattened
+            # messages, and a second serialised copy would roughly double the
+            # largest spans to say the same thing twice.
+            calls = ", ".join(c["name"] for c in rendered.get("tool_calls") or [])
+            turn.span.attributes[SpanAttributes.OUTPUT_VALUE] = rendered.get("content") or calls
 
             for block in message.get("content") or []:
                 if not isinstance(block, dict) or block.get("type") != "tool_use":
                     continue
                 name = str(block.get("name") or "")
                 payload = block.get("input")
-                arguments = _clip(json.dumps(payload, default=str), max_chars)
+                arguments = _clip_json(payload, max_chars)
                 call = Span(
                     name=name.split("__")[-1],
                     kind=_TOOL,
@@ -407,6 +454,14 @@ def build_spans(
                 )
             boundary = at
 
+    for call, detail in pending.values():
+        # Issued and never answered -- the run ended first. Left as it was
+        # opened, it reads as a call that returned instantly and succeeded,
+        # which is the opposite of what happened.
+        call.end = end
+        call.status_error = "no result"
+        call.attributes[SpanAttributes.METADATA] = json.dumps({**detail, "answered": False})
+
     _allocate_completion(ordered, int((result.get("usage") or {}).get("output_tokens") or 0))
     for i, turn in enumerate(ordered):
         turn.span.attributes[SpanAttributes.LLM_FINISH_REASON] = _finish_reason(
@@ -414,6 +469,9 @@ def build_spans(
         )
 
     answer = str(result.get("result") or "")
+    # Lifted out rather than copied: they are their own attribute, and leaving
+    # them in the blob renders the same list twice.
+    tags = [t for t in metadata.pop("tags", None) or [] if t]
     root = Span(
         name=path.stem,
         kind=_AGENT,
@@ -424,7 +482,7 @@ def build_spans(
             SpanAttributes.OUTPUT_VALUE: _clip(answer, max_chars),
             SpanAttributes.LLM_MODEL_NAME: init.get("model") or "",
             SpanAttributes.METADATA: json.dumps(metadata, default=str),
-            SpanAttributes.TAG_TAGS: [t for t in metadata.get("tags") or [] if t],
+            SpanAttributes.TAG_TAGS: tags,
         },
     )
     if session_id:

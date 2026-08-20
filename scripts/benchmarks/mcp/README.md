@@ -163,14 +163,21 @@ matrix.
 
 It replays rather than instruments, which is the point: nothing is re-executed, so the
 numbers stay the ones the client produced, and runs already collected can be looked at
-as traces. Two things the transcript does not carry are derived and marked as such —
-the model call's start (the clock only stamps arrivals) and the per-call output tokens
-(the stream stamps a message before it exists, so the run's reported total is divided
-by how much each call wrote). Both are exact in aggregate.
+as traces. Two things the transcript does not carry are derived, and each LLM span says
+so in its metadata — the model call's start (the clock only stamps arrivals) and the
+per-call output tokens (the stream stamps a message before it exists, so the run's
+reported total is divided by how much each call wrote). Both are exact in aggregate;
+neither is a measurement of a single call.
 
-Span ids are seeded from `(project, run, cell)`, so re-exporting the same run is a
-no-op rather than a duplicate. Ingest keeps the first span it sees for an id, so an
-edited exporter needs a new `--project` before its output can be seen.
+The command reports how many spans the collector accepted and exits non-zero if any
+did not land. The SDK reports a failed batch by logging it, so counting what was queued
+would call a closed port a success. Acceptance is still not ingestion — Phoenix stores
+the batch after answering, so a count read immediately after an export reads low.
+
+Span ids are seeded from `(project, run, cell, max-chars)`, so re-exporting the same run
+with the same settings is a no-op rather than a duplicate. Ingest keeps the first span
+it sees for an id and never updates it, so re-rendering into the same project adds a
+second copy alongside the first — use a fresh `--project` instead.
 
 **Comparing labels requires one run directory.** Transcript filenames carry the label,
 so a directory can hold several; the report compares whatever it finds. Pass the same
