@@ -16,8 +16,9 @@ from typing import Any, Optional
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import SpanAttributes
 
-from .analyze import rows_for_run, tasks_as_run
+from .analyze import rows_for_transcript, split_cell_id, tasks_as_run
 from .config import BenchConfig, ConfigError, Task
+from .invocation import safe_label
 from .otel import DEFAULT_MAX_CHARS, Span, build_spans, digest_id
 
 DEFAULT_ENDPOINT = "http://localhost:6006"
@@ -74,6 +75,82 @@ def _metadata(row: dict[str, Any]) -> dict[str, Any]:
     return meta
 
 
+class Planner:
+    """Turns transcripts from one run directory into traces, one at a time.
+
+    Holds what every cell in a run shares -- the manifest, and the questions as
+    they were asked -- so a run can plan a cell the moment it finishes without
+    re-reading the directory each time.
+    """
+
+    def __init__(
+        self,
+        config: BenchConfig,
+        tasks: list[Task],
+        out_dir: Path,
+        *,
+        max_chars: int = DEFAULT_MAX_CHARS,
+    ) -> None:
+        self.config = config
+        self.out_dir = out_dir
+        self.max_chars = max_chars
+        self.manifest: dict[str, Any] = {}
+        if (path := out_dir / "manifest.json").is_file():
+            self.manifest = json.loads(path.read_text())
+        self.as_run = tasks_as_run(self.manifest, tasks)
+        # Whether this run recorded the questions it asked; a run predating that
+        # is graded against today's wording, which the row carries as a warning.
+        self.graded_as_run = any("expect" in e for e in (self.manifest.get("tasks") or []))
+
+    def cell(self, path: Path) -> Optional[tuple[str, list[Span]]]:
+        """One transcript as a trace, or ``None`` if it is not a run of a task.
+
+        Grading comes from the report's own row derivation, so a span and the
+        table row beside it cannot disagree about what happened.
+        """
+        if not (parsed := split_cell_id(path.stem)):
+            return None
+        file_label, task_name, trial = parsed
+        # The filename is authoritative: a run directory can hold transcripts
+        # from several labels, and the manifest describes only the most recent.
+        label = file_label
+        if (typed := self.manifest.get("label")) and safe_label(typed) == file_label:
+            label = typed  # same label -- recover the exact wording
+        task = self.as_run.get(task_name)
+        rows = rows_for_transcript(
+            path,
+            run_id=self.out_dir.name,
+            label=label,
+            task=task,
+            task_name=task_name,
+            trial=trial,
+            meta=self.manifest,
+        )["runs"]
+        if not rows:
+            return None
+        row = {**rows[0], "graded_as_run": self.graded_as_run}
+        spans = build_spans(
+            path,
+            prompt=" ".join((task.prompt if task else "").split()),
+            metadata=_metadata(row),
+            session_id=self.out_dir.name,
+            max_chars=self.max_chars,
+        )
+        # Keyed by both because a cell id is only unique within its run: two
+        # runs of the same label produce the same names, and a key that ignores
+        # the run seeds the same span ids for both. The backend keeps the first
+        # and discards the second in silence, so the collision costs a whole run
+        # and reports nothing.
+        return (f"{self.out_dir.name}/{path.stem}", spans) if spans else None
+
+    def all(self) -> list[tuple[str, list[Span]]]:
+        raw_dir = self.out_dir / "raw"
+        if not raw_dir.is_dir():
+            raise ConfigError(f"No transcripts under {raw_dir}.")
+        planned = (self.cell(path) for path in sorted(raw_dir.glob("*.jsonl")))
+        return [trace for trace in planned if trace]
+
+
 def plan_run(
     config: BenchConfig,
     tasks: list[Task],
@@ -81,41 +158,8 @@ def plan_run(
     *,
     max_chars: int = DEFAULT_MAX_CHARS,
 ) -> list[tuple[str, list[Span]]]:
-    """Every trace for one run directory, keyed by run and cell.
-
-    Keyed by both because a cell id is only unique within its run: two runs of
-    the same label produce the same names, and a key that ignores the run seeds
-    the same span ids for both. The backend keeps the first and discards the
-    second in silence, so the collision costs a whole run and reports nothing.
-
-    Reuses the report's own row derivation rather than re-deriving grading here,
-    so a span and the table row beside it cannot disagree about what happened.
-    """
-    raw_dir = out_dir / "raw"
-    if not raw_dir.is_dir():
-        raise ConfigError(f"No transcripts under {raw_dir}.")
-    manifest: dict[str, Any] = {}
-    if (path := out_dir / "manifest.json").is_file():
-        manifest = json.loads(path.read_text())
-    as_run = tasks_as_run(manifest, tasks)
-
-    rows = {row["transcript"]: row for row in rows_for_run(config, tasks, out_dir)["runs"]}
-    traces = []
-    for path in sorted(raw_dir.glob("*.jsonl")):
-        row = rows.get(path.name)
-        if row is None:
-            continue
-        task = as_run.get(row.get("task") or "")
-        spans = build_spans(
-            path,
-            prompt=" ".join((task.prompt if task else "").split()),
-            metadata=_metadata(row),
-            session_id=out_dir.name,
-            max_chars=max_chars,
-        )
-        if spans:
-            traces.append((f"{out_dir.name}/{path.stem}", spans))
-    return traces
+    """Every trace for one run directory."""
+    return Planner(config, tasks, out_dir, max_chars=max_chars).all()
 
 
 def _attributes(span: Span) -> dict[str, Any]:
@@ -162,28 +206,92 @@ class Delivery:
         return ", ".join(parts)
 
 
-def send(
-    traces: list[tuple[str, list[Span]]],
+class Sink:
+    """An open connection to a collector, held for as long as traces are made.
+
+    Held open rather than built per trace so a run can ship each cell as it
+    finishes: the provider owns a background exporter and a batch queue, and
+    building one per cell would flush and tear that down thirty times over.
+    """
+
+    def __init__(self, provider: Any, tracer: Any, ids: Any, exporter: Any, max_chars: int):
+        self._provider = provider
+        self._tracer = tracer
+        self._ids = ids
+        self._exporter = exporter
+        self._max_chars = max_chars
+
+    def send(self, cell_id: str, spans: list[Span]) -> None:
+        """Emit one trace. The root is opened first; children hang off it."""
+        from opentelemetry.context import Context
+        from opentelemetry.trace import Status, StatusCode, set_span_in_context
+
+        if not spans:
+            return
+        # Every input that changes what a span says belongs in the seed. The
+        # backend keeps the first span it sees for an id, so a setting left out
+        # of the seed is a setting that silently does nothing on a re-export.
+        self._ids.seed = f"{cell_id}|{self._max_chars}"
+        self._ids.count = 0
+        root, *children = spans
+        low, high = root.start, root.end
+
+        def emit(span: Span, context: Optional[Any]) -> Any:
+            # Clamped to the run: a child that starts before its parent or
+            # outlives it renders as a broken tree, and the transcript's clock
+            # is coarse enough to produce one at the edges.
+            start = min(max(span.start, low), high)
+            emitted = self._tracer.start_span(
+                span.name,
+                context=context or Context(),
+                start_time=_ns(start),
+                attributes=_attributes(span),
+            )
+            if span.status_error:
+                emitted.set_status(Status(StatusCode.ERROR, span.status_error))
+            else:
+                emitted.set_status(Status(StatusCode.OK))
+            emitted.end(end_time=_ns(min(max(span.end, start), high)))
+            return emitted
+
+        # Opened by hand rather than as a context manager: the children are
+        # parented explicitly, and nothing here runs inside the span it describes.
+        emitted_root = emit(root, None)
+        context = set_span_in_context(emitted_root)
+        for child in children:
+            emit(child, context)
+        self._exporter.delivery.planned += len(spans)
+
+    def close(self) -> Delivery:
+        """Flush, shut down, and report what the collector took."""
+        self._provider.force_flush()
+        self._provider.shutdown()
+        return self._exporter.delivery
+
+
+def open_sink(
     *,
     endpoint: str,
     project: str,
     headers: Optional[dict[str, str]] = None,
     max_chars: int = DEFAULT_MAX_CHARS,
-) -> Delivery:
-    """Emit every trace and report what the collector did with it.
+) -> Sink:
+    """Connect to a collector.
 
     The SDK reports a failed export by logging it, so a caller that only counts
     what it queued cannot tell a delivered run from one that went to a closed
     port -- both look like success. The exporter is wrapped to count outcomes
     instead. Acceptance is still not ingestion: the collector answers as soon as
     it has the batch, and stores it after.
+
+    The project name seeds the span ids along with the cell, so the same run
+    sent to two projects is two sets of spans rather than one set the second
+    project silently drops.
     """
-    from opentelemetry.context import Context
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import SpanLimits, TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, SpanExportResult
     from opentelemetry.sdk.trace.id_generator import IdGenerator
-    from opentelemetry.trace import Status, StatusCode, set_span_in_context
 
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # isort: skip
         OTLPSpanExporter,
@@ -197,10 +305,10 @@ def send(
 
         def generate_span_id(self) -> int:
             self.count += 1
-            return digest_id(f"{self.seed}|span|{self.count}", 8)
+            return digest_id(f"{project}|{self.seed}|span|{self.count}", 8)
 
         def generate_trace_id(self) -> int:
-            return digest_id(f"{self.seed}|trace", 16)
+            return digest_id(f"{project}|{self.seed}|trace", 16)
 
     class CountingExporter(SpanExporter):
         """Passes batches through and keeps score of what came back."""
@@ -223,11 +331,10 @@ def send(
         def force_flush(self, timeout_millis: int = 30_000) -> bool:
             return self.inner.force_flush(timeout_millis)
 
-    ids = SeededIds()
     exporter = CountingExporter(OTLPSpanExporter(endpoint=endpoint, headers=headers or {}))
     provider = TracerProvider(
         resource=Resource.create({ResourceAttributes.PROJECT_NAME: project}),
-        id_generator=ids,
+        id_generator=SeededIds(),
         # A replayed conversation is one attribute per field per message, so a
         # long run passes the SDK's default of 128 partway through its history.
         # The bound evicts what was written first, which is the span kind and
@@ -236,56 +343,22 @@ def send(
     )
     provider.add_span_processor(BatchSpanProcessor(exporter))
     tracer = provider.get_tracer("mcpbench")
+    return Sink(provider, tracer, provider.id_generator, exporter, max_chars)
 
-    def emit(span: Span, context: Optional[Any], bounds: tuple[float, float]) -> Any:
-        # Clamped to the run: a child that starts before its parent or outlives
-        # it renders as a broken tree, and the transcript's clock is coarse
-        # enough to produce one at the edges.
-        low, high = bounds
-        start = min(max(span.start, low), high)
-        emitted = tracer.start_span(
-            span.name,
-            context=context if context is not None else Context(),
-            start_time=_ns(start),
-            attributes=_attributes(span),
-        )
-        if span.status_error:
-            emitted.set_status(Status(StatusCode.ERROR, span.status_error))
-        else:
-            emitted.set_status(Status(StatusCode.OK))
-        emitted.end(end_time=_ns(min(max(span.end, start), high)))
-        return emitted
 
-    delivery = exporter.delivery
+def send(
+    traces: list[tuple[str, list[Span]]],
+    *,
+    endpoint: str,
+    project: str,
+    headers: Optional[dict[str, str]] = None,
+    max_chars: int = DEFAULT_MAX_CHARS,
+) -> Delivery:
+    """Emit every trace at once, for a run that is already finished."""
+    sink = open_sink(endpoint=endpoint, project=project, headers=headers, max_chars=max_chars)
     for cell_id, spans in traces:
-        # Every input that changes what a span says belongs in the seed. The
-        # backend keeps the first span it sees for an id, so a setting left out
-        # of the seed is a setting that silently does nothing on a re-export.
-        ids.seed = f"{project}|{cell_id}|{max_chars}"
-        ids.count = 0
-        root, *children = spans
-        bounds = (root.start, root.end)
-        # Opened by hand rather than as a context manager: the children are
-        # parented explicitly, and nothing here runs inside the span it describes.
-        emitted_root = tracer.start_span(
-            root.name,
-            context=Context(),
-            start_time=_ns(root.start),
-            attributes=_attributes(root),
-        )
-        if root.status_error:
-            emitted_root.set_status(Status(StatusCode.ERROR, root.status_error))
-        else:
-            emitted_root.set_status(Status(StatusCode.OK))
-        context = set_span_in_context(emitted_root)
-        for child in children:
-            emit(child, context, bounds)
-        emitted_root.end(end_time=_ns(root.end))
-        delivery.planned += len(spans)
-
-    provider.force_flush()
-    provider.shutdown()
-    return delivery
+        sink.send(cell_id, spans)
+    return sink.close()
 
 
 def as_json(traces: list[tuple[str, list[Span]]]) -> list[dict[str, Any]]:
