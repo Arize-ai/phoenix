@@ -244,6 +244,7 @@ def _get_expected_schema_info(
     db_backend: _DBBackend,
     additional_columns: Sequence[str] = (),
     additional_nullable_columns: Sequence[str] = (),
+    additional_indexes: Sequence[str] = (),
 ) -> _TableSchemaInfo:
     """
     Build complete schema info for an annotation table.
@@ -283,6 +284,7 @@ def _get_expected_schema_info(
     # Build index names
     foreign_key_index = _get_foreign_key_index_name(table_name, foreign_key_column)
     index_names = {foreign_key_index, f"ix_{table_name}_user_id"}
+    index_names.update(additional_indexes)
 
     # Build constraint names
     constraint_names = _get_common_constraint_names(table_name)
@@ -320,11 +322,13 @@ class TestDBSchema:
     """
 
     @pytest.mark.parametrize(
-        "table_name,foreign_key_column,additional_columns,additional_nullable_columns",
+        "table_name,foreign_key_column,additional_columns,additional_nullable_columns,"
+        "additional_indexes",
         [
             pytest.param(
                 "span_annotations",
                 "span_rowid",
+                [],
                 [],
                 [],
                 id="span_annotations",
@@ -334,6 +338,7 @@ class TestDBSchema:
                 "trace_rowid",
                 [],
                 [],
+                [],
                 id="trace_annotations",
             ),
             pytest.param(
@@ -341,12 +346,14 @@ class TestDBSchema:
                 "project_session_id",
                 [],
                 [],  # no additional nullable columns - uses same as other annotation tables
+                [],
                 id="project_session_annotations",
             ),
             pytest.param(
                 "document_annotations",
                 "span_rowid",
                 ["document_position"],  # Additional column for document position within spans
+                [],
                 [],
                 id="document_annotations",
             ),
@@ -358,6 +365,7 @@ class TestDBSchema:
         foreign_key_column: str,
         additional_columns: list[str],
         additional_nullable_columns: list[str],
+        additional_indexes: list[str],
         _engine: AsyncEngine,
         _alembic_config: Config,
         _db_backend: _DBBackend,
@@ -391,6 +399,7 @@ class TestDBSchema:
             db_backend=_db_backend,
             additional_columns=additional_columns,
             additional_nullable_columns=additional_nullable_columns,
+            additional_indexes=additional_indexes,
         )
 
         # Get actual schema from database

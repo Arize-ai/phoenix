@@ -79,14 +79,6 @@ from phoenix.config import (
     get_env_host_root_path,
     get_env_max_spans_queue_size,
     get_env_mcp_code_mode,
-    get_env_online_eval_claim_batch_size,
-    get_env_online_eval_consumer_tick_interval_seconds,
-    get_env_online_eval_max_db_concurrency,
-    get_env_online_eval_max_evaluator_concurrency,
-    get_env_online_eval_max_outstanding,
-    get_env_online_eval_max_sandbox_payload_bytes,
-    get_env_online_eval_max_transcript_bytes,
-    get_env_online_eval_pending_ttl_seconds,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -148,9 +140,7 @@ from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
-from phoenix.server.online_eval.consumer import OnlineEvalConsumer
-from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
+from phoenix.server.online_eval.runtime import OnlineEvalRuntime
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
@@ -645,10 +635,7 @@ def _lifespan(
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
     sandbox_runtime: SandboxRuntimeContext,
-    online_eval_producer: Optional[OnlineEvalProducer] = None,
-    online_eval_consumer: Optional[OnlineEvalConsumer] = None,
-    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None,
-    online_eval_session_sweeper: Optional[SessionEvalSweeper] = None,
+    online_eval_runtime: OnlineEvalRuntime,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -709,16 +696,8 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Teardown stops the sweeper and producer before both consumers,
-            # and all online-eval components before the sandbox manager.
-            if online_eval_consumer is not None:
-                await stack.enter_async_context(online_eval_consumer)
-            if online_eval_session_consumer is not None:
-                await stack.enter_async_context(online_eval_session_consumer)
-            if online_eval_producer is not None:
-                await stack.enter_async_context(online_eval_producer)
-            if online_eval_session_sweeper is not None:
-                await stack.enter_async_context(online_eval_session_sweeper)
+            # Entered after the sandbox manager so teardown stops the daemons first.
+            await stack.enter_async_context(online_eval_runtime)
             if docs_mcp_server is not None:
                 # The docs MCP server connects to an external host during
                 # startup. Never let its initialization (which can hang until a
@@ -1081,65 +1060,15 @@ def create_app(
         sandbox_session_manager=sandbox_session_manager,
         sandbox_runtime=sandbox_runtime,
     )
-    online_eval_producer: Optional[OnlineEvalProducer] = None
-    online_eval_consumer: Optional[OnlineEvalConsumer] = None
-    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None
-    online_eval_session_sweeper: Optional[SessionEvalSweeper] = None
-    if not read_only:
-        claim_batch_size = get_env_online_eval_claim_batch_size()
-        tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
-        pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
-        # Worst case, a full admission-gate backlog drains at claim_batch_size /
-        # tick_interval per replica; a smaller TTL sheds work during routine
-        # backpressure rather than only when consumers are down.
-        min_safe_ttl_seconds = (
-            get_env_online_eval_max_outstanding() * tick_interval_seconds / claim_batch_size
-        )
-        if 0 < pending_ttl_seconds < min_safe_ttl_seconds:
-            logger.warning(
-                "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS (%s) is below the time a full "
-                "online-eval backlog needs to drain on one replica (%s seconds at %s claims "
-                "per %s-second tick). Pending evaluations can expire unevaluated during "
-                "normal backpressure; raise the TTL, the claim batch size, or the replica "
-                "count, or set the TTL to 0 to disable shedding.",
-                pending_ttl_seconds,
-                round(min_safe_ttl_seconds),
-                claim_batch_size,
-                tick_interval_seconds,
-            )
-        get_env_online_eval_max_transcript_bytes()
-        get_env_online_eval_max_sandbox_payload_bytes()
-        evaluator_semaphore = asyncio.Semaphore(get_env_online_eval_max_evaluator_concurrency())
-        db_semaphore = asyncio.Semaphore(get_env_online_eval_max_db_concurrency())
-        online_eval_producer = OnlineEvalProducer(db)
-        online_eval_consumer = OnlineEvalConsumer(
-            db,
-            decrypt=encryption_service.decrypt,
-            sandbox_session_manager=sandbox_session_manager,
-            sandbox_runtime=sandbox_runtime,
-            event_queue=dml_event_handler,
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
-            evaluator_semaphore=evaluator_semaphore,
-            db_semaphore=db_semaphore,
-            tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
-        )
-        # Both halves of the session lifecycle start together: a consumer without its
-        # sweeper claims from a table only the sweeper can fill.
-        online_eval_session_consumer = OnlineEvalConsumer(
-            db,
-            decrypt=encryption_service.decrypt,
-            sandbox_session_manager=sandbox_session_manager,
-            sandbox_runtime=sandbox_runtime,
-            event_queue=dml_event_handler,
-            evaluation_target="SESSION",
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
-            evaluator_semaphore=evaluator_semaphore,
-            db_semaphore=db_semaphore,
-            tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
-        )
-        online_eval_session_sweeper = SessionEvalSweeper(db)
+    online_eval_runtime = OnlineEvalRuntime(
+        db,
+        decrypt=encryption_service.decrypt,
+        sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
+        event_queue=dml_event_handler,
+        tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+        read_only=read_only,
+    )
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1191,10 +1120,7 @@ def create_app(
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
-            online_eval_producer=online_eval_producer,
-            online_eval_consumer=online_eval_consumer,
-            online_eval_session_consumer=online_eval_session_consumer,
-            online_eval_session_sweeper=online_eval_session_sweeper,
+            online_eval_runtime=online_eval_runtime,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1400,10 +1326,7 @@ def create_app(
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.sandbox_runtime = sandbox_runtime
-    app.state.online_eval_producer = online_eval_producer
-    app.state.online_eval_consumer = online_eval_consumer
-    app.state.online_eval_session_consumer = online_eval_session_consumer
-    app.state.online_eval_session_sweeper = online_eval_session_sweeper
+    app.state.online_eval_runtime = online_eval_runtime
     app.state.graphql_schema = graphql_schema
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,

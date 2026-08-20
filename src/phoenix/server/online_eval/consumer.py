@@ -1,6 +1,5 @@
-"""Online-eval consumer daemon.
+"""Execute bounded online-eval work on any replica through fenced coordinator claims.
 
-Runs on every replica; instances compete for work through coordinator claims.
 Each cycle claims a batch of work units and awaits the whole batch before claiming
 again. The batch size bounds fetched work; shared semaphores bound evaluation and
 database-phase concurrency across SPAN and SESSION consumers:
@@ -62,6 +61,7 @@ EXECUTION_DEADLINE_SECONDS = 600.0
 _CONSUMER_GROUP = "default"
 
 _TRANSITION_RETRY_DELAYS_SECONDS = (1.0, 2.0, 4.0)
+_TRANSITION_RETRY_TERMINAL_ATTEMPTS = 3
 
 
 class ExecutionTimeoutCause(str, Enum):
@@ -448,10 +448,19 @@ class OnlineEvalConsumer(DaemonTask):
             try:
                 return await self._run_db(transition)
             except Exception:
-                delay_seconds = _TRANSITION_RETRY_DELAYS_SECONDS[
-                    min(retry_index, len(_TRANSITION_RETRY_DELAYS_SECONDS) - 1)
-                ]
                 retry_index += 1
+                if retry_index >= (
+                    len(_TRANSITION_RETRY_DELAYS_SECONDS) + _TRANSITION_RETRY_TERMINAL_ATTEMPTS
+                ):
+                    logger.error(
+                        f"Failed to {action} for online-eval work unit {work_unit_id} after "
+                        f"{retry_index} attempts; stopping transition retries",
+                        exc_info=True,
+                    )
+                    return False
+                delay_seconds = _TRANSITION_RETRY_DELAYS_SECONDS[
+                    min(retry_index - 1, len(_TRANSITION_RETRY_DELAYS_SECONDS) - 1)
+                ]
                 logger.warning(
                     f"Failed to {action} for online-eval work unit {work_unit_id}; "
                     f"retrying in {delay_seconds:g}s",
@@ -527,4 +536,4 @@ class OnlineEvalConsumer(DaemonTask):
         finally:
             if not eval_task.done():
                 await _cancel_and_await(eval_task)
-        await eval_task
+        return await eval_task

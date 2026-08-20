@@ -76,6 +76,10 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
+from phoenix.server.api.types.EvaluationRequest import (
+    EvaluationRequest,
+    to_gql_evaluation_request,
+)
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
@@ -116,6 +120,10 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.ProjectEvaluatorTrigger import (
+    ProjectEvaluatorTrigger,
+    to_gql_project_evaluator_trigger,
+)
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt
@@ -1126,6 +1134,26 @@ class Query:
                     raise NotFound(f"Unknown project evaluator: {id}")
         elif type_name == SandboxConfig.__name__:
             return SandboxConfig(id=node_id)
+        elif type_name == ProjectEvaluatorTrigger.__name__:
+            async with info.context.db.read() as session:
+                trigger = await session.get(
+                    models.ProjectEvaluatorTrigger,
+                    node_id,
+                )
+                if trigger:
+                    return to_gql_project_evaluator_trigger(trigger)
+                raise NotFound(f"Unknown project evaluator trigger: {id}")
+        elif type_name == EvaluationRequest.__name__:
+            async with info.context.db.read() as session:
+                record = await session.get(models.EvaluationRequest, node_id)
+            if record is None:
+                raise NotFound(f"Unknown evaluation request: {id}")
+            request = await info.context.data_loaders.evaluation_requests.load(
+                (record.project_session_rowid, record.criteria_id),
+            )
+            if request is None:
+                raise NotFound(f"Unknown evaluation request: {id}")
+            return to_gql_evaluation_request(request)
         if type_name == GenerativeModelCustomProvider.__name__:
             return GenerativeModelCustomProvider(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")

@@ -5,13 +5,17 @@ from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from pydantic import Field
+from pydantic import Field, field_validator
 from sqlalchemy import ColumnElement, delete, exists, select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
+from phoenix.db.eval_work import (
+    ONLINE_EVAL_IDENTIFIER_PREFIX,
+    is_reserved_annotation_identifier,
+)
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.types.ProjectSessionAnnotation import (
@@ -74,9 +78,22 @@ class AnnotationData(V1RoutesBaseModel):
         default="",
         description=(
             "The identifier of the annotation. "
-            "If provided, the annotation will be updated if it already exists."
+            "If provided, the annotation will be updated if it already exists. "
+            f"Identifiers starting with {ONLINE_EVAL_IDENTIFIER_PREFIX!r} are reserved for "
+            "evaluations Phoenix runs itself and are rejected here."
         ),
     )
+
+    @field_validator("identifier")
+    @classmethod
+    def _reject_reserved_identifier(cls, identifier: str) -> str:
+        """Keep the prefix that marks Phoenix's own annotations out of client hands."""
+        if is_reserved_annotation_identifier(identifier):
+            raise ValueError(
+                f"identifiers starting with {ONLINE_EVAL_IDENTIFIER_PREFIX!r} are reserved for "
+                f"evaluations Phoenix runs itself"
+            )
+        return identifier
 
 
 class SpanAnnotationData(AnnotationData):
@@ -794,7 +811,7 @@ supplied filter.
 
 - The request must either supply both `start_time` AND `end_time`
   to bound the delete to a `[start_time, end_time)` time window,
-  OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+  OR set `delete_all=true` to acknowledge an unbounded deletion. A request
   that satisfies neither is rejected with 422.
 - `name`, `identifier`, and `annotator_kind` are optional narrowing
   filters; on their own they do NOT authorize the request — they only

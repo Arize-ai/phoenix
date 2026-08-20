@@ -11,10 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
+from phoenix.db.eval_work import (
+    SUPERSEDED_BY_REQUEST_ERROR,
+    TERMINAL_EVAL_SESSION_WORK_STATUSES,
+    live_eval_session_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
-from phoenix.server.online_eval import session_sweeper
+from phoenix.server.online_eval import session_retention, session_sweeper
 from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
@@ -26,6 +31,7 @@ from phoenix.server.online_eval.derivation import (
     ResolvedCriteria,
     sample_key,
 )
+from phoenix.server.online_eval.requests import SessionTarget, request_evaluation
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,
@@ -91,6 +97,33 @@ def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
     )
 
 
+def test_terminal_retention_index_is_single_sourced_from_max_attempts() -> None:
+    migration = import_module(
+        "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
+    )
+    predicate = terminal_eval_session_work_index_predicate()
+    work_table = cast(Table, models.EvalSessionWorkUnit.__table__)
+    terminal_index = next(
+        index for index in work_table.indexes if index.name == "ix_eval_session_work_units_terminal"
+    )
+
+    assert f"attempts >= {MAX_ATTEMPTS}" in predicate
+    reap_predicate = str(
+        session_retention._terminal_session_work(models.EvalSessionWorkUnit).compile(
+            compile_kwargs={"literal_binds": True}
+        )
+    )
+    for status in TERMINAL_EVAL_SESSION_WORK_STATUSES:
+        assert status in predicate
+        assert status in reap_predicate
+    assert str(terminal_index.dialect_options["postgresql"]["where"]) == predicate
+    assert str(terminal_index.dialect_options["sqlite"]["where"]) == predicate
+    assert (
+        migration.terminal_eval_session_work_index_predicate
+        is terminal_eval_session_work_index_predicate
+    )
+
+
 @pytest.mark.parametrize(
     "database_dialect,expected_clock",
     [("sqlite", "now()"), ("postgresql", "statement_timestamp()")],
@@ -144,14 +177,14 @@ async def test_materialization_rechecks_eligibility_at_write_time(
             .where(models.ProjectSession.id == project_session_id)
             .values(last_span_ingested_at=database_now)
         )
-        inserted_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+        inserted_count, backlog = await sweeper._load_eligible_pairs(
             session,
             database_now,
             [criterion],
             limit=1,
         )
         assert inserted_count == 0
-        assert eligible_pair_count is None
+        assert backlog is None
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
@@ -300,7 +333,7 @@ async def test_materialization_waits_for_publication_criteria_lock_before_sessio
     materialization_started = asyncio.Event()
     materialization_backend_pid: int | None = None
 
-    async def materialize() -> tuple[int, int | None]:
+    async def materialize() -> tuple[int, dict[str, int] | None]:
         nonlocal materialization_backend_pid
         async with db() as session:
             materialization_backend_pid = await session.scalar(select(func.pg_backend_pid()))
@@ -361,7 +394,7 @@ async def test_materialization_waits_for_retention_session_lock(
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvalSweeper(db)
 
-    async def materialize() -> tuple[int, int | None]:
+    async def materialize() -> tuple[int, dict[str, int] | None]:
         async with db() as session:
             database_now = await sweeper._database_now(session)
             return await sweeper._sweep(session, database_now)
@@ -963,7 +996,7 @@ async def test_session_filter_decisions_are_persisted_before_sampling(
     async with db() as session:
         criteria = await sweeper._load_criteria(session)
         database_now = await sweeper._database_now(session)
-        materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+        materialized_count, backlog = await sweeper._load_eligible_pairs(
             session,
             database_now,
             criteria,
@@ -983,7 +1016,7 @@ async def test_session_filter_decisions_are_persisted_before_sampling(
             ).all()
         }
     assert materialized_count == 1
-    assert eligible_pair_count == 1
+    assert backlog == {"AMBIENT": 1}
     assert statuses == {
         matching_session_id: "PENDING",
         declined_session_id: "FILTERED_OUT",
@@ -996,7 +1029,7 @@ async def test_filtered_and_unfiltered_criteria_schedule_independently(
 ) -> None:
     """An unfiltered criterion and a filtered one compile into separate union arms whose
     bind parameters must stay distinct: sharing a name drops one criterion's identity
-    from the statement and hands its arm's rows to the other criterion.
+    from the statement and hands its origin's rows to the other criterion.
     """
     project_id, matching_session_id, _ = await _add_session_liveness(
         db,
@@ -1192,3 +1225,436 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
 
     metrics["ONLINE_EVAL_SESSION_SWEEP_FAILURES"].inc.assert_called_once_with()
     assert metrics["ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS"].observe.call_count == 3
+
+
+async def _request(
+    db: DbSessionFactory,
+    project_session_rowid: int,
+    criteria_id: int,
+    *,
+    force: bool = False,
+) -> None:
+    async with db() as session:
+        await request_evaluation(
+            session,
+            SessionTarget(project_session_rowid=project_session_rowid),
+            criteria_id,
+            force=force,
+        )
+
+
+async def _request_row(db: DbSessionFactory) -> models.EvaluationRequest:
+    async with db() as session:
+        return (await session.scalars(select(models.EvaluationRequest))).one()
+
+
+async def _work_units(db: DbSessionFactory) -> list[models.EvalSessionWorkUnit]:
+    async with db() as session:
+        return list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit).order_by(models.EvalSessionWorkUnit.id)
+            )
+        )
+
+
+async def test_retention_reaps_fulfilled_history_without_rematerializing_the_pair(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+
+    aged_at = _now() - timedelta(days=8)
+    async with db() as session:
+        original = (await session.scalars(select(models.EvalSessionWorkUnit))).one()
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == original.id)
+            .values(status="DONE", created_at=aged_at, updated_at=aged_at)
+        )
+        replacement = models.EvalSessionWorkUnit(
+            project_session_rowid=original.project_session_rowid,
+            evaluator_id=original.evaluator_id,
+            criteria_id=original.criteria_id,
+            config_fingerprint=original.config_fingerprint,
+            evaluated_through=original.evaluated_through,
+            status="DONE",
+            created_at=aged_at + timedelta(seconds=1),
+            updated_at=aged_at + timedelta(seconds=1),
+        )
+        session.add(replacement)
+        await session.flush()
+        session.add(
+            models.EvaluationRequest(
+                project_session_rowid=project_session_id,
+                criteria_id=criteria_id,
+                requested_generation=1,
+                materialized_generation=1,
+                materialized_by_session_work_unit_id=original.id,
+                requested_at=aged_at,
+                created_at=aged_at,
+                updated_at=aged_at,
+            )
+        )
+        original_id = original.id
+        replacement_id = replacement.id
+
+    await sweeper._tick()
+
+    async with db() as session:
+        retained_ids = list(
+            await session.scalars(
+                select(models.EvalSessionWorkUnit.id).order_by(models.EvalSessionWorkUnit.id)
+            )
+        )
+        request_count = await session.scalar(
+            select(func.count()).select_from(models.EvaluationRequest)
+        )
+    assert original_id not in retained_ids
+    assert retained_ids == [replacement_id]
+    assert request_count == 0
+
+
+async def test_retention_preserves_ambient_success_after_content_advances(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+
+    aged_at = _now() - timedelta(days=8)
+    async with db() as session:
+        original = (await session.scalars(select(models.EvalSessionWorkUnit))).one()
+        original_id = original.id
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == original_id)
+            .values(status="DONE", created_at=aged_at, updated_at=aged_at)
+        )
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == original.project_session_rowid)
+            .values(last_span_ingested_at=_now())
+        )
+
+    await sweeper._tick()
+
+    work = await _work_units(db)
+    assert [(unit.id, unit.status) for unit in work] == [(original_id, "DONE")]
+
+
+async def test_retention_never_deletes_an_unfulfilled_request(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        filter_condition="session_id == 'no-such-session'",
+    )
+    await _request(db, project_session_id, criteria_id)
+    aged_at = _now() - timedelta(days=8)
+    async with db() as session:
+        await session.execute(update(models.EvaluationRequest).values(updated_at=aged_at))
+
+    await SessionEvalSweeper(db)._tick()
+
+    request = await _request_row(db)
+    assert request.materialized_generation < request.requested_generation
+
+
+@pytest.mark.parametrize(
+    "force,expected_origin",
+    [(False, "RULE"), (True, "EXPLICIT")],
+)
+async def test_requested_evaluation_displaces_a_declined_decision(
+    db: DbSessionFactory,
+    force: bool,
+    expected_origin: str,
+) -> None:
+    """A request runs at rate 1.0, so an earlier sampling decision must not hold it back.
+
+    The displaced decision is retired under a marker of its own — one that never reads
+    as an evaluated outcome, or retiring it would immediately brake the request that
+    caused the retirement.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        sampling_rate=0.0,
+    )
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["SAMPLED_OUT"]
+
+    await _request(db, project_session_id, criteria_id, force=force)
+    await sweeper._tick()
+
+    displaced, scheduled = await _work_units(db)
+    request = await _request_row(db)
+    assert displaced.status == "EXPIRED"
+    assert displaced.error == SUPERSEDED_BY_REQUEST_ERROR
+    assert scheduled.status == "PENDING"
+    assert scheduled.scheduling_origin == expected_origin
+    assert request.materialized_generation == request.requested_generation == 1
+    assert request.materialized_by_session_work_unit_id == scheduled.id
+
+    await sweeper._tick()
+    assert len(await _work_units(db)) == 2
+
+
+@pytest.mark.parametrize("force", [False, True])
+async def test_evaluated_pair_answers_a_rule_request_but_not_a_forced_one(
+    db: DbSessionFactory,
+    force: bool,
+) -> None:
+    """A finished evaluation is the loop brake, and forcing is what may unsettle it."""
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        await session.execute(update(models.EvalSessionWorkUnit).values(status="DONE"))
+
+    await _request(db, project_session_id, criteria_id, force=force)
+    await sweeper._tick()
+
+    units = await _work_units(db)
+    request = await _request_row(db)
+    assert request.materialized_generation == 1
+    if force:
+        assert [unit.status for unit in units] == ["DONE", "PENDING"]
+        assert units[1].scheduling_origin == "EXPLICIT"
+        assert request.materialized_by_session_work_unit_id == units[1].id
+    else:
+        assert [unit.status for unit in units] == ["DONE"]
+        assert request.materialized_by_session_work_unit_id == units[0].id
+
+
+@pytest.mark.parametrize("force", [False, True])
+async def test_request_waits_for_running_work_instead_of_adopting_it(
+    db: DbSessionFactory,
+    force: bool,
+) -> None:
+    """Work that can still produce a result is waited for, never adopted or duplicated.
+
+    Once it stops, a rule request settles for what it produced while a forced request
+    schedules again.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        await session.execute(update(models.EvalSessionWorkUnit).values(status="RUNNING"))
+
+    await _request(db, project_session_id, criteria_id, force=force)
+    await sweeper._tick()
+
+    running = await _request_row(db)
+    assert running.materialized_generation == 0
+    assert running.materialized_by_session_work_unit_id is None
+    assert len(await _work_units(db)) == 1
+
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit).values(status="ERROR", attempts=MAX_ATTEMPTS)
+        )
+    await sweeper._tick()
+
+    units = await _work_units(db)
+    request = await _request_row(db)
+    assert request.materialized_generation == 1
+    if force:
+        assert [unit.status for unit in units] == ["ERROR", "PENDING"]
+        assert units[1].scheduling_origin == "EXPLICIT"
+        assert request.materialized_by_session_work_unit_id == units[1].id
+    else:
+        assert [unit.status for unit in units] == ["ERROR"]
+        assert request.materialized_by_session_work_unit_id == units[0].id
+
+
+async def test_requested_work_carries_the_fingerprint_resolved_at_sweep_time(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    async with db() as session:
+        fingerprint_at_request_time = (await sweeper._load_criteria(session))[0].fingerprint
+
+    await _request(db, project_session_id, criteria_id)
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(name=Identifier(root="renamed-criteria"))
+        )
+    await sweeper._tick()
+
+    async with db() as session:
+        fingerprint_at_sweep_time = (await sweeper._load_criteria(session))[0].fingerprint
+    unit = (await _work_units(db))[0]
+    assert fingerprint_at_sweep_time != fingerprint_at_request_time
+    assert unit.config_fingerprint == fingerprint_at_sweep_time
+
+
+async def test_sweep_acknowledges_only_the_generation_its_eligibility_read_carried(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A request that arrives after the eligibility read is a later generation.
+
+    Acknowledging a freshly read counter instead would mark that later ask answered by
+    work scheduled before it was made, and the ask would be lost.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _request(db, project_session_id, criteria_id)
+    insert_work = SessionEvalSweeper._insert_work
+
+    async def request_again_then_insert(
+        self: SessionEvalSweeper,
+        session: AsyncSession,
+        decisions: Sequence[object],
+    ) -> dict[tuple[int, int], tuple[int, str]]:
+        await session.execute(
+            update(models.EvaluationRequest).values(
+                requested_generation=models.EvaluationRequest.requested_generation + 1
+            )
+        )
+        return await insert_work(self, session, decisions)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(SessionEvalSweeper, "_insert_work", request_again_then_insert)
+    await SessionEvalSweeper(db)._tick()
+
+    request = await _request_row(db)
+    assert request.requested_generation == 2
+    assert request.materialized_generation == 1
+    assert len(await _work_units(db)) == 1
+
+
+@pytest.mark.postgres_only
+async def test_result_committed_during_a_sweep_suppresses_the_requested_insert(
+    postgresql_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The brake is re-tested by the insert statement, not trusted from the earlier read.
+
+    Consumers commit results from every replica without holding the sweep lease, so a
+    result can land between the two. The second connection moves an older result onto
+    the session's current content, which is the transition the brake reads.
+    """
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
+        db,
+        age_seconds=600,
+    )
+    _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    async with db() as session:
+        await session.execute(update(models.EvalSessionWorkUnit).values(status="DONE"))
+    current_content_at = last_span_ingested_at + timedelta(seconds=60)
+    await _advance_liveness(db, project_session_id, current_content_at)
+    await _request(db, project_session_id, criteria_id)
+
+    brake_read = asyncio.Event()
+    result_committed = asyncio.Event()
+    insert_work = SessionEvalSweeper._insert_work
+
+    async def gated_insert(
+        self: SessionEvalSweeper,
+        session: AsyncSession,
+        decisions: Sequence[object],
+    ) -> dict[tuple[int, int], tuple[int, str]]:
+        brake_read.set()
+        await result_committed.wait()
+        return await insert_work(self, session, decisions)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(SessionEvalSweeper, "_insert_work", gated_insert)
+    sweep = asyncio.create_task(sweeper._tick())
+    await asyncio.wait_for(brake_read.wait(), timeout=5)
+    async with db() as consumer:
+        await consumer.execute(
+            update(models.EvalSessionWorkUnit).values(evaluated_through=current_content_at)
+        )
+    result_committed.set()
+    await asyncio.wait_for(sweep, timeout=5)
+
+    units = await _work_units(db)
+    request = await _request_row(db)
+    assert [unit.status for unit in units] == ["DONE"]
+    assert request.materialized_generation == 0
+
+
+@pytest.mark.parametrize(
+    "force,expected_work",
+    [(False, []), (True, ["PENDING"])],
+)
+async def test_a_forced_request_passes_the_filter_a_rule_request_waits_behind(
+    db: DbSessionFactory,
+    force: bool,
+    expected_work: list[str],
+) -> None:
+    """The filter scopes standing demand; forcing overrides scope.
+
+    A rule request for a session the evaluator's filter excludes waits for the session to
+    come into scope, leaving no decision behind. An explicit request is a person naming
+    this session, so it runs regardless.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        filter_condition="session_id == 'no-such-session'",
+    )
+    sweeper = SessionEvalSweeper(db)
+    await sweeper._tick()
+    # The ambient origin declines the pair outright; the request arrives afterwards.
+    assert await _work_statuses(db) == ["FILTERED_OUT"]
+
+    await _request(db, project_session_id, criteria_id, force=force)
+    await sweeper._tick()
+
+    request = await _request_row(db)
+    assert [unit.status for unit in (await _work_units(db))[1:]] == expected_work
+    if force:
+        assert request.materialized_generation == request.requested_generation
+    else:
+        assert request.materialized_generation < request.requested_generation
+
+
+async def test_a_pair_carrying_an_unfulfilled_request_yields_one_decision(
+    db: DbSessionFactory,
+) -> None:
+    """The ambient and triggered origins never claim the same pair.
+
+    The ambient arm excludes any pair holding an unfulfilled request, the triggered arm
+    selects exactly those pairs, and a pair holds at most one request row. Were a pair to
+    surface under both origins, which one decided it would come down to union order.
+    """
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _request(db, project_session_id, criteria_id)
+
+    sweeper = SessionEvalSweeper(db)
+    async with db() as session:
+        criteria = await sweeper._load_criteria(session)
+        database_now = await sweeper._database_now(session)
+        relation = session_sweeper._scheduling_relation(criteria, database_now, db.dialect)
+        origins = list(await session.scalars(select(relation.c.scheduling_origin)))
+    assert origins == ["RULE"]
+
+    await sweeper._tick()
+
+    units = await _work_units(db)
+    assert [(unit.criteria_id, unit.scheduling_origin) for unit in units] == [
+        (criteria_id, "RULE"),
+    ]

@@ -11,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import insert, or_, select, update
+from sqlalchemy import or_, select, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -25,7 +25,8 @@ from phoenix.db.helpers import (
     delete_traces,
     token_counts_by_trace,
 )
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.annotation import insert_annotations, upsert_annotations
+from phoenix.db.insertion.helpers import as_kv
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -431,15 +432,14 @@ async def annotate_traces(
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row))
-            trace_annotation_id = await session.scalar(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.TraceAnnotation,
-                    unique_by=("name", "trace_rowid", "identifier"),
-                ).returning(models.TraceAnnotation.id)
+            (annotation,) = await upsert_annotations(
+                session,
+                values,
+                dialect=dialect,
+                table=models.TraceAnnotation,
+                unique_by=("name", "trace_rowid", "identifier"),
             )
-            inserted_ids.append(trace_annotation_id)
+            inserted_ids.append(annotation.id)
     request.state.event_queue.put(TraceAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateTracesResponseBody(
         data=[
@@ -540,19 +540,20 @@ async def create_trace_note(
 
         if note_data.identifier:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            result = await session.execute(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.TraceAnnotation,
-                    unique_by=("name", "trace_rowid", "identifier"),
-                ).returning(models.TraceAnnotation.id)
+            (annotation,) = await upsert_annotations(
+                session,
+                values,
+                dialect=dialect,
+                table=models.TraceAnnotation,
+                unique_by=("name", "trace_rowid", "identifier"),
             )
         else:
-            result = await session.execute(
-                insert(models.TraceAnnotation).values(**values).returning(models.TraceAnnotation.id)
+            (annotation,) = await insert_annotations(
+                session,
+                values,
+                table=models.TraceAnnotation,
             )
-        annotation_id = result.scalar_one()
+        annotation_id = annotation.id
 
     request.state.event_queue.put(TraceAnnotationInsertEvent((annotation_id,)))
     return CreateTraceNoteResponseBody(

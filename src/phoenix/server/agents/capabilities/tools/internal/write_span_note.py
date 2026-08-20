@@ -12,7 +12,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.db.insertion.annotation import upsert_annotations
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.dml_event import DmlEvent, SpanAnnotationInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
@@ -174,15 +174,14 @@ async def _write_span_note(
             "user_id": user_id,
         }
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        result = await session.execute(
-            insert_on_conflict(
-                values,
-                dialect=dialect,
-                table=models.SpanAnnotation,
-                unique_by=("name", "span_rowid", "identifier"),
-            ).returning(models.SpanAnnotation.id)
+        (annotation,) = await upsert_annotations(
+            session,
+            values,
+            dialect=dialect,
+            table=models.SpanAnnotation,
+            unique_by=("name", "span_rowid", "identifier"),
         )
-        annotation_id = result.scalar_one()
+        annotation_id = annotation.id
 
     event_queue.put(SpanAnnotationInsertEvent((annotation_id,)))
     return annotation_id

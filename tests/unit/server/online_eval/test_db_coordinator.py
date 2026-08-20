@@ -21,12 +21,13 @@ from phoenix.server.types import DbSessionFactory
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
-async def _seed_work_units(db: DbSessionFactory, n: int) -> list[int]:
+async def _seed_work_units(db: DbSessionFactory, n: int, *, in_session: bool = False) -> list[int]:
     """Create a span, evaluator, and criteria, plus ``n`` PENDING work units
     (distinct fingerprints), returning the work unit ids in id order."""
     async with db() as session:
         project = await _add_project(session)
-        trace = await _add_trace(session, project)
+        project_session = await _add_project_session(session, project) if in_session else None
+        trace = await _add_trace(session, project, project_session)
         span = await _add_span(session, trace)
         evaluator = models.BuiltinEvaluator(
             name=Identifier(root=f"eval-{token_hex(4)}"),
@@ -135,6 +136,33 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
         assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-1")
         assert (await _get_unit(db, unit_id)).status == "DONE"
     assert await coordinator.complete(work_unit_id=unit_ids[0], claimed_by="consumer-1")
+
+
+async def _requests(db: DbSessionFactory) -> list[models.EvaluationRequest]:
+    async with db() as session:
+        return list(
+            await session.scalars(
+                select(models.EvaluationRequest).order_by(models.EvaluationRequest.id)
+            )
+        )
+
+
+async def test_completing_a_unit_only_transitions_it_and_announces_nothing(
+    db: DbSessionFactory,
+) -> None:
+    """Completion owns the fenced RUNNING -> DONE step and nothing else.
+
+    A published verdict is announced by the annotation write that carried it, in the
+    publication's own transaction.
+    """
+    (unit_id,) = await _seed_work_units(db, 1, in_session=True)
+    coordinator = DbEvalWorkCoordinator(db)
+    await coordinator.claim(claimed_by="consumer-1", limit=1)
+
+    assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-1")
+
+    assert (await _get_unit(db, unit_id)).status == "DONE"
+    assert await _requests(db) == []
 
 
 async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(

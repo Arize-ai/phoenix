@@ -300,6 +300,7 @@ async def _seed_llm_criteria(
     criteria_input_mapping: Optional[InputMapping] = None,
     evaluation_target: models.EvaluationTarget = "SPAN",
     custom_provider: bool = False,
+    filter_condition: str = "",
 ) -> tuple[int, int]:
     """Create an LLM evaluator (prompt + version + tools) and an enabled criteria
     row, returning (evaluator_id, criteria_id)."""
@@ -389,7 +390,7 @@ async def _seed_llm_criteria(
             project_id=project_id,
             evaluator_id=evaluator.id,
             name=Identifier(root=f"criteria-{token_hex(4)}"),
-            filter_condition="",
+            filter_condition=filter_condition,
             sampling_rate=1.0,
             evaluation_target=evaluation_target,
             input_mapping=criteria_input_mapping,
@@ -541,6 +542,7 @@ async def _materialize_session_unit(
     project_session_rowid: int,
     evaluator_id: int,
     criteria_id: int,
+    scheduling_origin: models.SchedulingOrigin = "AMBIENT",
 ) -> tuple[int, str]:
     async with db() as session:
         criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
@@ -566,6 +568,7 @@ async def _materialize_session_unit(
             criteria_id=criteria_id,
             config_fingerprint=fingerprint,
             evaluated_through=evaluated_through,
+            scheduling_origin=scheduling_origin,
         )
         session.add(unit)
         await session.flush()
@@ -2738,6 +2741,36 @@ async def test_failure_transition_retries_raised_exceptions(
     assert row.attempts == 1
 
 
+async def test_transition_retry_stops_after_bounded_attempts(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    transition_attempts = 0
+
+    async def _always_fails() -> bool:
+        nonlocal transition_attempts
+        transition_attempts += 1
+        raise TypeError("unexpected transition result")
+
+    async def _heartbeat(_: int) -> bool:
+        return True
+
+    monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0,))
+    monkeypatch.setattr(consumer, "_heartbeat", _heartbeat)
+
+    recorded = await asyncio.wait_for(
+        consumer._retry_transition(
+            action="record failure",
+            work_unit_id=1,
+            transition=_always_fails,
+        ),
+        timeout=1,
+    )
+
+    assert recorded is False
+    assert transition_attempts == 1 + consumer_module._TRANSITION_RETRY_TERMINAL_ATTEMPTS
+
+
 async def test_failure_transition_retries_after_ambiguous_commit(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2883,7 +2916,7 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
     assert await _annotations(db) == []
 
 
-async def test_session_stand_down_is_visible_on_the_expired_gauge(
+async def test_session_content_incomplete_is_visible_on_the_expired_gauge(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2926,3 +2959,130 @@ async def test_session_stand_down_is_visible_on_the_expired_gauge(
 
     expired_gauge.labels.assert_called_once_with(evaluation_target="SESSION")
     expired_gauge.labels.return_value.set.assert_called_once_with(1)
+
+
+async def test_an_online_eval_annotation_requests_every_matching_criteria_including_its_author(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An evaluator's own annotation reaches every rule that matches it.
+
+    Nothing at the matcher declines the annotation an evaluator wrote, its own included.
+    Repeat work is bounded by the identity brake, which only span ingest releases.
+    """
+    ingested_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        project_session.last_span_ingested_at = ingested_at
+        trace = await _add_trace(session, project, project_session, start_time=ingested_at)
+        await _add_span(session, trace, start_time=ingested_at)
+    evaluator_id, authoring_criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    _, downstream_criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    async with db() as session:
+        # Both rules fire on any annotation written in the project, and the one owned by
+        # the criteria that wrote it is no exception.
+        session.add_all(
+            [
+                models.ProjectEvaluatorTrigger(
+                    criteria_id=criteria_id,
+                    event_kind="annotation_upserted",
+                )
+                for criteria_id in (authoring_criteria_id, downstream_criteria_id)
+            ]
+        )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        authoring_criteria_id,
+        scheduling_origin="EXPLICIT",
+    )
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    assert unit.scheduling_origin == "EXPLICIT"
+    executor = _executor(db, evaluation_target="SESSION")
+
+    await executor.evaluate_and_annotate(
+        unit,
+        _hydrated_stub(
+            results=[_evaluation_result("criterion")],
+            evaluator_kind="BUILTIN",
+            output_configs=[],
+        ),
+    )
+    assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer")
+
+    async with db() as session:
+        requests = list(
+            await session.scalars(
+                select(models.EvaluationRequest).order_by(models.EvaluationRequest.id)
+            )
+        )
+    assert sorted(request.criteria_id for request in requests) == sorted(
+        [authoring_criteria_id, downstream_criteria_id]
+    )
+    (annotation,) = await _session_annotations(db)
+    # Metadata is rendered verbatim to users, so it carries the translated word rather
+    # than the column's own vocabulary.
+    assert annotation.metadata_["phoenix.online_eval.scheduling_origin"] == "ON_DEMAND"
+
+
+async def test_every_evaluator_output_is_matched_on_its_own(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A rule authored against a two-output evaluator's second output must be able to
+    fire, so each output is matched on its own."""
+    ingested_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        project_session.last_span_ingested_at = ingested_at
+        trace = await _add_trace(session, project, project_session, start_time=ingested_at)
+        span = await _add_span(session, trace, start_time=ingested_at)
+    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    _, watching_criteria_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    async with db() as session:
+        session.add(
+            models.ProjectEvaluatorTrigger(
+                criteria_id=watching_criteria_id,
+                event_kind="annotation_upserted",
+                predicates={"type": "annotation_upserted", "name": "safety"},
+            )
+        )
+    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    coordinator = DbEvalWorkCoordinator(db)
+    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
+    executor = _executor(db)
+
+    await executor.evaluate_and_annotate(
+        unit,
+        _hydrated_stub(
+            results=[_evaluation_result("quality"), _evaluation_result("safety")],
+            evaluator_kind="BUILTIN",
+            output_configs=[],
+        ),
+    )
+
+    async with db() as session:
+        requests = list(
+            await session.scalars(
+                select(models.EvaluationRequest).order_by(models.EvaluationRequest.id)
+            )
+        )
+    assert [request.criteria_id for request in requests] == [watching_criteria_id]
+    # The rule names the second output, so only that annotation asked for anything.
+    assert requests[0].requested_generation == 1

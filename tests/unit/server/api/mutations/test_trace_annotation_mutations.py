@@ -22,8 +22,18 @@ async def _trace_data(db: DbSessionFactory) -> models.Trace:
         session.add(project)
         await session.flush()
 
+        project_session = models.ProjectSession(
+            session_id=token_hex(8),
+            project_id=project.id,
+            start_time=datetime.datetime.now(),
+            end_time=datetime.datetime.now(),
+        )
+        session.add(project_session)
+        await session.flush()
+
         trace = models.Trace(
             project_rowid=project.id,
+            project_session_rowid=project_session.id,
             trace_id=token_hex(16),
             start_time=datetime.datetime.now(),
             end_time=datetime.datetime.now(),
@@ -80,7 +90,6 @@ class TestTraceAnnotationMutations:
     async def test_trace_annotations_create_upsert_patch_delete(
         self,
         _trace_data: models.Trace,
-        db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
     ) -> None:
         """End-to-end CRUD:

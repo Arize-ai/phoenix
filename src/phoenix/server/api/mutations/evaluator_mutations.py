@@ -1,11 +1,13 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import Enum
 from secrets import token_hex
-from typing import Optional, cast
+from typing import Any, Mapping, Optional, cast
 
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import and_, delete, select, true
+from sqlalchemy import and_, delete, func, select, true, type_coerce
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -13,10 +15,15 @@ from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
+from strawberry.utils.str_converters import to_camel_case
 
 from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    code_evaluator_with_latest_version,
+    delete_projects,
+)
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
@@ -27,6 +34,11 @@ from phoenix.db.types.annotation_configs import (
     FreeformOutputConfig,
     OutputConfigType,
     as_output_configs,
+)
+from phoenix.db.types.evaluator_trigger_predicates import (
+    AnnotationPredicates,
+    TriggerPredicates,
+    TriggerPredicatesType,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
@@ -49,6 +61,7 @@ from phoenix.server.api.input_types.AnnotationConfigInput import (
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
@@ -60,6 +73,14 @@ from phoenix.server.api.types.Evaluator import (
 )
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.ProjectEvaluatorTrigger import (
+    ANNOTATION_TARGET_DESCRIPTION,
+    AnnotationChange,
+    AnnotationTarget,
+    EvaluatorEventKind,
+    ProjectEvaluatorTrigger,
+    to_gql_project_evaluator_trigger,
+)
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.api.types.SandboxConfig import (
     Language,
@@ -83,13 +104,13 @@ _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
 }
 
 _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
-    "session at the first quiet period after the evaluation delay: it applies the session "
-    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
-    "A filter non-match or sampling miss is permanently declined for that evaluator "
-    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
-    "but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN "
-    "target rejects. The target is fixed at creation."
+    "SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once "
+    "per evaluator configuration at the first quiet period after the evaluation delay: it "
+    "applies the session filter first, then deterministic sampling, and schedules admitted "
+    "evaluations asynchronously. Matching trigger rules and explicit requests can schedule "
+    "additional evaluations. An explicit request supersedes an earlier filter or sampling "
+    "decline. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors "
+    "the evaluation delay, which a SPAN target rejects. The target is fixed at creation."
 )
 
 
@@ -550,8 +571,10 @@ class CreateProjectLLMEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. Background evaluation runs "
+            "once per evaluator configuration; matching trigger rules and explicit requests "
+            "can schedule additional evaluations, and an explicit request supersedes an "
+            "earlier declined decision."
         ),
     )
 
@@ -579,8 +602,9 @@ class UpdateProjectLLMEvaluatorInput:
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit to preserve the current setting, or use null "
             f"to store the current default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            "seconds. Background evaluation runs once per evaluator configuration; matching "
+            "trigger rules and explicit requests can schedule additional evaluations, and an "
+            "explicit request supersedes an earlier declined decision."
         ),
     )
 
@@ -608,8 +632,10 @@ class AddProjectCodeEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. Background evaluation runs "
+            "once per evaluator configuration; matching trigger rules and explicit requests "
+            "can schedule additional evaluations, and an explicit request supersedes an "
+            "earlier declined decision."
         ),
     )
 
@@ -624,8 +650,8 @@ class CreateProjectCodeEvaluatorInput:
     evaluator_input_mapping: EvaluatorInputMappingInput
     sampling_rate: float
     evaluation_target: EvaluationTarget
+    output_configs: list[AnnotationConfigInput]
     description: Optional[str] = None
-    output_configs: Optional[list[AnnotationConfigInput]] = None
     input_mapping: Optional[EvaluatorInputMappingInput] = strawberry.field(
         default=None,
         description=(
@@ -642,8 +668,10 @@ class CreateProjectCodeEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. Background evaluation runs "
+            "once per evaluator configuration; matching trigger rules and explicit requests "
+            "can schedule additional evaluations, and an explicit request supersedes an "
+            "earlier declined decision."
         ),
     )
 
@@ -678,8 +706,9 @@ class UpdateProjectCodeEvaluatorInput:
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit to preserve the current setting, or use null "
             f"to store the current default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            "seconds. Background evaluation runs once per evaluator configuration; matching "
+            "trigger rules and explicit requests can schedule additional evaluations, and an "
+            "explicit request supersedes an earlier declined decision."
         ),
     )
 
@@ -1098,14 +1127,13 @@ class EvaluatorMutationMixin:
             input.evaluation_delay_seconds, input.evaluation_target
         )
         _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
-        if input.output_configs is not None:
-            try:
-                validate_unique_config_names(input.output_configs)
-            except ValueError as error:
-                raise BadRequest(str(error))
+        try:
+            validate_unique_config_names(input.output_configs)
+        except ValueError as error:
+            raise BadRequest(str(error))
         output_configs = cast(
             list[AnnotationConfigType],
-            _convert_output_config_inputs_to_pydantic(input.output_configs or []),
+            _convert_output_config_inputs_to_pydantic(input.output_configs),
         )
 
         user_id: Optional[int] = None
@@ -1970,9 +1998,7 @@ class EvaluatorMutationMixin:
                 )
 
             if project_ids:
-                await session.execute(
-                    delete(models.Project).where(models.Project.id.in_(project_ids))
-                )
+                await delete_projects(session, models.Project.id.in_(project_ids))
 
             await _garbage_collect_evaluators(
                 session,
@@ -2608,5 +2634,417 @@ class EvaluatorMutationMixin:
         return CreateCodeEvaluatorVersionPayload(
             evaluator=CodeEvaluator(id=row.id, db_record=row),
             was_created=was_created,
+            query=Query(),
+        )
+
+
+@strawberry.input(
+    description=(
+        "What an annotation must look like for an ANNOTATION_UPSERTED trigger to fire. Fields "
+        "left out do not constrain the match."
+    )
+)
+class ProjectEvaluatorTriggerAnnotationPredicatesInput:
+    name: Optional[str] = UNSET
+    label: Optional[str] = UNSET
+    score_below: Optional[float] = UNSET
+    score_above: Optional[float] = UNSET
+    annotator_kind: Optional[AnnotatorKind] = UNSET
+    annotation_change: Optional[AnnotationChange] = UNSET
+    annotation_target: Optional[AnnotationTarget] = strawberry.field(
+        default=UNSET,
+        description=ANNOTATION_TARGET_DESCRIPTION,
+    )
+
+
+@strawberry.input(
+    description=(
+        "The predicate object must be the one that goes with the event kind. Leaving it out "
+        "makes a trigger that fires on every event of its kind in the project, including "
+        "annotations project evaluators write."
+    )
+)
+class CreateProjectEvaluatorTriggerInput:
+    project_evaluator_id: GlobalID
+    event_kind: EvaluatorEventKind
+    annotation_predicates: Optional[ProjectEvaluatorTriggerAnnotationPredicatesInput] = UNSET
+
+
+@strawberry.input(
+    description=(
+        "A predicate object left out is unchanged; one set to null drops every predicate it "
+        "held, so the trigger fires on every event of its kind in the project, including "
+        "annotations project evaluators write. Inside a predicate object, fields left out are "
+        "unchanged and fields set to null stop constraining the match. Leaving the event kind "
+        "out keeps it."
+    )
+)
+class PatchProjectEvaluatorTriggerInput:
+    project_evaluator_trigger_id: GlobalID
+    event_kind: Optional[EvaluatorEventKind] = UNSET
+    annotation_predicates: Optional[ProjectEvaluatorTriggerAnnotationPredicatesInput] = UNSET
+
+
+@strawberry.input
+class DeleteProjectEvaluatorTriggersInput:
+    project_evaluator_trigger_ids: list[GlobalID]
+
+
+@strawberry.type
+class ProjectEvaluatorTriggerMutationPayload:
+    trigger: ProjectEvaluatorTrigger
+    query: Query
+
+
+@strawberry.type
+class DeleteProjectEvaluatorTriggersPayload:
+    project_evaluator_trigger_ids: list[GlobalID]
+    query: Query
+
+
+_TRIGGER_TARGET_MISMATCH = (
+    "This evaluator does not evaluate sessions. Only an evaluator whose evaluation target "
+    "is SESSION can be given a trigger."
+)
+MAX_PROJECT_EVALUATOR_TRIGGERS = 25
+
+
+@dataclass(frozen=True)
+class _PredicateFamily:
+    """One event kind's JSON predicate model, as trigger mutations need to see it."""
+
+    event_kind: EvaluatorEventKind
+    field_name: str
+    predicate_model: Any
+    columns: tuple[str, ...]
+    defaults: Mapping[str, Any]
+
+
+_PREDICATE_FAMILIES = (
+    _PredicateFamily(
+        event_kind=EvaluatorEventKind.ANNOTATION_UPSERTED,
+        field_name="annotation_predicates",
+        predicate_model=AnnotationPredicates,
+        columns=(
+            "name",
+            "label",
+            "score_below",
+            "score_above",
+            "annotator_kind",
+            "annotation_change",
+            "annotation_target",
+        ),
+        defaults={},
+    ),
+)
+_PREDICATE_FAMILY_BY_EVENT_KIND = {family.event_kind: family for family in _PREDICATE_FAMILIES}
+
+
+def _selected_predicates(input: Any, family: _PredicateFamily) -> Any:
+    """The predicate object for this event kind, refusing one meant for another kind."""
+    for other in _PREDICATE_FAMILIES:
+        if other is not family and getattr(input, other.field_name) is not UNSET:
+            raise BadRequest(
+                f"{to_camel_case(other.field_name)} cannot be set on a trigger whose event "
+                f"kind is {family.event_kind.name}."
+            )
+    return getattr(input, family.field_name)
+
+
+def _predicate_values(predicates: Any, family: _PredicateFamily) -> dict[str, Any]:
+    """The JSON fields named by an input object."""
+    values: dict[str, Any] = {}
+    for column in family.columns:
+        value = getattr(predicates, column, UNSET)
+        if value is not UNSET:
+            values[column] = _enum_value(value)
+    for column, default in family.defaults.items():
+        # Clearing this predicate means "do not constrain", which for a flag is false.
+        if values.get(column, UNSET) is None:
+            values[column] = default
+    return values
+
+
+def _stored_predicate_values(
+    predicates: Optional[TriggerPredicatesType], family: _PredicateFamily
+) -> Optional[dict[str, Any]]:
+    """The JSON fields a stored predicate object carries, without its discriminator."""
+    if predicates is None:
+        return None
+    try:
+        stored = TriggerPredicates(root=predicates).root
+    except ValidationError as error:
+        raise BadRequest(f"Stored trigger predicates are invalid: {error}")
+    if not isinstance(stored, family.predicate_model) or stored.type != family.event_kind.value:
+        raise BadRequest("Stored trigger predicate type does not match its event kind.")
+    return {column: getattr(stored, column) for column in family.columns}
+
+
+def _serialize_predicates(
+    family: _PredicateFamily,
+    values: Mapping[str, Any],
+) -> TriggerPredicatesType:
+    predicates = family.predicate_model(type=family.event_kind.value, **values)
+    assert predicates.type == family.event_kind.value
+    validated = TriggerPredicates(root=predicates).root
+    assert validated.type == family.event_kind.value
+    return validated
+
+
+def _enum_value(value: Any) -> Any:
+    return value.value if isinstance(value, Enum) else value
+
+
+def _raise_if_score_bounds_cannot_match(values: Mapping[str, Any]) -> None:
+    """Refuse a score window no score can fall inside."""
+    above, below = values.get("score_above"), values.get("score_below")
+    if above is None or below is None or above is UNSET or below is UNSET:
+        return
+    if above >= below:
+        raise BadRequest(
+            f"scoreAbove ({above}) must be less than scoreBelow ({below}); no score is both."
+        )
+
+
+async def _raise_on_duplicate_project_evaluator_trigger(
+    session: AsyncSession,
+    *,
+    criteria_id: int,
+    family: _PredicateFamily,
+    predicates: Optional[TriggerPredicatesType],
+    exclude_trigger_id: Optional[int] = None,
+) -> None:
+    """Refuse a second trigger identical to one the evaluator already carries."""
+    wanted = (
+        family.predicate_model(type=family.event_kind.value)
+        if predicates is None
+        else TriggerPredicates(root=predicates).root
+    )
+    stmt = select(
+        models.ProjectEvaluatorTrigger.id,
+        type_coerce(
+            models.ProjectEvaluatorTrigger.__table__.c.predicates,
+            models.JSON_,
+        ).label("predicates"),
+    ).where(
+        models.ProjectEvaluatorTrigger.criteria_id == criteria_id,
+        models.ProjectEvaluatorTrigger.event_kind == family.event_kind.value,
+    )
+    if exclude_trigger_id is not None:
+        stmt = stmt.where(models.ProjectEvaluatorTrigger.id != exclude_trigger_id)
+    for row in await session.execute(stmt):
+        try:
+            stored = (
+                family.predicate_model(type=family.event_kind.value)
+                if row.predicates is None
+                else TriggerPredicates.model_validate(row.predicates).root
+            )
+        except ValidationError:
+            continue
+        if stored.type != family.event_kind.value:
+            continue
+        if stored == wanted:
+            existing = GlobalID(ProjectEvaluatorTrigger.__name__, str(row.id))
+            raise Conflict(
+                f"This project evaluator already has a trigger with these predicates: {existing}"
+            )
+
+
+async def _raise_if_project_evaluator_trigger_limit_reached(
+    session: AsyncSession,
+    *,
+    criteria_id: int,
+) -> None:
+    """Bound synchronous event matching before accepting another trigger."""
+    trigger_count = await session.scalar(
+        select(func.count())
+        .select_from(models.ProjectEvaluatorTrigger)
+        .where(models.ProjectEvaluatorTrigger.criteria_id == criteria_id)
+    )
+    if (trigger_count or 0) >= MAX_PROJECT_EVALUATOR_TRIGGERS:
+        raise BadRequest(
+            f"A project evaluator can have at most {MAX_PROJECT_EVALUATOR_TRIGGERS} triggers."
+        )
+
+
+async def _load_trigger_with_predicates(
+    session: AsyncSession, trigger_id: int
+) -> models.ProjectEvaluatorTrigger:
+    """Re-read a written trigger with its database-side timestamps."""
+    trigger = await session.scalar(
+        select(models.ProjectEvaluatorTrigger)
+        .where(models.ProjectEvaluatorTrigger.id == trigger_id)
+        .execution_options(populate_existing=True)
+    )
+    assert trigger is not None
+    return trigger
+
+
+@strawberry.type
+class ProjectEvaluatorTriggerMutationMixin:
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Add a rule that makes this project evaluator run whenever a matching event "
+            "is recorded. Predicates left out do not constrain the match. The rule applies to "
+            "events recorded after it is created and never to earlier ones; to evaluate "
+            "sessions that already carry a matching annotation, ask for those evaluations "
+            "directly with requestProjectSessionEvaluation."
+        ),
+    )  # type: ignore
+    async def create_project_evaluator_trigger(
+        self, info: Info[Context, None], input: CreateProjectEvaluatorTriggerInput
+    ) -> ProjectEvaluatorTriggerMutationPayload:
+        try:
+            criteria_id = from_global_id_with_expected_type(
+                input.project_evaluator_id, ProjectEvaluator.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        family = _PREDICATE_FAMILY_BY_EVENT_KIND[input.event_kind]
+        predicates = _selected_predicates(input, family)
+        async with info.context.db() as session:
+            # Serialized per evaluator so concurrent authors cannot pass the cap together.
+            criteria = await session.scalar(
+                select(models.ProjectEvaluatorCriteria)
+                .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+                .with_for_update()
+            )
+            if criteria is None:
+                raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
+            if criteria.evaluation_target != "SESSION":
+                raise BadRequest(_TRIGGER_TARGET_MISMATCH)
+            await _raise_if_project_evaluator_trigger_limit_reached(
+                session,
+                criteria_id=criteria_id,
+            )
+            if predicates is UNSET or predicates is None:
+                values = None
+            else:
+                values = _predicate_values(predicates, family)
+            stored_predicates = None if values is None else _serialize_predicates(family, values)
+            _raise_if_score_bounds_cannot_match(values or {})
+            await _raise_on_duplicate_project_evaluator_trigger(
+                session,
+                criteria_id=criteria_id,
+                family=family,
+                predicates=stored_predicates,
+            )
+            trigger = models.ProjectEvaluatorTrigger(
+                criteria_id=criteria_id,
+                event_kind=input.event_kind.value,
+                predicates=stored_predicates,
+            )
+            if trigger.predicates is not None:
+                assert trigger.predicates.type == trigger.event_kind
+            session.add(trigger)
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                raise Conflict(f"Could not create trigger: {error}")
+            payload = to_gql_project_evaluator_trigger(
+                await _load_trigger_with_predicates(session, trigger.id)
+            )
+        return ProjectEvaluatorTriggerMutationPayload(trigger=payload, query=Query())
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description="Change the event kind or the predicates of an existing trigger.",
+    )  # type: ignore
+    async def patch_project_evaluator_trigger(
+        self, info: Info[Context, None], input: PatchProjectEvaluatorTriggerInput
+    ) -> ProjectEvaluatorTriggerMutationPayload:
+        try:
+            trigger_id = from_global_id_with_expected_type(
+                input.project_evaluator_trigger_id, ProjectEvaluatorTrigger.__name__
+            )
+        except ValueError as error:
+            raise BadRequest(str(error))
+        async with info.context.db() as session:
+            trigger = await session.get(models.ProjectEvaluatorTrigger, trigger_id)
+            if trigger is None:
+                raise NotFound(
+                    f"Trigger not found: {input.project_evaluator_trigger_id}",
+                )
+            previous_family = _PREDICATE_FAMILY_BY_EVENT_KIND[
+                EvaluatorEventKind(trigger.event_kind)
+            ]
+            family = (
+                previous_family
+                if input.event_kind is UNSET or input.event_kind is None
+                else _PREDICATE_FAMILY_BY_EVENT_KIND[input.event_kind]
+            )
+            predicates = _selected_predicates(input, family)
+            stored_values = (
+                _stored_predicate_values(trigger.predicates, family)
+                if family is previous_family
+                else None
+            )
+            if predicates is UNSET:
+                values = stored_values
+            elif predicates is None:
+                values = None
+            else:
+                values = {**(stored_values or {}), **_predicate_values(predicates, family)}
+            stored_predicates = None if values is None else _serialize_predicates(family, values)
+            _raise_if_score_bounds_cannot_match(values or {})
+            await _raise_on_duplicate_project_evaluator_trigger(
+                session,
+                criteria_id=trigger.criteria_id,
+                family=family,
+                predicates=stored_predicates,
+                exclude_trigger_id=trigger_id,
+            )
+            try:
+                trigger.event_kind = family.event_kind.value
+                trigger.predicates = stored_predicates
+                if trigger.predicates is not None:
+                    assert trigger.predicates.type == trigger.event_kind
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                raise Conflict(f"Could not update trigger: {error}")
+            payload = to_gql_project_evaluator_trigger(
+                await _load_trigger_with_predicates(session, trigger_id)
+            )
+        return ProjectEvaluatorTriggerMutationPayload(trigger=payload, query=Query())
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description="Remove triggers, leaving the evaluators they belong to in place.",
+    )  # type: ignore
+    async def delete_project_evaluator_triggers(
+        self, info: Info[Context, None], input: DeleteProjectEvaluatorTriggersInput
+    ) -> DeleteProjectEvaluatorTriggersPayload:
+        trigger_ids: list[int] = []
+        for global_id in input.project_evaluator_trigger_ids:
+            try:
+                trigger_ids.append(
+                    from_global_id_with_expected_type(global_id, ProjectEvaluatorTrigger.__name__)
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid trigger id: {global_id}")
+        if not trigger_ids:
+            return DeleteProjectEvaluatorTriggersPayload(
+                project_evaluator_trigger_ids=[], query=Query()
+            )
+        async with info.context.db() as session:
+            deleted = list(
+                await session.scalars(
+                    select(models.ProjectEvaluatorTrigger.id).where(
+                        models.ProjectEvaluatorTrigger.id.in_(trigger_ids)
+                    )
+                )
+            )
+            if deleted:
+                await session.execute(
+                    delete(models.ProjectEvaluatorTrigger).where(
+                        models.ProjectEvaluatorTrigger.id.in_(deleted)
+                    )
+                )
+        return DeleteProjectEvaluatorTriggersPayload(
+            project_evaluator_trigger_ids=[
+                GlobalID(ProjectEvaluatorTrigger.__name__, str(trigger_id))
+                for trigger_id in deleted
+            ],
             query=Query(),
         )

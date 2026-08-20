@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, TypeVar
 
 import sqlalchemy as sa
 from alembic.config import Config
@@ -19,6 +19,8 @@ from . import (
     _up,
     _verify_clean_state,
 )
+
+T = TypeVar("T")
 
 _DOWN = "4aad9107d196"
 _UP = "a7f1c3e9d2b4"
@@ -327,6 +329,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                 db_backend,
             ),
             "ck_eval_session_work_units_`valid_eval_work_status`",
+            "ck_eval_session_work_units_`valid_scheduling_origin`",
         }
         if db_backend == "postgresql":
             index_names.add("pk_eval_session_work_units")
@@ -346,6 +349,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                     "evaluated_through",
                     "transcript_covered_through",
                     "status",
+                    "scheduling_origin",
                     "claimed_at",
                     "claimed_by",
                     "attempts",
@@ -366,6 +370,106 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                     "cooldown_until",
                 }
             ),
+        )
+
+
+class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
+    table_name = "project_evaluator_triggers"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
+        index_names = {
+            "ix_project_evaluator_triggers_criteria_id",
+        }
+        constraint_names = {
+            "pk_project_evaluator_triggers",
+            _constraint_name(
+                "fk_project_evaluator_triggers_criteria_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            "ck_project_evaluator_triggers_`valid_event_kind`",
+        }
+        if db_backend == "postgresql":
+            index_names.add("pk_project_evaluator_triggers")
+        elif db_backend == "sqlite":
+            index_names.add("sqlite_autoindex_project_evaluator_triggers_1")
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(
+                {
+                    "id",
+                    "criteria_id",
+                    "event_kind",
+                    "predicates",
+                    "created_at",
+                    "updated_at",
+                }
+            ),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset({"predicates"}),
+        )
+
+
+class TestEvaluationRequests(_OnlineEvalSchemaTest):
+    table_name = "evaluation_requests"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
+        index_names = {"ix_evaluation_requests_criteria_id_project_session_rowid"}
+        constraint_names = {
+            "pk_evaluation_requests",
+            "uq_evaluation_requests_project_session_rowid_criteria_id",
+            _constraint_name(
+                "fk_evaluation_requests_project_session_rowid_project_sessions",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_evaluation_requests_criteria_id_project_evaluator_criteria",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_evaluation_requests_materialized_by_session_work_unit_id"
+                "_eval_session_work_units",
+                db_backend,
+            ),
+            "ck_evaluation_requests_`valid_requested_generation`",
+            "ck_evaluation_requests_`valid_materialized_generation`",
+        }
+        if db_backend == "postgresql":
+            index_names.update(
+                {
+                    "pk_evaluation_requests",
+                    "uq_evaluation_requests_project_session_rowid_criteria_id",
+                }
+            )
+        elif db_backend == "sqlite":
+            index_names.add("sqlite_autoindex_evaluation_requests_1")
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(
+                {
+                    "id",
+                    "project_session_rowid",
+                    "criteria_id",
+                    "requested_generation",
+                    "materialized_generation",
+                    "force_requested",
+                    "materialized_by_session_work_unit_id",
+                    "requested_at",
+                    "created_at",
+                    "updated_at",
+                }
+            ),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset({"materialized_by_session_work_unit_id"}),
         )
 
 

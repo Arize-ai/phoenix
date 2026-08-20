@@ -85,7 +85,7 @@ input AddProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit or use null to store the current default of 300 seconds. Background evaluation runs once per evaluator configuration; matching trigger rules and explicit requests can schedule additional evaluations, and an explicit request supersedes an earlier declined decision.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -291,6 +291,14 @@ interface Annotation {
   user: User
 }
 
+"""
+Whether an annotation was written for the first time or replaced an earlier value.
+"""
+enum AnnotationChange {
+  CREATED
+  UPDATED
+}
+
 union AnnotationConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
 
 interface AnnotationConfigBase {
@@ -377,6 +385,13 @@ type AnnotationSummary {
   meanScore: Float
   scoreCount: Int!
   labelCount: Int!
+}
+
+"""What an annotation is attached to."""
+enum AnnotationTarget {
+  SPAN
+  TRACE
+  SESSION
 }
 
 enum AnnotationTimeRangeField {
@@ -999,8 +1014,8 @@ input CreateProjectCodeEvaluatorInput {
   evaluatorInputMapping: EvaluatorInputMappingInput!
   samplingRate: Float!
   evaluationTarget: EvaluationTarget!
+  outputConfigs: [AnnotationConfigInput!]!
   description: String = null
-  outputConfigs: [AnnotationConfigInput!] = null
 
   """
   Project-specific CODE input mapping. Null inherits the evaluator input mapping; an object overrides it.
@@ -1010,9 +1025,18 @@ input CreateProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit or use null to store the current default of 300 seconds. Background evaluation runs once per evaluator configuration; matching trigger rules and explicit requests can schedule additional evaluations, and an explicit request supersedes an earlier declined decision.
   """
   evaluationDelaySeconds: Int = null
+}
+
+"""
+The predicate object must be the one that goes with the event kind. Leaving it out makes a trigger that fires on every event of its kind in the project, including annotations project evaluators write.
+"""
+input CreateProjectEvaluatorTriggerInput {
+  projectEvaluatorId: ID!
+  eventKind: EvaluatorEventKind!
+  annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicatesInput
 }
 
 input CreateProjectInput {
@@ -1036,7 +1060,7 @@ input CreateProjectLLMEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit or use null to store the current default of 300 seconds. Background evaluation runs once per evaluator configuration; matching trigger rules and explicit requests can schedule additional evaluations, and an explicit request supersedes an earlier declined decision.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1613,6 +1637,15 @@ input DeleteProjectAnnotationsInput {
   timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
 }
 
+input DeleteProjectEvaluatorTriggersInput {
+  projectEvaluatorTriggerIds: [ID!]!
+}
+
+type DeleteProjectEvaluatorTriggersPayload {
+  projectEvaluatorTriggerIds: [ID!]!
+  query: Query!
+}
+
 input DeleteProjectEvaluatorsInput {
   projectEvaluatorIds: [ID!]!
   deleteAssociatedPrompt: Boolean! = true
@@ -1813,6 +1846,61 @@ type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   error: String
 }
 
+"""
+A standing ask that one session be evaluated by one project evaluator, and how far that ask has got. At most one exists per session and project evaluator: asking again while an earlier ask is outstanding updates the same request.
+"""
+type EvaluationRequest implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  state: EvaluationRequestState!
+
+  """
+  Why this evaluation will never produce a result, or null when it still might. Always null outside the FAILED state.
+  """
+  failureReason: EvaluationRequestFailureReason
+
+  """When this session was most recently asked to be evaluated."""
+  requestedAt: DateTime!
+
+  """
+  Why the evaluation has not started, or null when nothing is holding it back. Always null outside the REQUESTED state.
+  """
+  blockingReason: EvaluationRequestBlockingReason
+  projectSession: ProjectSession!
+  projectEvaluator: ProjectEvaluator!
+}
+
+"""
+Why a requested evaluation has not started yet. SESSION_FILTER_NOT_MATCHED means the session is outside the evaluator's own filter, so the ask waits for the session to come into scope rather than being declined.
+"""
+enum EvaluationRequestBlockingReason {
+  SESSION_ACTIVE
+  EVALUATION_IN_PROGRESS
+  EVALUATOR_NOT_SCHEDULABLE
+  EVALUATOR_VERSION_UNRESOLVED
+  SESSION_FILTER_NOT_MATCHED
+  EVALUATION_CAPACITY_REACHED
+}
+
+"""
+Why a requested evaluation will never produce a result. EVALUATOR_CHANGED means the evaluator was edited while the evaluation was queued, so asking again works; EVALUATOR_ERROR means it ran and gave up; NO_EVALUATION_RECORDED means the ask was closed with no evaluation attached to it.
+"""
+enum EvaluationRequestFailureReason {
+  EVALUATOR_CHANGED
+  EVALUATOR_ERROR
+  NO_EVALUATION_RECORDED
+}
+
+"""
+Where a requested evaluation has reached. REQUESTED means it has been asked for but has not started, QUEUED means it is waiting to run or running, EVALUATED means it produced an annotation, and FAILED means it never will.
+"""
+enum EvaluationRequestState {
+  REQUESTED
+  QUEUED
+  EVALUATED
+  FAILED
+}
+
 type EvaluationResult {
   evaluatorName: String!
   annotation: ExperimentRunAnnotation
@@ -1864,6 +1952,11 @@ type EvaluatorEdge {
 
   """The item at the end of the edge"""
   node: Evaluator!
+}
+
+"""The kind of event a trigger matches on."""
+enum EvaluatorEventKind {
+  ANNOTATION_UPSERTED
 }
 
 """The filter key and value for evaluator connections"""
@@ -2710,27 +2803,27 @@ type Mutation {
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
 
   """
-  Create an LLM project evaluator. SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per session at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted work asynchronously. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
+  Create an LLM project evaluator. SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once per evaluator configuration at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted evaluations asynchronously. Matching trigger rules and explicit requests can schedule additional evaluations. An explicit request supersedes an earlier filter or sampling decline. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
   """
   createProjectLlmEvaluator(input: CreateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Update an LLM project evaluator. SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per session at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted work asynchronously. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
+  Update an LLM project evaluator. SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once per evaluator configuration at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted evaluations asynchronously. Matching trigger rules and explicit requests can schedule additional evaluations. An explicit request supersedes an earlier filter or sampling decline. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
   """
   updateProjectLlmEvaluator(input: UpdateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Bind an existing CODE evaluator to a project. The evaluator's configuration is shared with every project and dataset it is bound to. SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per session at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted work asynchronously. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
+  Bind an existing CODE evaluator to a project. The evaluator's configuration is shared with every project and dataset it is bound to. SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once per evaluator configuration at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted evaluations asynchronously. Matching trigger rules and explicit requests can schedule additional evaluations. An explicit request supersedes an earlier filter or sampling decline. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
   """
   addProjectCodeEvaluator(input: AddProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Create a CODE project evaluator. SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per session at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted work asynchronously. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
+  Create a CODE project evaluator. SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once per evaluator configuration at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted evaluations asynchronously. Matching trigger rules and explicit requests can schedule additional evaluations. An explicit request supersedes an earlier filter or sampling decline. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
   """
   createProjectCodeEvaluator(input: CreateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per session at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted work asynchronously. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
+  Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once per evaluator configuration at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted evaluations asynchronously. Matching trigger rules and explicit requests can schedule additional evaluations. An explicit request supersedes an earlier filter or sampling decline. TRACE evaluators are stored but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN target rejects. The target is fixed at creation.
   """
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
@@ -2783,10 +2876,26 @@ type Mutation {
   Delete every session annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
   """
   deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Add a rule that makes this project evaluator run whenever a matching event is recorded. Predicates left out do not constrain the match. The rule applies to events recorded after it is created and never to earlier ones; to evaluate sessions that already carry a matching annotation, ask for those evaluations directly with requestProjectSessionEvaluation.
+  """
+  createProjectEvaluatorTrigger(input: CreateProjectEvaluatorTriggerInput!): ProjectEvaluatorTriggerMutationPayload!
+
+  """Change the event kind or the predicates of an existing trigger."""
+  patchProjectEvaluatorTrigger(input: PatchProjectEvaluatorTriggerInput!): ProjectEvaluatorTriggerMutationPayload!
+
+  """Remove triggers, leaving the evaluators they belong to in place."""
+  deleteProjectEvaluatorTriggers(input: DeleteProjectEvaluatorTriggersInput!): DeleteProjectEvaluatorTriggersPayload!
   createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
   patchProject(input: PatchProjectInput!): ProjectMutationPayload!
+
+  """
+  Ask that this session be evaluated by this project evaluator. The evaluation runs asynchronously; the returned request reports how far it has got. Asking again while an earlier ask is outstanding updates the same request rather than creating a second one.
+  """
+  requestProjectSessionEvaluation(input: RequestProjectSessionEvaluationInput!): RequestProjectSessionEvaluationPayload!
   createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   patchProjectTraceRetentionPolicy(input: PatchProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   deleteProjectTraceRetentionPolicy(input: DeleteProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
@@ -3014,6 +3123,15 @@ input PatchGenerativeModelCustomProviderMutationInput {
 type PatchGenerativeModelCustomProviderMutationPayload {
   provider: GenerativeModelCustomProvider!
   query: Query!
+}
+
+"""
+A predicate object left out is unchanged; one set to null drops every predicate it held, so the trigger fires on every event of its kind in the project, including annotations project evaluators write. Inside a predicate object, fields left out are unchanged and fields set to null stop constraining the match. Leaving the event kind out keeps it.
+"""
+input PatchProjectEvaluatorTriggerInput {
+  projectEvaluatorTriggerId: ID!
+  eventKind: EvaluatorEventKind
+  annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicatesInput
 }
 
 input PatchProjectInput {
@@ -3312,7 +3430,7 @@ type ProjectEvaluator implements Node {
   samplingRate: Float!
 
   """
-  SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per session at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted work asynchronously. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. The target can change only until evaluation work exists for the project evaluator.
+  SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once per evaluator configuration at the first quiet period after the evaluation delay: it applies the session filter first, then deterministic sampling, and schedules admitted evaluations asynchronously. Matching trigger rules and explicit requests can schedule additional evaluations. An explicit request supersedes an earlier filter or sampling decline. TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. The target can change only until evaluation work exists for the project evaluator.
   """
   evaluationTarget: EvaluationTarget!
 
@@ -3326,7 +3444,12 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
+  Rules that make this evaluator run when a matching event is recorded, in addition to whatever its own schedule already runs. Only SESSION evaluators act on them.
+  """
+  triggers: [ProjectEvaluatorTrigger!]!
+
+  """
+  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. Background evaluation runs once per evaluator configuration; matching trigger rules and explicit requests can schedule additional evaluations, and an explicit request supersedes an earlier declined decision. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
   """
   evaluationDelaySeconds: Int!
   inputMapping: EvaluatorInputMapping!
@@ -3410,6 +3533,79 @@ enum ProjectEvaluatorSchedulabilityStatus {
   NOT_SCHEDULABLE
 }
 
+"""
+A rule saying which events should make its project evaluator run. Its predicates live in the object for its event kind; leaving that object null means the trigger fires on every event of that kind in the project, including annotations project evaluators write. To match a set of values ('label A or B'), add one trigger per value. A trigger applies to events recorded after it is created and never to earlier ones; use requestProjectSessionEvaluation to evaluate sessions that already match.
+"""
+type ProjectEvaluatorTrigger implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  eventKind: EvaluatorEventKind!
+
+  """
+  What an annotation must look like for this trigger to fire, or null to match every annotation written in the project, whoever wrote it.
+  """
+  annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicates
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """The project evaluator this trigger runs."""
+  projectEvaluator: ProjectEvaluator!
+}
+
+"""
+What an annotation must look like for its trigger to fire. Every predicate is optional, and leaving one null means it does not constrain the match.
+"""
+type ProjectEvaluatorTriggerAnnotationPredicates {
+  """Match only annotations written under this name."""
+  name: String
+
+  """Match only this annotation label."""
+  label: String
+
+  """
+  Match only scores strictly below this value; unscored results never match.
+  """
+  scoreBelow: Float
+
+  """
+  Match only scores strictly above this value; unscored results never match.
+  """
+  scoreAbove: Float
+
+  """Match only annotations from this kind of annotator."""
+  annotatorKind: AnnotatorKind
+
+  """Match only new or only replaced annotations."""
+  annotationChange: AnnotationChange
+
+  """
+  Match only annotations attached to this kind of entity. Annotations on spans or traces outside any session cannot match SESSION evaluators.
+  """
+  annotationTarget: AnnotationTarget
+}
+
+"""
+What an annotation must look like for an ANNOTATION_UPSERTED trigger to fire. Fields left out do not constrain the match.
+"""
+input ProjectEvaluatorTriggerAnnotationPredicatesInput {
+  name: String
+  label: String
+  scoreBelow: Float
+  scoreAbove: Float
+  annotatorKind: AnnotatorKind
+  annotationChange: AnnotationChange
+
+  """
+  Match only annotations attached to this kind of entity. Annotations on spans or traces outside any session cannot match SESSION evaluators.
+  """
+  annotationTarget: AnnotationTarget
+}
+
+type ProjectEvaluatorTriggerMutationPayload {
+  trigger: ProjectEvaluatorTrigger!
+  query: Query!
+}
+
 """The filter key and value for project connections"""
 input ProjectFilter {
   col: ProjectFilterColumn!
@@ -3451,6 +3647,11 @@ type ProjectSession implements Node {
   traceLatencyMsQuantile(probability: Float!): Float
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+
+  """
+  How far this session's evaluation by the given project evaluator has got, or null if it has never been asked for.
+  """
+  evaluationRequest(projectEvaluatorId: ID!): EvaluationRequest
   sessionAnnotations: [ProjectSessionAnnotation!]!
 
   """Summarizes each annotation (by name) associated with the session"""
@@ -4173,6 +4374,21 @@ input RemoveAnnotationConfigFromProjectInput {
 type RemoveAnnotationConfigFromProjectPayload {
   query: Query!
   project: Project!
+}
+
+input RequestProjectSessionEvaluationInput {
+  projectSessionId: ID!
+  projectEvaluatorId: ID!
+
+  """
+  Ask for a fresh evaluation even when this session already has one from the same evaluator configuration. Without it, an existing result answers the request.
+  """
+  force: Boolean! = false
+}
+
+type RequestProjectSessionEvaluationPayload {
+  evaluationRequest: EvaluationRequest!
+  query: Query!
 }
 
 union ResolvedSecret = DecryptedSecret | UnparsableSecret
@@ -5258,7 +5474,7 @@ input UpdateProjectCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit to preserve the current setting, or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit to preserve the current setting, or use null to store the current default of 300 seconds. Background evaluation runs once per evaluator configuration; matching trigger rules and explicit requests can schedule additional evaluations, and an explicit request supersedes an earlier declined decision.
   """
   evaluationDelaySeconds: Int
 }
@@ -5279,7 +5495,7 @@ input UpdateProjectLLMEvaluatorInput {
   promptVersionId: ID
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit to preserve the current setting, or use null to store the current default of 300 seconds. A session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is 10 seconds. Only SESSION scheduling honors a delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators are stored but not scheduled. Omit to preserve the current setting, or use null to store the current default of 300 seconds. Background evaluation runs once per evaluator configuration; matching trigger rules and explicit requests can schedule additional evaluations, and an explicit request supersedes an earlier declined decision.
   """
   evaluationDelaySeconds: Int
 }
