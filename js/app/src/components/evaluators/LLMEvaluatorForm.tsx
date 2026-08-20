@@ -58,9 +58,6 @@ export const LLMEvaluatorForm = ({
               <TemplateFormatRadioGroup size="S" showNoneOption={false} />
             </Flex>
           </Flex>
-          <Text color="text-500">
-            Define or load a prompt for your evaluator.
-          </Text>
         </Flex>
       </View>
       <Flex direction="column" gap="size-100">
@@ -76,9 +73,6 @@ export const LLMEvaluatorForm = ({
             <Heading level={2} weight="heavy">
               Evaluator Annotation
             </Heading>
-            <Text color="text-500">
-              Define the annotation that your evaluator will create.
-            </Text>
             {isCategoricalAnnotationConfig ? (
               <EvaluatorCategoricalChoiceConfig />
             ) : null}
@@ -92,9 +86,7 @@ export const LLMEvaluatorForm = ({
             Map Prompt Variables (optional)
           </Heading>
           <Text color="text-500">
-            Map the variables in your prompt to your dataset example and task
-            output fields. You can leave these blank if your variable names
-            match the field names.
+            Variables left blank are matched to fields of the same name.
           </Text>
           <View
             borderRadius="medium"
