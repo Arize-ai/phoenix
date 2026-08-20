@@ -67,9 +67,11 @@ import type {
 import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
-import { BOUND_VARIABLES_PLACEMENT } from "@phoenix/pages/project/evaluators/boundVariablesPlacement";
-import { getEvaluatorBoundVariableNames } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
-import { ProjectEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBoundVariables";
+import {
+  getEvaluatorBoundVariableNames,
+  getEvaluatorBoundVariables,
+} from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { toBoundValueDisplay } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
   dropOtherGrainEntityPathMappings,
@@ -1186,12 +1188,6 @@ function RecordedRunRow({
                         requiredVariables={requiredVariables}
                         isSampleContext={row.isSample}
                       />
-                      {BOUND_VARIABLES_PLACEMENT === "scope-panel" ? (
-                        <ProjectEvaluatorBoundVariables
-                          grain={recordNoun === "session" ? "session" : "span"}
-                          showHeading={false}
-                        />
-                      ) : null}
                     </Flex>
                   </TabPanel>
                   <TabPanel id="context">
@@ -1310,6 +1306,10 @@ type BindingRow = {
   path?: string;
   /** A default with no path — described in prose, never in path notation. */
   derivedAnnotation?: string;
+  /** One line on the name, shown on hover. */
+  description?: string;
+  /** Stands in for the value until a record supplies one. */
+  typeHint?: string;
   value: unknown;
 };
 
@@ -1386,6 +1386,17 @@ function BindingPreview({
       path: diagnostic.path,
       value: resolvedValue(diagnostic),
     }));
+  // The record's own names, in the same grammar: to the binding layer these
+  // and the slots are one namespace — the slots merely come with defaults.
+  const hasRecordValues = Object.keys(boundVariables).length > 0;
+  const vocabularyRows: BindingRow[] = getEvaluatorBoundVariables(grain)
+    .filter(({ name }) => !(name in pathMapping))
+    .map(({ name, type, description }) => ({
+      keyword: name,
+      description,
+      typeHint: hasRecordValues ? undefined : type,
+      value: boundVariables[name],
+    }));
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
@@ -1397,7 +1408,7 @@ function BindingPreview({
           Values fill in once this project has a {recordNoun} that matches.
         </Alert>
       ) : null}
-      {[...slotRows, ...mappedRows].map((row) => (
+      {[...slotRows, ...mappedRows, ...vocabularyRows].map((row) => (
         <BindingPreviewRow
           key={row.keyword}
           row={row}
@@ -1440,6 +1451,14 @@ function BindingPreview({
   );
 }
 
+/** A value a single line cannot show whole earns the expand affordance. */
+function isExpandableBindingValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.length > 80;
+  }
+  return typeof value === "object" && value !== null;
+}
+
 function BindingPreviewRow({
   row,
   isExpanded,
@@ -1450,6 +1469,38 @@ function BindingPreviewRow({
   onToggleExpanded: () => void;
 }) {
   const isTextValue = typeof row.value === "string";
+  const isExpandable = isExpandableBindingValue(row.value);
+  const display = toBoundValueDisplay(row.value);
+  const annotation = row.path ? (
+    <code className="binding-row__path">← {row.path}</code>
+  ) : row.derivedAnnotation ? (
+    <span className="binding-row__path binding-row__path--derived">
+      ← {row.derivedAnnotation}
+    </span>
+  ) : null;
+  const head = (
+    <>
+      <code className="binding-row__keyword" title={row.description}>
+        {row.keyword}
+      </code>
+      {annotation}
+      {isExpandable && isExpanded ? null : (
+        <span className="binding-row__value" title={display.exact}>
+          {display.text ?? row.typeHint ?? "—"}
+        </span>
+      )}
+    </>
+  );
+  if (!isExpandable) {
+    return (
+      <div css={bindingRowCSS}>
+        <div className="binding-row__toggle binding-row__toggle--static">
+          <span className="binding-row__chevron-spacer" />
+          {head}
+        </div>
+      </div>
+    );
+  }
   return (
     <div css={bindingRowCSS} data-expanded={isExpanded}>
       <button
@@ -1461,19 +1512,7 @@ function BindingPreviewRow({
         <Icon
           svg={isExpanded ? <Icons.ChevronDown /> : <Icons.ChevronRight />}
         />
-        <code className="binding-row__keyword">{row.keyword}</code>
-        {row.path ? (
-          <code className="binding-row__path">← {row.path}</code>
-        ) : row.derivedAnnotation ? (
-          <span className="binding-row__path binding-row__path--derived">
-            ← {row.derivedAnnotation}
-          </span>
-        ) : null}
-        {isExpanded ? null : (
-          <span className="binding-row__value">
-            {getBoundValueSnippet(row.value)}
-          </span>
-        )}
+        {head}
       </button>
       {isExpanded ? (
         <div className="binding-row__detail">
@@ -1498,6 +1537,7 @@ const bindingRowCSS = css`
     border-color: var(--global-border-color-default);
   }
   .binding-row__toggle {
+    box-sizing: border-box;
     width: 100%;
     display: flex;
     align-items: center;
@@ -1534,7 +1574,17 @@ const bindingRowCSS = css`
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-500);
   }
+  .binding-row__toggle--static {
+    cursor: default;
+  }
+  .binding-row__chevron-spacer {
+    display: inline-block;
+    width: var(--global-dimension-size-200);
+    flex: none;
+  }
   .binding-row__value {
+    margin-left: auto;
+    text-align: right;
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
@@ -1593,13 +1643,6 @@ function getLatestMessageText(value: unknown): string | null {
     }
   }
   return null;
-}
-
-function getBoundValueSnippet(value: unknown): string {
-  if (value === undefined) {
-    return "";
-  }
-  return toContentPreview(value, { maxLength: 120 }) ?? "";
 }
 
 /**
