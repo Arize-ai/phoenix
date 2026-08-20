@@ -129,7 +129,7 @@ export interface paths {
          *
          *     - The request must either supply both `start_time` AND `end_time`
          *       to bound the delete to a `[start_time, end_time)` time window,
-         *       OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+         *       OR set `delete_all=true` to acknowledge an unbounded deletion. A request
          *       that satisfies neither is rejected with 422.
          *     - `name`, `identifier`, and `annotator_kind` are optional narrowing
          *       filters; on their own they do NOT authorize the request — they only
@@ -175,7 +175,7 @@ export interface paths {
          *
          *     - The request must either supply both `start_time` AND `end_time`
          *       to bound the delete to a `[start_time, end_time)` time window,
-         *       OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+         *       OR set `delete_all=true` to acknowledge an unbounded deletion. A request
          *       that satisfies neither is rejected with 422.
          *     - `name`, `identifier`, and `annotator_kind` are optional narrowing
          *       filters; on their own they do NOT authorize the request — they only
@@ -221,7 +221,7 @@ export interface paths {
          *
          *     - The request must either supply both `start_time` AND `end_time`
          *       to bound the delete to a `[start_time, end_time)` time window,
-         *       OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+         *       OR set `delete_all=true` to acknowledge an unbounded deletion. A request
          *       that satisfies neither is rejected with 422.
          *     - `name`, `identifier`, and `annotator_kind` are optional narrowing
          *       filters; on their own they do NOT authorize the request — they only
