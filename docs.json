@@ -478,6 +478,7 @@
                 "group": "Arize AX",
                 "root": "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
                 "pages": [
+                  "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
                   "docs/phoenix/resources/phoenix-to-arize-ax-migration"
                 ]
               },
