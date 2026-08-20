@@ -127,7 +127,7 @@ of `and`, `or`, and `not`. A condition is one of:
 | Chained comparison | `0.5 < latency_ms < 1000` | yes | yes |
 | Logical combination | `a == 1 and b == 2` | yes | yes |
 | Bare annotation (existence check) | `annotations['quality']` | yes | yes |
-| Quantifier over a collection | `any(d.cost > 1 for d in span.cost_details)` | yes | yes |
+| Quantifier over a collection | `any(d.cost > 1 for d in cost_details)` | yes | yes |
 | Boolean literal | `True`, `False` | **no** | yes |
 
 Anything else in either position is rejected. See
@@ -139,14 +139,14 @@ one of those six, range over a declared collection through a single `for` with a
 simple loop variable, and reference that variable only through the collection's
 declared element fields. `len` takes a list comprehension, the rest take a
 generator — inherited from CPython, where `len` needs a sized argument. The
-grain declares one collection, `span.cost_details`.
+grain declares one collection, `cost_details`.
 
 **Inside a comprehension the dialect is strict**, unlike the grain around it.
 The outer surface is permissive because its accepted conditions are a
 compatibility promise; a collection scope is new and owes nothing, so it gets
 the family's typed dialect — every sub-expression resolves to a type before SQL
 is built, and a mismatch is rejected by name. `any(x.cost > 'abc' for x in
-span.cost_details)` is refused here and `latency_ms > '100'` is not, and that
+cost_details)` is refused here and `latency_ms > '100'` is not, and that
 asymmetry is deliberate.
 
 Three consequences worth stating, because each is stricter than the enclosing
@@ -154,9 +154,9 @@ grain:
 
 - **Nothing reaches out of the scope.** The loop variable's fields are the whole
   vocabulary. `attributes[...]`, `metadata[...]`, a legacy spelling like
-  `context.span_id`, a grain column like `latency_ms`, and the reserved root
-  itself are all rejected — compare them outside and conjoin instead:
-  `span.total_cost > 1 and any(...)`. This is enforcement, not style: the eval
+  `context.span_id`, and a grain name like `latency_ms` or `total_cost` are all
+  rejected — compare them outside and conjoin instead:
+  `total_cost > 1 and any(...)`. This is enforcement, not style: the eval
   globals for a comprehension bind element columns and nothing else, so anything
   else that typed here would compile and then raise when the query is built,
   outside the error boundary.
@@ -211,67 +211,61 @@ compatibility surface, not an implementation detail.
 supported. A span attribute literally named `parent_span` is still reachable as
 `attributes['parent_span']`.
 
-**Reserved root** — `span`, over a closed set of members reading this span's own
-cost row (`span_costs`, joined on demand — see [Reserved
-roots](#reserved-roots)):
+**Cost** — bare names reading this span's own cost row (`span_costs`, joined on
+demand — see [Cost names](#cost-names)):
 
-- **Number** — `span.total_cost`, `span.prompt_cost`, `span.completion_cost`,
-  `span.total_tokens`, `span.prompt_tokens`, `span.completion_tokens`,
-  `span.total_cost_per_token`, `span.prompt_cost_per_token`,
-  `span.completion_cost_per_token`
-- **Collection** — `span.cost_details`, iterable only, with element fields
+- **Number** — `total_cost`, `prompt_cost`, `completion_cost`,
+  `total_tokens`, `prompt_tokens`, `completion_tokens`,
+  `total_cost_per_token`, `prompt_cost_per_token`,
+  `completion_cost_per_token`
+- **Collection** — `cost_details`, iterable only, with element fields
   `token_type` (string), `is_prompt` (boolean), `cost`, `tokens`,
   `cost_per_token` (number)
-
-`span.attributes[...]` is deliberately **not** a member: `attributes` remains
-the spelling for the dynamic namespace, and admitting a second one would make
-the root's closure meaningless.
 
 **This list is exhaustive.** Every identifier not named above — including ones
 that look like span columns, such as `events` — resolves to an attribute path,
 not a column. `events == 'x'` compiles to a comparison against
 `attributes['events']` and has nothing to do with the `events` column on the
-table. This holds for the cost members too: they are reachable *only* through
-the root, so a bare `total_cost` or `cost_details` is still an attribute path.
+table. The cost names are the newest entries on it: each one was an attribute
+path until it was added.
 
 Reading the vocabulary out of the code is easy to get wrong here. `_NAMES` is
 the **evaluation namespace** handed to `eval`, and it binds `attributes` and
 `events` because the compiled expression needs them; it is not the set of names
 a user may write. The user-facing vocabulary is
 `_STRING_NAMES ∪ _FLOAT_NAMES ∪ _DATETIME_NAMES ∪ _FLOAT_ATTRIBUTES` plus the
-reserved keyword and the reserved root's members — exactly the list above. The
-root's members are likewise absent from `_NAMES`: they are bound per-instance
-against an aliased join, which is also why `Projector` does not resolve them.
+reserved keyword and the cost names — exactly the list above. The cost names are
+likewise absent from `_NAMES`: they are bound per-instance against an aliased
+join, which is also why `Projector` does not resolve them.
 
-### Reserved roots
+### Cost names
 
-A reserved root is the third kind of dotted spelling this language has, and the
-three differ in what lies beneath them:
+The cost members are ordinary bare names: they sit in the same vocabulary as
+`latency_ms` and resolve ahead of the dynamic attribute namespace. That makes
+adding them a **breaking change** (§6 of the design principles), and a quieter
+one than most:
 
 | Kind | Example | Resolves to |
 |---|---|---|
 | Backward-compatibility alias | `context.span_id` | a name that also has a bare spelling |
 | Attribute path | `llm.token_count.total` | *into* the dynamic namespace |
-| Reserved root | `span.total_cost` | a closed set; shadows the dynamic namespace beneath it |
+| Grain vocabulary | `latency_ms`, `total_cost` | a column or joined value, ahead of the dynamic namespace |
 
-Closure is the point. A bare identifier falls back to the dynamic namespace, so
-a misspelling silently matches nothing; nothing lies beneath a reserved root, so
-`span.totl_cost` is rejected by name with a suggestion. The cost of that
-property is that reserving a root is a **breaking change** for conditions that
-keyed an attribute under it (§6 of the design principles): the bare dotted
-spelling `span.x` used to read `attributes['span']['x']` and now errors.
+Ten names — the nine numbers and `cost_details` — moved from the second row to
+the third. A stored condition that keyed an attribute of one of those names does
+not error: it silently starts reading the span's own cost instead. The subscript
+spelling is untouched and is the migration for anyone affected —
+`attributes['total_cost']` reads the flat key `$."total_cost"` it always did.
 
-Only that spelling breaks, and the migration preserves the JSON path exactly —
-rewrite `span.x` as `attributes['span']['x']`. Both subscript spellings are
-untouched, and they are *different keys*: `attributes['span']['x']` is the nested
-path `$."span"."x"` that `span.x` meant, while `attributes['span.x']` is the flat
-key `$."span.x"` that it never meant. Neither errors, before or after.
-
-It fails loudly, which is the better half of
-the trade, and the root was chosen because neither OTel nor OpenInference
-defines attributes under `span.`. Any future root must be checked the same way:
-`session.` in particular is a real semantic-convention key
-(`SpanAttributes.SESSION_ID`) and is *not* free to reserve.
+Closure was the alternative and was not taken. Reserving a dotted root (`span.`,
+over a closed member set) would have kept these off the bare namespace entirely
+and made a misspelling answerable by name, at the cost of a loud break on every
+`span.x` spelling. Bare names were chosen for ergonomics; the price is that
+`totl_cost` falls back to an attribute path that matches nothing and says
+nothing, exactly as any other misspelled bare name does. Note for any future
+addition: a name is only free to claim if no semantic convention defines it —
+`session_id` in particular is a real OpenInference key
+(`SpanAttributes.SESSION_ID`).
 
 **Cross-grain convention.** A grain-scoped rollup carries the grain prefix only
 where the grain requires one. The session grain spells the same concept bare
@@ -286,22 +280,22 @@ Once a root is reserved, adding members to it later is additive: an unknown
 member already errors, so admitting one cannot change what an accepted
 condition meant.
 
-**Traversal past a member** (`span.total_cost.x`, `span['total_cost']`) is
+**Traversal past a member** (`total_cost.x`, `span['total_cost']`) is
 rejected: the root exposes its fields directly and nothing further.
 
 The root **can** be shadowed by a loop variable, following Python's scoping
 rather than departing from it. In `any(span.cost > 1 for span in
-span.cost_details)` the `span` on the right of `in` is the root — Python
+cost_details)` the `span` on the right of `in` is the root — Python
 evaluates the outermost `for` clause's iterable in the enclosing scope — and
 every other `span` in the line is the element. Inside such a comprehension the
 filtered row is unreachable, exactly as a shadowed name is in Python.
 
 **Missing values.** Cost and token members coalesce to `0`, matching the session
 grain's rollups so that one name means one thing across grains — a span with no
-cost row answers `span.total_cost == 0`. The three `*_cost_per_token` ratios do
+cost row answers `total_cost == 0`. The three `*_cost_per_token` ratios do
 not: a span with no cost row has no rate to report, and coalescing would assert
 one. They are NULL and so fail every comparison, per [Unknown
-types](#unknown-types). Element fields of `span.cost_details` are likewise
+types](#unknown-types). Element fields of `cost_details` are likewise
 nullable — a detail row's missing `cost` is a fact about that row.
 
 ### Backward-compatibility aliases
@@ -998,9 +992,10 @@ decision should be made knowing it.
   identifiers resolve to attributes, so a first-class field can never again be
   added under the current resolution rule without changing stored meanings
   (see principle 6). If the field vocabulary is expected to grow — and
-  observability schemas do — the strategy (a namespace such as
+  observability schemas do — the strategy (a reserved namespace such as
   `span.<field>`, or freezing the vocabulary outright) has to be picked while
-  choosing is still possible.
+  choosing is still possible. The cost names spent one such collision already:
+  see [Cost names](#cost-names).
 
 ---
 
@@ -1541,15 +1536,11 @@ and, where possible, suggest the repair.
 | Unsupported unary operator | `unsupported operator: ~latency_ms` |
 | Unsupported literal | `unsupported literal: b'abc'` |
 | `parent_span` traversal | ``​`parent_span.name` is not supported: ... only `parent_span is None` and `parent_span is not None` are supported`` |
-| Unknown member of a reserved root | ``invalid field `span.totl_cost`, did you mean `span.total_cost`?`` (or `expected …` when nothing is close) |
-| Traversal past a reserved root's member | ``​`span.total_cost.x` is not supported: `span` exposes its fields directly (`span.<field>`) and cannot be traversed further`` |
-| Bare reserved root | ``​`span` can only be used as `span.<field>`​`` |
-| Collection in value position | ``​`span.cost_details` is a collection and can only be iterated, e.g. `any(x.<field> == "..." for x in span.cost_details)`​`` |
-| Reduction without a comprehension | ``​`len(...)` takes a comprehension over span.cost_details, e.g. `len([x for x in span.cost_details])`​`` (the example is per kind) |
-| Unknown iterable | ``invalid iterable `cost_details`, did you mean "span.cost_details"?`` |
+| Collection in value position | ``​`cost_details` is a collection and can only be iterated, e.g. `any(x.<field> == "..." for x in cost_details)`​`` |
+| Reduction without a comprehension | ``​`len(...)` takes a comprehension over cost_details, e.g. `len([x for x in cost_details])`​`` (the example is per kind) |
+| Unknown iterable | ``invalid iterable `cost_detals`, did you mean "cost_details"?`` |
 | Unknown element field | ``invalid field `d.nope`, expected one of cost, cost_per_token, is_prompt, token_type, or tokens`` |
-| Element field where a top-level name was written | ``​`latency_ms` is a span-level term, not a span.cost_details element field; …`` |
-| Reserved root inside a comprehension | ``​`span.total_cost` reads the filtered row, which is not reachable inside a comprehension over `span.cost_details`; …`` |
+| Element field where a top-level name was written | ``​`latency_ms` is a span-level term, not a cost_details element field; …`` |
 | Element operand type | ``cannot compare `x.cost` (a number) with `'abc'` (text)`` |
 | Reduction over a non-number | ``​`sum(...)` reduces numbers, and `x.token_type` is text; …`` |
 | Unknown annotation member | ``invalid eval attribute `.x` in `...`, expected `.score` or …`` |
