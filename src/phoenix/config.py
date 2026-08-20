@@ -323,16 +323,6 @@ throughput.
 
 Defaults to 20000.
 """
-ENV_PHOENIX_ONLINE_EVAL_ENABLED = "PHOENIX_ONLINE_EVAL_ENABLED"
-"""
-Whether to run the online-eval producer and consumer daemons. Defaults to false.
-"""
-ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED = "PHOENIX_ONLINE_EVAL_SESSION_ENABLED"
-"""
-Whether to also run session evaluation, meaning both the sweeper that materializes
-session work and the consumer that executes it. Requires the online-eval daemons.
-Defaults to false.
-"""
 ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS = "PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS"
 """
 How long an observed span high-water id must age before the online-eval producer scans up
@@ -3532,26 +3522,6 @@ def get_env_max_spans_queue_size() -> int:
             f"{max_size}. Value must be a positive integer."
         )
     return max_size
-
-
-def get_env_online_eval_enabled() -> bool:
-    """
-    Gets the value of the PHOENIX_ONLINE_EVAL_ENABLED environment variable.
-    """
-    return _bool_val(ENV_PHOENIX_ONLINE_EVAL_ENABLED, False)
-
-
-def get_env_online_eval_session_enabled() -> bool:
-    """
-    Gets the value of the PHOENIX_ONLINE_EVAL_SESSION_ENABLED environment variable.
-
-    Gates session evaluation end to end: with it off, neither the sweeper that
-    materializes session work nor the consumer that executes it runs. Session
-    evaluation is enabled by default, so setting this variable false is what turns
-    it off. It stays subordinate to PHOENIX_ONLINE_EVAL_ENABLED: when that master
-    gate is off, no session evaluation runs no matter what this variable says.
-    """
-    return _bool_val(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, True)
 
 
 def get_env_online_eval_frontier_lag_seconds() -> float:
