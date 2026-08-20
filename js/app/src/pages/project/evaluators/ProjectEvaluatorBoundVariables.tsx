@@ -22,7 +22,7 @@ const DISPLAY_SIGNIFICANT_DIGITS = 4;
  * the row is rounded and the full number stays one hover away. Whole numbers
  * and everything that is not a number are already exact.
  */
-function toBoundValueDisplay(value: unknown): {
+export function toBoundValueDisplay(value: unknown): {
   text: string | undefined;
   exact?: string;
 } {
