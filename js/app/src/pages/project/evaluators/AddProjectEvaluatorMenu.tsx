@@ -86,7 +86,7 @@ function AddProjectEvaluatorMenuItems() {
             leadingContent={<Icon svg={<Icons.Grid />} />}
             id="browseGallery"
           >
-            Browse evaluator gallery
+            Browse the whole library
           </MenuItem>
         </MenuSection>
         <MenuSection>

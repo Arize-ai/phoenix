@@ -9,6 +9,7 @@ import { RouterProvider } from "react-router/dom";
 
 import { buildRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/catalog";
 import { registerRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/routeCatalogRegistry";
+import type { ParentCrumbToFn } from "@phoenix/hooks/useMatchesWithCrumb";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -541,6 +542,10 @@ export const appRouteObjects = createRoutesFromElements(
               element={<ProjectEvaluatorGalleryPage />}
               handle={{
                 crumb: () => "Evaluator gallery",
+                parentCrumbTo: (({ parentPathname, search }) => ({
+                  pathname: `${parentPathname}/evaluators`,
+                  search,
+                })) satisfies ParentCrumbToFn,
                 agentRoute: {
                   label: "Project Evaluator Gallery",
                   description:
