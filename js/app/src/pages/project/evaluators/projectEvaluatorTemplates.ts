@@ -1,7 +1,6 @@
 import { graphql } from "react-relay";
 import z from "zod";
 
-import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import type { projectEvaluatorTemplatesQuery$data } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
@@ -368,7 +367,7 @@ export function buildTemplateCreationMode(
         }
       ),
       templateFormat: "MUSTACHE",
-      includeExplanation: inferIncludeExplanationFromPrompt(undefined),
+      includeExplanation: true,
     },
   };
 }
