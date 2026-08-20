@@ -92,14 +92,22 @@ const statTileCSS = css`
 `;
 
 const statRowCSS = css`
-  display: flex;
-  flex-direction: row;
-  gap: var(--global-dimension-size-200);
+  /* The row is its own query container, so wrapping follows the space the row
+     actually has rather than requiring the caller to establish one. */
+  container-type: inline-size;
 
-  /* One headline number per line rather than four unreadable slivers. */
+  .evaluator-stat-row__track {
+    display: flex;
+    flex-direction: row;
+    gap: var(--global-dimension-size-200);
+  }
+
+  /* Two per line rather than four unreadable slivers. */
   @container (max-width: 800px) {
-    flex-wrap: wrap;
-    > * {
+    .evaluator-stat-row__track {
+      flex-wrap: wrap;
+    }
+    .evaluator-stat-row__track > * {
       flex-basis: calc(50% - var(--global-dimension-size-100));
     }
   }
@@ -107,7 +115,11 @@ const statRowCSS = css`
 
 /** A row of headline numbers, sized so each tile shares the width evenly. */
 export function EvaluatorStatRow({ children }: PropsWithChildren) {
-  return <div css={statRowCSS}>{children}</div>;
+  return (
+    <div css={statRowCSS}>
+      <div className="evaluator-stat-row__track">{children}</div>
+    </div>
+  );
 }
 
 /**
