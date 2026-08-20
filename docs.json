@@ -1014,6 +1014,19 @@
                 "group": "API Reference",
                 "pages": [
                   {
+                    "group": "Agent Sessions",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/create-a-session",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-sessions",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/get-a-session-by-id",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/update-a-session",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-session-messages",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/submit-tool-outputs",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/compact-a-session",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/chat-with-a-session"
+                    ]
+                  },
+                  {
                     "group": "Annotation Configs",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations",

@@ -12,7 +12,7 @@
 
 ## Quick Start
 
-- [Agent-Assisted Setup](https://arize.com/docs/phoenix/agent-assisted-setup): Let your coding agent instrument your app and verify traces with px setup
+- [Agent-Assisted Setup](https://arize.com/docs/phoenix/agent-assisted-setup): Add Phoenix tracing with one command — px setup hands instrumentation to your coding agent and verifies a real trace arrives
 - [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing): Instrument an app and send your first traces to Phoenix
 - [Evaluations Quickstart](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Run your first LLM evaluator and view results
 - [Playground Quickstart](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground): Test prompt variations against real examples in the Playground
@@ -537,6 +537,17 @@
 - [OpenInference Java](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java): Build custom Java instrumentors with OpenInference semantic conventions
 - [OpenInference JavaScript](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript): Build custom JS instrumentors with OpenInference semantic conventions
 
+
+### REST API — Agent Sessions
+
+- [Create A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/create-a-session): POST /v1/agent_sessions — start a new PXI agent session
+- [List Sessions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-sessions): GET /v1/agent_sessions — paginate agent sessions
+- [Get A Session By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/get-a-session-by-id): GET /v1/agent_sessions/{session_id} — fetch a single session
+- [Update A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/update-a-session): PATCH /v1/agent_sessions/{session_id} — rename a session or switch its model
+- [List Session Messages](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-session-messages): GET /v1/agent_sessions/{session_id}/messages — page through a session's transcript
+- [Submit Tool Outputs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/submit-tool-outputs): POST /v1/agent_sessions/{session_id}/tool_outputs — return results for pending tool calls
+- [Compact A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/compact-a-session): POST /v1/agent_sessions/{session_id}/compact — summarize older turns into a checkpoint
+- [Chat With A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/chat-with-a-session): POST /v1/agent_sessions/{session_id}/chat — send a turn and stream the agent's response
 
 ### REST API — Annotation Configs
 
