@@ -38,8 +38,6 @@ NC := \033[0m # No Color
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
-	gen-session-filter-ai-query-vocabulary check-session-filter-ai-query-vocabulary \
-	gen-trace-filter-ai-query-vocabulary check-trace-filter-ai-query-vocabulary \
 	gh-comment-watch \
 	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
 	clean clean-all
@@ -104,10 +102,6 @@ help: ## Show this help message
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL and SQLite (use ARGS=/SQLITE_ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
-	@echo -e "  gen-session-filter-ai-query-vocabulary   - Generate the session AI query vocabulary"
-	@echo -e "  check-session-filter-ai-query-vocabulary - Check the session AI query vocabulary for drift"
-	@echo -e "  gen-trace-filter-ai-query-vocabulary     - Generate the trace AI query vocabulary"
-	@echo -e "  check-trace-filter-ai-query-vocabulary   - Check the trace AI query vocabulary for drift"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
@@ -311,7 +305,7 @@ typecheck-ts: ## Type check all TypeScript (js/ workspace, including the app)
 	@echo -e "$(CYAN)Type checking TypeScript...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent typecheck
 
-typecheck: check-session-filter-ai-query-vocabulary check-trace-filter-ai-query-vocabulary typecheck-python typecheck-ts ## Type check all code (Python + TypeScript workspace)
+typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
 
 #=============================================================================
@@ -385,18 +379,6 @@ build-ts: ## Build all TypeScript (js/ workspace, including the app)
 
 build: build-python build-ts ## Build everything (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ Build complete$(NC)"
-
-gen-session-filter-ai-query-vocabulary: ## Generate the session AI query vocabulary
-	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py
-
-check-session-filter-ai-query-vocabulary: ## Check the session AI query vocabulary for drift
-	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py --check
-
-gen-trace-filter-ai-query-vocabulary: ## Generate the trace AI query vocabulary
-	@$(UV) run python scripts/generate_trace_filter_ai_query_vocabulary.py
-
-check-trace-filter-ai-query-vocabulary: ## Check the trace AI query vocabulary for drift
-	@$(UV) run python scripts/generate_trace_filter_ai_query_vocabulary.py --check
 
 #=============================================================================
 # Utilities

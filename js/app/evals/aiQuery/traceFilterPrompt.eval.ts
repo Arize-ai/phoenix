@@ -1,8 +1,8 @@
 import * as px from "@arizeai/phoenix-client/vitest";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { generateFilterCondition } from "@phoenix/components/filter/ai/generateFilterCondition";
-import { traceFilterAIQueryDSL } from "@phoenix/pages/project/traceFilterDSL";
+import { createTraceFilterAIQueryDSL } from "@phoenix/pages/project/traceFilterDSL";
 
 import { createFilterEquivalenceJudge } from "./equivalenceJudge";
 import {
@@ -11,6 +11,7 @@ import {
   googleApiKey,
   JUDGE_MODEL_ID,
 } from "./googleModels";
+import { loadFilterVocabulary } from "./loadFilterVocabulary";
 import { matchesAcceptedExpression } from "./normalizeFilterExpression";
 import { traceFilterCases } from "./traceFilterCases";
 
@@ -22,9 +23,20 @@ if (!googleApiKey) {
   });
 }
 
-const judge = createFilterEquivalenceJudge({
-  model: createGoogleEvalModel(JUDGE_MODEL_ID),
-  dsl: traceFilterAIQueryDSL,
+// Built in beforeAll rather than at module scope: the vocabulary comes from
+// a runtime GraphQL fetch, and top-level await isn't available under this
+// project's module target.
+let traceFilterAIQueryDSL: ReturnType<typeof createTraceFilterAIQueryDSL>;
+let judge: ReturnType<typeof createFilterEquivalenceJudge>;
+
+beforeAll(async () => {
+  traceFilterAIQueryDSL = createTraceFilterAIQueryDSL(
+    googleApiKey ? (await loadFilterVocabulary()).trace : []
+  );
+  judge = createFilterEquivalenceJudge({
+    model: createGoogleEvalModel(JUDGE_MODEL_ID),
+    dsl: traceFilterAIQueryDSL,
+  });
 });
 
 const rows = traceFilterCases.map((evalCase) => ({

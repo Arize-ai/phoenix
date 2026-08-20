@@ -2,43 +2,62 @@ import { describe, expect, it } from "vitest";
 
 import { MAX_BROWSE_SUGGESTIONS } from "@phoenix/components/filter";
 
-import { traceFilterCoreVocabulary } from "../traceFilterCoreVocabulary.generated";
 import {
-  getTraceFilterAIFieldName,
-  traceFilterAIQueryDSL,
-  traceFilterLoopVariables,
+  createTraceFilterAIQueryDSL,
   traceFilterSnippets,
+  type TraceFilterVocabularyTerm,
 } from "../traceFilterDSL";
 
+const vocabulary: TraceFilterVocabularyTerm[] = [
+  {
+    name: "attributes[...]",
+    type: "string",
+    description: "Displayed-root attribute by key.",
+    category: "attribute",
+  },
+  {
+    name: "latency_ms",
+    type: "number",
+    description: "Span latency.",
+    category: "element",
+    iterableName: "spans",
+  },
+  {
+    name: "score",
+    type: "number",
+    description: "Trace annotation score.",
+    category: "element",
+    iterableName: "trace_annotations",
+  },
+  {
+    name: "label",
+    type: "string",
+    description: "Span annotation label.",
+    category: "element",
+    iterableName: "span_annotations",
+  },
+  {
+    name: "cost",
+    type: "number",
+    description: "Span cost detail.",
+    category: "element",
+    iterableName: "span_cost_details",
+  },
+];
+
 describe("trace filter AI vocabulary", () => {
-  it("qualifies every generated collection field with its named loop variable", () => {
-    const fieldNames = new Set(
-      traceFilterAIQueryDSL.fields.map(({ name }) => name)
+  it("maps runtime terms to valid AI field names", () => {
+    const fieldNames = createTraceFilterAIQueryDSL(vocabulary).fields.map(
+      ({ name }) => name
     );
 
-    expect(
-      traceFilterCoreVocabulary
-        .filter((term): term is typeof term & { iterableName: string } =>
-          Boolean(term.iterableName)
-        )
-        .map(
-          ({ iterableName, name }) =>
-            `${traceFilterLoopVariables[iterableName]}.${name}`
-        )
-        .filter((qualified) => !fieldNames.has(qualified))
-    ).toEqual([]);
-    expect(
-      traceFilterCoreVocabulary
-        .filter((term) => term.iterableName)
-        .map((term) => getTraceFilterAIFieldName(term))
-        .every((name) =>
-          Object.values(traceFilterLoopVariables).some((loopVariable) =>
-            name.startsWith(`${loopVariable}.`)
-          )
-        )
-    ).toBe(true);
-    expect(fieldNames).toContain("attributes['key']");
-    expect(fieldNames).not.toContain("attributes[...]");
+    expect(fieldNames).toEqual([
+      "attributes['key']",
+      "span.latency_ms",
+      "annotation.score",
+      "annotation.label",
+      "cost_detail.cost",
+    ]);
   });
 });
 

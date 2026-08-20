@@ -16,8 +16,8 @@ import {
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
+  createSessionFilterAIQueryDSL,
   getSessionFilterLoopVariable,
-  sessionFilterAIQueryDSL,
   sessionFilterSnippets,
   type SessionFilterVocabularyTerm,
 } from "./sessionFilterDSL";
@@ -176,10 +176,6 @@ type SessionFilterConditionFieldProps = {
   placeholder?: string;
 };
 
-const sessionFilterAIQuery: DSLFilterAIQueryProps = {
-  dsl: sessionFilterAIQueryDSL,
-};
-
 export function SessionFilterConditionField(
   props: SessionFilterConditionFieldProps
 ) {
@@ -190,6 +186,10 @@ export function SessionFilterConditionField(
   } = props;
   const { filterCondition, setFilterCondition } = useSessionFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  const sessionFilterAIQuery = useMemo<DSLFilterAIQueryProps>(
+    () => ({ dsl: createSessionFilterAIQueryDSL(vocabulary) }),
+    [vocabulary]
+  );
 
   // Element fields are split out of the top-level vocabulary: offering
   // `latency_ms` bare would complete a condition the compiler rejects, since

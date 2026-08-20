@@ -15,7 +15,11 @@ production DSLs the filter fields actually ship:
 - `spanFilterPrompt.eval.ts` — the span DSL from
   `src/pages/project/spanFilterDSL.ts`
 - `sessionFilterPrompt.eval.ts` — the session DSL from
-  `src/pages/project/sessionFilterDSL.ts`, backed by a generated core vocabulary
+  `src/pages/project/sessionFilterDSL.ts`, backed by the first project's served
+  filter vocabulary
+- `traceFilterPrompt.eval.ts` — the trace DSL from
+  `src/pages/project/traceFilterDSL.ts`, backed by the first project's served
+  filter vocabulary
 - `experimentRunFilterPrompt.eval.ts` — the experiment run DSL from
   `src/pages/experiment/experimentRunFilterDSL.ts`
 - `spanFilterIntent.eval.ts` — semantic fidelity over the span DSL:
@@ -34,9 +38,8 @@ instead. A suite passes only when its gated rate (`filter_correct`, or
 `intent_captured` for the intent suite) clears the model's bar — raise
 those bars as the prompt improves.
 
-The session DSL's static AI vocabulary is generated from the server compiler
-bindings. Run `make gen-session-filter-ai-query-vocabulary` after changing that
-surface; `make check-session-filter-ai-query-vocabulary` detects drift.
+The session and trace prompt suites require at least one project in the Phoenix
+at `PHOENIX_HOST`; they use the same runtime vocabulary as the filter fields.
 
 The Gemma model proxies the default on-device browser model (Gemma is
 Gemini Nano's open-model family, and it takes the system prompt folded

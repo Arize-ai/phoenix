@@ -17,8 +17,8 @@ import {
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
+  createTraceFilterAIQueryDSL,
   getTraceFilterLoopVariable,
-  traceFilterAIQueryDSL,
   traceFilterSnippets,
   type TraceFilterVocabularyTerm,
 } from "./traceFilterDSL";
@@ -193,10 +193,6 @@ type TraceFilterConditionFieldProps = {
   placeholder?: string;
 };
 
-const traceFilterAIQuery: DSLFilterAIQueryProps = {
-  dsl: traceFilterAIQueryDSL,
-};
-
 type TraceFilterCompletionModel = {
   completions: Completion[];
   elementTermsByIterable: Map<string, TraceFilterVocabularyTerm[]>;
@@ -321,6 +317,10 @@ export function TraceFilterConditionField(
   } = props;
   const { filterCondition, setFilterCondition } = useTraceFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  const traceFilterAIQuery = useMemo<DSLFilterAIQueryProps>(
+    () => ({ dsl: createTraceFilterAIQueryDSL(vocabulary) }),
+    [vocabulary]
+  );
 
   // Element fields are split out of the top-level vocabulary: offering
   // `latency_ms` bare would complete a condition the compiler rejects, since
