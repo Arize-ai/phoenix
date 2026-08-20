@@ -6,6 +6,42 @@ from opentelemetry.proto.trace.v1.trace_pb2 import Span
 from phoenix.datagen import AnomalyManifest, Corpus, Replayer, load_corpus
 
 
+def test_replayer_groups_trace_spans_across_jsonl_lines() -> None:
+    corpus_path = Path(__file__).parent / "fixtures" / "split_trace"
+    corpus = load_corpus(corpus_path)
+
+    assert len(corpus.requests) == corpus.manifest["trace_count"] == 1
+    request = corpus.requests[0]
+    associations = {
+        (
+            next(
+                attribute.value.string_value
+                for attribute in resource_spans.resource.attributes
+                if attribute.key == "service.name"
+            ),
+            scope_spans.scope.name,
+        )
+        for resource_spans in request.resource_spans
+        for scope_spans in resource_spans.scope_spans
+    }
+    assert associations == {
+        ("root-service", "root-scope"),
+        ("child-service", "child-scope"),
+    }
+
+    recorded_trace_id = next(_iter_spans(request)).trace_id
+    emitted = Replayer(corpus, epsilon=0, seed=7).emit(now_ns=10_000_000_000)
+    spans = tuple(_iter_spans(emitted.request))
+    emitted_trace_ids = {span.trace_id for span in spans}
+
+    assert len(spans) == corpus.manifest["span_count"] == 2
+    assert len(emitted_trace_ids) == 1
+    assert recorded_trace_id not in emitted_trace_ids
+    root = next(span for span in spans if span.name == "root")
+    child = next(span for span in spans if span.name == "child")
+    assert child.parent_span_id == root.span_id
+
+
 def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> None:
     corpus = _fixture_corpus()
     one_trace_corpus = Corpus(

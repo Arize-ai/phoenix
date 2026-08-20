@@ -13,6 +13,7 @@ from google.protobuf.json_format import Parse, ParseError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
+from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, Span
 
 
 class CorpusError(ValueError):
@@ -40,7 +41,7 @@ def load_corpus(source: str | Path = "default") -> Corpus:
         display_source = str(corpus_path)
 
     manifest = _parse_manifest(manifest_text, display_source)
-    requests = _parse_requests(traces_text, display_source)
+    requests = _group_requests_by_trace_id(_parse_requests(traces_text, display_source))
     _validate_counts(manifest, requests, display_source)
     return Corpus(manifest=manifest, requests=requests, source=display_source)
 
@@ -143,7 +144,7 @@ def _validate_counts(
         if len(span.span_id) != 8:
             raise CorpusError(f"A span in {source} has a span ID that is not 8 bytes")
 
-    trace_count = sum(len({span.trace_id for span in _iter_spans(request)}) for request in requests)
+    trace_count = len({span.trace_id for span in spans})
     expected_counts = {
         "trace_count": trace_count,
         "span_count": len(spans),
@@ -160,3 +161,31 @@ def _iter_spans(request: ExportTraceServiceRequest):  # type: ignore[no-untyped-
     for resource_spans in request.resource_spans:
         for scope_spans in resource_spans.scope_spans:
             yield from scope_spans.spans
+
+
+def _group_requests_by_trace_id(
+    requests: Sequence[ExportTraceServiceRequest],
+) -> tuple[ExportTraceServiceRequest, ...]:
+    grouped_requests: dict[bytes, ExportTraceServiceRequest] = {}
+    for request in requests:
+        for resource_spans in request.resource_spans:
+            grouped_resource_spans: dict[bytes, ResourceSpans] = {}
+            for scope_spans in resource_spans.scope_spans:
+                spans_by_trace_id: dict[bytes, list[Span]] = {}
+                for span in scope_spans.spans:
+                    spans_by_trace_id.setdefault(span.trace_id, []).append(span)
+                for trace_id, spans in spans_by_trace_id.items():
+                    trace_request = grouped_requests.setdefault(
+                        trace_id, ExportTraceServiceRequest()
+                    )
+                    new_resource_spans = grouped_resource_spans.get(trace_id)
+                    if new_resource_spans is None:
+                        new_resource_spans = trace_request.resource_spans.add()
+                        new_resource_spans.resource.CopyFrom(resource_spans.resource)
+                        new_resource_spans.schema_url = resource_spans.schema_url
+                        grouped_resource_spans[trace_id] = new_resource_spans
+                    new_scope_spans = new_resource_spans.scope_spans.add()
+                    new_scope_spans.scope.CopyFrom(scope_spans.scope)
+                    new_scope_spans.schema_url = scope_spans.schema_url
+                    new_scope_spans.spans.extend(spans)
+    return tuple(grouped_requests.values())

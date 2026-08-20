@@ -1,0 +1,6 @@
+{
+  "scenario": "split-trace",
+  "trace_count": 1,
+  "span_count": 2,
+  "encoding": "OTLP ExportTraceServiceRequest protobuf JSON, one request per line"
+}
