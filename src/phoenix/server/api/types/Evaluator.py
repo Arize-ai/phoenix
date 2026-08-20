@@ -160,9 +160,7 @@ def _project_evaluator_schedulability(
             SchedulabilityReason.TARGETS_EVALUATOR_TRACES,
         )
     if record.evaluation_target == "SESSION":
-        # The target branch is the row-side twin of session_criteria_is_schedulable's
-        # target conjunct. Conditions inside that SESSION boundary are declared once in
-        # session_policy beside the SQL the sweeper and executor gate on.
+        # Row-side twin of `session_criteria_is_schedulable`.
         if (reason := session_schedulability_reason(record)) is not None:
             return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
         return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None

@@ -1,9 +1,5 @@
 """Why an outstanding evaluation request has not started, per (session, project evaluator).
-
-Every gate named here is asked through the same expression the sweeper gates on, so the
-reason a user reads is the reason the sweeper acted on. A gate re-derived locally would
-drift the moment the sweeper's changed, and nothing would couple the two.
-"""
+Every gate is asked through the same expression the sweeper gates on."""
 
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -41,8 +37,7 @@ class EvaluationRequestBlockingReasonsDataLoader(
     async def _load_fn(
         self, keys: Iterable[Key]
     ) -> list[Optional[EvaluationRequestBlockingReason]]:
-        # Imported here because criteria resolution reaches back into this package
-        # through the evaluator registry, and a module-level import would close that loop.
+        # Imported here: the evaluator registry reaches back into this package.
         from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
         from phoenix.server.online_eval.derivation import config_fingerprint
 
@@ -50,8 +45,7 @@ class EvaluationRequestBlockingReasonsDataLoader(
         criteria_ids = {criteria_id for _, criteria_id in pairs}
         project_session_rowids = {rowid for rowid, _ in pairs}
         async with self._db.read() as session:
-            # The same two exclusions the scheduler's own criteria load applies, asked as
-            # one question so this field cannot advertise a pair the scheduler skips.
+            # The same two exclusions the scheduler's own criteria load applies.
             schedulable_criteria_ids = set(
                 await session.scalars(
                     exclude_criteria_targeting_evaluator_traces(
@@ -80,10 +74,6 @@ class EvaluationRequestBlockingReasonsDataLoader(
             delay_seconds = {
                 criteria.id: criteria.evaluation_delay_seconds for criteria, _ in criteria_rows
             }
-            # The work identity the sweeper excludes on is (session, evaluator,
-            # fingerprint), so this surface has to hold the fingerprint too — reaching
-            # work through the request's own link would miss the unit the sweeper is
-            # deliberately waiting for.
             work_identity = {
                 criteria.id: (criteria.evaluator_id, config_fingerprint(resolution))
                 for (criteria, _), resolution in zip(criteria_rows, resolved)
@@ -105,9 +95,7 @@ class EvaluationRequestBlockingReasonsDataLoader(
             }
             evaluating = await _evaluating_pairs(session, pairs, work_identity)
             filtered_out = await _filtered_out_pairs(session, pairs, filters)
-            # The sweeper reads the database clock, so a delay compared against a
-            # replica's own clock could report a pair as due that the sweeper still
-            # holds back, or the reverse.
+            # The sweeper reads the database clock, not a replica's own.
             now = await database_now(session, self._db.dialect)
             max_outstanding = get_env_online_eval_max_session_outstanding()
             capacity_reached = (
@@ -149,9 +137,6 @@ def _blocking_reason(
         return EvaluationRequestBlockingReason.EVALUATOR_VERSION_UNRESOLVED
     if key in evaluating:
         return EvaluationRequestBlockingReason.EVALUATION_IN_PROGRESS
-    # Reported ahead of the quiet delay because it outlives it: the delay passes on its
-    # own, while a session outside the evaluator's filter stays out until its content
-    # changes.
     if key in filtered_out:
         return EvaluationRequestBlockingReason.SESSION_FILTER_NOT_MATCHED
     last_span_ingested_at = quiet_since.get(key[0])
@@ -170,12 +155,8 @@ async def _evaluating_pairs(
     pairs: list[Key],
     work_identity: dict[int, tuple[int, str]],
 ) -> set[Key]:
-    """The pairs whose evaluation can still run, so a newer ask waits behind it.
-
-    Keyed on (session, evaluator, fingerprint) — the identity the sweep excludes on —
-    rather than on the request's causal link, which names only the unit some earlier ask
-    was answered with and reads as "nothing holding it back" while the sweeper waits.
-    """
+    """The pairs whose evaluation can still run, so a newer ask waits behind it. Keyed on
+    (session, evaluator, fingerprint), the identity the sweep excludes on."""
     identities = {
         (rowid, *work_identity[criteria_id]): (rowid, criteria_id)
         for rowid, criteria_id in pairs
@@ -211,12 +192,7 @@ async def _filtered_out_pairs(
     pairs: list[Key],
     filters: dict[int, tuple[str, int]],
 ) -> set[Key]:
-    """The pairs whose session the criteria's own filter excludes.
-
-    A filter compiles into its own shape, so each filtered criterion is asked separately
-    — the same reason the sweeper builds one branch per filtered criterion rather than
-    one predicate over them all.
-    """
+    """The pairs whose session the criteria's own filter excludes."""
     if not filters:
         return set()
     requested: dict[int, set[int]] = defaultdict(set)

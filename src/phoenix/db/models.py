@@ -3690,12 +3690,7 @@ class EvalWorkLease(HasId):
 
 class EvalWorkCursor(HasId):
     """Where a scanning materializer has reached, one row per (evaluation_target,
-    consumer_group). Only materializers that scan a table keep a row here — those that
-    materialize from entity state take a plain EvalWorkLease instead.
-
-    The SPAN producer walks the span arrival log: produced_through_id,
-    observed_high_water_id and observed_at are Span.id positions in it and when one was
-    read."""
+    consumer_group); the SPAN producer's positions are Span.id values."""
 
     __tablename__ = "eval_work_cursors"
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(
@@ -3880,16 +3875,8 @@ class EvalSessionWorkUnit(HasId):
 
 
 class EvaluatorEvent(HasId):
-    """Append-only log of things trigger rules can match on, one row per occurrence.
-
-    Rows are drained by acknowledgement rather than by a scalar position: ids are
-    allocation-ordered, not commit-ordered, so a cursor can permanently skip an event
-    whose transaction committed late. (kind, occurrence_key) is the occurrence identity, so
-    the same event delivered twice collapses to one row.
-
-    evaluation_target says which entity the occurrence demands be evaluated, and the
-    matching target key holds it — what the occurrence happened to is in the payload.
-    """
+    """Append-only log of things trigger rules can match on, one row per occurrence;
+    evaluation_target names the entity to evaluate, the payload what happened to it."""
 
     __tablename__ = "evaluator_events"
     kind: Mapped[EvaluatorEventKind] = mapped_column(
@@ -3929,8 +3916,6 @@ class EvaluatorEvent(HasId):
 
     __table_args__ = (
         UniqueConstraint("kind", "occurrence_key"),
-        # Events are appended and matched by a daemon outside the mutation layer, so
-        # the schema is the only validator that path passes.
         CheckConstraint(
             "(evaluation_target = 'SPAN' AND span_rowid IS NOT NULL"
             " AND trace_rowid IS NULL AND project_session_rowid IS NULL)"
@@ -3968,12 +3953,8 @@ class EvaluatorEvent(HasId):
 
 
 class ProjectEvaluatorTrigger(HasId):
-    """One rule saying which events should make its criteria run.
-
-    NULL predicates means the trigger fires on every event of its kind. Set-valued
-    intent ("label A or B") is several trigger rows on the same criteria. Predicate JSON
-    is validated against its event kind by every write and by the rules loader.
-    """
+    """One rule saying which events should make its criteria run; NULL predicates fire on
+    every event of that kind."""
 
     __tablename__ = "project_evaluator_triggers"
     criteria_id: Mapped[int] = mapped_column(
@@ -3998,14 +3979,8 @@ class ProjectEvaluatorTrigger(HasId):
 
 
 class EvaluationRequest(HasId):
-    """Standing state for one (session, criteria) pair, as generation counters.
-
-    There is no status column: a pair is unfulfilled exactly when
-    materialized_generation < requested_generation. A request bumps
-    requested_generation, materialization catches materialized_generation up to what it
-    saw and records the work unit that did it. No index covers a generation column —
-    indexing one would defeat heap-only updates on a small, constantly rewritten table.
-    """
+    """Standing state for one (session, criteria) pair: it is unfulfilled exactly when
+    materialized_generation < requested_generation."""
 
     __tablename__ = "evaluation_requests"
     project_session_rowid: Mapped[int] = mapped_column(
@@ -4056,9 +4031,6 @@ class EvaluationRequest(HasId):
             "requested_generation",
             name="valid_force_requested_generation",
         ),
-        # The sweeper reaches rows by criteria, and the leading column also serves the
-        # criteria cascade; the unique constraint leads with project_session_rowid and
-        # serves the session cascade.
         Index(
             "ix_evaluation_requests_criteria_id_project_session_rowid",
             "criteria_id",

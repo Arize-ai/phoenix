@@ -1,11 +1,5 @@
-"""Single-holder leases for the online-eval materializers, timed by the database clock.
-
-A lease is one row carrying the id of whoever holds it and the time that holder last
-heartbeated. It can be taken when unheld, when already held by the same holder, or once
-the heartbeat has gone stale. Every timestamp is read from the database through the
-session, so replicas whose wall clocks disagree still agree on when a lease lapsed and
-on whether the holder about to commit still holds it.
-"""
+"""Single-holder leases for the online-eval materializers. Every timestamp is read from the
+database rather than a replica's own clock."""
 
 from __future__ import annotations
 
@@ -26,14 +20,8 @@ class LeaseLost(Exception):
 
 
 async def database_now(session: AsyncSession, dialect: SupportedSQLDialect) -> datetime:
-    """Read the database's current time through ``session``.
-
-    PostgreSQL reads ``statement_timestamp()`` rather than ``now()``, which is the
-    transaction's start time and would not advance as a transaction runs.
-
-    Every timing decision in this subsystem reads the clock here, so a surface that
-    reports on a materializer's decision compares times the way that materializer did.
-    """
+    """Read the database's current time through ``session``. PostgreSQL reads
+    ``statement_timestamp()``; ``now()`` would not advance as a transaction runs."""
     clock = func.statement_timestamp() if dialect is SupportedSQLDialect.POSTGRESQL else func.now()
     now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
     if now is None:
@@ -81,15 +69,11 @@ class DatabaseLease:
 
     @property
     def held_by_me(self) -> tuple[ColumnElement[bool], ...]:
-        """Predicate matching the lease row only while this holder still holds it.
-
-        Fuse it into a statement whose effect must not outlive the lease: once another
-        holder has taken over, the statement matches nothing.
-        """
+        """Predicate matching the lease row only while this holder still holds it. Fuse it
+        into any statement whose effect must not outlive the lease."""
         return (*self._key, self._holder_column == self._holder_id)
 
     async def database_now(self, session: AsyncSession) -> datetime:
-        """Read the database's current time through ``session``."""
         return await database_now(session, self._db.dialect)
 
     async def acquire(
@@ -98,12 +82,8 @@ class DatabaseLease:
         *,
         bootstrap: Optional[Callable[[AsyncSession], Awaitable[None]]] = None,
     ) -> Optional[Any]:
-        """Take the lease, returning ``returning`` from its row, or None if another
-        holder has it.
-
-        ``bootstrap`` creates the lease row when it is absent; without one, a missing
-        row means the lease cannot be taken.
-        """
+        """Take the lease, returning ``returning`` from its row, or None if another holder
+        has it. ``bootstrap`` creates the lease row when it is absent."""
         for _ in range(2):
             async with self._db() as session:
                 now = await self.database_now(session)
@@ -137,23 +117,13 @@ class DatabaseLease:
         return None
 
     async def renew(self) -> None:
-        """Heartbeat the lease in a transaction of its own.
-
-        Raises:
-            LeaseLost: Another holder has taken the lease.
-        """
+        """Heartbeat the lease in a transaction of its own, raising LeaseLost if taken."""
         async with self._db() as session:
             await self.fence(session)
 
     async def fence(self, session: AsyncSession) -> None:
-        """Heartbeat the lease inside the caller's transaction.
-
-        Work staged in ``session`` may be committed only once this has returned: the
-        heartbeat and that work then stand or fall together.
-
-        Raises:
-            LeaseLost: Another holder has taken the lease.
-        """
+        """Heartbeat the lease inside the caller's transaction, raising LeaseLost if taken.
+        Work staged in ``session`` may be committed only once this has returned."""
         renewed = await session.scalar(
             update(self._entity)
             .where(*self.held_by_me)

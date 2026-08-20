@@ -1,11 +1,4 @@
-"""Store rule-matchable occurrences durably in `evaluator_events`.
-
-An event is announced by whoever noticed the fact and consumed by acknowledgment: the
-drain reads unacknowledged rows and stamps the ones it turned into requests, in the same
-transaction. There is deliberately no position cursor here — row ids are handed out when a
-transaction starts, not when it commits, so an event committed after a higher-id one would
-be behind any cursor that had already advanced past it. Acknowledgment has no such hole.
-"""
+"""Store rule-matchable occurrences durably in `evaluator_events`."""
 
 from __future__ import annotations
 
@@ -43,10 +36,8 @@ class AnnotationUpserted:
     source: Optional[Literal["API", "APP"]] = None
     user_id: Optional[int] = None
     identifier: Optional[str] = None
-    # Names the write this announces, so a retry of that write repeats the dedup key and
-    # collapses while a later write of the same annotation is a distinct occurrence. A
-    # caller whose write is already identified — a work unit publishing its verdict —
-    # passes that identity in; anyone else takes a fresh token.
+    # A caller whose write is already identified passes that identity in, so a retry of
+    # the write repeats the dedup key; anyone else takes a fresh token.
     write_token: str = field(default_factory=lambda: token_hex(16), repr=False, compare=False)
 
     @property
@@ -57,8 +48,8 @@ class AnnotationUpserted:
         return {
             "annotation_target": self.annotation_target,
             "annotation_id": self.annotation_id,
-            # The annotated entity's rowid; DrainedEvent.target_rowid is the routed
-            # evaluation target's rowid and can therefore name the containing session.
+            # The annotated entity's rowid, unlike DrainedEvent.target_rowid, which is
+            # the routed evaluation target's.
             "target_rowid": self.target_rowid,
             "change": self.change,
             "updated_at": self.updated_at.isoformat(),
@@ -75,9 +66,8 @@ class AnnotationUpserted:
 Event: TypeAlias = AnnotationUpserted
 
 
-# Which column holds the routed entity's rowid, per evaluation target. The table CHECKs
-# that exactly the declared target's column is filled, so writes and reads both resolve
-# the key through here rather than each naming a column.
+# Which column holds the routed entity's rowid; the table CHECKs that exactly the declared
+# target's column is filled.
 _TARGET_KEY_COLUMNS: dict[models.EvaluationTarget, str] = {
     "SPAN": "span_rowid",
     "TRACE": "trace_rowid",
@@ -87,11 +77,7 @@ _TARGET_KEY_COLUMNS: dict[models.EvaluationTarget, str] = {
 
 @dataclass(frozen=True)
 class DrainedEvent:
-    """One unacknowledged occurrence, as the drain reads it.
-
-    `evaluation_target` and `target_rowid` say which entity the occurrence demands be
-    evaluated; what the occurrence happened to is in the payload.
-    """
+    """One unacknowledged occurrence, as the drain reads it."""
 
     event_id: int
     kind: models.EvaluatorEventKind
@@ -111,17 +97,8 @@ async def append(
     evaluation_target: models.EvaluationTarget,
     target_rowid: int,
 ) -> bool:
-    """Log one occurrence of `event` against a project and the entity it demands.
-
-    Pass the session of the transaction the fact belongs to: the event then commits or
-    rolls back with the fact, which is what keeps an announced change from outliving the
-    change that announced it. Only a repeat of the same occurrence is tolerated; anything
-    else the row violates — an unknown kind or target, a project or entity that is gone —
-    raises and leaves the caller's transaction to fail.
-
-    Returns:
-        True when this call wrote the row, False when the occurrence was already logged.
-    """
+    """Log one occurrence of `event`, returning False if it was already logged. Pass the
+    session of the transaction the fact belongs to, so the two commit or roll back together."""
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     stmt = insert_on_conflict(
         {
@@ -141,12 +118,8 @@ async def append(
 
 
 async def drain_page(session: AsyncSession, *, limit: int) -> tuple[DrainedEvent, ...]:
-    """Read up to `limit` unacknowledged occurrences in id order.
-
-    The predicate is spelled by `undrained_evaluator_event_predicate` so that it matches
-    the partial index the table carries; PostgreSQL only uses that index for a query whose
-    WHERE clause implies its predicate.
-    """
+    """Read up to `limit` unacknowledged occurrences in id order. The predicate comes from
+    `undrained_evaluator_event_predicate` so it matches the table's partial index."""
     stmt = (
         select(
             models.EvaluatorEvent.id,
@@ -180,15 +153,8 @@ async def drain_page(session: AsyncSession, *, limit: int) -> tuple[DrainedEvent
 
 
 async def acknowledge(session: AsyncSession, event_ids: Iterable[int]) -> int:
-    """Record that these occurrences have been consumed, and never any others.
-
-    Call this in the transaction that persists everything the page produced, so a page
-    whose requests roll back is drained again rather than lost. Acknowledging a row twice
-    leaves its first stamp in place.
-
-    Returns:
-        How many of the given occurrences this call acknowledged.
-    """
+    """Record that these occurrences have been consumed, returning how many this call
+    acknowledged. Call it in the transaction that persists what the page produced."""
     ids = sorted(set(event_ids))
     if not ids:
         return 0
@@ -204,14 +170,8 @@ async def acknowledge(session: AsyncSession, event_ids: Iterable[int]) -> int:
 
 
 async def purge_acknowledged(session: AsyncSession, *, acknowledged_before: datetime) -> int:
-    """Delete occurrences acknowledged before `acknowledged_before`, leaving the rest.
-
-    The window is the caller's to choose, and should be read from the database clock rather
-    than a replica's. Unacknowledged rows are never deleted at any age.
-
-    Returns:
-        How many occurrences were deleted.
-    """
+    """Delete occurrences acknowledged before `acknowledged_before`, returning how many.
+    Read the bound from the database clock rather than a replica's."""
     result = await session.execute(
         delete(models.EvaluatorEvent).where(
             models.EvaluatorEvent.acknowledged_at.is_not(None),

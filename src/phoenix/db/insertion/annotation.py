@@ -29,15 +29,7 @@ async def insert_annotations(
     table: type[AnnotationT],
     write_token: Optional[str] = None,
 ) -> tuple[AnnotationT, ...]:
-    """Insert annotations and announce them.
-
-    Args:
-        write_token: Names the write each announcement belongs to, so a caller that can
-            repeat the same write in a new transaction — a work unit republishing its
-            verdict — announces one occurrence rather than one per attempt. Omit it and
-            every announcement takes a fresh token, which is what an independent write
-            wants.
-    """
+    """Insert annotations and announce them."""
     if not records:
         return ()
     annotation_ids = tuple(await session.scalars(insert(table).values(records).returning(table.id)))
@@ -63,15 +55,7 @@ async def upsert_annotations(
     constraint_name: Optional[str] = None,
     write_token: Optional[str] = None,
 ) -> tuple[AnnotationT, ...]:
-    """Insert annotations, resolving conflicts as asked, and announce them.
-
-    Args:
-        write_token: Names the write each announcement belongs to, so a caller that can
-            repeat the same write in a new transaction — a work unit republishing its
-            verdict — announces one occurrence rather than one per attempt. Omit it and
-            every announcement takes a fresh token, which is what an independent write
-            wants.
-    """
+    """Insert annotations, resolving conflicts as asked, and announce them."""
     if not records:
         return ()
     existing_keys = await _existing_keys(session, table, records, unique_by)
@@ -163,8 +147,6 @@ async def _append_events(
         return
     annotation_ids = [annotation.id for annotation in annotations]
     stmt: Any
-    # A span or trace outside any session emits no event; that is an ordinary outcome,
-    # not a failure, because a SESSION evaluator has no session target to run against.
     if table is models.SpanAnnotation:
         stmt = (
             select(
@@ -251,8 +233,6 @@ async def _append_events(
                 **({} if write_token is None else {"write_token": write_token}),
             ),
             project_id=project_id,
-            # Delivery is session-only, so an annotation on any target demands the
-            # session it belongs to be evaluated.
             evaluation_target="SESSION",
             target_rowid=project_session_rowid,
         )

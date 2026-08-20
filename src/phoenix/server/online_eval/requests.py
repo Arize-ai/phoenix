@@ -1,11 +1,6 @@
-"""Store evaluation demand as commutative counters for each (session, criteria) pair.
-
-Every write to a request row goes through this module: creation, generation advancement,
-and the acknowledgment that links a request to the work unit answering it. The one
-exception is the content-incomplete transition, which
-`phoenix.db.helpers.mark_session_content_incomplete` does
-itself because deletion runs below the server layer.
-"""
+"""Store evaluation demand as commutative counters for each (session, criteria) pair. Every
+write to a request row goes through this module, except the content-incomplete transition
+that `phoenix.db.helpers.mark_session_content_incomplete` does itself."""
 
 from __future__ import annotations
 
@@ -115,13 +110,7 @@ async def request_evaluation(
     requested_by: Optional[str] = None,
     force: bool = False,
 ) -> RequestedEvaluation:
-    """Ask that `target` be evaluated against `criteria_id`, advancing its generation once.
-
-    A forced request also raises the sticky force boundary, which no later request lowers.
-
-    Raises:
-        EvaluationRequestRejected: the pair cannot be requested; the rejection says why.
-    """
+    """Ask that `target` be evaluated against `criteria_id`, advancing its generation once."""
     ask = EvaluationAsk(
         target=target,
         criteria_id=criteria_id,
@@ -138,12 +127,7 @@ async def request_evaluations(
     session: AsyncSession,
     asks: Iterable[EvaluationAsk],
 ) -> BatchRequestOutcome:
-    """Record a batch of asks, one generation per ask, and report what each one did.
-
-    Asks are counted per pair before the statement is built. Passing them through as
-    separate records would not work: `insert_on_conflict` collapses records sharing a
-    unique key down to the last one, so N asks for a pair would advance one generation.
-    """
+    """Record a batch of asks, one generation per ask, and report what each one did."""
     asks = tuple(asks)
     if not asks:
         return BatchRequestOutcome((), ())
@@ -172,12 +156,7 @@ async def request_evaluations(
 
 
 def is_unfulfilled(request: Any) -> ColumnElement[bool]:
-    """Whether this request row is still waiting to be answered.
-
-    There is no status column, so being unfulfilled is a comparison between two counters.
-    Every reader spells it through here — the pending read below, and the sweep's ambient
-    origin, which skips a pair a request already covers.
-    """
+    """Whether this request row is still waiting to be answered."""
     unfulfilled: ColumnElement[bool] = (
         request.materialized_generation < request.requested_generation
     )
@@ -186,10 +165,7 @@ def is_unfulfilled(request: Any) -> ColumnElement[bool]:
 
 def unfulfilled_requests() -> Select[Any]:
     """The pairs whose asks have not been answered, with the generations to acknowledge.
-
-    The read takes no row lock, so a request committed after it is not observed here —
-    which is why acknowledgment must carry `observed_generation` rather than re-read.
-    """
+    The read takes no row lock, so acknowledgment must carry `observed_generation`."""
     forced = (
         models.EvaluationRequest.force_requested_generation
         > models.EvaluationRequest.materialized_generation
@@ -240,15 +216,8 @@ async def acknowledge_materialization(
     session_work_unit_id: int,
 ) -> None:
     """Record that `session_work_unit_id` answers this request through `observed_generation`.
-
-    Call this in the transaction that inserts the work unit, and pass the generation the
-    eligibility read observed — never a fresh one. An ask that arrived since that read is
-    a later generation, and writing it here would drop it.
-
-    Raises:
-        EvaluationRequestVanished: the request is gone, so the work insert sharing this
-            transaction must not commit either.
-    """
+    Call this in the transaction that inserts the work unit, passing the generation the
+    eligibility read observed; if it raises, that work insert must not commit either."""
     result = await session.execute(
         update(models.EvaluationRequest)
         .where(models.EvaluationRequest.id == evaluation_request_id)
@@ -298,8 +267,7 @@ async def _read_criteria(
         .order_by(models.ProjectEvaluatorCriteria.id)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        # The same lock the request insert's foreign key takes, taken first: criteria
-        # before sessions is the order every writer against these tables uses.
+        # Criteria before sessions, the lock order every writer against these tables takes.
         stmt = stmt.with_for_update(read=True, key_share=True)
     return {
         row.id: _CriteriaFacts(
@@ -326,9 +294,7 @@ async def _read_sessions(
         .order_by(models.ProjectSession.id)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        # Held against the content-incomplete transition, which locks the same rows:
-        # without it a request could be written after a session lost content and then
-        # never be answered or closed.
+        # Held against the content-incomplete transition, which locks the same rows.
         stmt = stmt.with_for_update(key_share=True)
     return {
         row.id: _SessionFacts(
@@ -432,11 +398,7 @@ async def _upsert(
 
 
 def _upsert_set(dialect: SupportedSQLDialect) -> dict[str, Any]:
-    """The conflict update: generation arithmetic in SQL, so concurrent asks all land.
-
-    The incoming row carries its own increment in `requested_generation`, which is what
-    lets one statement advance several pairs by different amounts.
-    """
+    """The conflict update: generation arithmetic in SQL, so concurrent asks all land."""
     insert = insert_postgresql if dialect is SupportedSQLDialect.POSTGRESQL else insert_sqlite
     excluded = insert(models.EvaluationRequest).excluded
     requested_generation = (

@@ -197,9 +197,6 @@ ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG = Gauge(
     name="online_eval_session_eligible_pair_backlog",
     documentation="Current number of session and evaluator pairs eligible for ambient work",
 )
-# Companion to the gauge above, which covers only ambient sweeping. Without this one a
-# trigger burst is invisible: an operator cannot tell triggers keeping up from a drain or
-# a sweep that has become the bottleneck.
 ONLINE_EVAL_SESSION_SCHEDULING_BACKLOG = Gauge(
     namespace="phoenix",
     name="online_eval_session_scheduling_backlog",

@@ -17,8 +17,6 @@ class AnnotationPredicates(DBBaseModel):
     annotation_target: Optional[Literal["span", "trace", "session"]] = None
 
 
-# Tagged even with one member, so a stored object carrying a retired tag is rejected by
-# name rather than coerced into the surviving shape.
 TriggerPredicatesType: TypeAlias = Annotated[
     Union[AnnotationPredicates],
     Field(..., discriminator="type"),

@@ -217,8 +217,6 @@ def _create_evaluator_events_table() -> None:
             server_default=sa.func.now(),
         ),
         sa.UniqueConstraint("kind", "occurrence_key"),
-        # Events are appended and matched by a daemon outside the mutation layer, so
-        # the schema is the only validator that path passes.
         sa.CheckConstraint(
             "(evaluation_target = 'SPAN' AND span_rowid IS NOT NULL"
             " AND trace_rowid IS NULL AND project_session_rowid IS NULL)"
@@ -229,9 +227,6 @@ def _create_evaluator_events_table() -> None:
             name="valid_target_key",
         ),
     )
-    # Auto-increment ids are allocation-ordered, not commit-ordered, so a scalar cursor can
-    # permanently skip an event whose transaction committed late. Unacknowledged-ness has no
-    # such hole, and this index holds only the small undrained set.
     op.create_index(
         "ix_evaluator_events_undrained",
         "evaluator_events",
@@ -244,8 +239,6 @@ def _create_evaluator_events_table() -> None:
         "evaluator_events",
         ["project_id"],
     )
-    # Each target key is populated only for its own target kind, so its index holds only
-    # the rows routed there.
     op.create_index(
         "ix_evaluator_events_span_rowid",
         "evaluator_events",
@@ -365,19 +358,12 @@ def _create_evaluation_requests_table() -> None:
             name="valid_force_requested_generation",
         ),
     )
-    # The sweeper reaches rows by criteria, and the leading column serves the criteria
-    # cascade; the unique constraint leads with project_session_rowid and serves the
-    # session cascade.
     op.create_index(
         "ix_evaluation_requests_criteria_id_project_session_rowid",
         "evaluation_requests",
         ["criteria_id", "project_session_rowid"],
     )
     if op.get_bind().dialect.name == "postgresql":
-        # Every row is rewritten on each request and each materialization, and no index
-        # covers a generation column, so leaving free space keeps those updates heap-only.
-        # The table stays small, so the scale factors are lowered to make autovacuum
-        # actually fire on it.
         op.execute(
             "ALTER TABLE evaluation_requests SET ("
             "fillfactor = 80, "

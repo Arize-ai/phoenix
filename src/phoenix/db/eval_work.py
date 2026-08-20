@@ -6,9 +6,8 @@ This module has no Phoenix imports so the schema (``models``), the queries
 
 from __future__ import annotations
 
-# Retry budget read by six sites: coordinator claims, producer recovery, session policy,
-# session sweeping, session retention, and evaluator run counts. Drift between them can
-# resurrect terminal work, strand retryable work, or misreport lifecycle state.
+# Read by coordinator claims, producer recovery, session policy, session sweeping, session
+# retention, and evaluator run counts; all six must agree.
 MAX_ATTEMPTS = 3
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
@@ -19,11 +18,8 @@ TERMINAL_EVAL_SESSION_WORK_STATUSES = (
     *SESSION_DECLINED_STATUSES,
 )
 
-# Every annotation online evaluation writes carries an identifier starting with this, so
-# a reader can tell its own output from a user's or an API client's without a join. It is
-# spelled once here because two sides read it and neither may drift: the derivation that
-# writes it, and the content-incomplete transition that removes it. The write boundary
-# reserves it so no client can namespace its way into either.
+# Marks online evaluation's own annotations; also matched by the content-incomplete
+# transition and reserved against clients at the annotation write boundary.
 ONLINE_EVAL_IDENTIFIER_PREFIX = "online:"
 
 
@@ -32,13 +28,8 @@ def is_reserved_annotation_identifier(identifier: str) -> bool:
     return identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX)
 
 
-# Event kinds the trigger pipeline understands. Adding a kind is an edit here plus the
-# code that emits and matches it; the CHECK domains are rendered from this tuple.
 EVALUATOR_EVENT_KINDS = ("annotation_upserted",)
 
-# Entity kinds an online evaluation can be aimed at. The criteria that declare one, the
-# cursors that scan for one, and the event log that routes to one all render their CHECK
-# domains from this tuple.
 EVALUATION_TARGETS = ("SPAN", "TRACE", "SESSION")
 
 # Stamped on session work units retired because their session lost content. Like the
@@ -46,9 +37,6 @@ EVALUATION_TARGETS = ("SPAN", "TRACE", "SESSION")
 # is spelled once here rather than at the deletion path that writes it.
 SESSION_CONTENT_INCOMPLETE_ERROR = "session content incomplete"
 
-# Stamped on a declined decision that a request displaced. It has to be distinct from
-# every other terminal marker: if it read as evidence that the pair had been evaluated,
-# superseding a declined row would immediately brake the request that displaced it.
 SUPERSEDED_BY_REQUEST_ERROR = "superseded by evaluation request"
 
 
@@ -77,30 +65,18 @@ def terminal_eval_session_work_index_predicate() -> str:
 
 
 def evaluator_event_kind_check(column: str) -> str:
-    """SQL text constraining ``column`` to ``EVALUATOR_EVENT_KINDS``.
-
-    The event log and the trigger rules that discriminate on kind both spell the
-    vocabulary through this, so a new kind cannot reach one table without the other.
-    """
+    """SQL text constraining ``column`` to ``EVALUATOR_EVENT_KINDS``."""
     kinds = ", ".join(f"'{kind}'" for kind in EVALUATOR_EVENT_KINDS)
     return f"{column} IN ({kinds})"
 
 
 def evaluation_target_check(column: str) -> str:
-    """SQL text constraining ``column`` to ``EVALUATION_TARGETS``.
-
-    Criteria, work cursors and the event log all spell the vocabulary through this,
-    so a new target cannot reach one table without the others.
-    """
+    """SQL text constraining ``column`` to ``EVALUATION_TARGETS``."""
     targets = ", ".join(f"'{target}'" for target in EVALUATION_TARGETS)
     return f"{column} IN ({targets})"
 
 
 def undrained_evaluator_event_predicate() -> str:
-    """SQL text selecting events the drain has not acknowledged yet.
-
-    Postgres only uses a partial index for a query whose WHERE clause it can prove
-    implies the index predicate, so the drain query, the model's index, and the
-    migration that creates it must all spell this the same way.
-    """
+    """SQL text selecting events the drain has not acknowledged yet; the drain query, the
+    model's index, and the migration that creates it must all spell it the same way."""
     return "acknowledged_at IS NULL"

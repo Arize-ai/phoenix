@@ -94,9 +94,8 @@ def session_criteria_is_schedulable(
     criteria: type["models.ProjectEvaluatorCriteria"],
 ) -> ColumnElement[bool]:
     return and_(
-        # This cannot be a SessionSchedulabilityCondition: its row-side twin would mark
-        # SPAN criteria globally unschedulable even though the span producer schedules
-        # them. Evaluator.py branches by target before applying the SESSION registry.
+        # Kept out of SESSION_SCHEDULABILITY_CONDITIONS: a row-side twin would mark SPAN
+        # criteria unschedulable too.
         criteria.evaluation_target == "SESSION",
         *(not_(condition.blocks_sql(criteria)) for condition in SESSION_SCHEDULABILITY_CONDITIONS),
     )
@@ -106,13 +105,7 @@ def session_matches_criteria_filter(
     filter_condition: str,
     project_id: int,
 ) -> ColumnElement[bool]:
-    """Whether a session passes a criteria's own filter, as one predicate on the session.
-
-    Both sides of the pair ask through here: the sweeper gates on it when it decides what
-    to materialize, and the row-side blocking-reason surface reads it to say why a
-    requested evaluation is waiting. A second spelling of "does this session match" would
-    let the reason a user reads drift from the decision the sweeper made.
-    """
+    """Whether a session passes a criteria's own filter, as one predicate on the session."""
     from phoenix.db import models
     from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 
@@ -122,11 +115,7 @@ def session_matches_criteria_filter(
 
 
 def session_work_may_still_produce_a_result(work: Any) -> ColumnElement[bool]:
-    """Whether ``work`` can still reach an outcome, so a newer ask waits behind it.
-
-    The sweep excludes such a pair and the blocking-reason surface names the wait, so
-    both read the statuses from here rather than each keeping its own list.
-    """
+    """Whether ``work`` can still reach an outcome, so a newer ask waits behind it."""
     return or_(
         work.status.in_(("PENDING", "RUNNING")),
         and_(work.status == "ERROR", work.attempts < MAX_ATTEMPTS),
@@ -167,13 +156,7 @@ def session_work_records_background_decision(work: Any) -> ColumnElement[bool]:
 
 
 def admitted_session_work_count_statement(max_outstanding: int) -> "Select[Any]":
-    """How much session work is already admitted, counted no further than the cap.
-
-    The sweeper admits nothing more once this reaches the cap, and the blocking-reason
-    surface says so; both count through here so what a user is told is the gate the
-    sweeper actually applied. The count stops at the cap because nothing above it
-    changes either answer.
-    """
+    """How much session work is already admitted, counted no further than the cap."""
     from phoenix.db import models
 
     admitted = (

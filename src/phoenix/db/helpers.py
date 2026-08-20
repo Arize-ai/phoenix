@@ -652,12 +652,7 @@ async def delete_traces(
     session: AsyncSession,
     trace_filter: sa.ColumnElement[bool],
 ) -> None:
-    """Delete the traces matching this filter and mark affected session content incomplete.
-
-    Deleting traces is what makes a session's evaluation wrong, so the delete and the
-    content-incomplete transition belong to one function rather than to five callers who
-    remember. Route new trace deletions through here.
-    """
+    """Delete the traces matching this filter and mark affected session content incomplete."""
     while trace_rowids := tuple(
         await session.scalars(
             sa.select(models.Trace.id)
@@ -682,11 +677,7 @@ async def delete_spans(
     session: AsyncSession,
     span_filter: sa.ColumnElement[bool],
 ) -> None:
-    """Delete the spans matching this filter and mark affected session content incomplete.
-
-    Removing a span changes what the session contains whether or not its trace survives,
-    so span deletion marks content incomplete just as trace deletion does. See `delete_traces`.
-    """
+    """Delete the spans matching this filter and mark affected session content incomplete."""
     while span_rowids := tuple(
         await session.scalars(
             sa.select(models.Span.id)
@@ -714,18 +705,8 @@ async def mark_session_content_incomplete(
     project_session_rowids: Union[Iterable[int], InElementRole],
 ) -> None:
     """Record that content was removed from these sessions and retire their evaluations.
-
-    A session evaluation scores the session as a whole, so once part of it is gone the
-    score describes content that no longer exists. Session scheduling is evaluate-once,
-    which makes a wrong score permanent — every path that destroys session content must
-    call this before or with the delete. `delete_traces` and `delete_spans` are how
-    deletion paths get that for free.
-
-    Marking content incomplete also closes any requested evaluation, leaving it
-    fulfilled with no work unit behind it — the state the request surface reports as
-    failed. This is the one place outside `server/online_eval/requests.py` that writes a
-    request row, because deletion runs below the server layer.
-    """
+    Every path destroying session content must call this; `delete_traces` and `delete_spans`
+    do. The one place outside `server/online_eval/requests.py` that writes a request row."""
     session_rowids_stmt = (
         sa.select(models.ProjectSession.id)
         .where(models.ProjectSession.id.in_(project_session_rowids))

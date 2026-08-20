@@ -25,7 +25,6 @@ from phoenix.server.online_eval.requests import (
     request_evaluation,
 )
 
-# Provenance stamped on requests this mutation records, beside the drain's "trigger".
 _REQUESTED_BY = "user"
 
 SESSION_EVALUATION_UNAVAILABLE = (
@@ -61,11 +60,7 @@ _BAD_REQUEST_REJECTIONS = frozenset(
 
 
 def raise_if_session_evaluation_unavailable() -> None:
-    """Refuse to record anything the session arm would never act on.
-
-    Rows written while the arm is off would sit unfulfilled forever, so the two flags are
-    read here as well as inside ``request_evaluation``.
-    """
+    """Refuse to record anything the session arm would never act on."""
     if not (get_env_online_eval_enabled() and get_env_online_eval_session_enabled()):
         raise Conflict(SESSION_EVALUATION_UNAVAILABLE)
 
@@ -145,7 +140,7 @@ class ProjectSessionEvaluationMutationMixin:
 
 
 def _rejection_error(rejection: RequestRejection) -> Exception:
-    """Give each way an ask can be refused its own error, so callers can act on it."""
+    """Give each way an ask can be refused its own error."""
     message = _REJECTION_MESSAGES[rejection]
     if rejection in _NOT_FOUND_REJECTIONS:
         return NotFound(message)
