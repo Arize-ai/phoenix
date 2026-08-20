@@ -1,5 +1,4 @@
 import asyncio
-import binascii
 import hashlib
 import json
 import logging
@@ -178,6 +177,8 @@ from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
+    default_rowid_range,
+    parse_cursor,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -2638,29 +2639,6 @@ def _get_request_user_id(request: Request) -> int | None:
     return int(user.identity)
 
 
-def _parse_agent_session_cursor(cursor: str) -> Cursor:
-    try:
-        parsed_cursor = Cursor.from_string(cursor)
-    except (binascii.Error, KeyError, UnicodeDecodeError, ValueError) as error:
-        raise HTTPException(status_code=422, detail="Invalid cursor format") from error
-    sort_column = parsed_cursor.sort_column
-    if (
-        sort_column is None
-        or sort_column.type is not CursorSortColumnDataType.DATETIME
-        or not isinstance(sort_column.value, datetime)
-    ):
-        raise HTTPException(status_code=422, detail="Invalid cursor format")
-    return parsed_cursor
-
-
-def _parse_agent_session_message_cursor(cursor: str) -> Cursor:
-    """Parse a rowid-only keyset cursor for the session transcript."""
-    try:
-        return Cursor.from_string(cursor)
-    except (binascii.Error, KeyError, UnicodeDecodeError, ValueError) as error:
-        raise HTTPException(status_code=422, detail="Invalid cursor format") from error
-
-
 def _to_agent_session_summary(agent_session: models.AgentSession) -> AgentSessionSummary:
     return AgentSessionSummary(
         id=str(GlobalID(models.AgentSession.__name__, str(agent_session.id))),
@@ -2800,7 +2778,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if (user_id := _get_request_user_id(request)) is not None:
             statement = statement.where(models.AgentSession.user_id == user_id)
         if cursor is not None:
-            parsed_cursor = _parse_agent_session_cursor(cursor)
+            parsed_cursor = parse_cursor(
+                cursor,
+                sort_column_type=CursorSortColumnDataType.DATETIME,
+                rowid_range=default_rowid_range(request.app.state.db.dialect),
+            )
             assert parsed_cursor.sort_column is not None
             statement = statement.where(
                 tuple_(models.AgentSession.updated_at, models.AgentSession.id)
@@ -2910,7 +2892,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             models.AgentSessionMessage.agent_session_id == session_rowid
         )
         if cursor is not None:
-            parsed_cursor = _parse_agent_session_message_cursor(cursor)
+            parsed_cursor = parse_cursor(
+                cursor,
+                sort_column_type=None,
+                rowid_range=default_rowid_range(request.app.state.db.dialect),
+            )
             statement = statement.where(models.AgentSessionMessage.id > parsed_cursor.rowid)
         statement = statement.order_by(models.AgentSessionMessage.id).limit(limit + 1)
         async with request.app.state.db() as session:

@@ -1,4 +1,6 @@
 import base64
+from binascii import Error as BinasciiError
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
@@ -62,6 +64,17 @@ class CursorSortColumn:
         else:
             assert_never(type)
         return cls(type=type, value=value)
+
+
+#: The Python type `CursorSortColumn.from_string` produces for each data type,
+#: so that a decoded value can be checked against the type tag that produced it.
+_VALUE_TYPES: Mapping[CursorSortColumnDataType, type] = {
+    CursorSortColumnDataType.STRING: str,
+    CursorSortColumnDataType.INT: int,
+    CursorSortColumnDataType.FLOAT: float,
+    CursorSortColumnDataType.DATETIME: datetime,
+    CursorSortColumnDataType.NULL: type(None),
+}
 
 
 @dataclass
@@ -143,6 +156,53 @@ class Cursor:
                 cursor_string=decoded[second_delimiter_index + 1 :],
             )
         return cls(rowid=int(rowid_string), sort_column=sort_column)
+
+    @classmethod
+    def parse(
+        cls,
+        cursor: str,
+        *,
+        sort_column_type: Optional[CursorSortColumnDataType],
+        rowid_range: Optional[range] = None,
+    ) -> "Cursor":
+        """
+        Decodes a cursor and rejects one the caller's query cannot use.
+
+        A cursor is only meaningful to the query that minted it: its sort value
+        is compared against one particular column, and its rowid indexes one
+        particular table. `from_string` decodes the token; this additionally
+        checks that the token describes the caller's query, so that a cursor
+        from elsewhere is refused rather than silently compared against the
+        wrong column or bound as an unusable rowid.
+
+        Args:
+            sort_column_type: The data type of the column the query sorts on, or
+                None if the query orders by rowid alone. A cursor whose sort
+                column disagrees carries a value for a different column.
+            rowid_range: The rowids the table's primary key can hold. A rowid
+                outside the range matches no row, and the driver raises on
+                binding it instead of returning an empty page.
+
+        Raises:
+            ValueError: If the cursor is malformed or describes a different query.
+        """
+        try:
+            parsed = cls.from_string(cursor)
+        except (BinasciiError, KeyError, UnicodeDecodeError, ValueError) as error:
+            raise ValueError(f"Malformed cursor: {cursor}") from error
+        sort_column = parsed.sort_column
+        if sort_column_type is None:
+            if sort_column is not None:
+                raise ValueError(f"Cursor carries an unexpected sort value: {cursor}")
+        elif (
+            sort_column is None
+            or sort_column.type is not sort_column_type
+            or not isinstance(sort_column.value, _VALUE_TYPES[sort_column_type])
+        ):
+            raise ValueError(f"Cursor was not minted for this sort column: {cursor}")
+        if rowid_range is not None and parsed.rowid not in rowid_range:
+            raise ValueError(f"Cursor rowid is outside what the table can hold: {cursor}")
+        return parsed
 
 
 def offset_to_cursor(offset: int) -> CursorString:

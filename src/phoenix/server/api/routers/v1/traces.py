@@ -1,6 +1,5 @@
 import gzip
 import zlib
-from binascii import Error as BinasciiError
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Annotated, Literal, Optional
@@ -52,7 +51,9 @@ from .utils import (
     RequestBody,
     ResponseBody,
     add_errors_to_responses,
+    default_rowid_range,
     get_project_by_identifier,
+    parse_cursor,
 )
 
 router = APIRouter(tags=["traces"])
@@ -121,36 +122,10 @@ def _to_trace_data(
 
 #: Cursor sort-column type per `sort` field, so a cursor minted under one sort
 #: field is rejected rather than compared against the other's column.
-_CURSOR_SORT_TYPES: dict[str, tuple[CursorSortColumnDataType, type]] = {
-    "start_time": (CursorSortColumnDataType.DATETIME, datetime),
-    "latency_ms": (CursorSortColumnDataType.FLOAT, float),
+_CURSOR_SORT_TYPES: dict[str, CursorSortColumnDataType] = {
+    "start_time": CursorSortColumnDataType.DATETIME,
+    "latency_ms": CursorSortColumnDataType.FLOAT,
 }
-
-#: Row-id range each dialect's `traces.id` can hold: postgres `SERIAL` is 32-bit,
-#: sqlite's `INTEGER PRIMARY KEY` is the 64-bit rowid. A cursor outside the range
-#: matches no row and would raise when bound instead of paginating.
-_ROWID_RANGES = {
-    SupportedSQLDialect.POSTGRESQL: range(-(2**31), 2**31),
-    SupportedSQLDialect.SQLITE: range(-(2**63), 2**63),
-}
-
-
-def _parse_cursor(cursor: str, sort: str, dialect: SupportedSQLDialect) -> Cursor:
-    """Decode a pagination cursor, requiring it to carry ``sort``'s value type."""
-    try:
-        parsed = Cursor.from_string(cursor)
-    except (BinasciiError, KeyError, UnicodeDecodeError, ValueError) as error:
-        raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}") from error
-    expected_type, expected_python_type = _CURSOR_SORT_TYPES[sort]
-    sort_column = parsed.sort_column
-    if (
-        sort_column is None
-        or sort_column.type is not expected_type
-        or not isinstance(sort_column.value, expected_python_type)
-        or parsed.rowid not in _ROWID_RANGES[dialect]
-    ):
-        raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
-    return parsed
 
 
 @router.get(
@@ -256,7 +231,11 @@ async def list_project_traces(
 
         if cursor:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            parsed_cursor = _parse_cursor(cursor, sort, dialect)
+            parsed_cursor = parse_cursor(
+                cursor,
+                sort_column_type=_CURSOR_SORT_TYPES[sort],
+                rowid_range=default_rowid_range(dialect),
+            )
             assert parsed_cursor.sort_column is not None
             # Keyset predicate over the query's full ordering key: `sort_col` is
             # not unique and the row id does not order the result, so the pair is
@@ -280,7 +259,7 @@ async def list_project_traces(
                 Cursor(
                     rowid=last_trace.id,
                     sort_column=CursorSortColumn(
-                        type=_CURSOR_SORT_TYPES[sort][0],
+                        type=_CURSOR_SORT_TYPES[sort],
                         value=last_sort_value,
                     ),
                 )
