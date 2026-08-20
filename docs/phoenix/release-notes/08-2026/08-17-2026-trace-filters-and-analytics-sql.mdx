@@ -13,6 +13,10 @@ The traces table now takes its own filter expression, joining the span and sessi
 Filter on a trace's own fields, on values rolled up from its spans, or on anything inside it with a
 comprehension — instead of filtering spans and inferring which traces they belong to.
 
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/trace-filter-expressions.png" alt="The Traces tab filtered by the expression num_spans > 10 and error_count > 0, showing the matching traces" />
+</Frame>
+
 - **Trace intrinsics** — `trace_id`, `start_time`, `end_time`, and `latency_ms`.
 - **Span rollups, never null** — `num_spans`, `error_count`, `token_count_prompt`,
   `token_count_completion`, `token_count_total`, `prompt_cost`, `completion_cost`, `total_cost`,
