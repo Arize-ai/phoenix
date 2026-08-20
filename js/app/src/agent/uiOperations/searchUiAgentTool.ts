@@ -25,6 +25,11 @@ function parseSearchUiInput(input: unknown): SearchUiInput | null {
  * searches here first, then composes what it found into an `execute_ui`
  * script.
  *
+ * Every call returns the complete catalog with query matches ranked first
+ * (see {@link searchUiOperations}), so one call per conversation suffices —
+ * the output says so explicitly to stop the model from re-searching with
+ * reworded queries.
+ *
  * RFC note: not yet listed in `toolRegistry.ts` — inert until the rollout
  * capability lands.
  */

@@ -19,8 +19,10 @@ PARAMETERS: dict[str, Any] = {
         "query": {
             "type": "string",
             "description": (
-                "Free-text search over operation names and descriptions. Empty or "
-                "omitted lists the full catalog grouped by namespace."
+                "Optional free-text ranking hint matched against operation names and "
+                "descriptions. The complete catalog is always returned; matching "
+                "operations simply sort first. Empty or omitted ranks by page "
+                "availability alone."
             ),
         },
     },
@@ -29,11 +31,14 @@ PARAMETERS: dict[str, Any] = {
 }
 
 DESCRIPTION = (
-    "Search the catalog of browser UI operations available to execute_ui scripts. "
-    "Returns TypeScript-style signatures with doc comments describing each operation's "
-    "input, whether it is available on the user's current page, and how to reach it if "
-    "not. Always search before calling an operation you have not used in this "
-    "conversation — never guess operation names."
+    "List the complete catalog of browser UI operations available to execute_ui "
+    "scripts, with operations matching your query ranked first. Returns "
+    "TypeScript-style signatures with doc comments describing each operation's "
+    "input, whether it is available on the user's current page, and how to reach it "
+    "if not. Search once before your first execute_ui call — never guess operation "
+    "names — then reuse the catalog: repeat calls with different queries return the "
+    "same operations, only re-ranked. Call again only to refresh page availability "
+    "after navigation."
 )
 
 TOOL_DEFINITION = ToolDefinition(

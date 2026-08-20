@@ -106,19 +106,24 @@ export type UiOperationSearchResult = {
 };
 
 /**
- * Search the catalog by case-insensitive token match over name and
- * description. An empty query returns the full catalog (the table of
- * contents). At catalog scale (~60 operations) substring scoring is enough —
- * no index or embeddings.
+ * Return the complete catalog, ranked. The query never filters — it only
+ * ranks: operations matching more query tokens (case-insensitive substring
+ * match over name and description) sort first. At catalog scale (~60
+ * operations) returning everything is cheaper than teaching the model that
+ * results are partial: token-OR matching made almost any multi-word query
+ * match almost everything anyway, and a model that believes results are
+ * query-scoped issues one search per concept, burning a full turn each time.
+ * One comprehensive result makes a second search visibly pointless.
  *
- * Matches are never filtered by mounted-ness: hiding an operation because it
- * is not usable on the current page reads to the model as "does not exist",
- * and the operations most likely to be unmounted are exactly the ones that
- * mount after an action it is planning (opening a form, navigating).
- * Mounted-ness is instead a ranking signal — within equal relevance, usable
- * operations sort first — and every result states its availability.
+ * Results are likewise never filtered by mounted-ness: hiding an operation
+ * because it is not usable on the current page reads to the model as "does
+ * not exist", and the operations most likely to be unmounted are exactly the
+ * ones that mount after an action it is planning (opening a form,
+ * navigating). Mounted-ness is a ranking signal — within equal relevance,
+ * usable operations sort first — and every result states its availability.
  * @param params.agentStore - store consulted for mounted-ness
- * @param params.query - free-text query; empty or whitespace matches all
+ * @param params.query - free-text ranking hint; empty or whitespace ranks by
+ * mounted-ness alone
  */
 export function searchUiOperations({
   agentStore,
@@ -141,7 +146,6 @@ export function searchUiOperations({
         isMounted: isUiOperationMounted(agentStore, descriptor.name),
       };
     })
-    .filter(({ matchCount }) => tokens.length === 0 || matchCount > 0)
     .sort(
       (left, right) =>
         right.matchCount - left.matchCount ||
@@ -260,15 +264,24 @@ export function renderUiOperationSignature({
   ].join("\n");
 }
 
-/** Render search results as one catalog block for the `search_ui` output. */
+/**
+ * Render search results as one catalog block for the `search_ui` output.
+ * The header says the catalog is complete so the model has no reason to
+ * search again with a reworded query — every call returns the same
+ * operations, only re-ranked.
+ */
 export function renderUiOperationCatalog(
   results: UiOperationSearchResult[]
 ): string {
   if (results.length === 0) {
-    return "No operations matched. Call search_ui with an empty query to list the full catalog.";
+    return "The UI operation catalog is empty.";
   }
   const signatures = results.map(renderUiOperationSignature).join("\n\n");
   return [
+    `// Complete catalog: all ${results.length} UI operations, best query matches first.\n` +
+      "// Further search_ui calls return these same operations re-ranked — reuse\n" +
+      "// this catalog instead of searching again. Only per-operation availability\n" +
+      '// ("available on the current page") changes, after navigation.',
     "// UiResult = { ok: true; output?: unknown } | { ok: false; error: string }",
     signatures,
   ].join("\n\n");
