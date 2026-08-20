@@ -24,7 +24,11 @@ import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePromp
 import { parseExecuteUiRunOutput } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { ApprovalCard, type ApprovalPreview } from "./ApprovalCard";
+import {
+  ApprovalCard,
+  type ApprovalPreview,
+  payloadToApprovalSummaryRows,
+} from "./ApprovalCard";
 import { LazyToolPartFileView } from "./LazyToolPartPierreViews";
 import {
   ToolPartCodeBlock,
@@ -204,8 +208,8 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
                 ? "Save new prompt"
                 : "Save prompt version",
             body: {
-              kind: "json",
-              payload: {
+              kind: "summary",
+              rows: payloadToApprovalSummaryRows({
                 prompt: pending.preview.promptName,
                 label: pending.preview.label,
                 ...(pending.preview.description != null
@@ -214,7 +218,7 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
                 ...(pending.preview.tags?.length
                   ? { tags: pending.preview.tags }
                   : {}),
-              },
+              }),
             },
           },
           accept: pending.accept,
@@ -265,13 +269,13 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
           preview: {
             title: "Load dataset into playground",
             body: {
-              kind: "json",
-              payload: {
+              kind: "summary",
+              rows: payloadToApprovalSummaryRows({
                 dataset: pending.input.datasetName,
                 ...(pending.input.splitName
                   ? { split: pending.input.splitName }
                   : {}),
-              },
+              }),
             },
           },
           accept: pending.accept,

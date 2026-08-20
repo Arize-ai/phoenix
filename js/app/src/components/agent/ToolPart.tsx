@@ -291,6 +291,33 @@ export const toolPartCSS = css`
     line-height: var(--global-line-height-s);
   }
 
+  /* Key–value rows for approval summaries: labels in the quiet color, values
+     as prose, structured values as scoped code blocks. */
+  .tool-part__kv {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: var(--global-dimension-size-200);
+    row-gap: var(--global-dimension-size-50);
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+
+    dt {
+      color: var(--tool-call-quiet-color);
+      white-space: nowrap;
+    }
+
+    dd {
+      margin: 0;
+      min-width: 0;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+  }
+
   .tool-part__summary {
     display: flex;
     align-items: center;
