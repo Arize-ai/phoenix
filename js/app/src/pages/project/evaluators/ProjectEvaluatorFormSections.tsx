@@ -83,9 +83,8 @@ const ProjectEvaluatorInputMappingSection = ({
             Evaluator Inputs
           </Heading>
           <Text color="text-500" size="S">
-            Every evaluator receives an input, an output, and metadata. Leave a
-            row alone to use what the {recordNoun} already provides, or point it
-            at any field of the {recordNoun}.
+            Every evaluator receives an input, an output, and metadata, and each
+            can be pointed at any field of the {recordNoun}.
           </Text>
         </Flex>
         <View
