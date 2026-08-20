@@ -713,7 +713,7 @@ function SessionRunList({
       ? [
           {
             key: SAMPLE_ROW_KEY,
-            name: "Sample session",
+            name: "Session fields",
             context: sample.context,
             boundVariables: sample.boundVariables,
             isSample: true,
@@ -867,8 +867,7 @@ function SpanRunList({
     { fetchPolicy: "store-and-network" }
   );
   const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
-  const sample =
-    spans.length === 0 ? getSampleSpanEvaluationContext(filterCondition) : null;
+  const sample = spans.length === 0 ? getSampleSpanEvaluationContext() : null;
   const rows: RecordedRunListRow[] = spans.length
     ? spans.map((span) => ({
         key: span.id,
@@ -882,8 +881,7 @@ function SpanRunList({
       ? [
           {
             key: SAMPLE_ROW_KEY,
-            name: `Sample ${sample.spanKind} span`,
-            spanKind: sample.spanKind.toLowerCase(),
+            name: "Span fields",
             context: sample.context,
             boundVariables: sample.boundVariables,
             isSample: true,
@@ -1013,11 +1011,6 @@ function RecordedRunList({
   }, [canRunAllRecords, onCanRunAllChange]);
   return (
     <div css={runListCSS}>
-      {rows[0]?.isSample ? (
-        <Text size="S" color="text-500">
-          Use this sample {recordNoun} to test your evaluator.
-        </Text>
-      ) : null}
       <ul aria-label={listLabel} className="run-list__rows">
         {rows.map((row) => (
           <RecordedRunRow
@@ -1100,9 +1093,7 @@ function RecordedRunRow({
           </>
         }
         titleExtra={
-          row.isSample ? (
-            <Token size="S">sample</Token>
-          ) : row.metric ? (
+          row.isSample ? null : row.metric ? (
             <Token size="S">{row.metric}</Token>
           ) : null
         }
@@ -1342,9 +1333,11 @@ function BindingPreview({
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
-        <Alert variant="info" title={`Bindings use a sample ${recordNoun}`}>
-          Check them against a real {recordNoun} once this project has one that
-          matches.
+        <Alert
+          variant="info"
+          title={`Bindings show the ${recordNoun}'s standard fields`}
+        >
+          Values fill in once this project has a {recordNoun} that matches.
         </Alert>
       ) : null}
       {[...automaticRows, ...mappedRows].map((row) => (
