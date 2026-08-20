@@ -1,5 +1,5 @@
 import type * as PhoenixOtel from "@arizeai/phoenix-otel";
-import { createHttp } from "@arizeai/phoenix-testing";
+import { createHttp, DEFAULT_MOCK_BASE_URL } from "@arizeai/phoenix-testing";
 import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
 import {
   afterAll,
@@ -58,6 +58,7 @@ vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
 
 import * as phoenixOtel from "@arizeai/phoenix-otel";
 
+import { createClient, type PhoenixClient } from "../../src";
 import * as getDatasetModule from "../../src/datasets/getDataset";
 import * as getExperimentInfoModule from "../../src/experiments/getExperimentInfo";
 import {
@@ -193,5 +194,39 @@ describe("runExperiment tracing", () => {
     for (const registration of globalRegistrations) {
       expect(registration.detach).toHaveBeenCalledTimes(1);
     }
+  });
+
+  // Explicit code-level configuration outranks the ambient environment, and an
+  // environment-derived base URL hands trace export back to `register()` — the
+  // same chain a standalone `register()` call reads, so experiments and
+  // instrumented application code never disagree about where spans go.
+  describe("trace export destination", () => {
+    afterEach(() => {
+      delete process.env.PHOENIX_COLLECTOR_ENDPOINT;
+      delete process.env.PHOENIX_ENDPOINT;
+    });
+
+    async function runWith(client: PhoenixClient) {
+      await runExperiment({
+        client,
+        dataset: { datasetId: mockDataset.id },
+        task: async ({ input }) => input,
+        evaluators: [],
+      });
+      return vi.mocked(phoenixOtel.register).mock.calls[0]?.[0];
+    }
+
+    it("exports to an explicit client baseUrl even when the collector variable is set", async () => {
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "http://ambient-collector";
+      const registerParams = await runWith(createTestClient());
+      expect(registerParams?.url).toBe(DEFAULT_MOCK_BASE_URL);
+    });
+
+    it("lets register() resolve the destination when the base URL came from the environment", async () => {
+      process.env.PHOENIX_ENDPOINT = DEFAULT_MOCK_BASE_URL;
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "http://ambient-collector";
+      const registerParams = await runWith(createClient());
+      expect(registerParams?.url).toBeUndefined();
+    });
   });
 });

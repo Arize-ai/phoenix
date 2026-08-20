@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
-    from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
+    from phoenix.server.api.helpers.playground_clients import PlaygroundClient
 
 ModelName = Union[str, None]
 ModelKey = tuple[GenerativeProviderKey, ModelName]
@@ -23,14 +23,14 @@ class SingletonMeta(type):
 class PlaygroundClientRegistry(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self._registry: dict[
-            GenerativeProviderKey, dict[ModelName, Optional[type["PlaygroundStreamingClient[Any]"]]]
+            GenerativeProviderKey, dict[ModelName, Optional[type["PlaygroundClient[Any]"]]]
         ] = {}
 
     def get_client(
         self,
         provider_key: GenerativeProviderKey,
         model_name: ModelName,
-    ) -> Optional[type["PlaygroundStreamingClient[Any]"]]:
+    ) -> Optional[type["PlaygroundClient[Any]"]]:
         provider_registry = self._registry.get(provider_key, {})
         client_class = provider_registry.get(model_name)
         if client_class is None and None in provider_registry:
@@ -60,10 +60,17 @@ PLAYGROUND_CLIENT_REGISTRY: PlaygroundClientRegistry = PlaygroundClientRegistry(
 def register_llm_client(
     provider_key: GenerativeProviderKey,
     model_names: Sequence[ModelName],
-) -> Callable[[type["PlaygroundStreamingClient[Any]"]], type["PlaygroundStreamingClient[Any]"]]:
+) -> Callable[[type["PlaygroundClient[Any]"]], type["PlaygroundClient[Any]"]]:
+    """Add a provider's models to the playground catalog.
+
+    Declares the model names the UI offers and the client supplying the provider's
+    dependency metadata. Does not select the client that serves a request -- see
+    ``get_openai_client_class`` in ``playground_clients``.
+    """
+
     def decorator(
-        cls: type["PlaygroundStreamingClient[Any]"],
-    ) -> type["PlaygroundStreamingClient[Any]"]:
+        cls: type["PlaygroundClient[Any]"],
+    ) -> type["PlaygroundClient[Any]"]:
         provider_registry = PLAYGROUND_CLIENT_REGISTRY._registry.setdefault(provider_key, {})
         for model_name in model_names:
             provider_registry[model_name] = cls

@@ -9,6 +9,8 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { headlessSummary } from "../../src/commands/formatSetup";
+import { setupExitCode } from "../../src/commands/setup";
+import { ExitCode } from "../../src/exitCodes";
 import type { SetupDeps } from "../../src/setup/deps";
 import {
   HeadlessInputError,
@@ -359,7 +361,7 @@ describe("runSetup", () => {
     // verified — the MCP failure cost nothing but the optimization.
     expect(result.docsMcp?.outcome).toBe("failed");
     expect(result.docs?.outputDir).toBe(".px/docs");
-    expect(result.tracesVerified).toBe(true);
+    expect(result.verification).toBe("verified");
     expect(launched).toHaveLength(1);
   });
 
@@ -393,9 +395,56 @@ describe("runSetup", () => {
 
     const result = await runSetupLane(deps);
     expect(result.headless).toBe(false);
+    // Deferred, not failed: setup offered to stop watching and the user took
+    // it, so the process must still exit 0 or `px setup && npm run dev` breaks
+    // for a run that did exactly what was asked.
+    expect(result.verification).toBe("deferred");
+    expect(setupExitCode(result)).toBe(ExitCode.SUCCESS);
     expect(
       prompter.output.some((message) => message.includes("Not seeing traces?"))
     ).toBe(true);
+    // The closing line is the last thing on screen and so the run's verdict as
+    // the user reads it: it must not claim success the run did not earn.
+    expect(prompter.output).not.toContain("You're set up.");
+    expect(
+      prompter.output.some((message) => message.includes("no trace arrived"))
+    ).toBe(true);
+  });
+
+  it("a headless wait that runs out fails, unlike a deferral", async () => {
+    let clock = 0;
+    const deps = buildFakeDeps({
+      context: { cwd: dir, settingsPath },
+      fetch: fakeFetch(
+        (url) =>
+          url.includes("/spans?") ? jsonResponse(200, { data: [] }) : undefined,
+        (url) =>
+          url.includes("/v1/projects?limit=1")
+            ? jsonResponse(200, { data: [] })
+            : undefined
+      ),
+      processes: {
+        exec: async (spec) =>
+          spec.command === "claude" && spec.args[0] === "--version"
+            ? { exitCode: 0, stdout: "1.0.0\n", stderr: "" }
+            : gitExecFake()(spec),
+      },
+      clock: { now: () => (clock += 61_000) },
+    });
+
+    const result = await runSetupLane(deps, {
+      noInput: true,
+      instrument: true,
+      agent: "claude",
+      bypassPermissions: true,
+      endpoint: LOCAL,
+      project: "my-app",
+    });
+    // Nobody chose this — the window elapsed with no trace, which is the
+    // silent-drop case the exit code exists to surface.
+    expect(result.verification).toBe("notVerified");
+    expect(setupExitCode(result)).toBe(ExitCode.NOT_VERIFIED);
+    expect(headlessSummary(result)).toContain("traces: NOT VERIFIED");
   });
 
   it("cancelling any prompt unwinds with SetupCancelledError", async () => {
@@ -520,7 +569,7 @@ describe("runSetup", () => {
       agent: "claude",
       exitCode: 0,
     });
-    expect(result.tracesVerified).toBe(true);
+    expect(result.verification).toBe("verified");
     expect(result.docs?.outputDir).toBe(".px/docs");
     expect(launched[0]?.args.slice(0, 2)).toEqual([
       "-p",
@@ -571,7 +620,7 @@ describe("runSetup", () => {
       project: "my-app",
     });
 
-    expect(result.tracesVerified).toBe(true);
+    expect(result.verification).toBe("verified");
     expect(result.docs?.written).toBe(1);
   });
 

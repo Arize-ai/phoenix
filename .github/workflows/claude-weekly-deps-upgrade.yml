@@ -31,12 +31,12 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.1"
 
       - name: Install PNPM
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
-          package_json_file: app/package.json
+          package_json_file: js/package.json
 
       - name: Use Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -68,13 +68,7 @@ jobs:
           uv lock --upgrade
           uv sync
 
-      - name: Upgrade JavaScript (pnpm) — app
-        working-directory: ./app
-        run: |
-          pnpm update --recursive
-          pnpm install --frozen-lockfile
-
-      - name: Upgrade JavaScript (pnpm) — js
+      - name: Upgrade JavaScript (pnpm)
         working-directory: ./js
         run: |
           pnpm update --recursive
@@ -123,26 +117,25 @@ jobs:
           run gen-graphql         make graphql
           run gen-openapi         make openapi
           run gen-generative-ui   make schema-generative-ui
+          run gen-ui-reducer      make ui-message-stream-fixtures
           run python-format       make format-python
           run python-lint         make lint-python
           run python-typecheck    make typecheck-python
           # Formatters run in write mode (like format-python above): style
           # churn from a formatter upgrade rides along in the commit instead
           # of failing the check.
-          run app-fmt             make format-frontend
-          run app-typecheck       make typecheck-frontend
-          run app-lint            make lint-frontend
-          run app-test            make test-frontend
-          run app-build           make build-frontend
+          # The js targets cover the whole workspace, app included.
           run js-fmt              make format-ts
           run js-lint             make lint-ts
-          # Build before test: workspace packages resolve each other via dist/,
-          # so running tests against unbuilt packages fails on module resolution
-          # rather than real regressions. No `git diff --exit-code` here (unlike
-          # typescript-packages-CI.yml): the upgrade itself is uncommitted at
-          # this point, and anything the build regenerates is committed later
-          # by `git add -A`.
+          # Build before typecheck/test: workspace packages resolve each other
+          # via dist/ (and the app resolves phoenix-client/phoenix-evals via
+          # dist/), so running checks against unbuilt packages fails on module
+          # resolution rather than real regressions. No `git diff --exit-code`
+          # here (unlike typescript-CI.yml): the upgrade itself is uncommitted
+          # at this point, and anything the build regenerates is committed
+          # later by `git add -A`.
           run js-build            make build-ts
+          run js-typecheck        make typecheck-ts
           run js-test             make test-ts
           # Write a one-line index of which checks failed for quick scanning.
           {
@@ -196,7 +189,7 @@ jobs:
               --body "Automated weekly dependency upgrade.
 
           - \`uv lock --upgrade\` (Python)
-          - \`pnpm update --recursive\` in \`app/\` and \`js/\`
+          - \`pnpm update --recursive\` in \`js/\`
 
           All verification checks passed (typecheck, fmt, lint, test, build). Review and merge."
           fi
@@ -217,7 +210,7 @@ jobs:
       - name: Hand off to Claude (fix regressions)
         id: claude_fix
         if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure'
-        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1.0.183
+        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -237,7 +230,7 @@ jobs:
           prompt: |
             You're on branch `${{ steps.branch.outputs.branch }}`. The weekly dependency upgrade
             already ran (`uv lock --upgrade` for Python, `pnpm update -r`
-            in `app/` and `js/`), but the verification step failed. The upgraded
+            in `js/`), but the verification step failed. The upgraded
             lockfiles and any package manifest changes are in the working tree
             (uncommitted). Your job is to fix the regressions in the working tree
             and write a one-page summary of what you did — nothing more.
@@ -264,6 +257,7 @@ jobs:
               - `.scratch/verify/gen-graphql.log`
               - `.scratch/verify/gen-openapi.log`
               - `.scratch/verify/gen-generative-ui.log`
+              - `.scratch/verify/gen-ui-reducer.log`
               - `.scratch/verify/python-format.log`
               - `.scratch/verify/python-lint.log`
               - `.scratch/verify/python-typecheck.log`
@@ -300,7 +294,7 @@ jobs:
 
             ## Constraints
             - Honor the `pnpm.minimumReleaseAge` and `allowBuilds` policies in
-              `app/pnpm-workspace.yaml` and `js/pnpm-workspace.yaml` — never
+              `js/pnpm-workspace.yaml` — never
               bypass them with `--config.dangerouslyAllowAllBuilds` or by editing
               the policy.
             - No pre-releases in production Python deps (CLAUDE.md policy). Dev
@@ -345,7 +339,7 @@ jobs:
             echo "> Review the diff and fixes carefully before merging."
             echo ""
             echo "- \`uv lock --upgrade\` (Python)"
-            echo "- \`pnpm update --recursive\` in \`app/\` and \`js/\`"
+            echo "- \`pnpm update --recursive\` in \`js/\`"
             echo ""
             echo "## Fix summary"
             echo ""

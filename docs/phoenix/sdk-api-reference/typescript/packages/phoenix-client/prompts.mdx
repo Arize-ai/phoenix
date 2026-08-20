@@ -3,7 +3,7 @@ title: "Prompts"
 description: "Manage prompts with @arizeai/phoenix-client"
 ---
 
-The prompts module lets you create prompt versions in Phoenix, fetch them back by selector, list prompts, and adapt prompt versions to supported provider SDKs.
+The prompts module lets you create prompt versions in Phoenix, fetch them back by selector, list prompts, update a prompt's description and metadata, and adapt prompt versions to supported provider SDKs.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
@@ -43,6 +43,22 @@ const prompt = await getPrompt({
 
 `prompt` can be selected by `{ name }`, `{ name, tag }`, or `{ versionId }`.
 
+## Update Description And Metadata
+
+```ts
+import { updatePrompt } from "@arizeai/phoenix-client/prompts";
+
+await updatePrompt({
+  promptIdentifier: "support-response",
+  description: "Customer support reply prompt",
+  metadata: { team: "ml", env: "production" },
+});
+```
+
+`promptIdentifier` is a prompt name or ID. Omit a field to leave it unchanged, and pass `description: null` to clear it. `metadata` replaces the existing metadata object as a whole rather than merging into it.
+
+Requires a Phoenix server on 19.18.0 or later.
+
 ## Convert To Another SDK
 
 ```ts
@@ -67,6 +83,7 @@ Supported `sdk` targets:
     <li><code>src/prompts/createPrompt.ts</code></li>
     <li><code>src/prompts/getPrompt.ts</code></li>
     <li><code>src/prompts/listPrompts.ts</code></li>
+    <li><code>src/prompts/updatePrompt.ts</code></li>
     <li><code>src/prompts/sdks/toSDK.ts</code></li>
     <li><code>src/types/prompts.ts</code></li>
   </ul>

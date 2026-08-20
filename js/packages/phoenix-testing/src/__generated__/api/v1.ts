@@ -423,6 +423,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/datasets/{dataset_identifier}/splits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a dataset split */
+        post: operations["createDatasetSplit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/splits/{split_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a dataset split */
+        delete: operations["deleteDatasetSplit"];
+        options?: never;
+        head?: never;
+        /** Update a dataset split */
+        patch: operations["updateDatasetSplit"];
+        trace?: never;
+    };
     "/v1/datasets/{id}/csv": {
         parameters: {
             query?: never;
@@ -600,6 +635,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/experiments/{experiment_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the tags applied to an experiment
+         * @description List the tags currently pointing at this experiment. Tags are scoped to the experiment's dataset, so a tag appears here only while this experiment owns it.
+         */
+        get: operations["listExperimentTags"];
+        put?: never;
+        /**
+         * Assign a tag to an experiment
+         * @description Assign a tag to an experiment. Tags are scoped to the experiment's dataset and each tag name points at a single experiment, so assigning a tag that another experiment on the same dataset owns atomically moves the tag to this experiment. Re-assigning a tag the experiment already owns is idempotent and replaces the description. Assigning the reserved 'baseline' tag makes this experiment the dataset's baseline; ephemeral experiments cannot become the baseline.
+         */
+        post: operations["setExperimentTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiments/{experiment_id}/tags/{tag_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a tag from an experiment
+         * @description Remove a tag, identified by its node ID or name, from the experiment that owns it. This operation is idempotent and never steals a tag from another experiment: if the experiment does not currently own the tag, the request is a no-op.
+         */
+        delete: operations["deleteExperimentTag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/experiments/{experiment_id}/runs": {
         parameters: {
             query?: never;
@@ -719,6 +798,26 @@ export interface paths {
          * @description Add a note annotation to a trace. By default each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Callers may supply a non-empty `identifier` to upsert on (trace_id, name='note', identifier) — repeated calls with the same identifier overwrite the existing note, matching the semantics of structured annotations.
          */
         post: operations["createTraceNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/traces/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer traces to a project
+         * @description Move traces into a different project. This re-parents the traces rather than copying them, so they no longer appear under their original project. All traces must currently belong to the same source project.
+         */
+        post: operations["transferTraces"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1027,7 +1126,11 @@ export interface paths {
         delete: operations["deletePrompt"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update prompt metadata
+         * @description Update a prompt's description and metadata by identifier.
+         */
+        patch: operations["patchPrompt"];
         trace?: never;
     };
     "/v1/projects": {
@@ -1390,6 +1493,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/chat/completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * OpenAI-compatible chat completions
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         *
+         *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
+         */
+        post: operations["createChatCompletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -1556,30 +1681,121 @@ export interface paths {
         put?: never;
         /**
          * Run Server Agent
-         * @description Stream a chat turn from the GraphQL server agent.
-         *
-         *     This is the endpoint the PXI CLI talks to directly (no pre-configured
-         *     agent record): it builds a fresh server agent per request from the
-         *     caller-supplied model and contexts, then streams the reply back as
-         *     Vercel-AI chunks.
-         *
-         *     The request contexts gate capabilities — GraphQL mutations, web access,
-         *     and subagents — and mutations are refused for viewer users. When trace
-         *     recording is enabled (and permitted by system settings), the run is
-         *     traced; locally ingested traces are persisted to the agent's project
-         *     once the stream completes.
-         *
-         *     Returns ``403`` if agents or the server agent are disabled, or if a
-         *     viewer requests mutations.
+         * @deprecated
          */
-        post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
+        post: operations["legacyServerAgentChat"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/agents/{agent_id}/sessions/{session_id}/chat": {
+    "/v1/agent_sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sessions
+         * @description List the viewer's persisted sessions, most recently active first.
+         */
+        get: operations["listAgentSessions"];
+        put?: never;
+        /**
+         * Create Session
+         * @description Create a persisted agent session owned by the requesting user.
+         */
+        post: operations["createAgentSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent_sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Session
+         * @description Retrieve an owned session's metadata.
+         */
+        get: operations["getAgentSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Session
+         * @description Update a persisted session's mutable fields.
+         */
+        patch: operations["patchAgentSession"];
+        trace?: never;
+    };
+    "/v1/agent_sessions/{session_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Session Messages
+         * @description Page through an owned session's persisted transcript, oldest first.
+         */
+        get: operations["listAgentSessionMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent_sessions/{session_id}/compact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compact Agent Session */
+        post: operations["compactAgentSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent_sessions/{session_id}/tool_outputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Agent Session Tool Outputs
+         * @description Persist resolved client tool outputs for the session's open turn.
+         */
+        post: operations["submitAgentSessionToolOutputs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent_sessions/{session_id}/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -1589,24 +1805,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Chat */
-        post: operations["chat_agents__agent_id__sessions__session_id__chat_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/agents/{agent_id}/sessions/{session_id}/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Summarize Endpoint */
-        post: operations["summarize_endpoint_agents__agent_id__sessions__session_id__summary_post"];
+        post: operations["agentSessionChat"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1671,6 +1870,92 @@ export interface components {
         /** AddDatasetLabelToDatasetResponseBody */
         AddDatasetLabelToDatasetResponseBody: {
             data: components["schemas"]["DatasetLabel"];
+        };
+        AgentModelSelection: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+        /**
+         * AgentSessionConflictError
+         * @description Body of every HTTP 409 returned by the agent session routes.
+         *
+         *     - ``agent_session_busy``: another turn holds the session's turn lock.
+         *     - ``agent_session_model_stale``: the request asserted a model the session
+         *       is no longer set to; refetch the session before retrying.
+         *     - ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer
+         *       matches the persisted transcript — another client appended; refetch the
+         *       transcript and retry.
+         *     - ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do
+         *       not match the transcript's trailing assistant message (no trailing
+         *       assistant message to continue, an unknown ``toolCallId``, or a tool-name
+         *       mismatch). Unlike ``agent_session_messages_stale`` this is not a
+         *       concurrent-writer race but an inconsistent request; fix the client
+         *       rather than retrying.
+         *     - ``agent_session_already_compact``: there are no complete turns to
+         *       compact — either nothing new has finished since the transcript's latest
+         *       checkpoint, or a concurrent request's checkpoint already covers them.
+         *       Not retryable; the conversation is as compact as it can get.
+         *     - ``agent_session_compaction_conflict``: the conversation changed while it
+         *       was being compacted; retry.
+         */
+        AgentSessionConflictError: {
+            /**
+             * Code
+             * @description Machine-readable reason the request conflicted.
+             * @enum {string}
+             */
+            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
+            /**
+             * Message
+             * @description Optional human-readable elaboration on the conflict.
+             */
+            message?: string | null;
+        };
+        /** AgentSessionData */
+        AgentSessionData: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Is Ephemeral */
+            is_ephemeral: boolean;
+            model: components["schemas"]["AgentModelSelection"];
+            /**
+             * Is Active
+             * @description Whether a response is currently streaming on this session, i.e. its lock has a live (non-stale) heartbeat.
+             */
+            is_active: boolean;
+            /**
+             * Last Message Id
+             * @description The message ID of the most recently persisted transcript message, or null for an empty transcript.
+             */
+            last_message_id?: string | null;
+        };
+        /** AgentSessionSummary */
+        AgentSessionSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Is Ephemeral */
+            is_ephemeral: boolean;
         };
         /**
          * AgentSpanContext
@@ -1825,36 +2110,17 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
-        /**
-         * AssistantMessageMetadata
-         * @description Wire schema for the chat stream's `message_metadata` payload.
-         */
-        AssistantMessageMetadata: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "assistant";
-            /** Sessionid */
-            sessionId: string;
-            trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
-            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
-            usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
-        };
-        /** AssistantMessageMetadataTraceIds */
-        AssistantMessageMetadataTraceIds: {
-            /** Traceid */
-            traceId: string;
-            /** Rootspanid */
-            rootSpanId: string;
-        };
         /** AssistantMessageMetadataUsage */
         AssistantMessageMetadataUsage: {
             tokens: components["schemas"]["AssistantMessageMetadataUsageTokens"];
-            promptDetails?: components["schemas"]["AssistantMessageMetadataUsageTokenDetails"] | null;
+            promptDetails?: components["schemas"]["AssistantMessageMetadataUsageCacheTokenDetails"] | null;
         };
-        /** AssistantMessageMetadataUsageTokenDetails */
-        AssistantMessageMetadataUsageTokenDetails: {
+        /**
+         * AssistantMessageMetadataUsageCacheTokenDetails
+         * @description Prompt-cache token counts, mounted as the usage payload's
+         *     ``prompt_details`` because cached tokens are a breakdown of the prompt.
+         */
+        AssistantMessageMetadataUsageCacheTokenDetails: {
             /** Cacheread */
             cacheRead: number;
             /** Cachewrite */
@@ -1875,8 +2141,7 @@ export interface components {
          *
          *     Credentials and connection details (base URL, Azure endpoint, AWS
          *     region) are resolved from the secret store first and the process
-         *     environment second. ``openai_api_type`` is honoured by the OpenAI and
-         *     Azure OpenAI branches; other providers ignore it.
+         *     environment second.
          */
         BuiltInProviderModelSelection: {
             /**
@@ -1887,12 +2152,6 @@ export interface components {
             provider: components["schemas"]["ModelProvider"];
             /** Modelname */
             modelName: string;
-            /**
-             * Openaiapitype
-             * @default responses
-             * @enum {string}
-             */
-            openaiApiType?: "chat_completions" | "responses";
         };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
@@ -1933,43 +2192,119 @@ export interface components {
             /** Score */
             score?: number | null;
         };
+        /** ChatCompletion */
+        ChatCompletion: {
+            /** Id */
+            id: string;
+            /**
+             * Object
+             * @default chat.completion
+             * @constant
+             */
+            object?: "chat.completion";
+            /** Created */
+            created: number;
+            /** Model */
+            model: string;
+            /** Choices */
+            choices: components["schemas"]["ChatCompletionChoice"][];
+            usage: components["schemas"]["ChatCompletionUsage"];
+        };
+        /** ChatCompletionChoice */
+        ChatCompletionChoice: {
+            /**
+             * Index
+             * @default 0
+             */
+            index?: number;
+            message: components["schemas"]["ChatCompletionMessage"];
+            /** Finish Reason */
+            finish_reason: string;
+        };
+        /** ChatCompletionErrorDetail */
+        ChatCompletionErrorDetail: {
+            /** Message */
+            message: string;
+            /** Type */
+            type: string;
+            /** Param */
+            param?: string | null;
+            /** Code */
+            code?: string | null;
+        };
+        /** ChatCompletionErrorResponse */
+        ChatCompletionErrorResponse: {
+            error: components["schemas"]["ChatCompletionErrorDetail"];
+        };
+        /** ChatCompletionMessage */
+        ChatCompletionMessage: {
+            /**
+             * Role
+             * @default assistant
+             * @constant
+             */
+            role?: "assistant";
+            /** Content */
+            content: string;
+        };
+        /** ChatCompletionRequestMessage */
+        ChatCompletionRequestMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "developer" | "user" | "assistant";
+            /** Content */
+            content: string | components["schemas"]["ChatCompletionTextPart"][];
+        };
+        /** ChatCompletionStreamOptions */
+        ChatCompletionStreamOptions: {
+            /**
+             * Include Usage
+             * @default false
+             */
+            include_usage?: boolean;
+        };
+        /** ChatCompletionTextPart */
+        ChatCompletionTextPart: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "text";
+            /** Text */
+            text: string;
+        };
+        /** ChatCompletionUsage */
+        ChatCompletionUsage: {
+            /** Prompt Tokens */
+            prompt_tokens: number;
+            /** Completion Tokens */
+            completion_tokens: number;
+            /** Total Tokens */
+            total_tokens: number;
+            prompt_tokens_details?: components["schemas"]["ChatCompletionUsagePromptTokensDetails"] | null;
+        };
+        /** ChatCompletionUsagePromptTokensDetails */
+        ChatCompletionUsagePromptTokensDetails: {
+            /** Cached Tokens */
+            cached_tokens: number;
+        };
         /**
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
         ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
-         * ChatRegenerateMessage
-         * @description Regenerate message extended with Phoenix-specific fields.
+         * ChatRequestBody
+         * @description Assistant chat submit request payload.
          */
-        ChatRegenerateMessage: {
+        ChatRequestBody: {
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Headless
+             * @description Whether a headless client (terminal or scripted) is driving the turn, as opposed to the browser assistant. Selects the agent configuration the turn runs on.
              */
-            trigger: "regenerate-message";
-            /** Id */
-            id: string;
-            /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
-            /** Messageid */
-            messageId?: string | null;
-            /**
-             * Ingesttraces
-             * @default false
-             */
-            ingestTraces?: boolean;
-            /**
-             * Exportremotetraces
-             * @default false
-             */
-            exportRemoteTraces?: boolean;
-            /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
-             */
-            attachUserId?: boolean;
+            headless: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -1983,65 +2318,44 @@ export interface components {
              * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
              */
             requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
-         * ChatRequest
-         * @description Discriminated union of chat request payloads.
-         */
-        ChatRequest: components["schemas"]["ChatSubmitMessage"] | components["schemas"]["ChatRegenerateMessage"];
-        /**
-         * ChatSubmitMessage
-         * @description Submit message extended with Phoenix-specific fields.
-         */
-        ChatSubmitMessage: {
+            /** @description The model the client believes the session is set to. This is a precondition, not an instruction: the turn always runs on the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale`` rather than silently running on — or switching to — an unexpected model. Change the session's model with ``PATCH .../agent_sessions/{session_id}``. */
+            model: components["schemas"]["AgentModelSelection"];
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Trigger
+             * @default submit-message
+             * @constant
              */
-            trigger: "submit-message";
+            trigger?: "submit-message";
             /** Id */
             id: string;
-            /** Messages */
-            messages: components["schemas"]["PhoenixUIMessage"][];
+            /** @description The turn's new user message to append. May be omitted for client-tool continuation, where ``toolOutputs`` resolve the trailing assistant message's pending tool calls instead. */
+            message?: components["schemas"]["PhoenixUIMessage"] | null;
             /**
-             * Ingesttraces
+             * Tooloutputs
+             * @description Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs.
+             */
+            toolOutputs?: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
+            /**
+             * Lastmessageid
+             * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
+             */
+            lastMessageId?: string | null;
+            /**
+             * Recordlocaltraces
              * @default false
              */
-            ingestTraces?: boolean;
+            recordLocalTraces?: boolean;
             /**
              * Exportremotetraces
              * @default false
              */
             exportRemoteTraces?: boolean;
             /**
-             * Attachuserid
+             * Instrumentuserid
              * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
              * @default false
              */
-            attachUserId?: boolean;
-            /** Contexts */
-            contexts?: components["schemas"]["ChatContext"][];
-            /**
-             * Editpermission
-             * @default manual
-             * @enum {string}
-             */
-            editPermission?: "manual" | "bypass";
-            /**
-             * Requestedskills
-             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
-             */
-            requestedSkills?: string[];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
-        } & {
-            [key: string]: unknown;
+            instrumentUserId?: boolean;
         };
         /**
          * CodeEvaluatorContext
@@ -2055,6 +2369,23 @@ export interface components {
             type: "code_evaluator";
             /** Evaluatornodeid */
             evaluatorNodeId?: string | null;
+        };
+        /**
+         * CompactAgentSessionRequestBody
+         * @description Request a model-generated checkpoint for a persisted conversation.
+         */
+        CompactAgentSessionRequestBody: {
+            /** @description The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``. */
+            model: components["schemas"]["AgentModelSelection"];
+        };
+        /**
+         * CompactAgentSessionResponseBody
+         * @description The checkpoint message this request created. A 200 always means a new
+         *     checkpoint was persisted; every other outcome is an HTTP 409 whose body's
+         *     ``code`` says why (see ``AgentSessionConflictError``).
+         */
+        CompactAgentSessionResponseBody: {
+            data: components["schemas"]["PhoenixUIMessage"];
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -2092,6 +2423,29 @@ export interface components {
             /** Upper Bound */
             upper_bound?: number | null;
         };
+        /**
+         * CreateAgentSessionRequestBody
+         * @description Request body for creating a persisted agent session.
+         */
+        CreateAgentSessionRequestBody: {
+            model: components["schemas"]["AgentModelSelection"];
+            /**
+             * Title
+             * @description Optional initial title.
+             * @default
+             */
+            title?: string;
+            /**
+             * Is Ephemeral
+             * @description Whether the session should expire after a period of inactivity.
+             * @default false
+             */
+            is_ephemeral?: boolean;
+        };
+        /** CreateAgentSessionResponseBody */
+        CreateAgentSessionResponseBody: {
+            data: components["schemas"]["CreatedAgentSession"];
+        };
         /** CreateAnnotationConfigData */
         CreateAnnotationConfigData: components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"];
         /** CreateAnnotationConfigResponseBody */
@@ -2106,6 +2460,63 @@ export interface components {
         /** CreateApiKeyResponseBody */
         CreateApiKeyResponseBody: {
             data: components["schemas"]["CreatedApiKey"];
+        };
+        /**
+         * CreateChatCompletionRequestBody
+         * @example {
+         *       "messages": [
+         *         {
+         *           "content": "You are a helpful assistant.",
+         *           "role": "system"
+         *         },
+         *         {
+         *           "content": "Say hello.",
+         *           "role": "user"
+         *         }
+         *       ],
+         *       "model": "openai:gpt-4o"
+         *     }
+         */
+        CreateChatCompletionRequestBody: {
+            /**
+             * Model
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             */
+            model: string;
+            /** Messages */
+            messages: components["schemas"]["ChatCompletionRequestMessage"][];
+            /**
+             * Stream
+             * @default false
+             */
+            stream?: boolean;
+            /** Temperature */
+            temperature?: number | null;
+            /** Top P */
+            top_p?: number | null;
+            /** Max Tokens */
+            max_tokens?: number | null;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number | null;
+            /** Stop */
+            stop?: string | string[] | null;
+            /** Frequency Penalty */
+            frequency_penalty?: number | null;
+            /** Presence Penalty */
+            presence_penalty?: number | null;
+            /** Seed */
+            seed?: number | null;
+            /** N */
+            n?: number | null;
+            stream_options?: components["schemas"]["ChatCompletionStreamOptions"] | null;
+            /** Tools */
+            tools?: unknown[] | null;
+            /** Tool Choice */
+            tool_choice?: unknown | null;
+            /** Response Format */
+            response_format?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** CreateDatasetLabelRequestBody */
         CreateDatasetLabelRequestBody: {
@@ -2128,6 +2539,40 @@ export interface components {
         /** CreateDatasetLabelResponseBody */
         CreateDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
+        };
+        /** CreateDatasetSplitRequestBody */
+        CreateDatasetSplitRequestBody: {
+            /**
+             * Name
+             * @description A unique name for the split.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of the split.
+             */
+            description?: string | null;
+            /**
+             * Color
+             * @description An optional hex color for the split (e.g. #33c5e8). Omit for a default.
+             */
+            color?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the split.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Example Ids
+             * @description Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
+             */
+            example_ids?: string[];
+        };
+        /** CreateDatasetSplitResponseBody */
+        CreateDatasetSplitResponseBody: {
+            data: components["schemas"]["DatasetSplit"];
         };
         /**
          * CreateExperimentRequestBody
@@ -2301,6 +2746,14 @@ export interface components {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
         };
+        /** CreatedAgentSession */
+        CreatedAgentSession: {
+            /**
+             * Id
+             * @description The session's GlobalID — the ``session_id`` the chat route expects.
+             */
+            id: string;
+        };
         /** CreatedApiKey */
         CreatedApiKey: {
             /** Id */
@@ -2436,6 +2889,33 @@ export interface components {
             description: string | null;
             /** Color */
             color: string;
+        };
+        /** DatasetSplit */
+        DatasetSplit: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Color */
+            color: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Example Count */
+            example_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -2636,46 +3116,6 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
-         * DynamicToolOutputAvailablePart
-         * @description Dynamic tool part in output-available state.
-         */
-        DynamicToolOutputAvailablePart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-available
-             * @constant
-             */
-            state?: "output-available";
-            /** Input */
-            input: unknown;
-            /** Output */
-            output: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Preliminary */
-            preliminary?: boolean | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
          * DynamicToolOutputDeniedPart
          * @description Dynamic tool part in output-denied state (tool was denied, terminal state).
          */
@@ -2700,44 +3140,6 @@ export interface components {
             state?: "output-denied";
             /** Input */
             input: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolOutputErrorPart
-         * @description Dynamic tool part in output-error state.
-         */
-        DynamicToolOutputErrorPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-error
-             * @constant
-             */
-            state?: "output-error";
-            /** Input */
-            input: unknown;
-            /** Errortext */
-            errorText: string;
             /** Providerexecuted */
             providerExecuted?: boolean | null;
             /** Callprovidermetadata */
@@ -2894,6 +3296,24 @@ export interface components {
              */
             experiment_id: string;
         };
+        /** ExperimentTag */
+        ExperimentTag: {
+            /**
+             * Id
+             * @description The node ID of the tag
+             */
+            id: string;
+            /**
+             * Name
+             * @description The name of the tag
+             */
+            name: string;
+            /**
+             * Description
+             * @description The description of the tag
+             */
+            description: string | null;
+        };
         /**
          * FileUIPart
          * @description A file part of a message.
@@ -2957,6 +3377,10 @@ export interface components {
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
+        };
+        /** GetAgentSessionResponseBody */
+        GetAgentSessionResponseBody: {
+            data: components["schemas"]["AgentSessionData"];
         };
         /** GetAllUserApiKeysResponseBody */
         GetAllUserApiKeysResponseBody: {
@@ -3214,6 +3638,160 @@ export interface components {
              */
             auth_method: "LDAP";
         };
+        /**
+         * LegacyAssistantMessageMetadata
+         * @description Legacy transcripts predate the ``type`` discriminator, so default it here.
+         */
+        LegacyAssistantMessageMetadata: {
+            /**
+             * Type
+             * @default assistant
+             * @constant
+             */
+            type?: "assistant";
+            /** Sessionid */
+            sessionId: string;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+            usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+            /**
+             * Interrupted
+             * @default false
+             */
+            interrupted?: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LegacyAssistantMetadataUIMessage
+         * @description ``UIMessage`` with ``metadata`` narrowed to ``PhoenixAssistantMessageMetadata``.
+         */
+        LegacyAssistantMetadataUIMessage: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "user" | "assistant";
+            metadata?: components["schemas"]["LegacyAssistantMessageMetadata"] | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+        };
+        /**
+         * LegacyChatRegenerateMessage
+         * @description Regenerate message extended with Phoenix-specific fields.
+         */
+        LegacyChatRegenerateMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "regenerate-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["LegacyAssistantMetadataUIMessage"][];
+            /** Messageid */
+            messageId?: string | null;
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route.
+             */
+            requestedSkills?: string[];
+            model: components["schemas"]["AgentModelSelection"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LegacyChatRequest
+         * @description Discriminated union of legacy chat request payloads.
+         */
+        LegacyChatRequest: components["schemas"]["LegacyChatSubmitMessage"] | components["schemas"]["LegacyChatRegenerateMessage"];
+        /**
+         * LegacyChatSubmitMessage
+         * @description Submit message extended with Phoenix-specific fields.
+         */
+        LegacyChatSubmitMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "submit-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["LegacyAssistantMetadataUIMessage"][];
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. Ignored by this legacy route.
+             */
+            requestedSkills?: string[];
+            model: components["schemas"]["AgentModelSelection"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** ListAgentSessionMessagesResponseBody */
+        ListAgentSessionMessagesResponseBody: {
+            /** Data */
+            data: components["schemas"]["PhoenixUIMessage"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** ListAgentSessionsResponseBody */
+        ListAgentSessionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["AgentSessionSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
             /** Dataset Id */
@@ -3254,6 +3832,11 @@ export interface components {
             data: components["schemas"]["ExperimentRun"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** ListExperimentTagsResponseBody */
+        ListExperimentTagsResponseBody: {
+            /** Data */
+            data: components["schemas"]["ExperimentTag"][];
         };
         /** ListExperimentsResponseBody */
         ListExperimentsResponseBody: {
@@ -3326,6 +3909,15 @@ export interface components {
             auth_method: "LOCAL";
             /** Password */
             password?: string;
+        };
+        /**
+         * MessageMetadata
+         * @description ``UIMessage.metadata`` as a registry of namespaces.
+         */
+        MessageMetadata: {
+            /** Phoenix */
+            phoenix?: (components["schemas"]["PhoenixAssistantMessageMetadata"] | components["schemas"]["PhoenixUserMessageMetadata"]) | null;
+            pydantic_ai?: components["schemas"]["PydanticAIMessageMetadata"] | null;
         };
         /**
          * ModelProvider
@@ -3597,8 +4189,67 @@ export interface components {
             message?: string | null;
         };
         /**
+         * PatchAgentSessionRequestBody
+         * @description Fields to update on a persisted session. Omit a field to leave it unchanged.
+         */
+        PatchAgentSessionRequestBody: {
+            /**
+             * Title
+             * @description New title for the session
+             */
+            title?: string;
+            /** @description New model selection for the session */
+            model?: components["schemas"]["AgentModelSelection"];
+        };
+        /** PatchAgentSessionResponseBody */
+        PatchAgentSessionResponseBody: {
+            data: components["schemas"]["AgentSessionData"];
+        };
+        /**
+         * PatchPromptRequestBody
+         * @description Fields to update on a prompt. Omit a field to leave it unchanged.
+         */
+        PatchPromptRequestBody: {
+            /**
+             * Description
+             * @description New description for the prompt (null clears the description)
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description New metadata object for the prompt (replaces the existing metadata as a whole)
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PatchPromptResponseBody */
+        PatchPromptResponseBody: {
+            data: components["schemas"]["Prompt"];
+        };
+        /**
+         * PhoenixAssistantMessageMetadata
+         * @description The ``phoenix`` metadata namespace of an assistant message.
+         */
+        PhoenixAssistantMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "assistant";
+            /** Sessionid */
+            sessionId: string;
+            turnTraceContext?: components["schemas"]["TurnTraceContext"] | null;
+            usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+            /**
+             * Interrupted
+             * @default false
+             */
+            interrupted?: boolean;
+        };
+        /**
          * PhoenixUIMessage
-         * @description `UIMessage` with `metadata` narrowed to the Phoenix wire shapes.
+         * @description ``UIMessage`` with metadata narrowed to the Phoenix wire shapes.
          */
         PhoenixUIMessage: {
             /** Id */
@@ -3608,10 +4259,30 @@ export interface components {
              * @enum {string}
              */
             role: "system" | "user" | "assistant";
-            /** Metadata */
-            metadata?: (components["schemas"]["AssistantMessageMetadata"] | components["schemas"]["UserMessageMetadata"]) | null;
+            metadata?: components["schemas"]["MessageMetadata"] | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+        };
+        /**
+         * PhoenixUserMessageMetadata
+         * @description The ``phoenix`` metadata namespace the browser attaches to outgoing
+         *     user messages.
+         */
+        PhoenixUserMessageMetadata: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "user";
+            /** Currentdatetime */
+            currentDateTime: string;
+            /** Timezone */
+            timeZone: string;
+            /**
+             * Iscompactionmessage
+             * @default false
+             */
+            isCompactionMessage?: boolean;
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -3756,12 +4427,9 @@ export interface components {
          *
          *     ``span_filter`` carries the project-scoped span filter expression when the
          *     span filter field is mounted — empty string when the field is mounted with
-         *     no condition applied, ``None`` when the field is not present at all.
-         *
-         *     ``root_spans_only`` carries the current state of the spans-table root vs.
-         *     all toggle when that toggle is mounted — ``True`` when the table is
-         *     restricted to root spans, ``False`` when it shows every span, ``None``
-         *     when the toggle is not present (e.g. on the traces tab).
+         *     no condition applied, ``None`` when the field is not present at all. It
+         *     describes the view in full, root-span scoping included (which is expressed
+         *     within the filter DSL as ``parent_id is None``).
          */
         ProjectContext: {
             /**
@@ -3773,8 +4441,6 @@ export interface components {
             projectNodeId: string;
             /** Spanfilter */
             spanFilter?: string | null;
-            /** Rootspansonly */
-            rootSpansOnly?: boolean | null;
         };
         /** Prompt */
         Prompt: {
@@ -4562,6 +5228,16 @@ export interface components {
             };
         };
         /**
+         * PydanticAIMessageMetadata
+         * @description Local pin of pydantic-ai's message-level ``pydantic_ai`` metadata
+         *     namespace (its private ``_PydanticAIMessageMetadata``), merged into the
+         *     assistant metadata by the stream's metadata chunk.
+         */
+        PydanticAIMessageMetadata: {
+            /** Timestamp */
+            timestamp?: string | null;
+        };
+        /**
          * ReasoningUIPart
          * @description A reasoning part of a message.
          */
@@ -4796,6 +5472,20 @@ export interface components {
              * @description The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels.
              */
             dataset_label_ids?: string[];
+        };
+        /** SetExperimentTagRequestBody */
+        SetExperimentTagRequestBody: {
+            /** @description The name of the tag to assign, e.g. 'baseline'. If another experiment on the same dataset already owns this tag, the tag is moved to this experiment. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description An optional description of the tag (replaces any existing description)
+             */
+            description?: string | null;
+        };
+        /** SetExperimentTagResponseBody */
+        SetExperimentTagResponseBody: {
+            data: components["schemas"]["ExperimentTag"];
         };
         /** SetProjectAnnotationConfigsRequestBody */
         SetProjectAnnotationConfigsRequestBody: {
@@ -5176,6 +5866,29 @@ export interface components {
             /** Enabled */
             enabled: boolean;
         };
+        /**
+         * SubmitAgentSessionToolOutputsRequestBody
+         * @description Persist resolved client tool outputs without continuing the turn.
+         */
+        SubmitAgentSessionToolOutputsRequestBody: {
+            /**
+             * Tooloutputs
+             * @description Client tool results for pending calls on the trailing assistant message, matched by ``toolCallId``. Resending a persisted output verbatim is a no-op; an output that differs from the persisted result or matches no call is rejected with HTTP 409 and code ``agent_session_tool_outputs_conflict``.
+             */
+            toolOutputs: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
+            /**
+             * Lastmessageid
+             * @description The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``.
+             */
+            lastMessageId: string;
+        };
+        /**
+         * SubmitAgentSessionToolOutputsResponseBody
+         * @description The trailing assistant message with the submitted outputs applied.
+         */
+        SubmitAgentSessionToolOutputsResponseBody: {
+            data: components["schemas"]["PhoenixUIMessage"];
+        };
         /** TextContentPart */
         TextContentPart: {
             /**
@@ -5373,40 +6086,6 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
-         * ToolOutputAvailablePart
-         * @description Tool part in output-available state.
-         */
-        ToolOutputAvailablePart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-available
-             * @constant
-             */
-            state?: "output-available";
-            /** Input */
-            input?: unknown | null;
-            /** Output */
-            output?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Preliminary */
-            preliminary?: boolean | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
          * ToolOutputDeniedPart
          * @description Tool part in output-denied state (tool was denied, terminal state).
          */
@@ -5425,40 +6104,6 @@ export interface components {
             state?: "output-denied";
             /** Input */
             input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * ToolOutputErrorPart
-         * @description Tool part in output-error state.
-         */
-        ToolOutputErrorPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default output-error
-             * @constant
-             */
-            state?: "output-error";
-            /** Input */
-            input?: unknown | null;
-            /** Rawinput */
-            rawInput?: unknown | null;
-            /** Errortext */
-            errorText: string;
             /** Providerexecuted */
             providerExecuted?: boolean | null;
             /** Callprovidermetadata */
@@ -5673,7 +6318,40 @@ export interface components {
              */
             end_time: string;
         };
-        /** TurnTraceContext */
+        /** TransferTracesData */
+        TransferTracesData: {
+            /**
+             * Transferred Trace Count
+             * @description The number of traces that were moved to the destination project.
+             */
+            transferred_trace_count: number;
+            /**
+             * Destination Project Id
+             * @description The ID (GlobalID) of the project the traces were moved to.
+             */
+            destination_project_id: string;
+        };
+        /** TransferTracesRequestBody */
+        TransferTracesRequestBody: {
+            /**
+             * Trace Identifiers
+             * @description The traces to transfer. Each identifier is either a trace ID (GlobalID) or an OpenTelemetry trace_id (hex string). Must be non-empty, and all traces must currently belong to the same source project.
+             */
+            trace_identifiers: string[];
+            /**
+             * Destination Project Identifier
+             * @description The destination project: either project ID (GlobalID) or project name.
+             */
+            destination_project_identifier: string;
+        };
+        /** TransferTracesResponseBody */
+        TransferTracesResponseBody: {
+            data: components["schemas"]["TransferTracesData"];
+        };
+        /**
+         * TurnTraceContext
+         * @description The trace identity a turn's spans are parented to.
+         */
         TurnTraceContext: {
             /** Traceid */
             traceId: string;
@@ -5684,23 +6362,6 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
-        };
-        /**
-         * UIMessage
-         * @description A message as displayed in the UI by Vercel AI Elements.
-         */
-        UIMessage: {
-            /** Id */
-            id: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "system" | "user" | "assistant";
-            /** Metadata */
-            metadata?: unknown | null;
-            /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -5731,6 +6392,45 @@ export interface components {
         /** UpdateDatasetLabelResponseBody */
         UpdateDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
+        };
+        /** UpdateDatasetSplitRequestBody */
+        UpdateDatasetSplitRequestBody: {
+            /**
+             * Name
+             * @description A new unique name for the split.
+             */
+            name?: string | null;
+            /**
+             * Description
+             * @description A new description, or null to clear it.
+             */
+            description?: string | null;
+            /**
+             * Color
+             * @description A new hex color for the split.
+             */
+            color?: string | null;
+            /**
+             * Metadata
+             * @description New JSON metadata that replaces the existing metadata.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Add Example Ids
+             * @description Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
+             */
+            add_example_ids?: string[];
+            /**
+             * Remove Example Ids
+             * @description Dataset example IDs (GlobalIDs) to remove from the split.
+             */
+            remove_example_ids?: string[];
+        };
+        /** UpdateDatasetSplitResponseBody */
+        UpdateDatasetSplitResponseBody: {
+            data: components["schemas"]["DatasetSplit"];
         };
         /**
          * UpdateExperimentRequestBody
@@ -5882,21 +6582,6 @@ export interface components {
             expires_at?: string | null;
             user: components["schemas"]["ApiKeyUser"];
         };
-        /**
-         * UserMessageMetadata
-         * @description Wire schema for metadata the browser attaches to outgoing user messages.
-         */
-        UserMessageMetadata: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "user";
-            /** Currentdatetime */
-            currentDateTime: string;
-            /** Timezone */
-            timeZone: string;
-        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -5924,84 +6609,468 @@ export interface components {
             enabled: boolean;
         };
         /**
-         * _SummarizeRequest
-         * @description Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
-         *
-         *     Carries the Vercel-style messages array; the backend owns the prompt and
-         *     the structured-output tool schema.
+         * DynamicToolOutputAvailablePart
+         * @description Dynamic tool part in output-available state.
          */
-        _SummarizeRequest: {
+        phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart: {
             /**
-             * Ingesttraces
-             * @default false
+             * Type
+             * @default dynamic-tool
+             * @constant
              */
-            ingestTraces?: boolean;
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
-             * Exportremotetraces
-             * @default false
+             * State
+             * @default output-available
+             * @constant
              */
-            exportRemoteTraces?: boolean;
-            /**
-             * Attachuserid
-             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
-             * @default false
-             */
-            attachUserId?: boolean;
-            /** Messages */
-            messages: components["schemas"]["UIMessage"][];
-            /** Model */
-            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-        };
-        /** _SummarizeResponse */
-        _SummarizeResponse: {
-            /** Summary */
-            summary: string;
+            state?: "output-available";
+            /** Input */
+            input: unknown;
+            /** Output */
+            output: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
-         * ToolCallCallbackProviderMetadata
+         * DynamicToolOutputErrorPart
+         * @description Dynamic tool part in output-error state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input: unknown;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputAvailablePart
+         * @description Tool part in output-available state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input?: unknown | null;
+            /** Output */
+            output?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputErrorPart
+         * @description Tool part in output-error state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Resultprovidermetadata */
+            resultProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputAvailablePart
+         * @description Dynamic tool part in output-available state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input: unknown;
+            /** Output */
+            output: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputErrorPart
+         * @description Dynamic tool part in output-error state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input: unknown;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputAvailablePart
+         * @description Tool part in output-available state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input?: unknown | null;
+            /** Output */
+            output?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputErrorPart
+         * @description Tool part in output-error state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * AgentErrorChunk
+         * @description Durable data part paired with a standard protocol ``error`` chunk.
+         *
+         *     Standard ``error`` chunks are transient: the reducer routes them to error
+         *     callbacks without adding a message part, so they vanish from persisted
+         *     transcripts. Pairing each one with this ``data-error`` part records the
+         *     error durably in the message for persistence, reload, and subagents.
+         */
+        AgentErrorChunk: {
+            /**
+             * Type
+             * @default data-error
+             * @constant
+             */
+            type?: "data-error";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["AgentErrorData"];
+            /**
+             * Transient
+             * @default null
+             */
+            transient?: boolean | null;
+        };
+        /**
+         * AgentErrorData
+         * @description Payload of the durable ``data-error`` part persisted for protocol errors.
+         */
+        AgentErrorData: {
+            /** Errortext */
+            errorText: string;
+        };
+        /**
+         * PhoenixToolCallCallbackProviderMetadata
          * @description Shape of the ``phoenix`` namespace the browser returns in
          *     ``callProviderMetadata`` on resolved tool parts: the server-stamped fields
          *     plus browser-recorded execution timings.
          */
-        ToolCallCallbackProviderMetadata: {
+        PhoenixToolCallCallbackProviderMetadata: {
             /**
-             * Tool Execution Environment
+             * Toolexecutionenvironment
              * @enum {string}
              */
-            tool_execution_environment: "client" | "server";
+            toolExecutionEnvironment: "client" | "server";
             /**
-             * Tool Input Emitted At
+             * Toolinputemittedat
              * @default null
              */
-            tool_input_emitted_at?: string | null;
+            toolInputEmittedAt?: string | null;
             /**
-             * Client Started At
+             * Clientstartedat
              * @default null
              */
-            client_started_at?: string | null;
+            clientStartedAt?: string | null;
             /**
-             * Client Ended At
+             * Clientendedat
              * @default null
              */
-            client_ended_at?: string | null;
+            clientEndedAt?: string | null;
+            /**
+             * Outcome
+             * @default null
+             */
+            outcome?: "interrupted" | null;
         };
         /**
-         * ToolCallProviderMetadata
+         * PhoenixToolCallProviderMetadata
          * @description Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
          *     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
          *     ``tool-input-available``).
          */
-        ToolCallProviderMetadata: {
+        PhoenixToolCallProviderMetadata: {
             /**
-             * Tool Execution Environment
+             * Toolexecutionenvironment
              * @enum {string}
              */
-            tool_execution_environment: "client" | "server";
+            toolExecutionEnvironment: "client" | "server";
             /**
-             * Tool Input Emitted At
+             * Toolinputemittedat
              * @default null
              */
-            tool_input_emitted_at?: string | null;
+            toolInputEmittedAt?: string | null;
+        };
+        /**
+         * SessionSummaryChunk
+         * @description Transient ``data-session-summary`` stream chunk: the LLM-generated
+         *     session title, emitted on any turn that starts with the session still
+         *     untitled. Being transient, it reaches the client's ``onData`` callback
+         *     but is never appended to the message parts.
+         *
+         *     See the Vercel AI SDK data stream protocol:
+         *         - Data parts: https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#data-parts
+         *         - Transient parts: https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data#transient-data-parts-ephemeral
+         */
+        SessionSummaryChunk: {
+            /**
+             * Type
+             * @default data-session-summary
+             * @constant
+             */
+            type?: "data-session-summary";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            /** Data */
+            data: string;
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /**
+         * TranscriptPersistedChunk
+         * @description Confirms that a streamed assistant message is durable.
+         */
+        TranscriptPersistedChunk: {
+            /**
+             * Type
+             * @default data-transcript-persisted
+             * @constant
+             */
+            type?: "data-transcript-persisted";
+            /**
+             * Id
+             * @default null
+             */
+            id?: string | null;
+            data: components["schemas"]["TranscriptPersistedData"];
+            /**
+             * Transient
+             * @default true
+             * @constant
+             */
+            transient?: true;
+        };
+        /** TranscriptPersistedData */
+        TranscriptPersistedData: {
+            /** Messageid */
+            messageId: string;
         };
     };
     responses: never;
@@ -7601,6 +8670,184 @@ export interface operations {
             };
         };
     };
+    createDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetSplitRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDatasetSplitResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset split with the given name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+                /** @description The ID (GlobalID) of the dataset split. */
+                split_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or split not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset split ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    updateDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+                /** @description The ID (GlobalID) of the dataset split. */
+                split_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDatasetSplitRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateDatasetSplitResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset, split, or example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset split with the given name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     getDatasetCsv: {
         parameters: {
             query?: {
@@ -8171,6 +9418,160 @@ export interface operations {
             };
         };
     };
+    listExperimentTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tags currently applied to the experiment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListExperimentTagsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setExperimentTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetExperimentTagRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The tag as it now applies to the experiment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetExperimentTagResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or request body, or the experiment is ephemeral and cannot be tagged as the baseline */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteExperimentTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the experiment */
+                experiment_id: string;
+                /** @description The node ID or name of the tag to remove */
+                tag_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful tag removal */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or tag identifier */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     listExperimentRuns: {
         parameters: {
             query?: {
@@ -8571,6 +9972,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transferTraces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferTracesRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferTracesResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Destination project or trace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -9450,6 +10902,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    patchPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchPromptRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The updated prompt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchPromptResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -10679,6 +12185,66 @@ export interface operations {
             };
         };
     };
+    createChatCompletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateChatCompletionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletion"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatCompletionErrorResponse"];
+                };
+            };
+        };
+    };
     _login_auth_login_post: {
         parameters: {
             query?: never;
@@ -10905,7 +12471,7 @@ export interface operations {
             };
         };
     };
-    run_server_agent_agents_server_sessions__session_id__chat_post: {
+    legacyServerAgentChat: {
         parameters: {
             query?: never;
             header?: never;
@@ -10916,7 +12482,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChatRequest"];
+                "application/json": components["schemas"]["LegacyChatRequest"];
             };
         };
         responses: {
@@ -10927,6 +12493,247 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listAgentSessions: {
+        parameters: {
+            query?: {
+                /** @description Opaque pagination cursor. */
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListAgentSessionsResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createAgentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentSessionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateAgentSessionResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getAgentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAgentSessionResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Validation Error */
@@ -10940,19 +12747,356 @@ export interface operations {
             };
         };
     };
-    chat_agents__agent_id__sessions__session_id__chat_post: {
+    patchAgentSession: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                agent_id: string;
                 session_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChatRequest"];
+                "application/json": components["schemas"]["PatchAgentSessionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchAgentSessionResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listAgentSessionMessages: {
+        parameters: {
+            query?: {
+                /** @description Opaque pagination cursor. */
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListAgentSessionMessagesResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    compactAgentSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompactAgentSessionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompactAgentSessionResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    submitAgentSessionToolOutputs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitAgentSessionToolOutputsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitAgentSessionToolOutputsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    agentSessionChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequestBody"];
             };
         };
         responses: {
@@ -10965,6 +13109,51 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -10974,40 +13163,13 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-        };
-    };
-    summarize_endpoint_agents__agent_id__sessions__session_id__summary_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                agent_id: string;
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["_SummarizeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Insufficient Storage */
+            507: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["_SummarizeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };

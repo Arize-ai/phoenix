@@ -216,15 +216,29 @@ an evaluator with `ClassificationEvaluator` and run it with `async_evaluate_data
 ## Using HallucinationEvaluator
 
 ```python
-# WRONG — deprecated
+# WRONG — not a top-level export, and takes an LLM, not a model string
 from phoenix.evals import HallucinationEvaluator
 eval = HallucinationEvaluator(model)
 
-# RIGHT — use FaithfulnessEvaluator
-from phoenix.evals.metrics import FaithfulnessEvaluator
+# WRONG — there is no `context` field
+eval.evaluate({"input": question, "output": answer, "context": retrieved_docs})
+
+# RIGHT
+from phoenix.evals.metrics import HallucinationEvaluator
 from phoenix.evals import LLM
-eval = FaithfulnessEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
+eval = HallucinationEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
+eval.evaluate({"input": conversation_so_far, "output": assistant_reply})
 ```
 
-**Why**: `HallucinationEvaluator` is deprecated. `FaithfulnessEvaluator` is its replacement,
-using "faithful"/"unfaithful" labels with maximized score (1.0 = faithful).
+**Why**: pre-built evaluators live in `phoenix.evals.metrics`, not the top-level
+`phoenix.evals`. `HallucinationEvaluator` grounds a response against **the conversation**
+— `input` is the full history the assistant had access to (prior turns, tool calls, tool
+results), `output` is the reply being judged. There is no separate `context` field: if your
+source of truth is a supplied context such as retrieved documents, that is
+`FaithfulnessEvaluator`, not this one.
+
+Labels are `hallucinated`/`grounded` and the score is **minimized** — `hallucinated` is
+`1.0`, `grounded` is `0.0`. Do not assume "1.0 = good"; read the returned `Score`'s
+`direction` before thresholding. Results are also not comparable with previously stored
+`hallucination` annotations that used `factual`/`hallucinated` labels — dashboards and
+thresholds built on those need migrating, not reinterpreting.

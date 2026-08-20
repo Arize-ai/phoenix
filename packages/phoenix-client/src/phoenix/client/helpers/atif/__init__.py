@@ -3,11 +3,15 @@
 
 Public API:
     upload_atif_trajectories_as_spans(client, trajectories, *, project_name)
+
+Conversion and reparenting are separate steps: ``_convert.py`` decides each
+trajectory's span tree, ``_reparent.py`` decides where a batch of trees hangs.
+Callers that need both compose them.
 """
 
 from __future__ import annotations
 
-from typing import Any, List, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.client import Client
@@ -23,6 +27,26 @@ from ._validate import _validate_atif_trajectory
 __all__ = ["upload_atif_trajectories_as_spans"]
 
 DEFAULT_TIMEOUT_IN_SECONDS = 30
+
+
+def _convert_atif_trajectories_to_spans(
+    trajectories: Sequence[Mapping[str, Any]],
+) -> list[v1.Span]:
+    """Validate and convert ATIF trajectories to Phoenix spans without uploading."""
+    for trajectory in trajectories:
+        _validate_atif_trajectory(trajectory)
+
+    flat_trajectories = _flatten_atif_trajectories(trajectories)
+    ref_map = _build_subagent_ref_map(flat_trajectories)
+
+    all_spans: list[v1.Span] = []
+    for trajectory in flat_trajectories:
+        parent_ctx = _get_parent_span_context(trajectory, ref_map)
+        all_spans.extend(
+            _convert_atif_trajectory_to_spans(trajectory, parent_span_context=parent_ctx)
+        )
+
+    return all_spans
 
 
 def upload_atif_trajectories_as_spans(
@@ -183,23 +207,7 @@ def upload_atif_trajectories_as_spans(
         )
         print(result)  # {"total_received": 5, "total_queued": 5}
     """
-    # Validate all trajectories first
-    for trajectory in trajectories:
-        _validate_atif_trajectory(trajectory)
-
-    # Flatten embedded ATIF v1.7 subagents before linking/conversion.
-    flat_trajectories = _flatten_atif_trajectories(trajectories)
-
-    # Scan for subagent references across the flattened batch
-    ref_map = _build_subagent_ref_map(flat_trajectories)
-
-    # Convert all trajectories (with cross-trace linking)
-    all_spans: List[v1.Span] = []
-    for trajectory in flat_trajectories:
-        parent_ctx = _get_parent_span_context(trajectory, ref_map)
-        all_spans.extend(
-            _convert_atif_trajectory_to_spans(trajectory, parent_span_context=parent_ctx)
-        )
+    all_spans = _convert_atif_trajectories_to_spans(trajectories)
 
     return client.spans.log_spans(
         project_identifier=project_name,

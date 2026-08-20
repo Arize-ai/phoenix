@@ -22,6 +22,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model as PydanticAIModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import (
     get_env_allow_external_resources,
@@ -49,7 +50,7 @@ from phoenix.server.types import CanPutItem, DbSessionFactory
 
 
 @asynccontextmanager
-async def _unavailable_db_session(_: Any) -> AsyncIterator[Any]:
+async def _unavailable_db_session() -> AsyncIterator[AsyncSession]:
     raise RuntimeError("PXI eval harness does not provide a Phoenix database.")
     yield
 
@@ -230,7 +231,6 @@ def _default_contexts() -> ResolvedContexts:
             type="project",
             project_node_id=DEFAULT_PROJECT_NODE_ID,
             span_filter="",
-            root_spans_only=False,
         )
     )
     return contexts

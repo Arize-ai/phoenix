@@ -68,14 +68,14 @@ await provider.shutdown();
 
 ### Production Setup
 
-For production use with Phoenix Cloud:
+For production use with a remote Phoenix instance:
 
 ```typescript
 import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app",
-  url: "https://app.phoenix.arize.com",
+  url: "https://your-phoenix-instance.com",
   apiKey: process.env.PHOENIX_API_KEY,
 });
 ```
@@ -90,8 +90,8 @@ The `register` function automatically reads from environment variables:
 # For local Phoenix server (default)
 export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 
-# For Phoenix Cloud
-export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
+# For a remote Phoenix instance
+export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 export PHOENIX_API_KEY="your-api-key"
 ```
 
@@ -579,7 +579,7 @@ import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app-prod",
-  url: "https://app.phoenix.arize.com",
+  url: "https://your-phoenix-instance.com",
   apiKey: process.env.PHOENIX_API_KEY,
   batch: true, // Batch processing for better performance
 });
@@ -594,7 +594,7 @@ import { register } from "@arizeai/phoenix-otel";
 
 register({
   projectName: "my-app",
-  url: "https://app.phoenix.arize.com",
+  url: "https://your-phoenix-instance.com",
   headers: {
     "X-Custom-Header": "custom-value",
     "X-Environment": process.env.NODE_ENV || "development",

@@ -48,6 +48,42 @@ const ragTask = async (example) => {
 };
 ```
 
+## Tracing AI SDK Calls Inside Tasks
+
+`@arizeai/phoenix-client` 7.x requires AI SDK v7, which **no longer emits
+OpenTelemetry spans through the global tracer provider on its own**. If your task
+calls `generateText`/`streamText`, pass the `@ai-sdk/otel` integration per call and
+**construct it inside the task**:
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import { generateText } from "ai";
+
+const model = openai("gpt-4o-mini");
+
+const task: ExperimentTask = async (example) => {
+  const { text } = await generateText({
+    model,
+    prompt: String(example.input.question),
+    telemetry: { integrations: [new OpenTelemetry()] },
+  });
+  return text;
+};
+```
+
+**Why inside the task:** the integration binds to whichever tracer provider is
+active when it is *constructed*, and `runExperiment` mounts the experiment's
+provider only while tasks run. An integration registered once at startup via
+`registerTelemetry` binds before that provider exists, and the task spans are lost.
+This is the opposite of ordinary application tracing, where startup registration is
+correct.
+
+Evaluators from `@arizeai/phoenix-evals` are traced automatically and need no
+telemetry setup.
+
 ## Evaluator Parameters
 
 ```typescript

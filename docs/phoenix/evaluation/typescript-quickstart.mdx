@@ -3,10 +3,13 @@ title: "TypeScript Quickstart"
 ---
 
 import StartPhoenix from "../../snippets/start-phoenix.mdx";
+import AgentAssistedOnboardingPrereq from "../../snippets/agent-assisted-onboarding-prereq.mdx";
 
 The Phoenix TypeScript Evals package makes it easy to evaluate your application end-to-end by defining datasets, tasks, and evaluators that reveal how well your system performs and where it can improve.
 
 <Card title="@arizeai/phoenix-evals" href="https://www.npmjs.com/package/@arizeai/phoenix-evals" icon="js" description="TypeScript evals package"/>
+
+<AgentAssistedOnboardingPrereq />
 
 ## Why Should I Use Evaluators?
 
@@ -30,12 +33,12 @@ If you'd like to follow along with this evaluation example, you can check out th
     npm install @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai openai @ai-sdk/openai @arizeai/phoenix-client @arizeai/phoenix-evals
     ```
 
-    Include these in your `.env` file. `PHOENIX_HOST` is what `@arizeai/phoenix-client` reads for datasets and experiments; `PHOENIX_COLLECTOR_ENDPOINT` is what `@arizeai/phoenix-otel` reads when exporting spans — set both to the same instance.
+    Include these in your `.env` file. `PHOENIX_ENDPOINT` is what `@arizeai/phoenix-client` reads for datasets and experiments; `PHOENIX_COLLECTOR_ENDPOINT` is what `@arizeai/phoenix-otel` reads when exporting spans — point both at the same Phoenix instance.
 
     ```bash
     OPENAI_API_KEY="your-openai-api-key"
-    PHOENIX_HOST="http://localhost:6006"
-    PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+    PHOENIX_ENDPOINT="http://localhost:6006"
+    PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006/v1/traces"  # OTLP HTTP traces URL
     # PHOENIX_API_KEY="..."  # Only if your Phoenix instance has auth enabled
     ```
   </Step>

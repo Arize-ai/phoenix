@@ -23,7 +23,7 @@ Set your API keys as environment variables:
 export OPENAI_API_KEY=[your_key_here]
 export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 export PHOENIX_API_KEY=[your_phoenix_api_key]
-export PHOENIX_PROJECT_ID=[your_phoenix_project_id]
+export PHOENIX_PROJECT=[your_phoenix_project_name]
 ```
 
 Initialize Phoenix and wrap the tracer with `RestateTracerProvider` to correlate AI spans with Restate's execution journal:

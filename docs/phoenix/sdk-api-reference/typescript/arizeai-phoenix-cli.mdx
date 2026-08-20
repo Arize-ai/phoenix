@@ -14,7 +14,7 @@ description: Command-line interface for retrieving trace data from Arize Phoenix
   GitHub
 </Card>
 
-Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, export experiment results, and access prompts directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
+Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, export experiment results, and access prompts directly from your terminal—or pipe them into AI coding agents like Claude Code, Codex, Cursor, and OpenCode.
 
 You can use Phoenix CLI for:
 
@@ -43,7 +43,7 @@ npx @arizeai/phoenix-cli
 
 ```bash
 # Configure your Phoenix instance
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
@@ -64,7 +64,7 @@ px trace list ./my-traces --limit 50
 
 | Variable | Description |
 |----------|-------------|
-| `PHOENIX_HOST` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
+| `PHOENIX_ENDPOINT` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
 | `PHOENIX_PROJECT` | Project name or ID |
 | `PHOENIX_API_KEY` | API key for authentication (if required) |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
@@ -192,6 +192,22 @@ px setup --no-input --endpoint http://localhost:6006 --project my-app
 px setup --no-input --instrument --agent claude --yolo --language python --format raw
 ```
 
+Setup's definition of done is a trace the API confirmed arriving, not a completed
+hand-off, and the exit code says which happened:
+
+| Exit | Meaning |
+|------|---------|
+| `0` | Verified, registered only, or you chose "verify later" at the prompt |
+| `6` | The wait ran out with no trace — tracing is not confirmed working |
+
+Other codes follow the CLI-wide contract: `2` cancelled, `3` invalid flags, `4`
+auth, `5` unreachable endpoint. In `--format json|raw`, `verification` is
+`verified`, `notVerified`, or `deferred` and is absent when there was nothing to
+verify; `tracesVerified` is the boolean shorthand for `verification ==
+"verified"`. Don't score a run on the hand-off agent's own exit code — it may
+edit the app correctly and then exit badly, or exit cleanly having delivered
+nothing.
+
 Re-run individual steps later with the subcommands:
 
 ```bash
@@ -215,7 +231,7 @@ px setup mcp --agent claude         # Register the Phoenix MCP server with an ag
 
 ### `px setup mcp`
 
-Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_HOST` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
 
 ```bash
 px setup mcp                        # Pick scope + agent interactively
@@ -902,7 +918,7 @@ px api graphql '<query>' [--endpoint <url>] [--api-key <key>]
 | Argument/Option | Description | Default |
 |-----------------|-------------|---------|
 | `<query>` | GraphQL query string | — |
-| `--endpoint <url>` | Phoenix API endpoint | `$PHOENIX_HOST` |
+| `--endpoint <url>` | Phoenix API endpoint | `$PHOENIX_ENDPOINT` |
 | `--api-key <key>` | Phoenix API key | `$PHOENIX_API_KEY` |
 
 #### Discover the schema with introspection

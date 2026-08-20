@@ -28,7 +28,13 @@ import {
   type SetupInputs,
   type SetupOptions,
 } from "../setup/options";
-import { runInstrument, runSetup, runSkills } from "../setup/runSetup";
+import {
+  runInstrument,
+  runSetup,
+  runSkills,
+  verificationFailed,
+  type SetupReport,
+} from "../setup/runSetup";
 import { writeStructuredError } from "../structuredError";
 import { ENDPOINT_REQUIREMENT, isEndpointUrl } from "../validation/endpoint";
 import { WORKERS_REQUIREMENT } from "./docs";
@@ -155,8 +161,8 @@ interface SetupCommandOptions {
   workers?: number;
   /**
    * `--format <format>`: How the result is rendered on stdout. `pretty` is the
-   * human summary; `json`/`raw` emit the machine-readable report, including
-   * whether traces were verified.
+   * human summary; `json`/`raw` emit the machine-readable report. Every format
+   * states whether traces were verified, as does the exit code.
    *
    * @example "raw"
    */
@@ -228,16 +234,42 @@ function toSetupOptions(options: SetupCommandOptions): SetupOptions {
 }
 
 /**
+ * A run that handed off instrumentation and never saw a trace arrive is not a
+ * success: setup's definition of done is API-verified data flow, not a
+ * completed hand-off. Exiting 0 there makes the wizard indistinguishable from
+ * one that worked for any caller scoring runs by exit status — an onboarding
+ * harness, or the coding agent that invoked `px setup` in the first place.
+ *
+ * It gets its own code rather than FAILURE because nothing failed: the
+ * connection, the env file, and the agent's edits are all real and worth
+ * keeping.
+ *
+ * Only a wait that ran out counts. A run that never instrumented had nothing
+ * to verify, and a user who picked "Finish setup — I'll verify later" made a
+ * decision setup offered them — failing the process on either would break
+ * `px setup && npm run dev` and every `set -e` bootstrap script for a run that
+ * did exactly what was asked. `verificationFailed` owns that distinction so
+ * this and the printed verdict cannot disagree.
+ */
+export function setupExitCode(report: SetupReport): ExitCode {
+  return verificationFailed(report) ? ExitCode.NOT_VERIFIED : ExitCode.SUCCESS;
+}
+
+/**
  * Run one of the setup lanes, then print what it did in the requested format.
  *
  * Every lane goes through here, so the rule that a headless run always prints a
  * report — it has no interactive narration to fall back on — is stated once
  * instead of re-derived per subcommand.
+ *
+ * `exitCodeOf` lets a lane whose report carries a verdict fail the process on
+ * it; lanes without one (the tooling installs) exit 0 on return.
  */
 async function runLane<TReport>(
   commandOptions: SetupCommandOptions,
   lane: (deps: SetupDeps, inputs: SetupInputs) => Promise<TReport>,
-  render: (report: TReport, format: OutputFormat) => string
+  render: (report: TReport, format: OutputFormat) => string,
+  exitCodeOf: (report: TReport) => ExitCode = () => ExitCode.SUCCESS
 ): Promise<void> {
   const options = toSetupOptions(commandOptions);
   const format = commandOptions.format ?? "pretty";
@@ -259,23 +291,29 @@ async function runLane<TReport>(
     if (inputs.headless || format !== "pretty") {
       writeOutput({ message: render(report, format) });
     }
-    process.exit(ExitCode.SUCCESS);
+    process.exit(exitCodeOf(report));
   } catch (error) {
     exitWithError(error, format);
   }
 }
 
 async function setupHandler(options: SetupCommandOptions): Promise<void> {
-  await runLane(options, runSetup, (report, format) =>
-    formatSetupOutput({ report, format })
+  await runLane(
+    options,
+    runSetup,
+    (report, format) => formatSetupOutput({ report, format }),
+    setupExitCode
   );
 }
 
 async function setupInstrumentHandler(
   options: SetupCommandOptions
 ): Promise<void> {
-  await runLane(options, runInstrument, (report, format) =>
-    formatSetupOutput({ report, format })
+  await runLane(
+    options,
+    runInstrument,
+    (report, format) => formatSetupOutput({ report, format }),
+    setupExitCode
   );
 }
 
@@ -377,6 +415,10 @@ Examples:
   px setup instrument
   px setup instrument --agent claude --language python
   px setup instrument --no-input --agent claude --yolo --format raw
+
+Exit codes:
+  0  A trace was verified arriving, or you chose to verify later
+  6  The wait ran out with no trace — tracing is not confirmed working
 `
   );
 }
@@ -438,6 +480,10 @@ Subcommands:
   px setup instrument   Instrument and verify, without redoing the questions
   px setup skills       Install the coding-agent skills alone
   px setup mcp          Register the Phoenix MCP server with a coding agent
+
+Exit codes:
+  0  Verified, registered only, or you chose to verify later
+  6  The wait ran out with no trace — tracing is not confirmed working
 `
     );
 

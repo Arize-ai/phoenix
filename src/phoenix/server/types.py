@@ -31,16 +31,13 @@ class CanGetLastUpdatedAt(Protocol):
 class DbSessionFactory:
     def __init__(
         self,
-        db: Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]],
+        db: Callable[[], AbstractAsyncContextManager[AsyncSession]],
         dialect: str,
-        read_db: Optional[
-            Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]
-        ] = None,
+        read_db: Optional[Callable[[], AbstractAsyncContextManager[AsyncSession]]] = None,
     ):
         self._db = db
         self._read_db = read_db or db
         self.dialect = SupportedSQLDialect(dialect)
-        self.lock: Optional[asyncio.Lock] = None
         self.should_not_insert_or_update = False
         """An informational flag that allows different tasks to coordinate whether insert
         and update operations should be allowed. For example, this can be set to True when disk
@@ -50,10 +47,16 @@ class DbSessionFactory:
         """
 
     def __call__(self) -> AbstractAsyncContextManager[AsyncSession]:
-        return self._db(self.lock)
+        return self._db()
 
     def read(self) -> AbstractAsyncContextManager[AsyncSession]:
-        return self._read_db(self.lock)
+        """A session for reads that need not observe their own writes.
+
+        Do not rely on read-your-writes: against a Postgres replica this can be
+        arbitrarily stale. Without a read engine it falls back to the writer's,
+        whose pool then serialises it with writes.
+        """
+        return self._read_db()
 
 
 _AnyT = TypeVar("_AnyT")

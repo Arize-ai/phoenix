@@ -95,8 +95,11 @@ from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.api.routers import (
+    AgentSessionConflict,
+    agent_session_conflict_handler,
     create_agents_router,
     create_auth_router,
+    create_legacy_agents_router,
     create_v1_router,
     oauth2_as_router,
     oauth2_as_well_known_router,
@@ -113,7 +116,9 @@ from phoenix.server.api.routers.oauth2_authorization_server import (
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
+from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
+from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
@@ -197,6 +202,7 @@ NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
+_WelcomeMessage: TypeAlias = Callable[[SystemSettings], str]
 
 
 def import_object_from_file(file_path: str, object_name: str) -> Any:
@@ -234,6 +240,8 @@ class AppConfig(NamedTuple):
     auth_error_messages: dict[AuthErrorCode, str]
     """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
+    password_reset_email_enabled: bool = False
+    """ Whether password reset emails can be sent """
     basic_auth_disabled: bool = False
     ldap_enabled: bool = False
     """ Whether LDAP authentication is configured """
@@ -320,6 +328,7 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "password_reset_email_enabled": self._app_config.password_reset_email_enabled,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "ldap_enabled": self._app_config.ldap_enabled,
                     "ldap_manual_user_creation_enabled": self._app_config.ldap_manual_user_creation_enabled,  # noqa: E501
@@ -445,17 +454,13 @@ async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix_version}")
 
 
-def _db(
-    engine: AsyncEngine,
-) -> Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]:
+def _db(engine: AsyncEngine) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory(lock: Optional[asyncio.Lock] = None) -> AsyncIterator[AsyncSession]:
-        async with contextlib.AsyncExitStack() as stack:
-            if lock:
-                await stack.enter_async_context(lock)
-            yield await stack.enter_async_context(Session.begin())
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with Session.begin() as session:
+            yield session
 
     return factory
 
@@ -623,6 +628,7 @@ def _lifespan(
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
+    agent_session_sweeper: AgentSessionSweeper,
     experiment_sweeper: ExperimentSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
@@ -641,7 +647,7 @@ def _lifespan(
     initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
-    welcome_message: str | None = None,
+    welcome_message: Optional[_WelcomeMessage] = None,
     docs_mcp_server: Optional[MCPToolset[Any]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
@@ -650,7 +656,6 @@ def _lifespan(
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
-        db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         await system_settings.bootstrap()
         async with AsyncExitStack() as stack:
             (
@@ -678,6 +683,7 @@ def _lifespan(
                 await enqueue_annotations(precursor)
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
+            await stack.enter_async_context(agent_session_sweeper)
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
@@ -730,7 +736,12 @@ def _lifespan(
                 await stack.enter_async_context(token_store)
             _warn_if_missing_aioboto3()
             if welcome_message:
-                print(welcome_message, flush=True)
+                # The banner is cosmetic and renders after migrations have run and
+                # ports are bound, so a defect in it must not abort a started server.
+                try:
+                    print(welcome_message(system_settings), flush=True)
+                except Exception:
+                    logger.exception("Failed to render the startup banner")
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
@@ -892,13 +903,10 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
             method_name.endswith("trace.v1.TraceService/Export")
             and self._db.should_not_insert_or_update
         ):
-            details = (
-                "Database operations are disabled due to insufficient storage. "
-                "Please delete old data or increase storage."
+            await context.abort(
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                insufficient_storage_message(),
             )
-            if support_email := get_env_support_email():
-                details += f" Need help? Contact us at {support_email}"
-            await context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, details)
         return await method(request_or_iterator, context)
 
 
@@ -928,7 +936,7 @@ def create_app(
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
-    welcome_message: str | None = None,
+    welcome_message: Optional[_WelcomeMessage] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
     _validate_oauth2_idp_names(oauth2_client_configs or [])
@@ -1003,9 +1011,10 @@ def create_app(
         db=db,
         dml_event_handler=dml_event_handler,
     )
+    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
-    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
@@ -1092,6 +1101,7 @@ def create_app(
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
+            agent_session_sweeper=agent_session_sweeper,
             experiment_sweeper=experiment_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
@@ -1113,6 +1123,7 @@ def create_app(
         middleware=middlewares,
         exception_handlers={
             HTTPException: plain_text_http_exception_handler,
+            AgentSessionConflict: agent_session_conflict_handler,
         },
         debug=debug,
         swagger_ui_parameters={
@@ -1121,6 +1132,7 @@ def create_app(
     )
     app.include_router(create_v1_router(authentication_enabled))
     if not get_env_disable_agent_assistant():
+        app.include_router(create_legacy_agents_router(authentication_enabled))
         app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
@@ -1203,6 +1215,7 @@ def create_app(
         mcp_http_app, mcp_code_mode_sandbox = create_phoenix_mcp_app(
             app,
             monty_runtime=sandbox_runtime.monty,
+            db=db,
         )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
@@ -1249,6 +1262,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    password_reset_email_enabled=email_sender is not None,
                     basic_auth_disabled=basic_auth_disabled,
                     ldap_enabled=ldap_config is not None,
                     # Disable manual user creation when LDAP disabled or no email attr

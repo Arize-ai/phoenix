@@ -4,6 +4,8 @@ import atexit
 import logging
 import os
 from argparse import SUPPRESS, ArgumentParser, Namespace
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from ssl import CERT_REQUIRED
 from threading import Thread
@@ -53,16 +55,18 @@ from phoenix.config import (
     get_pids_path,
 )
 from phoenix.db import get_printable_db_url
-from phoenix.db.engines import create_engine
+from phoenix.db.engines import aio_sqlite_read_engine, create_engine, get_async_db_url
 from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
     create_app,
     instrument_engine_if_enabled,
 )
-from phoenix.server.cli.boot_message import BootMessage
+from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
+from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.email.sender import SimpleEmailSender
 from phoenix.server.email.types import EmailSender
 from phoenix.server.types import DbSessionFactory
@@ -100,6 +104,40 @@ def _get_sandbox_provider_statuses() -> list[tuple[str, bool]]:
 
     allowed = get_env_allowed_sandbox_providers()
     return [(name, name in allowed) for name in sorted(SANDBOX_BACKEND_TYPES)]
+
+
+def _render_boot_message(
+    boot_message: BootMessage,
+    agents_env: AgentsEnvConfig,
+    system_settings: SystemSettings,
+) -> str:
+    """Render the launch banner once database-backed assistant settings are available.
+
+    Every environment variable this needs was already read in `run()`, before the
+    server took on any side effects — this only combines those values with the
+    admin system settings, so a banner defect cannot abort a started server.
+    """
+    trace_recording = system_settings.agent_trace_recording
+    assistant_enabled = (
+        boot_message.agent_assistant_enabled and system_settings.agent_assistant_enabled.enabled
+    )
+    return replace(
+        boot_message,
+        agent_assistant_enabled=assistant_enabled,
+        # The docs MCP toolset only ever serves the assistant, so don't advertise
+        # it while telling the operator the assistant is off.
+        docs_mcp_url=boot_message.docs_mcp_url if assistant_enabled else None,
+        assistant_config=AssistantConfig(
+            project_name=agents_env.assistant_project_name,
+            allow_local_traces=agents_env.allows_local_traces(trace_recording),
+            allow_remote_export=agents_env.allows_remote_export(trace_recording),
+            collector_endpoint=agents_env.collector_endpoint,
+            api_key_configured=agents_env.collector_api_key_configured,
+            force_tracing=agents_env.force_tracing,
+            web_access_enabled=agents_env.web_access_enabled,
+            server_bash_enabled=agents_env.server_bash_enabled,
+        ),
+    ).render()
 
 
 def _add_server_args(parser: ArgumentParser) -> None:
@@ -251,10 +289,13 @@ def run(args: Namespace) -> None:
     oauth2_client_configs = get_env_oauth2_settings()
     smtp_hostname = get_env_smtp_hostname()
     agent_assistant_enabled = not get_env_disable_agent_assistant()
+    # Read eagerly so a malformed PHOENIX_AGENTS_* value fails here, before any
+    # migrations run or ports are bound, rather than when the banner renders.
+    agents_env = AgentsEnvConfig.from_env()
     # Dev tooling ports set by the frontend dev scripts (e.g. `pnpm dev:server`)
     vite_port = os.getenv("VITE_PORT") or (str(args.dev_vite_port) if args.dev else None)
     debugpy_port = os.getenv("DEBUGPY_PORT")
-    msg = BootMessage(
+    boot_message = BootMessage(
         version=phoenix_version,
         ui_url=display_root_path,
         rest_api_url=_join_url_path(display_root_path, "v1"),
@@ -298,7 +339,7 @@ def run(args: Namespace) -> None:
         debug_logging=args.debug,
         dev_vite_url=f"http://localhost:{vite_port}" if vite_port else None,
         debugpy_url=f"localhost:{debugpy_port}" if debugpy_port else None,
-    ).render()
+    )
 
     scaffolder_config = ScaffolderConfig(
         db=factory,
@@ -345,7 +386,7 @@ def run(args: Namespace) -> None:
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_annotation_precursors=fixture_annotation_precursors,
-        welcome_message=msg,
+        welcome_message=partial(_render_boot_message, boot_message, agents_env),
         shutdown_callbacks=shutdown_callbacks,
         secret=auth_settings.phoenix_secret,
         password_reset_token_expiry=get_env_password_reset_token_expiry(),
@@ -409,6 +450,17 @@ def _create_db_session_factory(
     shutdown_callbacks.append(primary_engine.dispose)
 
     read_db = None
+    if primary_engine.dialect.name == "sqlite":
+        # Lets reads run concurrently instead of queueing behind the writer's
+        # single connection; None for in-memory. See aio_sqlite_read_engine.
+        sqlite_read_engine = aio_sqlite_read_engine(
+            get_async_db_url(db_connection_str), log_to_stdout=log_to_stdout
+        )
+        if sqlite_read_engine is not None:
+            shutdown_callbacks.extend(instrument_engine_if_enabled(sqlite_read_engine))
+            shutdown_callbacks.append(sqlite_read_engine.dispose)
+            read_db = _db(sqlite_read_engine)
+            logger.info("Read-only SQLite engine created")
     if read_replica_connection_str and primary_engine.dialect.name == "postgresql":
         replica_engine = create_engine(
             connection_str=read_replica_connection_str,

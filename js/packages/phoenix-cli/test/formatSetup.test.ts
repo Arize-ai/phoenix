@@ -29,7 +29,7 @@ const REPORT: SetupReport = {
     hasPagesOnDisk: true,
   },
   instrumentation: { kind: "agent", agent: "claude", exitCode: 0 },
-  tracesVerified: true,
+  verification: "verified",
   tooling: { cli: "skipped", skills: "installed" },
   tracesUrl: "http://localhost:6006/redirects/projects/my-app",
 };
@@ -55,6 +55,7 @@ describe("formatSetupOutput", () => {
       },
       instrumentation: { lane: "agent", agent: "claude", exitCode: 0 },
       tracesVerified: true,
+      verification: "verified",
       tooling: { cli: "skipped", skills: "installed" },
     });
   });
@@ -84,7 +85,7 @@ describe("formatSetupOutput", () => {
     const output = parse("json", {
       ...base,
       instrumentation: undefined,
-      tracesVerified: undefined,
+      verification: undefined,
       tooling: undefined,
     });
     expect(output.instrumentation).toBeUndefined();
@@ -93,6 +94,19 @@ describe("formatSetupOutput", () => {
     // Absent verification is reported as false, never omitted — agents branch
     // on this field.
     expect(output.tracesVerified).toBe(false);
+    // But `verification` is omitted, which is the only thing distinguishing
+    // "nothing to verify" (exit 0) from "no trace arrived" (exit 6) —
+    // `tracesVerified` alone reads false for both.
+    expect(output.verification).toBeUndefined();
+  });
+
+  it("json distinguishes a deferred wait from a failed one", () => {
+    expect(
+      parse("json", { ...REPORT, verification: "deferred" })
+    ).toMatchObject({ tracesVerified: false, verification: "deferred" });
+    expect(
+      parse("json", { ...REPORT, verification: "notVerified" })
+    ).toMatchObject({ tracesVerified: false, verification: "notVerified" });
   });
 
   it("a non-zero agent exit is reported, not swallowed", () => {
@@ -116,5 +130,36 @@ describe("formatSetupOutput", () => {
     expect(formatSetupOutput({ report: REPORT, format: "pretty" })).toBe(
       pretty
     );
+  });
+
+  // All of setup's narration goes to stderr, so for a caller reading stdout the
+  // pretty summary is the entire report — it cannot be silent about the verdict.
+  it("pretty states the verdict on an instrumented run", () => {
+    const verified = formatSetupOutput({ report: REPORT });
+    const notVerified = formatSetupOutput({
+      report: { ...REPORT, verification: "notVerified" },
+    });
+    expect(verified).toContain("traces: verified");
+    expect(notVerified).toContain("traces: NOT VERIFIED");
+    expect(notVerified).toContain("no trace arrived");
+    expect(notVerified).not.toBe(verified);
+    // A verified run still has to say how to export the credentials: the trace
+    // came from the process setup injected them into, not the user's shell.
+    expect(verified).toContain("source .env.phoenix");
+    expect(notVerified).toContain("source .env.phoenix");
+  });
+
+  it("pretty omits the verdict when nothing was instrumented", () => {
+    const pretty = formatSetupOutput({
+      report: {
+        ...REPORT,
+        instrumentation: undefined,
+        verification: undefined,
+      },
+    });
+    // A register-only run had nothing to verify; "not verified" would misread
+    // as a failure of something it never attempted.
+    expect(pretty).not.toMatch(/^traces: /m);
+    expect(pretty).toContain("Instrument your app");
   });
 });

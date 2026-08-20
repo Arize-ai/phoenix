@@ -59,7 +59,7 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1.0.183
+        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:

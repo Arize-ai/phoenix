@@ -4,7 +4,7 @@
 
 Design tokens are design decisions translated into CSS custom properties. They provide a single source of truth for colors, sizing, typography, borders, and spacing.
 
-- Defined in `app/src/GlobalStyles.tsx`
+- Defined in `js/app/src/GlobalStyles.tsx`
 - Consumed via `var(--token-name)` in Emotion CSS-in-JS
 - Theme-aware: light and dark themes override token values
 
@@ -27,6 +27,8 @@ Design tokens are design decisions translated into CSS custom properties. They p
 | Component-specific | `--global-{component}-{property}` | `--global-button-primary-background-color` | Per-component design decisions |
 | Chart | `--chart-{element}-{property}` | `--chart-axis-stroke-color` | Chart visualization tokens |
 | CodeMirror | `--code-mirror-{element}-{property}` | `--code-mirror-editor-background-color` | Editor tokens |
+| AI glow | `--ai-{element}-{property}` | `--ai-glow-box-shadow-rest` | Shared "AI is working" glow (`components/ai/glow`) |
+| AI glow | `--ai-{element}-{property}` | `--ai-glow-box-shadow-rest` | Shared "AI is working" glow (`components/ai/glow`) |
 
 ## Naming structure
 

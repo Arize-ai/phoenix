@@ -22,7 +22,7 @@ repos:
           --inplace
         language: system
         files: \.ipynb$
-        exclude: ^tutorials/(evals|ai_evals_course)/
+        exclude: ^tutorials/evals/
         stages: [pre-commit]
       - id: oxfmt-app
         name: oxfmt (app)

@@ -1,0 +1,49 @@
+import { Suspense } from "react";
+import type { PreloadedQuery } from "react-relay";
+import { usePreloadedQuery } from "react-relay";
+import { Outlet } from "react-router";
+
+import { Loading } from "@phoenix/components";
+import {
+  ProjectPageQueriesSessionsQuery,
+  useProjectPageQueryReferenceContext,
+} from "@phoenix/pages/project/ProjectPageQueries";
+import { SessionFiltersProvider } from "@phoenix/pages/project/SessionFiltersContext";
+import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
+import { SessionPaginationProvider } from "@phoenix/pages/trace/SessionPaginationContext";
+import { TracingRoot } from "@phoenix/pages/TracingRoot";
+
+import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
+
+function SessionsTabContent({
+  queryReference,
+}: {
+  queryReference: PreloadedQuery<ProjectPageSessionsQueryType>;
+}) {
+  const data = usePreloadedQuery<ProjectPageSessionsQueryType>(
+    ProjectPageQueriesSessionsQuery,
+    queryReference
+  );
+  return <SessionsTable project={data.project} />;
+}
+
+export const ProjectSessionsPage = () => {
+  const { sessionsQueryReference } = useProjectPageQueryReferenceContext();
+  if (!sessionsQueryReference) {
+    return null;
+  }
+  return (
+    <TracingRoot>
+      <SessionPaginationProvider>
+        <SessionFiltersProvider>
+          <Suspense fallback={<Loading />}>
+            <SessionsTabContent queryReference={sessionsQueryReference} />
+          </Suspense>
+          <Suspense>
+            <Outlet />
+          </Suspense>
+        </SessionFiltersProvider>
+      </SessionPaginationProvider>
+    </TracingRoot>
+  );
+};

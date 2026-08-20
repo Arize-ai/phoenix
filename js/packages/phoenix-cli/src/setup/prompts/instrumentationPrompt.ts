@@ -61,8 +61,8 @@ export function buildInstrumentationPrompt({
   docsMcpConfigured,
 }: InstrumentationPromptArgs): string {
   const credentialVars = authEnabled
-    ? "PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY"
-    : "PHOENIX_COLLECTOR_ENDPOINT";
+    ? "PHOENIX_COLLECTOR_ENDPOINT, PHOENIX_ENDPOINT, and PHOENIX_API_KEY"
+    : "PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_ENDPOINT";
   const endpointRule = isDefaultEndpoint
     ? ""
     : `\n   Also set the collector endpoint in code only if the quickstart says to; it is ${endpoint}.`;
@@ -97,17 +97,24 @@ Rules:
    write the API key or any secret into source code, config files, or command arguments.
 3. Configure the Phoenix project name in code: use the SDK's register call with the
    project name "${projectName}".${endpointRule}
-4. Prefer auto-instrumentation packages over hand-written span wrappers. Make the smallest
+4. The endpoint variables are base URLs; \`.env.phoenix\` already sets both to the same
+   value. PHOENIX_COLLECTOR_ENDPOINT is where traces are exported — register() and the
+   OTel SDKs derive the full OTLP target from it. PHOENIX_ENDPOINT serves everything
+   else. Leave both set, and do not rewrite them to carry the /v1/traces path. If you
+   must construct an exporter that posts to exactly the URL it is given, build the full
+   OTLP URL in code: ${endpoint}/v1/traces. Handed a base URL, such exporters drop
+   every span silently.
+5. Prefer auto-instrumentation packages over hand-written span wrappers. Make the smallest
    correct change.
-5. Verify your work by emitting exactly one trace: run the app briefly, or a minimal
+6. Verify your work by emitting exactly one trace: run the app briefly, or a minimal
    throwaway script that makes one real LLM call through the instrumented path, then
    delete any throwaway script. Do not run the full test suite or the build.
-6. Install SDK packages with the project's existing package manager, pinned to the latest
+7. Install SDK packages with the project's existing package manager, pinned to the latest
    stable version you can verify. If this is a monorepo, note the root but only modify
    files at or below the current working directory.
-7. Keep changes concise and readable. Do not restructure, reformat, or meaningfully modify
+8. Keep changes concise and readable. Do not restructure, reformat, or meaningfully modify
    existing application code.
-8. Do not use the \`px\` CLI.
+9. Do not use the \`px\` CLI.
 
 When finished, end your final message with a one-line summary of the changes you made and
 this link to the project's traces: ${tracesUrl}
