@@ -18,8 +18,10 @@ PARAMETERS: dict[str, Any] = {
         "query": {
             "type": "string",
             "description": (
-                "Free-text search over operation names and descriptions. Empty or "
-                "omitted lists the full catalog grouped by namespace."
+                "Optional free-text ranking hint matched against operation names and "
+                "descriptions. The complete catalog is always returned; matching "
+                "operations simply sort first. Empty or omitted ranks by page "
+                "availability alone."
             ),
         },
     },
@@ -28,11 +30,12 @@ PARAMETERS: dict[str, Any] = {
 }
 
 DESCRIPTION = """\
-Search the catalog of browser UI operations that `execute_ui` scripts can call. Returns TypeScript-style signatures with doc comments for each matching operation, whether it is available on the user's current page, and how to reach it when it is not.
-Search before calling any UI operation you have not already used in this conversation — never guess operation names or input shapes. Also search when the user asks to change or read UI state (time ranges, filters, playground prompts, models, datasets, evaluator drafts) and you do not yet know which operation covers it, or when an `execute_ui` call failed with an unknown-operation error or reported that an operation is unavailable on the current page.
-Call with a free-text `query` to match operation names and descriptions; call with an empty or omitted `query` to list the full catalog grouped by namespace. Every matching operation is returned whether or not it is usable on the current page; each result says so, with operations usable right now listed first. Operations that are "not on this page" may become available after an action you take (opening a form, navigating) — do not conclude an operation is missing because it is not mounted yet.
+List the complete catalog of browser UI operations that `execute_ui` scripts can call, with operations matching your query ranked first. Returns TypeScript-style signatures with doc comments for every operation, whether it is available on the user's current page, and how to reach it when it is not.
+Search once per conversation, before your first `execute_ui` call — never guess operation names or input shapes. Search again only when an `execute_ui` call failed with an unknown-operation error and the catalog is not already in this conversation, or when the user navigated to a different page and you need to refresh which operations are available there.
+One call returns the complete catalog. The `query` only ranks — it never filters — so repeat calls with different queries return the same operations re-ordered. Never issue multiple `search_ui` calls back to back; reuse the catalog you already have.
+Every operation is returned whether or not it is usable on the current page; each result says so, with operations usable right now listed first. Operations that are "not on this page" may become available after an action you take (opening a form, navigating) — do not conclude an operation is missing because it is not mounted yet.
 Each result is the contract for that operation: use the documented input shape exactly as written when calling it from an `execute_ui` script. Results for operations that are not available on the current page include a route hint describing where they become available — surface that to the user or navigate before executing.
-Search once, then reuse what you learned: do not re-search for operations whose signatures are already in this conversation."""
+Availability is the only thing that changes between calls: re-call only when the page changed and you need to know what is mounted now."""
 
 TOOL_DEFINITION = ToolDefinition(
     name=NAME,
