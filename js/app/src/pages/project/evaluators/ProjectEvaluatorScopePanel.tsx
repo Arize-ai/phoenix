@@ -73,8 +73,14 @@ import {
   type ProjectEvaluatorMappingDiagnostic,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
-import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import {
+  getGenericSessionEvaluationContext,
+  getSampleSessionEvaluationContext,
+} from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
+import {
+  getGenericSpanEvaluationContext,
+  getSampleSpanEvaluationContext,
+} from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorMappingSource,
@@ -713,9 +719,10 @@ function SessionRunList({
       ? [
           {
             key: SAMPLE_ROW_KEY,
-            name: "Session fields",
+            name: "Sample session",
             context: sample.context,
-            boundVariables: sample.boundVariables,
+            boundVariables: getGenericSessionEvaluationContext().boundVariables,
+            mappingContext: getGenericSessionEvaluationContext().context,
             isSample: true,
           },
         ]
@@ -773,6 +780,13 @@ type RecordedRunListRow = {
   context: unknown;
   /** What this record supplies to an evaluator by name, with no mapping entry. */
   boundVariables?: unknown;
+  /**
+   * What authoring builds against instead of `context`. A sample row sets
+   * these to the grain's generic no-values skeleton so completion and the
+   * bound-variable list read the schema, never the invented demo data.
+   */
+  mappingContext?: unknown;
+  mappingBoundVariables?: unknown;
   isSample: boolean;
   /** An at-a-glance measure of the record, such as a session's trace count. */
   metric?: string;
@@ -867,7 +881,8 @@ function SpanRunList({
     { fetchPolicy: "store-and-network" }
   );
   const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
-  const sample = spans.length === 0 ? getSampleSpanEvaluationContext() : null;
+  const sample =
+    spans.length === 0 ? getSampleSpanEvaluationContext(filterCondition) : null;
   const rows: RecordedRunListRow[] = spans.length
     ? spans.map((span) => ({
         key: span.id,
@@ -881,9 +896,11 @@ function SpanRunList({
       ? [
           {
             key: SAMPLE_ROW_KEY,
-            name: "Span fields",
+            name: `Sample ${sample.spanKind} span`,
+            spanKind: sample.spanKind.toLowerCase(),
             context: sample.context,
-            boundVariables: sample.boundVariables,
+            boundVariables: getGenericSpanEvaluationContext().boundVariables,
+            mappingContext: getGenericSpanEvaluationContext().context,
             isSample: true,
           },
         ]
@@ -970,7 +987,7 @@ function RecordedRunList({
     [activeRowContext]
   );
   const syncMappingSource = useEffectEvent(() => {
-    const context = activeRow?.context;
+    const context = activeRow?.mappingContext ?? activeRow?.context;
     if (context && hasEvaluatorMappingSourceShape(context)) {
       evaluatorStore.getState().setEvaluatorMappingSource(context);
     }
@@ -1011,6 +1028,11 @@ function RecordedRunList({
   }, [canRunAllRecords, onCanRunAllChange]);
   return (
     <div css={runListCSS}>
+      {rows[0]?.isSample ? (
+        <Text size="S" color="text-500">
+          Use this sample {recordNoun} to test your evaluator.
+        </Text>
+      ) : null}
       <ul aria-label={listLabel} className="run-list__rows">
         {rows.map((row) => (
           <RecordedRunRow
@@ -1093,7 +1115,9 @@ function RecordedRunRow({
           </>
         }
         titleExtra={
-          row.isSample ? null : row.metric ? (
+          row.isSample ? (
+            <Token size="S">sample</Token>
+          ) : row.metric ? (
             <Token size="S">{row.metric}</Token>
           ) : null
         }
@@ -1146,7 +1170,7 @@ function RecordedRunRow({
                   <TabPanel id="bindings">
                     <Flex direction="column" gap="size-200">
                       <BindingPreview
-                        context={row.context}
+                        context={row.mappingContext ?? row.context}
                         boundVariables={
                           isStringKeyedObject(row.boundVariables)
                             ? row.boundVariables
