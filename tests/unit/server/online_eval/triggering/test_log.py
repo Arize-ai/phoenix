@@ -8,7 +8,6 @@ from phoenix.db import models
 from phoenix.server.app import _db
 from phoenix.server.online_eval.triggering.log import (
     AnnotationUpserted,
-    EvaluationCompleted,
     acknowledge,
     append,
     drain_page,
@@ -116,36 +115,6 @@ async def test_retried_annotation_event_collapses_while_a_later_write_is_distinc
     ]
     # The retry did not overwrite what the first write recorded.
     assert page[0].payload["label"] == "incorrect"
-
-
-async def test_retried_completion_collapses_to_one_event(db: DbSessionFactory) -> None:
-    project_id, project_session_rowid = await _seed_session(db)
-    completed = EvaluationCompleted(
-        work_unit_kind="session",
-        work_unit_id=7,
-        project_evaluator_id=3,
-        evaluator_name="hallucination",
-        name="hallucination",
-        label="factual",
-        result_changed=True,
-        previous_label="hallucinated",
-    )
-
-    for _ in range(2):
-        async with db() as session:
-            await append(
-                session,
-                completed,
-                project_id=project_id,
-                evaluation_target="SESSION",
-                target_rowid=project_session_rowid,
-            )
-
-    async with db() as session:
-        (drained,) = await drain_page(session, limit=10)
-    assert drained.kind == "evaluation_completed"
-    assert drained.payload["work_unit_id"] == 7
-    assert drained.payload["result_changed"] is True
 
 
 async def test_append_fails_the_transaction_when_the_row_cannot_be_written(

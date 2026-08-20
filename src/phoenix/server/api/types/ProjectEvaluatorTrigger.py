@@ -8,7 +8,6 @@ from strawberry.relay import Node, NodeID
 from phoenix.db import models
 from phoenix.db.types.evaluator_trigger_predicates import (
     AnnotationPredicates,
-    EvaluationPredicates,
     TriggerPredicates,
 )
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
 @strawberry.enum(description="The kind of event a trigger matches on.")
 class EvaluatorEventKind(Enum):
     ANNOTATION_UPSERTED = "annotation_upserted"
-    EVALUATION_COMPLETED = "evaluation_completed"
 
 
 @strawberry.enum(
@@ -37,11 +35,6 @@ class AnnotationTarget(Enum):
     TRACE = "trace"
     SESSION = "session"
 
-
-_MATCHES_EVALUATOR_ANNOTATIONS_DESCRIPTION = (
-    "Also match annotations written by other project evaluators, not only the ones written "
-    "by people or through the API. A project evaluator never matches its own annotations."
-)
 
 ANNOTATION_TARGET_DESCRIPTION = (
     "Match only annotations attached to this kind of entity. Annotations on spans or "
@@ -75,59 +68,17 @@ class ProjectEvaluatorTriggerAnnotationPredicates:
     annotation_target: Optional[AnnotationTarget] = strawberry.field(
         description=ANNOTATION_TARGET_DESCRIPTION
     )
-    matches_evaluator_annotations: bool = strawberry.field(
-        description=_MATCHES_EVALUATOR_ANNOTATIONS_DESCRIPTION
-    )
-
-
-@strawberry.type(
-    description=(
-        "What a finished evaluation must look like for its trigger to fire. Every predicate "
-        "is optional, and leaving one null means it does not constrain the match."
-    )
-)
-class ProjectEvaluatorTriggerEvaluationPredicates:
-    source_project_evaluator_id: strawberry.Private[Optional[int]]
-    name: Optional[str] = strawberry.field(
-        description="Match only evaluations recorded under this name."
-    )
-    label: Optional[str] = strawberry.field(description="Match only this result label.")
-    score_below: Optional[float] = strawberry.field(
-        description="Match only scores strictly below this value; unscored results never match."
-    )
-    score_above: Optional[float] = strawberry.field(
-        description="Match only scores strictly above this value; unscored results never match."
-    )
-    result_changed_only: bool = strawberry.field(
-        description=(
-            "Match only evaluations whose result differs from the previous one for the same target."
-        )
-    )
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "Match only evaluations produced by this project evaluator, or null to match any. "
-            "A project evaluator never triggers on its own result."
-        )
-    )
-    def source_project_evaluator(
-        self,
-    ) -> Optional[Annotated["ProjectEvaluator", strawberry.lazy(".Evaluator")]]:
-        from .Evaluator import ProjectEvaluator
-
-        if self.source_project_evaluator_id is None:
-            return None
-        return ProjectEvaluator(id=self.source_project_evaluator_id)
 
 
 @strawberry.type(
     description=(
         "A rule saying which events should make its project evaluator run. Its predicates "
         "live in the object for its event kind; leaving that object null means the trigger "
-        "fires on every event of that kind in the project. To match a set of values "
-        "('label A or B'), add one trigger per value. A trigger applies to events recorded "
-        "after it is created and never to earlier ones; use requestProjectSessionEvaluation to "
-        "evaluate sessions that already match."
+        "fires on every event of that kind in the project, including annotations project "
+        "evaluators write. To match a set of values ('label A or B'), add one trigger per "
+        "value. A trigger applies to events recorded after it is created and never to "
+        "earlier ones; use requestProjectSessionEvaluation to evaluate sessions that "
+        "already match."
     )
 )
 class ProjectEvaluatorTrigger(Node):
@@ -136,14 +87,8 @@ class ProjectEvaluatorTrigger(Node):
     event_kind: EvaluatorEventKind
     annotation_predicates: Optional[ProjectEvaluatorTriggerAnnotationPredicates] = strawberry.field(
         description=(
-            "What an annotation must look like for this trigger to fire, or null to match every "
-            "annotation. Null unless the event kind is ANNOTATION_UPSERTED."
-        )
-    )
-    evaluation_predicates: Optional[ProjectEvaluatorTriggerEvaluationPredicates] = strawberry.field(
-        description=(
-            "What a finished evaluation must look like for this trigger to fire, or null to "
-            "match every evaluation. Null unless the event kind is EVALUATION_COMPLETED."
+            "What an annotation must look like for this trigger to fire, or null to match "
+            "every annotation written in the project, whoever wrote it."
         )
     )
     created_at: datetime
@@ -175,17 +120,13 @@ def to_gql_project_evaluator_trigger(
         project_evaluator_id=record.project_evaluator_id,
         event_kind=EvaluatorEventKind(record.event_kind),
         annotation_predicates=_to_gql_annotation_predicates(predicates),
-        evaluation_predicates=_to_gql_evaluation_predicates(
-            predicates,
-            source_project_evaluator_id=record.source_project_evaluator_id,
-        ),
         created_at=record.created_at,
         updated_at=record.updated_at,
     )
 
 
 def _to_gql_annotation_predicates(
-    predicates: Optional[AnnotationPredicates | EvaluationPredicates],
+    predicates: Optional[AnnotationPredicates],
 ) -> Optional[ProjectEvaluatorTriggerAnnotationPredicates]:
     if not isinstance(predicates, AnnotationPredicates):
         return None
@@ -209,23 +150,5 @@ def _to_gql_annotation_predicates(
             if predicates.annotation_target is not None
             else None
         ),
-        matches_evaluator_annotations=predicates.matches_evaluator_annotations,
-    )
-
-
-def _to_gql_evaluation_predicates(
-    predicates: Optional[AnnotationPredicates | EvaluationPredicates],
-    *,
-    source_project_evaluator_id: Optional[int],
-) -> Optional[ProjectEvaluatorTriggerEvaluationPredicates]:
-    if not isinstance(predicates, EvaluationPredicates):
-        return None
-    return ProjectEvaluatorTriggerEvaluationPredicates(
-        source_project_evaluator_id=source_project_evaluator_id,
-        name=predicates.name,
-        label=predicates.label,
-        score_below=predicates.score_below,
-        score_above=predicates.score_above,
-        result_changed_only=predicates.result_changed_only,
     )
 

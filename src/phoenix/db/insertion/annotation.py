@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.eval_work import ONLINE_EVAL_IDENTIFIER_PREFIX
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.triggering.log import AnnotationUpserted, append
@@ -28,12 +27,28 @@ async def insert_annotations(
     session: AsyncSession,
     *records: Mapping[str, Any],
     table: type[AnnotationT],
+    write_token: Optional[str] = None,
 ) -> tuple[AnnotationT, ...]:
+    """Insert annotations and announce them.
+
+    Args:
+        write_token: Names the write each announcement belongs to, so a caller that can
+            repeat the same write in a new transaction — a work unit republishing its
+            verdict — announces one occurrence rather than one per attempt. Omit it and
+            every announcement takes a fresh token, which is what an independent write
+            wants.
+    """
     if not records:
         return ()
     annotation_ids = tuple(await session.scalars(insert(table).values(records).returning(table.id)))
     annotations = await _load_annotations(session, table, annotation_ids)
-    await _append_events(session, table, annotations, existing_keys=frozenset())
+    await _append_events(
+        session,
+        table,
+        annotations,
+        existing_keys=frozenset(),
+        write_token=write_token,
+    )
     return annotations
 
 
@@ -46,7 +61,17 @@ async def upsert_annotations(
     on_conflict: OnConflict = OnConflict.DO_UPDATE,
     set_: Optional[Mapping[str, Any]] = None,
     constraint_name: Optional[str] = None,
+    write_token: Optional[str] = None,
 ) -> tuple[AnnotationT, ...]:
+    """Insert annotations, resolving conflicts as asked, and announce them.
+
+    Args:
+        write_token: Names the write each announcement belongs to, so a caller that can
+            repeat the same write in a new transaction — a work unit republishing its
+            verdict — announces one occurrence rather than one per attempt. Omit it and
+            every announcement takes a fresh token, which is what an independent write
+            wants.
+    """
     if not records:
         return ()
     existing_keys = await _existing_keys(session, table, records, unique_by)
@@ -70,6 +95,7 @@ async def upsert_annotations(
         annotations,
         existing_keys=existing_keys,
         unique_by=unique_by,
+        write_token=write_token,
     )
     return annotations
 
@@ -131,12 +157,12 @@ async def _append_events(
     *,
     existing_keys: frozenset[tuple[Any, ...]],
     unique_by: Sequence[str] = (),
+    write_token: Optional[str] = None,
 ) -> None:
     if not annotations:
         return
     annotation_ids = [annotation.id for annotation in annotations]
     stmt: Any
-    # Shared-seam exclusion blocks default feedback; executor opt-in is its off-seam twin.
     # A span or trace outside any session emits no event; that is an ordinary outcome,
     # not a failure, because a SESSION evaluator has no session target to run against.
     if table is models.SpanAnnotation:
@@ -154,8 +180,6 @@ async def _append_events(
             )
             .where(
                 models.SpanAnnotation.id.in_(annotation_ids),
-                # Shared-seam half of the executor opt-in twin described above.
-                ~models.SpanAnnotation.identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX),
             )
         )
         annotation_target: models.AnnotationTarget = "span"
@@ -174,8 +198,6 @@ async def _append_events(
             )
             .where(
                 models.TraceAnnotation.id.in_(annotation_ids),
-                # Shared-seam half of the executor opt-in twin described above.
-                ~models.TraceAnnotation.identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX),
             )
         )
         annotation_target = "trace"
@@ -193,10 +215,6 @@ async def _append_events(
             )
             .where(
                 models.ProjectSessionAnnotation.id.in_(annotation_ids),
-                # Shared-seam half of the executor opt-in twin described above.
-                ~models.ProjectSessionAnnotation.identifier.startswith(
-                    ONLINE_EVAL_IDENTIFIER_PREFIX
-                ),
             )
         )
         annotation_target = "session"
@@ -230,6 +248,7 @@ async def _append_events(
                 source=annotation.source,
                 user_id=annotation.user_id,
                 identifier=annotation.identifier,
+                **({} if write_token is None else {"write_token": write_token}),
             ),
             project_id=project_id,
             # Delivery is session-only, so an annotation on any target demands the

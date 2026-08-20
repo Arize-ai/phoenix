@@ -379,11 +379,7 @@ CREATE TABLE public.evaluator_events (
             'TRACE'::character varying,
             'SESSION'::character varying
         ])::text[]))),
-    CONSTRAINT "ck_evaluator_events_`valid_event_kind`"
-        CHECK (((kind)::text = ANY ((ARRAY[
-            'annotation_upserted'::character varying,
-            'evaluation_completed'::character varying
-        ])::text[]))),
+    CONSTRAINT "ck_evaluator_events_`valid_event_kind`" CHECK (((kind)::text = 'annotation_upserted'::text)),
     CONSTRAINT "ck_evaluator_events_`valid_target_key`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (span_rowid IS NOT NULL) AND (trace_rowid IS NULL) AND (project_session_rowid IS NULL)) OR (((evaluation_target)::text = 'TRACE'::text) AND (trace_rowid IS NOT NULL) AND (span_rowid IS NULL) AND (project_session_rowid IS NULL)) OR (((evaluation_target)::text = 'SESSION'::text) AND (project_session_rowid IS NOT NULL) AND (span_rowid IS NULL) AND (trace_rowid IS NULL)))),
     CONSTRAINT fk_evaluator_events_project_id_projects
         FOREIGN KEY (project_id)
@@ -1620,28 +1616,18 @@ CREATE TABLE public.project_evaluator_triggers (
     project_evaluator_id BIGINT NOT NULL,
     event_kind VARCHAR NOT NULL,
     predicates JSONB,
-    source_project_evaluator_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
-    CONSTRAINT "ck_project_evaluator_triggers_`valid_event_kind`"
-        CHECK (((event_kind)::text = ANY ((ARRAY[
-            'annotation_upserted'::character varying,
-            'evaluation_completed'::character varying
-        ])::text[]))),
+    CONSTRAINT "ck_project_evaluator_triggers_`valid_event_kind`" CHECK (((event_kind)::text = 'annotation_upserted'::text)),
     CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_project_evalu_acfb
         FOREIGN KEY (project_evaluator_id)
         REFERENCES public.project_evaluators (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_project_evaluator_triggers_source_project_evaluator_id_projec_30d2
-        FOREIGN KEY (source_project_evaluator_id)
-        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE
 );
 
 CREATE INDEX ix_project_evaluator_triggers_project_evaluator_id ON public.project_evaluator_triggers
     USING btree (project_evaluator_id);
-CREATE INDEX ix_project_evaluator_triggers_source_project_evaluator_id ON public.project_evaluator_triggers
-    USING btree (source_project_evaluator_id);
 
 
 -- Table: project_session_annotations

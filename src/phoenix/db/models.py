@@ -211,7 +211,7 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
-EvaluatorEventKind: TypeAlias = Literal["annotation_upserted", "evaluation_completed"]
+EvaluatorEventKind: TypeAlias = Literal["annotation_upserted"]
 AnnotationChange: TypeAlias = Literal["created", "updated"]
 AnnotationTarget: TypeAlias = Literal["span", "trace", "session"]
 SchedulingOrigin: TypeAlias = Literal["AMBIENT", "RULE", "EXPLICIT"]
@@ -3992,13 +3992,6 @@ class ProjectEvaluatorTrigger(HasId):
         nullable=False,
     )
     predicates: Mapped[Optional[TriggerPredicatesType]] = mapped_column(_TriggerPredicates)
-    # Not ON DELETE CASCADE: cascading here would delete the watched project_evaluator reference
-    # and leave the trigger behind, firing on every completion. Deleting a watched
-    # project_evaluator is refused until the trigger that watches it goes with it.
-    source_project_evaluator_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("project_evaluators.id"),
-        index=True,
-    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -4007,10 +4000,6 @@ class ProjectEvaluatorTrigger(HasId):
     project_evaluators: Mapped["ProjectEvaluator"] = relationship(
         "ProjectEvaluator",
         foreign_keys=[project_evaluator_id],
-    )
-    source_criteria: Mapped[Optional["ProjectEvaluator"]] = relationship(
-        "ProjectEvaluator",
-        foreign_keys=[source_project_evaluator_id],
     )
 
 

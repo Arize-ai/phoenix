@@ -11,18 +11,17 @@ from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS,
 )
 from phoenix.db import models
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.annotation import upsert_annotations
+from phoenix.db.insertion.helpers import OnConflict
 from phoenix.server.app import _db
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
-from phoenix.server.online_eval.executor import _announce_annotations
 from phoenix.server.online_eval.leases import LeaseLost
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.online_eval.triggering import drain as drain_module
 from phoenix.server.online_eval.triggering.drain import EventDrain
 from phoenix.server.online_eval.triggering.log import (
     AnnotationUpserted,
-    EvaluationCompleted,
     append,
     drain_page,
 )
@@ -535,43 +534,33 @@ async def _publish(
 ) -> None:
     """Publish one evaluator's verdict the way the executor does.
 
-    The annotation write and the generated-annotation announcement land in the
-    publication's fenced transaction; completion is a separate transition, and leaving
-    it undone is what a publication that has to be retried looks like.
+    The annotation write and its announcement land in the publication's fenced
+    transaction; completion is a separate transition, and leaving it undone is what a
+    publication that has to be retried looks like.
     """
     coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
 
     async def _write(session: AsyncSession) -> None:
-        inserted = (
-            await session.scalars(
-                insert_on_conflict(
-                    {
-                        "project_session_id": unit.target_rowid,
-                        "name": name,
-                        "label": "yes",
-                        "score": None,
-                        "explanation": None,
-                        "metadata_": {},
-                        "annotator_kind": "LLM",
-                        "identifier": unit.identifier,
-                        "source": "API",
-                        "user_id": None,
-                    },
-                    table=models.ProjectSessionAnnotation,
-                    dialect=db.dialect,
-                    unique_by=("name", "project_session_id", "identifier"),
-                    on_conflict=OnConflict.DO_UPDATE,
-                ).returning(models.ProjectSessionAnnotation.id)
-            )
-        ).all()
-        if inserted:
-            await _announce_annotations(
-                session,
-                unit,
-                models.ProjectSessionAnnotation,
-                inserted,
-                replaced_names=frozenset(),
-            )
+        await upsert_annotations(
+            session,
+            {
+                "project_session_id": unit.target_rowid,
+                "name": name,
+                "label": "yes",
+                "score": None,
+                "explanation": None,
+                "metadata_": {},
+                "annotator_kind": "LLM",
+                "identifier": unit.identifier,
+                "source": "API",
+                "user_id": None,
+            },
+            table=models.ProjectSessionAnnotation,
+            dialect=db.dialect,
+            unique_by=("name", "project_session_id", "identifier"),
+            on_conflict=OnConflict.DO_UPDATE,
+            write_token=f"work-unit:{unit.work_unit_id}",
+        )
 
     await coordinator.publish(
         work_unit_id=unit.work_unit_id,
@@ -583,16 +572,6 @@ async def _publish(
     await coordinator.complete(
         work_unit_id=unit.work_unit_id,
         claimed_by=_CLAIMED_BY,
-        completion_events=(
-            EvaluationCompleted(
-                work_unit_kind="session",
-                work_unit_id=unit.work_unit_id,
-                project_evaluator_id=unit.project_evaluator_id,
-                evaluator_name=name,
-                name=name,
-                label="yes",
-            ),
-        ),
     )
 
 
@@ -617,12 +596,8 @@ async def _last_span_ingested_at(db: DbSessionFactory, project_session_id: int) 
     return ingested_at
 
 
-async def _seed_mutually_watching_evaluators(
-    db: DbSessionFactory,
-    *,
-    b_matches_evaluator_annotations: bool = True,
-) -> tuple[int, int, int]:
-    """One session and two evaluators, each opted in to the other's annotations.
+async def _seed_mutually_watching_evaluators(db: DbSessionFactory) -> tuple[int, int, int]:
+    """One session and two evaluators, each triggering on the other's annotation name.
 
     Returns the session rowid and both project_evaluator ids.
     """
@@ -637,13 +612,11 @@ async def _seed_mutually_watching_evaluators(
             session,
             project_evaluator_b,
             name=_A_ANNOTATION,
-            matches_evaluator_annotations=b_matches_evaluator_annotations,
         )
         await _add_trigger(
             session,
             project_evaluator_a,
             name=_B_ANNOTATION,
-            matches_evaluator_annotations=True,
         )
     return project_session_id, project_evaluator_a_id, project_evaluator_b_id
 
@@ -693,35 +666,6 @@ async def test_an_opted_in_evaluator_cycle_settles_on_the_unchanged_content_wate
             assert request.materialized_generation == request.requested_generation
 
 
-async def test_a_rule_that_did_not_opt_in_ignores_a_generated_annotation_that_was_logged(
-    db: DbSessionFactory,
-) -> None:
-    """The occurrence reaches the log; the rule that never asked for it draws nothing.
-
-    The refusal itself is the matcher's, and is asserted there. What this pins is that
-    an opted-out rule is refused at matching rather than silently unannounced.
-    """
-    _, project_evaluator_a_id, _ = await _seed_mutually_watching_evaluators(
-        db,
-        b_matches_evaluator_annotations=False,
-    )
-    sweeper = SessionEvalSweeper(db)
-    await sweeper._tick()
-    units = await _claim_pending(db)
-
-    await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION)
-
-    (logged,) = await _generated_events(db)
-    assert logged.payload["project_evaluator_id"] == project_evaluator_a_id
-    assert logged.payload["name"] == _A_ANNOTATION
-
-    await EventDrain(db)._tick()
-
-    async with db() as session:
-        assert await _requests(session) == []
-    assert await _unacknowledged(db) == ()
-
-
 async def test_a_publication_retried_before_it_completes_logs_one_generated_annotation(
     db: DbSessionFactory,
 ) -> None:
@@ -735,12 +679,15 @@ async def test_a_publication_retried_before_it_completes_logs_one_generated_anno
     units = await _claim_pending(db)
 
     await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION, complete=False)
+    # The write and its announcement commit during publication, before completion.
+    assert len(await _generated_events(db)) == 1
+
     await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION)
 
     assert len(await _generated_events(db)) == 1
 
 
-async def test_publishing_logs_no_annotation_when_no_rule_asked_for_evaluator_output(
+async def test_publishing_logs_no_annotation_when_the_project_carries_no_rule(
     db: DbSessionFactory,
 ) -> None:
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
@@ -753,7 +700,7 @@ async def test_publishing_logs_no_annotation_when_no_rule_asked_for_evaluator_ou
     assert await _generated_events(db) == []
 
 
-async def test_evaluator_annotation_rule_gate_is_project_scoped(
+async def test_the_publication_annotation_rule_gate_is_project_scoped(
     db: DbSessionFactory,
 ) -> None:
     opted_in_project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
@@ -768,11 +715,7 @@ async def test_evaluator_annotation_rule_gate_is_project_scoped(
             opted_in_project_evaluator_id,
         )
         assert opted_in_criteria is not None
-        await _add_trigger(
-            session,
-            opted_in_criteria,
-            matches_evaluator_annotations=True,
-        )
+        await _add_trigger(session, opted_in_criteria)
 
     bystander_project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     _, bystander_project_evaluator_id = await _seed_criteria(

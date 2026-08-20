@@ -1037,13 +1037,12 @@ input CreateProjectCodeEvaluatorInput {
 }
 
 """
-The predicate object must be the one that goes with the event kind; the other one is refused. Leaving both out makes a trigger that fires on every event of its kind in the project.
+The predicate object must be the one that goes with the event kind. Leaving it out makes a trigger that fires on every event of its kind in the project, including annotations project evaluators write.
 """
 input CreateProjectEvaluatorTriggerInput {
   projectEvaluatorId: ID!
   eventKind: EvaluatorEventKind!
   annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicatesInput
-  evaluationPredicates: ProjectEvaluatorTriggerEvaluationPredicatesInput
 }
 
 input CreateProjectInput {
@@ -1975,7 +1974,6 @@ type EvaluatorEdge {
 """The kind of event a trigger matches on."""
 enum EvaluatorEventKind {
   ANNOTATION_UPSERTED
-  EVALUATION_COMPLETED
 }
 
 """The filter key and value for evaluator connections"""
@@ -3154,13 +3152,12 @@ type PatchGenerativeModelCustomProviderMutationPayload {
 }
 
 """
-A predicate object left out is unchanged; one set to null drops every predicate it held, so the trigger fires on every event of its kind. Inside a predicate object, fields left out are unchanged and fields set to null stop constraining the match. Leaving the event kind out keeps it; changing it drops the predicates of the kind being left behind, since they cannot describe events of the new one.
+A predicate object left out is unchanged; one set to null drops every predicate it held, so the trigger fires on every event of its kind in the project, including annotations project evaluators write. Inside a predicate object, fields left out are unchanged and fields set to null stop constraining the match. Leaving the event kind out keeps it.
 """
 input PatchProjectEvaluatorTriggerInput {
   projectEvaluatorTriggerId: ID!
   eventKind: EvaluatorEventKind
   annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicatesInput
-  evaluationPredicates: ProjectEvaluatorTriggerEvaluationPredicatesInput
 }
 
 input PatchProjectInput {
@@ -3573,7 +3570,7 @@ enum ProjectEvaluatorSchedulabilityStatus {
 }
 
 """
-A rule saying which events should make its project evaluator run. Its predicates live in the object for its event kind; leaving that object null means the trigger fires on every event of that kind in the project. To match a set of values ('label A or B'), add one trigger per value. A trigger applies to events recorded after it is created and never to earlier ones; use requestProjectSessionEvaluation to evaluate sessions that already match.
+A rule saying which events should make its project evaluator run. Its predicates live in the object for its event kind; leaving that object null means the trigger fires on every event of that kind in the project, including annotations project evaluators write. To match a set of values ('label A or B'), add one trigger per value. A trigger applies to events recorded after it is created and never to earlier ones; use requestProjectSessionEvaluation to evaluate sessions that already match.
 """
 type ProjectEvaluatorTrigger implements Node {
   """The Globally Unique ID of this object"""
@@ -3581,14 +3578,9 @@ type ProjectEvaluatorTrigger implements Node {
   eventKind: EvaluatorEventKind!
 
   """
-  What an annotation must look like for this trigger to fire, or null to match every annotation. Null unless the event kind is ANNOTATION_UPSERTED.
+  What an annotation must look like for this trigger to fire, or null to match every annotation written in the project, whoever wrote it.
   """
   annotationPredicates: ProjectEvaluatorTriggerAnnotationPredicates
-
-  """
-  What a finished evaluation must look like for this trigger to fire, or null to match every evaluation. Null unless the event kind is EVALUATION_COMPLETED.
-  """
-  evaluationPredicates: ProjectEvaluatorTriggerEvaluationPredicates
   createdAt: DateTime!
   updatedAt: DateTime!
 
@@ -3626,11 +3618,6 @@ type ProjectEvaluatorTriggerAnnotationPredicates {
   Match only annotations attached to this kind of entity. Annotations on spans or traces outside any session cannot match SESSION evaluators.
   """
   annotationTarget: AnnotationTarget
-
-  """
-  Also match annotations written by other project evaluators, not only the ones written by people or through the API. A project evaluator never matches its own annotations.
-  """
-  matchesEvaluatorAnnotations: Boolean!
 }
 
 """
@@ -3648,58 +3635,6 @@ input ProjectEvaluatorTriggerAnnotationPredicatesInput {
   Match only annotations attached to this kind of entity. Annotations on spans or traces outside any session cannot match SESSION evaluators.
   """
   annotationTarget: AnnotationTarget
-
-  """
-  Also match annotations written by other project evaluators, not only the ones written by people or through the API. A project evaluator never matches its own annotations.
-  """
-  matchesEvaluatorAnnotations: Boolean
-}
-
-"""
-What a finished evaluation must look like for its trigger to fire. Every predicate is optional, and leaving one null means it does not constrain the match.
-"""
-type ProjectEvaluatorTriggerEvaluationPredicates {
-  """Match only evaluations recorded under this name."""
-  name: String
-
-  """Match only this result label."""
-  label: String
-
-  """
-  Match only scores strictly below this value; unscored results never match.
-  """
-  scoreBelow: Float
-
-  """
-  Match only scores strictly above this value; unscored results never match.
-  """
-  scoreAbove: Float
-
-  """
-  Match only evaluations whose result differs from the previous one for the same target.
-  """
-  resultChangedOnly: Boolean!
-
-  """
-  Match only evaluations produced by this project evaluator, or null to match any. A project evaluator never triggers on its own result.
-  """
-  sourceProjectEvaluator: ProjectEvaluator
-}
-
-"""
-What a finished evaluation must look like for an EVALUATION_COMPLETED trigger to fire. Fields left out do not constrain the match.
-"""
-input ProjectEvaluatorTriggerEvaluationPredicatesInput {
-  name: String
-  label: String
-  scoreBelow: Float
-  scoreAbove: Float
-
-  """
-  Match only evaluations produced by this project evaluator, in the same project as the trigger. A project evaluator never triggers on its own result.
-  """
-  sourceProjectEvaluatorId: ID
-  resultChangedOnly: Boolean
 }
 
 type ProjectEvaluatorTriggerMutationPayload {

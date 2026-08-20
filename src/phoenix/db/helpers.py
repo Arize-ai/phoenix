@@ -648,27 +648,12 @@ async def delete_projects(
     session: AsyncSession,
     project_filter: sa.ColumnElement[bool],
 ) -> list[int]:
-    """Delete matching projects safely.
+    """Delete the projects matching this filter, returning their rowids.
 
-    Removing a project takes three cleanups with it: triggers watching the project's
-    evaluators (a trigger that names a project evaluator is only ever deleted with it),
-    the trace projects those evaluators write to, and the project rows themselves.
+    Deleting a project also removes the trace projects its evaluators write to.
     Route new project deletions through here.
     """
     project_ids = sa.select(models.Project.id).where(project_filter)
-    watching_trigger_ids = (
-        sa.select(models.ProjectEvaluatorTrigger.id)
-        .join(
-            models.ProjectEvaluator,
-            models.ProjectEvaluatorTrigger.source_project_evaluator_id == models.ProjectEvaluator.id,
-        )
-        .where(models.ProjectEvaluator.project_id.in_(project_ids))
-    )
-    await session.execute(
-        sa.delete(models.ProjectEvaluatorTrigger).where(
-            models.ProjectEvaluatorTrigger.id.in_(watching_trigger_ids)
-        )
-    )
     trace_project_ids = (
         await session.scalars(
             select(models.ProjectEvaluator.trace_project_id).where(

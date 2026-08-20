@@ -15,20 +15,12 @@ class AnnotationPredicates(DBBaseModel):
     annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None
     annotation_change: Optional[Literal["created", "updated"]] = None
     annotation_target: Optional[Literal["span", "trace", "session"]] = None
-    matches_evaluator_annotations: bool = False
 
 
-class EvaluationPredicates(DBBaseModel):
-    type: Literal["evaluation_completed"]
-    name: Optional[str] = None
-    label: Optional[str] = None
-    score_below: Optional[float] = None
-    score_above: Optional[float] = None
-    result_changed_only: bool = False
-
-
+# Tagged even with one member, so a stored object carrying a retired tag is rejected by
+# name rather than coerced into the surviving shape.
 TriggerPredicatesType: TypeAlias = Annotated[
-    Union[AnnotationPredicates, EvaluationPredicates],
+    Union[AnnotationPredicates],
     Field(..., discriminator="type"),
 ]
 

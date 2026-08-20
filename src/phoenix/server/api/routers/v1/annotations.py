@@ -89,9 +89,8 @@ class AnnotationData(V1RoutesBaseModel):
     def _reject_reserved_identifier(cls, identifier: str) -> str:
         """Keep the prefix that marks Phoenix's own annotations out of client hands.
 
-        It prevents online evaluation output from triggering another evaluation, so a
-        client able to write it could exempt its own annotations from every trigger and
-        collide with the key online evaluation publishes under.
+        A client able to write it could collide with the key online evaluation publishes
+        under.
         """
         if is_reserved_annotation_identifier(identifier):
             raise ValueError(
