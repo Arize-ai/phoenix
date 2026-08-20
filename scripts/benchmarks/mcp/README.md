@@ -153,6 +153,7 @@ opening the page and refreshing. `runs.csv` lands beside it for spreadsheets.
 uv pip install -e "harness[otel]"
 mcpbench export --all --project mcpbench    # every stored run, into one project
 mcpbench export --dry-run                   # writes replay.json instead of sending
+mcpbench run --export mcpbench              # ship each cell as it finishes
 ```
 
 Turns the stored transcripts into OpenInference spans and posts them: one trace per
@@ -174,8 +175,16 @@ did not land. The SDK reports a failed batch by logging it, so counting what was
 would call a closed port a success. Acceptance is still not ingestion — Phoenix stores
 the batch after answering, so a count read immediately after an export reads low.
 
+`run --export` holds one connection open for the matrix and sends each cell the moment
+its transcript lands, so traces appear as the run goes rather than after it. Per cell,
+not per span: nothing exists to send until the cell ends, because the client's output is
+captured whole. It cannot fail a run — the transcript is already durable by then, and an
+unreachable sink is reported once and otherwise ignored. The sink is opened before the
+matrix is planned, so a missing extra or a bad endpoint costs nothing.
+
 Span ids are seeded from `(project, run, cell, max-chars)`, so re-exporting the same run
-with the same settings is a no-op rather than a duplicate. Ingest keeps the first span
+with the same settings is a no-op rather than a duplicate — which is what lets a
+streamed run be re-exported afterwards without doubling it. Ingest keeps the first span
 it sees for an id and never updates it, so re-rendering into the same project adds a
 second copy alongside the first — use a fresh `--project` instead.
 

@@ -27,7 +27,9 @@ from .config import BenchConfig, ConfigError, apply_overrides, load_config, load
 from .export import (
     DEFAULT_ENDPOINT,
     DEFAULT_PROJECT,
+    Planner,
     as_json,
+    open_sink,
     plan_run,
     resolve_endpoint,
     resolve_headers,
@@ -123,6 +125,22 @@ def cmd_run(args: argparse.Namespace) -> int:
             return 1
         print()
 
+    sink = planner = None
+    if args.export:
+        try:
+            sink = open_sink(
+                endpoint=resolve_endpoint(args.endpoint),
+                project=args.export,
+                headers=resolve_headers(),
+            )
+        except ImportError as exc:
+            # Raised here rather than at the first finished cell: the matrix
+            # costs money, and a sink that cannot be opened is knowable now.
+            print(f"error: {exc}", file=sys.stderr)
+            print('install the extra: uv pip install -e "harness[otel]"', file=sys.stderr)
+            return 1
+        planner = Planner(config, tasks, out_dir)
+
     cells = plan_matrix(config, tasks)
     done = 0
     print(f"run {run_id} [{config.resolved_label()}]: {len(cells)} cells ({len(tasks)} tasks)")
@@ -148,14 +166,41 @@ def cmd_run(args: argparse.Namespace) -> int:
                 warned_refresh = True
                 print(f"       (live report not updating: {exc})")
 
+    warned_export = False
+
+    def ship(cell: Cell) -> None:
+        """Send the finished cell as a trace.
+
+        Same rule as the report: the transcript is already durable by the time
+        this runs, so a sink that is unreachable costs the run nothing. What it
+        took is reported once, at the end.
+        """
+        nonlocal warned_export
+        if sink is None or planner is None:
+            return
+        try:
+            if trace := planner.cell(out_dir / "raw" / f"{cell.cell_id}.jsonl"):
+                sink.send(*trace)
+        except Exception as exc:
+            if not warned_export:
+                warned_export = True
+                print(f"       (not exporting: {exc})")
+
     def progress(cell: Cell, info: dict) -> None:
         nonlocal done
         done += 1
+        # Read once, because cells finish on several threads and the report and
+        # the export both take long enough for another to land in between. Read
+        # again below and the first cell never recognises itself as the first.
+        index = done
         status = "cached" if info.get("cached") else f"turns={info.get('num_turns')}"
-        print(f"  [{done}/{len(cells)}] {cell.cell_id}  {status}  ${info.get('spend', 0.0):.2f}")
+        print(f"  [{index}/{len(cells)}] {cell.cell_id}  {status}  ${info.get('spend', 0.0):.2f}")
         refresh_report()
-        if done == 1:
+        ship(cell)
+        if index == 1:
             print(f"       report updating live: {report_path}")
+            if args.export:
+                print(f"       traces streaming to: {args.export}")
 
     try:
         run_matrix(config, tasks, out_dir, on_cell=progress)
@@ -168,6 +213,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             # Emitted here so a run ends with something to open, not a second command.
             path = report_for_run(config, tasks, out_dir)
             print(f"\nreport: {path}")
+        if sink is not None:
+            print(f"traces: {sink.close().describe()} -> {args.export}")
         print()
         print(summarize(runs))
     return 0
@@ -297,6 +344,14 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--max-total-usd", type=float, dest="max_total_usd", help="Matrix cost cap.")
     run.add_argument("--run-id", help="Reuse an existing run id to add trials to it.")
     run.add_argument("--skip-preflight", action="store_true", help="Run without checking first.")
+    run.add_argument(
+        "--export", metavar="PROJECT", help="Replay each cell to a collector as it completes."
+    )
+    run.add_argument(
+        "--endpoint",
+        default=os.environ.get("PHOENIX_COLLECTOR_ENDPOINT") or DEFAULT_ENDPOINT,
+        help="Collector for --export.",
+    )
     run.set_defaults(func=cmd_run)
 
     analyze = sub.add_parser("analyze", help="Rebuild the tables from stored transcripts.")
