@@ -2034,6 +2034,28 @@ class _Data:
     projects: list[models.Project] = field(default_factory=list)
 
 
+def _representative_root_spans(
+    spans: list[models.Span],
+    orphan_span_as_root_span: bool,
+) -> list[models.Span]:
+    spans_by_trace: dict[int, list[models.Span]] = {}
+    for span in spans:
+        spans_by_trace.setdefault(span.trace_rowid, []).append(span)
+
+    representatives = []
+    for trace_spans in spans_by_trace.values():
+        span_ids = {span.span_id for span in trace_spans}
+        candidates = [
+            span
+            for span in trace_spans
+            if span.parent_id is None
+            or (orphan_span_as_root_span and span.parent_id not in span_ids)
+        ]
+        if candidates:
+            representatives.append(min(candidates, key=lambda span: (span.start_time, -span.id)))
+    return representatives
+
+
 # The `_data` fixture's sessions 1 and 3 are the two whose root-span input/output carry this
 # fragment; the sort tests use it to exercise sorting and cursor paging under a filter.
 _IO_CONDITION_ARG = "\"'\\\"\\\\'f' in any_input or '\\\"\\\\'f' in any_output\""
@@ -2922,18 +2944,14 @@ class TestProject:
         """
         project = _orphan_spans.projects[0]
 
-        # Filter spans containing "2" in their input value
-        filtered_spans = [s for s in _orphan_spans.spans if "2" in s.attributes["input"]["value"]]
-
-        # Determine root spans based on configuration
-        if orphan_span_as_root_span:
-            existing_span_ids = {s.span_id for s in _orphan_spans.spans}
-            root_spans = [s for s in filtered_spans if s.parent_id not in existing_span_ids]
-        else:
-            root_spans = [s for s in filtered_spans if s.parent_id is None]
+        root_spans = _representative_root_spans(
+            _orphan_spans.spans,
+            orphan_span_as_root_span,
+        )
+        filtered_spans = [span for span in root_spans if "2" in span.attributes["input"]["value"]]
 
         # Sort spans by start time and ID
-        sorted_spans = sorted(root_spans, key=lambda t: (t.start_time, t.id), reverse=True)
+        sorted_spans = sorted(filtered_spans, key=lambda t: (t.start_time, t.id), reverse=True)
 
         # Convert to global IDs for comparison
         gids = list(map(_gid, sorted_spans))
@@ -2967,11 +2985,8 @@ class TestProject:
         _orphan_spans: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """The DSL predicate ``filterCondition: "parent_span is None"`` selects the same
-        spans as ``rootSpansOnly: true, orphanSpanAsRootSpan: true`` — verifying the
-        correlated ``NOT EXISTS`` behaves correctly once the resolver's project
-        predicate and query structure are applied, not just in direct SpanFilter
-        execution.
+        """The DSL predicate selects every orphan-aware root candidate, while
+        ``rootSpansOnly`` selects one representative candidate per trace.
         """
         project = _orphan_spans.projects[0]
 
@@ -3003,7 +3018,10 @@ class TestProject:
         dsl_ids = {e["node"]["id"] for e in dsl_res["edges"]}
         flag_ids = {e["node"]["id"] for e in flag_res["edges"]}
         assert dsl_ids == expected
-        assert dsl_ids == flag_ids
+        assert flag_ids == {
+            _gid(span) for span in _representative_root_spans(_orphan_spans.spans, True)
+        }
+        assert flag_ids <= dsl_ids
 
     @pytest.mark.parametrize(
         "condition,orphan_span_as_root_span",
@@ -3070,12 +3088,11 @@ class TestProject:
         condition: str,
         orphan_span_as_root_span: bool,
     ) -> None:
-        """Sending `rootSpansOnly` *and* a root predicate must not change the result.
+        """Combining `rootSpansOnly` with a root predicate intersects both scopes.
 
-        The resolver drops the flag's scoping when the condition already implies
-        it, so this pins that the optimization is semantics-preserving. The
-        strict-flag/orphan-aware-condition case is the one that must NOT be
-        optimized away: skipping a strict flag there would admit orphans.
+        `rootSpansOnly` chooses a single representative per trace; an explicit
+        predicate can then remove that representative without promoting another
+        candidate from the same trace.
         """
         project = _orphan_spans.projects[0]
         orphan_arg = str(orphan_span_as_root_span).lower()
@@ -3095,10 +3112,7 @@ class TestProject:
         condition_only = await span_ids(
             f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
         )
-        # Combining them is the intersection, which is what the flag alone gives
-        # whenever the condition is at least as strict.
         assert both == flag_only & condition_only
-        assert both
 
     async def test_analyze_span_filter_condition_tracks_actual_query_scope(
         self,
@@ -3139,14 +3153,21 @@ class TestProject:
         # The verdict is only meaningful if the predicate actually narrowed the
         # result; a silently dropped predicate would make these equal.
         assert scoped_ids < unscoped_ids
-        # ...and it narrows to exactly what the boolean arguments selected.
+        # The boolean arguments additionally choose one representative per trace,
+        # so applying the filter to that view is the intersection of both scopes.
+        flag_only_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
+            project,
+            httpx_client,
+        )
         flag_res = await self._node(
             "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,"
             f'filterCondition:"{user_condition}",first:100){{edges{{node{{id}}}}}}',
             project,
             httpx_client,
         )
-        assert scoped_ids == {e["node"]["id"] for e in flag_res["edges"]}
+        flag_only_ids = {e["node"]["id"] for e in flag_only_res["edges"]}
+        assert {e["node"]["id"] for e in flag_res["edges"]} == scoped_ids & flag_only_ids
 
     @pytest.fixture
     async def _time_series_data(
@@ -4350,8 +4371,8 @@ class TestProject:
         }
         assert absent_attribute_terms.isdisjoint(terms_by_name)
         # Per-project session-annotation names are folded in as fully-typed terms.
-        assert 'annotations["quality"].score' in term_names
-        assert 'annotations["quality"].label' in term_names
+        assert 'session_annotations["quality"].score' in term_names
+        assert 'session_annotations["quality"].label' in term_names
         # Span counts are session totals only — no per-tool-name terms are served.
         assert not any(name.startswith("tool_span_count[") for name in term_names)
         # The comprehension surface is served from the compiler's own catalog, so the iterables
@@ -4519,7 +4540,7 @@ class TestProject:
         """A session carrying several annotations under one name is one row on a filtered page.
 
         Session annotations are unique on `(name, project_session_id, identifier)`, so the join a
-        filter on `annotations[...]` makes can match a session more than once.
+        filter on `session_annotations[...]` makes can match a session more than once.
         """
         async with db() as session:
             project = await _add_project(session, name="annotation-fan-out-page")
@@ -4540,7 +4561,7 @@ class TestProject:
                     )
                 )
 
-        condition = 'annotations["Quality"].score > 0.5'
+        condition = 'session_annotations["Quality"].score > 0.5'
         page = await self._node(
             f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
             project,
@@ -4650,7 +4671,7 @@ class TestProject:
 
         # Typo'd annotation name: valid (compiles) but warns, naming the unknown + the observed set.
         result = await self._validate_session_filter(
-            project, "annotations['typoo'].score > 0.5", gql_client
+            project, "session_annotations['typoo'].score > 0.5", gql_client
         )
         assert result["isValid"] is True
         assert result["errorMessage"] is None
@@ -4662,7 +4683,7 @@ class TestProject:
         # An observed annotation name produces no warnings.
         result = await self._validate_session_filter(
             project,
-            "annotations['quality'].score > 0.5 and tool_span_count > 0",
+            "session_annotations['quality'].score > 0.5 and tool_span_count > 0",
             gql_client,
         )
         assert result["isValid"] is True

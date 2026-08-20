@@ -10,7 +10,7 @@ pytest-randomly
 pytest-rerunfailures
 deepdiff==8.6.2
 anthropic
-openai>=2.14.0
+openai>=3.1.0,<4
 pystache
 PyYAML
 aioboto3

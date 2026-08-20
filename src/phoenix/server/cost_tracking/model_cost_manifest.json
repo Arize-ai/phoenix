@@ -1684,17 +1684,39 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 7.5e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 7.5e-6,
+          "base_rate": 3.75e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 1.5e-7,
+          "base_rate": 7.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gemini-3.7-flash",
+      "name_pattern": "gemini-3\\.7-flash",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 7.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -5267,6 +5289,42 @@
       ]
     },
     {
+      "name": "groq/meta-llama/llama-prompt-guard-2-22m",
+      "name_pattern": "meta-llama/llama-prompt-guard-2-22m",
+      "source": "litellm",
+      "provider": "groq",
+      "token_prices": [
+        {
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-8,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "groq/meta-llama/llama-prompt-guard-2-86m",
+      "name_pattern": "meta-llama/llama-prompt-guard-2-86m",
+      "source": "litellm",
+      "provider": "groq",
+      "token_prices": [
+        {
+          "base_rate": 4e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-8,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "groq/moonshotai/kimi-k2-instruct-0905",
       "name_pattern": "moonshotai/kimi-k2-instruct-0905",
       "source": "litellm",
@@ -5371,6 +5429,24 @@
         },
         {
           "base_rate": 5.9e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "groq/qwen/qwen3.6-27b",
+      "name_pattern": "qwen/qwen3\\.6-27b",
+      "source": "litellm",
+      "provider": "groq",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-6,
           "is_prompt": false,
           "token_type": "output"
         }

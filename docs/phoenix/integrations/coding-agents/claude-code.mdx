@@ -143,9 +143,9 @@ Subagents nest inside the turn that spawned them, so a `Task` delegation shows u
 
 The tracing plugin also works with the [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview) in both Python and TypeScript. The SDK loads the plugin locally — no marketplace install is required — but the setup must be done in your application code before the SDK session starts, so the agent cannot configure it at runtime.
 
-<Callout type="warning">
+<Warning>
 You must use `ClaudeSDKClient`. The standalone `query()` function does not support hooks, so tracing will not work with it.
-</Callout>
+</Warning>
 
 ### 1. Locate the plugin
 

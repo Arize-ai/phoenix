@@ -7,6 +7,7 @@
 - Aggregates, most accepting `timeRange` and `filterCondition`: `traceCount`, `recordCount` (span count), `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `costSummary`, `latencyMsQuantile(probability: Float!)`, `spanLatencyMsQuantile(probability: Float!)`.
 - Discovery fields: `spanAnnotationNames`, `traceAnnotationsNames`, `spanAnnotationSummary`, `documentEvaluationNames` — check which evals/annotations exist before querying them.
 - `validateSpanFilterCondition(condition: String!)` — check a filter string without running it.
+- `filterCondition` is a span filter expression. The user-facing grammar reference (operators, attribute/annotation access, substring search, `is None`) is the [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions) doc; the enforced grammar lives in `internal_docs/specs/span-filter-dsl.md`.
 
 ## Span
 

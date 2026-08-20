@@ -29,7 +29,7 @@ members = [
     "arize-phoenix-otel",
 ]
 overrides = [
-    { name = "openai", specifier = ">=2.30.0" },
+    { name = "openai", specifier = ">=3.1.0,<4" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
 ]
 
@@ -525,6 +525,7 @@ dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "sqlglot" },
     { name = "starlette" },
     { name = "strawberry-graphql" },
     { name = "tqdm" },
@@ -731,7 +732,7 @@ requires-dist = [
     { name = "modal", marker = "extra == 'container'", specifier = ">=1.2.0" },
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.2.0" },
     { name = "numpy" },
-    { name = "openai", marker = "extra == 'container'", specifier = ">=2.14.0" },
+    { name = "openai", marker = "extra == 'container'", specifier = ">=3.1.0,<4" },
     { name = "openinference-instrumentation", specifier = ">=0.1.44" },
     { name = "openinference-instrumentation-openai", specifier = ">=0.1.41" },
     { name = "openinference-semantic-conventions", specifier = ">=0.1.26" },
@@ -762,6 +763,7 @@ requires-dist = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.46,<3" },
+    { name = "sqlglot", specifier = "==30.17.0" },
     { name = "starlette", specifier = ">=0.37.0" },
     { name = "strawberry-graphql", specifier = "==0.320.4" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.320.4" },
@@ -794,7 +796,7 @@ dev = [
     { name = "beautifulsoup4" },
     { name = "boto3" },
     { name = "check-wheel-contents" },
-    { name = "datamodel-code-generator", specifier = "==0.32.0" },
+    { name = "datamodel-code-generator", specifier = "==0.72.2" },
     { name = "daytona-sdk", specifier = ">=0.140.0" },
     { name = "debugpy" },
     { name = "deepdiff", specifier = "==8.6.2" },
@@ -819,7 +821,7 @@ dev = [
     { name = "mypy-protobuf", specifier = ">=5.0.0" },
     { name = "nest-asyncio" },
     { name = "numpy" },
-    { name = "openai" },
+    { name = "openai", specifier = ">=3.1.0,<4" },
     { name = "openinference-instrumentation", specifier = ">=0.1.44" },
     { name = "openinference-semantic-conventions", specifier = ">=0.1.26" },
     { name = "opentelemetry-exporter-otlp" },
@@ -883,7 +885,7 @@ dev = [
 
 [[package]]
 name = "arize-phoenix-client"
-version = "3.1.0"
+version = "3.2.0"
 source = { editable = "packages/phoenix-client" }
 dependencies = [
     { name = "httpx" },
@@ -1947,23 +1949,22 @@ wheels = [
 
 [[package]]
 name = "datamodel-code-generator"
-version = "0.32.0"
+version = "0.72.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argcomplete" },
-    { name = "black" },
+    { name = "black", marker = "sys_platform != 'emscripten'" },
     { name = "genson" },
     { name = "inflect" },
-    { name = "isort" },
+    { name = "isort", marker = "sys_platform != 'emscripten'" },
     { name = "jinja2" },
-    { name = "packaging" },
     { name = "pydantic" },
     { name = "pyyaml" },
-    { name = "tomli", marker = "python_full_version < '3.12'" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3f/66/5ad66a2b5ff34ed67808570f7476261f6f1de3263d0764db9483384878b7/datamodel_code_generator-0.32.0.tar.gz", hash = "sha256:c6f84a6a7683ef9841940b0931aa1ee338b19950ba5b10c920f9c7ad6f5e5b72", size = 457172, upload-time = "2025-07-25T14:12:06.692Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/2d/12becb81ac1492ed5f6e3afcb2426e0d665c5ae51fa24bbe951b408dd867/datamodel_code_generator-0.72.2.tar.gz", hash = "sha256:0e11564564ccf12e8ae89ca28b7848c795b40609e9f011e7b3434428eebd6f12", size = 1856918, upload-time = "2026-08-06T14:36:05.515Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/0a/ef2472343f7b2ec7257a646a21c3c29605939c2ff526959dc6ea2ac4ad7a/datamodel_code_generator-0.32.0-py3-none-any.whl", hash = "sha256:48f3cabbb792398112ee756b23a319e17b001ee534896b324893a98ff10e0a55", size = 120051, upload-time = "2025-07-25T14:12:04.969Z" },
+    { url = "https://files.pythonhosted.org/packages/da/e5/a64c15b05307974cf9676a73ab9e11bed49656a1df16188685c73cb290ed/datamodel_code_generator-0.72.2-py3-none-any.whl", hash = "sha256:df75b3a3225085e098337538cb6895f12e4daca80c43dc15284102bd42948dfc", size = 514012, upload-time = "2026-08-06T14:36:03.785Z" },
 ]
 
 [[package]]
@@ -4921,21 +4922,21 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "2.53.0"
+version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "distro" },
-    { name = "httpx" },
+    { name = "httpx2" },
     { name = "jiter" },
     { name = "pydantic" },
     { name = "sniffio" },
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ef/cf/36e3e7235fdf6d125c052acc0970924611b17a20a4fe580596faf4566a65/openai-2.53.0.tar.gz", hash = "sha256:baf5802ad08980e1d9d561e1b996e800c8bcd14af5847c6d0e7a5cc59e4d4116", size = 1099435, upload-time = "2026-08-03T21:42:01.664Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/58/9b/d45911bf9abfc5a754d800d79fe56e4dcf6e7b679d6ff4b7e9689b56bc02/openai-3.1.0.tar.gz", hash = "sha256:3ae7190da63f718727f9c525740d3f713e85553d2bf1d0cc9247346bd9063a4d", size = 1131016, upload-time = "2026-08-14T23:49:46.325Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/0f/cc6afea3542a5142c5d8fc8211c5e059a8375105d004a41dfa2c7948dbb0/openai-2.53.0-py3-none-any.whl", hash = "sha256:c694ffc747a3c4d1663ef2b07b811315a476164ee5efa3a993967349ebca7618", size = 1659829, upload-time = "2026-08-03T21:41:59.581Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/45/84b9e909968c0f4c3112a828bba9aa8be6a5ee322fcb3d781145ee53d88e/openai-3.1.0-py3-none-any.whl", hash = "sha256:f06d5a5c8d06a0aead3a67d33fe5a3c3c31540a0f7a8017b02ba8cd99bc5c736", size = 1670762, upload-time = "2026-08-14T23:49:43.998Z" },
 ]
 
 [[package]]
@@ -7894,6 +7895,15 @@ wheels = [
 [package.optional-dependencies]
 asyncio = [
     { name = "greenlet" },
+]
+
+[[package]]
+name = "sqlglot"
+version = "30.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/d4/da49abcc81beebbb25f29ddf87f2980c63c949569d7f2da40c06d95fa415/sqlglot-30.17.0.tar.gz", hash = "sha256:2d6b8def93304fa300f4d20f48e3909e7f436fda56ca1fafd8975f6c561ef62c", size = 5999019, upload-time = "2026-08-12T19:36:50.587Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/bc/2a07cef49046e6cf5d1a8b1de553aaef8491b4170dbfe254c8687c764408/sqlglot-30.17.0-py3-none-any.whl", hash = "sha256:84435ac283a60173da31b5fd7d11a725037a1c3fd6ed1e21fb065de74ddb579f", size = 741795, upload-time = "2026-08-12T19:36:48.699Z" },
 ]
 
 [[package]]

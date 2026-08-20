@@ -218,14 +218,25 @@ The local sidecar is the handoff record for notes written this run. Inspect it d
 
 ## Wrapping up
 
-When the run is done, share the Phoenix UI link with the user. The link filters the project's traces page by the `coding_session_id` annotation written alongside each note. The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
+When the run is done, share the Phoenix UI link with the user. The link filters the project's **spans** page by the `coding_session_id` annotation written alongside each note. Three details the UI legislates:
+
+- **The search param is `spanFilterCondition`.** An unrecognized param is dropped silently and the user lands on an unfiltered table.
+- **Link to the `/spans` tab, not `/traces`.** The traces tab now compiles a *trace* filter that lives in component state with no URL param of its own. A link that carries `spanFilterCondition` to `/traces` leaves that table unfiltered and pops a "Traces now use trace-level filters" notice; the condition only takes effect once the user switches to Spans.
+- **The spans tab compiles a *span* filter**, so the annotation accessor has to match the grain the annotation was written at — `trace_annotations['coding_session_id']` for a trace-grain run (`px trace annotate`), `annotations['coding_session_id']` for a span-grain run (`px span annotate`). A grain mismatch joins the wrong annotation table and matches nothing, silently.
+
+The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
 
 ```bash
 project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
+# Trace-grain run. For a span-grain run swap in annotations[...].
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
-  "annotations['coding_session_id'].label == '$CODING_ANNOTATION_IDENTIFIER'")
-echo "Phoenix UI: $PHOENIX_ENDPOINT/projects/$project_id/traces?filterCondition=$encoded"
+  "trace_annotations['coding_session_id'].label == '$CODING_ANNOTATION_IDENTIFIER'")
+echo "Phoenix UI: $PHOENIX_ENDPOINT/projects/$project_id/spans?spanFilterCondition=$encoded"
 ```
+
+A session-grain run has no equivalent link: the sessions tab keeps its filter in
+component state rather than the URL, so share the plain project link and, if the
+user wants the selection reproduced, the `sessionFilterCondition` GraphQL query.
 
 If the user wants to discard everything this run produced, three identifier-bound deletes handle the server side and one `rm` handles the local sidecars. **Confirm with the user before running** — this is destructive. Each call requires `--all` (or both `--start-time` and `--end-time`) to authorize the sweep; `--identifier` filters further but never authorizes on its own. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first if not already exported:
 

@@ -220,7 +220,7 @@ Glance at the [metrics dashboard](/docs/phoenix/tracing/llm-traces/metrics) [in 
 
 Once a week, pull a deliberately mixed sample of traces and read them with open-ended notes. This is where improvement is made real. You'll learn how in the last section of this guide.
 
-<Callout icon="warning" color="#3b82f6">
+<Callout icon="warning">
     Teams that only do the daily check end up dashboard-watching. Teams that only do deep dives get surprised by fires. You need both, as they are complementary. Smoke-check anomalies tell you where to oversample in the weekly review.
 </Callout>
 
@@ -739,7 +739,7 @@ The pipeline below has four stages, each doing one job:
 
 The code below adds two more steps that put the clusters to work: cross-referencing them against failure signals, then building the review sample.
 
-<Callout icon="sparkles" color="#3b82f6">
+<Callout icon="sparkles">
     [BERTopic](https://maartengr.github.io/BERTopic/) packages this exact pipeline if you'd rather not assemble it yourself.
 </Callout>
 
@@ -906,7 +906,7 @@ main().catch((err) => {
 </Tab>
 </Tabs>
 
-<Callout icon="sparkles" color="#3b82f6">
+<Callout icon="sparkles">
     Phoenix doesn't include a built-in embedding projector. The workflow above shows the full DIY approach: embed, reduce, cluster, cross-reference against error rates. This portability is a feature. You control the embedding model and clustering algorithm.
 </Callout>
 

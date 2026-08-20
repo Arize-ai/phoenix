@@ -1,34 +1,51 @@
 # PXI Online Evals — How It Works
 
-A scheduled batch job that pulls recently ingested `pxi.turn` traces from
-Phoenix, runs quality evaluators over them, and writes results back as
-**idempotent span annotations** on each turn's root span. It runs as a plain
+A scheduled batch job that pulls recently ingested PXI spans from Phoenix,
+runs quality evaluators over them, and writes results back as **idempotent
+span annotations** on each evaluator's target span. It runs as a plain
 Phoenix API client — nothing executes in the server process or the ingestion
 path.
+
+## Target discovery: roots and TOOL spans
+
+Each evaluator declares a `SpanSelector`. The runner groups evaluators by
+identical selector and issues **one discovery query per group**:
+
+| Selector | `names` | `span_kinds` | `parent_id` | `attributes` | Evaluators |
+|---|---|---|---|---|---|
+| Turn root | `pxi.turn` | `AGENT` | `"null"` | — | `tool_count_per_turn`, `user_friction` |
+| Approval decision | — | `TOOL` | *(unset)* | `pxi.approval.source = user` | `suggestion_accepted` |
+
+Root evaluators score a whole turn. `suggestion_accepted` scores each action so
+multiple decisions in one turn remain distinct.
+
+The settle delay uses the target's `end_time`; checkpoints use
+`(span_id, name, identifier)`; sampling uses `trace_id`.
 
 ## The pipeline
 
 ```mermaid
 flowchart TD
-    A["Discover roots<br/>name=pxi.turn, parent=null,<br/>last 48h"] --> B{"Settled?<br/>ended &gt; 5 min ago"}
+    A["Discover candidates<br/>one query per selector,<br/>last 48h"] --> B{"Settled?<br/>target ended &gt; 5 min ago"}
     B -- no --> B2["skip — next run's<br/>overlap picks it up"]
     B -- yes --> C{"Checkpoint exists?<br/>(span_id, name, identifier)"}
     C -- yes --> C2["already_annotated"]
     C -- no --> D{"Sampled?<br/>sha256(trace_id) &lt; rate"}
     D -- no --> D2["sampled_out"]
-    D -- yes --> E["Hydrate: fetch all spans<br/>of pending traces (batched)"]
+    D -- yes --> E["Hydrate: fetch all spans<br/>of pending traces<br/>(deduped by trace id)"]
     E --> F["Evaluate concurrently<br/>(≤ 8 in flight)"]
-    F -- "Score" --> G["Annotate root span<br/>(batches of ≤ 100)"]
+    F -- "Score" --> G["Annotate target span<br/>(batches of ≤ 100)"]
     F -- "None" --> F2["not_applicable"]
     F -- "exception" --> F3["errors++ · run continues ·<br/>process exits non-zero"]
 ```
 
-Every box feeds a counter in the run summary, so a scheduled run's log tells
-you exactly where each discovered turn went:
+`discovered` counts target spans, so `suggestion_accepted` reports suggestions,
+not turns:
 
 ```
 tool_count_per_turn: discovered=11 already_annotated=0 sampled_out=0 not_applicable=0 evaluated=11 errors=0 written=11
 user_friction:       discovered=11 already_annotated=0 sampled_out=0 not_applicable=6 evaluated=5  errors=0 written=5
+suggestion_accepted: discovered=34 already_annotated=0 sampled_out=0 not_applicable=8 evaluated=26 errors=0 written=26
 ```
 
 The CLI can also write the same counters as a versioned JSON report with
@@ -65,6 +82,54 @@ pxi.turn (AGENT, root)        input.value = "can you save this trace to a datase
 **`tool_count_per_turn`** counts every TOOL span in the trace, including tools
 nested beneath another tool such as `call_subagent`. Metadata partitions the
 chronological total into top-level and nested tool names.
+
+## How `suggestion_accepted` reads a decision
+
+Approval-gated tools stage a change, the UI renders an accept/reject card, and
+the user's click is stamped into the tool's output as a reserved marker:
+
+```json
+{"approval": {"decision": "accepted", "source": "user"}}
+```
+
+The server promotes that marker to `pxi.approval.decision` and
+`pxi.approval.source`. The evaluator reads only those attributes.
+
+```mermaid
+flowchart TD
+    A["TOOL span"] --> B{"pxi.approval.source<br/>== 'user'?"}
+    B -- no --> N["not applicable"]
+    B -- yes --> C{"pxi.approval.decision"}
+    C -- "'accepted'" --> S["accepted / 1.0"]
+    C -- "'rejected'" --> R["rejected / 0.0"]
+    C -- other/absent --> N
+```
+
+Discovery does not use a tool-name allowlist. New approval-gated tools are
+included when they emit the marker.
+
+Spans ingested before the marker shipped carry no `pxi.approval.*` attributes,
+so they are never discovered and cannot be backfilled.
+
+Discovery filters on `source = user`, covering both accepted and rejected
+manual decisions in one query.
+
+Other outcomes remain unannotated:
+
+| Case | Recorded as | Why not annotated |
+|---|---|---|
+| Automatic accept | `source: "auto"` | bypass permission, not a user decision |
+| Pending approval | no marker | the user hasn't decided yet |
+| Cancelled by navigation | no marker (`output-error`) | the card was dismissed, not decided |
+| Tool error | no marker (`output-error`) | nothing was proposed to decide on |
+| Unknown or malformed decision | — | not a terminal user decision |
+| Non-approval tool | no marker | no approval gate exists |
+
+Annotations carry only `{"tool_name": ...}`.
+
+`submit_{code,llm}_evaluator_draft` remain unmeasured because their dialog
+decisions are not written to tool output. See
+[#15033](https://github.com/Arize-ai/phoenix/issues/15033).
 
 ## How `user_friction` finds its target
 
@@ -110,12 +175,17 @@ The trace completed cleanly...
 ## Checkpointing: the annotation *is* the state
 
 There is no database or state file. Before evaluating, the runner asks
-Phoenix which roots already carry the evaluator's annotation and skips them:
+Phoenix which **target spans** already carry the evaluator's annotation and
+skips them:
 
-| Evaluator | Checkpoint identifier |
-|---|---|
-| `tool_count_per_turn` | `pxi-online-evals:tool-count-per-turn:v2` |
-| `user_friction` | `pxi-online-evals:user-friction:v1:openai:gpt-5.5` |
+| Evaluator | Target | Checkpoint identifier |
+|---|---|---|
+| `tool_count_per_turn` | `pxi.turn` root | `pxi-online-evals:tool-count-per-turn:v2` |
+| `user_friction` | `pxi.turn` root | `pxi-online-evals:user-friction:v1:openai:gpt-5.5` |
+| `suggestion_accepted` | approval TOOL span | `pxi-online-evals:suggestion-accepted:v1` |
+
+The key is per target, so one suggestion's checkpoint does not suppress another
+suggestion in the same turn.
 
 - The 48h lookback **overlaps** the 12h schedule ~4×, so missed or crashed
   runs self-heal without double-evaluating.
@@ -143,14 +213,16 @@ rate 0.25  █████                 subset of the 0.50 selection
 
 | Considered failure | Safeguard | On trigger |
 |---|---|---|
-| Judging a still-running turn | 5-min settle delay on root **end** time | wait for next run |
+| Judging a still-running turn or in-flight action | 5-min settle delay on the **target's own end** time | wait for next run |
+| Guessing an outcome that was never a user decision (auto-accept, pending, cancelled, errored, malformed) | structured-field decision rules with an explicit not-applicable branch | no annotation written |
+| Frontend adds an approval tool without an eval | tools stamp a uniform approval marker; discovery keys off it, not tool names | new tool is measured automatically; a frontend drift guard fails if it ships unmarked |
 | Misattributed judgment: transcript's final turn isn't this trace's own message | target must be the final user-role message, be human-authored, **and equal the root's `input.value`** (independently recorded at ingestion) | skip + warning — never checkpoint a judgment on the wrong root (idempotency would make it permanent) |
 | Non-human "user" messages (legacy UI-context blocks, agent-loop continuations, tool-error payloads) | `is_human_message` classifier — same one used to build the gold labels | skip as not-applicable; **no fallback** to an earlier human turn |
 | Subagent's internal LLM span hijacking the transcript (it can start *after* the main agent's final call) | prefer LLM spans that are direct children of the root | main transcript wins |
 | Runaway judge input | 50k-char cap on rendered input | skip + warning |
 | Silent truncation when hydrating many traces | batch split-and-retry at the span limit; a single over-limit trace is an error | correctness over convenience |
-| Unbounded discovery | hard cap (5,000 roots) fails the run loudly | operator shrinks the window |
-| One bad turn poisoning the run | per-turn exception isolation | logged + counted; run continues; process exits non-zero so schedules go red |
+| Unbounded discovery | hard cap (5,000 spans) per selector query fails the run loudly, naming the selector | operator shrinks the window |
+| One bad target poisoning the run | per-target exception isolation | logged + counted; run continues; process exits non-zero so schedules go red |
 | Bad judge config | provider/API-key validated at startup | fail fast, before any trace work |
 | Malformed topology (orphan tool span, missing ancestor, cycle) | skip as not-applicable + warning | incomplete traces cannot produce a trustworthy tool count and should not poison later scheduled runs |
 

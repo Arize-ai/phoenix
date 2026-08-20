@@ -5,6 +5,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/agent-assisted-setup</loc>
+    <lastmod>2026-02-21T00:34:41+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/get-started/get-started-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -39,10 +43,6 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/agent-assisted-setup</loc>
-    <lastmod>2026-02-21T00:34:41+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/mcp</loc>
@@ -195,6 +195,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions</loc>
+    <lastmod>2026-08-12T19:25:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced</loc>
@@ -733,10 +737,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -790,6 +790,10 @@
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/resources/contribute-to-phoenix</loc>
+    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
@@ -2155,6 +2159,18 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql</loc>
+    <lastmod>2026-08-20T02:33:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config</loc>
+    <lastmod>2026-08-12T19:25:43+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions</loc>
+    <lastmod>2026-08-12T19:25:43+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts</loc>
