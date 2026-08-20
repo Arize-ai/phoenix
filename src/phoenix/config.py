@@ -389,8 +389,8 @@ new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Default
 """
 ENV_PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE = "PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE"
 """
-The maximum number of evaluator events the event drain reads and decides per tick.
-Defaults to 500.
+The maximum number of evaluator events the event drain reads and decides in one page.
+One tick may process several pages. Defaults to 500.
 """
 ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS"
 """
