@@ -34,7 +34,7 @@ const completionsFor = (
   textBeforeCursor: string,
   source = SPAN_SOURCE,
   rootToken = "span",
-  suggestedPaths: readonly string[] = []
+  suggestedPaths: readonly { path: string; description: string }[] = []
 ) =>
   getEvaluatorPathCompletions({
     source,
@@ -166,14 +166,15 @@ describe("getEvaluatorPathCompletions", () => {
 
   it("pins suggested paths above the record's own list, at the root only", () => {
     const rooted = completionsFor("", SPAN_SOURCE, "span", [
-      "input_value",
-      "attributes.llm",
+      { path: "input_value", description: "the raw input" },
+      { path: "attributes.llm", description: "the llm attributes" },
     ]);
 
     expect(rooted?.completions[0]).toMatchObject({
       key: "input_value",
       path: "span.input_value",
       section: "suggested",
+      description: "the raw input",
     });
     expect(rooted?.completions[1]).toMatchObject({
       key: "attributes.llm",
@@ -185,7 +186,7 @@ describe("getEvaluatorPathCompletions", () => {
     ).toHaveLength(2);
 
     const drilled = completionsFor("span.attributes.", SPAN_SOURCE, "span", [
-      "input_value",
+      { path: "input_value", description: "the raw input" },
     ]);
 
     expect(drilled?.completions.every((c) => c.section === "members")).toBe(
@@ -197,8 +198,8 @@ describe("getEvaluatorPathCompletions", () => {
     // The record has no attributes.retrieval, so suggesting it would pin a
     // path that fails the moment it is accepted.
     const rooted = completionsFor("", SPAN_SOURCE, "span", [
-      "attributes.retrieval.documents",
-      "input_value",
+      { path: "attributes.retrieval.documents", description: "no such field" },
+      { path: "input_value", description: "the raw input" },
     ]);
 
     const suggested = rooted?.completions.filter(
