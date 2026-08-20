@@ -70,6 +70,13 @@ export function LLMProjectEvaluatorDetails({
     <Flex direction="column" gap="size-300">
       <Card
         title="Prompt"
+        // A rubric runs long enough to dominate the page, so it folds away --
+        // matching PromptChatMessagesCard, which made the same call. The title
+        // holds a link, so the toggle is the arrow alone rather than wrapping
+        // it, and it gets its own label instead of borrowing the link's.
+        collapsible
+        interactiveTitle
+        collapseButtonLabel="Toggle prompt template"
         titleExtra={
           evaluator.prompt?.id && evaluator.prompt.name ? (
             <PromptLink
