@@ -172,4 +172,4 @@ class TestPhoenixMCPTools:
         instructions = result.all_messages()[0].instructions  # type: ignore[union-attr]
         assert instructions is not None
         assert '<tool_group name="phoenix_rest_api">' in instructions
-        assert ServerAgentPrompts().phoenix_mcp_tools.render() in instructions
+        assert ServerAgentPrompts().phoenix_mcp_tools in instructions

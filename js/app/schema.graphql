@@ -454,23 +454,6 @@ enum AuthMethod {
   LDAP
 }
 
-"""
-Inputs that determine which assistant skills are available given the current state of the UI.
-"""
-input AvailableAgentSkillsInput {
-  """Whether a playground instance is mounted in the current UI context."""
-  hasPlaygroundContext: Boolean! = false
-
-  """Whether a dataset is mounted in the current UI context."""
-  hasDatasetContext: Boolean! = false
-
-  """Whether an LLM evaluator is mounted in the current UI context."""
-  hasLlmEvaluatorContext: Boolean! = false
-
-  """Whether a code evaluator is mounted in the current UI context."""
-  hasCodeEvaluatorContext: Boolean! = false
-}
-
 type AzureADTokenProvider {
   azureTenantId: String!
   azureClientId: String!
@@ -3890,8 +3873,10 @@ type Query {
   agentSessions(first: Int = 20, after: String, viewerOnly: Boolean! = true): AgentSessionConnection!
   agentsConfig: AgentsConfig!
 
-  """The assistant skills available given the supplied UI context."""
-  availableAgentSkills(input: AvailableAgentSkillsInput): [AgentSkill!]!
+  """
+  Every assistant skill, in catalog order. The list does not depend on what the user is viewing: the agent is advertised all of them and `load_skill` will load any of them from any page.
+  """
+  availableAgentSkills: [AgentSkill!]!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace

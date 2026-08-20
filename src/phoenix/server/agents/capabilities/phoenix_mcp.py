@@ -5,13 +5,12 @@ from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
-from jinja2 import Template
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset
 from typing_extensions import Self, override
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.bearer_auth import PhoenixUser, bind_principal
 
 if TYPE_CHECKING:
@@ -84,14 +83,14 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
 
 
 @dataclass
-class PhoenixMCPCapability(AbstractStaticCapability[AgentDepsT]):
-    """Pairs the Phoenix MCP toolset with its cacheable, session-stable guidance."""
+class PhoenixMCPCapability(AbstractCapability[AgentDepsT]):
+    """Pairs the Phoenix MCP toolset with its guidance text."""
 
     mcp_server: MCPToolset[AgentDepsT]
-    instructions: Template
+    instructions: str
 
     def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
         return self.mcp_server
 
-    def get_static_instructions(self) -> str:
-        return self.instructions.render()
+    def get_instructions(self) -> str:
+        return self.instructions

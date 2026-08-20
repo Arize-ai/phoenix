@@ -1,0 +1,6 @@
+<phoenix_prompt_version_context>
+  <description>Applies when `ui_contexts` has a `promptVersion` entry: the user is viewing that saved prompt version.</description>
+  <guidance>
+    - Use `promptVersionNodeId`, scoped by `promptNodeId`, when the user asks about this revision's messages, model configuration, invocation parameters, tools, tags, or how it differs from other prompt versions.
+  </guidance>
+</phoenix_prompt_version_context>

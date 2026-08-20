@@ -7,10 +7,10 @@ public chat route. The LLM is the only mocked seam in behavioral tests.
 import asyncio
 import json
 import warnings
-from collections.abc import AsyncIterator, MutableMapping
+from collections.abc import AsyncIterator, MutableMapping, Sequence
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import MagicMock
 from uuid import UUID
 
@@ -22,7 +22,14 @@ from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import TracerProvider
 from pydantic import ValidationError
-from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
@@ -48,14 +55,20 @@ from strawberry.relay import GlobalID
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
+    MessageMetadata,
     PhoenixUIMessage,
+    PhoenixUserMessageMetadata,
     TextUIPart,
     ToolOutputAvailablePart,
     TurnTraceContext,
+    UIContexts,
     UIMessage,
 )
+from phoenix.db.types.data_stream_protocol.ui_state_types import ProjectUIContext
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.model_selection import BuiltInProviderModelSelection
+from phoenix.server.agents.prompts import UI_STATE_TEMPLATE
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
@@ -67,19 +80,26 @@ from phoenix.server.api.routers.agents import (
     AgentSessionConflict,
     ChatRequestBody,
     ToolApproval,
+    _add_edit_permission_to_metadata,
+    _add_ui_contexts_to_metadata,
     _apply_tool_approvals,
     _approval_attributes,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
+    _get_ui_contexts,
+    _get_ui_state_block_from_metadata,
     _merge_messages,
     _persist_agent_session_turn,
     _persist_db_traces,
+    _prepend_ui_state_blocks_from_metadata,
+    _render_ui_state,
     _resolve_turn_trace_ids,
     _synthesize_client_tool_spans,
     _to_pydantic_ai_messages,
     _turn_parent_context,
 )
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.settings.registry import (
     AgentAssistantEnabledSetting,
@@ -4813,3 +4833,347 @@ async def test_submitted_tool_approvals_reject_duplicate_tool_call_ids(
     )
 
     assert response.status_code == 422
+
+
+def _ui_state_user_message(
+    text: str,
+    *,
+    message_id: str,
+    ui_contexts: UIContexts | None,
+    edit_permission: Literal["manual", "bypass"] = "manual",
+) -> PhoenixUIMessage:
+    """A stored user message carrying the UI state frozen when it was written."""
+    return PhoenixUIMessage(
+        id=message_id,
+        role="user",
+        metadata=MessageMetadata(
+            phoenix=PhoenixUserMessageMetadata(
+                type="user",
+                current_date_time="2026-01-01T00:00:00Z",
+                time_zone="UTC",
+                ui_contexts=ui_contexts,
+                edit_permission=edit_permission,
+            )
+        ),
+        parts=[TextUIPart(type="text", text=text)],
+    )
+
+
+def _ui_contexts(project_node_id: str | None = None) -> UIContexts:
+    contexts = ResolvedContexts()
+    if project_node_id is not None:
+        contexts.project = ProjectUIContext(type="project", project_node_id=project_node_id)
+    return _get_ui_contexts(contexts)
+
+
+def _rendered_blocks(messages: Sequence[PhoenixUIMessage]) -> dict[str, list[str]]:
+    """Map each message id to the ``<phoenix_ui_state>`` blocks injected into it."""
+    return {
+        message.id: [
+            part.text
+            for part in message.parts
+            if isinstance(part, TextUIPart) and part.text.startswith("<phoenix_ui_state>")
+        ]
+        for message in messages
+    }
+
+
+class TestUIStateBlockInjection:
+    """Blocks are decided from stored snapshots alone.
+
+    Deciding from the live request would inject only at the tail, so turn N's
+    block would disappear when turn N+1 arrived and every earlier turn's bytes
+    would move. The agent's answers would not change, which is why it is
+    asserted rather than left to be noticed.
+    """
+
+    def test_earlier_turns_render_identically_as_the_conversation_grows(self) -> None:
+        first = _ui_state_user_message(
+            "one", message_id=_message_uuid("u1"), ui_contexts=_ui_contexts("UHJvamVjdDox")
+        )
+        second = _ui_state_user_message(
+            "two", message_id=_message_uuid("u2"), ui_contexts=_ui_contexts("UHJvamVjdDoy")
+        )
+        third = _ui_state_user_message(
+            "three", message_id=_message_uuid("u3"), ui_contexts=_ui_contexts()
+        )
+
+        at_turn_one = _rendered_blocks(_prepend_ui_state_blocks_from_metadata([first]))
+        at_turn_two = _rendered_blocks(_prepend_ui_state_blocks_from_metadata([first, second]))
+        at_turn_three = _rendered_blocks(
+            _prepend_ui_state_blocks_from_metadata([first, second, third])
+        )
+
+        assert at_turn_one[first.id] == at_turn_two[first.id] == at_turn_three[first.id]
+        assert at_turn_two[second.id] == at_turn_three[second.id]
+        assert len(at_turn_three[third.id]) == 1
+
+    def test_first_turn_always_emits_a_block(self) -> None:
+        message = _ui_state_user_message(
+            "hello", message_id=_message_uuid("u1"), ui_contexts=_ui_contexts()
+        )
+
+        [rendered] = _prepend_ui_state_blocks_from_metadata([message])
+
+        assert len(_rendered_blocks([rendered])[message.id]) == 1
+
+    def test_unchanged_state_costs_nothing(self) -> None:
+        ui_contexts = _ui_contexts("UHJvamVjdDox")
+        first = _ui_state_user_message(
+            "one", message_id=_message_uuid("u1"), ui_contexts=ui_contexts
+        )
+        second = _ui_state_user_message(
+            "two", message_id=_message_uuid("u2"), ui_contexts=ui_contexts
+        )
+
+        blocks = _rendered_blocks(_prepend_ui_state_blocks_from_metadata([first, second]))
+
+        assert len(blocks[first.id]) == 1
+        assert blocks[second.id] == []
+
+    def test_block_precedes_the_user_text(self) -> None:
+        message = _ui_state_user_message(
+            "hello", message_id=_message_uuid("u1"), ui_contexts=_ui_contexts()
+        )
+
+        [rendered] = _prepend_ui_state_blocks_from_metadata([message])
+
+        assert isinstance(rendered.parts[0], TextUIPart)
+        assert rendered.parts[0].text.startswith("<phoenix_ui_state>")
+        assert [part.text for part in rendered.parts[1:] if isinstance(part, TextUIPart)] == [
+            "hello"
+        ]
+
+    def test_the_stored_message_is_left_untouched(self) -> None:
+        """The injected copy is model-facing only, so nothing has to be stripped
+        back out of the transcript on the read paths."""
+        message = _ui_state_user_message(
+            "hello", message_id=_message_uuid("u1"), ui_contexts=_ui_contexts()
+        )
+
+        _prepend_ui_state_blocks_from_metadata([message])
+
+        assert len(message.parts) == 1
+
+    def test_messages_without_a_snapshot_pass_through_without_resetting(self) -> None:
+        """Compaction checkpoints and pre-existing transcripts have no snapshot;
+        they must neither gain a block nor make the next turn re-emit one."""
+        ui_contexts = _ui_contexts("UHJvamVjdDox")
+        first = _ui_state_user_message(
+            "one", message_id=_message_uuid("u1"), ui_contexts=ui_contexts
+        )
+        legacy = _ui_state_user_message("two", message_id=_message_uuid("u2"), ui_contexts=None)
+        third = _ui_state_user_message(
+            "three", message_id=_message_uuid("u3"), ui_contexts=ui_contexts
+        )
+
+        blocks = _rendered_blocks(_prepend_ui_state_blocks_from_metadata([first, legacy, third]))
+
+        assert len(blocks[first.id]) == 1
+        assert blocks[legacy.id] == []
+        assert blocks[third.id] == []
+
+    def test_a_transcript_with_no_snapshots_is_returned_unchanged(self) -> None:
+        messages = [
+            _ui_state_user_message("one", message_id=_message_uuid("u1"), ui_contexts=None),
+            _ui_state_user_message("two", message_id=_message_uuid("u2"), ui_contexts=None),
+        ]
+
+        assert _prepend_ui_state_blocks_from_metadata(messages) == messages
+
+    def test_the_frozen_snapshot_survives_persistence(self) -> None:
+        """Freezing is only real if it survives the database round trip."""
+        ui_contexts = _ui_contexts("UHJvamVjdDox")
+        message = _ui_state_user_message(
+            "one", message_id=_message_uuid("u1"), ui_contexts=ui_contexts
+        )
+
+        restored = PhoenixUIMessage.model_validate(
+            message.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        )
+
+        assert (
+            _rendered_blocks(_prepend_ui_state_blocks_from_metadata([restored]))[message.id]
+            == _rendered_blocks(_prepend_ui_state_blocks_from_metadata([message]))[message.id]
+        )
+
+
+class TestUIStateMetadata:
+    def test_the_server_overwrites_whatever_the_client_sent(self) -> None:
+        """The stored ``ui_state`` must be what the server resolved and showed
+        the model, so a client-supplied value is never trusted."""
+        message = _ui_state_user_message(
+            "hello",
+            message_id=_message_uuid("u1"),
+            ui_contexts=_get_ui_contexts(ResolvedContexts()),
+            edit_permission="bypass",
+        )
+        resolved = _get_ui_contexts(
+            ResolvedContexts(
+                project=ProjectUIContext(type="project", project_node_id="UHJvamVjdDox")
+            )
+        )
+
+        _add_ui_contexts_to_metadata(message, resolved)
+        _add_edit_permission_to_metadata(message, "manual")
+
+        assert _get_ui_state_block_from_metadata(message) == _render_ui_state(
+            resolved, "manual", template=UI_STATE_TEMPLATE
+        )
+
+    def test_a_message_without_phoenix_metadata_is_left_alone(self) -> None:
+        message = PhoenixUIMessage(
+            id=_message_uuid("u1"),
+            role="user",
+            parts=[TextUIPart(type="text", text="hello")],
+        )
+
+        _add_ui_contexts_to_metadata(message, _ui_contexts())
+        _add_edit_permission_to_metadata(message, "manual")
+
+        assert _get_ui_state_block_from_metadata(message) is None
+        assert _prepend_ui_state_blocks_from_metadata([message]) == [message]
+
+
+def _browser_user_message(text: str, *, message_id: str) -> dict[str, Any]:
+    """A user message shaped the way the browser sends one."""
+    return {
+        "id": message_id,
+        "role": "user",
+        "metadata": {
+            "phoenix": {
+                "type": "user",
+                "currentDateTime": "2026-01-01T00:00:00Z",
+                "timeZone": "UTC",
+            }
+        },
+        "parts": [{"type": "text", "text": text}],
+    }
+
+
+def _recording_model(seen: list[list[ModelMessage]]) -> FunctionModel:
+    """A model double that records the messages it was handed on each request."""
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        seen.append(messages)
+        yield "done"
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[ToolCallPart(tool_name="summary", args={"summary": "t"})])
+
+    return FunctionModel(function=function, stream_function=stream_function)
+
+
+def _user_prompt_contents(messages: list[ModelMessage]) -> list[list[str]]:
+    """The text items of each user turn, in order.
+
+    The adapter collects a user message's text parts into one ``UserPromptPart``
+    whose content is a list when there is more than one — the shape a turn
+    carrying a state block takes.
+    """
+    contents: list[list[str]] = []
+    for message in messages:
+        if not isinstance(message, ModelRequest):
+            continue
+        for part in message.parts:
+            if not isinstance(part, UserPromptPart):
+                continue
+            content = part.content
+            if isinstance(content, str):
+                contents.append([content])
+            else:
+                contents.append([item for item in content if isinstance(item, str)])
+    return contents
+
+
+async def test_chat_turn_carries_ui_state_on_the_message_not_the_system_prompt(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End to end: the block rides on the user's turn and keeps saying the same
+    thing after the user navigates away."""
+    first_turn: list[list[ModelMessage]] = []
+    second_turn: list[list[ModelMessage]] = []
+    _mock_turn_models(
+        monkeypatch,
+        _recording_model(first_turn),
+        _recording_model(second_turn),
+    )
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+
+    first_message_id = _message_uuid("ui-state-1")
+    first_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            agent_session_id,
+            _browser_user_message("first", message_id=first_message_id),
+            contexts=[{"type": "project", "projectNodeId": "UHJvamVjdDox"}],
+        ),
+    )
+    assert first_response.status_code == 200
+
+    [first_messages] = first_turn
+    [first_prompt] = _user_prompt_contents(first_messages)
+    assert first_prompt[0].startswith("<phoenix_ui_state>")
+    assert '"projectNodeId": "UHJvamVjdDox"' in first_prompt[0]
+    assert first_prompt[-1] == "first"
+    instructions = "\n".join(
+        message.instructions
+        for message in first_messages
+        if isinstance(message, ModelRequest) and message.instructions
+    )
+    assert "<phoenix_ui_state_guide>" in instructions
+    assert "UHJvamVjdDox" not in instructions
+
+    second_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            agent_session_id,
+            _browser_user_message("second", message_id=_message_uuid("ui-state-2")),
+            contexts=[{"type": "dataset", "datasetNodeId": "RGF0YXNldDox"}],
+            lastMessageId=await _last_stored_message_id(db),
+        ),
+    )
+    assert second_response.status_code == 200
+
+    [second_messages] = second_turn
+    replayed_first, second_prompt = _user_prompt_contents(second_messages)
+    assert replayed_first == first_prompt
+    assert '"datasetNodeId": "RGF0YXNldDox"' in second_prompt[0]
+    assert second_prompt[-1] == "second"
+
+
+async def test_the_persisted_user_message_records_the_turns_ui_state(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The snapshot is stored on the message, not re-derived per request, which
+    keeps an earlier turn's block from moving under the model."""
+    _mock_turn_models(monkeypatch, _recording_model([]))
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            agent_session_id,
+            _browser_user_message("hello", message_id=_message_uuid("ui-state-1")),
+            contexts=[{"type": "project", "projectNodeId": "UHJvamVjdDox"}],
+            editPermission="bypass",
+        ),
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        stored = await _load_session_messages(
+            session,
+            from_global_id_with_expected_type(GlobalID.from_id(agent_session_id), "AgentSession"),
+        )
+    [user_message] = [message for message in stored if message["role"] == "user"]
+    phoenix_metadata = user_message["metadata"]["phoenix"]
+    assert phoenix_metadata["uiContexts"]["project"]["projectNodeId"] == "UHJvamVjdDox"
+    assert phoenix_metadata["editPermission"] == "bypass"

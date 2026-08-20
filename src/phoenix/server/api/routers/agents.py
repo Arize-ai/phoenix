@@ -20,6 +20,7 @@ from uuid import uuid4
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Query
+from jinja2 import Template
 from openinference.instrumentation import using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import trace as trace_api
@@ -67,7 +68,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import ColumnElement, Insert, exists, func, or_, select, tuple_, update
+from sqlalchemy import ColumnElement, Insert, func, or_, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -96,6 +97,7 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolOutputAvailablePart,
     DynamicToolOutputErrorPart,
     DynamicToolUIPart,
+    EditPermission,
     MessageMetadata,
     PhoenixAssistantMessageMetadata,
     PhoenixToolCallCallbackProviderMetadata,
@@ -116,6 +118,7 @@ from phoenix.db.types.data_stream_protocol import (
     ToolOutputErrorPart,
     ToolUIPart,
     TurnTraceContext,
+    UIContexts,
     UIMessage,
     UIMessagePart,
 )
@@ -128,11 +131,12 @@ from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
     resolve_contexts,
+    sanitize_untrusted_value,
 )
 from phoenix.server.agents.exceptions import AgentError, CompactionError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
+from phoenix.server.agents.prompts import UI_STATE_TEMPLATE, AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.session_titles import (
     MAX_AGENT_SESSION_TITLE_LENGTH,
@@ -144,7 +148,7 @@ from phoenix.server.agents.skill_requests import (
     iter_requested_skill_response_chunks,
     resolve_requested_skills,
 )
-from phoenix.server.agents.skills import get_skills_for_contexts
+from phoenix.server.agents.skills import get_skills
 from phoenix.server.agents.summarization import (
     summarize_messages,
     summarize_messages_for_compaction,
@@ -152,8 +156,6 @@ from phoenix.server.agents.summarization import (
 from phoenix.server.agents.types import (
     AgentDependencies,
     AgentOutput,
-    ModelProviderAvailability,
-    SandboxAvailability,
 )
 from phoenix.server.agents.ui_message_stream import (
     AgentErrorChunk,
@@ -172,10 +174,6 @@ from phoenix.server.api.helpers.agent_sessions import (
     resolve_model_routing,
     set_session_model,
 )
-from phoenix.server.api.helpers.playground_registry import (
-    PLAYGROUND_CLIENT_REGISTRY,
-    PROVIDER_DEFAULT,
-)
 from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
@@ -189,10 +187,6 @@ from phoenix.server.api.types.pagination import (
     CursorSortColumn,
     CursorSortColumnDataType,
 )
-from phoenix.server.api.types.SandboxConfig import (
-    SandboxBackendStatus,
-    get_sandbox_backend_info,
-)
 from phoenix.server.authorization import (
     insufficient_storage_message,
     is_agent_assistant_enabled,
@@ -202,8 +196,6 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
-from phoenix.server.sandbox import SecretsContext
-from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -304,19 +296,142 @@ class TranscriptPersistedChunk(DataChunk):
     transient: Literal[True] = True
 
 
+def _get_user_message_metadata(message: PhoenixUIMessage) -> PhoenixUserMessageMetadata | None:
+    if message.role != "user":
+        return None
+    phoenix_metadata = message.metadata.phoenix if message.metadata is not None else None
+    if not isinstance(phoenix_metadata, PhoenixUserMessageMetadata):
+        return None
+    return phoenix_metadata
+
+
 def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext | None:
     """Return the newest user-message browser-clock stamp, if any."""
     for message in reversed(messages):
-        if message.role != "user":
-            continue
-        phoenix_metadata = message.metadata.phoenix if message.metadata is not None else None
-        if isinstance(phoenix_metadata, PhoenixUserMessageMetadata):
+        if (phoenix_metadata := _get_user_message_metadata(message)) is not None:
             return AppContext(
                 type="app",
                 current_date_time=phoenix_metadata.current_date_time,
                 time_zone=phoenix_metadata.time_zone,
             )
     return None
+
+
+def _get_ui_contexts(contexts: ResolvedContexts) -> UIContexts:
+    """The subset of this turn's contexts stored on the user message and shown to the model."""
+    return UIContexts(
+        project=contexts.project,
+        trace=contexts.trace,
+        session=contexts.session,
+        span=contexts.span,
+        prompt=contexts.prompt,
+        prompt_version=contexts.prompt_version,
+        dataset=contexts.dataset,
+        playground=contexts.playground,
+        code_evaluator=contexts.code_evaluator,
+        llm_evaluator=contexts.llm_evaluator,
+    )
+
+
+_UI_STATE_TAG = "phoenix_ui_state"
+_MAX_UI_STATE_TEXT_CHARS = 512
+"""Cap for user-authored text in the block; a span filter is the longest legitimate value."""
+
+
+def _sanitize_ui_state_strings(value: Any) -> Any:
+    """Neutralize and cap every string in a dumped UI-state document.
+
+    Ids and enums pass through unchanged; the pass exists for the handful of
+    free-text fields (span filter, names, descriptions) the user can type into.
+    """
+    if isinstance(value, str):
+        return sanitize_untrusted_value(
+            value, enclosing_tag=_UI_STATE_TAG, max_chars=_MAX_UI_STATE_TEXT_CHARS
+        )
+    if isinstance(value, dict):
+        return {key: _sanitize_ui_state_strings(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_ui_state_strings(item) for item in value]
+    return value
+
+
+def _render_ui_state(
+    ui_contexts: UIContexts,
+    edit_permission: EditPermission,
+    *,
+    template: Template,
+) -> str:
+    """Render one turn's stored UI state as its ``<phoenix_ui_state>`` block.
+
+    The body is the same JSON the metadata stores, so the model reads exactly
+    what was persisted. Pure, so a turn's block stays byte-identical however
+    late it is re-rendered.
+    """
+    return template.render(
+        ui_contexts=_sanitize_ui_state_strings(
+            ui_contexts.model_dump(mode="json", by_alias=True, exclude_none=True)
+        ),
+        edit_permission=edit_permission,
+    )
+
+
+def _get_ui_state_block_from_metadata(message: PhoenixUIMessage) -> str | None:
+    """Render the UI state stored on ``message`` when it was written."""
+    phoenix_metadata = _get_user_message_metadata(message)
+    if phoenix_metadata is None or phoenix_metadata.ui_contexts is None:
+        return None
+    return _render_ui_state(
+        phoenix_metadata.ui_contexts,
+        phoenix_metadata.edit_permission,
+        template=UI_STATE_TEMPLATE,
+    )
+
+
+def _add_ui_contexts_to_metadata(message: PhoenixUIMessage, ui_contexts: UIContexts) -> None:
+    """Store this turn's UI contexts on the user message."""
+    phoenix_metadata = _get_user_message_metadata(message)
+    if phoenix_metadata is not None:
+        phoenix_metadata.ui_contexts = ui_contexts
+
+
+def _add_edit_permission_to_metadata(
+    message: PhoenixUIMessage, edit_permission: EditPermission
+) -> None:
+    """Store this turn's edit permission on the user message."""
+    phoenix_metadata = _get_user_message_metadata(message)
+    if phoenix_metadata is not None:
+        phoenix_metadata.edit_permission = edit_permission
+
+
+def _prepend_ui_state_block(message: PhoenixUIMessage, block: str) -> PhoenixUIMessage:
+    """Return a model-facing copy of ``message`` with its state block ahead of the
+    user's text.
+    """
+    return message.model_copy(
+        update={"parts": [TextUIPart(type="text", text=block), *message.parts]}
+    )
+
+
+def _prepend_ui_state_blocks_from_metadata(
+    messages: Sequence[PhoenixUIMessage],
+) -> list[PhoenixUIMessage]:
+    """Render each turn's stored UI state into the model-facing transcript.
+
+    Emitted only where a stored block differs from the newest one before it, so
+    blocks land in the same positions on every turn.
+    """
+    rendered: list[PhoenixUIMessage] = []
+    injected = False
+    previous: str | None = None
+    for message in messages:
+        block = _get_ui_state_block_from_metadata(message)
+        if block is None or block == previous:
+            rendered.append(message)
+            continue
+        previous = block
+        injected = True
+        rendered.append(_prepend_ui_state_block(message, block))
+    return rendered if injected else list(messages)
 
 
 ToolOutputUIPart = (
@@ -1303,48 +1418,6 @@ async def _refresh_cumulative_span_counts(
         span.cumulative_llm_token_count_completion = count.completion_tokens
 
 
-async def _load_available_sandbox_backend_types(
-    *,
-    session: AsyncSession,
-    decrypt: Callable[[bytes], bytes],
-    runtime: SandboxRuntimeContext,
-) -> frozenset[models.SandboxBackendType]:
-    backend_info = await get_sandbox_backend_info(
-        secrets=SecretsContext(session=session, decrypt=decrypt),
-        runtime=runtime,
-    )
-    return frozenset(
-        info.backend_type.value
-        for info in backend_info
-        if info.status is SandboxBackendStatus.AVAILABLE
-    )
-
-
-async def _load_sandbox_availability(
-    session: AsyncSession,
-    *,
-    available_backend_types: frozenset[models.SandboxBackendType] | None = None,
-) -> SandboxAvailability:
-    """Compute the pre-turn ``has_usable`` gate for sandbox-backed capabilities.
-
-    ``has_usable`` is true when at least one enabled ``SandboxConfig`` sits
-    under an enabled provider. When ``available_backend_types`` is supplied it
-    mirrors the code-evaluator form's backend-status filter, so the gate matches
-    the set the mounted form can actually select. The selectable inventory is
-    fetched on-demand by the agent via ``phoenix-gql``, not loaded here."""
-    if available_backend_types is not None and not available_backend_types:
-        return SandboxAvailability(has_usable=False)
-    condition = (
-        models.SandboxConfig.enabled.is_(True)
-        & models.SandboxProvider.enabled.is_(True)
-        & (models.SandboxProvider.backend_type == models.SandboxConfig.backend_type)
-    )
-    if available_backend_types is not None:
-        condition &= models.SandboxConfig.backend_type.in_(available_backend_types)
-    has_usable = bool(await session.scalar(select(exists().where(condition))))
-    return SandboxAvailability(has_usable=has_usable)
-
-
 def _decode_context_node_id(node_id: str | None, expected_type_name: str) -> int | None:
     if node_id is None:
         return None
@@ -1357,38 +1430,11 @@ def _decode_context_node_id(node_id: str | None, expected_type_name: str) -> int
         return None
 
 
-def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
-    return contexts.dataset is not None or contexts.code_evaluator is not None
-
-
 def _subagents_enabled(contexts: ResolvedContexts) -> bool:
     """Whether the server-side subagent should be attached."""
     if get_env_phoenix_agents_disable_bash():
         return False
     return contexts.subagents is not None and contexts.subagents.enabled
-
-
-def _load_model_provider_availability() -> ModelProviderAvailability:
-    """Compute the pre-turn ``has_usable`` gate for model-provider-backed capabilities.
-
-    ``has_usable`` is true when at least one generative provider has its SDK
-    installed. This is env-independent (it checks installed packages, not
-    credentials), so it is computed over the provider registry rather than the
-    database. Per-request credentials can arrive at run time, so the gate
-    deliberately ignores ``credentials_set`` to avoid hiding the tool."""
-    has_usable = any(
-        (client := PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, PROVIDER_DEFAULT))
-        is not None
-        and client.dependencies_are_installed()
-        for provider_key in PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
-    )
-    return ModelProviderAvailability(has_usable=has_usable)
-
-
-def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bool:
-    # The ``ui.evaluators.llm.openForm`` operation gates on model-provider availability with
-    # no ``llm_evaluator`` context, so a dataset-backed playground must also trigger the load.
-    return contexts.dataset is not None or contexts.llm_evaluator is not None
 
 
 def _resolve_trace_recording(
@@ -3172,23 +3218,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else None
                 )
                 tracer_provider = tracer.tracer_provider if tracer is not None else None
-                sandbox_availability = SandboxAvailability()
-                model_provider_availability = ModelProviderAvailability()
-                agent_supports_availability_gate = not body.headless
                 async with request.app.state.db() as session:
-                    if agent_supports_availability_gate:
-                        if _contexts_need_sandbox_availability(resolved_contexts):
-                            available_backend_types = await _load_available_sandbox_backend_types(
-                                session=session,
-                                decrypt=request.app.state.decrypt,
-                                runtime=request.app.state.sandbox_runtime,
-                            )
-                            sandbox_availability = await _load_sandbox_availability(
-                                session,
-                                available_backend_types=available_backend_types,
-                            )
-                        if _contexts_need_model_provider_availability(resolved_contexts):
-                            model_provider_availability = _load_model_provider_availability()
                     phoenix_user_email = await _load_phoenix_user_email(
                         session=session,
                         phoenix_user=phoenix_user,
@@ -3208,6 +3238,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
             if (browser_clock := _resolve_browser_clock(transcript_messages)) is not None:
                 resolved_contexts.app = browser_clock
+
+            if body.message is not None and not body.headless:
+                _add_ui_contexts_to_metadata(body.message, _get_ui_contexts(resolved_contexts))
+                _add_edit_permission_to_metadata(body.message, body.edit_permission)
 
             web_access_enabled = (
                 resolved_contexts.web_access is not None
@@ -3375,8 +3409,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     initial_bash_snapshot=initial_bash_snapshot,
                     on_bash_snapshot=_capture_bash_snapshot,
                 )
+                model_transcript_messages = _prepend_ui_state_blocks_from_metadata(
+                    model_transcript_messages
+                )
                 if body.requested_skills:
-                    available_skills = get_skills_for_contexts(resolved_contexts)
+                    available_skills = get_skills()
                     forced_skills = resolve_requested_skills(
                         messages=model_transcript_messages,
                         requested_skill_names=body.requested_skills,
@@ -3405,8 +3442,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     contexts=resolved_contexts,
                     edit_permission=body.edit_permission,
                     is_viewer=is_viewer,
-                    sandbox_availability=sandbox_availability,
-                    model_provider_availability=model_provider_availability,
                 )
 
                 def _run_assistant_agent_stream(

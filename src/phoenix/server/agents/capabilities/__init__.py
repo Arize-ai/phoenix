@@ -2,7 +2,7 @@ from phoenix.server.agents.capabilities.anthropic_prompt_cache import (
     AnthropicPromptCacheCapability,
     build_anthropic_prompt_cache_capability,
 )
-from phoenix.server.agents.capabilities.contexts import get_context_capability_function
+from phoenix.server.agents.capabilities.contexts import UIContextsCapability
 from phoenix.server.agents.capabilities.docs_mcp import (
     MintlifyDocsMCPCapability,
     MintlifyDocsMCPServer,
@@ -29,7 +29,7 @@ __all__ = [
     "PhoenixMCPCapability",
     "PhoenixMCPToolset",
     "SkillsCapability",
-    "get_context_capability_function",
+    "UIContextsCapability",
     "get_external_tool_capability_function",
     "get_external_tool_definition",
 ]

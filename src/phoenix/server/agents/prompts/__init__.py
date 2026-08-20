@@ -4,32 +4,34 @@ from dataclasses import dataclass
 
 from jinja2 import Template
 
+from phoenix.server.agents.prompts.static_prompts import read_static_prompt
 from phoenix.server.agents.prompts.templating import get_template
 
-_BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
-_BASE_SUBAGENT_INSTRUCTIONS = get_template("base/BASE_SUBAGENT_INSTRUCTIONS.xml.j2")
-_DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
-_PHOENIX_MCP_TOOL_INSTRUCTIONS = get_template("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml.j2")
-_APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
-_PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
-_TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
-_SESSION_CONTEXT_TEMPLATE = get_template("context/SESSION_CONTEXT_INSTRUCTIONS.xml.j2")
-_PROMPT_CONTEXT_TEMPLATE = get_template("context/PROMPT_CONTEXT_INSTRUCTIONS.xml.j2")
-_PROMPT_VERSION_CONTEXT_TEMPLATE = get_template(
-    "context/PROMPT_VERSION_CONTEXT_INSTRUCTIONS.xml.j2"
+_BASE_INSTRUCTIONS = read_static_prompt("base/BASE_INSTRUCTIONS.xml")
+_BASE_SUBAGENT_INSTRUCTIONS = read_static_prompt("base/BASE_SUBAGENT_INSTRUCTIONS.xml")
+_VIEWER_ACCESS_INSTRUCTIONS = read_static_prompt("base/VIEWER_ACCESS_INSTRUCTIONS.xml")
+_DOCS_TOOL_INSTRUCTIONS = read_static_prompt("tools/DOCS_TOOL_INSTRUCTIONS.xml")
+_PHOENIX_MCP_TOOL_INSTRUCTIONS = read_static_prompt("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml")
+
+_UI_CONTEXT_PROMPT_NAMES = (
+    "context/UI_STATE_INSTRUCTIONS.xml",
+    "context/PROJECT_CONTEXT_INSTRUCTIONS.xml",
+    "context/TRACE_CONTEXT_INSTRUCTIONS.xml",
+    "context/SESSION_CONTEXT_INSTRUCTIONS.xml",
+    "context/SPAN_CONTEXT_INSTRUCTIONS.xml",
+    "context/PROMPT_CONTEXT_INSTRUCTIONS.xml",
+    "context/PROMPT_VERSION_CONTEXT_INSTRUCTIONS.xml",
+    "context/DATASET_CONTEXT_INSTRUCTIONS.xml",
+    "context/PLAYGROUND_CONTEXT_INSTRUCTIONS.xml",
+    "context/CODE_EVALUATOR_CONTEXT_INSTRUCTIONS.xml",
+    "context/LLM_EVALUATOR_CONTEXT_INSTRUCTIONS.xml",
+    "context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml",
 )
-_SPAN_CONTEXT_TEMPLATE = get_template("context/SPAN_CONTEXT_INSTRUCTIONS.xml.j2")
-_PLAYGROUND_CONTEXT_TEMPLATE = get_template("context/PLAYGROUND_CONTEXT_INSTRUCTIONS.xml.j2")
-_CODE_EVALUATOR_CONTEXT_TEMPLATE = get_template(
-    "context/CODE_EVALUATOR_CONTEXT_INSTRUCTIONS.xml.j2"
-)
-_LLM_EVALUATOR_CONTEXT_TEMPLATE = get_template("context/LLM_EVALUATOR_CONTEXT_INSTRUCTIONS.xml.j2")
-_DATASET_CONTEXT_TEMPLATE = get_template("context/DATASET_CONTEXT_INSTRUCTIONS.xml.j2")
-_GRAPHQL_MUTATIONS_TEMPLATE = get_template("context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml.j2")
+
+_UI_CONTEXT_INSTRUCTIONS = "\n".join(read_static_prompt(name) for name in _UI_CONTEXT_PROMPT_NAMES)
+
 _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
-_LOAD_SKILL_TOOL_TEMPLATE = get_template("skills/LOAD_SKILL_TOOL.xml.j2")
-_READ_SKILL_RESOURCE_TOOL_TEMPLATE = get_template("skills/READ_SKILL_RESOURCE_TOOL.xml.j2")
 
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -38,44 +40,30 @@ COMPACTION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/COMPACTION_PROMPT_INSTRUCTIONS.xml.j2"
 )
 COMPACTION_MESSAGE_TEMPLATE = get_template("summarization/COMPACTION_MESSAGE.xml.j2")
+UI_STATE_TEMPLATE = get_template("ui_state/UI_STATE.xml.j2")
 
 
 @dataclass(frozen=True)
 class AgentPrompts:
-    """Every prompt template the chat agent uses."""
-
-    base: Template = _BASE_INSTRUCTIONS
-    docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
-    phoenix_mcp_tools: Template = _PHOENIX_MCP_TOOL_INSTRUCTIONS
-    app_context: Template = _APP_CONTEXT_TEMPLATE
-    project_context: Template = _PROJECT_CONTEXT_TEMPLATE
-    trace_context: Template = _TRACE_CONTEXT_TEMPLATE
-    session_context: Template = _SESSION_CONTEXT_TEMPLATE
-    prompt_context: Template = _PROMPT_CONTEXT_TEMPLATE
-    prompt_version_context: Template = _PROMPT_VERSION_CONTEXT_TEMPLATE
-    span_context: Template = _SPAN_CONTEXT_TEMPLATE
-    playground_context: Template = _PLAYGROUND_CONTEXT_TEMPLATE
-    code_evaluator_context: Template = _CODE_EVALUATOR_CONTEXT_TEMPLATE
-    llm_evaluator_context: Template = _LLM_EVALUATOR_CONTEXT_TEMPLATE
-    dataset_context: Template = _DATASET_CONTEXT_TEMPLATE
-    graphql_mutations: Template = _GRAPHQL_MUTATIONS_TEMPLATE
+    base: str = _BASE_INSTRUCTIONS
+    viewer_access: str = _VIEWER_ACCESS_INSTRUCTIONS
+    docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
+    phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
+    ui_contexts: str = _UI_CONTEXT_INSTRUCTIONS
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE
-    load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
-    read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
 
 
 @dataclass(frozen=True)
 class ServerAgentPrompts:
-    """Every prompt template the server agent uses."""
+    """Every prompt the server agent uses."""
 
-    base: Template = _BASE_SUBAGENT_INSTRUCTIONS
-    docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
-    phoenix_mcp_tools: Template = _PHOENIX_MCP_TOOL_INSTRUCTIONS
+    base: str = _BASE_SUBAGENT_INSTRUCTIONS
+    viewer_access: str = _VIEWER_ACCESS_INSTRUCTIONS
+    docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
+    phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE
-    load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
-    read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
 
 
 __all__ = [
@@ -84,4 +72,5 @@ __all__ = [
     "COMPACTION_MESSAGE_TEMPLATE",
     "ServerAgentPrompts",
     "SUMMARIZATION_INSTRUCTIONS_TEMPLATE",
+    "UI_STATE_TEMPLATE",
 ]

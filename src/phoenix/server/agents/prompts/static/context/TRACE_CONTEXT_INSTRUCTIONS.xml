@@ -1,0 +1,8 @@
+<phoenix_trace_context>
+  <description>Applies when `ui_contexts` has a `trace` entry: the user is viewing that trace.</description>
+  <guidance>
+    - `projectNodeId` scopes the trace; `otelTraceId` identifies it. Use `otelTraceId` when linking to it as `[label](/redirects/traces/<otelTraceId>)`.
+    - When the user asks about "this trace", "this run", or "what went wrong here", they mean this trace. Read its spans before answering rather than reasoning from the ID alone.
+    - When a `session` entry is also present, this trace is the currently selected turn within that session.
+  </guidance>
+</phoenix_trace_context>

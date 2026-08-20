@@ -10,6 +10,10 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from phoenix.server.agents.capabilities.skills.skill import Skill
 from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
+from phoenix.server.agents.prompts.static_prompts import read_static_prompt
+
+_LOAD_SKILL_TOOL_DESCRIPTION = read_static_prompt("skills/LOAD_SKILL_TOOL.xml")
+_READ_SKILL_RESOURCE_TOOL_DESCRIPTION = read_static_prompt("skills/READ_SKILL_RESOURCE_TOOL.xml")
 
 
 class SkillsToolset(FunctionToolset[AgentDepsT]):
@@ -20,8 +24,6 @@ class SkillsToolset(FunctionToolset[AgentDepsT]):
         *,
         skills: list[Skill],
         load_skill_template: Template,
-        load_skill_tool_template: Template,
-        read_skill_resource_tool_template: Template,
     ) -> None:
         if not skills:
             raise ValueError("SkillsToolset requires at least one skill")
@@ -70,12 +72,12 @@ class SkillsToolset(FunctionToolset[AgentDepsT]):
                 Tool(
                     load_skill,
                     takes_ctx=False,
-                    description=load_skill_tool_template.render(),
+                    description=_LOAD_SKILL_TOOL_DESCRIPTION,
                 ),
                 Tool(
                     read_skill_resource,
                     takes_ctx=True,
-                    description=read_skill_resource_tool_template.render(),
+                    description=_READ_SKILL_RESOURCE_TOOL_DESCRIPTION,
                 ),
             ]
         )

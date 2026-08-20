@@ -1,0 +1,10 @@
+<phoenix_project_context>
+  <description>Applies when `ui_contexts` has a `project` entry: the user is viewing that project.</description>
+  <guidance>
+    - Use `projectNodeId` to scope queries about the traces, spans, sessions, latency, cost, and errors the user is asking about. When the user says "this project", "here", or "my traces", they mean this one.
+    - `spanFilter` describes the project-scoped span filter field. It expresses the view in full, root-span scoping included (root-only is written as `parent_id is None` in the filter DSL).
+    - A non-empty `spanFilter` is the filter condition currently narrowing the user's view. Questions about "these spans" or "what I'm looking at" mean the spans matching this condition, so carry it into your queries; say so when you deliberately ignore it.
+    - An empty `spanFilter` (`""`) means the filter field is mounted with no condition applied, so the user is looking at the whole project.
+    - No `spanFilter` key: the current view has no span filter field at all. Do not infer a filter.
+  </guidance>
+</phoenix_project_context>
