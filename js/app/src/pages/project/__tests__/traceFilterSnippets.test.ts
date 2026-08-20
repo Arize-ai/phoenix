@@ -21,7 +21,10 @@ describe("trace filter AI vocabulary", () => {
         .filter((term): term is typeof term & { iterableName: string } =>
           Boolean(term.iterableName)
         )
-        .map((term) => getTraceFilterAIFieldName(term))
+        .map(
+          ({ iterableName, name }) =>
+            `${traceFilterLoopVariables[iterableName]}.${name}`
+        )
         .filter((qualified) => !fieldNames.has(qualified))
     ).toEqual([]);
     expect(
