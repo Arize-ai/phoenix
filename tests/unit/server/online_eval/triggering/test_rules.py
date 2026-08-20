@@ -229,7 +229,7 @@ async def test_rules_load_only_for_the_projects_asked_for(db: DbSessionFactory) 
         await _add_trigger(session, await _add_criteria(session, elsewhere))
 
     async with db() as session:
-        assert [rule.trigger_id for rule in await load_rules(session, project_ids=[project.id])] == [
-            trigger.id
-        ]
+        assert [
+            rule.trigger_id for rule in await load_rules(session, project_ids=[project.id])
+        ] == [trigger.id]
         assert await load_rules(session, project_ids=[]) == ()

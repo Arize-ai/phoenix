@@ -88,7 +88,9 @@ def test_two_rules_on_one_criteria_resolve_to_one_key_per_occurrence() -> None:
         _rule(trigger_id=1, criteria_id=100, name="human-review"),
         _rule(trigger_id=2, criteria_id=100, label="incorrect"),
     ]
-    assert match_events([_annotation(annotation_id=1)], rules) == (_key(annotation_id=1, criteria_id=100),)
+    assert match_events([_annotation(annotation_id=1)], rules) == (
+        _key(annotation_id=1, criteria_id=100),
+    )
     assert match_events([_annotation(annotation_id=1), _annotation(annotation_id=2)], rules) == (
         _key(annotation_id=1, criteria_id=100),
         _key(annotation_id=2, criteria_id=100),
@@ -97,7 +99,9 @@ def test_two_rules_on_one_criteria_resolve_to_one_key_per_occurrence() -> None:
 
 def test_an_unconstrained_rule_fires_on_every_event_in_its_project() -> None:
     rule = _rule()
-    assert len(match_events([_annotation(annotation_id=1), _annotation(annotation_id=2)], [rule])) == 2
+    assert (
+        len(match_events([_annotation(annotation_id=1), _annotation(annotation_id=2)], [rule])) == 2
+    )
 
 
 def test_a_rule_in_another_project_never_matches() -> None:

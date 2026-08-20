@@ -411,9 +411,7 @@ async def test_a_retried_publication_re_asks_and_the_brake_refuses_the_duplicate
     units = await _claim_pending(db)
 
     await _publish(db, units[criteria_a_id], name=_A_ANNOTATION, complete=False)
-    (asked,) = [
-        request for request in await _requests(db) if request.criteria_id == criteria_b_id
-    ]
+    (asked,) = [request for request in await _requests(db) if request.criteria_id == criteria_b_id]
     assert asked.requested_generation == 1
 
     await _publish(db, units[criteria_a_id], name=_A_ANNOTATION)
