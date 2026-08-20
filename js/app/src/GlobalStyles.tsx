@@ -1483,9 +1483,10 @@ const appGlobalStylesCSS = css`
     border: none;
     padding: 0;
   }
-  /* Firefox does not support the WebKit pseudo-elements below. Keep its
-     native layout while matching the minimal thumb and transparent track. */
-  @supports not selector(::-webkit-scrollbar) {
+  /* Firefox recognizes ::-webkit-scrollbar for compatibility, but does not
+     support the complete pseudo-element family. Probe the thumb so Firefox
+     uses the standard properties instead of partially applying this style. */
+  @supports not selector(::-webkit-scrollbar-thumb) {
     html:not([data-native-scrollbars]),
     html:not([data-native-scrollbars]) * {
       scrollbar-width: thin;
@@ -1493,29 +1494,31 @@ const appGlobalStylesCSS = css`
     }
   }
 
-  html:not([data-native-scrollbars]) ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
+  @supports selector(::-webkit-scrollbar-thumb) {
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
 
-  html:not([data-native-scrollbars]) ::-webkit-scrollbar-track,
-  html:not([data-native-scrollbars]) ::-webkit-scrollbar-corner {
-    background: transparent;
-  }
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-track,
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
 
-  html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb {
-    background-color: rgba(var(--global-color-gray-900-rgb), 0.18);
-    border: 3px solid transparent;
-    border-radius: var(--global-rounding-full);
-    background-clip: padding-box;
-  }
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb {
+      background-color: rgba(var(--global-color-gray-900-rgb), 0.18);
+      border: 3px solid transparent;
+      border-radius: var(--global-rounding-full);
+      background-clip: padding-box;
+    }
 
-  html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(var(--global-color-gray-900-rgb), 0.3);
-  }
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(var(--global-color-gray-900-rgb), 0.3);
+    }
 
-  html:not([data-native-scrollbars]) ::-webkit-scrollbar-button {
-    display: none;
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-button {
+      display: none;
+    }
   }
 
   :root,
