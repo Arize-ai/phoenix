@@ -81,14 +81,12 @@ from phoenix.config import (
     get_env_mcp_code_mode,
     get_env_online_eval_claim_batch_size,
     get_env_online_eval_consumer_tick_interval_seconds,
-    get_env_online_eval_enabled,
     get_env_online_eval_max_db_concurrency,
     get_env_online_eval_max_evaluator_concurrency,
     get_env_online_eval_max_outstanding,
     get_env_online_eval_max_sandbox_payload_bytes,
     get_env_online_eval_max_transcript_bytes,
     get_env_online_eval_pending_ttl_seconds,
-    get_env_online_eval_session_enabled,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -1087,7 +1085,7 @@ def create_app(
     online_eval_consumer: Optional[OnlineEvalConsumer] = None
     online_eval_session_consumer: Optional[OnlineEvalConsumer] = None
     online_eval_session_sweeper: Optional[SessionEvalSweeper] = None
-    if get_env_online_eval_enabled() and not read_only:
+    if not read_only:
         claim_batch_size = get_env_online_eval_claim_batch_size()
         tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
         pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
@@ -1126,23 +1124,22 @@ def create_app(
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         )
-        if get_env_online_eval_session_enabled():
-            # Both halves of the session lifecycle sit behind the one flag: a consumer
-            # without its sweeper claims from a table only the sweeper can fill.
-            online_eval_session_consumer = OnlineEvalConsumer(
-                db,
-                decrypt=encryption_service.decrypt,
-                sandbox_session_manager=sandbox_session_manager,
-                sandbox_runtime=sandbox_runtime,
-                event_queue=dml_event_handler,
-                evaluation_target="SESSION",
-                tick_interval_seconds=tick_interval_seconds,
-                claim_batch_size=claim_batch_size,
-                evaluator_semaphore=evaluator_semaphore,
-                db_semaphore=db_semaphore,
-                tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
-            )
-            online_eval_session_sweeper = SessionEvalSweeper(db)
+        # Both halves of the session lifecycle start together: a consumer without its
+        # sweeper claims from a table only the sweeper can fill.
+        online_eval_session_consumer = OnlineEvalConsumer(
+            db,
+            decrypt=encryption_service.decrypt,
+            sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
+            event_queue=dml_event_handler,
+            evaluation_target="SESSION",
+            tick_interval_seconds=tick_interval_seconds,
+            claim_batch_size=claim_batch_size,
+            evaluator_semaphore=evaluator_semaphore,
+            db_semaphore=db_semaphore,
+            tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+        )
+        online_eval_session_sweeper = SessionEvalSweeper(db)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
