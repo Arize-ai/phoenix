@@ -17,7 +17,7 @@ export const EvaluatorChatTemplate = () => {
         {
           input: example.input,
           taskOutput: example.output,
-          metadata: example.metadata,
+          metadata: "metadata" in example ? example.metadata : {},
           ...("reference" in example ? { reference: example.reference } : {}),
         },
       ],

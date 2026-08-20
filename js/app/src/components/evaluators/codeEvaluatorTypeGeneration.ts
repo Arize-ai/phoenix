@@ -82,7 +82,15 @@ export function generateTypeScriptTypes(
           },
         ]
       : []),
-    { name: "metadata", typeName: "Metadata", data: mappingSource.metadata },
+    ...("metadata" in mappingSource
+      ? [
+          {
+            name: "metadata",
+            typeName: "Metadata",
+            data: mappingSource.metadata,
+          },
+        ]
+      : []),
   ];
 
   for (const { typeName, data } of fields) {
@@ -214,7 +222,9 @@ export function generatePythonTypes(
     ...("reference" in mappingSource
       ? [{ name: "reference", data: mappingSource.reference }]
       : []),
-    { name: "metadata", data: mappingSource.metadata },
+    ...("metadata" in mappingSource
+      ? [{ name: "metadata", data: mappingSource.metadata }]
+      : []),
   ];
 
   for (const { name, data } of fields) {
