@@ -1,7 +1,9 @@
-"""Persist annotations and announce matching writes at the same transactional seams."""
+"""Persist annotations and request the evaluations they trigger, in one transaction."""
 
 from __future__ import annotations
 
+import logging
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal, Optional, TypeVar, Union
 
@@ -12,8 +14,15 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.triggering.log import AnnotationUpserted, append
-from phoenix.server.online_eval.triggering.rules import annotation_rules_exist
+from phoenix.server.online_eval.requests import (
+    EvaluationAsk,
+    SessionTarget,
+    request_evaluations,
+)
+from phoenix.server.online_eval.triggering.matching import AnnotationEvent, match_events
+from phoenix.server.online_eval.triggering.rules import annotation_rules_exist, load_rules
+
+logger = logging.getLogger(__name__)
 
 Annotation: TypeAlias = Union[
     models.SpanAnnotation,
@@ -27,19 +36,17 @@ async def insert_annotations(
     session: AsyncSession,
     *records: Mapping[str, Any],
     table: type[AnnotationT],
-    write_token: Optional[str] = None,
 ) -> tuple[AnnotationT, ...]:
-    """Insert annotations and announce them."""
+    """Insert annotations and request the evaluations they trigger."""
     if not records:
         return ()
     annotation_ids = tuple(await session.scalars(insert(table).values(records).returning(table.id)))
     annotations = await _load_annotations(session, table, annotation_ids)
-    await _append_events(
+    await _request_matching_evaluations(
         session,
         table,
         annotations,
         existing_keys=frozenset(),
-        write_token=write_token,
     )
     return annotations
 
@@ -53,9 +60,8 @@ async def upsert_annotations(
     on_conflict: OnConflict = OnConflict.DO_UPDATE,
     set_: Optional[Mapping[str, Any]] = None,
     constraint_name: Optional[str] = None,
-    write_token: Optional[str] = None,
 ) -> tuple[AnnotationT, ...]:
-    """Insert annotations, resolving conflicts as asked, and announce them."""
+    """Insert annotations, resolving conflicts as asked, and request what they trigger."""
     if not records:
         return ()
     existing_keys = await _existing_keys(session, table, records, unique_by)
@@ -73,13 +79,12 @@ async def upsert_annotations(
         )
     )
     annotations = await _load_annotations(session, table, annotation_ids)
-    await _append_events(
+    await _request_matching_evaluations(
         session,
         table,
         annotations,
         existing_keys=existing_keys,
         unique_by=unique_by,
-        write_token=write_token,
     )
     return annotations
 
@@ -95,7 +100,7 @@ async def update_annotations(
         raise TypeError("annotations must belong to one table")
     await session.flush()
     loaded = await _load_annotations(session, table, [annotation.id for annotation in annotations])
-    await _append_events(
+    await _request_matching_evaluations(
         session,
         table,
         loaded,
@@ -134,14 +139,13 @@ async def _load_annotations(
     return tuple(by_id[annotation_id] for annotation_id in annotation_ids)
 
 
-async def _append_events(
+async def _request_matching_evaluations(
     session: AsyncSession,
     table: type[AnnotationT],
     annotations: Sequence[AnnotationT],
     *,
     existing_keys: frozenset[tuple[Any, ...]],
     unique_by: Sequence[str] = (),
-    write_token: Optional[str] = None,
 ) -> None:
     if not annotations:
         return
@@ -165,7 +169,6 @@ async def _append_events(
             )
         )
         annotation_target: models.AnnotationTarget = "span"
-        target_attribute = "span_rowid"
     elif table is models.TraceAnnotation:
         stmt = (
             select(
@@ -183,7 +186,6 @@ async def _append_events(
             )
         )
         annotation_target = "trace"
-        target_attribute = "trace_rowid"
     elif table is models.ProjectSessionAnnotation:
         stmt = (
             select(
@@ -200,7 +202,6 @@ async def _append_events(
             )
         )
         annotation_target = "session"
-        target_attribute = "project_session_id"
     else:
         raise TypeError(f"unsupported annotation table: {table.__name__}")
 
@@ -210,30 +211,46 @@ async def _append_events(
         for project_id in {row.project_id for row in routed_annotations}
         if await annotation_rules_exist(session, project_id=project_id)
     }
+    if not project_ids_with_rules:
+        return
+    events = []
     for annotation, project_id, project_session_rowid in routed_annotations:
         if project_id not in project_ids_with_rules:
             continue
         key = tuple(getattr(annotation, name) for name in unique_by)
         change: Literal["created", "updated"] = "updated" if key in existing_keys else "created"
-        await append(
-            session,
-            AnnotationUpserted(
-                annotation_target=annotation_target,
+        events.append(
+            AnnotationEvent(
                 annotation_id=annotation.id,
-                target_rowid=getattr(annotation, target_attribute),
+                annotation_target=annotation_target,
+                project_id=project_id,
+                evaluation_target="SESSION",
+                target_rowid=project_session_rowid,
                 change=change,
-                updated_at=annotation.updated_at,
                 name=annotation.name,
                 label=annotation.label,
                 score=annotation.score,
                 annotator_kind=annotation.annotator_kind,
-                source=annotation.source,
-                user_id=annotation.user_id,
-                identifier=annotation.identifier,
-                **({} if write_token is None else {"write_token": write_token}),
-            ),
-            project_id=project_id,
-            evaluation_target="SESSION",
-            target_rowid=project_session_rowid,
+            )
+        )
+    rules = await load_rules(session, project_ids=project_ids_with_rules)
+    keys = match_events(events, rules)
+    if not keys:
+        return
+    outcome = await request_evaluations(
+        session,
+        [
+            EvaluationAsk(
+                target=SessionTarget(project_session_rowid=key.target_rowid),
+                project_evaluator_id=key.project_evaluator_id,
+            )
+            for key in keys
+        ],
+    )
+    if outcome.rejected:
+        counts = Counter(entry.rejection.value for entry in outcome.rejected)
+        logger.debug(
+            f"{len(outcome.rejected)} of the asks these annotations matched were not "
+            f"requested: {dict(counts)}"
         )
 

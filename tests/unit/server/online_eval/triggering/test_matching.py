@@ -1,42 +1,20 @@
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from phoenix.db import models
-from phoenix.server.online_eval.triggering.log import (
-    AnnotationUpserted,
-    DrainedEvent,
-    Event,
+from phoenix.server.online_eval.triggering.matching import (
+    AnnotationEvent,
+    RequestKey,
+    match_events,
 )
-from phoenix.server.online_eval.triggering.matching import RequestKey, match_events
 from phoenix.server.online_eval.triggering.rules import AnnotationTriggerRule
 
-_NOTICED_AT = datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc)
 _PROJECT_ID = 1
 _SESSION_ROWID = 10
 
 
-def _drained(
-    event: Event,
-    *,
-    event_id: int = 1,
-    project_id: int = _PROJECT_ID,
-    evaluation_target: models.EvaluationTarget = "SESSION",
-) -> DrainedEvent:
-    return DrainedEvent(
-        event_id=event_id,
-        kind=event.kind,
-        occurrence_key=event.occurrence_key,
-        project_id=project_id,
-        evaluation_target=evaluation_target,
-        target_rowid=_SESSION_ROWID,
-        payload=event.payload(),
-        created_at=_NOTICED_AT,
-    )
-
-
 def _annotation(
     *,
-    event_id: int = 1,
+    annotation_id: int = 1,
     project_id: int = _PROJECT_ID,
     evaluation_target: models.EvaluationTarget = "SESSION",
     name: str = "human-review",
@@ -45,24 +23,18 @@ def _annotation(
     annotator_kind: Optional[str] = "HUMAN",
     change: models.AnnotationChange = "created",
     annotation_target: models.AnnotationTarget = "span",
-    identifier: Optional[str] = None,
-) -> DrainedEvent:
-    return _drained(
-        AnnotationUpserted(
-            annotation_target=annotation_target,
-            annotation_id=event_id,
-            target_rowid=event_id,
-            change=change,
-            updated_at=_NOTICED_AT,
-            name=name,
-            label=label,
-            score=score,
-            annotator_kind=annotator_kind,  # type: ignore[arg-type]
-            identifier=identifier,
-        ),
-        event_id=event_id,
+) -> AnnotationEvent:
+    return AnnotationEvent(
+        annotation_id=annotation_id,
+        annotation_target=annotation_target,
         project_id=project_id,
         evaluation_target=evaluation_target,
+        target_rowid=_SESSION_ROWID,
+        change=change,
+        name=name,
+        label=label,
+        score=score,
+        annotator_kind=annotator_kind,
     )
 
 
@@ -83,9 +55,9 @@ def _rule(
     )
 
 
-def _key(*, event_id: int, project_evaluator_id: int) -> RequestKey:
+def _key(*, annotation_id: int, project_evaluator_id: int) -> RequestKey:
     return RequestKey(
-        event_id=event_id,
+        annotation_id=annotation_id,
         evaluation_target="SESSION",
         target_rowid=_SESSION_ROWID,
         project_evaluator_id=project_evaluator_id,
@@ -102,8 +74,8 @@ def test_an_event_resolves_to_the_criteria_of_every_rule_that_matches_it() -> No
             _rule(trigger_id=3, project_evaluator_id=300, label="correct"),
         ],
     ) == (
-        _key(event_id=1, project_evaluator_id=100),
-        _key(event_id=1, project_evaluator_id=200),
+        _key(annotation_id=1, project_evaluator_id=100),
+        _key(annotation_id=1, project_evaluator_id=200),
     )
 
 
@@ -116,16 +88,16 @@ def test_two_rules_on_one_criteria_resolve_to_one_key_per_occurrence() -> None:
         _rule(trigger_id=1, project_evaluator_id=100, name="human-review"),
         _rule(trigger_id=2, project_evaluator_id=100, label="incorrect"),
     ]
-    assert match_events([_annotation(event_id=1)], rules) == (_key(event_id=1, project_evaluator_id=100),)
-    assert match_events([_annotation(event_id=1), _annotation(event_id=2)], rules) == (
-        _key(event_id=1, project_evaluator_id=100),
-        _key(event_id=2, project_evaluator_id=100),
+    assert match_events([_annotation(annotation_id=1)], rules) == (_key(annotation_id=1, project_evaluator_id=100),)
+    assert match_events([_annotation(annotation_id=1), _annotation(annotation_id=2)], rules) == (
+        _key(annotation_id=1, project_evaluator_id=100),
+        _key(annotation_id=2, project_evaluator_id=100),
     )
 
 
 def test_an_unconstrained_rule_fires_on_every_event_in_its_project() -> None:
     rule = _rule()
-    assert len(match_events([_annotation(event_id=1), _annotation(event_id=2)], [rule])) == 2
+    assert len(match_events([_annotation(annotation_id=1), _annotation(annotation_id=2)], [rule])) == 2
 
 
 def test_a_rule_in_another_project_never_matches() -> None:
@@ -158,7 +130,7 @@ def test_annotation_predicates_match_the_edge_the_event_carries() -> None:
 
 
 def test_an_evaluator_written_annotation_matches_like_any_other() -> None:
-    written_by_an_evaluator = _annotation(annotator_kind="LLM", identifier="online:abc123")
+    written_by_an_evaluator = _annotation(annotator_kind="LLM")
     assert match_events([written_by_an_evaluator], [_rule(project_evaluator_id=100)]) != ()
     by_name = _rule(project_evaluator_id=100, name="human-review")
     assert match_events([written_by_an_evaluator], [by_name]) != ()

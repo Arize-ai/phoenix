@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from sqlalchemy import Select, case, func, select, update
+from sqlalchemy import Select, and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,11 +57,10 @@ class SessionTarget:
 
 @dataclass(frozen=True)
 class EvaluationAsk:
-    """One ask that a pair be evaluated, from one event occurrence or one explicit call."""
+    """One ask that a pair be evaluated, from one matched annotation or one explicit call."""
 
     target: SessionTarget
     project_evaluator_id: int
-    requested_by: Optional[str] = None
     force: bool = False
 
 
@@ -73,7 +72,6 @@ class RequestedEvaluation:
     project_session_rowid: int
     project_evaluator_id: int
     requested_generation: int
-    force_requested_generation: int
 
 
 @dataclass(frozen=True)
@@ -90,13 +88,12 @@ class BatchRequestOutcome:
 
 @dataclass(frozen=True)
 class PendingRequest:
-    """An unfulfilled pair, carrying the generations one read observed."""
+    """An unfulfilled pair, carrying the generation one read observed."""
 
     evaluation_request_id: int
     project_session_rowid: int
     project_evaluator_id: int
     observed_generation: int
-    materialized_generation: int
     forced: bool
 
 
@@ -105,16 +102,10 @@ async def request_evaluation(
     target: SessionTarget,
     project_evaluator_id: int,
     *,
-    requested_by: Optional[str] = None,
     force: bool = False,
 ) -> RequestedEvaluation:
     """Ask that `target` be evaluated against `project_evaluator_id`, advancing its generation once."""
-    ask = EvaluationAsk(
-        target=target,
-        project_evaluator_id=project_evaluator_id,
-        requested_by=requested_by,
-        force=force,
-    )
+    ask = EvaluationAsk(target=target, project_evaluator_id=project_evaluator_id, force=force)
     outcome = await request_evaluations(session, (ask,))
     if outcome.rejected:
         raise EvaluationRequestRejected(outcome.rejected[0].rejection)
@@ -161,17 +152,12 @@ def is_unfulfilled(request: Any) -> ColumnElement[bool]:
 def unfulfilled_requests() -> Select[Any]:
     """The pairs whose asks have not been answered, with the generations to acknowledge.
     The read takes no row lock, so acknowledgment must carry `observed_generation`."""
-    forced = (
-        models.EvaluationRequest.force_requested_generation
-        > models.EvaluationRequest.materialized_generation
-    )
     return select(
         models.EvaluationRequest.id.label("evaluation_request_id"),
         models.EvaluationRequest.project_session_rowid,
         models.EvaluationRequest.project_evaluator_id,
         models.EvaluationRequest.requested_generation.label("observed_generation"),
-        models.EvaluationRequest.materialized_generation,
-        forced.label("forced"),
+        models.EvaluationRequest.force_requested.label("forced"),
     ).where(is_unfulfilled(models.EvaluationRequest))
 
 
@@ -196,7 +182,6 @@ async def select_pending_requests(
             project_session_rowid=row.project_session_rowid,
             project_evaluator_id=row.project_evaluator_id,
             observed_generation=row.observed_generation,
-            materialized_generation=row.materialized_generation,
             forced=bool(row.forced),
         )
         for row in rows
@@ -212,13 +197,18 @@ async def acknowledge_materialization(
 ) -> None:
     """Record that `session_work_unit_id` answers this request through `observed_generation`.
     Call this in the transaction that inserts the work unit, passing the generation the
-    eligibility read observed; if it raises, that work insert must not commit either."""
+    eligibility read observed; if it raises, that work insert must not commit either. The
+    force flag survives only when a later ask has already raced in."""
     result = await session.execute(
         update(models.EvaluationRequest)
         .where(models.EvaluationRequest.id == evaluation_request_id)
         .values(
             materialized_generation=observed_generation,
             materialized_by_session_work_unit_id=session_work_unit_id,
+            force_requested=and_(
+                models.EvaluationRequest.force_requested,
+                models.EvaluationRequest.requested_generation > observed_generation,
+            ),
         )
     )
     if result.rowcount != 1:  # type: ignore[attr-defined]
@@ -244,7 +234,6 @@ class _PairAsk:
     project_evaluator_id: int
     count: int
     force: bool
-    requested_by: Optional[str]
 
 
 async def _read_project_evaluators(
@@ -331,7 +320,6 @@ def _coalesce(asks: Sequence[EvaluationAsk]) -> tuple[_PairAsk, ...]:
                 project_evaluator_id=key[1],
                 count=1,
                 force=ask.force,
-                requested_by=ask.requested_by,
             )
         else:
             counts[key] = _PairAsk(
@@ -339,7 +327,6 @@ def _coalesce(asks: Sequence[EvaluationAsk]) -> tuple[_PairAsk, ...]:
                 project_evaluator_id=key[1],
                 count=pair.count + 1,
                 force=pair.force or ask.force,
-                requested_by=ask.requested_by or pair.requested_by,
             )
     # Sorted so that batches contending for the same pairs take their row locks in one
     # order.
@@ -359,9 +346,8 @@ async def _upsert(
             "project_evaluator_id": pair.project_evaluator_id,
             "requested_generation": pair.count,
             "materialized_generation": 0,
-            "force_requested_generation": pair.count if pair.force else 0,
+            "force_requested": pair.force,
             "requested_at": func.now(),
-            "requested_by": pair.requested_by,
         }
         for pair in pairs
     ]
@@ -377,7 +363,6 @@ async def _upsert(
         models.EvaluationRequest.project_session_rowid,
         models.EvaluationRequest.project_evaluator_id,
         models.EvaluationRequest.requested_generation,
-        models.EvaluationRequest.force_requested_generation,
     )
     rows = await session.execute(stmt)
     return tuple(
@@ -386,7 +371,6 @@ async def _upsert(
             project_session_rowid=row.project_session_rowid,
             project_evaluator_id=row.project_evaluator_id,
             requested_generation=row.requested_generation,
-            force_requested_generation=row.force_requested_generation,
         )
         for row in rows
     )
@@ -396,31 +380,14 @@ def _upsert_set(dialect: SupportedSQLDialect) -> dict[str, Any]:
     """The conflict update: generation arithmetic in SQL, so concurrent asks all land."""
     insert = insert_postgresql if dialect is SupportedSQLDialect.POSTGRESQL else insert_sqlite
     excluded = insert(models.EvaluationRequest).excluded
-    requested_generation = (
-        models.EvaluationRequest.requested_generation + excluded.requested_generation
-    )
-    force_requested_generation = case(
-        (
-            excluded.force_requested_generation > 0,
-            _greatest(
-                dialect,
-                models.EvaluationRequest.force_requested_generation,
-                requested_generation,
-            ),
-        ),
-        else_=models.EvaluationRequest.force_requested_generation,
-    )
     return {
-        "requested_generation": requested_generation,
-        "force_requested_generation": force_requested_generation,
+        "requested_generation": (
+            models.EvaluationRequest.requested_generation + excluded.requested_generation
+        ),
+        "force_requested": or_(
+            models.EvaluationRequest.force_requested, excluded.force_requested
+        ),
         "requested_at": excluded.requested_at,
-        "requested_by": excluded.requested_by,
         "updated_at": func.now(),
     }
-
-
-def _greatest(dialect: SupportedSQLDialect, left: Any, right: Any) -> ColumnElement[Any]:
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        return func.greatest(left, right)
-    return func.max(left, right)
 

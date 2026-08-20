@@ -356,61 +356,6 @@ CREATE INDEX ix_spans_user_id ON public.spans
     USING btree ((((attributes #>> '{user,id}'::text[]))::character varying)) WHERE (((attributes #>> '{user,id}'::text[]))::character varying IS NOT NULL);
 
 
--- Table: evaluator_events
--- -----------------------
-CREATE TABLE public.evaluator_events (
-    id bigserial NOT NULL,
-    kind VARCHAR NOT NULL,
-    occurrence_key VARCHAR NOT NULL,
-    project_id BIGINT NOT NULL,
-    evaluation_target VARCHAR NOT NULL,
-    span_rowid BIGINT,
-    trace_rowid BIGINT,
-    project_session_rowid BIGINT,
-    payload JSONB NOT NULL,
-    acknowledged_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_evaluator_events PRIMARY KEY (id),
-    CONSTRAINT uq_evaluator_events_kind_occurrence_key
-        UNIQUE (kind, occurrence_key),
-    CONSTRAINT "ck_evaluator_events_`valid_evaluation_target`"
-        CHECK (((evaluation_target)::text = ANY ((ARRAY[
-            'SPAN'::character varying,
-            'TRACE'::character varying,
-            'SESSION'::character varying
-        ])::text[]))),
-    CONSTRAINT "ck_evaluator_events_`valid_event_kind`" CHECK (((kind)::text = 'annotation_upserted'::text)),
-    CONSTRAINT "ck_evaluator_events_`valid_target_key`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (span_rowid IS NOT NULL) AND (trace_rowid IS NULL) AND (project_session_rowid IS NULL)) OR (((evaluation_target)::text = 'TRACE'::text) AND (trace_rowid IS NOT NULL) AND (span_rowid IS NULL) AND (project_session_rowid IS NULL)) OR (((evaluation_target)::text = 'SESSION'::text) AND (project_session_rowid IS NOT NULL) AND (span_rowid IS NULL) AND (trace_rowid IS NULL)))),
-    CONSTRAINT fk_evaluator_events_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES public.projects (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_events_project_session_rowid_project_sessions
-        FOREIGN KEY (project_session_rowid)
-        REFERENCES public.project_sessions (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_events_span_rowid_spans
-        FOREIGN KEY (span_rowid)
-        REFERENCES public.spans (id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_evaluator_events_trace_rowid_traces
-        FOREIGN KEY (trace_rowid)
-        REFERENCES public.traces (id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX ix_evaluator_events_project_id ON public.evaluator_events
-    USING btree (project_id);
-CREATE INDEX ix_evaluator_events_project_session_rowid ON public.evaluator_events
-    USING btree (project_session_rowid) WHERE (project_session_rowid IS NOT NULL);
-CREATE INDEX ix_evaluator_events_span_rowid ON public.evaluator_events
-    USING btree (span_rowid) WHERE (span_rowid IS NOT NULL);
-CREATE INDEX ix_evaluator_events_trace_rowid ON public.evaluator_events
-    USING btree (trace_rowid) WHERE (trace_rowid IS NOT NULL);
-CREATE INDEX ix_evaluator_events_undrained ON public.evaluator_events
-    USING btree (id) WHERE (acknowledged_at IS NULL);
-
-
 -- Table: span_costs
 -- -----------------
 CREATE TABLE public.span_costs (
@@ -1579,16 +1524,14 @@ CREATE TABLE public.evaluation_requests (
     project_evaluator_id BIGINT NOT NULL,
     requested_generation INTEGER NOT NULL DEFAULT 0,
     materialized_generation INTEGER NOT NULL DEFAULT 0,
-    force_requested_generation INTEGER NOT NULL DEFAULT 0,
+    force_requested BOOLEAN NOT NULL DEFAULT false,
     materialized_by_session_work_unit_id BIGINT,
     requested_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    requested_by VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_evaluation_requests PRIMARY KEY (id),
     CONSTRAINT uq_evaluation_requests_project_session_rowid_project_evaluator_id
         UNIQUE (project_session_rowid, project_evaluator_id),
-    CONSTRAINT "ck_evaluation_requests_`valid_force_requested_generation`" CHECK (((0 <= force_requested_generation) AND (force_requested_generation <= requested_generation))),
     CONSTRAINT "ck_evaluation_requests_`valid_materialized_generation`" CHECK (((0 <= materialized_generation) AND (materialized_generation <= requested_generation))),
     CONSTRAINT "ck_evaluation_requests_`valid_requested_generation`" CHECK ((requested_generation >= 0)),
     CONSTRAINT fk_evaluation_requests_project_evaluator_id_project_evaluators

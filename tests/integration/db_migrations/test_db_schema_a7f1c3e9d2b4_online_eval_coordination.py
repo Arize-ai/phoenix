@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from secrets import token_hex
-from typing import Any, Callable, NamedTuple, Optional, TypeVar
+from typing import Optional, TypeVar
 
-import pytest
 import sqlalchemy as sa
 from alembic.config import Config
 from sqlalchemy import Connection
@@ -378,76 +376,6 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
         )
 
 
-class TestEvaluatorEvents(_OnlineEvalSchemaTest):
-    table_name = "evaluator_events"
-
-    @override
-    @classmethod
-    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
-        index_names = {
-            "ix_evaluator_events_undrained",
-            "ix_evaluator_events_project_id",
-            "ix_evaluator_events_span_rowid",
-            "ix_evaluator_events_trace_rowid",
-            "ix_evaluator_events_project_session_rowid",
-        }
-        constraint_names = {
-            "pk_evaluator_events",
-            "uq_evaluator_events_kind_occurrence_key",
-            "fk_evaluator_events_project_id_projects",
-            "fk_evaluator_events_span_rowid_spans",
-            "fk_evaluator_events_trace_rowid_traces",
-            _constraint_name(
-                "fk_evaluator_events_project_session_rowid_project_sessions",
-                db_backend,
-            ),
-            "ck_evaluator_events_`valid_event_kind`",
-            "ck_evaluator_events_`valid_evaluation_target`",
-            "ck_evaluator_events_`valid_target_key`",
-        }
-        if db_backend == "postgresql":
-            index_names.update(
-                {
-                    "pk_evaluator_events",
-                    "uq_evaluator_events_kind_occurrence_key",
-                }
-            )
-        elif db_backend == "sqlite":
-            index_names.add("sqlite_autoindex_evaluator_events_1")
-        else:
-            assert_never(db_backend)
-        return _TableSchemaInfo(
-            table_name=cls.table_name,
-            column_names=frozenset(
-                {
-                    "id",
-                    "kind",
-                    "occurrence_key",
-                    "project_id",
-                    "evaluation_target",
-                    "span_rowid",
-                    "trace_rowid",
-                    "project_session_rowid",
-                    "payload",
-                    "acknowledged_at",
-                    "created_at",
-                }
-            ),
-            index_names=frozenset(index_names),
-            constraint_names=frozenset(constraint_names),
-            # Every target key is nullable; the exactly-one CHECK is what requires the
-            # one that matches evaluation_target.
-            nullable_column_names=frozenset(
-                {
-                    "span_rowid",
-                    "trace_rowid",
-                    "project_session_rowid",
-                    "acknowledged_at",
-                }
-            ),
-        )
-
-
 class TestProjectEvaluatorTriggers(_OnlineEvalSchemaTest):
     table_name = "project_evaluator_triggers"
 
@@ -514,7 +442,6 @@ class TestEvaluationRequests(_OnlineEvalSchemaTest):
             ),
             "ck_evaluation_requests_`valid_requested_generation`",
             "ck_evaluation_requests_`valid_materialized_generation`",
-            "ck_evaluation_requests_`valid_force_requested_generation`",
         }
         if db_backend == "postgresql":
             index_names.update(
@@ -536,19 +463,16 @@ class TestEvaluationRequests(_OnlineEvalSchemaTest):
                     "project_evaluator_id",
                     "requested_generation",
                     "materialized_generation",
-                    "force_requested_generation",
+                    "force_requested",
                     "materialized_by_session_work_unit_id",
                     "requested_at",
-                    "requested_by",
                     "created_at",
                     "updated_at",
                 }
             ),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(
-                {"materialized_by_session_work_unit_id", "requested_by"}
-            ),
+            nullable_column_names=frozenset({"materialized_by_session_work_unit_id"}),
         )
 
 
@@ -660,242 +584,4 @@ async def test_project_session_liveness_schema(
     # Reflection-driven index drift is symmetric: index names and column lists survive a
     # DESC -> ASC rebuild, so the schema comparison above cannot catch one on the way down.
     await _assert_desc_indexes()
-
-
-class _Seed(NamedTuple):
-    """Rows the constraint tests below route events to and hang triggers off."""
-
-    project_id: int
-    project_session_rowid: int
-    trace_rowid: int
-    span_rowid: int
-    project_evaluator_id: int
-
-
-async def _run_with_foreign_keys(
-    engine: AsyncEngine,
-    db_backend: _DBBackend,
-    fn: Callable[[Connection], T],
-) -> T:
-    """Run `fn` against a committing connection that enforces foreign keys.
-
-    The migration engine deliberately leaves SQLite's foreign_keys pragma off, because
-    batch_alter_table's table rebuild would cascade child rows away. Constraint tests
-    need it on, and it is per-connection.
-    """
-    async with engine.connect() as connection:
-        if db_backend == "sqlite":
-            await connection.exec_driver_sql("PRAGMA foreign_keys = ON")
-        try:
-            result = await connection.run_sync(fn)
-        except BaseException:
-            await connection.rollback()
-            raise
-        await connection.commit()
-        return result
-
-
-def _scalar_id(conn: Connection, statement: sa.TextClause, parameters: dict[str, Any]) -> int:
-    row_id = conn.execute(statement, parameters).scalar_one()
-    assert isinstance(row_id, int)
-    return row_id
-
-
-def _seed_rows(conn: Connection) -> _Seed:
-    now = datetime.now(timezone.utc)
-    project_id = _scalar_id(
-        conn,
-        sa.text("INSERT INTO projects (name) VALUES (:name) RETURNING id"),
-        {"name": f"project-{token_hex(8)}"},
-    )
-    project_session_rowid = _scalar_id(
-        conn,
-        sa.text(
-            "INSERT INTO project_sessions (session_id, project_id, start_time, end_time)"
-            " VALUES (:session_id, :project_id, :start_time, :end_time) RETURNING id"
-        ),
-        {
-            "session_id": token_hex(8),
-            "project_id": project_id,
-            "start_time": now,
-            "end_time": now,
-        },
-    )
-    trace_rowid = _scalar_id(
-        conn,
-        sa.text(
-            "INSERT INTO traces"
-            " (project_rowid, trace_id, start_time, end_time, project_session_rowid)"
-            " VALUES (:project_rowid, :trace_id, :start_time, :end_time, :project_session_rowid)"
-            " RETURNING id"
-        ),
-        {
-            "project_rowid": project_id,
-            "trace_id": token_hex(16),
-            "start_time": now,
-            "end_time": now,
-            "project_session_rowid": project_session_rowid,
-        },
-    )
-    span_rowid = _scalar_id(
-        conn,
-        sa.text(
-            "INSERT INTO spans"
-            " (trace_rowid, span_id, name, span_kind, start_time, end_time, attributes, events,"
-            " status_message, cumulative_error_count, cumulative_llm_token_count_prompt,"
-            " cumulative_llm_token_count_completion)"
-            " VALUES (:trace_rowid, :span_id, 'span', 'LLM', :start_time, :end_time,"
-            " '{}', '[]', '', 0, 0, 0)"
-            " RETURNING id"
-        ),
-        {
-            "trace_rowid": trace_rowid,
-            "span_id": token_hex(8),
-            "start_time": now,
-            "end_time": now,
-        },
-    )
-    evaluator_id = _scalar_id(
-        conn,
-        sa.text(
-            "INSERT INTO evaluators (name, metadata, kind) VALUES (:name, '{}', 'LLM') RETURNING id"
-        ),
-        {"name": f"evaluator-{token_hex(8)}"},
-    )
-    criteria_statement = sa.text(
-        "INSERT INTO project_evaluators"
-        " (project_id, evaluator_id, name, evaluation_target, sampling_rate)"
-        " VALUES (:project_id, :evaluator_id, :name, 'SESSION', 1.0) RETURNING id"
-    )
-    project_evaluator_id = _scalar_id(
-        conn,
-        criteria_statement,
-        {"project_id": project_id, "evaluator_id": evaluator_id, "name": "downstream"},
-    )
-    return _Seed(
-        project_id=project_id,
-        project_session_rowid=project_session_rowid,
-        trace_rowid=trace_rowid,
-        span_rowid=span_rowid,
-        project_evaluator_id=project_evaluator_id,
-    )
-
-
-_INSERT_EVENT = sa.text(
-    "INSERT INTO evaluator_events"
-    " (kind, occurrence_key, project_id, evaluation_target,"
-    " span_rowid, trace_rowid, project_session_rowid, payload)"
-    " VALUES ('annotation_upserted', :occurrence_key, :project_id, :evaluation_target,"
-    " :span_rowid, :trace_rowid, :project_session_rowid, '{}')"
-    " RETURNING id"
-)
-
-
-def _event_insert(
-    project_id: int,
-    evaluation_target: str,
-    *,
-    span_rowid: Optional[int] = None,
-    trace_rowid: Optional[int] = None,
-    project_session_rowid: Optional[int] = None,
-) -> Callable[[Connection], int]:
-    def _insert(conn: Connection) -> int:
-        return _scalar_id(
-            conn,
-            _INSERT_EVENT,
-            {
-                "occurrence_key": token_hex(8),
-                "project_id": project_id,
-                "evaluation_target": evaluation_target,
-                "span_rowid": span_rowid,
-                "trace_rowid": trace_rowid,
-                "project_session_rowid": project_session_rowid,
-            },
-        )
-
-    return _insert
-
-
-def _delete(conn: Connection, table: str, row_id: int) -> None:
-    conn.execute(
-        sa.text(f"DELETE FROM {table} WHERE id = :row_id"),  # noqa: S608
-        {"row_id": row_id},
-    )
-
-
-def _count(conn: Connection, table: str, row_id: int) -> int:
-    count = conn.execute(
-        sa.text(f"SELECT count(*) FROM {table} WHERE id = :row_id"),  # noqa: S608
-        {"row_id": row_id},
-    ).scalar_one()
-    assert isinstance(count, int)
-    return count
-
-
-async def test_evaluator_event_routes_to_exactly_one_target(
-    _engine: AsyncEngine,
-    _alembic_config: Config,
-    _db_backend: _DBBackend,
-    _schema: str,
-) -> None:
-    await _verify_clean_state(_engine, _schema)
-    await _up(_engine, _alembic_config, _UP, _schema)
-    seed = await _run_with_foreign_keys(_engine, _db_backend, _seed_rows)
-
-    accepted = {
-        target: await _run_with_foreign_keys(_engine, _db_backend, insert)
-        for target, insert in (
-            ("SPAN", _event_insert(seed.project_id, "SPAN", span_rowid=seed.span_rowid)),
-            ("TRACE", _event_insert(seed.project_id, "TRACE", trace_rowid=seed.trace_rowid)),
-            (
-                "SESSION",
-                _event_insert(
-                    seed.project_id,
-                    "SESSION",
-                    project_session_rowid=seed.project_session_rowid,
-                ),
-            ),
-        )
-    }
-
-    refused = (
-        # A target key without its declared target.
-        _event_insert(seed.project_id, "SESSION", span_rowid=seed.span_rowid),
-        _event_insert(seed.project_id, "SPAN", project_session_rowid=seed.project_session_rowid),
-        # A declared target without its key.
-        _event_insert(seed.project_id, "SPAN"),
-        _event_insert(seed.project_id, "SESSION"),
-        # Two keys at once.
-        _event_insert(
-            seed.project_id, "SPAN", span_rowid=seed.span_rowid, trace_rowid=seed.trace_rowid
-        ),
-    )
-    for insert in refused:
-        # SQLite reports a CHECK violation as a raw driver exception, so the assertion
-        # matches the message rather than a SQLAlchemy exception class.
-        with pytest.raises(BaseException, match="valid_target_key"):
-            await _run_with_foreign_keys(_engine, _db_backend, insert)
-
-    def _surviving_events(conn: Connection) -> set[str]:
-        return {
-            target
-            for target, event_id in accepted.items()
-            if _count(conn, "evaluator_events", event_id)
-        }
-
-    def _delete_target(table: str, row_id: int) -> Callable[[Connection], set[str]]:
-        def _delete_and_count(conn: Connection) -> set[str]:
-            _delete(conn, table, row_id)
-            return _surviving_events(conn)
-
-        return _delete_and_count
-
-    # Each target key cascades on its own, in an order that leaves the other two intact.
-    cascades: tuple[tuple[Callable[[Connection], set[str]], set[str]], ...] = (
-        (_delete_target("spans", seed.span_rowid), {"TRACE", "SESSION"}),
-        (_delete_target("traces", seed.trace_rowid), {"SESSION"}),
-        (_delete_target("project_sessions", seed.project_session_rowid), set()),
-    )
-    for delete_target, surviving in cascades:
-        assert await _run_with_foreign_keys(_engine, _db_backend, delete_target) == surviving
 

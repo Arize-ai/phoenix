@@ -84,7 +84,7 @@ async def test_a_live_rule_loads_with_its_predicates_and_its_criteria_s_project(
         )
 
     async with db() as session:
-        (rule,) = await load_rules(session)
+        (rule,) = await load_rules(session, project_ids=[project.id])
     assert isinstance(rule, AnnotationTriggerRule)
     assert rule.trigger_id == trigger.id
     assert rule.project_evaluator_id == project_evaluator.id
@@ -107,7 +107,7 @@ async def test_a_trigger_without_predicates_loads_unconstrained(db: DbSessionFac
         await _add_trigger(session, project_evaluator)
 
     async with db() as session:
-        (rule,) = await load_rules(session)
+        (rule,) = await load_rules(session, project_ids=[project.id])
     assert isinstance(rule, AnnotationTriggerRule)
     assert rule.name is None
     assert rule.label is None
@@ -142,7 +142,7 @@ async def test_invalid_or_retired_predicate_json_is_skipped(
 
     with caplog.at_level(logging.ERROR):
         async with db() as session:
-            rules = await load_rules(session)
+            rules = await load_rules(session, project_ids=[project.id])
 
     assert [rule.trigger_id for rule in rules] == [valid.id]
     assert caplog.text.count("invalid predicates") == 2
@@ -174,7 +174,7 @@ async def test_a_trigger_whose_criteria_is_disabled_is_dormant(db: DbSessionFact
         await _add_trigger(session, project_evaluator)
 
     async with db() as session:
-        assert await load_rules(session) == ()
+        assert await load_rules(session, project_ids=[project.id]) == ()
 
     async with db() as session:
         record = await session.get(models.ProjectEvaluator, project_evaluator.id)
@@ -182,7 +182,7 @@ async def test_a_trigger_whose_criteria_is_disabled_is_dormant(db: DbSessionFact
         record.enabled = True
 
     async with db() as session:
-        assert len(await load_rules(session)) == 1
+        assert len(await load_rules(session, project_ids=[project.id])) == 1
 
 
 async def test_triggers_on_span_project_evaluators_and_in_trace_projects_do_not_load(
@@ -202,7 +202,7 @@ async def test_triggers_on_span_project_evaluators_and_in_trace_projects_do_not_
         await _add_trigger(session, reserved_project_evaluator)
 
     async with db() as session:
-        assert await load_rules(session) == ()
+        assert await load_rules(session, project_ids=[project.id, evaluators_project.id]) == ()
 
 
 async def test_deleting_a_criteria_takes_its_triggers_with_it(db: DbSessionFactory) -> None:
@@ -212,7 +212,7 @@ async def test_deleting_a_criteria_takes_its_triggers_with_it(db: DbSessionFacto
         await _add_trigger(session, project_evaluator)
 
     async with db() as session:
-        assert len(await load_rules(session)) == 1
+        assert len(await load_rules(session, project_ids=[project.id])) == 1
         await session.execute(
             delete(models.ProjectEvaluator).where(
                 models.ProjectEvaluator.id == project_evaluator.id
@@ -220,5 +220,20 @@ async def test_deleting_a_criteria_takes_its_triggers_with_it(db: DbSessionFacto
         )
 
     async with db() as session:
-        assert await load_rules(session) == ()
+        assert await load_rules(session, project_ids=[project.id]) == ()
+
+
+async def test_rules_load_only_for_the_projects_asked_for(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_evaluators = await _add_project_evaluator(session, project)
+        trigger = await _add_trigger(session, project_evaluators)
+        elsewhere = await _add_project(session)
+        await _add_trigger(session, await _add_project_evaluator(session, elsewhere))
+
+    async with db() as session:
+        assert [rule.trigger_id for rule in await load_rules(session, project_ids=[project.id])] == [
+            trigger.id
+        ]
+        assert await load_rules(session, project_ids=[]) == ()
 

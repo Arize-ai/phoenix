@@ -1,7 +1,6 @@
 """Ask that one session be evaluated now by one project evaluator."""
 
 import strawberry
-from fastapi import Request
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -16,15 +15,12 @@ from phoenix.server.api.types.EvaluationRequest import (
 from phoenix.server.api.types.Evaluator import ProjectEvaluator
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.ProjectSession import ProjectSession
-from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.online_eval.requests import (
     EvaluationRequestRejected,
     RequestRejection,
     SessionTarget,
     request_evaluation,
 )
-
-_REQUESTED_BY = "user"
 
 _REJECTION_MESSAGES: dict[RequestRejection, str] = {
     RequestRejection.CRITERIA_NOT_FOUND: "Project evaluator not found.",
@@ -97,19 +93,12 @@ class ProjectSessionEvaluationMutationMixin:
         except ValueError as error:
             raise BadRequest(str(error))
 
-        requested_by = _REQUESTED_BY
-        assert isinstance(request := info.context.request, Request)
-        if "user" in request.scope:
-            assert isinstance(user := request.user, PhoenixUser)
-            requested_by = f"{_REQUESTED_BY}:{int(user.identity)}"
-
         async with info.context.db() as session:
             try:
                 await request_evaluation(
                     session,
                     SessionTarget(project_session_rowid=project_session_rowid),
                     project_evaluator_id,
-                    requested_by=requested_by,
                     force=input.force,
                 )
             except EvaluationRequestRejected as rejected:
