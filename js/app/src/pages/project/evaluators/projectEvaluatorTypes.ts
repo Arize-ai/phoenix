@@ -169,7 +169,9 @@ export function getProjectEvaluatorStatus({
 }: {
   schedulabilityStatus: string;
   schedulabilityReason: string | null | undefined;
-  runSummary: ProjectEvaluatorRunSummary;
+  // Only the status is read, so callers that have just that -- the page header
+  // reads it off its own query -- need not fetch the counts as well.
+  runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
   if (schedulabilityStatus === "NOT_SCHEDULABLE") {
     return {
@@ -212,6 +214,27 @@ export function formatLastRun(lastRunAt: string | null): string {
     ? "Never"
     : formatDistanceToNow(new Date(lastRunAt), { addSuffix: true });
 }
+
+/**
+ * The absolute time behind `formatLastRun`'s relative phrasing. "2 hours ago"
+ * answers "is it running?"; this answers "which run was that?".
+ */
+export function formatLastRunTimestamp(
+  lastRunAt: string | null
+): string | null {
+  if (lastRunAt == null) {
+    return null;
+  }
+  return lastRunTimestampFormatter.format(new Date(lastRunAt));
+}
+
+const lastRunTimestampFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZoneName: "short",
+});
 
 const countFormatter = new Intl.NumberFormat();
 
