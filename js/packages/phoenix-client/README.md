@@ -423,17 +423,17 @@ const sessionTraces = await getTraces({
 });
 ```
 
-| Parameter      | Type                           | Description                                                                                          |
-| -------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `project`      | `ProjectIdentifier`            | The project (by name or ID) — **required**                                                           |
-| `startTime`    | `Date \| string \| null`       | Inclusive lower bound on trace start time                                                            |
-| `endTime`      | `Date \| string \| null`       | Exclusive upper bound on trace start time                                                            |
-| `sort`         | `"start_time" \| "latency_ms"` | Sort field                                                                                           |
-| `order`        | `"asc" \| "desc"`              | Sort direction                                                                                       |
-| `limit`        | `number`                       | Maximum number of traces to return                                                                   |
-| `cursor`       | `string \| null`               | Pagination cursor from a previous response's next_cursor. Tied to the sort field it was minted with. |
-| `includeSpans` | `boolean`                      | Include full span details for each trace                                                             |
-| `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)                                                               |
+| Parameter      | Type                           | Description                                |
+| -------------- | ------------------------------ | ------------------------------------------ |
+| `project`      | `ProjectIdentifier`            | The project (by name or ID) — **required** |
+| `startTime`    | `Date \| string \| null`       | Inclusive lower bound on trace start time  |
+| `endTime`      | `Date \| string \| null`       | Exclusive upper bound on trace start time  |
+| `sort`         | `"start_time" \| "latency_ms"` | Sort field                                 |
+| `order`        | `"asc" \| "desc"`              | Sort direction                             |
+| `limit`        | `number`                       | Maximum number of traces to return         |
+| `cursor`       | `string \| null`               | Pagination cursor                          |
+| `includeSpans` | `boolean`                      | Include full span details for each trace   |
+| `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
 
 ### Pagination
 
