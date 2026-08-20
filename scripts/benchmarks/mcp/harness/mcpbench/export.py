@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -130,18 +131,57 @@ def _attributes(span: Span) -> dict[str, Any]:
     return out
 
 
+@dataclass
+class Delivery:
+    """What became of the spans a send was asked to make.
+
+    Three numbers rather than one because they fail apart: a span can be built
+    and never queued, queued and never accepted, or accepted and still not
+    ingested. Only the first two are knowable from here.
+    """
+
+    planned: int = 0
+    accepted: int = 0
+    rejected: int = 0
+
+    @property
+    def missing(self) -> int:
+        """Spans that reached no exporter at all -- dropped from a full queue."""
+        return max(0, self.planned - self.accepted - self.rejected)
+
+    @property
+    def ok(self) -> bool:
+        return self.planned > 0 and self.accepted == self.planned
+
+    def describe(self) -> str:
+        parts = [f"{self.accepted}/{self.planned} spans accepted"]
+        if self.rejected:
+            parts.append(f"{self.rejected} rejected by the collector")
+        if self.missing:
+            parts.append(f"{self.missing} dropped before export")
+        return ", ".join(parts)
+
+
 def send(
     traces: list[tuple[str, list[Span]]],
     *,
     endpoint: str,
     project: str,
     headers: Optional[dict[str, str]] = None,
-) -> int:
-    """Emit every trace, and return how many spans were handed to the exporter."""
+    max_chars: int = DEFAULT_MAX_CHARS,
+) -> Delivery:
+    """Emit every trace and report what the collector did with it.
+
+    The SDK reports a failed export by logging it, so a caller that only counts
+    what it queued cannot tell a delivered run from one that went to a closed
+    port -- both look like success. The exporter is wrapped to count outcomes
+    instead. Acceptance is still not ingestion: the collector answers as soon as
+    it has the batch, and stores it after.
+    """
     from opentelemetry.context import Context
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import SpanLimits, TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, SpanExportResult
     from opentelemetry.sdk.trace.id_generator import IdGenerator
     from opentelemetry.trace import Status, StatusCode, set_span_in_context
 
@@ -162,7 +202,29 @@ def send(
         def generate_trace_id(self) -> int:
             return digest_id(f"{self.seed}|trace", 16)
 
+    class CountingExporter(SpanExporter):
+        """Passes batches through and keeps score of what came back."""
+
+        def __init__(self, inner: SpanExporter) -> None:
+            self.inner = inner
+            self.delivery = Delivery()
+
+        def export(self, spans: Any) -> Any:
+            outcome = self.inner.export(spans)
+            if outcome is SpanExportResult.SUCCESS:
+                self.delivery.accepted += len(spans)
+            else:
+                self.delivery.rejected += len(spans)
+            return outcome
+
+        def shutdown(self) -> None:
+            self.inner.shutdown()
+
+        def force_flush(self, timeout_millis: int = 30_000) -> bool:
+            return self.inner.force_flush(timeout_millis)
+
     ids = SeededIds()
+    exporter = CountingExporter(OTLPSpanExporter(endpoint=endpoint, headers=headers or {}))
     provider = TracerProvider(
         resource=Resource.create({ResourceAttributes.PROJECT_NAME: project}),
         id_generator=ids,
@@ -172,9 +234,7 @@ def send(
         # the token counts -- the span arrives as an untyped bag of messages.
         span_limits=SpanLimits(max_attributes=16_384, max_span_attribute_length=None),
     )
-    provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers or {}))
-    )
+    provider.add_span_processor(BatchSpanProcessor(exporter))
     tracer = provider.get_tracer("mcpbench")
 
     def emit(span: Span, context: Optional[Any], bounds: tuple[float, float]) -> Any:
@@ -196,9 +256,12 @@ def send(
         emitted.end(end_time=_ns(min(max(span.end, start), high)))
         return emitted
 
-    sent = 0
+    delivery = exporter.delivery
     for cell_id, spans in traces:
-        ids.seed = f"{project}|{cell_id}"
+        # Every input that changes what a span says belongs in the seed. The
+        # backend keeps the first span it sees for an id, so a setting left out
+        # of the seed is a setting that silently does nothing on a re-export.
+        ids.seed = f"{project}|{cell_id}|{max_chars}"
         ids.count = 0
         root, *children = spans
         bounds = (root.start, root.end)
@@ -218,11 +281,11 @@ def send(
         for child in children:
             emit(child, context, bounds)
         emitted_root.end(end_time=_ns(root.end))
-        sent += len(spans)
+        delivery.planned += len(spans)
 
     provider.force_flush()
     provider.shutdown()
-    return sent
+    return delivery
 
 
 def as_json(traces: list[tuple[str, list[Span]]]) -> list[dict[str, Any]]:

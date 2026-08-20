@@ -34,6 +34,7 @@ from .export import (
     send,
 )
 from .invocation import safe_label
+from .otel import DEFAULT_MAX_CHARS
 from .preflight import run_preflight
 from .runner import BudgetExhausted, Cell, plan_matrix, run_matrix
 
@@ -226,12 +227,15 @@ def cmd_export(args: argparse.Namespace) -> int:
     config = _resolve(load_config(Path(args.config)), args)
     tasks = load_tasks(config)
     root = _results_root(config, args)
+    if args.all and args.run_id:
+        raise ConfigError("--all exports every run; pass one or the other, not both.")
     if args.all:
         folders = sorted(p for p in root.glob("*") if (p / "raw").is_dir())
     else:
         folders = [(root / args.run_id) if args.run_id else _latest_run(root)]
 
     endpoint = resolve_endpoint(args.endpoint)
+    undelivered = 0
     for out_dir in folders:
         traces = plan_run(config, tasks, out_dir, max_chars=args.max_chars)
         spans = sum(len(s) for _, s in traces)
@@ -241,14 +245,28 @@ def cmd_export(args: argparse.Namespace) -> int:
             print(f"{out_dir.name}: {len(traces)} traces, {spans} spans -> {path}")
             continue
         try:
-            sent = send(traces, endpoint=endpoint, project=args.project, headers=resolve_headers())
+            delivery = send(
+                traces,
+                endpoint=endpoint,
+                project=args.project,
+                headers=resolve_headers(),
+                max_chars=args.max_chars,
+            )
         except ImportError as exc:
             # The SDK is the extra; everything up to here worked without it, so
             # the planned replay is still worth naming before giving up.
             print(f"error: {exc}", file=sys.stderr)
             print('install the extra: uv pip install -e "harness[otel]"', file=sys.stderr)
             return 1
-        print(f"{out_dir.name}: {len(traces)} traces, {sent} spans -> {args.project} at {endpoint}")
+        where = f"{args.project} at {endpoint}"
+        print(f"{out_dir.name}: {len(traces)} traces, {delivery.describe()} -> {where}")
+        if not delivery.ok:
+            undelivered += delivery.rejected + delivery.missing
+    if undelivered:
+        # Exits non-zero so a scripted export cannot pass while the collector
+        # refused it. The SDK only logs a failed batch, so silence is not proof.
+        print(f"\n{undelivered} spans did not reach {endpoint}.", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -311,7 +329,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=os.environ.get("PHOENIX_PROJECT_NAME") or DEFAULT_PROJECT,
         help="Destination project. Also seeds the span ids, so a new name re-imports.",
     )
-    export.add_argument("--max-chars", type=int, default=4000, help="Per-message text cap.")
+    export.add_argument(
+        "--max-chars", type=int, default=DEFAULT_MAX_CHARS, help="Per-message text cap."
+    )
     export.add_argument(
         "--dry-run", action="store_true", help="Write replay.json beside the transcripts instead."
     )
