@@ -37,7 +37,9 @@ PARAMETERS: dict[str, Any] = {
                 "{ok: false, error}, where `output` is structured data usable directly "
                 "(e.g. `result.output.instanceId`) — never JSON text to parse. "
                 "`log(message)` emits progress. The script's return value is "
-                "JSON-serialized into the tool output."
+                "JSON-serialized into the tool output; constrain it in the script "
+                "(slice, project fields, count) as you would with grep/head/tail — "
+                "oversized return values are truncated."
             ),
         },
     },
