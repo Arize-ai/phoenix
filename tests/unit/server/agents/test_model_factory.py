@@ -1,5 +1,6 @@
 import base64
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -108,6 +109,11 @@ class TestCustomProviderModels:
             def __init__(self, **kwargs: Any) -> None:
                 self.kwargs = kwargs
                 self.base_url = kwargs.get("base_url", "https://example.test/v1")
+                # pydantic-ai probes these client surfaces when it builds a
+                # model, so the stub has to hold them even though no test
+                # calls them.
+                self.chat = SimpleNamespace(completions=object())
+                self.responses = object()
 
         monkeypatch.setattr(openai, "AsyncOpenAI", DummyAsyncOpenAI)
 
