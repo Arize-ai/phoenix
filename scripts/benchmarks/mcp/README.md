@@ -147,6 +147,31 @@ mcpbench report                    # self-contained results/<run-id>/report.html
 `run` also rewrites the report after every cell, so a run in progress can be watched by
 opening the page and refreshing. `runs.csv` lands beside it for spreadsheets.
 
+### Replaying a run as traces
+
+```bash
+uv pip install -e "harness[otel]"
+mcpbench export --all --project mcpbench    # every stored run, into one project
+mcpbench export --dry-run                   # writes replay.json instead of sending
+```
+
+Turns the stored transcripts into OpenInference spans and posts them: one trace per
+cell, an `AGENT` root carrying the prompt, the answer and how it graded, then an `LLM`
+span per API call and a `TOOL` span per call underneath it. `--all` puts every run in
+one project, keyed by `session.id`, so runs can be compared without re-spending the
+matrix.
+
+It replays rather than instruments, which is the point: nothing is re-executed, so the
+numbers stay the ones the client produced, and runs already collected can be looked at
+as traces. Two things the transcript does not carry are derived and marked as such —
+the model call's start (the clock only stamps arrivals) and the per-call output tokens
+(the stream stamps a message before it exists, so the run's reported total is divided
+by how much each call wrote). Both are exact in aggregate.
+
+Span ids are seeded from `(project, run, cell)`, so re-exporting the same run is a
+no-op rather than a duplicate. Ingest keeps the first span it sees for an id, so an
+edited exporter needs a new `--project` before its output can be seen.
+
 **Comparing labels requires one run directory.** Transcript filenames carry the label,
 so a directory can hold several; the report compares whatever it finds. Pass the same
 `--run-id` for each label:

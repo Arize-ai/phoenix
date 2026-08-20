@@ -3,10 +3,20 @@ name = "mcpbench"
 version = "0.1.0"
 description = "Token-cost benchmark for Phoenix's /mcp surfaces, driven by `claude -p`."
 requires-python = ">=3.10"
-# Results live in SQLite (stdlib) and the report aggregates in the page, so
-# pyyaml is the only third-party requirement.
+# Results live in SQLite (stdlib) and the report aggregates in the page, so the
+# only requirements are the config format and the attribute names `export`
+# replays transcripts into. Both are pure Python with nothing under them.
 dependencies = [
     "pyyaml>=6.0",
+    "openinference-semantic-conventions>=0.1.26",
+]
+
+# Only sending the spans needs an SDK. Building them does not, so a replay can
+# be built and read without one.
+[project.optional-dependencies]
+otel = [
+    "opentelemetry-sdk>=1.30",
+    "opentelemetry-exporter-otlp-proto-http>=1.30",
 ]
 
 [project.scripts]
