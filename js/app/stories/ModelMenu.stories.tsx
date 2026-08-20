@@ -52,7 +52,10 @@ const MODELS_BY_PROVIDER = new Map<string, string[]>([
       "meta.llama3-1-70b-instruct-v1:0",
     ],
   ],
-  ["GOOGLE", ["gemini-3.1-pro-preview", "gemini-3.5-flash"]],
+  [
+    "GOOGLE",
+    ["gemini-3.7-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash"],
+  ],
 ]);
 
 const provider = ({

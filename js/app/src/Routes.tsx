@@ -67,6 +67,7 @@ import {
   ExamplePage,
   examplesLoader,
   ExamplesPage,
+  ChatPage,
   ExperimentComparePage,
   ExperimentDetailPage,
   ExperimentsPage,
@@ -713,6 +714,24 @@ export const appRouteObjects = createRoutesFromElements(
             }}
           />
         </Route>
+        <Route
+          path="/chat"
+          element={<ChatPage />}
+          handle={{
+            crumb: () => "Chat",
+            navigation: {
+              section: "Pages",
+              label: "Chat",
+              description: "Chat directly with the configured models",
+              icon: "MessageCircle",
+            },
+            agentRoute: {
+              label: "Chat",
+              description:
+                "Chat directly with the configured models. Set a system prompt and tune temperature, top P, and max output tokens.",
+            },
+          }}
+        />
         <Route
           path="/evaluators"
           handle={{

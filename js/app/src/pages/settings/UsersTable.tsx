@@ -73,7 +73,6 @@ const userTableRowCSS = css`
  */
 const usersTableContainerCSS = css`
   overflow: auto;
-  max-height: var(--global-dimension-size-6000);
 `;
 
 const isDefaultAdminUser = (user: { email: string | null; username: string }) =>

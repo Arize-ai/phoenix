@@ -61,6 +61,7 @@
               {
                 "group": "Quick Start",
                 "pages": [
+                  "docs/phoenix/agent-assisted-setup",
                   {
                     "group": "Python",
                     "pages": [
@@ -84,8 +85,7 @@
               {
                 "group": "Coding Agents",
                 "pages": [
-                  "docs/phoenix/integrations/developer-tools/coding-agents",
-                  "docs/phoenix/agent-assisted-setup"
+                  "docs/phoenix/integrations/developer-tools/coding-agents"
                 ]
               },
               {
@@ -466,7 +466,6 @@
                 "group": "Frequently Asked Questions",
                 "pages": [
                   "docs/phoenix/resources/frequently-asked-questions",
-                  "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
                   "docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-add-other-users-to-my-phoenix-instance",
                   "docs/phoenix/resources/frequently-asked-questions/can-i-use-azure-openai",
@@ -483,7 +482,14 @@
                 ]
               },
               "docs/phoenix/resources/contribute-to-phoenix",
-              "docs/phoenix/resources/phoenix-to-arize-ax-migration",
+              {
+                "group": "Arize AX",
+                "root": "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
+                "pages": [
+                  "docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize",
+                  "docs/phoenix/resources/phoenix-to-arize-ax-migration"
+                ]
+              },
               "docs/phoenix/resources/typescript-api",
               "docs/phoenix/resources/python-api",
               "docs/phoenix/resources/github",
@@ -1383,6 +1389,7 @@
           {
             "group": "08.2026",
             "pages": [
+              "docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql",
               "docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config",
               "docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions",
               "docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts"

@@ -1,4 +1,5 @@
 import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
+import { z } from "zod";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -23,6 +24,15 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "TOGETHER"
   );
 }
+
+/**
+ * Zod schema accepting any known model provider key, built on
+ * {@link isModelProvider} so provider membership is defined in one place.
+ */
+export const modelProviderSchema = z.custom<ModelProvider>(
+  (provider) => typeof provider === "string" && isModelProvider(provider),
+  { message: "Invalid model provider." }
+);
 
 export function getProviderName(provider: ModelProvider): string {
   switch (provider) {
