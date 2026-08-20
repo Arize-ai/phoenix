@@ -267,6 +267,21 @@ async def _read_sessions(
     project_session_rowids: Iterable[int],
     dialect: SupportedSQLDialect,
 ) -> dict[int, _SessionFacts]:
+    stmt = _session_facts_query(project_session_rowids, dialect)
+    return {
+        row.id: _SessionFacts(
+            project_id=row.project_id,
+            content_complete=row.content_complete,
+            last_span_ingested_at=row.last_span_ingested_at,
+        )
+        for row in await session.execute(stmt)
+    }
+
+
+def _session_facts_query(
+    project_session_rowids: Iterable[int],
+    dialect: SupportedSQLDialect,
+) -> Select[Any]:
     stmt = (
         select(
             models.ProjectSession.id,
@@ -279,15 +294,8 @@ async def _read_sessions(
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         # Held against the content-incomplete transition, which locks the same rows.
-        stmt = stmt.with_for_update(key_share=True)
-    return {
-        row.id: _SessionFacts(
-            project_id=row.project_id,
-            content_complete=row.content_complete,
-            last_span_ingested_at=row.last_span_ingested_at,
-        )
-        for row in await session.execute(stmt)
-    }
+        stmt = stmt.with_for_update(read=True, key_share=True)
+    return stmt
 
 
 def _rejection_for(

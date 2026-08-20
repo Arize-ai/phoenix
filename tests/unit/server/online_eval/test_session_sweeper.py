@@ -1339,7 +1339,6 @@ async def test_retention_preserves_ambient_success_after_content_advances(
 
 async def test_retention_never_deletes_an_unfulfilled_request(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
 ) -> None:
     project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     _, project_evaluator_id = await _seed_criteria(
@@ -1592,7 +1591,6 @@ async def test_result_committed_during_a_sweep_suppresses_the_requested_insert(
 )
 async def test_a_forced_request_passes_the_filter_a_rule_request_waits_behind(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
     force: bool,
     expected_work: list[str],
 ) -> None:
@@ -1627,7 +1625,6 @@ async def test_a_forced_request_passes_the_filter_a_rule_request_waits_behind(
 
 async def test_a_pair_carrying_an_unfulfilled_request_yields_one_decision(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
 ) -> None:
     """The ambient and triggered origins never claim the same pair.
 

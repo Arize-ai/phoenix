@@ -4,10 +4,6 @@ from secrets import token_hex
 import pytest
 from sqlalchemy import select
 
-from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
-    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
-)
 from phoenix.db import models
 from phoenix.db.eval_work import ONLINE_EVAL_IDENTIFIER_PREFIX
 from phoenix.db.helpers import SupportedSQLDialect
@@ -15,12 +11,6 @@ from phoenix.db.insertion.annotation import insert_annotations, upsert_annotatio
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
-
-
-@pytest.fixture(autouse=True)
-def session_evaluation_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
 
 
 async def _seed_annotation_target(db: DbSessionFactory) -> models.Span:

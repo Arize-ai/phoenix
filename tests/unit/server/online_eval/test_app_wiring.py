@@ -144,8 +144,8 @@ async def _session_annotations(db: DbSessionFactory) -> list[models.ProjectSessi
 
 async def test_online_eval_daemons_run_by_default(db: DbSessionFactory) -> None:
     """Read-only mode is the only thing that keeps the daemons from starting: a writable
-    app composes the producer, both consumers, the session sweeper, and the signal drain
-    with no online-eval environment at all.
+    app composes the producer, both consumers, and the session sweeper with no
+    online-eval environment at all.
     """
     runtime = _runtime(db)
     assert isinstance(runtime.producer, OnlineEvalProducer)

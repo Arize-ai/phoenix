@@ -296,8 +296,6 @@ async def test_requesting_an_evaluation_for_a_session_with_no_spans_is_refused(
     assert await _request_count(db) == 0
 
 
-
-
 async def _current_fingerprint(db: DbSessionFactory, pair: _Pair) -> str:
     """The fingerprint the scheduler would compute for this pair right now."""
     from sqlalchemy.orm import with_polymorphic

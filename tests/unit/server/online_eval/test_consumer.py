@@ -3057,8 +3057,6 @@ async def test_every_evaluator_output_is_matched_on_its_own(
 ) -> None:
     """A rule authored against a two-output evaluator's second output must be able to
     fire, so each output is matched on its own."""
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
     ingested_at = datetime.now(timezone.utc) - timedelta(minutes=10)
     async with db() as session:
         project = await _add_project(session)
