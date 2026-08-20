@@ -9,11 +9,7 @@ import pytest
 from sqlalchemy import Table, func, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
-    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
-    EVALUATORS_PROJECT_NAME,
-)
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import (
     SUPERSEDED_BY_REQUEST_ERROR,
@@ -1231,12 +1227,6 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
     assert metrics["ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS"].observe.call_count == 3
 
 
-@pytest.fixture
-def session_evaluation_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
-
-
 async def _request(
     db: DbSessionFactory,
     project_session_rowid: int,
@@ -1357,7 +1347,6 @@ async def test_retention_preserves_ambient_success_after_content_advances(
 
 async def test_retention_never_deletes_an_unfulfilled_request(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
 ) -> None:
     project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     _, criteria_id = await _seed_criteria(
@@ -1383,7 +1372,6 @@ async def test_retention_never_deletes_an_unfulfilled_request(
 )
 async def test_requested_evaluation_displaces_a_declined_decision(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
     force: bool,
     expected_origin: str,
 ) -> None:
@@ -1423,7 +1411,6 @@ async def test_requested_evaluation_displaces_a_declined_decision(
 @pytest.mark.parametrize("force", [False, True])
 async def test_evaluated_pair_answers_a_rule_request_but_not_a_forced_one(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
     force: bool,
 ) -> None:
     """A finished evaluation is the loop brake, and forcing is what may unsettle it."""
@@ -1452,7 +1439,6 @@ async def test_evaluated_pair_answers_a_rule_request_but_not_a_forced_one(
 @pytest.mark.parametrize("force", [False, True])
 async def test_request_waits_for_running_work_instead_of_adopting_it(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
     force: bool,
 ) -> None:
     """Work that can still produce a result is waited for, never adopted or duplicated.
@@ -1495,7 +1481,6 @@ async def test_request_waits_for_running_work_instead_of_adopting_it(
 
 async def test_requested_work_carries_the_fingerprint_resolved_at_sweep_time(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
 ) -> None:
     project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     _, criteria_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
@@ -1521,7 +1506,6 @@ async def test_requested_work_carries_the_fingerprint_resolved_at_sweep_time(
 
 async def test_sweep_acknowledges_only_the_generation_its_eligibility_read_carried(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A request that arrives after the eligibility read is a later generation.
@@ -1558,7 +1542,6 @@ async def test_sweep_acknowledges_only_the_generation_its_eligibility_read_carri
 @pytest.mark.postgres_only
 async def test_result_committed_during_a_sweep_suppresses_the_requested_insert(
     postgresql_engine: AsyncEngine,
-    session_evaluation_enabled: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The brake is re-tested by the insert statement, not trusted from the earlier read.
@@ -1616,7 +1599,6 @@ async def test_result_committed_during_a_sweep_suppresses_the_requested_insert(
 )
 async def test_a_forced_request_passes_the_filter_a_rule_request_waits_behind(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
     force: bool,
     expected_work: list[str],
 ) -> None:
@@ -1651,7 +1633,6 @@ async def test_a_forced_request_passes_the_filter_a_rule_request_waits_behind(
 
 async def test_a_pair_carrying_an_unfulfilled_request_yields_one_decision(
     db: DbSessionFactory,
-    session_evaluation_enabled: None,
 ) -> None:
     """The ambient and triggered origins never claim the same pair.
 

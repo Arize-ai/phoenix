@@ -8,10 +8,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
-from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
-    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
-)
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.online_eval.derivation import STALE_FINGERPRINT_ERROR
@@ -44,9 +40,8 @@ query($id: ID!, $projectEvaluatorId: ID!) {
 
 
 @pytest.fixture(autouse=True)
-def session_evaluation_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
+async def stop_online_eval_runtime(app: Any, gql_client: AsyncGraphQLClient) -> None:
+    await app.state.online_eval_runtime.stop()
 
 
 @dataclass(frozen=True)
@@ -298,28 +293,6 @@ async def test_requesting_an_evaluation_for_a_session_with_no_spans_is_refused(
     )
     assert result.errors
     assert "has not ingested any spans" in result.errors[0].message
-    assert await _request_count(db) == 0
-
-
-async def test_requesting_an_evaluation_is_refused_while_session_evaluation_is_off(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    pair = await _quiet_pair(db)
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "false")
-
-    result = await gql_client.execute(
-        _REQUEST,
-        {
-            "input": {
-                "projectSessionId": pair.project_session_id,
-                "projectEvaluatorId": pair.project_evaluator_id,
-            }
-        },
-    )
-    assert result.errors
-    assert "Session evaluation is turned off" in result.errors[0].message
     assert await _request_count(db) == 0
 
 

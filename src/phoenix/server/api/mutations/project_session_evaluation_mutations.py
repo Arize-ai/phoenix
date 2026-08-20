@@ -4,7 +4,6 @@ import strawberry
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.config import get_env_online_eval_enabled, get_env_online_eval_session_enabled
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -23,13 +22,7 @@ from phoenix.server.online_eval.requests import (
     request_evaluation,
 )
 
-SESSION_EVALUATION_UNAVAILABLE = (
-    "Session evaluation is turned off on this server. Set PHOENIX_ONLINE_EVAL_ENABLED and "
-    "PHOENIX_ONLINE_EVAL_SESSION_ENABLED to true to turn it back on."
-)
-
 _REJECTION_MESSAGES: dict[RequestRejection, str] = {
-    RequestRejection.RUNTIME_DISABLED: SESSION_EVALUATION_UNAVAILABLE,
     RequestRejection.CRITERIA_NOT_FOUND: "Project evaluator not found.",
     RequestRejection.CRITERIA_TARGET_MISMATCH: (
         "This evaluator does not evaluate sessions. Only an evaluator whose evaluation target "
@@ -53,12 +46,6 @@ _NOT_FOUND_REJECTIONS = frozenset(
 _BAD_REQUEST_REJECTIONS = frozenset(
     (RequestRejection.CRITERIA_TARGET_MISMATCH, RequestRejection.PROJECT_MISMATCH)
 )
-
-
-def raise_if_session_evaluation_unavailable() -> None:
-    """Refuse to record anything the session arm would never act on."""
-    if not (get_env_online_eval_enabled() and get_env_online_eval_session_enabled()):
-        raise Conflict(SESSION_EVALUATION_UNAVAILABLE)
 
 
 @strawberry.input

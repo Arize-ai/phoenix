@@ -1,13 +1,11 @@
-"""End-to-end wiring tests for the online-eval runtime behind
-``PHOENIX_ONLINE_EVAL_ENABLED``: the enabled app composes one runtime owning the
-producer, both consumers, and the session sweeper, and a seeded criteria flows all
-the way to a published evaluation.
+"""End-to-end wiring tests for the online-eval runtime: a writable app composes one
+runtime owning the producer, both consumers, and the session sweeper, and a seeded
+criteria flows all the way to a published evaluation.
 """
 
 import asyncio
 from contextlib import AsyncExitStack
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import pytest
 from asgi_lifespan import LifespanManager
@@ -16,13 +14,10 @@ from sqlalchemy import select, update
 
 from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
-    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
-    ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
     ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
     ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
-    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
 )
 from phoenix.db import models
 from phoenix.db.insertion.annotation import insert_annotations
@@ -67,12 +62,6 @@ def _runtime(db: DbSessionFactory, *, read_only: bool = False) -> OnlineEvalRunt
     runtime = app.state.online_eval_runtime
     assert isinstance(runtime, OnlineEvalRuntime)
     return runtime
-
-
-def _enable_online_eval(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS, "0")
 
 
 def _record_stop(
@@ -153,51 +142,9 @@ async def _session_annotations(db: DbSessionFactory) -> list[models.ProjectSessi
         return list(await session.scalars(select(models.ProjectSessionAnnotation)))
 
 
-async def test_online_eval_daemons_absent_by_default(db: DbSessionFactory) -> None:
-    runtime = _runtime(db)
-    assert runtime.daemons == ()
-
-
-async def test_online_eval_daemons_absent_in_read_only_mode(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
-
+async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory) -> None:
     runtime = _runtime(db, read_only=True)
     assert runtime.daemons == ()
-
-
-@pytest.mark.parametrize(
-    ("session_enabled", "session_daemons_expected"),
-    [
-        pytest.param(None, True, id="on-by-default"),
-        pytest.param("false", False, id="opted-out"),
-    ],
-)
-async def test_session_evaluation_runs_unless_it_is_turned_off(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-    session_enabled: Optional[str],
-    session_daemons_expected: bool,
-) -> None:
-    """Session evaluation follows the master gate unless its own flag turns it off, and
-    every part of its lifecycle follows that flag together.
-    """
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    if session_enabled is None:
-        monkeypatch.delenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, raising=False)
-    else:
-        monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, session_enabled)
-
-    runtime = _runtime(db)
-    assert isinstance(runtime.producer, OnlineEvalProducer)
-    if session_daemons_expected:
-        assert isinstance(runtime.session_sweeper, SessionEvalSweeper)
-        assert isinstance(runtime.session_consumer, OnlineEvalConsumer)
-    else:
-        assert runtime.session_sweeper is None
-        assert runtime.session_consumer is None
 
 
 @pytest.mark.parametrize(
@@ -225,13 +172,12 @@ async def test_session_evaluation_runs_unless_it_is_turned_off(
         ),
     ],
 )
-async def test_enabled_app_validates_session_byte_limits_at_startup(
+async def test_writable_app_validates_session_byte_limits_at_startup(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
     env_name: str,
     value: str,
 ) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
     monkeypatch.setenv(env_name, value)
 
     with pytest.raises(ValueError, match=env_name):
@@ -241,7 +187,6 @@ async def test_enabled_app_validates_session_byte_limits_at_startup(
 async def test_a_failed_start_stops_the_daemons_it_already_started(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _enable_online_eval(monkeypatch)
     runtime = _runtime(db)
     *started, failing = runtime.daemons
     stopped: list[DaemonTask] = []
@@ -260,10 +205,7 @@ async def test_a_failed_start_stops_the_daemons_it_already_started(
     assert not any(daemon._tasks for daemon in runtime.daemons)
 
 
-async def test_shutdown_stops_every_daemon_and_repeats_harmlessly(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _enable_online_eval(monkeypatch)
+async def test_shutdown_stops_every_daemon_and_repeats_harmlessly(db: DbSessionFactory) -> None:
     runtime = _runtime(db)
 
     await runtime.start()
@@ -275,11 +217,9 @@ async def test_shutdown_stops_every_daemon_and_repeats_harmlessly(
     await runtime.stop()
 
 
-async def test_enabled_app_runs_seeded_criteria_end_to_end(
+async def test_writable_app_runs_seeded_criteria_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE, "3")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, "4")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, "5")
@@ -386,7 +326,6 @@ async def test_an_annotation_drives_a_session_evaluation_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A REST annotation reaches a published session evaluation."""
-    _enable_online_eval(monkeypatch)
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
@@ -443,7 +382,6 @@ async def test_a_published_span_evaluation_drives_a_session_evaluation_end_to_en
     """A span evaluator's annotation reaches a published session evaluation through the
     composed runtime: span consumer -> sweeper -> session consumer.
     """
-    _enable_online_eval(monkeypatch)
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
@@ -521,7 +459,6 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
     satisfy — so it stays unfulfilled and says why, rather than being declined. When the
     second lands the pair evaluates, once.
     """
-    _enable_online_eval(monkeypatch)
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:

@@ -16,7 +16,6 @@ from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
-from phoenix.config import get_env_online_eval_enabled, get_env_online_eval_session_enabled
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -25,7 +24,6 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 class RequestRejection(Enum):
     """Why an evaluation could not be requested."""
 
-    RUNTIME_DISABLED = "runtime_disabled"
     CRITERIA_NOT_FOUND = "criteria_not_found"
     CRITERIA_TARGET_MISMATCH = "criteria_target_mismatch"
     SESSION_NOT_FOUND = "session_not_found"
@@ -122,9 +120,6 @@ async def request_evaluations(
     asks = tuple(asks)
     if not asks:
         return BatchRequestOutcome((), ())
-    if not (get_env_online_eval_enabled() and get_env_online_eval_session_enabled()):
-        rejected = tuple(RejectedAsk(ask, RequestRejection.RUNTIME_DISABLED) for ask in asks)
-        return BatchRequestOutcome((), rejected)
 
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     criteria = await _read_criteria(session, {ask.criteria_id for ask in asks}, dialect)
@@ -272,6 +267,21 @@ async def _read_sessions(
     project_session_rowids: Iterable[int],
     dialect: SupportedSQLDialect,
 ) -> dict[int, _SessionFacts]:
+    stmt = _session_facts_query(project_session_rowids, dialect)
+    return {
+        row.id: _SessionFacts(
+            project_id=row.project_id,
+            content_complete=row.content_complete,
+            last_span_ingested_at=row.last_span_ingested_at,
+        )
+        for row in await session.execute(stmt)
+    }
+
+
+def _session_facts_query(
+    project_session_rowids: Iterable[int],
+    dialect: SupportedSQLDialect,
+) -> Select[Any]:
     stmt = (
         select(
             models.ProjectSession.id,
@@ -284,15 +294,8 @@ async def _read_sessions(
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         # Held against the content-incomplete transition, which locks the same rows.
-        stmt = stmt.with_for_update(key_share=True)
-    return {
-        row.id: _SessionFacts(
-            project_id=row.project_id,
-            content_complete=row.content_complete,
-            last_span_ingested_at=row.last_span_ingested_at,
-        )
-        for row in await session.execute(stmt)
-    }
+        stmt = stmt.with_for_update(read=True, key_share=True)
+    return stmt
 
 
 def _rejection_for(

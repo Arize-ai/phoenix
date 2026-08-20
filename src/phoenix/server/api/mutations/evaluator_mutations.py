@@ -60,9 +60,6 @@ from phoenix.server.api.input_types.AnnotationConfigInput import (
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
-from phoenix.server.api.mutations.project_session_evaluation_mutations import (
-    raise_if_session_evaluation_unavailable,
-)
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.Dataset import Dataset
@@ -2898,7 +2895,6 @@ class ProjectEvaluatorTriggerMutationMixin:
     async def create_project_evaluator_trigger(
         self, info: Info[Context, None], input: CreateProjectEvaluatorTriggerInput
     ) -> ProjectEvaluatorTriggerMutationPayload:
-        raise_if_session_evaluation_unavailable()
         try:
             criteria_id = from_global_id_with_expected_type(
                 input.project_evaluator_id, ProjectEvaluator.__name__
@@ -2958,7 +2954,6 @@ class ProjectEvaluatorTriggerMutationMixin:
     async def patch_project_evaluator_trigger(
         self, info: Info[Context, None], input: PatchProjectEvaluatorTriggerInput
     ) -> ProjectEvaluatorTriggerMutationPayload:
-        raise_if_session_evaluation_unavailable()
         try:
             trigger_id = from_global_id_with_expected_type(
                 input.project_evaluator_trigger_id, ProjectEvaluatorTrigger.__name__

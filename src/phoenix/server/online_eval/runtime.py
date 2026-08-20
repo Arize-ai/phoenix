@@ -1,5 +1,4 @@
-"""Composes the online-eval daemons into a single lifecycle the app can hold. Construction
-follows the same two enable flags `request_evaluations` reads."""
+"""Composes the online-eval daemons into a single lifecycle the app can hold."""
 
 from __future__ import annotations
 

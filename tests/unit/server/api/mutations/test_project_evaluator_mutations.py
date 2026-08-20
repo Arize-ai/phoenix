@@ -5,11 +5,7 @@ import pytest
 from sqlalchemy import bindparam, func, select, text
 from strawberry.relay import GlobalID
 
-from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
-    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
-    EVALUATORS_PROJECT_NAME,
-)
+from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.mutations.evaluator_mutations import MAX_PROJECT_EVALUATOR_TRIGGERS
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -1324,12 +1320,6 @@ query($id: ID!) {{
 """
 
 
-@pytest.fixture
-def session_evaluation_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
-
-
 async def _add_session_project_evaluator(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
@@ -1373,7 +1363,6 @@ async def test_project_evaluator_trigger_crud(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
-    session_evaluation_enabled: None,
 ) -> None:
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
     create_input = {
@@ -1448,7 +1437,6 @@ async def test_invalid_sibling_predicates_do_not_block_trigger_mutations(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
-    session_evaluation_enabled: None,
 ) -> None:
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
     criteria_id = from_global_id_with_expected_type(
@@ -1501,7 +1489,6 @@ async def test_project_evaluator_trigger_limit_is_refused(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
-    session_evaluation_enabled: None,
 ) -> None:
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
     criteria_id = from_global_id_with_expected_type(
@@ -1538,7 +1525,6 @@ async def test_omitting_a_predicate_object_keeps_it_and_nulling_it_matches_every
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
-    session_evaluation_enabled: None,
 ) -> None:
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
     create_result = await gql_client.execute(
@@ -1579,35 +1565,10 @@ async def test_omitting_a_predicate_object_keeps_it_and_nulling_it_matches_every
     assert reread["annotationPredicates"] is None
 
 
-async def test_creating_a_trigger_is_refused_while_session_evaluation_is_off(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-    sandbox_config: models.SandboxConfig,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "false")
-    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
-
-    result = await gql_client.execute(
-        _CREATE_TRIGGER,
-        {
-            "input": {
-                "projectEvaluatorId": project_evaluator_id,
-                "eventKind": "ANNOTATION_UPSERTED",
-            }
-        },
-    )
-    assert result.errors
-    assert "Session evaluation is turned off" in result.errors[0].message
-    assert await _trigger_count(db) == 0
-
-
 async def test_create_project_evaluator_trigger_refuses_a_non_session_evaluator(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
-    session_evaluation_enabled: None,
 ) -> None:
     # Only SESSION evaluators are ever loaded as trigger rules, so a trigger on any other
     # target would be inert while every surface still reported it as live.
@@ -1638,7 +1599,6 @@ async def test_deleting_a_watched_project_evaluator_leaves_the_watching_trigger_
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
-    session_evaluation_enabled: None,
 ) -> None:
     """Watching another evaluator is a predicate on an annotation name, not a reference.
 
@@ -1685,7 +1645,6 @@ async def test_create_project_evaluator_trigger_refuses_a_score_window_nothing_f
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
-    session_evaluation_enabled: None,
 ) -> None:
     # Both bounds are strict and conjoined, so a reversed pair matches no score at all.
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
@@ -1709,7 +1668,6 @@ async def test_a_trigger_is_reachable_as_a_node(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
-    session_evaluation_enabled: None,
 ) -> None:
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
     created = await gql_client.execute(

@@ -5,10 +5,6 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
-    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
-)
 from phoenix.db import models
 from phoenix.db.insertion import annotation as annotation_module
 from phoenix.db.insertion.annotation import upsert_annotations
@@ -24,12 +20,6 @@ from ..test_session_sweeper import _add_session_liveness, _seed_criteria
 from .test_rules import _add_criteria, _add_trigger
 
 _CLAIMED_BY = "consumer"
-
-
-@pytest.fixture(autouse=True)
-def session_evaluation_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
 
 
 async def _add_live_session(
@@ -265,20 +255,6 @@ async def test_rules_sharing_a_criteria_ask_once_per_annotation(db: DbSessionFac
 
     (request,) = await _requests(db)
     assert request.requested_generation == 3
-
-
-async def test_a_disabled_runtime_asks_for_nothing(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _, _, span = await _seed_rule_and_span(db)
-
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "false")
-    await _annotate(db, span.id)
-
-    assert await _requests(db) == []
-    async with db() as session:
-        assert await session.scalar(select(models.SpanAnnotation.id)) is not None
 
 
 _A_ANNOTATION = "helpfulness"

@@ -3,14 +3,11 @@ from datetime import datetime, timezone
 from secrets import token_hex
 
 import pytest
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_ENABLED,
-    ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED,
-)
 from phoenix.db import models
-from phoenix.db.helpers import mark_session_content_incomplete
+from phoenix.db.helpers import SupportedSQLDialect, mark_session_content_incomplete
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.utils import delete_traces
 from phoenix.server.app import _db
@@ -19,6 +16,7 @@ from phoenix.server.online_eval.requests import (
     EvaluationRequestRejected,
     RequestRejection,
     SessionTarget,
+    _session_facts_query,
     acknowledge_materialization,
     request_evaluation,
     request_evaluations,
@@ -29,10 +27,15 @@ from phoenix.server.types import DbSessionFactory
 from ..._helpers import _add_project, _add_project_session, _add_trace
 
 
-@pytest.fixture(autouse=True)
-def session_evaluation_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_SESSION_ENABLED, "true")
+def test_postgresql_session_facts_query_uses_key_share_lock() -> None:
+    sql = str(
+        _session_facts_query([2, 1], SupportedSQLDialect.POSTGRESQL).compile(
+            dialect=postgresql.dialect(),  # type: ignore[no-untyped-call]
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+
+    assert sql.endswith("ORDER BY project_sessions.id FOR KEY SHARE")
 
 
 @dataclass(frozen=True)
