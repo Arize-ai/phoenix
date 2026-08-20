@@ -1481,6 +1481,38 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/create-a-session</loc>
+    <lastmod>2026-08-20T22:11:42+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-sessions</loc>
+    <lastmod>2026-08-20T22:11:42+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/get-a-session-by-id</loc>
+    <lastmod>2026-08-20T22:11:42+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/update-a-session</loc>
+    <lastmod>2026-08-20T22:11:42+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-session-messages</loc>
+    <lastmod>2026-08-20T22:11:42+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/submit-tool-outputs</loc>
+    <lastmod>2026-08-20T22:11:42+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/compact-a-session</loc>
+    <lastmod>2026-08-20T22:11:42+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/chat-with-a-session</loc>
+    <lastmod>2026-08-20T22:11:42+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
