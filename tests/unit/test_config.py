@@ -194,12 +194,6 @@ class TestGetEnvOnlineEval:
                 1,
             ),
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
-                phoenix_config.get_env_online_eval_max_transcript_bytes,
-                "256",
-                256,
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
                 phoenix_config.get_env_online_eval_max_llm_message_bytes,
                 "1024",
@@ -263,11 +257,6 @@ class TestGetEnvOnlineEval:
                 "0",
             ),
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
-                phoenix_config.get_env_online_eval_max_transcript_bytes,
-                "255",
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
                 phoenix_config.get_env_online_eval_max_llm_message_bytes,
                 "1023",
@@ -292,10 +281,6 @@ class TestGetEnvOnlineEval:
 
     def test_session_size_defaults(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.delenv(
-            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
-            raising=False,
-        )
-        monkeypatch.delenv(
             phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
             raising=False,
         )
@@ -304,7 +289,6 @@ class TestGetEnvOnlineEval:
             raising=False,
         )
 
-        assert phoenix_config.get_env_online_eval_max_transcript_bytes() == 32_768
         assert phoenix_config.get_env_online_eval_max_llm_message_bytes() == 65_536
         assert phoenix_config.get_env_online_eval_max_sandbox_payload_bytes() == 65_536
 

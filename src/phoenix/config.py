@@ -409,11 +409,6 @@ Seconds an online-eval consumer sleeps between claim cycles. Together with
 PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE this bounds per-replica evaluation throughput.
 Defaults to 5.0.
 """
-ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES = "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES"
-"""
-The maximum UTF-8 byte size of the default transcript supplied to session evaluators.
-Defaults to 32768.
-"""
 ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
 """
 The maximum aggregate UTF-8 byte size of rendered messages sent by an online LLM evaluator.
@@ -3706,22 +3701,6 @@ def get_env_online_eval_consumer_tick_interval_seconds() -> float:
             f"{seconds}. Value must be a finite positive number."
         )
     return seconds
-
-
-def get_env_online_eval_max_transcript_bytes() -> int:
-    """Get the session transcript cap, whose minimum is 256 UTF-8 bytes.
-
-    The cap bounds only the rendered ``input`` string. Structured ``turns`` values used
-    by explicit mappings are not truncated.
-    """
-    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES, 32_768)
-    if max_bytes < 256:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES}: "
-            f"{max_bytes}. Value must be an integer of at least 256."
-        )
-    return max_bytes
 
 
 def get_env_online_eval_max_llm_message_bytes() -> int:

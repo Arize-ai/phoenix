@@ -83,9 +83,9 @@ from phoenix.config import (
     get_env_online_eval_consumer_tick_interval_seconds,
     get_env_online_eval_max_db_concurrency,
     get_env_online_eval_max_evaluator_concurrency,
+    get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_outstanding,
     get_env_online_eval_max_sandbox_payload_bytes,
-    get_env_online_eval_max_transcript_bytes,
     get_env_online_eval_pending_ttl_seconds,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
@@ -1110,7 +1110,7 @@ def create_app(
                 claim_batch_size,
                 tick_interval_seconds,
             )
-        get_env_online_eval_max_transcript_bytes()
+        get_env_online_eval_max_llm_message_bytes()
         get_env_online_eval_max_sandbox_payload_bytes()
         evaluator_semaphore = asyncio.Semaphore(get_env_online_eval_max_evaluator_concurrency())
         db_semaphore = asyncio.Semaphore(get_env_online_eval_max_db_concurrency())

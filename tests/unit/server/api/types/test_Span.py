@@ -265,6 +265,7 @@ async def test_span_fields(
             db_span,
             trace_id=db_traces[db_span.trace_rowid].trace_id,
         )
+        assert set(span["evaluationContext"]) == {"input", "output", "span"}
         assert span["evaluationContext"] == _as_stored(expected_context)
         assert span["evaluationBoundVariables"] == span_bound_variables(expected_context["span"])
         assert isinstance(span["attributes"], str) and span["attributes"]

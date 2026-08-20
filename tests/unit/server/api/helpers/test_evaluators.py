@@ -1114,8 +1114,8 @@ class TestCastTemplateVariableTypes:
         )
         assert result == {"count": "42"}
 
-    def test_converts_list_to_string(self) -> None:
-        template_variables = {"items": [1, 2, 3]}
+    def test_serializes_list_as_json(self) -> None:
+        template_variables = {"items": [1, 2, None]}
         input_schema = {
             "type": "object",
             "properties": {"items": {"type": "string"}},
@@ -1124,10 +1124,10 @@ class TestCastTemplateVariableTypes:
             template_variables=template_variables,
             input_schema=input_schema,
         )
-        assert result == {"items": "[1, 2, 3]"}
+        assert result == {"items": "[1, 2, null]"}
 
-    def test_converts_dict_to_string(self) -> None:
-        template_variables = {"data": {"key": "value"}}
+    def test_serializes_dict_as_json(self) -> None:
+        template_variables = {"data": {"key": "value", "missing": None, "flag": True}}
         input_schema = {
             "type": "object",
             "properties": {"data": {"type": "string"}},
@@ -1136,7 +1136,7 @@ class TestCastTemplateVariableTypes:
             template_variables=template_variables,
             input_schema=input_schema,
         )
-        assert result == {"data": "{'key': 'value'}"}
+        assert result == {"data": '{"key": "value", "missing": null, "flag": true}'}
 
     def test_converts_none_to_string(self) -> None:
         template_variables = {"value": None}
