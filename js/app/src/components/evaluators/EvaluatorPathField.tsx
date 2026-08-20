@@ -13,6 +13,7 @@ import { DSLFilterConditionField } from "@phoenix/components/filter/DSLFilterCon
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { classNames } from "@phoenix/utils/classNames";
 
+import type { EvaluatorSlotSuggestedPathLike } from "./evaluatorPathCompletions";
 import {
   getEvaluatorPathCompletions,
   resolveEvaluatorPath,
@@ -174,7 +175,7 @@ function createEvaluatorPathCompletionSource({
 }: {
   source: Record<string, unknown>;
   rootToken: string;
-  suggestedPaths: readonly string[];
+  suggestedPaths: readonly EvaluatorSlotSuggestedPathLike[];
 }): CompletionSource {
   return (context: CompletionContext) => {
     const result = getEvaluatorPathCompletions({
@@ -195,6 +196,9 @@ function createEvaluatorPathCompletionSource({
       options: result.completions.map((completion, index) => ({
         label: completion.key,
         detail: completion.preview,
+        // What a suggestion reaches, shown beside the highlighted row — the
+        // same slot the filter box's suggestion hints render through.
+        info: completion.description,
         type: "property",
         // Suggestions keep their configured order — the plain narrowing
         // first, the deeper cuts after — instead of sorting alphabetically.

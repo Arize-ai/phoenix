@@ -168,9 +168,17 @@ export type EvaluatorPathCompletion = {
   preview: string;
   /** Which group the row sits under. */
   section: EvaluatorPathCompletionSection;
+  /** One line on what a suggested path reaches, shown when highlighted. */
+  description?: string;
 };
 
 export type EvaluatorPathCompletionSection = "suggested" | "members";
+
+/** What a pinned suggestion supplies: the path and its one-line description. */
+export type EvaluatorSlotSuggestedPathLike = {
+  path: string;
+  description: string;
+};
 
 export type EvaluatorPathCompletionResult = {
   /** Document offset the typeahead matches and replaces from. */
@@ -199,7 +207,7 @@ export function getEvaluatorPathCompletions({
   /** The mapping source a path is resolved against. */
   source: Record<string, unknown>;
   rootToken: string;
-  suggestedPaths?: readonly string[];
+  suggestedPaths?: readonly EvaluatorSlotSuggestedPathLike[];
   textBeforeCursor: string;
 }): EvaluatorPathCompletionResult | null {
   const cursor = getEvaluatorPathCursor(textBeforeCursor);
@@ -220,7 +228,7 @@ export function getEvaluatorPathCompletions({
   const isBrowsing = cursor.partial === "";
   const suggested: EvaluatorPathCompletion[] = [];
   if (isRoot) {
-    for (const relativePath of suggestedPaths) {
+    for (const { path: relativePath, description } of suggestedPaths) {
       const path = `${rootToken}.${relativePath}`;
       const resolution = resolveEvaluatorPath({ source, path });
       if (resolution.status === "resolved") {
@@ -229,6 +237,7 @@ export function getEvaluatorPathCompletions({
           path,
           preview: toMemberPreview(resolution.value),
           section: "suggested",
+          description,
         });
       }
     }

@@ -41,6 +41,11 @@ import {
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import {
+  EVALUATOR_SLOT_NAMES,
+  getEvaluatorSlotDefault,
+  type EvaluatorSlotName,
+} from "@phoenix/components/evaluators/evaluatorSlotDefaults";
+import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
@@ -1184,6 +1189,7 @@ function RecordedRunRow({
                       {BOUND_VARIABLES_PLACEMENT === "scope-panel" ? (
                         <ProjectEvaluatorBoundVariables
                           grain={recordNoun === "session" ? "session" : "span"}
+                          showHeading={false}
                         />
                       ) : null}
                     </Flex>
@@ -1302,6 +1308,8 @@ type BindingRow = {
   keyword: string;
   /** Set only for explicit path mappings. */
   path?: string;
+  /** A default with no path — described in prose, never in path notation. */
+  derivedAnnotation?: string;
   value: unknown;
 };
 
@@ -1340,14 +1348,39 @@ function BindingPreview({
     source,
   }: ProjectEvaluatorMappingDiagnostic): unknown =>
     source === "record" ? boundVariables[path] : getValueAtPath(context, path);
-  const automaticRows: BindingRow[] = diagnostics
-    .filter(({ status, source }) => status === "resolved" && source !== "path")
-    .map((diagnostic) => ({
-      keyword: diagnostic.variable,
-      value: resolvedValue(diagnostic),
-    }));
+  const grain = recordNoun === "session" ? "session" : "span";
+  // The canonical slots always lead, each reflecting the mapping in force:
+  // an explicit path when one is set, the slot's default otherwise. A slot
+  // with no mapping and no default (metadata) binds nothing and shows no row.
+  const slotRows: BindingRow[] = EVALUATOR_SLOT_NAMES.flatMap((slotName) => {
+    const path = pathMapping[slotName];
+    if (path) {
+      return [
+        { keyword: slotName, path, value: getValueAtPath(context, path) },
+      ];
+    }
+    const slotDefault = getEvaluatorSlotDefault(grain, slotName);
+    if (slotDefault === null) {
+      return [];
+    }
+    const value = isStringKeyedObject(context) ? context[slotName] : undefined;
+    return [
+      slotDefault.kind === "path"
+        ? { keyword: slotName, path: slotDefault.path, value }
+        : {
+            keyword: slotName,
+            derivedAnnotation: slotDefault.description,
+            value,
+          },
+    ];
+  });
   const mappedRows: BindingRow[] = diagnostics
-    .filter(({ status, source }) => status === "resolved" && source === "path")
+    .filter(
+      ({ status, source, variable }) =>
+        status === "resolved" &&
+        source === "path" &&
+        !EVALUATOR_SLOT_NAMES.includes(variable as EvaluatorSlotName)
+    )
     .map((diagnostic) => ({
       keyword: diagnostic.variable,
       path: diagnostic.path,
@@ -1364,7 +1397,7 @@ function BindingPreview({
           Values fill in once this project has a {recordNoun} that matches.
         </Alert>
       ) : null}
-      {[...automaticRows, ...mappedRows].map((row) => (
+      {[...slotRows, ...mappedRows].map((row) => (
         <BindingPreviewRow
           key={row.keyword}
           row={row}
@@ -1376,11 +1409,7 @@ function BindingPreview({
           }
         />
       ))}
-      {variables.length === 0 ? (
-        <Text size="S" color="text-500">
-          This evaluator declares no recognizable inputs.
-        </Text>
-      ) : null}
+
       {diagnostics.map(({ variable, path, status, source }) =>
         status === "missing" ? (
           <Alert
@@ -1435,6 +1464,10 @@ function BindingPreviewRow({
         <code className="binding-row__keyword">{row.keyword}</code>
         {row.path ? (
           <code className="binding-row__path">← {row.path}</code>
+        ) : row.derivedAnnotation ? (
+          <span className="binding-row__path binding-row__path--derived">
+            ← {row.derivedAnnotation}
+          </span>
         ) : null}
         {isExpanded ? null : (
           <span className="binding-row__value">
@@ -1490,6 +1523,10 @@ const bindingRowCSS = css`
     font-size: var(--global-font-size-xs);
     font-weight: 600;
     color: var(--global-text-color-900);
+  }
+  .binding-row__path--derived {
+    font-family: var(--global-font-family-sans);
+    font-style: italic;
   }
   .binding-row__path {
     flex: none;
