@@ -143,6 +143,12 @@ export function getEvaluatorPathCursor(
  * branch to drill into rather than a value to read.
  */
 function toMemberPreview(value: unknown): string {
+  if (value == null) {
+    // A field with no value has nothing to preview; the name alone reads
+    // cleaner than a column of "null" — which matters most when the record
+    // is the generic no-values skeleton.
+    return "";
+  }
   if (Array.isArray(value)) {
     return `list · ${value.length}`;
   }
