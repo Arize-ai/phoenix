@@ -32,21 +32,18 @@ import { createPatchExperimentClientAction } from "@phoenix/agent/tools/patchExp
 import { createAddSpansToDatasetClientAction } from "@phoenix/agent/tools/spansToDataset";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
-import { registerUIOperation, unregisterUIOperation } from "./catalog";
+import { registerUIOperations } from "./catalog";
 import {
-  annotationConfigOperations,
   createAnnotationConfigOperation,
   updateAnnotationConfigOperation,
 } from "./operations/annotationConfig";
 import {
   createDatasetLabelOperation,
-  datasetLabelOperations,
   deleteDatasetLabelsOperation,
   setDatasetLabelsOperation,
 } from "./operations/datasetLabels";
 import {
   createDatasetSplitOperation,
-  datasetSplitOperations,
   deleteDatasetSplitsOperation,
   patchDatasetSplitOperation,
   setDatasetExampleSplitsOperation,
@@ -55,32 +52,14 @@ import {
   addDatasetExamplesOperation,
   addSpansToDatasetOperation,
   createDatasetOperation,
-  datasetWriteOperations,
   deleteDatasetExamplesOperation,
   deleteDatasetOperation,
   patchDatasetExamplesOperation,
   patchDatasetOperation,
 } from "./operations/datasetWrites";
-import {
-  experimentOperations,
-  patchExperimentOperation,
-} from "./operations/experiment";
-import {
-  navigationGoToOperation,
-  navigationOperations,
-} from "./operations/navigation";
-import { batchSpanAnnotateOperation, spanOperations } from "./operations/spans";
-
-/** Every operation family registered at the root, for unmount cleanup. */
-const rootUIOperations = [
-  ...datasetWriteOperations,
-  ...datasetSplitOperations,
-  ...datasetLabelOperations,
-  ...annotationConfigOperations,
-  ...experimentOperations,
-  ...spanOperations,
-  ...navigationOperations,
-];
+import { patchExperimentOperation } from "./operations/experiment";
+import { navigationGoToOperation } from "./operations/navigation";
+import { batchSpanAnnotateOperation } from "./operations/spans";
 
 /**
  * Registers the UI operations that are not tied to any page's UI surface —
@@ -106,112 +85,95 @@ export function RootUIOperationsRegistration() {
     pathRef.current = location.pathname;
   }, [navigate, location.pathname]);
 
-  useEffect(() => {
-    registerUIOperation({
-      agentStore,
-      descriptor: createDatasetOperation,
-      handler: createCreateDatasetClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: patchDatasetOperation,
-      handler: createPatchDatasetClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: deleteDatasetOperation,
-      handler: createDeleteDatasetClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: addDatasetExamplesOperation,
-      handler: createAddDatasetExamplesClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: patchDatasetExamplesOperation,
-      handler: createPatchDatasetExamplesClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: deleteDatasetExamplesOperation,
-      handler: createDeleteDatasetExamplesClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: addSpansToDatasetOperation,
-      handler: createAddSpansToDatasetClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: createDatasetSplitOperation,
-      handler: createCreateDatasetSplitClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: setDatasetExampleSplitsOperation,
-      handler: createSetDatasetExampleSplitsClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: patchDatasetSplitOperation,
-      handler: createPatchDatasetSplitClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: deleteDatasetSplitsOperation,
-      handler: createDeleteDatasetSplitsClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: createDatasetLabelOperation,
-      handler: createCreateDatasetLabelClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: setDatasetLabelsOperation,
-      handler: createSetDatasetLabelsClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: deleteDatasetLabelsOperation,
-      handler: createDeleteDatasetLabelsClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: createAnnotationConfigOperation,
-      handler: createCreateAnnotationConfigClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: updateAnnotationConfigOperation,
-      handler: createUpdateAnnotationConfigClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: patchExperimentOperation,
-      handler: createPatchExperimentClientAction({ agentStore }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: batchSpanAnnotateOperation,
-      handler: createBatchSpanAnnotateClientAction({ agentStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: navigationGoToOperation,
-      handler: createNavigationGoToClientAction({
+  useEffect(
+    () =>
+      registerUIOperations({
         agentStore,
-        navigate: (path) => navigateRef.current(path),
-        getCurrentPath: () => pathRef.current,
+        operations: [
+          {
+            descriptor: createDatasetOperation,
+            handler: createCreateDatasetClientAction({ agentStore }),
+          },
+          {
+            descriptor: patchDatasetOperation,
+            handler: createPatchDatasetClientAction({ agentStore }),
+          },
+          {
+            descriptor: deleteDatasetOperation,
+            handler: createDeleteDatasetClientAction({ agentStore }),
+          },
+          {
+            descriptor: addDatasetExamplesOperation,
+            handler: createAddDatasetExamplesClientAction({ agentStore }),
+          },
+          {
+            descriptor: patchDatasetExamplesOperation,
+            handler: createPatchDatasetExamplesClientAction({ agentStore }),
+          },
+          {
+            descriptor: deleteDatasetExamplesOperation,
+            handler: createDeleteDatasetExamplesClientAction({ agentStore }),
+          },
+          {
+            descriptor: addSpansToDatasetOperation,
+            handler: createAddSpansToDatasetClientAction({ agentStore }),
+          },
+          {
+            descriptor: createDatasetSplitOperation,
+            handler: createCreateDatasetSplitClientAction({ agentStore }),
+          },
+          {
+            descriptor: setDatasetExampleSplitsOperation,
+            handler: createSetDatasetExampleSplitsClientAction({ agentStore }),
+          },
+          {
+            descriptor: patchDatasetSplitOperation,
+            handler: createPatchDatasetSplitClientAction({ agentStore }),
+          },
+          {
+            descriptor: deleteDatasetSplitsOperation,
+            handler: createDeleteDatasetSplitsClientAction({ agentStore }),
+          },
+          {
+            descriptor: createDatasetLabelOperation,
+            handler: createCreateDatasetLabelClientAction({ agentStore }),
+          },
+          {
+            descriptor: setDatasetLabelsOperation,
+            handler: createSetDatasetLabelsClientAction({ agentStore }),
+          },
+          {
+            descriptor: deleteDatasetLabelsOperation,
+            handler: createDeleteDatasetLabelsClientAction({ agentStore }),
+          },
+          {
+            descriptor: createAnnotationConfigOperation,
+            handler: createCreateAnnotationConfigClientAction({ agentStore }),
+          },
+          {
+            descriptor: updateAnnotationConfigOperation,
+            handler: createUpdateAnnotationConfigClientAction({ agentStore }),
+          },
+          {
+            descriptor: patchExperimentOperation,
+            handler: createPatchExperimentClientAction({ agentStore }),
+          },
+          {
+            descriptor: batchSpanAnnotateOperation,
+            handler: createBatchSpanAnnotateClientAction({ agentStore }),
+          },
+          {
+            descriptor: navigationGoToOperation,
+            handler: createNavigationGoToClientAction({
+              agentStore,
+              navigate: (path) => navigateRef.current(path),
+              getCurrentPath: () => pathRef.current,
+            }),
+          },
+        ],
       }),
-    });
-    return () => {
-      for (const descriptor of rootUIOperations) {
-        unregisterUIOperation({ agentStore, name: descriptor.name });
-      }
-    };
-  }, [agentStore]);
+    [agentStore]
+  );
 
   return null;
 }

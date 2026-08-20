@@ -9,10 +9,7 @@ import React, {
 import { useSearchParams } from "react-router";
 
 import type { SetTimeRangeInput } from "@phoenix/agent/tools/timeRange";
-import {
-  registerUIOperation,
-  unregisterUIOperation,
-} from "@phoenix/agent/UIOperations/catalog";
+import { registerUIOperations } from "@phoenix/agent/UIOperations/catalog";
 import { setTimeRangeOperation } from "@phoenix/agent/UIOperations/operations/setTimeRange";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
@@ -321,14 +318,14 @@ function useRegisterSetTimeRangeClientAction({
     }
   );
 
-  useEffect(() => {
-    registerUIOperation({
-      agentStore,
-      descriptor: setTimeRangeOperation,
-      handler: handleSetTimeRange,
-    });
-    return () => {
-      unregisterUIOperation({ agentStore, name: setTimeRangeOperation.name });
-    };
-  }, [agentStore]);
+  useEffect(
+    () =>
+      registerUIOperations({
+        agentStore,
+        operations: [
+          { descriptor: setTimeRangeOperation, handler: handleSetTimeRange },
+        ],
+      }),
+    [agentStore]
+  );
 }

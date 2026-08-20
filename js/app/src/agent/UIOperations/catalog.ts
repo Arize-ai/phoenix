@@ -63,34 +63,50 @@ const knownUIOperations: UIOperationDescriptor[] = [
  */
 
 /**
- * Register the handler for an operation while its UI surface is mounted.
- * The generic ties the handler's input type to the descriptor's schema, so a
- * mismatched pair is a compile error at the registration site.
+ * One operation to mount: the catalog descriptor paired with the handler that
+ * services it. The generic ties the handler's input type to the descriptor's
+ * schema, so a mismatched pair is a compile error at the registration site.
  */
-export function registerUIOperation<TSchema extends z.ZodType>({
-  agentStore,
-  descriptor,
-  handler,
-}: {
-  agentStore: AgentStore;
+export type UIOperationBinding<TSchema extends z.ZodType = z.ZodType> = {
   descriptor: UIOperationDescriptor<TSchema>;
   handler: UIOperationHandler<z.infer<TSchema>>;
-}): void {
-  // The input type is erased at the store boundary; dispatch re-establishes
-  // it by validating against the descriptor's schema before invoking.
-  const action: AgentClientAction = (input, context) =>
-    handler(input as z.infer<TSchema>, context as UIOperationCallContext);
-  agentStore.getState().registerClientAction(descriptor.name, action);
-}
+};
 
-export function unregisterUIOperation({
+/**
+ * Register the handlers for a batch of operations while their UI surface is
+ * mounted, and return the matching unregister-all cleanup. One surface (the
+ * app root, a page, a dialog) makes one call on mount and calls the returned
+ * function on unmount, so the registered and unregistered sets can never
+ * drift apart. In an effect this collapses to
+ * `useEffect(() => registerUIOperations({ agentStore, operations }), [deps])`.
+ *
+ * The mapped tuple lets each element carry its own schema type, so every
+ * descriptor/handler pair is checked independently.
+ * @param params.agentStore - store whose client-action record hosts handlers
+ * @param params.operations - descriptor/handler pairs to mount together
+ */
+export function registerUIOperations<TSchemas extends readonly z.ZodType[]>({
   agentStore,
-  name,
+  operations,
 }: {
   agentStore: AgentStore;
-  name: string;
-}): void {
-  agentStore.getState().unregisterClientAction(name);
+  operations: { [K in keyof TSchemas]: UIOperationBinding<TSchemas[K]> };
+}): () => void {
+  for (const { descriptor, handler } of operations) {
+    // The input type is erased at the store boundary; dispatch re-establishes
+    // it by validating against the descriptor's schema before invoking.
+    const action: AgentClientAction = (input, context) =>
+      (handler as UIOperationHandler<unknown>)(
+        input,
+        context as UIOperationCallContext
+      );
+    agentStore.getState().registerClientAction(descriptor.name, action);
+  }
+  return () => {
+    for (const { descriptor } of operations) {
+      agentStore.getState().unregisterClientAction(descriptor.name);
+    }
+  };
 }
 
 export function getUIOperationDescriptor(

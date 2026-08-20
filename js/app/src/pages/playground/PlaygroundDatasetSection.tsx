@@ -8,10 +8,7 @@ import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAge
 import { createReadDatasetEvaluatorDefinitionClientAction } from "@phoenix/agent/tools/datasetEvaluatorDefinition";
 import { createOpenDatasetEvaluatorForEditClientAction } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
 import { createSetDatasetEvaluatorSelectionClientAction } from "@phoenix/agent/tools/datasetEvaluatorSelection";
-import {
-  registerUIOperation,
-  unregisterUIOperation,
-} from "@phoenix/agent/UIOperations/catalog";
+import { registerUIOperations } from "@phoenix/agent/UIOperations/catalog";
 import {
   openDatasetEvaluatorForEditOperation,
   readDatasetEvaluatorDefinitionOperation,
@@ -177,48 +174,38 @@ export function PlaygroundDatasetSection({
     editingEvaluatorRef.current = editingEvaluator;
   }, [datasetEvaluators, editingEvaluator]);
 
-  useEffect(() => {
-    registerUIOperation({
-      agentStore,
-      descriptor: selectDatasetEvaluatorsOperation,
-      handler: createSetDatasetEvaluatorSelectionClientAction({
-        getEvaluators: () => evaluatorsRef.current,
-        setSelectedDatasetEvaluatorIds,
+  useEffect(
+    () =>
+      registerUIOperations({
+        agentStore,
+        operations: [
+          {
+            descriptor: selectDatasetEvaluatorsOperation,
+            handler: createSetDatasetEvaluatorSelectionClientAction({
+              getEvaluators: () => evaluatorsRef.current,
+              setSelectedDatasetEvaluatorIds,
+            }),
+          },
+          {
+            descriptor: openDatasetEvaluatorForEditOperation,
+            handler: createOpenDatasetEvaluatorForEditClientAction({
+              agentStore,
+              getEvaluators: () => evaluatorsRef.current,
+              getEditingEvaluator: () => editingEvaluatorRef.current,
+              openEvaluatorForEdit: setEditingEvaluator,
+            }),
+          },
+          {
+            descriptor: readDatasetEvaluatorDefinitionOperation,
+            handler: createReadDatasetEvaluatorDefinitionClientAction({
+              datasetId,
+              getEvaluators: () => evaluatorsRef.current,
+            }),
+          },
+        ],
       }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: openDatasetEvaluatorForEditOperation,
-      handler: createOpenDatasetEvaluatorForEditClientAction({
-        agentStore,
-        getEvaluators: () => evaluatorsRef.current,
-        getEditingEvaluator: () => editingEvaluatorRef.current,
-        openEvaluatorForEdit: setEditingEvaluator,
-      }),
-    });
-    registerUIOperation({
-      agentStore,
-      descriptor: readDatasetEvaluatorDefinitionOperation,
-      handler: createReadDatasetEvaluatorDefinitionClientAction({
-        datasetId,
-        getEvaluators: () => evaluatorsRef.current,
-      }),
-    });
-    return () => {
-      unregisterUIOperation({
-        agentStore,
-        name: selectDatasetEvaluatorsOperation.name,
-      });
-      unregisterUIOperation({
-        agentStore,
-        name: openDatasetEvaluatorForEditOperation.name,
-      });
-      unregisterUIOperation({
-        agentStore,
-        name: readDatasetEvaluatorDefinitionOperation.name,
-      });
-    };
-  }, [agentStore, datasetId]);
+    [agentStore, datasetId]
+  );
 
   // Advertise the roster so the agent can resolve an evaluator name to its id; selectActiveContexts merges it with Playground.tsx's instances.
   const advertisedEvaluatorRoster = useMemo<AgentContext>(
