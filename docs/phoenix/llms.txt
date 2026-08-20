@@ -541,6 +541,17 @@
 - [OpenInference JavaScript](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript): Build custom JS instrumentors with OpenInference semantic conventions
 
 
+### REST API — Agent Sessions
+
+- [Create A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/create-a-session): POST /v1/agent_sessions — start a new PXI agent session
+- [List Sessions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-sessions): GET /v1/agent_sessions — paginate agent sessions
+- [Get A Session By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/get-a-session-by-id): GET /v1/agent_sessions/{session_id} — fetch a single session
+- [Update A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/update-a-session): PATCH /v1/agent_sessions/{session_id} — rename a session or switch its model
+- [List Session Messages](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-session-messages): GET /v1/agent_sessions/{session_id}/messages — page through a session's transcript
+- [Submit Tool Outputs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/submit-tool-outputs): POST /v1/agent_sessions/{session_id}/tool_outputs — return results for pending tool calls
+- [Compact A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/compact-a-session): POST /v1/agent_sessions/{session_id}/compact — summarize older turns into a checkpoint
+- [Chat With A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/chat-with-a-session): POST /v1/agent_sessions/{session_id}/chat — send a turn and stream the agent's response
+
 ### REST API — Annotation Configs
 
 - [List Annotation Configurations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations): GET /v1/annotation_configs — paginate all annotation configurations
