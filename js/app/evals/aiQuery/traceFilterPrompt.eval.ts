@@ -2,7 +2,7 @@ import * as px from "@arizeai/phoenix-client/vitest";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { generateFilterCondition } from "@phoenix/components/filter/ai/generateFilterCondition";
-import { createSessionFilterAIQueryDSL } from "@phoenix/pages/project/sessionFilterDSL";
+import { createTraceFilterAIQueryDSL } from "@phoenix/pages/project/traceFilterDSL";
 
 import { createFilterEquivalenceJudge } from "./equivalenceJudge";
 import {
@@ -13,12 +13,12 @@ import {
 } from "./googleModels";
 import { loadFilterVocabulary } from "./loadFilterVocabulary";
 import { matchesAcceptedExpression } from "./normalizeFilterExpression";
-import { sessionFilterCases } from "./sessionFilterCases";
+import { traceFilterCases } from "./traceFilterCases";
 
 import "./telemetry";
 
 if (!googleApiKey) {
-  describe("AI query session filter prompt", () => {
+  describe("AI query trace filter prompt", () => {
     it.skip("needs GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY) to run", () => {});
   });
 }
@@ -26,20 +26,20 @@ if (!googleApiKey) {
 // Built in beforeAll rather than at module scope: the vocabulary comes from
 // a runtime GraphQL fetch, and top-level await isn't available under this
 // project's module target.
-let sessionFilterAIQueryDSL: ReturnType<typeof createSessionFilterAIQueryDSL>;
+let traceFilterAIQueryDSL: ReturnType<typeof createTraceFilterAIQueryDSL>;
 let judge: ReturnType<typeof createFilterEquivalenceJudge>;
 
 beforeAll(async () => {
-  sessionFilterAIQueryDSL = createSessionFilterAIQueryDSL(
-    googleApiKey ? (await loadFilterVocabulary()).session : []
+  traceFilterAIQueryDSL = createTraceFilterAIQueryDSL(
+    googleApiKey ? (await loadFilterVocabulary()).trace : []
   );
   judge = createFilterEquivalenceJudge({
     model: createGoogleEvalModel(JUDGE_MODEL_ID),
-    dsl: sessionFilterAIQueryDSL,
+    dsl: traceFilterAIQueryDSL,
   });
 });
 
-const rows = sessionFilterCases.map((evalCase) => ({
+const rows = traceFilterCases.map((evalCase) => ({
   id: evalCase.id,
   input: { query: evalCase.query },
   expected: { expression: evalCase.accepted[0], accepted: evalCase.accepted },
@@ -48,14 +48,14 @@ const rows = sessionFilterCases.map((evalCase) => ({
 for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
   const generationModel = createGoogleEvalModel(evalModel.modelId);
   px.describe(
-    `AI query session filter prompt · ${evalModel.modelId}`,
+    `AI query trace filter prompt · ${evalModel.modelId}`,
     () => {
       px.test.each(rows)(
         (row) => row.id ?? row.input.query,
         async ({ input, expected }) => {
           const { expression } = await generateFilterCondition({
             model: generationModel,
-            dsl: sessionFilterAIQueryDSL,
+            dsl: traceFilterAIQueryDSL,
             query: input.query,
           });
           px.logOutput({ expression });
@@ -95,20 +95,20 @@ for (const evalModel of googleApiKey ? GOOGLE_EVAL_MODELS : []) {
       );
     },
     {
-      datasetName: "ai-query-session-filter-prompt",
+      datasetName: "ai-query-trace-filter-prompt",
       description:
-        "Natural-language requests translated into the session filter DSL by the AI query prompt",
+        "Natural-language requests translated into the trace filter DSL by the AI query prompt",
       metadata: {
         model: evalModel.modelId,
         simulates: evalModel.simulates,
-        minPassRate: evalModel.sessionMinPassRate,
+        minPassRate: evalModel.minPassRate,
       },
       acceptanceCriteria: [
         {
           annotationName: "filter_correct",
           metric: "passRate",
           passFn: (annotation) => annotation.score === 1,
-          minPassRate: evalModel.sessionMinPassRate,
+          minPassRate: evalModel.minPassRate,
         },
       ],
     }

@@ -16,21 +16,15 @@ import {
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
+  createSessionFilterAIQueryDSL,
   getSessionFilterLoopVariable,
-  sessionFilterAIQueryDSL,
   sessionFilterSnippets,
   type SessionFilterVocabularyTerm,
 } from "./sessionFilterDSL";
 import { useSessionFilters } from "./SessionFiltersContext";
 import { validateSessionFilterCondition } from "./sessionFilterValidation";
 
-/**
- * Ranks continue past the field's own built-in sections — Recent searches (0),
- * Suggestions (1), loaded (2), Fields (3) — see `DSLFilterConditionField`.
- * Collections rank ahead of Attributes and Annotations: they are core language
- * surface, while the latter two grow with data-derived names and are the right
- * sections to lose to the browse-view cap.
- */
+/** Ranks continue after `DSLFilterConditionField`'s built-in sections (0–3). */
 const vocabularyCategorySections: Record<string, CompletionSection> = {
   session: { name: "Session", rank: 4 },
   aggregate: { name: "Aggregates", rank: 5 },
@@ -39,20 +33,9 @@ const vocabularyCategorySections: Record<string, CompletionSection> = {
   annotation: { name: "Annotations", rank: 8 },
 };
 
-/**
- * Element fields replace the whole dropdown inside a comprehension, so they
- * need only one group of their own.
- */
 const elementFieldsSection: CompletionSection = { name: "Fields", rank: 1 };
 
-/**
- * The example predicate a collection's inserted comprehension starts with, as
- * a selected tab-through placeholder. It must be *valid* — an inserted
- * condition that errors until a blank is filled reads as broken, not as an
- * invitation to edit — and each references its collection's loop variable
- * from `getSessionFilterLoopVariable`. A collection the map doesn't know
- * falls back to a bare `condition` placeholder.
- */
+/** Tab-through placeholders for inserted comprehensions; each must be a valid predicate over its collection's loop variable. */
 const examplePredicates: Partial<Record<string, string>> = {
   spans: "span.latency_ms > 1_000",
   traces: "trace.latency_ms > 10_000",
@@ -77,14 +60,7 @@ function getCompletionOption(term: SessionFilterVocabularyTerm): Completion {
   };
 }
 
-/**
- * A collection completed at the top level of a condition: the bare name would
- * never validate (collections are looped over, not compared), so accepting it
- * inserts a whole `any(… for s in spans)` comprehension with a valid example
- * predicate selected as a tab-through placeholder — overtyping it hands off
- * to element-field completion. The `detail` previews that shape, which is
- * also what tells a browsing user what a collection *is* for.
- */
+/** Bare collection names never validate, so accepting one inserts a full comprehension with an editable example predicate. */
 function getIterableScaffoldCompletion(
   term: SessionFilterVocabularyTerm
 ): Completion {
@@ -102,12 +78,7 @@ function getIterableScaffoldCompletion(
   );
 }
 
-/**
- * A collection completed inside a hand-typed `any(`/`sum(`/… call that has no
- * `for` clause yet: accepting inserts the comprehension body. `len` takes a
- * list comprehension rather than a generator, so its body is bracketed unless
- * the user already opened `len([` themselves.
- */
+/** Inserts a comprehension body into a hand-typed call; `len` takes a list comprehension, so its body is bracketed unless the user already opened `len([`. */
 function getIterableBodyCompletion(
   term: SessionFilterVocabularyTerm,
   call: DSLFilterComprehensionCall
@@ -176,10 +147,6 @@ type SessionFilterConditionFieldProps = {
   placeholder?: string;
 };
 
-const sessionFilterAIQuery: DSLFilterAIQueryProps = {
-  dsl: sessionFilterAIQueryDSL,
-};
-
 export function SessionFilterConditionField(
   props: SessionFilterConditionFieldProps
 ) {
@@ -190,6 +157,16 @@ export function SessionFilterConditionField(
   } = props;
   const { filterCondition, setFilterCondition } = useSessionFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  // An empty vocabulary means the project's terms haven't arrived (the field
+  // renders ahead of them, see the Suspense fallback in SessionsTable), so AI
+  // query waits rather than prompting the model with no field names.
+  const sessionFilterAIQuery = useMemo<DSLFilterAIQueryProps>(
+    () => ({
+      dsl: createSessionFilterAIQueryDSL(vocabulary),
+      isDisabled: vocabulary.length === 0,
+    }),
+    [vocabulary]
+  );
 
   // Element fields are split out of the top-level vocabulary: offering
   // `latency_ms` bare would complete a condition the compiler rejects, since

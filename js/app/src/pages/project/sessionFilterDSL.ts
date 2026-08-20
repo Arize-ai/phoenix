@@ -3,15 +3,11 @@ import type { Completion } from "@codemirror/autocomplete";
 import { createAIQueryDSL } from "@phoenix/components/filter/ai/createAIQueryDSL";
 import type { DSLFilterSnippet } from "@phoenix/components/filter/DSLFilterConditionField";
 
-import {
-  sessionFilterCoreVocabulary,
-  type SessionFilterCoreVocabularyTerm,
-} from "./sessionFilterCoreVocabulary.generated";
-
-export type SessionFilterVocabularyTerm = Omit<
-  SessionFilterCoreVocabularyTerm,
-  "iterableName"
-> & {
+export type SessionFilterVocabularyTerm = {
+  readonly name: string;
+  readonly type: string;
+  readonly description: string;
+  readonly category: string;
   readonly iterableName?: string | null;
 };
 
@@ -19,7 +15,7 @@ export type SessionFilterVocabularyTerm = Omit<
  * The session compiler rejects a bare element name, so element fields are
  * qualified by these loop variables.
  */
-export const sessionFilterLoopVariables: Partial<Record<string, string>> = {
+const sessionFilterLoopVariables: Partial<Record<string, string>> = {
   spans: "span",
   traces: "trace",
   session_annotations: "annotation",
@@ -34,20 +30,31 @@ export function getSessionFilterLoopVariable(iterableName: string): string {
   );
 }
 
-function getAIQueryFieldName(term: SessionFilterCoreVocabularyTerm): string {
+function getSessionFilterAIFieldName(
+  term: SessionFilterVocabularyTerm
+): string {
+  // The vocabulary's placeholder term for arbitrary attribute subscripts is
+  // spelled `attributes[...]`, which the compiler rejects verbatim; teach the
+  // model the writable form instead.
+  if (term.name === "attributes[...]") {
+    return "attributes['key']";
+  }
   if (!term.iterableName) {
     return term.name;
   }
   return `${getSessionFilterLoopVariable(term.iterableName)}.${term.name}`;
 }
 
-const sessionFilterAICompletions: Completion[] =
-  sessionFilterCoreVocabulary.map((term) => ({
-    label: getAIQueryFieldName(term),
+function getSessionFilterAICompletions(
+  vocabulary: readonly SessionFilterVocabularyTerm[]
+): Completion[] {
+  return vocabulary.map((term) => ({
+    label: getSessionFilterAIFieldName(term),
     type: "variable",
     detail: term.type,
     info: term.description,
   }));
+}
 
 export const sessionFilterSnippets: DSLFilterSnippet[] = [
   {
@@ -187,21 +194,25 @@ const sessionFilterAIExamples = [
   },
 ];
 
-export const sessionFilterAIQueryDSL = createAIQueryDSL({
-  noun: "sessions",
-  completions: sessionFilterAICompletions,
-  snippets: sessionFilterSnippets,
-  examples: sessionFilterAIExamples,
-  notes: [
-    "Durations and span or trace latency are in milliseconds. Convert seconds and minutes before comparing.",
-    "start_time, end_time, trace.start_time, and trace.end_time compare against ISO 8601 strings; prefer offset-bearing literals.",
-    "any_input and any_output are containment targets: write 'text' in any_input, not any_input == 'text'. first_input and last_output are string values.",
-    "Use any, all, len, max, min, and sum with Python-style comprehensions. Element fields are qualified by the loop variable, such as span.latency_ms or trace.start_time.",
-    "Guard all with a non-empty check when empty collections should not match, for example len([span for span in spans]) > 0 and all(... for span in spans).",
-    "A trace exposes trace.spans for nested comprehensions over the spans in that trace.",
-    "Project-specific session annotation names and root-span attribute keys are discovered at runtime. Preserve names from the request verbatim in session_annotations['name'], metadata['key'], user.id, or attributes['otel.key']; do not invent near-synonyms.",
-    "attributes string subscripts are OTel wire keys. attributes['llm.model_name'] and attributes['llm']['model_name'] name the same key.",
-    "num_traces is an approximate conversation-turn count only when instrumentation starts one trace per exchange. tool_span_count counts TOOL spans.",
-    "The only helpers are any, all, len, max, min, and sum over comprehensions. sorted(), list indexing, and slicing are not supported — approximate a percentile with max() or a threshold count instead.",
-  ],
-});
+export function createSessionFilterAIQueryDSL(
+  vocabulary: readonly SessionFilterVocabularyTerm[]
+) {
+  return createAIQueryDSL({
+    noun: "sessions",
+    completions: getSessionFilterAICompletions(vocabulary),
+    snippets: sessionFilterSnippets,
+    examples: sessionFilterAIExamples,
+    notes: [
+      "Durations and span or trace latency are in milliseconds. Convert seconds and minutes before comparing.",
+      "start_time, end_time, trace.start_time, and trace.end_time compare against ISO 8601 strings; prefer offset-bearing literals.",
+      "any_input and any_output are containment targets: write 'text' in any_input, not any_input == 'text'. first_input and last_output are string values.",
+      "Use any, all, len, max, min, and sum with Python-style comprehensions. Element fields are qualified by the loop variable, such as span.latency_ms or trace.start_time.",
+      "Guard all with a non-empty check when empty collections should not match, for example len([span for span in spans]) > 0 and all(... for span in spans).",
+      "A trace exposes trace.spans for nested comprehensions over the spans in that trace.",
+      "Project-specific session annotation names and root-span attribute keys are discovered at runtime. Preserve names from the request verbatim in session_annotations['name'], metadata['key'], user.id, or attributes['otel.key']; do not invent near-synonyms.",
+      "attributes string subscripts are OTel wire keys. attributes['llm.model_name'] and attributes['llm']['model_name'] name the same key.",
+      "num_traces is an approximate conversation-turn count only when instrumentation starts one trace per exchange. tool_span_count counts TOOL spans.",
+      "The only helpers are any, all, len, max, min, and sum over comprehensions. sorted(), list indexing, and slicing are not supported — approximate a percentile with max() or a threshold count instead.",
+    ],
+  });
+}
