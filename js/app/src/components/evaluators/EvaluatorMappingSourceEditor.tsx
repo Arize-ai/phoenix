@@ -64,23 +64,16 @@ const SPAN_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"span">[] = [
   {
     field: "input",
     label: "input",
-    description: "From the matched span's input.",
+    description: "The whole matched span.",
     tooltip:
-      "This is the input extracted from the matched span using OpenInference semantic conventions.",
+      "An unmapped input receives the entire span document; a path mapping narrows it to one field.",
   },
   {
     field: "output",
     label: "output",
     description: "From the matched span's output.",
     tooltip:
-      "This is the output extracted from the matched span using OpenInference semantic conventions.",
-  },
-  {
-    field: "metadata",
-    label: "metadata",
-    description: "From the matched span. Span attributes are under attributes.",
-    tooltip:
-      "Span attributes are available for path mapping under metadata.attributes.",
+      "This is the span's output value, extracted using OpenInference semantic conventions.",
   },
 ];
 
@@ -88,22 +81,16 @@ const SESSION_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"session">[] = [
   {
     field: "input",
     label: "input",
-    description: "From the matched session's transcript.",
+    description: "The whole matched session.",
     tooltip:
-      "This is the session's turns, rendered as alternating User and Assistant messages.",
+      "An unmapped input receives the entire session document, including its turns; a path mapping narrows it to one field.",
   },
   {
     field: "output",
     label: "output",
-    description: "From the matched session's last response.",
-    tooltip: "This is the output of the session's final turn.",
-  },
-  {
-    field: "metadata",
-    label: "metadata",
-    description: "From the matched session. Session turns are under turns.",
+    description: "From the matched session's last turn.",
     tooltip:
-      "Session turns are available for path mapping under metadata.turns.",
+      "This is the output of the session's newest turn, null when that turn produced none.",
   },
 ];
 

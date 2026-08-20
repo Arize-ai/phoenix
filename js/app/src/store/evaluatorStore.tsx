@@ -244,9 +244,6 @@ export const SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"span
   {
     input: {},
     output: {},
-    metadata: {
-      attributes: {},
-    },
     span: {},
   };
 
@@ -255,9 +252,6 @@ export const SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"s
   {
     input: "",
     output: "",
-    metadata: {
-      turns: [],
-    },
     session: {},
   };
 
@@ -517,7 +511,7 @@ export const createEvaluatorStore = (
             );
           },
           setEvaluatorMappingSource(evaluatorMappingSource) {
-            const { input, output, metadata } = evaluatorMappingSource;
+            const { input, output } = evaluatorMappingSource;
             const { grain } = get().evaluatorMappingSource;
             // The entity root is grain-named, so a context built for the other
             // grain contributes nothing and leaves the tree empty rather than
@@ -533,7 +527,7 @@ export const createEvaluatorStore = (
               case "span":
                 nextEvaluatorMappingSource = {
                   grain: "span",
-                  source: { input, output, metadata, span: entityRoot("span") },
+                  source: { input, output, span: entityRoot("span") },
                 };
                 break;
               case "session":
@@ -542,7 +536,6 @@ export const createEvaluatorStore = (
                   source: {
                     input,
                     output,
-                    metadata,
                     session: entityRoot("session"),
                   },
                 };
@@ -557,7 +550,11 @@ export const createEvaluatorStore = (
                       "reference" in evaluatorMappingSource
                         ? evaluatorMappingSource.reference
                         : {},
-                    metadata,
+                    metadata:
+                      "metadata" in evaluatorMappingSource &&
+                      isStringKeyedObject(evaluatorMappingSource.metadata)
+                        ? evaluatorMappingSource.metadata
+                        : {},
                   },
                 };
                 break;
