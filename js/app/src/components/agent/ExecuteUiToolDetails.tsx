@@ -21,6 +21,7 @@ import {
   promptToolsSnapshotToText,
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
+import { parseExecuteUiRunOutput } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { ApprovalCard, type ApprovalPreview } from "./ApprovalCard";
@@ -29,6 +30,7 @@ import {
   ToolPartCodeBlock,
   ToolPartExpandableSection,
   ToolPartLabel,
+  ToolPartText,
 } from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
@@ -291,6 +293,43 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
 }
 
 /**
+ * A completed run, rendered for humans rather than as the raw model-facing
+ * text: the status sentence reads as prose, and the JSON return value —
+ * meaningless to most users — is demoted to a syntax-highlighted,
+ * height-collapsed section at the bottom. The script's `log()` lines are
+ * omitted entirely: they are model-authored progress notes for the model's
+ * own next turn (often JSON fragments), not user-facing content. Falls back
+ * to raw text when the output doesn't parse as a run output (e.g. parts
+ * persisted by an older format).
+ */
+function ExecuteUiRunResult({ output }: { output: string }) {
+  const run = parseExecuteUiRunOutput(output);
+  if (run == null) {
+    return (
+      <>
+        <ToolPartLabel>Result</ToolPartLabel>
+        <ToolPartExpandableSection>
+          <ToolPartCodeBlock>{output}</ToolPartCodeBlock>
+        </ToolPartExpandableSection>
+      </>
+    );
+  }
+  return (
+    <>
+      <ToolPartLabel>Result</ToolPartLabel>
+      <ToolPartText>{run.status}</ToolPartText>
+      <ToolPartLabel>Return value</ToolPartLabel>
+      <ToolPartExpandableSection>
+        <LazyToolPartFileView
+          fileName="return-value.json"
+          contents={run.returnValue}
+        />
+      </ToolPartExpandableSection>
+    </>
+  );
+}
+
+/**
  * Details card for one `execute_ui` tool call: the script being run
  * (syntax-highlighted once its input has finished streaming), Accept/Reject
  * cards for any approvals its inner operations staged (each decision resolves
@@ -330,17 +369,14 @@ export function ExecuteUiToolDetails({ part }: { part: ToolInvocationPart }) {
         />
       ))}
       {part.state === "output-available" ? (
-        <>
-          <ToolPartLabel>Result</ToolPartLabel>
-          <ToolPartCodeBlock>
-            {stringifyToolValue(part.output)}
-          </ToolPartCodeBlock>
-        </>
+        <ExecuteUiRunResult output={stringifyToolValue(part.output)} />
       ) : null}
       {part.state === "output-error" ? (
         <>
           <ToolPartLabel variant="danger">Error</ToolPartLabel>
-          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
         </>
       ) : null}
     </div>

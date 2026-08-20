@@ -463,6 +463,20 @@ export interface AgentState extends AgentProps {
   registerClientAction: (name: string, action: AgentClientAction) => void;
   unregisterClientAction: (name: string) => void;
 
+  // -- Chat tool-part open requests --
+  //
+  // Reference counts of open requests per tool-call id. This is the only
+  // programmatic auto-open signal: UI-operation dispatch increments at the
+  // moment a script stages a user-facing approval card — so Accept/Reject
+  // controls are never hidden behind a collapsed disclosure — and decrements
+  // when the user decides, so the card collapses again once nothing awaits
+  // them. Counted (not boolean) because one script can stage several
+  // approvals concurrently. ToolPart layers the user's manual toggle on top,
+  // so a card the user toggled stays as they left it.
+  toolPartOpenRequests: Record<string, number>;
+  requestToolPartOpen: (toolCallId: string) => void;
+  releaseToolPartOpen: (toolCallId: string) => void;
+
   // -- Approval-gated tool proposals advertised by agent tool calls --
   // TODO(pending-tool-rehydration): Replace these tool-specific slices with a
   // generic pending tool state map keyed by toolCallId. The tool registry
@@ -1028,6 +1042,39 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "removeMountedContext" }
+      );
+    },
+
+    toolPartOpenRequests: {},
+    requestToolPartOpen: (toolCallId) => {
+      set(
+        (state) => ({
+          toolPartOpenRequests: {
+            ...state.toolPartOpenRequests,
+            [toolCallId]: (state.toolPartOpenRequests[toolCallId] ?? 0) + 1,
+          },
+        }),
+        false,
+        { type: "requestToolPartOpen" }
+      );
+    },
+    releaseToolPartOpen: (toolCallId) => {
+      set(
+        (state) => {
+          const count = state.toolPartOpenRequests[toolCallId];
+          if (count == null) {
+            return state;
+          }
+          const next = { ...state.toolPartOpenRequests };
+          if (count <= 1) {
+            delete next[toolCallId];
+          } else {
+            next[toolCallId] = count - 1;
+          }
+          return { toolPartOpenRequests: next };
+        },
+        false,
+        { type: "releaseToolPartOpen" }
       );
     },
 

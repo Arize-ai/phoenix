@@ -34,6 +34,7 @@ export async function dispatchUiOperationCall({
   operationName,
   input,
   callId,
+  hostToolCallId,
   agentStore,
   sessionId,
   capabilities,
@@ -46,6 +47,12 @@ export async function dispatchUiOperationCall({
    * interrupt cleanup cancels pending entries by tool-call-id prefix.
    */
   callId: string;
+  /**
+   * The enclosing `execute_ui` tool-call id — the chat card that hosts any
+   * approval this call stages. Dispatch requests that card open when a
+   * user-facing approval is about to appear.
+   */
+  hostToolCallId: string;
 } & UiOperationDispatchContext): Promise<UiOperationResult> {
   const descriptor = getUiOperationDescriptor(operationName);
   if (descriptor == null) {
@@ -96,6 +103,23 @@ export async function dispatchUiOperationCall({
 
   const context: UiOperationCallContext = { callId, sessionId };
 
+  // A user-facing approval card is about to be staged inside the host
+  // execute_ui card: request it open so Accept/Reject is never hidden behind
+  // a collapsed disclosure, and release the request once the user decides so
+  // the card collapses again when nothing awaits them. This is the single
+  // choke point every approval operation flows through, so new approval
+  // operations inherit the behavior from their `kind` — no per-operation
+  // wiring. In bypass edit mode most approvals auto-accept without a card,
+  // so nothing opens unless the operation always asks
+  // (`alwaysRequiresApproval`).
+  const opensHostCard =
+    descriptor.kind === "approval" &&
+    (descriptor.alwaysRequiresApproval === true ||
+      agentStore.getState().permissions.edits === "manual");
+  if (opensHostCard) {
+    agentStore.getState().requestToolPartOpen(hostToolCallId);
+  }
+
   try {
     const result = await handler(parsed.data, context);
     if (result.ok && result.output == null) {
@@ -107,5 +131,9 @@ export async function dispatchUiOperationCall({
       ok: false,
       error: error instanceof Error ? error.message : String(error),
     };
+  } finally {
+    if (opensHostCard) {
+      agentStore.getState().releaseToolPartOpen(hostToolCallId);
+    }
   }
 }
