@@ -1,35 +1,13 @@
-import { css } from "@emotion/react";
-
-import {
-  Button,
-  DialogTrigger,
-  FieldError,
-  Flex,
-  Icon,
-  Icons,
-  Input,
-  Popover,
-  PopoverArrow,
-  Text,
-  TextField,
-  View,
-} from "@phoenix/components";
-import { EvaluatorEntityTree } from "@phoenix/components/evaluators/EvaluatorEntityTree";
+import { Flex } from "@phoenix/components";
+import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { EVALUATOR_SLOT_NAMES } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import {
   dropOtherGrainEntityPathMappings,
   type ProjectEvaluatorMappingSourceGrain,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
-
-const SLOT_NAMES = ["input", "output", "metadata"] as const;
-
-const GRAIN_LABEL: Record<ProjectEvaluatorMappingSourceGrain, string> = {
-  span: "Span",
-  session: "Session",
-};
 
 /**
  * Where an evaluator's three inputs are read from on the record it runs on.
@@ -60,11 +38,9 @@ export const ProjectEvaluatorInputMapping = ({
     evaluatorMappingSource.grain === grain
       ? (evaluatorMappingSource.source as Record<string, unknown>)
       : undefined;
-  const entityValue = source?.[grain];
-  const entity = isStringKeyedObject(entityValue) ? entityValue : {};
   return (
     <Flex direction="column" gap="size-200" width="100%">
-      {SLOT_NAMES.map((slotName) => (
+      {EVALUATOR_SLOT_NAMES.map((slotName) => (
         <SwitchableEvaluatorInput
           key={slotName}
           fieldName={slotName}
@@ -80,18 +56,17 @@ export const ProjectEvaluatorInputMapping = ({
             onChange,
             isInvalid,
             errorMessage,
-            id,
             ariaLabel,
           }) => (
-            <EvaluatorEntityPathField
+            <EvaluatorPathField
               value={value}
               onChange={onChange}
               isInvalid={isInvalid}
               errorMessage={errorMessage}
-              id={id}
               ariaLabel={ariaLabel}
-              entity={entity}
+              source={source}
               grain={grain}
+              slotName={slotName}
             />
           )}
         />
@@ -99,85 +74,3 @@ export const ProjectEvaluatorInputMapping = ({
     </Flex>
   );
 };
-
-/**
- * A path, typed directly or picked from the record. The stored path is the one
- * shown, so an error that quotes a path back names the string in this field.
- */
-function EvaluatorEntityPathField({
-  value,
-  onChange,
-  isInvalid,
-  errorMessage,
-  id,
-  ariaLabel,
-  entity,
-  grain,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  isInvalid: boolean;
-  errorMessage?: string;
-  id: string;
-  ariaLabel: string;
-  entity: Record<string, unknown>;
-  grain: ProjectEvaluatorMappingSourceGrain;
-}) {
-  return (
-    <div css={pathFieldCSS}>
-      <TextField
-        isInvalid={isInvalid}
-        aria-label={ariaLabel}
-        value={value}
-        onChange={onChange}
-        size="M"
-        id={id}
-      >
-        <Input placeholder="Default" />
-        {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-      </TextField>
-      <DialogTrigger>
-        <Button
-          size="M"
-          variant="default"
-          aria-label={`Browse ${grain} fields for ${ariaLabel}`}
-          leadingVisual={<Icon svg={<Icons.Search />} />}
-        />
-        <Popover placement="bottom end">
-          <PopoverArrow />
-          <View width="420px">
-            <Flex direction="column">
-              <View
-                paddingX="size-200"
-                paddingTop="size-150"
-                paddingBottom="size-50"
-              >
-                <Text size="S" color="text-500">
-                  Values are from the selected {grain}.
-                </Text>
-              </View>
-              <EvaluatorEntityTree
-                entity={entity}
-                rootPath={grain}
-                rootLabel={GRAIN_LABEL[grain]}
-                selectedPath={value}
-                onSelectPath={onChange}
-              />
-            </Flex>
-          </View>
-        </Popover>
-      </DialogTrigger>
-    </div>
-  );
-}
-
-const pathFieldCSS = css`
-  display: flex;
-  align-items: stretch;
-  gap: var(--global-dimension-size-50);
-
-  .text-field {
-    flex: 1;
-    min-width: 0;
-  }
-`;

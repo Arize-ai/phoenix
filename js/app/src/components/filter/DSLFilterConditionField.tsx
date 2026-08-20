@@ -97,6 +97,11 @@ export type DSLFilterSnippet = {
 
 const pythonLanguage = python();
 
+/** Sentence-cases a subject noun for the start of a message. */
+function capitalize(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
+
 const warningListCSS = css`
   list-style: none;
   margin: 0;
@@ -380,7 +385,8 @@ export type DSLFilterConditionFieldProps<
   /**
    * Replaces the leading filter icon — e.g. a composition marking a mode
    * with its own glyph. Rendered in the same slot; give it the
-   * `filter-icon` class to inherit the slot's spacing.
+   * `filter-icon` class to inherit the slot's spacing. Pass `null` for a
+   * field that carries no glyph at all.
    */
   leadingVisual?: ReactNode;
   /**
@@ -407,6 +413,14 @@ export type DSLFilterConditionFieldProps<
    */
   onClear?: () => void;
   ref?: Ref<DSLFilterConditionFieldRef>;
+  /**
+   * What the field's text is called in the messages the field writes for
+   * itself — the clear button's name, the validation badge and its tooltip,
+   * the status region. Defaults to the filter DSL's own noun, so a
+   * composition holding something else (a mapping path, say) reads as that
+   * instead of as a filter that has gone wrong.
+   */
+  subjectLabel?: string;
   /**
    * Accessible name for the condition input
    */
@@ -511,6 +525,7 @@ export function DSLFilterConditionField<
     onFocusChange,
     onClear,
     ref,
+    subjectLabel = "filter condition",
     "aria-label": ariaLabel = "filter condition",
     className,
   } = props;
@@ -851,8 +866,10 @@ export function DSLFilterConditionField<
     >
       <Global styles={portaledTypeaheadMenuCSS} />
       <Flex direction="row" alignItems="center">
-        {leadingVisual ?? (
+        {leadingVisual === undefined ? (
           <Icon svg={<Icons.ListFilter />} className="filter-icon" />
+        ) : (
+          leadingVisual
         )}
         <CodeMirror
           css={dslFilterCodeMirrorCSS}
@@ -892,18 +909,18 @@ export function DSLFilterConditionField<
           {hasError || hasWarnings ? (
             <DSLFilterErrorBadge
               severity={hasError ? "danger" : "warning"}
-              ariaLabel={
-                hasError ? "Filter condition error" : "Filter condition warning"
-              }
+              ariaLabel={`${capitalize(subjectLabel)} ${
+                hasError ? "error" : "warning"
+              }`}
               badgeMessage={
                 hasError
-                  ? errorMessage || "Invalid filter condition"
+                  ? errorMessage || `Invalid ${subjectLabel}`
                   : warnings[0]
               }
               title={
                 hasError
-                  ? "Invalid filter condition"
-                  : "Filter condition warning"
+                  ? `Invalid ${subjectLabel}`
+                  : `${capitalize(subjectLabel)} warning`
               }
             >
               {hasError ? (
@@ -929,7 +946,7 @@ export function DSLFilterConditionField<
           <IconButton
             size="XS"
             className="clear-button"
-            aria-label="Clear filter condition"
+            aria-label={`Clear ${subjectLabel}`}
             onPress={() => {
               onClear?.();
               onChange("");
@@ -943,7 +960,7 @@ export function DSLFilterConditionField<
       <VisuallyHidden>
         <span id={statusId} role="status">
           {hasError
-            ? `Invalid filter condition. ${errorMessage}`.trim()
+            ? `Invalid ${subjectLabel}. ${errorMessage}`.trim()
             : warnings.join(" ")}
         </span>
         {extraStatus}
