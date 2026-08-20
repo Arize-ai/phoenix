@@ -79,6 +79,7 @@ const isDefaultAdminUser = (user: { email: string | null; username: string }) =>
   user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const [dialog, setDialog] = useState<ReactNode>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -281,7 +282,6 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
     ];
   }, [viewer]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

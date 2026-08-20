@@ -53,6 +53,7 @@ export function GenerativeProvidersCard({
 }: {
   query: GenerativeProvidersCard_data$key;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const data = useFragment<GenerativeProvidersCard_data$key>(
     graphql`
@@ -145,7 +146,6 @@ export function GenerativeProvidersCard({
     ] satisfies ColumnDef<DataRow>[];
   }, []);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
     data: tableData,

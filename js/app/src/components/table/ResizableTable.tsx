@@ -66,9 +66,10 @@ export function ResizableTable<DataRow>({
   className?: string;
   "data-testid"?: string;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const [sorting, setSorting] = useState<SortingState>(defaultSorting ?? []);
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable({
     columns,
     data,

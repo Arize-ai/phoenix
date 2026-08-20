@@ -202,6 +202,7 @@ export const MemoizedTableBody = React.memo(
 ) as typeof TableBody;
 
 export function SpansTable(props: SpansTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const [searchParams, setSearchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
@@ -946,15 +947,8 @@ export function SpansTable(props: SpansTableProps) {
     setRowSelection({});
   }, [setRowSelection]);
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns().filter((column) => {
-    // Filter out columns that are eval groupings
-    return column.columns.length === 0;
-  });
-
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
+  const { columnSizingInfo } = table.getState();
   const getFlatHeaders = table.getFlatHeaders;
-  const colLength = computedColumns.length;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
@@ -962,19 +956,16 @@ export function SpansTable(props: SpansTableProps) {
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars] = useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
+    for (let index = 0; index < headers.length; index++) {
+      const header = headers[index]!;
       colSizes[`--header-${header.id}-size`] = header.getSize();
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
-    return [colSizes];
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+    return colSizes;
+  })();
 
   return (
     <TableMetricsChartsPanelGroup view="spans">

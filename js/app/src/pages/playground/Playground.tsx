@@ -271,8 +271,9 @@ function PlaygroundContent() {
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
   const searchParamsRef = useRef(searchParams);
-  // eslint-disable-next-line react/refs
-  searchParamsRef.current = searchParams;
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
   const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
   const datasetId = resolvePlaygroundDatasetId({
     searchParams,

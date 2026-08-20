@@ -45,6 +45,7 @@ function AnnotationsTable({
   annotations: readonly SessionAnnotation[];
   sessionNodeId: string;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
 
@@ -157,7 +158,7 @@ function AnnotationsTable({
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
   ]);
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable({
     columns,
     data: annotations as SessionAnnotation[],

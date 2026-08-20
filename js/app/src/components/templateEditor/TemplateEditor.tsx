@@ -5,7 +5,7 @@ import type {
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
@@ -64,7 +64,7 @@ export const TemplateEditor = ({
   "aria-label": ariaLabel = "Prompt template",
   ...props
 }: TemplateEditorProps) => {
-  const [value, setValue] = useState(() => defaultValue);
+  const [value] = useState(() => defaultValue);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const extensions = useMemo(() => {
@@ -97,13 +97,6 @@ export const TemplateEditor = ({
     return ext;
   }, [templateFormat, availablePaths, readOnly, ariaLabel]);
 
-  useEffect(() => {
-    if (readOnly) {
-      // eslint-disable-next-line react/set-state-in-effect
-      setValue(defaultValue);
-    }
-  }, [readOnly, defaultValue]);
-
   return (
     <CodeMirror
       theme={codeMirrorTheme}
@@ -111,7 +104,7 @@ export const TemplateEditor = ({
       basicSetup={basicSetupOptions}
       readOnly={readOnly}
       {...props}
-      value={value}
+      value={readOnly ? defaultValue : value}
     />
   );
 };

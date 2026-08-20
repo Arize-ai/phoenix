@@ -50,6 +50,7 @@ export function ExampleExperimentRunsTable({
 }: {
   example: ExampleExperimentRunsTableFragment$key;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -132,7 +133,6 @@ export function ExampleExperimentRunsTable({
       header: "output",
       accessorKey: "output",
       cell: (props) => {
-        // eslint-disable-next-line react/prop-types
         const maybeError = props.row.original?.error;
         if (maybeError !== null) {
           return <Text color="danger">{maybeError}</Text>;
@@ -214,7 +214,7 @@ export function ExampleExperimentRunsTable({
       },
     },
   ];
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

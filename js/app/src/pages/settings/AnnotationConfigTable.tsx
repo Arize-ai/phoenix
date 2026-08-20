@@ -174,6 +174,7 @@ export const AnnotationConfigTable = ({
     }?: { onCompleted?: () => void; onError?: () => void }
   ) => void;
 }) => {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const data = useFragment(
@@ -221,7 +222,7 @@ export const AnnotationConfigTable = ({
     () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
     [data.annotationConfigs.edges]
   ) as PersistedAnnotationConfig[]; // fields are guaranteed by the concrete config fragments
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable({
     data: configs,
     columns,

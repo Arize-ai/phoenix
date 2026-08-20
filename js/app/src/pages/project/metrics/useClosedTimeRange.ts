@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useTimeRange } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
@@ -27,28 +27,14 @@ export function useClosedTimeRange({
   const startMs = contextTimeRange.start?.getTime() ?? null;
   const endMs = contextTimeRange.end?.getTime() ?? null;
 
-  // Use a ref to freeze "now" until the context time range actually changes
-  const lastTimestampsRef = useRef({ startMs, endMs, refreshKey });
-  // eslint-disable-next-line react/purity
-  const frozenNowMsRef = useRef<number>(Date.now());
+  const [frozenNowMs, setFrozenNowMs] = useState(Date.now);
 
-  // Only update frozen "now" when the timestamps or refresh key actually change
-  if (
-    // eslint-disable-next-line react/refs
-    lastTimestampsRef.current.startMs !== startMs ||
-    // eslint-disable-next-line react/refs
-    lastTimestampsRef.current.endMs !== endMs ||
-    // eslint-disable-next-line react/refs
-    lastTimestampsRef.current.refreshKey !== refreshKey
-  ) {
-    // eslint-disable-next-line react/refs
-    lastTimestampsRef.current = { startMs, endMs, refreshKey };
-    // eslint-disable-next-line react/purity, react/refs
-    frozenNowMsRef.current = Date.now();
-  }
-
-  // eslint-disable-next-line react/refs
-  const frozenNowMs = frozenNowMsRef.current;
+  // The wall clock is an external system. Refresh it asynchronously after the
+  // requested range changes rather than reading or mutating refs during render.
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setFrozenNowMs(Date.now()), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [startMs, endMs, refreshKey]);
 
   return useMemo<TimeRange>(() => {
     if (startMs !== null && endMs !== null) {
@@ -59,7 +45,6 @@ export function useClosedTimeRange({
     } else if (startMs !== null) {
       // If start is in the past, close at "now"; else, one month after start
       const closedEndMs =
-        // eslint-disable-next-line react/refs
         startMs < frozenNowMs ? frozenNowMs : startMs + ONE_MONTH_MS;
       return { start: new Date(startMs), end: new Date(closedEndMs) };
     } else {

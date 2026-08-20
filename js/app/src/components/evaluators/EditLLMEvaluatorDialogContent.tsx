@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -59,8 +59,9 @@ export const EditLLMEvaluatorDialogContent = ({
   };
 
   const handleSubmitRef = useRef(handleSubmit);
-  // eslint-disable-next-line react/refs
-  handleSubmitRef.current = handleSubmit;
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  });
 
   useLlmEvaluatorDraftRegistration({
     mode,

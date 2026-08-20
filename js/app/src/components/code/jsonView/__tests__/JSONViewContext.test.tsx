@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -21,8 +21,10 @@ const ATTRIBUTES = JSON.stringify({
 let view: JSONViewContextValue | null = null;
 
 function Probe() {
-  // eslint-disable-next-line react/globals
-  view = useJSONView();
+  const nextView = useJSONView();
+  useEffect(() => {
+    view = nextView;
+  }, [nextView]);
   return null;
 }
 

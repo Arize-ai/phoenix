@@ -41,6 +41,7 @@ function formatCellValue(value: unknown): string {
 }
 
 export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const tableColumns = useMemo(
     () =>
@@ -77,7 +78,6 @@ export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
     });
   }, [rows, columns]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     columns: tableColumns,
     data: tableData,

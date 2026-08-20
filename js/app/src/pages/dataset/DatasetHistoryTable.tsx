@@ -23,6 +23,7 @@ type DatasetHistoryTableProps = {
 };
 
 export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -68,7 +69,7 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable({
     columns: [
       {

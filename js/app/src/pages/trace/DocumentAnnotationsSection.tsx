@@ -32,8 +32,7 @@ export function DocumentAnnotationsSection({
   const [isCreating, setIsCreating] = useState(false);
   const isEditing = editingAnnotation != null || isCreating;
 
-  // eslint-disable-next-line react/purity
-  const nowEpochMs = useMemo(() => Date.now(), []);
+  const [nowEpochMs] = useState(Date.now);
 
   const existingAnnotationNames = useMemo(
     () => documentAnnotations.map((e) => e.name),

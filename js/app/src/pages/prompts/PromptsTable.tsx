@@ -90,6 +90,7 @@ type PromptsTableProps = {
 };
 
 export function PromptsTable(props: PromptsTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const { filter, selectedPromptLabelIds, setSelectedPromptLabelIds } =
     usePromptsFilterContext();
@@ -436,7 +437,6 @@ export function PromptsTable(props: PromptsTableProps) {
     nonOrderableColumnIds: [ACTIONS_COLUMN_ID],
   });
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
@@ -462,10 +462,8 @@ export function PromptsTable(props: PromptsTableProps) {
     getRowId: (row) => row.id,
   });
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
   const getFlatHeaders = table.getFlatHeaders;
-  const columnSizeVars = useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = getFlatHeaders();
     const columnSizes: Record<string, number> = {};
     for (const header of headers) {
@@ -475,9 +473,7 @@ export function PromptsTable(props: PromptsTableProps) {
         header.column.getSize();
     }
     return columnSizes;
-    // Disabled lint as per TanStack's performant column resizing example.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+  })();
 
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;

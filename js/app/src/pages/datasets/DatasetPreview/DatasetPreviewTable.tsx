@@ -144,6 +144,7 @@ export function DatasetPreviewTable({
   splitColumn,
   exampleIdColumn,
 }: DatasetPreviewTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const keysToCollapseSet = useMemo(
     () => new Set(keysToCollapse),
@@ -382,7 +383,6 @@ export function DatasetPreviewTable({
     previewData,
   ]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     data: previewData,
     columns: tableColumns,

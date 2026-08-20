@@ -131,6 +131,7 @@ export function ExperimentCompareListPage({
 }: {
   queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const [searchParams, setSearchParams] = useSearchParams();
   const experimentIds = useMemo(
     () => searchParams.getAll("experimentId"),
@@ -1195,8 +1196,7 @@ export function ExperimentCompareListPage({
    * we will calculate all column sizes at once at the root table level in a useMemo
    * and pass the column sizes down as CSS variables to the <table> element.
    */
-  const tableState = table.getState();
-  const columnSizeVars = useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -1207,13 +1207,7 @@ export function ExperimentCompareListPage({
         header.column.getSize();
     }
     return colSizes;
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    tableState.columnSizingInfo,
-    tableState.columnSizing,
-    tableState.columnVisibility,
-  ]);
+  })();
 
   const exampleIds = useMemo(() => {
     return rows.map((row) => row.original.example);

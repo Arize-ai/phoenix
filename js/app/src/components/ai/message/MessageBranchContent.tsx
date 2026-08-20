@@ -20,12 +20,8 @@ import type { MessageBranchContentProps } from "./types";
  * ```
  */
 export function MessageBranchContent({ children }: MessageBranchContentProps) {
-  const { activeBranch, setBranchCount } = useMessageBranchContext();
+  const { activeBranch } = useMessageBranchContext();
   const childArray = Children.toArray(children);
-
-  // Write to the ref synchronously during render so sibling components
-  // (e.g. MessageBranchPage) read the correct count on the same pass.
-  setBranchCount(childArray.length);
 
   return <>{childArray[activeBranch] ?? null}</>;
 }

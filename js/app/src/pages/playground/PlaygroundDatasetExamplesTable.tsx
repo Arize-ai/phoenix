@@ -584,7 +584,7 @@ function TableBody<T>({
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
-  // eslint-disable-next-line react/incompatible-library
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
@@ -776,6 +776,7 @@ export function PlaygroundDatasetExamplesTable({
     { name: string; inputMapping: EvaluatorInputMappingInput }
   >;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
@@ -1401,7 +1402,7 @@ export function PlaygroundDatasetExamplesTable({
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -1410,14 +1411,7 @@ export function PlaygroundDatasetExamplesTable({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    table.getState().columnSizingInfo,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    table.getState().columnSizing,
-    columns.length,
-  ]);
+  })();
 
   return (
     <InstanceVariablesProvider>

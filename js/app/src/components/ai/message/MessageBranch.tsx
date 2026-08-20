@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { Children, isValidElement, useState } from "react";
 
+import { MessageBranchContent } from "./MessageBranchContent";
 import { MessageBranchContext } from "./MessageBranchContext";
 import type { MessageBranchProps } from "./types";
 
@@ -32,26 +33,26 @@ export function MessageBranch({
   defaultBranch = 0,
 }: MessageBranchProps) {
   const [activeBranch, setActiveBranch] = useState(defaultBranch);
-  const branchCountRef = useRef(0);
+  const branchContent = Children.toArray(children).find(
+    (child) => isValidElement(child) && child.type === MessageBranchContent
+  );
+  const branchCount = isValidElement<MessageBranchProps>(branchContent)
+    ? Children.count(branchContent.props.children)
+    : 0;
 
   const safeSetActiveBranch = (index: number) => {
-    setActiveBranch(Math.max(0, Math.min(index, branchCountRef.current - 1)));
+    setActiveBranch(Math.max(0, Math.min(index, branchCount - 1)));
   };
 
-  /* eslint-disable react/refs */
   return (
     <MessageBranchContext.Provider
       value={{
         activeBranch,
-        branchCount: branchCountRef.current,
+        branchCount,
         setActiveBranch: safeSetActiveBranch,
-        setBranchCount: (count: number) => {
-          branchCountRef.current = count;
-        },
       }}
     >
       {children}
     </MessageBranchContext.Provider>
   );
-  /* eslint-enable react/refs */
 }

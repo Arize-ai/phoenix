@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelayModule from "react-relay";
 import { MemoryRouter, useLocation } from "react-router";
@@ -270,7 +270,9 @@ describe("SpansTable seed loading integration", () => {
 let probedSearch = "";
 /** Records the router's current search so tests can observe param writes. */
 function SearchProbe() {
-  // eslint-disable-next-line react/globals
-  probedSearch = useLocation().search;
+  const search = useLocation().search;
+  useEffect(() => {
+    probedSearch = search;
+  }, [search]);
   return null;
 }

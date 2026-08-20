@@ -13,7 +13,6 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-/* eslint-disable react/prop-types */
 import type { ComponentProps } from "react";
 import React, {
   Fragment,
@@ -284,6 +283,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const [searchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -1111,14 +1111,8 @@ export function TracesTable(props: TracesTableProps) {
     setRowSelection({});
   }, [setRowSelection]);
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns().filter((column) => {
-    // Filter out columns that are eval groupings
-    return column.columns.length === 0;
-  });
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
+  const { columnSizingInfo } = table.getState();
   const getFlatHeaders = table.getFlatHeaders;
-  const colLength = computedColumns.length;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
@@ -1126,7 +1120,7 @@ export function TracesTable(props: TracesTableProps) {
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -1135,10 +1129,7 @@ export function TracesTable(props: TracesTableProps) {
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  })();
 
   return (
     <TableMetricsChartsPanelGroup view="traces">

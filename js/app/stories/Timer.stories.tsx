@@ -44,13 +44,15 @@ export const MutedColor = {
   },
 };
 
+const SIZES_START_TIME = new Date(Date.now() - 90 * 1000);
+
 export const Sizes: StoryFn = () => (
   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
     {(["XS", "S", "M", "L", "XL", "XXL"] as const).map((size) => (
       <div key={size} style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ width: 32, fontFamily: "monospace" }}>{size}</span>
-        {/* eslint-disable-next-line react/purity */}
-        <Timer size={size} startTime={new Date(Date.now() - 90 * 1000)} />
+
+        <Timer size={size} startTime={SIZES_START_TIME} />
       </div>
     ))}
   </div>

@@ -122,6 +122,7 @@ function ReorderableTable({
   columns: ColumnDef<Person>[];
   withSelector?: boolean;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const [columnOrder, setColumnOrder] = useState<string[]>(() =>
     getTopLevelColumnIds(columns)
@@ -142,7 +143,6 @@ function ReorderableTable({
     columnVisibility,
   });
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<Person>({
     columns,
     data: mockPeople,

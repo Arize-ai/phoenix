@@ -396,6 +396,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   return (
     <AgentFabPositioner
       boundaryRef={boundaryRef}
+      requiresBoundary={boundaryRef != null}
       isHidden={isOpen}
       placement={fabPlacement}
       size={isResponsePending ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}

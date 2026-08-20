@@ -92,12 +92,12 @@ export function ThemeProvider(
     disableBodyTheme?: boolean;
   }>
 ) {
-  const [themeMode, _setThemeMode] = useState<ProviderThemeMode>(
-    () => props.themeMode || getCurrentThemeMode()
-  );
-  const setThemeMode = useCallback((themeMode: ProviderThemeMode) => {
-    localStorage.setItem(LOCAL_STORAGE_THEME_KEY, themeMode);
-    _setThemeMode(themeMode);
+  const [uncontrolledThemeMode, setUncontrolledThemeMode] =
+    useState<ProviderThemeMode>(getCurrentThemeMode);
+  const themeMode = props.themeMode ?? uncontrolledThemeMode;
+  const setThemeMode = useCallback((nextThemeMode: ProviderThemeMode) => {
+    localStorage.setItem(LOCAL_STORAGE_THEME_KEY, nextThemeMode);
+    setUncontrolledThemeMode(nextThemeMode);
   }, []);
 
   const [systemTheme, setSystemTheme] = useState<ProviderTheme>(getSystemTheme);
@@ -108,12 +108,6 @@ export function ThemeProvider(
     }
     return themeMode;
   }, [themeMode, systemTheme]);
-
-  useEffect(() => {
-    if (props.themeMode) {
-      _setThemeMode(props.themeMode); // eslint-disable-line react/set-state-in-effect
-    }
-  }, [props.themeMode, setThemeMode]);
 
   useEffect(() => {
     const isDarkSystemThemeMediaQuery = window.matchMedia(

@@ -22,6 +22,7 @@ export function PromptVersionTagsConfigCard({
 }: {
   prompt: PromptVersionTagsConfigCard_data$key;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const data = useFragment(
     graphql`
@@ -100,7 +101,6 @@ export function PromptVersionTagsConfigCard({
     }));
   }, [data]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
     data: tableData,

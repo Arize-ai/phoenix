@@ -18,8 +18,9 @@ const columns: ColumnDef<Row>[] = [
 ];
 
 function HeaderRow() {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable<Row>({
     columns,
     data: [{ key: "llm.model_name" }],

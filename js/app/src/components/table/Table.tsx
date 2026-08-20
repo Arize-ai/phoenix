@@ -21,8 +21,9 @@ export function Table<DataRow extends object>({
   columns,
   data,
 }: TableProps<DataRow>) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable<DataRow>({
     columns,
     data,

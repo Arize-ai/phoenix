@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import { AnimatePresence } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
+import { mergeRefs } from "react-aria";
 import { createPortal } from "react-dom";
 
 import type { PromptCommand } from "@phoenix/agent/slashCommands/promptCommands";
@@ -109,20 +110,7 @@ export function SkillPromptInput({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
 
-  // Merge the internal ref (used for auto-resize and caret control) with the
-  // optional forwarded ref so callers can also focus the textarea.
-  const mergeTextareaRef = (node: HTMLTextAreaElement | null) => {
-    textareaRef.current = node;
-    if (typeof forwardedTextareaRef === "function") {
-      forwardedTextareaRef(node);
-    } else if (forwardedTextareaRef && "current" in forwardedTextareaRef) {
-      /* eslint-disable react/immutability */
-      (
-        forwardedTextareaRef as React.RefObject<HTMLTextAreaElement | null>
-      ).current = node;
-      /* eslint-enable react/immutability */
-    }
-  };
+  const mergedTextareaRef = mergeRefs(textareaRef, forwardedTextareaRef);
 
   const recognizedSkillNames = new Set(skills.map((skill) => skill.name));
   const recognizedCommandNames = new Set(
@@ -269,7 +257,7 @@ export function SkillPromptInput({
         recognizedCommandNames={recognizedCommandNames}
       />
       <textarea
-        ref={mergeTextareaRef}
+        ref={mergedTextareaRef}
         css={textareaCSS}
         value={value}
         onChange={handleChange}

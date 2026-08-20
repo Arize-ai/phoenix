@@ -184,6 +184,7 @@ export function ExperimentsTable({
 }: {
   dataset: ExperimentsTableFragment$key;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const [, setSearchText] = useState("");
@@ -687,28 +688,25 @@ export function ExperimentsTable({
     [hasNext, isLoadingNext, loadNext]
   );
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
+  const { columnSizingInfo } = table.getState();
   const getFlatHeaders = table.getFlatHeaders;
 
   /**
    * Calculate all column sizes at once as CSS variables for performance
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars] = useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
+    for (let index = 0; index < headers.length; index++) {
+      const header = headers[index]!;
       colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
         header.getSize();
       colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
         header.column.getSize();
     }
-    return [colSizes];
-    // Disabled lint as per tanstack docs linked above
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+    return colSizes;
+  })();
 
   return (
     <div

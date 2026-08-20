@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Loading, Text } from "@phoenix/components";
@@ -63,18 +63,16 @@ const useEvaluatorInputMappingControlsForm = () => {
   const store = useEvaluatorStoreInstance();
   // Initialize RHF from the store once. Subscribing this component to the same
   // mapping values it writes causes controlled input focus/caret churn.
-  const initialInputMappingRef = useRef(
-    store.getState().evaluator.inputMapping
+  const [initialInputMapping] = useState(
+    () => store.getState().evaluator.inputMapping
   );
-  const { pathMapping, literalMapping } = initialInputMappingRef.current;
+  const { pathMapping, literalMapping } = initialInputMapping;
   // Escape keys for react-hook-form to prevent dots from being interpreted as nested paths
   const escapedPathMapping = useMemo(
-    // eslint-disable-next-line react/refs
     () => escapeMapping(pathMapping),
     [pathMapping]
   );
   const escapedLiteralMapping = useMemo(
-    // eslint-disable-next-line react/refs
     () => escapeMapping(literalMapping),
     [literalMapping]
   );

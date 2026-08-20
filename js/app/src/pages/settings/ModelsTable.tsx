@@ -121,6 +121,7 @@ export function ModelsTable({
   kindFilter,
   search,
 }: ModelsTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const data = useFragment(
     graphql`
@@ -442,7 +443,6 @@ export function ModelsTable({
     ];
   }, [kindFilter]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
@@ -471,7 +471,7 @@ export function ModelsTable({
   const isEmpty = rows.length === 0;
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line react/incompatible-library
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,

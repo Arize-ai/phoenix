@@ -85,6 +85,7 @@ function toGqlSort(sort: SortingState[number]): DatasetSort {
 }
 
 export function DatasetsTable(props: DatasetsTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const { filter, labelFilter, onLabelFilterChange } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -496,15 +497,13 @@ export function DatasetsTable(props: DatasetsTableProps) {
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
   const getFlatHeaders = table.getFlatHeaders;
 
   /**
    * Calculate all column sizes at once as CSS variables for performance
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -515,9 +514,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         header.column.getSize();
     }
     return colSizes;
-    // Disabled lint as per tanstack docs linked above
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+  })();
 
   return (
     <div

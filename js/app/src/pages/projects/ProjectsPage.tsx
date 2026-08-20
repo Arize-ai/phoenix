@@ -744,6 +744,7 @@ function ProjectsTable({
   isLoadingNext,
   onSort,
 }: ProjectViewComponentProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const navigate = useNavigate();
   const canModify = useViewerCanModify();
   const timeRangeSearch = useTimeRangeSearch();
@@ -868,7 +869,7 @@ function ProjectsTable({
     },
     [setProjectSortOrder, sortingRowModel, onSort]
   );
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable({
     data: projects,
     columns,

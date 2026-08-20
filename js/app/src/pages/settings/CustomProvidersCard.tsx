@@ -185,6 +185,7 @@ export function CustomProvidersCard({
 }: {
   query: CustomProvidersCard_data$key;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const { authenticationEnabled } = useFunctionality();
   const data = useFragment<CustomProvidersCard_data$key>(
     graphql`
@@ -308,7 +309,6 @@ export function CustomProvidersCard({
     return cols;
   }, [authenticationEnabled]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<DataRow>({
     columns,
     data: tableData,

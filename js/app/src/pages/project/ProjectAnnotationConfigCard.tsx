@@ -161,6 +161,7 @@ interface ProjectAnnotationConfigCardContentProps {
 const ProjectAnnotationConfigCardContent = (
   props: ProjectAnnotationConfigCardContentProps
 ) => {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const { projectId } = props;
   // Keep track of the loading state for each annotation config
@@ -350,7 +351,6 @@ const ProjectAnnotationConfigCardContent = (
     removeAnnotationConfigFromProject,
   ]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     data: tableData,
     columns,

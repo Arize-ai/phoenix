@@ -2,7 +2,7 @@ import type {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -72,8 +72,10 @@ describe("useDSLFilterConditionHistory", () => {
   let history: DSLFilterConditionHistory;
 
   function Harness(props: UseDSLFilterConditionHistoryProps) {
-    // eslint-disable-next-line react/globals
-    history = useDSLFilterConditionHistory(props);
+    const nextHistory = useDSLFilterConditionHistory(props);
+    useEffect(() => {
+      history = nextHistory;
+    }, [nextHistory]);
     return null;
   }
 

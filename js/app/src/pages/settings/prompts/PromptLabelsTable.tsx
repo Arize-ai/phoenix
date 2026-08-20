@@ -21,6 +21,7 @@ export function PromptLabelsTable({
 }: {
   query: PromptLabelsTableFragment$key;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const data = useFragment<PromptLabelsTableFragment$key>(
     graphql`
@@ -47,7 +48,6 @@ export function PromptLabelsTable({
     [data.promptLabels.edges]
   );
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns: [
       {

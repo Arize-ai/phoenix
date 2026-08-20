@@ -93,6 +93,26 @@ type AIQueryKeyHandlers = {
   escape: () => boolean;
 };
 
+class AIQueryKeyHandlerRegistry {
+  private handlers: AIQueryKeyHandlers | null = null;
+
+  setHandlers(handlers: AIQueryKeyHandlers) {
+    this.handlers = handlers;
+  }
+
+  convertDraft(currentText: string) {
+    return this.handlers?.convertDraft(currentText) ?? false;
+  }
+
+  queryWithAI(currentText: string) {
+    return this.handlers?.queryWithAI(currentText) ?? false;
+  }
+
+  escape() {
+    return this.handlers?.escape() ?? false;
+  }
+}
+
 export type AIQueryDSLFilterFieldProps<
   TValidationResult extends DSLFilterConditionValidationResult =
     DSLFilterConditionValidationResult,
@@ -322,11 +342,11 @@ export function AIQueryDSLFilterField<
   }, [value]);
 
   // The keymap extension must stay referentially stable (a new identity
-  // reconfigures the editor), so key handlers reach the current AI state
-  // through this ref rather than closing over it
-  const keyHandlersRef = useRef<AIQueryKeyHandlers | null>(null);
+  // reconfigures the editor), so an imperative registry receives the current
+  // handlers after each commit.
+  const [keyHandlers] = useState(() => new AIQueryKeyHandlerRegistry());
   useEffect(() => {
-    keyHandlersRef.current = {
+    keyHandlers.setHandlers({
       // The editor's own document is the query, not the `value` prop: a
       // consumer whose onChange defers the update (e.g. through
       // startTransition) can still be a render behind the keystroke that
@@ -374,7 +394,7 @@ export function AIQueryDSLFilterField<
             return false;
         }
       },
-    };
+    });
   });
 
   // The conversion keys work identically in both modes: with no completion
@@ -383,49 +403,42 @@ export function AIQueryDSLFilterField<
   // and Escape walks back whatever AI query last did. Mounted ahead of the
   // base field's own keymap via the `extensions` prop, so these bindings
   // win.
-  const aiKeymap = useMemo(
-    () =>
-      // eslint-disable-next-line react/refs
-      keymap.of([
-        {
-          key: "Enter",
-          run: (editorView: EditorView) => {
-            // Insert the highlighted completion if the dropdown is open;
-            // otherwise a plain-English draft converts via AI query.
-            // Always swallow the key so no newline is inserted.
-            if (!acceptCompletion(editorView)) {
-              keyHandlersRef.current?.convertDraft(
-                editorView.state.doc.toString()
-              );
-            }
-            return true;
-          },
+  const [aiKeymap] = useState(() =>
+    keymap.of([
+      {
+        key: "Enter",
+        run: (editorView: EditorView) => {
+          // Insert the highlighted completion if the dropdown is open;
+          // otherwise a plain-English draft converts via AI query.
+          // Always swallow the key so no newline is inserted.
+          if (!acceptCompletion(editorView)) {
+            keyHandlers.convertDraft(editorView.state.doc.toString());
+          }
+          return true;
         },
-        {
-          key: "Mod-Enter",
-          run: (editorView: EditorView) => {
-            keyHandlersRef.current?.queryWithAI(
-              editorView.state.doc.toString()
-            );
-            // Swallow regardless: an unhandled modifier-Enter must not fall
-            // through and insert a newline into a single-line field
-            return true;
-          },
+      },
+      {
+        key: "Mod-Enter",
+        run: (editorView: EditorView) => {
+          keyHandlers.queryWithAI(editorView.state.doc.toString());
+          // Swallow regardless: an unhandled modifier-Enter must not fall
+          // through and insert a newline into a single-line field
+          return true;
         },
-        {
-          key: "Escape",
-          run: (editorView: EditorView) => {
-            // With the typeahead open, Escape belongs to it; otherwise it
-            // walks back whatever AI query last did — cancels an in-flight
-            // conversion, undoes a finished one, dismisses a failure
-            if (completionStatus(editorView.state) !== null) {
-              return false;
-            }
-            return keyHandlersRef.current?.escape() ?? false;
-          },
+      },
+      {
+        key: "Escape",
+        run: (editorView: EditorView) => {
+          // With the typeahead open, Escape belongs to it; otherwise it
+          // walks back whatever AI query last did — cancels an in-flight
+          // conversion, undoes a finished one, dismisses a failure
+          if (completionStatus(editorView.state) !== null) {
+            return false;
+          }
+          return keyHandlers.escape();
         },
-      ]),
-    []
+      },
+    ])
   );
   const fieldExtensions = useMemo(() => [aiKeymap], [aiKeymap]);
 

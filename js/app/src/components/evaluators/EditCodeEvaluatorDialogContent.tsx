@@ -493,8 +493,13 @@ export const EditCodeEvaluatorDialogContent = ({
       sandboxConfigId: nextSandboxConfigId,
     });
   };
-  // eslint-disable-next-line react/refs
-  handleSubmitRef.current = handleSubmit;
+
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+    return () => {
+      handleSubmitRef.current = null;
+    };
+  });
 
   return (
     <DialogContent>

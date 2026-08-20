@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import invariant from "tiny-invariant";
 
 import { authApiFetch } from "@phoenix/api/authApiFetch";
@@ -261,7 +261,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     handleSubmit,
     resetField,
     setValue,
-    watch,
     formState: { isValid },
   } = useForm<CreateDatasetFromFileParams>({
     mode: "onChange",
@@ -278,13 +277,24 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     },
   });
 
-  // eslint-disable-next-line react/incompatible-library
-  const selectedFile = watch("file");
-  const inputKeys = watch("input_keys");
-  const outputKeys = watch("output_keys");
-  const metadataKeys = watch("metadata_keys");
-  const splitKey = watch("split_key");
-  const exampleIdKey = watch("example_id_key");
+  const [
+    selectedFile,
+    inputKeys,
+    outputKeys,
+    metadataKeys,
+    splitKey,
+    exampleIdKey,
+  ] = useWatch({
+    control,
+    name: [
+      "file",
+      "input_keys",
+      "output_keys",
+      "metadata_keys",
+      "split_key",
+      "example_id_key",
+    ],
+  });
 
   // Compute the keys that can be flattened within their assigned bucket.
   const { keysToCollapse, collapseConflicts } = useMemo(() => {

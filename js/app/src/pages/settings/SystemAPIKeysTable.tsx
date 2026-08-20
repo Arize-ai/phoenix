@@ -41,6 +41,7 @@ export function SystemAPIKeysTable({
 }: {
   query: SystemAPIKeysTableFragment$key;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const [data, refetch] = useRefetchableFragment<
     SystemAPIKeysTableQuery,
@@ -160,7 +161,7 @@ export function SystemAPIKeysTable({
     ];
     return cols;
   }, [handleDelete]);
-  // eslint-disable-next-line react/incompatible-library
+
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

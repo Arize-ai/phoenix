@@ -195,6 +195,7 @@ export const MemoizedTableBody = React.memo(
 ) as typeof TableBody;
 
 export function SessionsTable(props: SessionsTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -587,10 +588,8 @@ export function SessionsTable(props: SessionsTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
+  const { columnSizingInfo } = table.getState();
   const getFlatHeaders = table.getFlatHeaders;
-  const colLength = columns.length;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
@@ -598,7 +597,7 @@ export function SessionsTable(props: SessionsTableProps) {
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -607,10 +606,7 @@ export function SessionsTable(props: SessionsTableProps) {
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  })();
   return (
     <TableMetricsChartsPanelGroup view="sessions">
       <div css={spansTableCSS}>

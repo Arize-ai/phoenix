@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -30,8 +30,10 @@ function dispatchAnimationEnd(element: Element, animationName: string) {
 let agentStore: AgentStore | null = null;
 
 function AgentStoreCapture() {
-  // eslint-disable-next-line react/globals
-  agentStore = useAgentStore();
+  const store = useAgentStore();
+  useEffect(() => {
+    agentStore = store;
+  }, [store]);
   return null;
 }
 

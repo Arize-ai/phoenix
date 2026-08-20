@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { PromptInputContext } from "./PromptInputContext";
 import { promptInputContainerCSS } from "./styles";
@@ -57,16 +57,12 @@ export function PromptInput({
     }
     onValueChange?.(next);
   };
-  const valueRef = useRef(value);
-  // eslint-disable-next-line react/refs
-  valueRef.current = value;
-
   const handleSubmit = () => {
     if (isSubmitDisabled || status === "submitted" || status === "streaming") {
       return;
     }
 
-    const trimmed = valueRef.current.trim();
+    const trimmed = value.trim();
     if (trimmed) {
       onSubmit?.(trimmed);
       setValue("");

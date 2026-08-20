@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { FocusScope } from "react-aria";
 
 import type {
@@ -73,7 +73,7 @@ export function ElicitationCarousel({
   );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
-  const isInitialMount = useRef(true);
+  const [isInitialMount, setIsInitialMount] = useState(true);
 
   const emitProgressState = useEffectEvent(
     (progressState: ElicitationDraftState) => {
@@ -86,7 +86,7 @@ export function ElicitationCarousel({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      isInitialMount.current = false;
+      setIsInitialMount(false);
     }, 500);
     return () => clearTimeout(timer);
   }, []);
@@ -200,8 +200,8 @@ export function ElicitationCarousel({
   };
 
   // Stagger delays for entry animation
-  // eslint-disable-next-line react/refs
-  const stagger = isInitialMount.current ? STAGGER : 0;
+
+  const stagger = isInitialMount ? STAGGER : 0;
   const headerDelay = stagger;
   const promptDelay = 2 * stagger;
   const optionDelay = (i: number) => (3 + i) * stagger;
@@ -216,7 +216,6 @@ export function ElicitationCarousel({
   const canSkip = question.allow_skip === true;
   const canAdvance = hasAnswer || canSkip;
 
-  /* eslint-disable react/refs */
   return (
     <FocusScope autoFocus contain restoreFocus>
       <div css={elicitationCarouselCSS} onKeyDown={handleContainerKeyDown}>
@@ -257,7 +256,7 @@ export function ElicitationCarousel({
               key={question.id}
               custom={direction}
               variants={slideVariants}
-              initial={isInitialMount.current ? false : "enter"}
+              initial={isInitialMount ? false : "enter"}
               animate="center"
               exit="exit"
               transition={springTransition}
@@ -425,5 +424,4 @@ export function ElicitationCarousel({
       </div>
     </FocusScope>
   );
-  /* eslint-enable react/refs */
 }

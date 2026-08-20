@@ -22,8 +22,6 @@ export interface MessageBranchContextValue {
   activeBranch: number;
   branchCount: number;
   setActiveBranch: (index: number) => void;
-  /** @internal Used by MessageBranchContent to register its child count. */
-  setBranchCount: (count: number) => void;
 }
 
 // ---------------------------------------------------------------------------

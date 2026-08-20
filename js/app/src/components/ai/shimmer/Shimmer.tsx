@@ -56,31 +56,27 @@ export function Shimmer({
         },
       };
 
-  /* eslint-disable react/static-components */
-  return (
-    <MotionComponent
-      ref={ref as React.Ref<never>}
-      className={classNames("shimmer", className)}
-      data-size={size}
-      data-weight={weight}
-      css={shimmerBaseCSS}
-      style={
-        {
-          "--shimmer-spread": `${dynamicSpread}px`,
-          "--shimmer-color": getTextColor(color),
-          fontStyle,
-          ...style,
-        } as React.CSSProperties
-      }
-      {...animationProps}
+  return React.createElement(
+    MotionComponent,
+    {
+      ref: ref as React.Ref<never>,
+      className: classNames("shimmer", className),
+      "data-size": size,
+      "data-weight": weight,
+      css: shimmerBaseCSS,
+      style: {
+        "--shimmer-spread": `${dynamicSpread}px`,
+        "--shimmer-color": getTextColor(color),
+        fontStyle,
+        ...style,
+      } as React.CSSProperties,
+      ...animationProps,
       // HTMLAttributes.onAnimationStart collides with MotionProps' — cast so
       // consumer HTML props pass through.
-      {...(restProps as Record<string, unknown>)}
-    >
-      {children}
-    </MotionComponent>
+      ...(restProps as Record<string, unknown>),
+    },
+    children
   );
-  /* eslint-enable react/static-components */
 }
 
 Shimmer.displayName = "Shimmer";

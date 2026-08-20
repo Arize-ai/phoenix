@@ -246,6 +246,7 @@ function BaseTable<T>({
   enableSorting?: boolean;
   onSelectionChange?: (selectedCount: number) => void;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -279,13 +280,9 @@ function BaseTable<T>({
   const rows = table.getRowModel().rows;
   const hasContent = rows.length > 0;
 
-  // Performance optimization for column sizing
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
   const getFlatHeaders = table.getFlatHeaders;
-  const colLength = table.getAllColumns().length;
 
-  const columnSizeVars = useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -294,10 +291,7 @@ function BaseTable<T>({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-    // Disabled lint as per tanstack docs - dependencies are necessary for column resizing
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  })();
 
   const body = hasContent ? (
     <tbody>

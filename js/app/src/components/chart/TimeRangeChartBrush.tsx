@@ -153,6 +153,16 @@ function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
  * with no overlay, mouse handlers, or extra DOM, so it is safe to use even for
  * read-only charts.
  */
+function TimeRangeChartContent({
+  children,
+  chartProps,
+}: {
+  children: TimeRangeChartBrushProps["children"];
+  chartProps: TimeRangeChartBrushRenderProps["chartProps"];
+}) {
+  return children({ chartProps });
+}
+
 export function TimeRangeChartBrush({
   children,
   onTimeRangeSelected,
@@ -265,7 +275,6 @@ export function TimeRangeChartBrush({
   const overlayTop = selection?.plotArea.top ?? 0;
   const overlayHeight = selection?.plotArea.height ?? 0;
 
-  /* eslint-disable react/refs */
   return (
     <div
       css={timeRangeChartBrushCSS}
@@ -297,11 +306,10 @@ export function TimeRangeChartBrush({
           zIndex: 1,
         }}
       >
-        {children({
-          chartProps,
-        })}
+        <TimeRangeChartContent chartProps={chartProps}>
+          {children}
+        </TimeRangeChartContent>
       </div>
     </div>
   );
-  /* eslint-enable react/refs */
 }

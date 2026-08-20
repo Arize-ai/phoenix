@@ -669,17 +669,16 @@ export function ResizableFloatingPanel({
   const [isMoving, setIsMoving] = useState(false);
   const [isResizeHandleHovered, setIsResizeHandleHovered] = useState(false);
   const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
-    // eslint-disable-next-line react/refs
-    () => boundaryRef?.current ?? null
+    null
   );
-  // eslint-disable-next-line react/refs
+
   const [currentBounds, setCurrentBounds] = useState(() =>
-    getPanelBounds({ boundary: boundaryRef?.current ?? null })
+    getPanelBounds({ boundary: null })
   );
-  // eslint-disable-next-line react/refs
+
   const [currentGeometry, setCurrentGeometry] = useState(() =>
     getDefaultGeometry({
-      bounds: getPanelBounds({ boundary: boundaryRef?.current ?? null }),
+      bounds: getPanelBounds({ boundary: null }),
       minSize,
       placement,
       size,
@@ -693,8 +692,10 @@ export function ResizableFloatingPanel({
   });
   const isResizeHandleHighlighted =
     isResizeHandleHovered || resizingEdge != null;
-  // eslint-disable-next-line react/refs
-  latestGeometryRef.current = displayedGeometry;
+
+  useLayoutEffect(() => {
+    latestGeometryRef.current = displayedGeometry;
+  }, [displayedGeometry]);
 
   const commitSize = (nextGeometry: FloatingPanelGeometry) => {
     onSizeChange?.({
@@ -1007,18 +1008,20 @@ export function ResizableFloatingPanel({
   }, [minSize, placement, resolvedBoundary]);
 
   useEffect(() => {
-    // eslint-disable-next-line react/set-state-in-effect
-    setCurrentGeometry((geometry) =>
-      clampGeometry({
-        bounds: currentBounds,
-        geometry: {
-          ...geometry,
-          height: size.height,
-          width: size.width,
-        },
-        minSize,
-      })
-    );
+    const animationFrameId = window.requestAnimationFrame(() => {
+      setCurrentGeometry((geometry) =>
+        clampGeometry({
+          bounds: currentBounds,
+          geometry: {
+            ...geometry,
+            height: size.height,
+            width: size.width,
+          },
+          minSize,
+        })
+      );
+    });
+    return () => window.cancelAnimationFrame(animationFrameId);
   }, [currentBounds, minSize, size]);
 
   useEffect(() => {

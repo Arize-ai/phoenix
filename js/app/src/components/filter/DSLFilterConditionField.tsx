@@ -184,6 +184,33 @@ const defaultSnippets: DSLFilterSnippet[] = [];
 const defaultCompletionSources: CompletionSource[] = [];
 const defaultExtensions: Extension[] = [];
 
+type CompletionLoader = () => Promise<Completion[]>;
+
+class CachedCompletionLoader {
+  readonly loadOnce = () => {
+    if (!this.load) {
+      return Promise.resolve([]);
+    }
+    this.promise ??= this.load().catch((error) => {
+      this.promise = null;
+      throw error;
+    });
+    return this.promise;
+  };
+
+  private load: CompletionLoader | undefined;
+  private promise: Promise<Completion[]> | null = null;
+
+  setLoader(load: CompletionLoader | undefined) {
+    this.load = load;
+    this.promise = null;
+  }
+
+  reset() {
+    this.promise = null;
+  }
+}
+
 /**
  * The field is single-line, so every Enter variant is swallowed here and no
  * key can insert a newline. Enter first gives the typeahead its accept.
@@ -517,16 +544,25 @@ export function DSLFilterConditionField<
   const previousValidationRetryKey = useRef(validationRetryKey);
   // null means the condition is not known to be invalid; the empty string
   // means invalid with no server-provided detail
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [warnings, setWarnings] = useState<readonly string[]>([]);
+  const [validationFeedback, setValidationFeedback] = useState<{
+    value: string;
+    errorMessage: string | null;
+    warnings: readonly string[];
+  }>({ value, errorMessage: null, warnings: [] });
+  const hasCurrentValidationFeedback = validationFeedback.value === value;
+  const errorMessage = hasCurrentValidationFeedback
+    ? validationFeedback.errorMessage
+    : null;
+  const warnings = hasCurrentValidationFeedback
+    ? validationFeedback.warnings
+    : [];
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
   const editorViewRef = useRef<EditorView | null>(null);
-  // Caches the loadCompletions result so the dropdown doesn't refetch every
-  // time it opens; invalidated on focus so names created elsewhere in the
-  // app (e.g. a new annotation) appear when the user returns to filter
-  const loadedCompletionsRef = useRef<Promise<Completion[]> | null>(null);
+  // Caches loaded completions until focus returns to the field, when names
+  // created elsewhere in the app may have changed.
+  const [completionLoader] = useState(() => new CachedCompletionLoader());
   const statusId = useId();
 
   const hasError = errorMessage !== null;
@@ -554,10 +590,10 @@ export function DSLFilterConditionField<
     []
   );
 
-  // A cached result from a previous loader no longer describes the data
+  // A cached result from a previous loader no longer describes the data.
   useEffect(() => {
-    loadedCompletionsRef.current = null;
-  }, [loadCompletions]);
+    completionLoader.setLoader(loadCompletions);
+  }, [completionLoader, loadCompletions]);
 
   const contentAttributes = useMemo(
     () =>
@@ -567,6 +603,8 @@ export function DSLFilterConditionField<
       }),
     [ariaLabel]
   );
+
+  const loadCompletionsOnce = completionLoader.loadOnce;
 
   // The extensions must be referentially stable across renders — a new
   // array causes a CodeMirror reconfigure, which resets the in-flight
@@ -580,17 +618,6 @@ export function DSLFilterConditionField<
     if (variant === "prose") {
       return [...composedExtensions, singleLineKeymap, contentAttributes];
     }
-    // Fetch loaded completions at most once per focus, retrying on failure
-    // the next time the dropdown opens
-    const loadCompletionsOnce = loadCompletions
-      ? () => {
-          loadedCompletionsRef.current ??= loadCompletions().catch((error) => {
-            loadedCompletionsRef.current = null;
-            throw error;
-          });
-          return loadedCompletionsRef.current;
-        }
-      : undefined;
     const snippetOptions = snippets.map(snippetToCompletion);
     const fieldOptions = completions.map((completion) =>
       completion.section
@@ -642,10 +669,9 @@ export function DSLFilterConditionField<
         override: [
           ...completionSources,
           createDSLFilterCompletionSource(staticOptions),
-          // eslint-disable-next-line react/refs
-          ...(loadCompletionsOnce
-            ? // eslint-disable-next-line react/refs
-              [createDSLFilterCompletionSource(loadCompletionsOnce)]
+
+          ...(loadCompletions
+            ? [createDSLFilterCompletionSource(loadCompletionsOnce)]
             : []),
         ],
         selectOnOpen: false,
@@ -663,6 +689,7 @@ export function DSLFilterConditionField<
     snippets,
     completions,
     loadCompletions,
+    loadCompletionsOnce,
     completionSources,
     getContextualCompletions,
     contentAttributes,
@@ -715,13 +742,6 @@ export function DSLFilterConditionField<
 
   useEffect(() => {
     let isCancelled = false;
-
-    // The last validation no longer describes what's in the field — drop any
-    // stale error or warnings so the field isn't flagged mid-edit. Status
-    // only shows once the current text has settled and been validated.
-    // eslint-disable-next-line react/set-state-in-effect
-    setErrorMessage(null);
-    setWarnings([]);
 
     // Whether this run settles the mount-time value. Read before the branches
     // below flip the ref: both settle paths report it, so consumers can tell
@@ -780,13 +800,19 @@ export function DSLFilterConditionField<
           }
 
           if (!result?.isValid) {
-            setErrorMessage(result?.errorMessage ?? "");
-            setWarnings([]);
+            setValidationFeedback({
+              value,
+              errorMessage: result?.errorMessage ?? "",
+              warnings: [],
+            });
             reportValidationState(false);
             reportValidationFailed("invalid");
           } else {
-            setErrorMessage(null);
-            setWarnings(result.warnings ?? []);
+            setValidationFeedback({
+              value,
+              errorMessage: null,
+              warnings: result.warnings ?? [],
+            });
             reportValidationState(true);
             startTransition(() => {
               reportValidCondition({
@@ -804,8 +830,11 @@ export function DSLFilterConditionField<
           // Validation itself failed (e.g. a network error) — surface it
           // rather than leaving a normal-looking field whose filter is
           // silently never applied
-          setErrorMessage("The condition could not be validated");
-          setWarnings([]);
+          setValidationFeedback({
+            value,
+            errorMessage: "The condition could not be validated",
+            warnings: [],
+          });
           reportValidationState(false);
           reportValidationFailed("transport");
         });
@@ -842,7 +871,7 @@ export function DSLFilterConditionField<
           onFocus={() => {
             // Refresh the loaded completions each time the user returns to
             // the field — the underlying names may have changed since
-            loadedCompletionsRef.current = null;
+            completionLoader.reset();
             setIsFocused(true);
             onFocusChange?.(true);
           }}

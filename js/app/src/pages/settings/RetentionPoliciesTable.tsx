@@ -67,6 +67,7 @@ export const RetentionPoliciesTable = ({
 }: {
   query: RetentionPoliciesTable_policies$key;
 }) => {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const navigate = useNavigate();
   const { policyId: selectedPolicyId } = useParams();
@@ -189,7 +190,6 @@ export const RetentionPoliciesTable = ({
     return columns;
   }, [canManageRetentionPolicy]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

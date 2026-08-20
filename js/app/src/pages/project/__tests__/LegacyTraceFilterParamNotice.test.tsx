@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,7 +63,9 @@ describe("LegacyTraceFilterParamNotice", () => {
 
 let currentSearch = "";
 function SearchProbe() {
-  // eslint-disable-next-line react/globals
-  currentSearch = useLocation().search;
+  const search = useLocation().search;
+  useEffect(() => {
+    currentSearch = search;
+  }, [search]);
   return null;
 }

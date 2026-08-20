@@ -1,7 +1,7 @@
 import type { DocsContainerProps } from "@storybook/addon-docs/blocks";
 import { DocsContainer } from "@storybook/addon-docs/blocks";
 import type { Preview } from "@storybook/react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { MemoryRouter } from "react-router";
 import { addons as previewAddons } from "storybook/preview-api";
 import { CacheProvider, createCache, themes } from "storybook/theming";
@@ -275,16 +275,20 @@ function useSystemTheme(emitToChannel = false): ProviderTheme {
     return () => mq.removeEventListener("change", handler);
   }, [emitToChannel]);
 
+  const emitInitialTheme = useEffectEvent(() => {
+    if (!emitToChannel) {
+      return;
+    }
+    try {
+      previewAddons.getChannel().emit(THEME_CHANGE_EVENT, theme);
+    } catch {
+      // Channel may not be ready yet
+    }
+  });
+
   // Emit the initial theme once on mount (the change handler above handles updates)
   useEffect(() => {
-    if (emitToChannel) {
-      try {
-        previewAddons.getChannel().emit(THEME_CHANGE_EVENT, theme);
-      } catch {
-        // Channel may not be ready yet
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally run only on mount
+    emitInitialTheme();
   }, []);
 
   return theme;

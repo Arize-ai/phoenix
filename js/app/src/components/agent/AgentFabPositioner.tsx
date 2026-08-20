@@ -77,6 +77,7 @@ type FinishDragSessionOptions = {
 
 export type AgentFabPositionerProps = {
   boundaryRef?: RefObject<HTMLElement | null>;
+  requiresBoundary?: boolean;
   children: ReactNode;
   isHidden?: boolean;
   placement: AgentFabPlacement;
@@ -201,6 +202,7 @@ function applyElementPinnedPosition({
 
 export function AgentFabPositioner({
   boundaryRef,
+  requiresBoundary = false,
   children,
   isHidden = false,
   placement,
@@ -220,11 +222,9 @@ export function AgentFabPositioner({
   const suppressNextClickRef = useRef(false);
   const suppressClickResetTimeoutIdRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  // eslint-disable-next-line react/refs
-  const requiresBoundary = Boolean(boundaryRef);
+
   const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
-    // eslint-disable-next-line react/refs
-    () => boundaryRef?.current ?? null
+    null
   );
 
   // After a drag, an unwanted `click` event can still fire on pointerup. We
@@ -304,67 +304,69 @@ export function AgentFabPositioner({
     applyPosition(nextPosition);
   };
 
-  // eslint-disable-next-line react/refs
-  finishDragSessionRef.current = ({
-    activateOnClick,
-    point,
-    releaseTarget,
-  }: FinishDragSessionOptions) => {
-    const session = dragSessionRef.current;
-    if (!session) return;
+  useLayoutEffect(() => {
+    finishDragSessionRef.current = ({
+      activateOnClick,
+      point,
+      releaseTarget,
+    }: FinishDragSessionOptions) => {
+      const session = dragSessionRef.current;
+      if (!session) return;
 
-    if (animationFrameIdRef.current != null) {
-      window.cancelAnimationFrame(animationFrameIdRef.current);
-      animationFrameIdRef.current = null;
-    }
-
-    const finalPointer =
-      pendingPointerRef.current ?? (hasDraggedRef.current ? point : undefined);
-    if (finalPointer) {
-      const nextPosition = getDragPosition({
-        pointer: finalPointer,
-        session,
-      });
-      pendingPointerRef.current = null;
-      lastDragPositionRef.current = nextPosition;
-      applyPosition(nextPosition);
-    }
-
-    dragSessionRef.current = null;
-    setIsDragging(false);
-
-    if (
-      session.hasPointerCapture &&
-      releaseTarget?.hasPointerCapture(session.pointerId)
-    ) {
-      releaseTarget.releasePointerCapture(session.pointerId);
-    }
-
-    if (!hasDraggedRef.current) {
-      positionerRef.current?.style.removeProperty("transition");
-      if (activateOnClick) {
-        onActivate?.();
+      if (animationFrameIdRef.current != null) {
+        window.cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
       }
-      return;
-    }
 
-    suppressNextClickRef.current = true;
-    scheduleSuppressClickReset();
+      const finalPointer =
+        pendingPointerRef.current ??
+        (hasDraggedRef.current ? point : undefined);
+      if (finalPointer) {
+        const nextPosition = getDragPosition({
+          pointer: finalPointer,
+          session,
+        });
+        pendingPointerRef.current = null;
+        lastDragPositionRef.current = nextPosition;
+        applyPosition(nextPosition);
+      }
 
-    const dropPosition = lastDragPositionRef.current;
-    invariant(dropPosition, "drag finished without a recorded position");
-    const nextPlacement = getNearestFabPlacement({
-      point: dropPosition,
-      bounds: session.bounds,
-      size: session.size,
-    });
+      dragSessionRef.current = null;
+      setIsDragging(false);
 
-    snapTo({ placement: nextPlacement, session });
+      if (
+        session.hasPointerCapture &&
+        releaseTarget?.hasPointerCapture(session.pointerId)
+      ) {
+        releaseTarget.releasePointerCapture(session.pointerId);
+      }
 
-    if (nextPlacement !== placement) {
-      onPlacementChange(nextPlacement);
-    }
-  };
+      if (!hasDraggedRef.current) {
+        positionerRef.current?.style.removeProperty("transition");
+        if (activateOnClick) {
+          onActivate?.();
+        }
+        return;
+      }
+
+      suppressNextClickRef.current = true;
+      scheduleSuppressClickReset();
+
+      const dropPosition = lastDragPositionRef.current;
+      invariant(dropPosition, "drag finished without a recorded position");
+      const nextPlacement = getNearestFabPlacement({
+        point: dropPosition,
+        bounds: session.bounds,
+        size: session.size,
+      });
+
+      snapTo({ placement: nextPlacement, session });
+
+      if (nextPlacement !== placement) {
+        onPlacementChange(nextPlacement);
+      }
+    };
+  });
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== PRIMARY_POINTER_BUTTON) return;
@@ -474,31 +476,22 @@ export function AgentFabPositioner({
   };
 
   useLayoutEffect(() => {
-    if (!requiresBoundary) {
-      // eslint-disable-next-line react/set-state-in-effect
-      setResolvedBoundary(null);
-      return undefined;
-    }
+    let animationFrameId = window.requestAnimationFrame(
+      function syncBoundaryElement() {
+        const nextBoundary = requiresBoundary
+          ? (boundaryRef?.current ?? null)
+          : null;
+        setResolvedBoundary((currentBoundary) =>
+          currentBoundary === nextBoundary ? currentBoundary : nextBoundary
+        );
 
-    let animationFrameId: number | null = null;
-    const syncBoundaryElement = () => {
-      const nextBoundary = boundaryRef?.current ?? null;
-      setResolvedBoundary((currentBoundary) =>
-        currentBoundary === nextBoundary ? currentBoundary : nextBoundary
-      );
-
-      if (!nextBoundary) {
-        animationFrameId = window.requestAnimationFrame(syncBoundaryElement);
+        if (requiresBoundary && !nextBoundary) {
+          animationFrameId = window.requestAnimationFrame(syncBoundaryElement);
+        }
       }
-    };
+    );
 
-    syncBoundaryElement();
-
-    return () => {
-      if (animationFrameId != null) {
-        window.cancelAnimationFrame(animationFrameId);
-      }
-    };
+    return () => window.cancelAnimationFrame(animationFrameId);
   }, [boundaryRef, requiresBoundary]);
 
   useLayoutEffect(() => {

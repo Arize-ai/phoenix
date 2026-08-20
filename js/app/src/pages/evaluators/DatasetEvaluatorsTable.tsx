@@ -303,6 +303,7 @@ export const DatasetEvaluatorsTable = ({
   onSelectLLMEvaluatorTemplate,
   onSelectCodeEvaluator,
 }: DatasetEvaluatorsTableProps) => {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const { sort, setSort, filter } = useDatasetEvaluatorsFilterContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -495,7 +496,6 @@ export const DatasetEvaluatorsTable = ({
     getRowId: (row) => row.id,
   });
 
-  const { columnSizingInfo } = table.getState();
   const getFlatHeaders = table.getFlatHeaders;
   /**
    * Calculate all column sizes at once at the root table level
@@ -503,7 +503,7 @@ export const DatasetEvaluatorsTable = ({
    * This avoids calling `column.getSize()` on every render for every cell.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -512,10 +512,7 @@ export const DatasetEvaluatorsTable = ({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizing]);
+  })();
 
   const fetchMoreOnBottomReached = (
     containerRefElement?: HTMLDivElement | null

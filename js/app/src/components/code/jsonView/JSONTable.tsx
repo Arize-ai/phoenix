@@ -69,10 +69,10 @@ export function JSONTable({
    */
   areRowsExpanded?: boolean;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<FlatJSONEntry>({
     columns,
     data: entries,

@@ -269,6 +269,7 @@ function SimpleExperimentTable({
   experiments?: MockExperiment[];
   displayFullText?: boolean;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const [columnSizing, setColumnSizing] = useState({});
 
@@ -475,7 +476,6 @@ function SimpleExperimentTable({
     return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<MockExperiment>({
     columns,
     data: experiments,

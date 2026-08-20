@@ -1,7 +1,7 @@
 import { type Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
 import { isToolUIPart } from "ai";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRelayEnvironment } from "react-relay";
 
 import {
@@ -98,7 +98,7 @@ export function useAgentChat({
   shouldSyncOnMount?: boolean;
 }) {
   const store = useAgentStore();
-  const runtime = useAgentChatRuntime();
+  const { getOrCreateChat } = useAgentChatRuntime();
   const relayEnvironment = useRelayEnvironment();
   const [operationError, setOperationError] =
     useState<AgentChatOperationError | null>(null);
@@ -157,19 +157,49 @@ export function useAgentChat({
   const chatApiUrl = persistedSessionId
     ? buildAgentChatApiUrl(persistedSessionId)
     : null;
-  const chatInstance =
+  const chatBindingKey =
     chatApiUrl && persistedSessionId
-      ? // eslint-disable-next-line react/refs
-        runtime.getOrCreateChat({
-          sessionId: persistedSessionId,
-          chatApiUrl,
-          createChat: (previousMessages) =>
-            createChatForSession(
-              persistedSessionId,
-              previousMessages ?? initialMessages ?? []
-            ),
-        })
+      ? `${persistedSessionId}\0${chatApiUrl}`
       : null;
+  const [chatBinding, setChatBinding] = useState<{
+    key: string;
+    chat: Chat<AgentUIMessage>;
+  } | null>(null);
+  const chatInstance =
+    chatBinding?.key === chatBindingKey ? chatBinding.chat : null;
+
+  // The runtime registry is an external imperative system. Resolve it after
+  // commit, then bind React to the resulting chat instance on the next render.
+  useEffect(() => {
+    if (!chatApiUrl || !persistedSessionId || !chatBindingKey) {
+      return undefined;
+    }
+    let isCancelled = false;
+    const chat = getOrCreateChat({
+      sessionId: persistedSessionId,
+      chatApiUrl,
+      createChat: (previousMessages) =>
+        createChatForSession(
+          persistedSessionId,
+          previousMessages ?? initialMessages ?? []
+        ),
+    });
+    queueMicrotask(() => {
+      if (!isCancelled) {
+        setChatBinding({ key: chatBindingKey, chat });
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    chatApiUrl,
+    chatBindingKey,
+    createChatForSession,
+    getOrCreateChat,
+    initialMessages,
+    persistedSessionId,
+  ]);
 
   // `useChat` subscribes the current React tree to the already-created runtime
   // instance. Draft surfaces expose an inert chat shape until the first send.
@@ -196,6 +226,7 @@ export function useAgentChat({
     isBusyElsewhere,
     shouldSyncOnMount,
     lastSyncedSessionStateRef,
+    setMessages,
   });
 
   const { pendingDraftUserMessage, createSessionAndSendMessage } =
@@ -423,13 +454,14 @@ export function useAgentChat({
         }
         const result: unknown = await response.json();
         const compactionMessage = getCompactionMessageFromResponse(result);
-        if (
-          compactionMessage &&
-          !chatInstance.messages.some(
-            (message) => message.id === compactionMessage.id
-          )
-        ) {
-          chatInstance.messages = [...chatInstance.messages, compactionMessage];
+        if (compactionMessage) {
+          setMessages((currentMessages) =>
+            currentMessages.some(
+              (message) => message.id === compactionMessage.id
+            )
+              ? currentMessages
+              : [...currentMessages, compactionMessage]
+          );
         }
         void refetchAgentSession({
           environment: relayEnvironment,

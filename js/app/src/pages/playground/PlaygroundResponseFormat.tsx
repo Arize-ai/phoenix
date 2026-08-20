@@ -1,5 +1,5 @@
 import type { JSONSchema7 } from "json-schema";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   Button,
@@ -11,12 +11,9 @@ import {
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
-import {
-  usePlaygroundContext,
-  usePlaygroundStore,
-} from "@phoenix/contexts/PlaygroundContext";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { jsonSchemaZodSchema } from "@phoenix/schemas";
-import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
   displayToCanonicalResponseFormat,
@@ -57,30 +54,12 @@ export function PlaygroundResponseFormat({
     throw new Error(`Instance ${playgroundInstanceId} not found`);
   }
 
-  const [initialResponseFormatDefinition, setInitialResponseFormatDefinition] =
-    useState(() =>
-      JSON.stringify(getResponseFormatDisplay(instance.model) ?? {}, null, 2)
-    );
+  const initialResponseFormatDefinition = JSON.stringify(
+    getResponseFormatDisplay(instance.model) ?? {},
+    null,
+    2
+  );
   const currentValueRef = useRef(initialResponseFormatDefinition);
-  const store = usePlaygroundStore();
-
-  // when the instance provider changes, re-derive the display value from the canonical form
-  useEffect(() => {
-    const state = store.getState();
-    const instance = state.instances.find((i) => i.id === playgroundInstanceId);
-    if (instance == null) {
-      return;
-    }
-    const displayValue = getResponseFormatDisplay(instance.model);
-    if (displayValue == null) {
-      return;
-    }
-    const newResponseFormatDefinition = JSON.stringify(displayValue, null, 2);
-    if (isJSONString({ str: newResponseFormatDefinition, excludeNull: true })) {
-      // eslint-disable-next-line react/set-state-in-effect
-      setInitialResponseFormatDefinition(newResponseFormatDefinition);
-    }
-  }, [instanceProvider, store, playgroundInstanceId]);
 
   const onChange = useCallback(
     (value: string) => {
@@ -128,8 +107,9 @@ export function PlaygroundResponseFormat({
         preInitializationMinHeight={RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT}
         data-testid="playground-response-format-editor"
       >
-        <JSONEditor
-          value={initialResponseFormatDefinition}
+        <UncontrolledResponseFormatEditor
+          key={instanceProvider}
+          initialValue={initialResponseFormatDefinition}
           onChange={onChange}
           jsonSchema={
             (instanceProvider === "GOOGLE" || instanceProvider === "AWS"
@@ -141,5 +121,20 @@ export function PlaygroundResponseFormat({
         />
       </LazyEditorWrapper>
     </Card>
+  );
+}
+
+function UncontrolledResponseFormatEditor({
+  initialValue,
+  onChange,
+  jsonSchema,
+}: {
+  initialValue: string;
+  onChange: (value: string) => void;
+  jsonSchema: JSONSchema7;
+}) {
+  const [value] = useState(initialValue);
+  return (
+    <JSONEditor value={value} onChange={onChange} jsonSchema={jsonSchema} />
   );
 }

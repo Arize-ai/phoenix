@@ -340,9 +340,8 @@ function SortableMessageItem({
     [playgroundInstanceId, messageId, updateMessage]
   );
 
-  /* eslint-disable react/refs */
   return (
-    <li ref={sortable.ref} style={dragAndDropLiStyles}>
+    <li ref={(element) => sortable.ref(element)} style={dragAndDropLiStyles}>
       <Card
         collapsible
         interactiveTitle
@@ -450,7 +449,10 @@ function SortableMessageItem({
                 });
               }}
             />
-            <DragHandle ref={sortable.handleRef} aria-label="Reorder message" />
+            <DragHandle
+              ref={(element) => sortable.handleRef(element)}
+              aria-label="Reorder message"
+            />
           </Flex>
         }
       >
@@ -471,5 +473,4 @@ function SortableMessageItem({
       </Card>
     </li>
   );
-  /* eslint-enable react/refs */
 }

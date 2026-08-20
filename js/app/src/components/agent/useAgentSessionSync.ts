@@ -50,6 +50,7 @@ export function useAgentSessionSync({
   isBusyElsewhere,
   shouldSyncOnMount,
   lastSyncedSessionStateRef,
+  setMessages,
 }: {
   /** The session's Relay node ID, or null for a not-yet-persisted draft. */
   persistedSessionId: string | null;
@@ -74,6 +75,8 @@ export function useAgentSessionSync({
    * recognize the client's own turn and skip the full fetch.
    */
   lastSyncedSessionStateRef: RefObject<LastSyncedSessionState | null>;
+  /** Replaces the runtime transcript through React's subscribed chat API. */
+  setMessages: (messages: AgentUIMessage[]) => void;
 }): void {
   const store = useAgentStore();
   const relayEnvironment = useRelayEnvironment();
@@ -168,8 +171,8 @@ export function useAgentSessionSync({
       const syncedMessages = Array.isArray(agentSession.messages)
         ? (agentSession.messages as AgentUIMessage[])
         : [];
-      // eslint-disable-next-line react/immutability
-      chatInstance.messages = syncedMessages;
+
+      setMessages(syncedMessages);
       // Another client may have resolved — or interrupted — tool calls this
       // client still shows Accept/Reject affordances for; drop any pending
       // approval state the synced transcript marks as terminal.
@@ -194,6 +197,7 @@ export function useAgentSessionSync({
     chatInstance,
     lastSyncedSessionStateRef,
     relayEnvironment,
+    setMessages,
     store,
   ]);
 

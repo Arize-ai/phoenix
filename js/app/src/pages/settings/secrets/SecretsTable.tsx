@@ -51,6 +51,7 @@ export function SecretsTable({
   search: string;
   connectionId: string;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const [sorting, setSorting] = useState<SortingState>([
     { id: "updatedAt", desc: true },
   ]);
@@ -143,7 +144,6 @@ export function SecretsTable({
     return cols;
   }, [authenticationEnabled, connectionId]);
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<SecretRow>({
     columns,
     data,

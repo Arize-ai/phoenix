@@ -234,12 +234,6 @@ export function usePromptSkillCommand(
   const [selectedNames, setSelectedNames] = useState<Set<string>>(
     () => new Set()
   );
-  // Tracks the active query so we can decide when to reset the highlight: the
-  // index resets only when the *query string* changes, not on caret-only syncs
-  // (e.g. arrow-key navigation), which would otherwise snap back to the top.
-  const activeQueryRef = useRef<ActiveQuery | null>(null);
-  // eslint-disable-next-line react/refs
-  activeQueryRef.current = activeQuery;
   // When the user dismisses the menu with Escape, suppress re-opening until the
   // dismissed `/query` is edited, so the literal `/` can be typed normally.
   const dismissedQueryRef = useRef<{
@@ -285,7 +279,7 @@ export function usePromptSkillCommand(
     setActiveQuery(next);
     // Reset the highlight only when the query text changed (new trigger or new
     // filter), preserving the user's arrow-key selection on caret-only syncs.
-    if (!isSameActiveQuery(activeQueryRef.current, next)) {
+    if (!isSameActiveQuery(activeQuery, next)) {
       setActiveIndex(0);
     }
   };

@@ -121,6 +121,7 @@ const actionMenuContainerCSS = css`
 `;
 const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
+  "use no memo"; // TanStack Table uses interior mutability.
   const [dialog, setDialog] = useState<ReactNode>(null);
   const [selectedExampleIndex, setSelectedExampleIndex] = useState<
     number | null
@@ -518,7 +519,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
    * we will calculate all column sizes at once at the root table level in a useMemo
    * and pass the column sizes down as CSS variables to the <table> element.
    */
-  const columnSizeVars = React.useMemo(() => {
+  const columnSizeVars = (() => {
     const headers = table.getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
     for (let i = 0; i < headers.length; i++) {
@@ -529,9 +530,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         header.column.getSize();
     }
     return colSizes;
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  })();
 
   const rows = table.getRowModel().rows;
 
@@ -769,7 +768,7 @@ function TableBody<T>({
 }) {
   "use no memo";
   const rows = table.getRowModel().rows;
-  // eslint-disable-next-line react/incompatible-library
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,

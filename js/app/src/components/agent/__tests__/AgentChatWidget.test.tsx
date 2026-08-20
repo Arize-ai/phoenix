@@ -1,4 +1,4 @@
-import { act, useRef } from "react";
+import { act, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,8 +19,10 @@ installTestStorage();
 let agentStore: AgentStore | null = null;
 
 function AgentStoreCapture() {
-  // eslint-disable-next-line react/globals
-  agentStore = useAgentStore();
+  const store = useAgentStore();
+  useEffect(() => {
+    agentStore = store;
+  }, [store]);
   return null;
 }
 

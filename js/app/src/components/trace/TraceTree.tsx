@@ -165,8 +165,18 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     overallTimeRange,
   } = props;
   const childNodes = node.children;
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const { isCollapsed: treeIsCollapsed, searchQuery } = useTraceTree();
+  const [collapseState, setCollapseState] = useState(() => ({
+    treeIsCollapsed,
+    isCollapsed: treeIsCollapsed,
+  }));
+  if (collapseState.treeIsCollapsed !== treeIsCollapsed) {
+    setCollapseState({ treeIsCollapsed, isCollapsed: treeIsCollapsed });
+  }
+  const isCollapsed =
+    collapseState.treeIsCollapsed === treeIsCollapsed
+      ? collapseState.isCollapsed
+      : treeIsCollapsed;
   const hasChildren = childNodes.length > 0;
   const isSearching = searchQuery.length > 0;
   const effectiveIsCollapsed = isSearching ? false : isCollapsed;
@@ -185,12 +195,6 @@ function SpanTreeItem<TSpan extends ISpanItem>(
       });
     }
   }, [isSelected, scrollSelectedSpanIntoView]);
-
-  // React to global changes to the trace tree state and change local state
-  useEffect(() => {
-    // eslint-disable-next-line react/set-state-in-effect
-    setIsCollapsed(treeIsCollapsed);
-  }, [treeIsCollapsed]);
 
   const { name, latencyMs, statusCode, tokenCountTotal } = node.span;
   return (
@@ -278,7 +282,10 @@ function SpanTreeItem<TSpan extends ISpanItem>(
               <CollapseToggleButton
                 isCollapsed={isCollapsed}
                 onClick={() => {
-                  setIsCollapsed(!isCollapsed);
+                  setCollapseState({
+                    treeIsCollapsed,
+                    isCollapsed: !isCollapsed,
+                  });
                 }}
               />
             ) : null}

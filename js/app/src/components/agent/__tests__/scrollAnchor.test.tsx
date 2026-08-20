@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,8 +33,10 @@ type Anchor = ReturnType<typeof useScrollAnchor>;
 function renderScrollAnchor(stopScroll: () => void): Anchor {
   let value: Anchor | null = null;
   function Harness() {
-    // eslint-disable-next-line react/globals
-    value = useScrollAnchor();
+    const nextValue = useScrollAnchor();
+    useEffect(() => {
+      value = nextValue;
+    }, [nextValue]);
     return null;
   }
   act(() => {

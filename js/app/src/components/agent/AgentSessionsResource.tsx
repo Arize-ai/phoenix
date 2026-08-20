@@ -413,14 +413,9 @@ function AgentSessionTranscript({
   );
   const agentSession =
     data.agentSession.__typename === "AgentSession" ? data.agentSession : null;
-  const messages = useMemo(
-    () =>
-      Array.isArray(agentSession?.messages)
-        ? (agentSession.messages as AgentUIMessage[])
-        : [],
-    // eslint-disable-next-line react/preserve-manual-memoization
-    [agentSession?.messages]
-  );
+  const messages = Array.isArray(agentSession?.messages)
+    ? (agentSession.messages as AgentUIMessage[])
+    : [];
   const sessionModelConfig = useAgentSessionModelConfig(agentSession);
   useEffect(() => {
     if (!agentSession) {

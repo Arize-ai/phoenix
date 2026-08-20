@@ -54,8 +54,9 @@ export const useLlmEvaluatorDraftRegistration = ({
   );
   // Via a ref so the long-lived registration effect reads the latest provider configs without re-registering.
   const modelConfigByProviderRef = useRef(modelConfigByProvider);
-  // eslint-disable-next-line react/refs
-  modelConfigByProviderRef.current = modelConfigByProvider;
+  useEffect(() => {
+    modelConfigByProviderRef.current = modelConfigByProvider;
+  }, [modelConfigByProvider]);
 
   const draftHostRef = useRef<LlmEvaluatorDraftHost | null>(null);
   useEffect(() => {

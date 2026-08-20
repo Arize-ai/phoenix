@@ -54,7 +54,6 @@ export default meta;
 
 type StoryArgs = DialogProps & { placement?: string };
 
-// eslint-disable-next-line react/prop-types
 const Template: StoryFn<StoryArgs> = ({ placement = "bottom", ...args }) => (
   <DialogTrigger>
     <Button>Open Main Dialog</Button>

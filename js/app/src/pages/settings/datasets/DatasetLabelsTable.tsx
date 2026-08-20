@@ -21,6 +21,7 @@ export function DatasetLabelsTable({
 }: {
   query: DatasetLabelsTableFragment$key;
 }) {
+  "use no memo"; // TanStack Table uses interior mutability.
   "use no memo";
   const data = useFragment<DatasetLabelsTableFragment$key>(
     graphql`
@@ -47,7 +48,6 @@ export function DatasetLabelsTable({
     [data.datasetLabels.edges]
   );
 
-  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns: [
       {

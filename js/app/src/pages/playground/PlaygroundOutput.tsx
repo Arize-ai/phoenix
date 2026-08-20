@@ -305,8 +305,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (!runInProgress) {
       return undefined;
     }
-    // eslint-disable-next-line react/set-state-in-effect
-    setApiError(null);
+
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
@@ -432,7 +431,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           default:
             return (
               <>
-                {apiError && (
+                {!runInProgress && apiError && (
                   <View padding="size-200">
                     <Alert
                       variant="danger"
