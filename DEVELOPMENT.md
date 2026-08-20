@@ -2,6 +2,7 @@
 
 - [Developer's Guide](#developers-guide)
   - [Quickstart](#quickstart)
+  - [Generating Development Traces](#generating-development-traces)
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
@@ -63,6 +64,24 @@ Open [http://localhost:6006](http://localhost:6006). If authentication is enable
 To send traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
 
 If a step fails, consult the detailed setup instructions below.
+
+## Generating Development Traces
+
+`phoenix datagen` continuously replays recorded OpenInference traces through Phoenix's OTLP
+ingestion path. Start Phoenix locally, then run:
+
+```bash
+phoenix datagen
+```
+
+Use `--rate`, `--burstiness`, and `--epsilon` to vary traffic and anomaly frequency. The
+collector defaults to `http://localhost:6006`; set `PHOENIX_COLLECTOR_ENDPOINT` and
+`PHOENIX_API_KEY` for a remote Phoenix deployment. Run `phoenix datagen --help` for corpus,
+seed, and anomaly-manifest options.
+
+On Railway, use the same Phoenix image for a second service whose start command is
+`phoenix datagen`. Configure its collector endpoint and API key as environment variables so
+the generator and server stay on the same Phoenix release.
 
 ## Setting Up Your macOS Development Environment
 

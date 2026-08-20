@@ -1,0 +1,11 @@
+{
+  "scenario": "synthetic-chat",
+  "instrumenter_versions": {"synthetic": "1.0.0"},
+  "trace_count": 3,
+  "span_count": 4,
+  "session_structure": {
+    "session-a": ["turn-1", "turn-2"],
+    "session-b": ["turn-1"]
+  },
+  "encoding": "OTLP ExportTraceServiceRequest protobuf JSON, one request per line"
+}

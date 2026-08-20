@@ -1,0 +1,58 @@
+"""Export replayed trace requests over OTLP/HTTP protobuf."""
+
+from __future__ import annotations
+
+from types import TracebackType
+from urllib.parse import urlsplit, urlunsplit
+
+import httpx
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+    ExportTraceServiceRequest,
+)
+
+
+class OTLPHTTPExporter:
+    """Send encoded trace requests to an OTLP/HTTP collector."""
+
+    def __init__(
+        self,
+        endpoint: str,
+        *,
+        api_key: str | None = None,
+        timeout: float = 30.0,
+    ) -> None:
+        headers = {"Content-Type": "application/x-protobuf"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        self._endpoint = _trace_endpoint(endpoint)
+        self._client = httpx.Client(headers=headers, timeout=timeout)
+
+    def export(self, request: ExportTraceServiceRequest) -> None:
+        """Export one protobuf trace request, raising on an HTTP error."""
+        response = self._client.post(self._endpoint, content=request.SerializeToString())
+        response.raise_for_status()
+
+    def close(self) -> None:
+        """Close the persistent HTTP connection pool."""
+        self._client.close()
+
+    def __enter__(self) -> OTLPHTTPExporter:
+        return self
+
+    def __exit__(
+        self,
+        exception_type: type[BaseException] | None,
+        exception: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.close()
+
+
+def _trace_endpoint(endpoint: str) -> str:
+    if "://" not in endpoint:
+        endpoint = f"http://{endpoint}"
+    split = urlsplit(endpoint)
+    path = split.path.rstrip("/")
+    if not path.endswith("/v1/traces"):
+        path = f"{path}/v1/traces"
+    return urlunsplit((split.scheme, split.netloc, path, split.query, split.fragment))
