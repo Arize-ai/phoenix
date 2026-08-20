@@ -6,6 +6,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Loading, Text } from "@phoenix/components";
 import {
   type AnnotationOptimizationConfig,
+  getBinaryLabelOptimizations,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import {
@@ -124,6 +125,8 @@ function ProjectAnnotationMetricsPanel({
   fullTimeFormatter,
   onTimeRangeSelected,
   fillHeight = false,
+  title,
+  subtitle,
 }: {
   series: AnnotationMetricsSeries;
   annotationConfig?: AnnotationOptimizationConfig;
@@ -132,6 +135,8 @@ function ProjectAnnotationMetricsPanel({
   fullTimeFormatter: (date: Date) => string;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
   fillHeight?: boolean;
+  title: string;
+  subtitle: string;
 }) {
   const [view, setView] = useState(() =>
     getDefaultAnnotationMetricsView(series)
@@ -143,8 +148,8 @@ function ProjectAnnotationMetricsPanel({
 
   return (
     <ChartPanel
-      title={series.name}
-      subtitle={PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION}
+      title={title}
+      subtitle={subtitle}
       fillHeight={fillHeight}
       actions={
         showViewToggle ? (
@@ -173,6 +178,12 @@ function ProjectAnnotationMetricsPanel({
                 score: meanScore,
               })
             }
+            getLabelOptimizations={(labels) =>
+              getBinaryLabelOptimizations({
+                config: annotationConfig,
+                labels,
+              })
+            }
             renderTooltipHeader={(point) => (
               <Text weight="heavy" size="S">
                 {fullTimeFormatter(new Date(point.x))}
@@ -189,17 +200,47 @@ type ProjectAnnotationMetricPanelProps = ProjectMetricViewProps & {
   annotationLevel: MetricChartTableView;
   annotationName: string;
   fillHeight?: boolean;
+  /**
+   * Optimization config to use in place of the project's annotation config of
+   * the same name. Charts of an evaluator's results pass the evaluator's output
+   * config, since the project has none for that name.
+   */
+  annotationConfig?: AnnotationOptimizationConfig;
+  /** Panel title; the annotation's name when omitted. */
+  title?: string;
+  /** Panel subtitle; the shared annotation-chart description when omitted. */
+  subtitle?: string;
 };
 
-function DeferredProjectAnnotationMetricPanel({
+/**
+ * The one place the panel's title and subtitle defaults are decided, shared by
+ * the deferred placeholder, the loading fallback, and the loaded chart so the
+ * renderings cannot drift apart.
+ */
+function getAnnotationPanelHeader({
+  title,
+  subtitle,
+  annotationName,
+}: Pick<
+  ProjectAnnotationMetricPanelProps,
+  "title" | "subtitle" | "annotationName"
+>) {
+  return {
+    title: title ?? annotationName,
+    subtitle: subtitle ?? PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+  };
+}
+
+export function DeferredProjectAnnotationMetricPanel({
   annotationName,
   fillHeight = false,
   ...props
 }: ProjectAnnotationMetricPanelProps) {
+  const header = getAnnotationPanelHeader({ ...props, annotationName });
   return (
     <DeferredChartPanel
-      title={annotationName}
-      subtitle={PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION}
+      title={header.title}
+      subtitle={header.subtitle}
       fillHeight={fillHeight}
     >
       <ProjectAnnotationMetricPanelWithFrozenTimeRange
@@ -227,13 +268,14 @@ export function ProjectAnnotationMetricPanel({
   fillHeight = false,
   ...props
 }: ProjectAnnotationMetricPanelProps) {
+  const header = getAnnotationPanelHeader(props);
   return (
     <ErrorBoundary>
       <Suspense
         fallback={
           <ChartPanel
-            title={props.annotationName}
-            subtitle={PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION}
+            title={header.title}
+            subtitle={header.subtitle}
             fillHeight={fillHeight}
           >
             <ChartSkeleton />
@@ -244,6 +286,8 @@ export function ProjectAnnotationMetricPanel({
           {({ annotationSeries, annotationConfigsByName }) => (
             <ProjectAnnotationMetricPanelContent
               {...props}
+              title={header.title}
+              subtitle={header.subtitle}
               annotationSeries={annotationSeries}
               annotationConfigsByName={annotationConfigsByName}
               fillHeight={fillHeight}
@@ -258,14 +302,18 @@ export function ProjectAnnotationMetricPanel({
 function ProjectAnnotationMetricPanelContent({
   annotationSeries,
   annotationConfigsByName,
+  annotationConfig,
   annotationName,
   fillHeight,
   ...props
 }: ProjectMetricViewProps & {
   annotationSeries: AnnotationMetricsSeries[];
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
+  annotationConfig?: AnnotationOptimizationConfig;
   annotationName: string;
   fillHeight: boolean;
+  title: string;
+  subtitle: string;
 }) {
   const scale = useTimeBinScale({ timeRange: props.timeRange });
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
@@ -280,7 +328,9 @@ function ProjectAnnotationMetricPanelContent({
     <ProjectAnnotationMetricsPanel
       {...props}
       series={series}
-      annotationConfig={annotationConfigsByName.get(series.name)}
+      annotationConfig={
+        annotationConfig ?? annotationConfigsByName.get(series.name)
+      }
       timeTickFormatter={timeTickFormatter}
       fullTimeFormatter={fullTimeFormatter}
       fillHeight={fillHeight}

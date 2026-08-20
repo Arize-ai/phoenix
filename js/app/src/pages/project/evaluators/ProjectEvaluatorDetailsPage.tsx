@@ -23,6 +23,7 @@ import {
   EmptyState,
   EmptyStateGraphic,
 } from "@phoenix/components/core/empty";
+import { Token } from "@phoenix/components/core/token";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   ConnectedTimeRangeSelector,
@@ -32,14 +33,54 @@ import { TopNavActions } from "@phoenix/components/nav";
 import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
+import { LLMProjectEvaluatorAnnotation } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorAnnotation";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { ProjectEvaluatorMetrics } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMetrics";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorRunDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRunDetails";
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
 import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
+import { getProjectEvaluatorStatus } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+
+/**
+ * The overview column: a container so the panels inside can respond to the
+ * column's width rather than the viewport's, and centered with the same max
+ * width the metrics tab uses.
+ */
+const overviewColumnCSS = css`
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-300);
+  max-width: 1600px;
+  margin-inline: auto;
+`;
+
+/**
+ * Scope and Annotation are peers -- the policy that selects work and the
+ * annotation that work produces -- so they sit side by side, stacking when the
+ * column is too narrow to read two cards across.
+ */
+const configurationPairCSS = css`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--global-dimension-size-200);
+  /* Stretch so the pair reads as one band rather than two ragged columns. */
+  align-items: stretch;
+
+  /* A code evaluator has no annotation card, so let Scope take the whole row
+     rather than sit at half width beside an empty cell. */
+  > :only-child {
+    grid-column: 1 / -1;
+  }
+
+  @container (max-width: 800px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+`;
 
 const mainCSS = css`
   display: flex;
@@ -85,6 +126,11 @@ function ProjectEvaluatorDetailsPageLoaded({
     return <ProjectEvaluatorNotFound />;
   }
   const evaluator = projectEvaluator.evaluator;
+  const status = getProjectEvaluatorStatus({
+    schedulabilityStatus: projectEvaluator.schedulabilityStatus,
+    schedulabilityReason: projectEvaluator.schedulabilityReason,
+    runSummary: projectEvaluator.runSummary,
+  });
   const isLLMEvaluator = evaluator.kind === "LLM";
   const canEdit = evaluator.kind === "LLM" || evaluator.kind === "CODE";
 
@@ -98,12 +144,15 @@ function ProjectEvaluatorDetailsPageLoaded({
         </TopNavActions>
         <PageHeader
           title={
-            <Heading level={1}>
-              <Truncate
-                maxWidth="100%"
-                title={`Evaluator: ${projectEvaluator.name}`}
-              >{`Evaluator: ${projectEvaluator.name}`}</Truncate>
-            </Heading>
+            <Flex direction="row" gap="size-150" alignItems="center">
+              <Heading level={1}>
+                <Truncate
+                  maxWidth="100%"
+                  title={`Evaluator: ${projectEvaluator.name}`}
+                >{`Evaluator: ${projectEvaluator.name}`}</Truncate>
+              </Heading>
+              <Token color={status.color}>{status.label}</Token>
+            </Flex>
           }
           subTitle={evaluator.description}
           extra={
@@ -135,32 +184,46 @@ function ProjectEvaluatorDetailsPageLoaded({
             {/* The key stays `configuration` -- it is the tab's identity, not its
               label, and a Traces deep link selects by it. */}
             <Tab id="configuration">Overview</Tab>
+            <Tab id="metrics">Metrics</Tab>
             <Tab id="traces">Traces</Tab>
           </TabList>
           <LazyTabPanel id="configuration">
             <View width="100%" overflow="auto" height="100%">
               <View padding="size-200">
-                <Flex
-                  direction="column"
-                  gap="size-300"
-                  maxWidth={1600}
-                  marginStart="auto"
-                  marginEnd="auto"
-                >
+                <div css={overviewColumnCSS}>
                   <ProjectEvaluatorRunDetails
                     projectEvaluatorRef={projectEvaluator}
                   />
-                  <ProjectEvaluatorScopeDetails
-                    projectEvaluatorRef={projectEvaluator}
-                  />
+                  <div css={configurationPairCSS}>
+                    <ProjectEvaluatorScopeDetails
+                      projectEvaluatorRef={projectEvaluator}
+                    />
+                    {isLLMEvaluator && (
+                      <LLMProjectEvaluatorAnnotation
+                        projectEvaluatorRef={projectEvaluator}
+                      />
+                    )}
+                  </div>
                   {isLLMEvaluator && (
                     <LLMProjectEvaluatorDetails
                       projectEvaluatorRef={projectEvaluator}
                     />
                   )}
-                </Flex>
+                </div>
               </View>
             </View>
+          </LazyTabPanel>
+          <LazyTabPanel id="metrics">
+            <Suspense fallback={<Loading />}>
+              <ProjectEvaluatorMetrics
+                projectEvaluatorId={projectEvaluator.id}
+                evaluatedProjectId={projectEvaluator.project.id}
+                traceProjectId={projectEvaluator.traceProject?.id ?? null}
+                evaluatorName={projectEvaluator.name}
+                evaluationTarget={projectEvaluator.evaluationTarget}
+                projectEvaluatorRef={projectEvaluator}
+              />
+            </Suspense>
           </LazyTabPanel>
           <LazyTabPanel id="traces">
             <Suspense fallback={<Loading />}>

@@ -545,7 +545,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Evaluator Details",
                     description:
-                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state — and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state — its metrics over time (scores and labels produced, evaluation run volume, latency percentiles, and LLM cost), and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
                   },
                 }}
               >

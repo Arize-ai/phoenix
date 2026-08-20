@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6dab71dd2ea7ea4e985a4cfcae5207d0>>
+ * @generated SignedSource<<bbcc096c93f6903931550d1643e0dd21>>
  * @lightSyntaxTransform
  */
 
@@ -8,21 +8,17 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
-export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TARGETS_EVALUATOR_TRACES" | "TRACE_TARGET_UNSUPPORTED";
-export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
+export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorRunDetails_projectEvaluator$data = {
+  readonly evaluationTarget: EvaluationTarget;
   readonly runSummary: {
     readonly evaluatedCount: number;
     readonly failedCount: number;
     readonly lastError: string | null;
     readonly lastRunAt: string | null;
     readonly queuedCount: number;
-    readonly status: ProjectEvaluatorRunStatus;
   };
-  readonly schedulabilityReason: ProjectEvaluatorSchedulabilityReason | null;
-  readonly schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus;
   readonly " $fragmentType": "ProjectEvaluatorRunDetails_projectEvaluator";
 };
 export type ProjectEvaluatorRunDetails_projectEvaluator$key = {
@@ -40,14 +36,7 @@ const node: ReaderFragment = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "schedulabilityStatus",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "schedulabilityReason",
+      "name": "evaluationTarget",
       "storageKey": null
     },
     {
@@ -58,13 +47,6 @@ const node: ReaderFragment = {
       "name": "runSummary",
       "plural": false,
       "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "status",
-          "storageKey": null
-        },
         {
           "alias": null,
           "args": null,
@@ -108,6 +90,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "95edda266deb8d8e5ea9eb2e3d73d3be";
+(node as any).hash = "cb21c9f63570bed6ddaf669059ecce88";
 
 export default node;

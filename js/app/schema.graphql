@@ -573,12 +573,12 @@ type BuiltInEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   inputSchema: JSON
   user: User
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
 }
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
@@ -724,12 +724,12 @@ type CodeEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   sandboxConfig: SandboxConfig
   inputMapping: EvaluatorInputMapping!
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   currentVersion: CodeEvaluatorVersion
   version(versionId: ID!): CodeEvaluatorVersion
   versionCount: Int!
@@ -1836,6 +1836,7 @@ interface Evaluator implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
@@ -2604,10 +2605,10 @@ type LLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   inputSchema: JSON
@@ -3258,10 +3259,34 @@ type Project implements Node {
   updatedAt: DateTime!
   spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, filterCondition: String): SpanCountTimeSeries!
   traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
-  traceCountByStatusTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountByStatusTimeSeries!
-  traceLatencyMsPercentileTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceLatencyPercentileTimeSeries!
+  traceCountByStatusTimeSeries(
+    timeRange: TimeRange!
+    timeBinConfig: TimeBinConfig
+
+    """
+    Restrict to traces produced by this project evaluator. Every evaluator traces into one shared project, so its own traces are only reachable through this scope.
+    """
+    projectEvaluatorId: ID
+  ): TraceCountByStatusTimeSeries!
+  traceLatencyMsPercentileTimeSeries(
+    timeRange: TimeRange!
+    timeBinConfig: TimeBinConfig
+
+    """
+    Restrict to traces produced by this project evaluator. Every evaluator traces into one shared project, so its own traces are only reachable through this scope.
+    """
+    projectEvaluatorId: ID
+  ): TraceLatencyPercentileTimeSeries!
   traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
-  traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
+  traceTokenCostTimeSeries(
+    timeRange: TimeRange!
+    timeBinConfig: TimeBinConfig
+
+    """
+    Restrict to traces produced by this project evaluator. Every evaluator traces into one shared project, so its own traces are only reachable through this scope.
+    """
+    projectEvaluatorId: ID
+  ): TraceTokenCostTimeSeries!
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
