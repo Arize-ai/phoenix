@@ -1,4 +1,5 @@
 import asyncio
+import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
@@ -83,14 +84,14 @@ from phoenix.server.online_eval.executor import (
     HydrationFailure,
     HydrationFailureReason,
     OnlineEvalExecutor,
-    TranscriptTooLargeError,
     session_eval_context,
     span_eval_context,
 )
 from phoenix.server.online_eval.failure_policy import is_transient_error
 from phoenix.server.online_eval.session_policy import (
     MAX_SESSION_EVAL_TURNS,
-    SessionTranscriptPolicy,
+    SESSION_POLICY_VERSION,
+    SessionEvalPolicy,
 )
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.online_eval.tracing import (
@@ -612,7 +613,7 @@ async def _annotations(db: DbSessionFactory) -> list[models.SpanAnnotation]:
         return list(await session.scalars(select(models.SpanAnnotation)))
 
 
-async def test_span_eval_context_nests_span_fields_under_metadata(
+async def test_span_eval_context_binds_one_span_document_to_input_and_span(
     db: DbSessionFactory,
 ) -> None:
     attributes = {
@@ -628,16 +629,9 @@ async def test_span_eval_context_nests_span_fields_under_metadata(
 
         context = span_eval_context(span, trace_id=trace.trace_id)
 
-    assert set(context) == {"input", "output", "metadata", "span"}
-    assert context["input"] == "span input"
+    assert set(context) == {"input", "output", "span"}
+    assert context["input"] is context["span"]
     assert context["output"] == "span output"
-    assert context["metadata"] == {
-        "attributes": attributes,
-        "name": span.name,
-        "span_kind": "LLM",
-        "status_code": "OK",
-        "status_message": "test_status_message",
-    }
     assert context["span"] == {
         "span_id": span.span_id,
         "trace_id": trace.trace_id,
@@ -706,8 +700,8 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
             output_configs=[],
             annotation_name=annotation_name,
             annotation_metadata={
-                "phoenix.online_eval.transcript_policy": {
-                    "last_retained_event_time": event_time.isoformat()
+                "phoenix.online_eval.session_policy": {
+                    "last_loaded_event_time": event_time.isoformat()
                 }
             },
         ),
@@ -794,18 +788,6 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
     assert await _session_annotations(db) == []
 
 
-def _transcript_policy(
-    max_transcript_bytes: int,
-    *,
-    max_turns: int = MAX_SESSION_EVAL_TURNS,
-) -> SessionTranscriptPolicy:
-    return SessionTranscriptPolicy(
-        max_transcript_bytes=max_transcript_bytes,
-        max_llm_message_bytes=4_096,
-        max_turns=max_turns,
-    )
-
-
 def _unsaved_project_session(
     *,
     session_id: str = "session-under-test",
@@ -821,79 +803,61 @@ def _unsaved_project_session(
     )
 
 
-def test_session_eval_context_truncates_oldest_whole_turns_by_utf8_bytes() -> None:
+def test_session_eval_context_binds_one_session_document_to_input_and_session() -> None:
     project_session = _unsaved_project_session()
     turns = [
         {
-            "input": f"question-{index}-" + "🙂" * 40,
-            "output": f"answer-{index}-" + "界" * 40,
+            "input": f"question-{index}",
+            "output": f"answer-{index}",
             "metadata": {"index": index},
+            "event_time": f"2026-01-0{index + 1}T00:00:00+00:00",
         }
         for index in range(3)
     ]
-    retained_blocks = [f"User: {turn['input']}\nAssistant: {turn['output']}" for turn in turns[1:]]
-    expected_transcript = "[transcript truncated: first 1 turns omitted]\n\n" + "\n\n".join(
-        retained_blocks
-    )
 
-    context = session_eval_context(
+    loaded = session_eval_context(
         project_session=project_session,
         turns=turns,
-        policy=_transcript_policy(len(expected_transcript.encode("utf-8"))),
+        policy=SessionEvalPolicy(),
+        total_eligible_root_count=5,
     )
 
-    assert set(context) == {"input", "output", "metadata", "session"}
-    assert context["session"] == {
+    assert set(loaded.context) == {"input", "output", "session"}
+    assert loaded.context["input"] is loaded.context["session"]
+    assert loaded.context["output"] == "answer-2"
+    assert loaded.context["session"] == {
         "session_id": project_session.session_id,
         "start_time": project_session.start_time.isoformat(),
         "end_time": project_session.end_time.isoformat(),
         "duration_ms": 2000.0,
         "turns": turns,
     }
-    assert context["input"] == expected_transcript
-    assert len(context["input"].encode("utf-8")) <= len(expected_transcript.encode("utf-8"))
-    assert context["output"] == turns[-1]["output"]
-    assert context["metadata"]["turns"] == turns
-    policy = context["metadata"]["phoenix.online_eval.transcript_policy"]
-    assert policy["total_eligible_root_count"] == 3
-    assert policy["loaded_turn_count"] == 3
-    assert policy["retained_turn_count"] == 2
-    assert policy["turn_cap_omitted_count"] == 0
-    assert policy["byte_cap_omitted_count"] == 1
+    assert loaded.applied_policy == {
+        "version": SESSION_POLICY_VERSION,
+        "ordering": "trace_start_time_then_trace_id_with_earliest_root_span",
+        "max_turns": MAX_SESSION_EVAL_TURNS,
+        "total_eligible_root_count": 5,
+        "loaded_turn_count": 3,
+        "turn_cap_omitted_count": 2,
+        "first_loaded_event_time": "2026-01-01T00:00:00+00:00",
+        "last_loaded_event_time": "2026-01-03T00:00:00+00:00",
+    }
 
-    omitted_turn = {"input": "x" * 500, "output": "y" * 500, "metadata": {}}
-    omitted_transcript = f"User: {omitted_turn['input']}\nAssistant: {omitted_turn['output']}"
-    with pytest.raises(TranscriptTooLargeError) as exc_info:
-        session_eval_context(
-            project_session=project_session,
-            turns=[omitted_turn],
-            policy=_transcript_policy(256),
-        )
-    error = str(exc_info.value)
-    assert f"{len(omitted_transcript.encode('utf-8'))} bytes" in error
-    assert "256-byte cap" in error
-    assert "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES" in error
-    assert "Raise" in error
-
-    null_values = session_eval_context(
+    no_output = session_eval_context(
         project_session=project_session,
-        turns=[{"input": None, "output": None, "metadata": {"raw": True}}],
-        policy=_transcript_policy(256),
+        turns=[{"input": "question", "output": None, "metadata": {}}],
+        policy=SessionEvalPolicy(),
     )
-    assert null_values["input"] == "User: \nAssistant: "
-    assert null_values["output"] == ""
-    assert null_values["metadata"]["turns"] == [
-        {"input": None, "output": None, "metadata": {"raw": True}}
-    ]
+    assert no_output.context["output"] is None
 
     empty = session_eval_context(
         project_session=project_session,
         turns=[],
-        policy=_transcript_policy(256),
+        policy=SessionEvalPolicy(),
     )
-    assert empty["input"] == ""
-    assert empty["output"] == ""
-    assert empty["metadata"]["turns"] == []
+    assert empty.context["output"] is None
+    assert empty.context["session"]["turns"] == []
+    assert empty.applied_policy["total_eligible_root_count"] == 0
 
 
 async def test_load_session_bound_variables_reads_filter_language_values(
@@ -997,6 +961,34 @@ async def test_span_entity_root_path_mapping_binds_attribute(
     assert len(await _annotations(db)) == 1
 
 
+async def test_unmapped_input_binds_the_whole_span_document_as_json(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    attributes = {"input": {"value": "hi"}, "llm": {"model_name": "gpt-4o-mini"}}
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace, attributes=attributes)
+    evaluator_id, criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        template_content="{{input}}",
+    )
+    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    await consumer._cycle()
+
+    assert len(client.requests) == 1
+    rendered = json.loads(client.requests[0]["messages"][0]["content"])
+    assert rendered["span_id"] == span.span_id
+    assert rendered["attributes"] == attributes
+    assert rendered["events"] == []
+    assert len(await _annotations(db)) == 1
+
+
 async def test_span_bound_variable_binds_without_input_mapping(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1061,7 +1053,7 @@ async def test_session_bound_variable_binds_without_input_mapping(
     assert len(await _session_annotations(db)) == 1
 
 
-async def test_session_entity_turns_path_records_structured_turns_mapped(
+async def test_session_entity_turns_path_mapping_binds_a_turn(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with db() as session:
@@ -1096,9 +1088,64 @@ async def test_session_entity_turns_path_records_structured_turns_mapped(
 
     assert len(client.requests) == 1
     assert client.requests[0]["messages"][0]["content"] == "First turn: hi"
-    (annotation,) = await _session_annotations(db)
-    policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
-    assert policy["structured_turns_mapped"] is True
+    assert len(await _session_annotations(db)) == 1
+
+
+async def test_unmapped_metadata_fails_by_name_and_a_mapped_one_succeeds(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    unmapped_evaluator_id, unmapped_criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+        template_content="Metadata: {{metadata}}",
+    )
+    mapped_evaluator_id, mapped_criteria_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+        template_content="Metadata: {{metadata}}",
+        criteria_input_mapping=InputMapping(
+            path_mapping={"metadata": "$.session.turns"},
+            literal_mapping={},
+        ),
+    )
+    unmapped_unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        unmapped_evaluator_id,
+        unmapped_criteria_id,
+    )
+    mapped_unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        mapped_evaluator_id,
+        mapped_criteria_id,
+    )
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    await consumer._cycle()
+
+    unmapped_unit = await _get_session_unit(db, unmapped_unit_id)
+    assert unmapped_unit.status == "ERROR"
+    assert unmapped_unit.error is not None
+    assert "metadata" in unmapped_unit.error
+    assert (await _get_session_unit(db, mapped_unit_id)).status == "DONE"
+    assert len(await _session_annotations(db)) == 1
 
 
 async def test_happy_path_claims_evaluates_annotates_and_completes(
@@ -1309,9 +1356,9 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        SessionTranscriptPolicy,
-        "from_env",
-        classmethod(lambda cls: _transcript_policy(32_768, max_turns=2)),
+        executor_module,
+        "SessionEvalPolicy",
+        lambda: SessionEvalPolicy(max_turns=2),
     )
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
@@ -1411,9 +1458,9 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         project.id,
         evaluation_target="SESSION",
         template_content=(
-            "{{input}}\nOUTPUT={{output}}\n"
-            "TURNS={{#metadata.turns}}{{input}}/{{output}}/{{metadata.turn}};"
-            "{{/metadata.turns}}"
+            "OUTPUT={{output}}\n"
+            "TURNS={{#session.turns}}{{input}}/{{output}}/{{metadata.turn}};"
+            "{{/session.turns}}"
         ),
     )
     unit_id, fingerprint = await _materialize_session_unit(
@@ -1437,10 +1484,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert (await _get_session_unit(db, unit_id)).status == "DONE"
     assert len(client.requests) == 1
     assert client.requests[0]["messages"][0]["content"] == (
-        "User: first question\nAssistant: first answer\n\n"
-        "User: second question\nAssistant: second answer\n"
-        "OUTPUT=second answer\n"
-        "TURNS=first question/first answer/1;second question/second answer/2;"
+        "OUTPUT=second answer\nTURNS=first question/first answer/1;second question/second answer/2;"
     )
     (annotation,) = await _session_annotations(db)
     assert annotation.project_session_id == project_session.id
@@ -1450,16 +1494,14 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert annotation.annotator_kind == "LLM"
     assert annotation.source == "API"
     assert annotation.identifier == annotation_identifier(fingerprint)
-    policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
+    policy = annotation.metadata_["phoenix.online_eval.session_policy"]
+    assert policy["version"] == SESSION_POLICY_VERSION
     assert policy["ordering"] == "trace_start_time_then_trace_id_with_earliest_root_span"
     assert policy["total_eligible_root_count"] == 3
     assert policy["loaded_turn_count"] == 2
-    assert policy["retained_turn_count"] == 2
     assert policy["turn_cap_omitted_count"] == 1
-    assert policy["byte_cap_omitted_count"] == 0
-    assert policy["first_retained_event_time"] is not None
-    assert policy["last_retained_event_time"] is not None
-    assert policy["structured_turns_mapped"] is True
+    assert policy["first_loaded_event_time"] is not None
+    assert policy["last_loaded_event_time"] is not None
     assert events.get_nowait() == ProjectSessionAnnotationInsertEvent((annotation.id,))
     assert events.empty()
 
@@ -1495,7 +1537,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert events.empty()
 
 
-async def test_session_publication_preserves_ingest_and_records_transcript_watermarks(
+async def test_session_publication_preserves_ingest_and_records_coverage_watermarks(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -1609,64 +1651,10 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
 
     unit = await _get_session_unit(db, unit_id)
     (annotation,) = await _session_annotations(db)
-    policy = annotation.metadata_["phoenix.online_eval.transcript_policy"]
-    assert policy["last_retained_event_time"] == second_event_time.isoformat()
+    policy = annotation.metadata_["phoenix.online_eval.session_policy"]
+    assert policy["last_loaded_event_time"] == second_event_time.isoformat()
     assert unit.evaluated_through == first_ingest_time
     assert unit.transcript_covered_through == second_event_time
-
-
-async def test_marker_only_session_transcript_is_terminal_without_counting_attempt(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    input_value = "x" * 500
-    output_value = "y" * 500
-    transcript = f"User: {input_value}\nAssistant: {output_value}"
-    # The cap is fingerprinted, so it has to be in force before materialization or
-    # the unit expires on the staleness guard instead of reaching the transcript.
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES", "256")
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
-        await _add_span(
-            session,
-            trace,
-            attributes={
-                "input": {"value": input_value},
-                "output": {"value": output_value},
-            },
-        )
-    evaluator_id, criteria_id = await _seed_llm_criteria(
-        db,
-        project.id,
-        evaluation_target="SESSION",
-    )
-    unit_id, _ = await _materialize_session_unit(
-        db,
-        project_session.id,
-        evaluator_id,
-        criteria_id,
-    )
-    client = _StubLLMClient()
-    _patch_playground_client(monkeypatch, client)
-
-    consumer = OnlineEvalConsumer(
-        db,
-        decrypt=lambda value: value,
-        evaluation_target="SESSION",
-    )
-    await consumer._cycle()
-
-    unit = await _get_session_unit(db, unit_id)
-    assert unit.status == "EXPIRED"
-    assert unit.attempts == 0
-    assert unit.error is not None
-    assert unit.error.startswith("TRANSCRIPT_TOO_LARGE: ")
-    assert f"{len(transcript.encode('utf-8'))} bytes" in unit.error
-    assert "256-byte cap" in unit.error
-    assert "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES" in unit.error
-    assert client.requests == []
-    assert await _session_annotations(db) == []
 
 
 async def test_cross_project_session_unit_expires_before_evaluator_call(
@@ -1854,8 +1842,8 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
     assert captured_runner_arguments["timeout"] < captured_runner_arguments["runner_timeout"] < 600
     assert (
         captured_runner_arguments["payload_limit_remediation"]
-        == "Reduce the dominant evaluator source or mapped inputs, or raise the limit with "
-        "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
+        == "Narrow the slot with a path mapping, reduce the evaluator source, or raise "
+        "the limit with PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
     )
 
 
@@ -1947,7 +1935,7 @@ async def test_llm_criteria_input_mapping_override_is_used_during_execution(
         project.id,
         template_content="Question: {{question}}\nAnswer: {{answer}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"question": "metadata.attributes.remapped.question"},
+            path_mapping={"question": "span.attributes.remapped.question"},
             literal_mapping={"answer": "literal answer"},
         ),
     )
@@ -1988,7 +1976,7 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
             sampling_rate=1.0,
             evaluation_target="SPAN",
             input_mapping=InputMapping(
-                path_mapping={"text": "metadata.attributes.remapped.text"},
+                path_mapping={"text": "span.attributes.remapped.text"},
                 literal_mapping={"words": "mapped value"},
             ),
         )
@@ -2057,7 +2045,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
         db,
         project.id,
         criteria_input_mapping=InputMapping(
-            path_mapping={"output": "metadata.attributes.remapped.value"},
+            path_mapping={"output": "span.attributes.remapped.value"},
             literal_mapping={"metadata": "criteria literal"},
         ),
     )

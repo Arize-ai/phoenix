@@ -29,7 +29,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.trace.dsl.filter import SPAN_BINDINGS
 from phoenix.trace.dsl.session_filter import _AGGREGATE_SPECS, SESSION_BINDINGS
 
-INTERFACE_SLOT_NAMES = frozenset({"input", "output", "metadata"})
+INTERFACE_SLOT_NAMES = frozenset({"input", "output"})
 """The context's own slots, which an evaluator already binds from the context."""
 
 _ROOT_SPAN_IO_NAMES: tuple[RootSpanIOKind, ...] = ("first_input", "last_output")

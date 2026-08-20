@@ -148,13 +148,10 @@ class ProjectSession(Node):
 
     @strawberry.field(
         description=(
-            "The canonical input, output, and metadata context that online "
-            "evaluators bind against when they run on this session. Null "
-            "whenever a live evaluation would refuse this session: its content "
-            "was trimmed after ingestion, it has no eligible root turn to "
-            "transcribe, or no whole turn fits the evaluation byte cap. An "
-            "over-cap transcript that still fits whole turns is truncated and "
-            "returned, exactly as a live evaluation reads it."
+            "The canonical context that online evaluators bind against when they "
+            "run on this session. Null whenever a live evaluation would refuse "
+            "this session: its content was trimmed after ingestion, or it has no "
+            "eligible root turn to evaluate."
         ),
     )  # type: ignore
     async def session_evaluation_context(
@@ -162,11 +159,10 @@ class ProjectSession(Node):
         info: Info[Context, None],
     ) -> Optional[JSON]:
         from phoenix.server.online_eval.executor import (
-            TranscriptTooLargeError,
             has_eligible_root_turns,
             load_session_eval_context,
         )
-        from phoenix.server.online_eval.session_policy import SessionTranscriptPolicy
+        from phoenix.server.online_eval.session_policy import SessionEvalPolicy
 
         if self.db_record:
             project_rowid = self.db_record.project_id
@@ -179,24 +175,19 @@ class ProjectSession(Node):
                 (self.id, models.ProjectSession.content_complete),
             )
         # The sweeper only claims content-complete sessions, so a preview of a
-        # trimmed one would bind against a transcript no live evaluation reads.
+        # trimmed one would bind against turns no live evaluation reads.
         if not content_complete:
             return None
         async with info.context.db.read() as session:
-            try:
-                context = await load_session_eval_context(
-                    session,
-                    project_session_rowid=self.id,
-                    project_id=project_rowid,
-                    policy=SessionTranscriptPolicy.from_env(),
-                )
-            except TranscriptTooLargeError:
-                # One unevaluable session must not fail the whole list it is
-                # read in; the null row says why on its own.
-                return None
-        if not has_eligible_root_turns(context):
+            loaded = await load_session_eval_context(
+                session,
+                project_session_rowid=self.id,
+                project_id=project_rowid,
+                policy=SessionEvalPolicy(),
+            )
+        if not has_eligible_root_turns(loaded.applied_policy):
             return None
-        return JSON(context)
+        return JSON(loaded.context)
 
     @strawberry.field(
         description=(

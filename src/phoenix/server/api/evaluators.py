@@ -441,7 +441,9 @@ class LLMEvaluator(BaseEvaluator):
                     ):
                         raise RenderedMessageTooLargeError(
                             f"Rendered online-eval messages are {rendered_message_bytes} bytes, "
-                            f"exceeding the {self._max_message_bytes}-byte limit"
+                            f"exceeding the {self._max_message_bytes}-byte limit. Narrow the "
+                            "slot with a path mapping, shorten the prompt, or raise the limit "
+                            "with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
                         )
 
                     formatted_messages = [
@@ -1109,9 +1111,16 @@ def cast_template_variable_types(
 
     for key, prop_schema in properties.items():
         if key in casted_template_variables:
+            value = casted_template_variables[key]
             prop_type = prop_schema.get("type")
-            if prop_type == "string" and not isinstance(casted_template_variables[key], str):
-                casted_template_variables[key] = str(casted_template_variables[key])
+            if prop_type == "string" and not isinstance(value, str):
+                # A whole entity bound to a string variable renders into a prompt, so
+                # it has to be JSON rather than a Python repr.
+                casted_template_variables[key] = (
+                    json.dumps(value, default=str)
+                    if isinstance(value, (dict, list))
+                    else str(value)
+                )
 
     return casted_template_variables
 

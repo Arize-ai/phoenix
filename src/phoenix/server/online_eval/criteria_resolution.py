@@ -19,7 +19,7 @@ from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.online_eval.derivation import ResolvedCriteria
-from phoenix.server.online_eval.session_policy import SessionTranscriptPolicy
+from phoenix.server.online_eval.session_policy import SessionEvalPolicy
 
 _SANDBOX_RUNTIME_POLICY_VERSION = "1"
 
@@ -238,9 +238,7 @@ def _resolved_criteria(
         sandbox_config_id=sandbox_config_id,
         filter_condition=criteria.filter_condition,
         sampling_rate=criteria.sampling_rate,
-        transcript_policy_fingerprint=(
-            SessionTranscriptPolicy.from_env().fingerprint
-            if criteria.evaluation_target == "SESSION"
-            else None
+        session_policy_fingerprint=(
+            SessionEvalPolicy().fingerprint if criteria.evaluation_target == "SESSION" else None
         ),
     )

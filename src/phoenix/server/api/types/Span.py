@@ -282,8 +282,7 @@ class Span(Node):
 
     @strawberry.field(
         description=(
-            "The canonical input, output, and metadata context that online "
-            "evaluators bind against when they run on this span."
+            "The canonical context that online evaluators bind against when they run on this span."
         ),
     )  # type: ignore
     async def evaluation_context(
