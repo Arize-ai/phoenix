@@ -1,6 +1,6 @@
 import { Flex } from "@phoenix/components";
-import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
 import { EVALUATOR_SLOT_NAMES } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
