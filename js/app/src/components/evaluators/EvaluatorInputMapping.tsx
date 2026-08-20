@@ -15,6 +15,7 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import type { EvaluatorMappingSourceState } from "@phoenix/store/evaluatorStore";
+import type { EvaluatorInputMapping as EvaluatorInputMappingValue } from "@phoenix/types";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
 
 /**
@@ -59,12 +60,33 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
   );
 };
 
-const useEvaluatorInputMappingControlsForm = () => {
+/**
+ * A react-hook-form instance over the evaluator's input mapping, kept in sync
+ * with the evaluator store.
+ *
+ * @param pruneEmptyEntries - Drops entries with no value before writing back,
+ *   so a control the author left alone stores nothing. Fixed-row editors need
+ *   this, because their controls register whether or not they are filled in.
+ * @param filterInitialMapping - Narrows what the form starts from. The form
+ *   reads the store once, so anything it should not carry forward has to be
+ *   dropped here rather than after mount.
+ */
+export const useEvaluatorInputMappingControlsForm = ({
+  pruneEmptyEntries = false,
+  filterInitialMapping,
+}: {
+  pruneEmptyEntries?: boolean;
+  filterInitialMapping?: (
+    inputMapping: EvaluatorInputMappingValue
+  ) => EvaluatorInputMappingValue;
+} = {}) => {
   const store = useEvaluatorStoreInstance();
   // Initialize RHF from the store once. Subscribing this component to the same
   // mapping values it writes causes controlled input focus/caret churn.
   const initialInputMappingRef = useRef(
-    store.getState().evaluator.inputMapping
+    filterInitialMapping
+      ? filterInitialMapping(store.getState().evaluator.inputMapping)
+      : store.getState().evaluator.inputMapping
   );
   const { pathMapping, literalMapping } = initialInputMappingRef.current;
   // Escape keys for react-hook-form to prevent dots from being interpreted as nested paths
@@ -92,14 +114,26 @@ const useEvaluatorInputMappingControlsForm = () => {
           return;
         }
         const { setPathMapping, setLiteralMapping } = store.getState();
-        // Unescape keys when writing back to store
-        setPathMapping({ ...unescapeMapping(pathMapping) });
-        setLiteralMapping({ ...unescapeMapping(literalMapping) });
+        const write = <T,>(mapping: Record<string, T>) => {
+          const unescaped = unescapeMapping(mapping);
+          return pruneEmptyEntries ? pruneEmpty(unescaped) : { ...unescaped };
+        };
+        setPathMapping(write(pathMapping));
+        setLiteralMapping(write(literalMapping));
       },
     });
-  }, [subscribe, store]);
+  }, [subscribe, store, pruneEmptyEntries]);
   return form;
 };
+
+/** A control that was never filled in reports an empty value, not an entry. */
+function pruneEmpty<T>(mapping: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(mapping).filter(
+      ([, value]) => value !== undefined && value !== null && value !== ""
+    )
+  );
+}
 
 const EvaluatorInputMappingControls = () => {
   const { control, setValue } = useEvaluatorInputMappingControlsForm();
@@ -135,7 +169,7 @@ const EvaluatorInputMappingControls = () => {
       })}
       {variables.length === 0 && (
         <Text color="text-500">
-          Variables that you add to your prompt will be available to map here.
+          Add variables to your prompt to map them here.
         </Text>
       )}
     </Flex>

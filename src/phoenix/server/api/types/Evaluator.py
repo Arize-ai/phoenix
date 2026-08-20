@@ -1291,7 +1291,7 @@ class ProjectEvaluator(Node):
                 (record.project_id, models.Project.name),
             ),
         )
-        return project_name == EVALUATORS_PROJECT_NAME
+        return bool(project_name == EVALUATORS_PROJECT_NAME)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Whether this project evaluator is currently eligible for scheduling."

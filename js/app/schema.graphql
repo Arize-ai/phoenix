@@ -3438,9 +3438,14 @@ type ProjectSession implements Node {
   lastOutput: SpanIOValue
 
   """
-  The canonical input, output, and metadata context that online evaluators bind against when they run on this session. Null whenever a live evaluation would refuse this session: its content was trimmed after ingestion, it has no eligible root turn to transcribe, or no whole turn fits the evaluation byte cap. An over-cap transcript that still fits whole turns is truncated and returned, exactly as a live evaluation reads it.
+  The canonical context that online evaluators bind against when they run on this session. Null whenever a live evaluation would refuse this session: its content was trimmed after ingestion, or it has no eligible root turn to evaluate.
   """
   sessionEvaluationContext: JSON
+
+  """
+  Values an online evaluator running on this session binds by variable name when its input mapping leaves that name unmapped.
+  """
+  sessionEvaluationBoundVariables: JSON!
 
   """
   The first non-null "user.id" span attribute in the session, identifying the end user of the traced application.
@@ -4484,9 +4489,14 @@ type Span implements Node {
   context: SpanContext!
 
   """
-  The canonical input, output, and metadata context that online evaluators bind against when they run on this span.
+  The canonical context that online evaluators bind against when they run on this span.
   """
   evaluationContext: JSON!
+
+  """
+  Values an online evaluator running on this span binds by variable name when its input mapping leaves that name unmapped.
+  """
+  evaluationBoundVariables: JSON!
 
   """Span attributes as a JSON string"""
   attributes: String!

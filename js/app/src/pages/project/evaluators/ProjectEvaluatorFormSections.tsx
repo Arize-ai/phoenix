@@ -3,8 +3,15 @@ import type { ReactNode } from "react";
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import { BOUND_VARIABLES_PLACEMENT } from "@phoenix/pages/project/evaluators/boundVariablesPlacement";
+import { ProjectEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBoundVariables";
+import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
-import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type {
+  ProjectEvaluatorMappingSourceGrain,
+  ProjectEvaluatorScope,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { toEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
  * The left definition panel for an LLM project evaluator; the matching-span
@@ -34,16 +41,9 @@ export const ProjectLlmEvaluatorFormSections = ({
       <EvaluatorNameAndDescriptionFields />
       <View marginBottom="size-200" flex="none">
         <Flex direction="column" gap="size-200">
-          <Flex direction="column" gap="size-25">
-            <Heading level={2} weight="heavy">
-              Evaluator Scope
-            </Heading>
-            <Text color="text-500" size="S">
-              {scope.targetType === "SESSION"
-                ? "Select which sessions this evaluator runs on and how often."
-                : "Select which spans this evaluator runs on and how often."}
-            </Text>
-          </Flex>
+          <Heading level={2} weight="heavy">
+            Evaluator Scope
+          </Heading>
           <ProjectEvaluatorScopeFieldGroup
             projectId={projectId}
             scope={scope}
@@ -54,8 +54,62 @@ export const ProjectLlmEvaluatorFormSections = ({
           />
         </Flex>
       </View>
-      <LLMEvaluatorForm showInputMapping={false} />
+      <LLMEvaluatorForm
+        inputMappingSection={
+          <ProjectEvaluatorInputMappingSection
+            grain={toEvaluatorMappingSourceGrain(scope.targetType)}
+          />
+        }
+      />
     </>
+  );
+};
+
+/**
+ * The three inputs an evaluator receives, and — where the experiment currently
+ * places it — the list of values its record supplies by name.
+ */
+const ProjectEvaluatorInputMappingSection = ({
+  grain,
+}: {
+  grain: ProjectEvaluatorMappingSourceGrain;
+}) => {
+  const recordNoun = grain === "session" ? "session" : "span";
+  return (
+    <Flex direction="column" gap="size-200" marginTop="size-200">
+      <Flex direction="column" gap="size-100">
+        <Flex direction="column" gap="size-25">
+          <Heading level={2} weight="heavy">
+            Evaluator Inputs
+          </Heading>
+          <Text color="text-500" size="S">
+            Every evaluator receives an input, an output, and metadata, and each
+            can be pointed at any field of the {recordNoun}.
+          </Text>
+        </Flex>
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          marginTop="size-50"
+          borderColor="default"
+        >
+          {/* Keyed so the rows rebuild against the new record kind rather than
+              carrying the previous one's paths forward. */}
+          <ProjectEvaluatorInputMapping key={grain} grain={grain} />
+        </View>
+      </Flex>
+      {BOUND_VARIABLES_PLACEMENT === "mapping-section" ? (
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          borderColor="default"
+        >
+          <ProjectEvaluatorBoundVariables grain={grain} />
+        </View>
+      ) : null}
+    </Flex>
   );
 };
 
@@ -76,11 +130,11 @@ export const ProjectCodeEvaluatorFormSections = ({
       <Flex direction="column" gap="size-200" flex="none">
         <Flex direction="column" gap="size-25">
           <Heading level={2}>Evaluator</Heading>
-          <Text color="text-500" size="S">
-            {codeDefinition
-              ? "Define your evaluator's source code and annotation output."
-              : "Attach the selected code evaluator to this project."}
-          </Text>
+          {codeDefinition ? null : (
+            <Text color="text-500" size="S">
+              Attach the selected code evaluator to this project.
+            </Text>
+          )}
         </Flex>
         {codeDefinition ?? (
           <View

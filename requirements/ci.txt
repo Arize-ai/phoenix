@@ -10,7 +10,8 @@ pytest-randomly
 pytest-rerunfailures
 deepdiff==8.6.2
 anthropic
-openai>=2.14.0
+# openai 3.x changed the client surface (responses API); test stubs cover 2.x
+openai>=2.14.0,<3
 pystache
 PyYAML
 aioboto3

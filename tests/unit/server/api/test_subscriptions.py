@@ -2177,8 +2177,8 @@ class TestChatCompletionOverDatasetSubscription:
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
             assert output_value == {
-                "input": "{'city': 'Paris'}",
-                "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
+                "input": '{"city": "Paris"}',
+                "output": '{"messages": [{"role": "assistant", "content": "France"}], "available_tools": []}',
             }
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
@@ -2193,8 +2193,8 @@ class TestChatCompletionOverDatasetSubscription:
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
             input_value = json.loads(attributes.pop(INPUT_VALUE))
             assert input_value == {
-                "input": "{'city': 'Paris'}",
-                "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
+                "input": '{"city": "Paris"}',
+                "output": '{"messages": [{"role": "assistant", "content": "France"}], "available_tools": []}',
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
@@ -2207,9 +2207,9 @@ class TestChatCompletionOverDatasetSubscription:
                     {
                         "role": "user",
                         "content": (
-                            "Input: {'city': 'Paris'}\n\n"
-                            "Output: {'messages': [{'role': 'assistant', 'content': 'France'}], "
-                            "'available_tools': []}\n\n"
+                            'Input: {"city": "Paris"}\n\n'
+                            'Output: {"messages": [{"role": "assistant", "content": "France"}], '
+                            '"available_tools": []}\n\n'
                             "Is this output correct?"
                         ),
                     },

@@ -82,7 +82,6 @@ export const LevenshteinDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="expected"
           label="Expected"
-          description="The expected text."
           defaultMode={expectedDefaultMode}
           control={control}
           setValue={setValue}
@@ -96,7 +95,6 @@ export const LevenshteinDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="actual"
           label="Actual"
-          description="The actual text to compare."
           defaultMode={actualDefaultMode}
           control={control}
           setValue={setValue}

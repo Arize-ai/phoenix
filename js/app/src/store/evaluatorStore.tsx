@@ -70,6 +70,12 @@ export type EvaluatorStoreProps = {
     selectedSplitIds: string[];
   };
   evaluatorMappingSource: EvaluatorMappingSourceState;
+  /**
+   * The values the selected record supplies by name, with no mapping entry —
+   * the same names a filter condition on that record resolves. Empty until a
+   * record is selected, and always empty for the dataset grain.
+   */
+  evaluatorBoundVariables: Record<string, unknown>;
   showPromptPreview: boolean;
 };
 
@@ -109,6 +115,10 @@ export type EvaluatorStoreActions = {
    * so explicitly, or mapping vocabulary silently keeps naming the old record.
    */
   setEvaluatorMappingSourceGrain: (grain: EvaluatorMappingSourceGrain) => void;
+  /** Sets the values the selected record supplies by name. */
+  setEvaluatorBoundVariables: (
+    evaluatorBoundVariables: Record<string, unknown>
+  ) => void;
   /** Sets a single field of the evaluator mapping source. */
   setEvaluatorMappingSourceField: (
     params:
@@ -234,9 +244,7 @@ export const SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"span
   {
     input: {},
     output: {},
-    metadata: {
-      attributes: {},
-    },
+    span: {},
   };
 
 /** Stands in until a recorded session's server-computed context arrives. */
@@ -244,9 +252,7 @@ export const SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"s
   {
     input: "",
     output: "",
-    metadata: {
-      turns: [],
-    },
+    session: {},
   };
 
 /** The mapping source a grain starts from before any record is selected. */
@@ -292,6 +298,7 @@ export const DEFAULT_STORE_VALUES = {
     grain: "dataset",
     source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   },
+  evaluatorBoundVariables: {},
   showPromptPreview: false,
   outputConfigs: [] as AnnotationConfig[],
 } satisfies DeepPartial<EvaluatorStoreProps>;
@@ -504,20 +511,33 @@ export const createEvaluatorStore = (
             );
           },
           setEvaluatorMappingSource(evaluatorMappingSource) {
-            const { input, output, metadata } = evaluatorMappingSource;
+            const { input, output } = evaluatorMappingSource;
             const { grain } = get().evaluatorMappingSource;
+            // The entity root is grain-named, so a context built for the other
+            // grain contributes nothing and leaves the tree empty rather than
+            // offering paths this grain would fail to bind.
+            const entityRoot = (key: string): Record<string, unknown> => {
+              const value = (evaluatorMappingSource as Record<string, unknown>)[
+                key
+              ];
+              return isStringKeyedObject(value) ? value : {};
+            };
             let nextEvaluatorMappingSource: EvaluatorMappingSourceState;
             switch (grain) {
               case "span":
                 nextEvaluatorMappingSource = {
                   grain: "span",
-                  source: { input, output, metadata },
+                  source: { input, output, span: entityRoot("span") },
                 };
                 break;
               case "session":
                 nextEvaluatorMappingSource = {
                   grain: "session",
-                  source: { input, output, metadata },
+                  source: {
+                    input,
+                    output,
+                    session: entityRoot("session"),
+                  },
                 };
                 break;
               case "dataset":
@@ -530,7 +550,11 @@ export const createEvaluatorStore = (
                       "reference" in evaluatorMappingSource
                         ? evaluatorMappingSource.reference
                         : {},
-                    metadata,
+                    metadata:
+                      "metadata" in evaluatorMappingSource &&
+                      isStringKeyedObject(evaluatorMappingSource.metadata)
+                        ? evaluatorMappingSource.metadata
+                        : {},
                   },
                 };
                 break;
@@ -551,9 +575,17 @@ export const createEvaluatorStore = (
               {
                 evaluatorMappingSource:
                   defaultEvaluatorMappingSourceState(grain),
+                evaluatorBoundVariables: {},
               },
               undefined,
               "setEvaluatorMappingSourceGrain"
+            );
+          },
+          setEvaluatorBoundVariables(evaluatorBoundVariables) {
+            set(
+              { evaluatorBoundVariables },
+              undefined,
+              "setEvaluatorBoundVariables"
             );
           },
           setEvaluatorMappingSourceField(params) {

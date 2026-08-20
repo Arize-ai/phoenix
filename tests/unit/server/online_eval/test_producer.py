@@ -846,38 +846,6 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
     assert units[2].status == "DONE"
 
 
-async def test_transcript_caps_enter_the_session_fingerprint(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Transcript caps decide what text a session evaluator reads, so a cap change
-    has to change the identity — results under one identifier must be comparable."""
-    async with db() as session:
-        project = await _add_project(session)
-    evaluator_id, criteria_id = await _seed_criteria(
-        db,
-        project.id,
-        evaluation_target="SESSION",
-    )
-
-    async def _fingerprint() -> str:
-        async with db() as session:
-            criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-            evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
-            assert criteria is not None
-            assert evaluator is not None
-            resolved = await resolve_criteria(session, criteria, evaluator)
-            assert resolved is not None
-            return config_fingerprint(resolved)
-
-    baseline = await _fingerprint()
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES", "65536")
-    widened_transcript = await _fingerprint()
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES", "131072")
-    widened_message = await _fingerprint()
-
-    assert len({baseline, widened_transcript, widened_message}) == 3
-
-
 async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
     db: DbSessionFactory,
 ) -> None:

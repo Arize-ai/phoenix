@@ -65,11 +65,15 @@ export function createCompletionOptions({
       data: mappingSource.input,
       info: "The input provided to the task",
     },
-    {
-      name: "metadata",
-      data: mappingSource.metadata,
-      info: "Additional metadata from the evaluation source",
-    },
+    ...("metadata" in mappingSource
+      ? [
+          {
+            name: "metadata",
+            data: mappingSource.metadata,
+            info: "Additional metadata from the evaluation source",
+          },
+        ]
+      : []),
   ];
 
   for (const { name, data, info } of topLevelParams) {

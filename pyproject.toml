@@ -449,7 +449,8 @@ exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-p
 # succeeds; phoenix uses litellm purely as a client library and does not
 # exercise the pinned-version code paths.
 override-dependencies = [
-  "openai>=2.30.0",
+  # openai 3.x changed the client surface (responses API); test stubs cover 2.x
+  "openai>=2.30.0,<3",
   "python-dotenv>=1.1.0",
 ]
 

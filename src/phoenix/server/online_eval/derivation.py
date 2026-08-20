@@ -47,7 +47,7 @@ class ResolvedCriteria:
     sandbox_config_id: int | None
     filter_condition: str
     sampling_rate: float
-    transcript_policy_fingerprint: str | None = None
+    session_policy_fingerprint: str | None = None
 
 
 def _canonical_default(obj: Any) -> Any:

@@ -5,15 +5,11 @@ import httpx
 import pytest
 from strawberry.relay import GlobalID
 
-from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES
 from phoenix.db import models
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.online_eval.session_policy import (
-    MAX_SESSION_EVAL_TURNS,
-    TRANSCRIPT_POLICY_VERSION,
-)
+from phoenix.server.online_eval.bound_variables import SESSION_BOUND_VARIABLE_NAMES
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -298,45 +294,44 @@ class TestProjectSession:
     ) -> None:
         project_session = _data.project_sessions[0]
         context = await self._node("sessionEvaluationContext", project_session, httpx_client)
-        assert context["input"] == (
-            f"User: {_LONG_FIRST_INPUT}\nAssistant: 321\n\n"
-            f"User: 1234\nAssistant: {_LONG_LAST_OUTPUT}"
-        )
+        assert set(context) == {"input", "output", "session"}
         assert context["output"] == _LONG_LAST_OUTPUT
-        assert [(turn["input"], turn["output"]) for turn in context["metadata"]["turns"]] == [
+        assert [(turn["input"], turn["output"]) for turn in context["session"]["turns"]] == [
             (_LONG_FIRST_INPUT, "321"),
             ("1234", _LONG_LAST_OUTPUT),
         ]
-        policy = context["metadata"]["phoenix.online_eval.transcript_policy"]
-        assert policy["version"] == TRANSCRIPT_POLICY_VERSION
-        assert policy["max_turns"] == MAX_SESSION_EVAL_TURNS
-        assert policy["total_eligible_root_count"] == 2
-        assert policy["retained_turn_count"] == 2
-        assert policy["turn_cap_omitted_count"] == 0
-        assert policy["byte_cap_omitted_count"] == 0
-        # Decided per evaluator at hydration time and recorded on the
-        # annotation, so it is not part of the context an author previews.
-        assert "structured_turns_mapped" not in policy
+        assert context["session"] == {
+            "session_id": project_session.session_id,
+            "start_time": project_session.start_time.isoformat(),
+            "end_time": project_session.end_time.isoformat(),
+            "duration_ms": 0.0,
+            "turns": context["session"]["turns"],
+        }
+        assert context["input"] == context["session"]
 
-    async def test_session_evaluation_context_is_null_when_transcript_exceeds_byte_cap(
+    async def test_session_evaluation_bound_variables(
         self,
-        db: DbSessionFactory,
+        _data: _Data,
         httpx_client: httpx.AsyncClient,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES, "256")
-        async with db() as session:
-            project = await _add_project(session)
-            oversized_session = await _add_project_session(session, project)
-            trace = await _add_trace(session, project, oversized_session)
-            await _add_span(
-                session,
-                trace,
-                attributes={"input": {"value": "hi"}, "output": {"value": "o" * 300}},
-            )
-        # A live evaluation of this session fails for the same reason, so the
-        # preview reports it rather than failing the query it is read in.
-        assert await self._node("sessionEvaluationContext", oversized_session, httpx_client) is None
+        project_session = _data.project_sessions[0]
+        bound_variables = await self._node(
+            "sessionEvaluationBoundVariables", project_session, httpx_client
+        )
+        assert set(bound_variables) == set(SESSION_BOUND_VARIABLE_NAMES)
+        assert bound_variables["session_id"] == project_session.session_id
+        assert bound_variables["duration_ms"] == 0.0
+        assert bound_variables["first_input"] == _LONG_FIRST_INPUT
+        assert bound_variables["last_output"] == _LONG_LAST_OUTPUT
+        assert bound_variables["num_traces"] == 2
+        assert bound_variables["num_traces_with_error"] == 1
+        assert bound_variables["token_count_prompt"] == 4
+        assert bound_variables["token_count_completion"] == 6
+        assert bound_variables["token_count_total"] == 10
+        assert bound_variables["llm_span_count"] == 2
+        assert bound_variables["tool_span_count"] == 0
+        assert bound_variables["total_cost"] == 0
+        assert bound_variables["user_id"] is None
 
     async def test_session_evaluation_context_is_null_when_content_is_incomplete(
         self,
@@ -367,7 +362,7 @@ class TestProjectSession:
             rootless_session = await _add_project_session(session, project)
             await _add_trace(session, project, rootless_session)
         # Live hydration returns NO_ROOT_TURNS here, so the preview reports the
-        # session as unevaluable rather than offering an empty transcript.
+        # session as unevaluable rather than offering an empty context.
         assert await self._node("sessionEvaluationContext", rootless_session, httpx_client) is None
 
     async def test_project(

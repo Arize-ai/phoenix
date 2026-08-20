@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactElement } from "react";
 import { useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
 import type {
@@ -94,6 +95,20 @@ export interface SwitchableEvaluatorInputProps<
    * and the label is marked with an asterisk.
    */
   isRequired?: boolean;
+  /**
+   * Renders the path control in place of the flat list of options.
+   *
+   * A record's fields nest, so the project grains choose a path from a tree of
+   * the record rather than from a list of every leaf it has.
+   */
+  renderPathInput?: (props: {
+    value: string;
+    onChange: (value: string) => void;
+    isInvalid: boolean;
+    errorMessage?: string;
+    id: string;
+    ariaLabel: string;
+  }) => ReactElement;
 }
 
 const modeSelectCSS = css`
@@ -154,6 +169,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   onPathInputChange,
   hideLabel,
   isRequired,
+  renderPathInput,
   size = "M",
 }: SwitchableEvaluatorInputProps<TFieldValues>) {
   const [mode, setMode] = useState<MappingMode>(defaultMode);
@@ -227,6 +243,19 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
               render={({ field, fieldState: { error } }) => {
                 const pathValue =
                   pathInputValue ?? (field.value as string | undefined) ?? "";
+                if (renderPathInput) {
+                  return renderPathInput({
+                    value: pathValue,
+                    onChange: (value) => {
+                      field.onChange(value === "" ? undefined : value);
+                      onPathInputChange?.(value);
+                    },
+                    isInvalid: !!error,
+                    errorMessage: error?.message,
+                    id: `${fieldName}-${mode}`,
+                    ariaLabel: `${label} path mapping`,
+                  });
+                }
                 // Custom typed paths are valid input values, but only real
                 // options should become selected keys for React Aria ComboBox.
                 const selectedKey = pathOptionsWithUnset.some(
