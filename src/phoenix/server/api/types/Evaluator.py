@@ -1,7 +1,7 @@
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import sqlalchemy as sa
 import strawberry
@@ -1285,8 +1285,11 @@ class ProjectEvaluator(Node):
         can already carry them; both sweep loads exclude those, and schedulability
         must say so rather than advertise an evaluator the sweeps never pick up.
         """
-        project_name = await info.context.data_loaders.project_fields.load(
-            (record.project_id, models.Project.name),
+        project_name = cast(
+            str,
+            await info.context.data_loaders.project_fields.load(
+                (record.project_id, models.Project.name),
+            ),
         )
         return project_name == EVALUATORS_PROJECT_NAME
 
