@@ -167,49 +167,14 @@ _PARENT_IS_NOT_NULL = "__parent_is_not_null__"
 _STRICT_ROOT_KEYWORD = "parent_id"
 
 
-class _RootNamespace(typing.NamedTuple):
-    """A reserved dotted root and the closed set of members it exposes.
+def _span_cost_binding(member: str) -> str:
+    """The internal name a cost member resolves to and is bound to at eval time.
 
-    Reserving the root is what makes a typo answerable. A bare name falls back to the
-    dynamic attribute namespace -- `totl_cost` compiles to `attributes['totl_cost']`, which
-    matches nothing and says nothing -- but nothing lies beneath a reserved root, so
-    `span.totl_cost` can be rejected by name with a suggestion instead.
-
-    That same closure is why reserving a root is a compatibility break (spec principle 6:
-    every new name is one) and why members are cheap to add afterwards -- an unknown member
-    already errors, so admitting one later cannot change what an accepted condition meant.
+    Deliberately unspellable: the translator rewrites the user's spelling to this, so the
+    name the user types stays free of the eval globals and an attribute key spelled the
+    same way cannot collide with the column bound here.
     """
-
-    keyword: str
-    scalars: typing.Mapping[str, "FilterValueType"]
-    iterables: frozenset[str] = frozenset()
-
-    @property
-    def members(self) -> frozenset[str]:
-        return frozenset(self.scalars) | self.iterables
-
-    def binding(self, member: str) -> str:
-        """The internal name a resolved member translates to and is bound to at eval time.
-
-        Deliberately unspellable: it never enters `binding_names`, so it cannot be typed by
-        a user, suggested by did-you-mean, or collide with an attribute key.
-        """
-        return f"__{self.keyword}_{member}__"
-
-    def iterable_key(self, member: str) -> str:
-        """The grain-wide name a collection member is registered under in `iterables`.
-
-        Dotted on purpose. Iterables are also resolvable as bare identifiers, so registering
-        this one as `cost_details` would make that bare name an iterable, and a stored
-        condition using it as an attribute would start failing: every non-iteration use of a
-        registered iterable is rejected with "is a collection and can only be iterated".
-
-        That break would be loud, not silent -- the meaning does not change quietly, the
-        condition stops compiling. Which is precisely why the dotted key is worth it: the
-        reservation already spends one loud break on `span.`, and there is nothing to buy
-        with a second one on `cost_details`. No bare identifier can equal a dotted key.
-        """
-        return f"{self.keyword}.{member}"
+    return f"__span_cost_{member}__"
 
 
 # The `span` root reads this span's own cost row. Cost lives on `span_costs`, not on
@@ -249,11 +214,6 @@ _COST_DETAIL_FIELDS: typing.Mapping[str, str] = MappingProxyType(
         "tokens": "float",
         "cost_per_token": "float",
     }
-)
-_SPAN_NAMESPACE = _RootNamespace(
-    keyword="span",
-    scalars=_SPAN_COST_SCALARS,
-    iterables=frozenset({_SPAN_COST_DETAILS}),
 )
 
 # Comprehension forms: `any`/`all` yield a boolean, the rest yield a number. Each extracted
@@ -326,15 +286,15 @@ class _FilterBindings:
     # Under `strict_semantics` every other dotted root is rejected.
     attribute_proxies: frozenset[str] = frozenset()
     # How a top-level name is described when it appears where an element field belongs, e.g.
-    # "`latency_ms` is a span-level term, not a span.cost_details element field". Only the
+    # "`latency_ms` is a span-level term, not a cost_details element field". Only the
     # adjective varies between grains; the sentence around it is shared. The default is the
     # grain-agnostic wording, which a grain overrides only to name its own vocabulary.
     term_noun: str = "top-level"
-    # The grain's reserved dotted root, if it declares one. Distinct from the two dotted
-    # forms above -- a legacy alias resolves to a name that also has a bare spelling, and an
-    # attribute proxy resolves *into* the dynamic namespace; a reserved root resolves to a
-    # closed set and shadows the dynamic namespace beneath it entirely.
-    root_namespace: typing.Optional["_RootNamespace"] = None
+    # Numeric names the grain resolves like any other bound name but binds per-instance at
+    # call time, because they live on a related row rather than on the filtered one. Kept
+    # out of `float_names` because those are columns `Projector` can also select; these are
+    # not columns of the filtered row at all. See `SpanFilter.__call__`.
+    deferred_number_names: frozenset[str] = frozenset()
     allow_outer_element_references: bool = False
     allow_datetime_reductions: bool = False
 
@@ -363,6 +323,7 @@ class _FilterBindings:
                 self.aggregate_names,
                 self.exists_names,
                 self.caller_bound_string_names,
+                self.deferred_number_names,
             )
         )
 
@@ -398,7 +359,7 @@ class ElementFieldReference(typing.NamedTuple):
 
 
 def _cost_detail_bindings() -> _FilterBindings:
-    """The language a predicate inside `for x in span.cost_details` compiles against.
+    """The language a predicate inside `for x in cost_details` compiles against.
 
     Strict and closed, unlike the span grain around it. The outer dialect is permissive
     because it predates the family and its accepted surface is a compatibility promise;
@@ -474,7 +435,7 @@ def _scope_cost_details(stmt: typing.Any, element: typing.Any) -> typing.Any:
 
 _SPAN_ITERABLES: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType(
     {
-        _SPAN_NAMESPACE.iterable_key(_SPAN_COST_DETAILS): _IterableGrammar(
+        _SPAN_COST_DETAILS: _IterableGrammar(
             element_bindings=_cost_detail_bindings(),
             model=models.SpanCostDetail,
             scope=_scope_cost_details,
@@ -504,7 +465,7 @@ SPAN_BINDINGS = _FilterBindings(
     exists_names=frozenset(),
     supports_parent_keyword=True,
     case_insensitive_containment=True,
-    root_namespace=_SPAN_NAMESPACE,
+    deferred_number_names=frozenset(_SPAN_COST_SCALARS),
     iterables=_SPAN_ITERABLES,
     term_noun="span-level",
 )
@@ -650,16 +611,6 @@ def _resolve_iterable(
         )
         raise SyntaxError(f"invalid iterable `{node.id}`{suggestion}")
     if isinstance(node, ast.Attribute) and isinstance(value := node.value, ast.Name):
-        namespace = bindings.root_namespace
-        if namespace is not None and value.id == namespace.keyword:
-            # A collection member of the reserved root, e.g. `span.cost_details`. Registered
-            # under its dotted spelling, so it is reachable only this way -- see
-            # `_RootNamespace.iterable_key`.
-            if (member := node.attr) not in namespace.iterables:
-                raise _invalid_member_error(member, namespace)
-            if scopes:
-                raise _nested_iterable_error(ast.unparse(node), scopes[-1])
-            return namespace.iterable_key(member), None
         if (scope := _scope_of(value.id, scopes)) is not None:
             if len(scopes) > 1:
                 raise _nested_iterable_error(ast.unparse(node), scopes[-1])
@@ -875,67 +826,6 @@ def _validate_comprehensions(
                 f'e.g. `any(x.<field> == "..." for x in {node.id})`'
             )
     return frozenset(iterable_slots)
-
-
-def _validate_root_namespace(
-    expression: ast.Expression,
-    bindings: _FilterBindings,
-    iterable_slots: typing.AbstractSet[int],
-) -> None:
-    """Check every reference rooted at the grain's reserved namespace keyword.
-
-    Runs before translation, so a rejection names what the user actually wrote. Members are
-    a closed set, which is the whole point of reserving the root: `span.totl_cost` has no
-    attribute-path fallback to absorb it and so can be answered with a suggestion.
-
-    `iterable_slots` carries the iterators :func:`_validate_comprehensions` already accepted,
-    which is how a collection member is admitted in `for ... in` position and rejected in
-    value position.
-    """
-    if (namespace := bindings.root_namespace) is None:
-        return
-    keyword = namespace.keyword
-
-    def check(node: ast.AST, shadowed: bool) -> None:
-        if isinstance(node, (ast.GeneratorExp, ast.ListComp)):
-            # A loop variable may be named after the root, and then it *is* the root's
-            # name inside the comprehension body -- ordinary lexical scoping, and what
-            # Python does. The iterable is deliberately checked unshadowed: Python
-            # evaluates the outermost `for` clause's iterable in the enclosing scope, so
-            # `for span in span.cost_details` reads the root on the right and the element
-            # in the body. Shape is already validated, so there is exactly one generator.
-            generator = node.generators[0]
-            check(generator.iter, shadowed)
-            target = generator.target
-            inner = shadowed or (isinstance(target, ast.Name) and target.id == keyword)
-            for child in (*generator.ifs, node.elt):
-                check(child, inner)
-            return
-        if not shadowed:
-            if isinstance(node, (ast.Attribute, ast.Subscript)) and _namespace_root(node, keyword):
-                if not _is_member_access(node):
-                    # `span.a.b`, `span.a['b']`, `span['a']` -- the outermost node is
-                    # reached first and names the whole offending expression.
-                    raise _namespace_traversal_error(node, namespace)
-                if (member := node.attr) in namespace.iterables:
-                    if id(node) not in iterable_slots:
-                        raise SyntaxError(
-                            f"`{keyword}.{member}` is a collection and can only be iterated"
-                            f', e.g. `any(x.<field> == "..." for x in {keyword}.{member})`'
-                        )
-                elif member not in namespace.scalars:
-                    raise _invalid_member_error(member, namespace)
-                # Consumed, root Name and all: nothing below it is a separate reference.
-                return
-            if isinstance(node, ast.Name) and node.id == keyword:
-                # A bare `span` that roots nothing. Rejected rather than left to mean
-                # `attributes['span']`, so the root is reserved whole and the closed-set
-                # guarantee has no hole at its base.
-                raise SyntaxError(f"`{keyword}` can only be used as `{keyword}.<field>`")
-        for child in ast.iter_child_nodes(node):
-            check(child, shadowed)
-
-    check(expression.body, False)
 
 
 class _ComprehensionExtractor(ast.NodeTransformer):
@@ -1353,7 +1243,7 @@ def _join_span_cost(
         column = getattr(span_cost, member)
         # An absent cost row and a recorded-but-null column are the same answer to the user's
         # question, so both coalesce; see `_SPAN_COST_RATIOS` for why ratios do not.
-        bindings[_SPAN_NAMESPACE.binding(member)] = (
+        bindings[_span_cost_binding(member)] = (
             column if member in _SPAN_COST_RATIOS else sqlalchemy.func.coalesce(column, 0)
         )
     # The alias is returned so a caller that nests the predicate in a subquery can correlate
@@ -1915,47 +1805,6 @@ def _parent_traversal_error(node: ast.expr) -> SyntaxError:
     )
 
 
-def _namespace_root(node: typing.Any, keyword: str) -> typing.Optional[ast.Name]:
-    """The reserved-root `Name` an attribute/subscript chain is rooted at, if it is one.
-
-    Mirrors `_is_parent_rooted`: the root is the base of the chain, so `span.total_cost` is
-    span-rooted while `attributes['span']['total_cost']` is not -- its root is `attributes`.
-    """
-    while isinstance(node, (ast.Attribute, ast.Subscript)):
-        node = node.value
-    return node if isinstance(node, ast.Name) and node.id == keyword else None
-
-
-def _is_member_access(node: ast.AST) -> TypeGuard[ast.Attribute]:
-    """Whether `node` is exactly one hop off a bare name, i.e. `<keyword>.<member>`."""
-    return isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
-
-
-def _namespace_traversal_error(node: ast.expr, namespace: _RootNamespace) -> SyntaxError:
-    return SyntaxError(
-        f"`{_ellipsize(ast.unparse(node), 80)}` is not supported: `{namespace.keyword}` "
-        f"exposes its fields directly (`{namespace.keyword}.<field>`) "
-        "and cannot be traversed further"
-    )
-
-
-def _invalid_member_error(member: str, namespace: _RootNamespace) -> SyntaxError:
-    """Reject an unknown member of a reserved root, suggesting a real one.
-
-    Possible only because the root is closed: with no attribute-path fallback beneath it, a
-    misspelling has nowhere to go, so it can be named instead of silently matching nothing.
-    """
-    keyword = namespace.keyword
-    choice, score = _find_best_match(member, namespace.members)
-    suggestion = (
-        f", did you mean `{keyword}.{choice}`?"
-        if choice and score > 0.75
-        else ", expected "
-        + _disjunction([f"{keyword}.{name}" for name in sorted(namespace.members)])
-    )
-    return SyntaxError(f"invalid field `{keyword}.{_ellipsize(member, 80)}`{suggestion}")
-
-
 def _is_none_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and node.value is None
 
@@ -2109,14 +1958,12 @@ def _get_named_filter_value_type(name: str) -> typing.Optional[FilterValueType]:
         return "number"
     if name in _DATETIME_NAMES:
         return "datetime"
-    # Reserved-root members are typed from their dotted spelling, because validation runs
-    # ahead of translation and so sees `span.total_cost`, never the internal name it
-    # resolves to. This is the language's second encoding of one rule, and the two have to
-    # agree: `span.total_cost > '100'` must reject exactly as `latency_ms > '100'` does.
-    # Reading both sides off the one namespace declaration is what keeps them from drifting.
-    keyword, _, member = name.partition(".")
-    if keyword == _SPAN_NAMESPACE.keyword:
-        return _SPAN_NAMESPACE.scalars.get(member)
+    # Cost members are typed here rather than from a column, because they are bound
+    # per-instance against a joined row. Validation runs ahead of translation and so sees
+    # the name the user wrote, never the internal name it resolves to: `total_cost > '100'`
+    # must reject exactly as `latency_ms > '100'` does.
+    if name in _SPAN_COST_SCALARS:
+        return _SPAN_COST_SCALARS[name]
     return None
 
 
@@ -2729,36 +2576,21 @@ class _FilterTranslator(_ProjectionTranslator):
                 "`parent_span` can only be used as `parent_span is None` "
                 "or `parent_span is not None`"
             )
+        if node.id in self._bindings.deferred_number_names:
+            # Rewritten to the internal name its column is bound to. Every downstream type
+            # check keys on syntax shape, and a resolved name is the same shape as any other
+            # bound name, so casting, coercion, and containment behave as for `latency_ms`.
+            self.namespace_members.add(node.id)
+            return ast.Name(id=_span_cost_binding(node.id), ctx=ast.Load())
         return super().visit_Name(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
         self._reject_parent_traversal(node)
-        if (resolved := self._resolve_namespace_member(node)) is not None:
-            return resolved
         return super().visit_Attribute(node)
 
     def visit_Subscript(self, node: ast.Subscript) -> typing.Any:
         self._reject_parent_traversal(node)
         return super().visit_Subscript(node)
-
-    def _resolve_namespace_member(self, node: ast.Attribute) -> typing.Optional[ast.Name]:
-        """Rewrite `<root>.<member>` to the internal name its column is bound to.
-
-        Rewriting to a bare `Name` is what keeps the reserved root free of the guard drift
-        the parent-traversal work has to solve: every downstream type check keys on syntax
-        shape, and a resolved member is the same shape as any other bound name, so casting,
-        coercion, and containment all behave as they do for `latency_ms`.
-
-        Validation has already rejected every other root-rooted shape, so a node that does
-        not resolve here is not root-rooted at all and falls through to attribute paths.
-        """
-        namespace = self._bindings.root_namespace
-        if namespace is None or not isinstance(value := node.value, ast.Name):
-            return None
-        if value.id != namespace.keyword or (member := node.attr) not in namespace.scalars:
-            return None
-        self.namespace_members.add(member)
-        return ast.Name(id=namespace.binding(member), ctx=ast.Load())
 
     def _reject_parent_traversal(self, node: ast.expr) -> None:
         # The `parent_span` keyword is fully reserved: `parent_span.<field>` traversal is
@@ -3250,11 +3082,7 @@ def _symbol(op: ast.AST) -> str:
     return _OPERATOR_SYMBOLS.get(type(op), type(op).__name__)
 
 
-def _element_scope_error(
-    node: ast.expr,
-    scope: "_ElementScope",
-    namespace: typing.Optional["_RootNamespace"] = None,
-) -> SyntaxError:
+def _element_scope_error(node: ast.expr, scope: "_ElementScope") -> SyntaxError:
     """Reject a name that only means something outside the comprehension it was written in.
 
     An element scope binds element columns and nothing else -- no attribute namespace, no
@@ -3266,12 +3094,6 @@ def _element_scope_error(
     what fails this way, and advising it would hand the user the crash instead of the fix.
     """
     source = _ellipsize(ast.unparse(node), 80)
-    if namespace is not None and _namespace_root(node, namespace.keyword):
-        return SyntaxError(
-            f"`{source}` reads the filtered row, which is not reachable inside a "
-            f"comprehension over `{scope.iterable}`; compare it outside, "
-            f"e.g. `{source} > 0 and any(...)`"
-        )
     fields = _disjunction(sorted(scope.grammar.element_bindings.binding_names))
     return SyntaxError(
         f"`{source}` is not reachable inside a comprehension over `{scope.iterable}`; "
@@ -3444,7 +3266,7 @@ class _SemanticPolicy:
             # both resolve to *grain* bindings, which the element eval globals do not carry,
             # so letting them through here types the expression and then raises `NameError`
             # when the query is built.
-            raise _element_scope_error(node, scopes[-1], self._bindings.root_namespace)
+            raise _element_scope_error(node, scopes[-1])
         source = ast.unparse(node)
         if replacement := self._bindings.legacy_replacements.get(source):
             return self._binding(replacement, self._bindings)
@@ -3777,8 +3599,7 @@ def _validate_expression(
     _validate_python_surface(expression.body, source)
     _validate_annotation_accessors(expression, bindings)
     _validate_exists_name_usage(expression, bindings)
-    iterable_slots = _validate_comprehensions(expression, bindings)
-    _validate_root_namespace(expression, bindings, iterable_slots)
+    _validate_comprehensions(expression, bindings)
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if (

@@ -1,4 +1,4 @@
-"""The `span.` reserved root: this span's own cost row, read through a closed member set.
+"""The cost names: this span's own cost row, read through the grain's bare vocabulary.
 
 Cost lives on `span_costs`, not on `spans`, so these members are not columns of the
 filtered row -- they are bound against an outer join the filter adds for itself. That makes
@@ -123,20 +123,18 @@ async def _matching(db: DbSessionFactory, condition: str) -> list[str]:
 @pytest.mark.parametrize(
     "condition,expected",
     [
-        pytest.param("span.total_cost > 0.5", ["priced"], id="total-cost"),
-        pytest.param("span.total_cost >= 0.5", ["priced", "untokenized"], id="inclusive"),
-        pytest.param("span.prompt_cost > 0.5", ["priced"], id="prompt-cost"),
-        pytest.param("span.completion_cost > 0", ["cheap", "priced"], id="completion-cost"),
-        pytest.param("span.total_tokens > 500", ["cheap"], id="total-tokens"),
-        pytest.param("0.05 < span.total_cost", ["cheap", "priced", "untokenized"], id="on-right"),
-        pytest.param(
-            "span.total_cost > 0.05 and name == 'cheap'", ["cheap"], id="with-span-column"
-        ),
+        pytest.param("total_cost > 0.5", ["priced"], id="total-cost"),
+        pytest.param("total_cost >= 0.5", ["priced", "untokenized"], id="inclusive"),
+        pytest.param("prompt_cost > 0.5", ["priced"], id="prompt-cost"),
+        pytest.param("completion_cost > 0", ["cheap", "priced"], id="completion-cost"),
+        pytest.param("total_tokens > 500", ["cheap"], id="total-tokens"),
+        pytest.param("0.05 < total_cost", ["cheap", "priced", "untokenized"], id="on-right"),
+        pytest.param("total_cost > 0.05 and name == 'cheap'", ["cheap"], id="with-span-column"),
         # Arithmetic across two members, so both resolve in one expression. `untokenized`
         # sums to exactly 0.5 and is excluded, which also pins that the operands are the
         # coalesced columns rather than raw NULLs (a NULL addend would drop `uncosted`
         # from a `>= 0` test too -- see the coalescing cases below).
-        pytest.param("span.prompt_cost + span.completion_cost > 0.5", ["priced"], id="sum"),
+        pytest.param("prompt_cost + completion_cost > 0.5", ["priced"], id="sum"),
     ],
 )
 async def test_cost_members_filter_rows(
@@ -153,13 +151,11 @@ async def test_cost_members_filter_rows(
     [
         # An absent cost row reads as 0, matching the session grain's rollups ("0 when no
         # cost is configured, never null") so one name means one thing across grains.
-        pytest.param("span.total_cost == 0", [_UNCOSTED], id="absent-reads-as-zero"),
-        pytest.param(
-            "span.total_cost >= 0", ["cheap", "priced", "uncosted", "untokenized"], id="all"
-        ),
+        pytest.param("total_cost == 0", [_UNCOSTED], id="absent-reads-as-zero"),
+        pytest.param("total_cost >= 0", ["cheap", "priced", "uncosted", "untokenized"], id="all"),
         # Which also means an uncosted span is excluded by a positive threshold *and* by
         # its negation -- there is no NULL here to make both false.
-        pytest.param("not (span.total_cost > 0.05)", [_UNCOSTED], id="negation-includes-absent"),
+        pytest.param("not (total_cost > 0.05)", [_UNCOSTED], id="negation-includes-absent"),
     ],
 )
 async def test_absent_cost_row_coalesces_to_zero(
@@ -174,16 +170,16 @@ async def test_absent_cost_row_coalesces_to_zero(
 @pytest.mark.parametrize(
     "condition,expected",
     [
-        pytest.param("span.total_cost_per_token > 0.005", ["priced"], id="ratio-threshold"),
+        pytest.param("total_cost_per_token > 0.005", ["priced"], id="ratio-threshold"),
         # NULL for both reasons a ratio can be undefined: no cost row, and a cost row whose
         # token count is zero. Coalescing these to 0 would assert a rate nobody recorded.
         pytest.param(
-            "span.total_cost_per_token is None", ["uncosted", "untokenized"], id="ratio-is-null"
+            "total_cost_per_token is None", ["uncosted", "untokenized"], id="ratio-is-null"
         ),
         # And a NULL ratio fails the comparison in both directions, which is the family's
         # legislated rule for a missing value.
         pytest.param(
-            "not (span.total_cost_per_token > 0.005)", ["cheap"], id="ratio-negation-drops-null"
+            "not (total_cost_per_token > 0.005)", ["cheap"], id="ratio-negation-drops-null"
         ),
     ],
 )
@@ -199,7 +195,7 @@ async def test_cost_per_token_ratios_stay_null(
 @pytest.mark.parametrize(
     "condition,joined",
     [
-        pytest.param("span.total_cost > 1", True, id="referenced"),
+        pytest.param("total_cost > 1", True, id="referenced"),
         pytest.param("latency_ms > 5", False, id="not-referenced"),
         pytest.param("attributes['span'] == 'x'", False, id="attribute-named-span"),
     ],
@@ -230,7 +226,7 @@ async def test_span_cost_join_does_not_collide_with_a_caller_join(
         .join(models.SpanCost, models.Trace.id == models.SpanCost.trace_rowid)
         .join_from(models.SpanCost, models.Span)
     )
-    stmt = SpanFilter("span.total_cost > 0.05")(stmt)
+    stmt = SpanFilter("total_cost > 0.05")(stmt)
     async with db() as session:
         # `cheap` + `priced` + `untokenized`, i.e. every span above the threshold.
         assert await session.scalar(stmt) == pytest.approx(1.6)
@@ -240,24 +236,24 @@ async def test_span_cost_join_does_not_collide_with_a_caller_join(
     "condition,expected",
     [
         pytest.param(
-            'any(d.token_type == "cache_read" for d in span.cost_details)',
+            'any(d.token_type == "cache_read" for d in cost_details)',
             ["cheap"],
             id="any",
         ),
         pytest.param(
-            'sum(d.tokens for d in span.cost_details if d.token_type == "input") > 100',
+            'sum(d.tokens for d in cost_details if d.token_type == "input") > 100',
             ["cheap"],
             id="sum-with-condition",
         ),
-        pytest.param("max(d.cost for d in span.cost_details) > 0.5", ["priced"], id="max"),
-        pytest.param("len([d for d in span.cost_details]) == 2", ["cheap", "priced"], id="len"),
+        pytest.param("max(d.cost for d in cost_details) > 0.5", ["priced"], id="max"),
+        pytest.param("len([d for d in cost_details]) == 2", ["cheap", "priced"], id="len"),
         pytest.param(
-            'any(d.cost > 0.5 for d in span.cost_details) and name == "priced"',
+            'any(d.cost > 0.5 for d in cost_details) and name == "priced"',
             ["priced"],
             id="composed-with-span-column",
         ),
         pytest.param(
-            "any(d.cost > 0.05 for d in span.cost_details) and span.total_cost > 0.4",
+            "any(d.cost > 0.05 for d in cost_details) and total_cost > 0.4",
             ["priced", "untokenized"],
             id="composed-with-a-scalar-member",
         ),
@@ -265,7 +261,7 @@ async def test_span_cost_join_does_not_collide_with_a_caller_join(
         # spelling above, and the iterable on the right of `in` still resolves to the
         # root -- Python evaluates the outermost iterable in the enclosing scope.
         pytest.param(
-            'any(span.token_type == "cache_read" for span in span.cost_details)',
+            'any(span.token_type == "cache_read" for span in cost_details)',
             ["cheap"],
             id="loop-variable-shadows-the-root",
         ),
@@ -286,23 +282,23 @@ async def test_cost_details_comprehensions_filter_rows(
         # CPython is the reference: `all(())` is True, so a span with no detail rows
         # satisfies every `all(...)`, and `len(())` / `sum(())` are 0 rather than NULL.
         pytest.param(
-            "all(d.is_prompt for d in span.cost_details)",
+            "all(d.is_prompt for d in cost_details)",
             ["cheap", "uncosted", "untokenized"],
             id="all-over-empty-is-true",
         ),
-        pytest.param("len([d for d in span.cost_details]) == 0", [_UNCOSTED], id="len-of-empty"),
-        pytest.param("sum(d.cost for d in span.cost_details) == 0", [_UNCOSTED], id="sum-of-empty"),
+        pytest.param("len([d for d in cost_details]) == 0", [_UNCOSTED], id="len-of-empty"),
+        pytest.param("sum(d.cost for d in cost_details) == 0", [_UNCOSTED], id="sum-of-empty"),
         # `max(())` raises in Python; in SQL it is NULL, which reads as missing and fails
         # every comparison in both directions.
         pytest.param(
-            "not (max(d.cost for d in span.cost_details) > 0.5)",
+            "not (max(d.cost for d in cost_details) > 0.5)",
             ["cheap", "untokenized"],
             id="max-of-empty-is-null",
         ),
         # An element field stays nullable, so a NULL `cost_per_token` row is no
         # counterexample to a `>` test but is also not a match.
         pytest.param(
-            "any(d.cost_per_token > 0.005 for d in span.cost_details)",
+            "any(d.cost_per_token > 0.005 for d in cost_details)",
             ["priced"],
             id="null-element",
         ),
@@ -336,7 +332,7 @@ async def test_cost_details_subquery_reads_only_this_span(
     This is the behaviour that matters; `test_cost_details_subquery_aliases_its_own_join`
     below pins the mechanism, because this assertion holds either way.
     """
-    stmt = SpanFilter('any(d.token_type == "cache_read" for d in span.cost_details)')(
+    stmt = SpanFilter('any(d.token_type == "cache_read" for d in cost_details)')(
         _caller_statement_joining_span_costs()
     )
     async with db() as session:
@@ -357,7 +353,7 @@ def test_cost_details_subquery_aliases_its_own_join() -> None:
     is kept because the reasoning that makes it unnecessary depends on the join staying
     explicit, and this test is what would fail if that changed.
     """
-    stmt = SpanFilter('any(d.token_type == "cache_read" for d in span.cost_details)')(
+    stmt = SpanFilter('any(d.token_type == "cache_read" for d in cost_details)')(
         _caller_statement_joining_span_costs()
     )
     sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
@@ -445,17 +441,17 @@ async def mixed_null_detail(db: DbSessionFactory) -> None:
         # characterization test: it has no fail-before state, and its job is to fail if the
         # rule ever drifts.
         pytest.param(
-            "all(d.cost_per_token > 0.005 for d in span.cost_details)",
+            "all(d.cost_per_token > 0.005 for d in cost_details)",
             [],
             id="all-counts-a-null-element-as-a-counterexample",
         ),
         pytest.param(
-            "min(d.cost_per_token for d in span.cost_details) > 0.005",
+            "min(d.cost_per_token for d in cost_details) > 0.005",
             ["mixed"],
             id="min-skips-a-null-element",
         ),
         pytest.param(
-            "sum(d.cost_per_token for d in span.cost_details) > 0.005",
+            "sum(d.cost_per_token for d in cost_details) > 0.005",
             ["mixed"],
             id="sum-skips-a-null-element",
         ),
@@ -473,20 +469,16 @@ async def test_reductions_skip_null_elements_where_quantifiers_do_not(
 @pytest.mark.parametrize(
     "condition,message",
     [
-        pytest.param("span.totl_cost > 1", "did you mean `span.total_cost`", id="typo"),
-        pytest.param("span.k > 1", "invalid field `span.k`", id="unknown-member"),
-        pytest.param("span.total_cost.x > 1", "cannot be traversed further", id="multi-hop"),
-        pytest.param("span['total_cost'] > 1", "cannot be traversed further", id="subscript"),
-        pytest.param("span is None", "can only be used as `span.<field>`", id="bare-root"),
-        pytest.param("span.total_cost > '1'", "cannot compare", id="string-comparand"),
+        pytest.param("total_cost > '1'", "cannot compare", id="string-comparand"),
+        pytest.param("cost_details > 1", "can only be iterated", id="collection-in-value-position"),
     ],
 )
-def test_reserved_root_rejections(condition: str, message: str) -> None:
-    """Closing the member set is what makes these answerable.
+def test_cost_name_rejections(condition: str, message: str) -> None:
+    """What the bare names still answer for.
 
-    Every one of these would previously have compiled to an `attributes['span...']` read
-    that matched nothing and said nothing. Reserving the root is a compatibility break for
-    conditions that genuinely keyed such an attribute -- taken deliberately, and loudly.
+    Typing survives the move off the reserved root: a cost name is a number wherever it is
+    written, and the collection is a collection. What does not survive is the closed set --
+    see `test_a_cost_typo_falls_back_to_an_attribute_path`.
     """
     with pytest.raises(SpanFilterError, match=message):
         SpanFilter(condition)
@@ -495,46 +487,66 @@ def test_reserved_root_rejections(condition: str, message: str) -> None:
 @pytest.mark.parametrize(
     "condition",
     [
-        pytest.param("total_cost > 1", id="bare-name-is-still-an-attribute"),
-        pytest.param("attributes['span'] == 'x'", id="attributes-keyed-span"),
-        pytest.param("attributes['span']['total_cost'] > 1", id="attributes-keyed-span-path"),
+        pytest.param("totl_cost > 1", id="typo"),
+        pytest.param("span.total_cost > 1", id="dotted-spelling"),
+        pytest.param("span == 'x'", id="bare-span"),
     ],
 )
-def test_reserved_root_shadows_only_the_dotted_spelling(condition: str) -> None:
-    """No previously-bare name changed meaning.
+def test_a_cost_typo_falls_back_to_an_attribute_path(condition: str) -> None:
+    """The cost of taking bare names: a misspelling has somewhere to go again.
 
-    The cost members are reachable only through the root, so `total_cost` is the attribute
-    path it always was, and naming the `span` attribute explicitly still works. Only the
-    dotted `span.<x>` spelling was taken.
+    Under the reserved root each of these was answered by name. They are ordinary attribute
+    reads now -- they compile, match nothing, and say nothing. `span.` in particular is no
+    longer reserved at all, so the dotted spelling means `attributes['span']['total_cost']`.
     """
     assert SpanFilter(condition).condition == condition
 
 
-def test_projection_does_not_resolve_the_reserved_root() -> None:
-    """Reserved roots are a filter-language feature; `Projector` is unchanged.
+@pytest.mark.parametrize(
+    "name",
+    ["total_cost", "prompt_cost", "total_tokens", "total_cost_per_token", "cost_details"],
+)
+def test_cost_names_no_longer_read_the_attribute_of_the_same_name(name: str) -> None:
+    """The break this rename spends, pinned so it is visible in review.
 
-    Documented rather than fixed, because the alternative is worse: `parent_span.<field>`
-    has the same shape in projections today, and diverging the two roots would be a new
-    inconsistency. Pinned so the choice is visible if projections ever grow the namespace.
+    Each of these was `attributes['<name>']` before and is the span's own cost row now. A
+    stored condition that genuinely keyed such an attribute changed meaning without an
+    error -- the tradeoff taken when the `span.` prefix was dropped.
+    """
+    from ast import unparse
+
+    from phoenix.trace.dsl.filter import SPAN_BINDINGS
+
+    assert name in SPAN_BINDINGS.binding_names or name in SPAN_BINDINGS.iterables
+    if name != "cost_details":
+        rendered = unparse(SpanFilter(f"{name} > 1").translated)
+        assert f"attributes[['{name}']]" not in rendered
+
+
+def test_projection_does_not_resolve_cost_names() -> None:
+    """Cost names are a filter-language feature; `Projector` is unchanged.
+
+    Documented rather than fixed: cost lives on a joined row that a projection has no way
+    to reach, so the name stays an attribute read there. Pinned so the split is visible if
+    projections ever grow them.
     """
     from ast import unparse
 
     from phoenix.trace.dsl.filter import Projector
 
-    rendered = unparse(Projector("span.total_cost").translated)
-    assert "attributes[['span', 'total_cost']]" in rendered
+    rendered = unparse(Projector("total_cost").translated)
+    assert "attributes[['total_cost']]" in rendered
 
 
 def test_cost_members_have_one_declared_type_on_both_sides() -> None:
-    """Validation types the dotted spelling; translation rewrites it. They must agree.
+    """Validation types the name the user wrote; translation rewrites it. They must agree.
 
     Validation runs ahead of translation and so never sees the internal name, which is how
-    two encodings of one rule drift apart. Reading both off the one namespace declaration
-    is what prevents `span.total_cost > '100'` from validating while `latency_ms > '100'`
-    rejects.
+    two encodings of one rule drift apart. Reading both off the one declaration is what
+    prevents `total_cost > '100'` from validating while `latency_ms > '100'` rejects.
     """
-    from phoenix.trace.dsl.filter import _SPAN_NAMESPACE, _get_named_filter_value_type
+    from phoenix.trace.dsl.filter import _SPAN_COST_SCALARS, _get_named_filter_value_type
 
-    for member in _SPAN_NAMESPACE.scalars:
-        assert _get_named_filter_value_type(f"span.{member}") == "number"
-    assert _get_named_filter_value_type("span.nope") is None
+    for member in _SPAN_COST_SCALARS:
+        assert _get_named_filter_value_type(member) == "number"
+    assert _get_named_filter_value_type("nope") is None
