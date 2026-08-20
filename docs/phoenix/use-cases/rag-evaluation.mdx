@@ -44,7 +44,7 @@ There are five key stages within RAG, which will in turn be a part of any larger
 Now that we have understood the stages of RAG, let's build a pipeline. We will use [LlamaIndex](https://www.llamaindex.ai/) for RAG and [Phoenix Evals](/docs/phoenix/evaluation/llm-evals) for evaluation.
 
 ```python
-!pip install -qq "arize-phoenix[evals]" "openinference-instrumentation-llama-index" "llama-index" "llama-index-llms-openai" "openai>=1" gcsfs nest_asyncio scikit-learn 'httpx<0.28'
+!pip install -qq "arize-phoenix" "openinference-instrumentation-llama-index" "llama-index" "llama-index-llms-openai" "openai>=1" gcsfs nest_asyncio scikit-learn 'httpx<0.28'
 ```
 
 ```python expandable
@@ -421,13 +421,13 @@ retrieved_documents_relevance_df = await async_evaluate_dataframe(
 retrieved_documents_relevance_df.head()
 ```
 
-`async_evaluate_dataframe` returns the original columns alongside the evaluation results. Each `document_relevance_score` is a structured score, so we pull out its numeric value into an `eval_score` column to compute retrieval metrics. These metrics will help us understand how well the RAG system is performing.
+`async_evaluate_dataframe` returns the original columns alongside the evaluation results. Each `document_relevance_score` is a structured score, so we pull out its numeric value into an `eval_score` column to compute retrieval metrics.
 
 ```python
 documents_with_relevance_df = retrieved_documents_relevance_df.copy()
 documents_with_relevance_df["eval_score"] = documents_with_relevance_df[
     "document_relevance_score"
-].apply(lambda score: score["score"] if isinstance(score, dict) else score)
+].apply(lambda score: score.get("score") if isinstance(score, dict) else score)
 documents_with_relevance_df
 ```
 
@@ -592,7 +592,7 @@ qa_with_reference_df = (
 qa_with_reference_df
 ```
 
-Now that we have a dataset of the question, context, and response (`input`, `context`, and `output`), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data).
+Now that we have a dataset of the question, context, and response (`input`, `context`, and `output`), we can now measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data).
 
 ```python
 from phoenix.evals import LLM, async_evaluate_dataframe
@@ -613,7 +613,7 @@ The combined `results_df` contains a structured `correctness_score` and `faithfu
 
 ```python
 def extract_score(value):
-    return value["score"] if isinstance(value, dict) else value
+    return value.get("score") if isinstance(value, dict) else value
 
 
 qa_correctness_eval_df = pd.DataFrame({"score": results_df["correctness_score"].apply(extract_score)})
