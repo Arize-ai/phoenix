@@ -8,6 +8,8 @@ tracing plugin discards delivery errors.
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import re
 import sys
 from datetime import datetime
@@ -22,6 +24,15 @@ from .analyze import (
     write_csv,
 )
 from .config import BenchConfig, ConfigError, apply_overrides, load_config, load_tasks
+from .export import (
+    DEFAULT_ENDPOINT,
+    DEFAULT_PROJECT,
+    as_json,
+    plan_run,
+    resolve_endpoint,
+    resolve_headers,
+    send,
+)
 from .invocation import safe_label
 from .preflight import run_preflight
 from .runner import BudgetExhausted, Cell, plan_matrix, run_matrix
@@ -210,6 +221,37 @@ def cmd_annotate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_export(args: argparse.Namespace) -> int:
+    """Replay stored transcripts as OpenInference traces."""
+    config = _resolve(load_config(Path(args.config)), args)
+    tasks = load_tasks(config)
+    root = _results_root(config, args)
+    if args.all:
+        folders = sorted(p for p in root.glob("*") if (p / "raw").is_dir())
+    else:
+        folders = [(root / args.run_id) if args.run_id else _latest_run(root)]
+
+    endpoint = resolve_endpoint(args.endpoint)
+    for out_dir in folders:
+        traces = plan_run(config, tasks, out_dir, max_chars=args.max_chars)
+        spans = sum(len(s) for _, s in traces)
+        if args.dry_run:
+            path = out_dir / "replay.json"
+            path.write_text(json.dumps(as_json(traces), indent=2, default=str))
+            print(f"{out_dir.name}: {len(traces)} traces, {spans} spans -> {path}")
+            continue
+        try:
+            sent = send(traces, endpoint=endpoint, project=args.project, headers=resolve_headers())
+        except ImportError as exc:
+            # The SDK is the extra; everything up to here worked without it, so
+            # the planned replay is still worth naming before giving up.
+            print(f"error: {exc}", file=sys.stderr)
+            print('install the extra: uv pip install -e "harness[otel]"', file=sys.stderr)
+            return 1
+        print(f"{out_dir.name}: {len(traces)} traces, {sent} spans -> {args.project} at {endpoint}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mcpbench",
@@ -255,6 +297,25 @@ def build_parser() -> argparse.ArgumentParser:
     annotate.add_argument("--label", help="Rename the run's label.")
     annotate.add_argument("--note", help="Free-text note kept with the run.")
     annotate.set_defaults(func=cmd_annotate)
+
+    export = sub.add_parser("export", help="Replay stored transcripts as OpenInference traces.")
+    export.add_argument("--run-id", help="Which run (default: most recent).")
+    export.add_argument("--all", action="store_true", help="Every run folder that kept its raw.")
+    export.add_argument(
+        "--endpoint",
+        default=os.environ.get("PHOENIX_COLLECTOR_ENDPOINT") or DEFAULT_ENDPOINT,
+        help="Phoenix base URL or collector path.",
+    )
+    export.add_argument(
+        "--project",
+        default=os.environ.get("PHOENIX_PROJECT_NAME") or DEFAULT_PROJECT,
+        help="Destination project. Also seeds the span ids, so a new name re-imports.",
+    )
+    export.add_argument("--max-chars", type=int, default=4000, help="Per-message text cap.")
+    export.add_argument(
+        "--dry-run", action="store_true", help="Write replay.json beside the transcripts instead."
+    )
+    export.set_defaults(func=cmd_export)
 
     return parser
 
