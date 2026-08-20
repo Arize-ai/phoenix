@@ -18,10 +18,6 @@ def _make_capability(*skills: Skill) -> SkillsCapability:
         toolset=SkillsToolset(
             skills=list(skills),
             load_skill_template=get_template("skills/LOAD_SKILL.xml.j2"),
-            load_skill_tool_template=get_template("skills/LOAD_SKILL_TOOL.xml.j2"),
-            read_skill_resource_tool_template=get_template(
-                "skills/READ_SKILL_RESOURCE_TOOL.xml.j2"
-            ),
         ),
         instructions=get_template("skills/SKILLS_INSTRUCTIONS.xml.j2"),
     )

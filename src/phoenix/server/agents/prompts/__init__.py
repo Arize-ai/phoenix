@@ -4,11 +4,12 @@ from dataclasses import dataclass
 
 from jinja2 import Template
 
+from phoenix.server.agents.prompts.static_prompts import read_static_prompt
 from phoenix.server.agents.prompts.templating import get_template
 
-_BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
-_BASE_SUBAGENT_INSTRUCTIONS = get_template("base/BASE_SUBAGENT_INSTRUCTIONS.xml.j2")
-_DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
+_BASE_INSTRUCTIONS = read_static_prompt("base/BASE_INSTRUCTIONS.xml")
+_BASE_SUBAGENT_INSTRUCTIONS = read_static_prompt("base/BASE_SUBAGENT_INSTRUCTIONS.xml")
+_DOCS_TOOL_INSTRUCTIONS = read_static_prompt("tools/DOCS_TOOL_INSTRUCTIONS.xml")
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -27,8 +28,6 @@ _DATASET_CONTEXT_TEMPLATE = get_template("context/DATASET_CONTEXT_INSTRUCTIONS.x
 _GRAPHQL_MUTATIONS_TEMPLATE = get_template("context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml.j2")
 _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
-_LOAD_SKILL_TOOL_TEMPLATE = get_template("skills/LOAD_SKILL_TOOL.xml.j2")
-_READ_SKILL_RESOURCE_TOOL_TEMPLATE = get_template("skills/READ_SKILL_RESOURCE_TOOL.xml.j2")
 
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -41,10 +40,17 @@ COMPACTION_MESSAGE_TEMPLATE = get_template("summarization/COMPACTION_MESSAGE.xml
 
 @dataclass(frozen=True)
 class AgentPrompts:
-    """Every prompt template the chat agent uses."""
+    """Every prompt the chat agent uses.
 
-    base: Template = _BASE_INSTRUCTIONS
-    docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
+    Fields typed ``str`` are static prompts read verbatim from
+    ``prompts/static/``; they sit in the cacheable prefix and cannot vary.
+    Fields typed ``Template`` render per run and belong after the cache
+    breakpoint — the sole exception is ``skills``, whose only variable is the
+    fixed skill catalog (see :func:`phoenix.server.agents.skills.get_all_skills`).
+    """
+
+    base: str = _BASE_INSTRUCTIONS
+    docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE
@@ -59,20 +65,17 @@ class AgentPrompts:
     graphql_mutations: Template = _GRAPHQL_MUTATIONS_TEMPLATE
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE
-    load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
-    read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
 
 
 @dataclass(frozen=True)
 class ServerAgentPrompts:
-    """Every prompt template the server agent uses."""
+    """Every prompt the server agent uses. See :class:`AgentPrompts` for how
+    the ``str`` and ``Template`` fields differ."""
 
-    base: Template = _BASE_SUBAGENT_INSTRUCTIONS
-    docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
+    base: str = _BASE_SUBAGENT_INSTRUCTIONS
+    docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE
-    load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
-    read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
 
 
 __all__ = [
