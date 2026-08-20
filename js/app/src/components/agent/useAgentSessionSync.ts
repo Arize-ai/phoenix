@@ -168,6 +168,7 @@ export function useAgentSessionSync({
       const syncedMessages = Array.isArray(agentSession.messages)
         ? (agentSession.messages as AgentUIMessage[])
         : [];
+      // eslint-disable-next-line react/immutability
       chatInstance.messages = syncedMessages;
       // Another client may have resolved — or interrupted — tool calls this
       // client still shows Accept/Reject affordances for; drop any pending

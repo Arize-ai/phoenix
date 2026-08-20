@@ -188,6 +188,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
 
   // React to global changes to the trace tree state and change local state
   useEffect(() => {
+    // eslint-disable-next-line react/set-state-in-effect
     setIsCollapsed(treeIsCollapsed);
   }, [treeIsCollapsed]);
 

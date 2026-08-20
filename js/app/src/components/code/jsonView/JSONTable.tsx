@@ -72,7 +72,7 @@ export function JSONTable({
   "use no memo";
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<FlatJSONEntry>({
     columns,
     data: entries,

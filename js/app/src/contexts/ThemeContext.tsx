@@ -111,7 +111,7 @@ export function ThemeProvider(
 
   useEffect(() => {
     if (props.themeMode) {
-      _setThemeMode(props.themeMode); // eslint-disable-line react-hooks-js/set-state-in-effect
+      _setThemeMode(props.themeMode); // eslint-disable-line react/set-state-in-effect
     }
   }, [props.themeMode, setThemeMode]);
 

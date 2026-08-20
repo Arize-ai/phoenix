@@ -442,7 +442,7 @@ export function ModelsTable({
     ];
   }, [kindFilter]);
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
@@ -471,7 +471,7 @@ export function ModelsTable({
   const isEmpty = rows.length === 0;
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
