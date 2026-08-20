@@ -188,27 +188,6 @@ When your data has different field names or requires transformation, use input m
   </Tab>
 </Tabs>
 
-### Extracting Inputs from Spans
-
-Because retrieved information lives in different places depending on the source (a `RETRIEVER` span's `retrieval.documents`, a `TOOL` span's `output.value`, an MCP result payload, or content embedded in an `LLM` span), Phoenix ships a helper that extracts `input` and `retrieved_context` from a span automatically and skips spans that are not retrieval steps.
-
-```python
-from phoenix.evals import LLM
-from phoenix.evals.metrics import RetrievalRelevanceEvaluator
-from phoenix.evals.metrics.retrieval_relevance_mappings import build_eval_input
-
-llm = LLM(provider="openai", model="gpt-4o")
-relevance_eval = RetrievalRelevanceEvaluator(llm=llm)
-
-# `span` is a record from client.spans.get_spans_dataframe(...); `request` is
-# typically the trace root's input.value.
-eval_input = build_eval_input(span, request=user_request)
-if eval_input is not None:  # None => not a retrieval step, skip it
-    scores = relevance_eval.evaluate(eval_input)
-```
-
-`build_eval_input` dispatches on the span kind (`RETRIEVER`, `RERANKER`, `TOOL`, or `LLM` with embedded results). Pass an `include_tool` predicate to skip action tools (e.g. `send_email`) that are not retrieval steps.
-
 ## Configuration
 
 For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
