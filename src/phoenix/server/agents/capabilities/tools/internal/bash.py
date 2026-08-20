@@ -55,9 +55,7 @@ should not be assumed to work.
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
 - phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
-Run `phoenix-gql --help` for usage and current permissions. It is read-only by \
-default: only `query` operations are permitted, and mutations and subscriptions are \
-rejected unless mutations have been explicitly enabled.
+Run `phoenix-gql --help` for usage and current permissions.
 
 Args:
     summary: Short, user-facing description of what this command does. Shown as the
