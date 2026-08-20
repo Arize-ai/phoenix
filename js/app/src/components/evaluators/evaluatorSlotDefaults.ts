@@ -45,6 +45,12 @@ const SLOT_DEFAULTS: BySlot<EvaluatorSlotDefault> = {
   },
 };
 
+/** A pinned example path and the one line shown beside it when highlighted. */
+export type EvaluatorSlotSuggestedPath = {
+  path: string;
+  description: string;
+};
+
 /**
  * Paths pinned above the record's own field list while a slot is still
  * unmapped — worked examples of what a mapping can reach, from the plain
@@ -52,15 +58,42 @@ const SLOT_DEFAULTS: BySlot<EvaluatorSlotDefault> = {
  * by drilling. Root-relative; each is offered only when it resolves on the
  * sampled record, so nothing here can suggest a path that would fail.
  */
-const SLOT_SUGGESTED_PATHS: BySlot<readonly string[]> = {
+const SLOT_SUGGESTED_PATHS: BySlot<readonly EvaluatorSlotSuggestedPath[]> = {
   span: {
-    input: ["input_value", "attributes.llm.input_messages", "attributes.input"],
-    output: ["output_value", "attributes.llm.output_messages"],
-    metadata: ["attributes", "attributes.llm"],
+    input: [
+      { path: "input_value", description: "The span's raw input value." },
+      {
+        path: "attributes.llm.input_messages",
+        description: "The chat messages sent to the model.",
+      },
+      {
+        path: "attributes.input",
+        description: "The input attribute, with its mime type.",
+      },
+    ],
+    output: [
+      { path: "output_value", description: "The span's raw output value." },
+      {
+        path: "attributes.llm.output_messages",
+        description: "The messages the model returned.",
+      },
+    ],
+    metadata: [
+      { path: "attributes", description: "The span's whole attribute tree." },
+      {
+        path: "attributes.llm",
+        description: "Model, token counts, and messages.",
+      },
+    ],
   },
   session: {
-    input: ["turns", "turns[0].input"],
-    output: ["turns[0].output"],
+    input: [
+      { path: "turns", description: "Every turn of the session, in order." },
+      { path: "turns[0].input", description: "The session's opening request." },
+    ],
+    output: [
+      { path: "turns[0].output", description: "The first turn's response." },
+    ],
     metadata: [],
   },
 };
@@ -75,6 +108,6 @@ export function getEvaluatorSlotDefault(
 export function getEvaluatorSlotSuggestedPaths(
   grain: ProjectEvaluatorMappingSourceGrain,
   slotName: EvaluatorSlotName
-): readonly string[] {
+): readonly EvaluatorSlotSuggestedPath[] {
   return SLOT_SUGGESTED_PATHS[grain][slotName];
 }

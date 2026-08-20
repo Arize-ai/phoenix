@@ -1,6 +1,7 @@
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { parsePathSegments } from "@phoenix/utils/objectUtils";
 
+import type { EvaluatorSlotName } from "../evaluatorSlotDefaults";
 import {
   EVALUATOR_SLOT_NAMES,
   getEvaluatorSlotDefault,
@@ -45,26 +46,35 @@ describe("evaluator slot defaults", () => {
   });
 
   it("pins worked examples of what each slot's mapping can reach", () => {
-    expect(getEvaluatorSlotSuggestedPaths("span", "input")).toEqual([
+    const paths = (grain: "span" | "session", slotName: EvaluatorSlotName) =>
+      getEvaluatorSlotSuggestedPaths(grain, slotName).map(({ path }) => path);
+
+    expect(paths("span", "input")).toEqual([
       "input_value",
       "attributes.llm.input_messages",
       "attributes.input",
     ]);
-    expect(getEvaluatorSlotSuggestedPaths("span", "output")).toEqual([
+    expect(paths("span", "output")).toEqual([
       "output_value",
       "attributes.llm.output_messages",
     ]);
-    expect(getEvaluatorSlotSuggestedPaths("span", "metadata")).toEqual([
-      "attributes",
-      "attributes.llm",
-    ]);
-    expect(getEvaluatorSlotSuggestedPaths("session", "input")).toEqual([
-      "turns",
-      "turns[0].input",
-    ]);
-    expect(getEvaluatorSlotSuggestedPaths("session", "output")).toEqual([
-      "turns[0].output",
-    ]);
-    expect(getEvaluatorSlotSuggestedPaths("session", "metadata")).toEqual([]);
+    expect(paths("span", "metadata")).toEqual(["attributes", "attributes.llm"]);
+    expect(paths("session", "input")).toEqual(["turns", "turns[0].input"]);
+    expect(paths("session", "output")).toEqual(["turns[0].output"]);
+    expect(paths("session", "metadata")).toEqual([]);
+  });
+
+  it("describes every suggestion, and never in path notation", () => {
+    for (const grain of ["span", "session"] as const) {
+      for (const slotName of EVALUATOR_SLOT_NAMES) {
+        for (const { description } of getEvaluatorSlotSuggestedPaths(
+          grain,
+          slotName
+        )) {
+          expect(description).not.toBe("");
+          expect(parsePathSegments(description)).toBeNull();
+        }
+      }
+    }
   });
 });
