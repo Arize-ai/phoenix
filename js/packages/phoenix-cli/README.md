@@ -129,7 +129,7 @@ pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
 npx -y @arizeai/phoenix-cli pxi                              # run without installing
 ```
 
-`pxi` requires a Phoenix server on **20.0.0 or newer**. It checks the server
+`pxi` requires a Phoenix server on version **20.0.0 or newer**. It checks the server
 version at startup and exits with an upgrade message against an older server.
 
 Inside the chat, slash commands (`/help`, `/clear`, `/new`, `/temporary`,
