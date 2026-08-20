@@ -11,14 +11,18 @@ import { useCallback, useMemo } from "react";
 import type { DSLFilterConditionValidationResult } from "@phoenix/components/filter/DSLFilterConditionField";
 import { DSLFilterConditionField } from "@phoenix/components/filter/DSLFilterConditionField";
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { classNames } from "@phoenix/utils/classNames";
 
 import {
   getEvaluatorPathCompletions,
   resolveEvaluatorPath,
 } from "./evaluatorPathCompletions";
-import type { EvaluatorSlotName } from "./evaluatorSlotDefaults";
+import type {
+  EvaluatorSlotDefault,
+  EvaluatorSlotName,
+} from "./evaluatorSlotDefaults";
 import {
-  getEvaluatorSlotDefaultPath,
+  getEvaluatorSlotDefault,
   getEvaluatorSlotSuggestedKeys,
 } from "./evaluatorSlotDefaults";
 
@@ -39,6 +43,12 @@ const evaluatorPathFieldCSS = css`
   /* The slot's default, standing in for the path the author has not written */
   .cm-placeholder {
     color: var(--global-text-color-500);
+  }
+  /* A default the record derives rather than holds has no path that would
+     write it, so it reads as prose — nothing here is typable */
+  &.evaluator-path-field--derived-default .cm-placeholder {
+    font-family: var(--global-font-family-sans);
+    font-style: italic;
   }
 `;
 
@@ -74,6 +84,7 @@ export function EvaluatorPathField({
 }) {
   const mappingSource = source ?? EMPTY_SOURCE;
   const suggestedKeys = getEvaluatorSlotSuggestedKeys(grain, slotName);
+  const slotDefault = getEvaluatorSlotDefault(grain, slotName);
 
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
@@ -111,12 +122,15 @@ export function EvaluatorPathField({
 
   return (
     <DSLFilterConditionField
-      className="right-child"
+      className={classNames("evaluator-path-field", "right-child", {
+        "evaluator-path-field--derived-default":
+          slotDefault?.kind === "derived",
+      })}
       css={evaluatorPathFieldCSS}
       aria-label={ariaLabel}
       subjectLabel="path"
       leadingVisual={null}
-      placeholder={getEvaluatorSlotDefaultPath(grain, slotName)}
+      placeholder={toGhostText(slotDefault)}
       value={value}
       onChange={onChange}
       completions={NO_COMPLETIONS}
@@ -131,6 +145,20 @@ export function EvaluatorPathField({
 }
 
 function noop() {}
+
+/**
+ * The ghost the field shows while the slot is unmapped. A slot with no default
+ * shows nothing: there is no value to name, and naming the absence would be
+ * one more thing to read on a field that is already empty.
+ */
+function toGhostText(slotDefault: EvaluatorSlotDefault): string {
+  if (slotDefault === null) {
+    return "";
+  }
+  return slotDefault.kind === "path"
+    ? slotDefault.path
+    : slotDefault.description;
+}
 
 /**
  * Offers the members of whichever level of the record the cursor sits in.
