@@ -1,12 +1,12 @@
-"""Lease event matching, request filing, and acknowledgment one tick at a time.
+"""Lease event matching, request filing, and acknowledgment in bounded ticks.
 
-A tick reads a page of unacknowledged events, loads the rules that can fire, matches the
-two in memory, and writes the resulting requests and the page's acknowledgments in one
-transaction. Nothing is acknowledged unless the requests it produced commit with it, so a
-tick that fails is retried against the same page rather than losing it.
+A tick reads up to MAX_PAGES_PER_TICK pages of unacknowledged events. Each page loads
+the rules that can fire, matches the two in memory, and writes the resulting requests and
+that page's acknowledgments in one transaction. Nothing is acknowledged unless the requests
+it produced commit with it, so a page that fails is retried rather than lost.
 
-Rules are loaded once per tick, and that read is the drain's linearization point: a rule
-committed after it does not match the events this tick acknowledges, and there is no
+Rules are loaded once per page, and that read is the page's linearization point: a rule
+committed after it does not match the events that page acknowledges, and there is no
 backfill. "Did my new rule catch that annotation?" therefore has one answer: no.
 """
 
@@ -51,6 +51,11 @@ logger = logging.getLogger(__name__)
 EVENT_DRAIN_INTERVAL_SECONDS = 5.0
 EVENT_DRAIN_LEASE_TTL_SECONDS = 90.0
 EVENT_PURGE_INTERVAL_SECONDS = 3600.0
+
+# The most event pages one tick may process, so a tick's compute budget is the page size
+# times this, per tick interval. A page shorter than the page size means the backlog is
+# drained and ends the tick early.
+MAX_PAGES_PER_TICK = 4
 
 _LEASE_NAME = "online-eval-event-drain"
 _REQUESTED_BY = "trigger"
@@ -136,7 +141,16 @@ class EventDrain(DaemonTask):
             if not mutations_allowed:
                 await self._lease.renew()
                 return
-            await self._drain()
+            started_while_running = self._running
+            for page_number in range(MAX_PAGES_PER_TICK):
+                events_processed = await self._drain()
+                if (
+                    events_processed < self._page_size
+                    or (started_while_running and not self._running)
+                    or page_number + 1 == MAX_PAGES_PER_TICK
+                ):
+                    break
+                await self._lease.renew()
             await self._purge_if_due()
         except LeaseLost:
             logger.warning("Online-eval event drain tick aborted after losing its lease")
@@ -153,7 +167,7 @@ class EventDrain(DaemonTask):
         )
 
     async def _drain(self) -> int:
-        """Decide one page of events, returning how many pairs were requested.
+        """Decide one page of events, returning how many events were processed.
 
         Project evaluators rows are read before any request row is touched — the rule load takes no
         lock, and `request_evaluations` locks project_evaluators, then sessions, then requests.
@@ -179,7 +193,7 @@ class EventDrain(DaemonTask):
             _consume_rejections(outcome.rejected)
             await acknowledge(session, [event.event_id for event in events])
             await self._lease.fence(session)
-        return len(outcome.granted)
+        return len(events)
 
     async def _purge_if_due(self) -> int:
         if (

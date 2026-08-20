@@ -7,6 +7,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.config import (
+    ENV_PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE,
     ENV_PHOENIX_ONLINE_EVAL_EVENT_RETENTION_SECONDS,
 )
 from phoenix.db import models
@@ -75,6 +76,21 @@ async def _unacknowledged(db: DbSessionFactory) -> tuple[int, ...]:
         return tuple(event.event_id for event in await drain_page(session, limit=100))
 
 
+async def _append_backlog(db: DbSessionFactory, count: int) -> tuple[int, ...]:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_live_session(session, project)
+        for annotation_id in range(1, count + 1):
+            await append(
+                session,
+                _annotation(annotation_id),
+                project_id=project.id,
+                evaluation_target="SESSION",
+                target_rowid=project_session.id,
+            )
+    return await _unacknowledged(db)
+
+
 async def test_a_matched_event_becomes_a_request_and_its_page_is_acknowledged(
     db: DbSessionFactory,
 ) -> None:
@@ -106,6 +122,62 @@ async def test_a_matched_event_becomes_a_request_and_its_page_is_acknowledged(
     assert request.project_session_rowid == project_session.id
     assert request.project_evaluator_id == project_evaluator.id
     assert request.requested_generation == 1
+    assert await _unacknowledged(db) == ()
+
+
+async def test_one_tick_drains_three_full_pages_with_a_four_page_budget(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE, "2")
+    monkeypatch.setattr(drain_module, "MAX_PAGES_PER_TICK", 4)
+    event_ids = await _append_backlog(db, 6)
+    drain = EventDrain(db)
+    renew = drain._lease.renew
+    renewals = 0
+
+    async def _counted_renew() -> None:
+        nonlocal renewals
+        renewals += 1
+        await renew()
+
+    monkeypatch.setattr(drain._lease, "renew", _counted_renew)
+    await drain._tick()
+
+    assert event_ids
+    assert await _unacknowledged(db) == ()
+    assert renewals == 3
+
+
+async def test_a_one_page_budget_preserves_one_page_per_tick(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE, "2")
+    monkeypatch.setattr(drain_module, "MAX_PAGES_PER_TICK", 1)
+    event_ids = await _append_backlog(db, 4)
+    drain = EventDrain(db)
+
+    await drain._tick()
+    assert await _unacknowledged(db) == event_ids[2:]
+
+    await drain._tick()
+    assert await _unacknowledged(db) == ()
+
+
+async def test_a_tick_stops_when_its_page_budget_is_exhausted(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_EVENT_DRAIN_PAGE_SIZE, "2")
+    monkeypatch.setattr(drain_module, "MAX_PAGES_PER_TICK", 4)
+    event_ids = await _append_backlog(db, 10)
+    drain = EventDrain(db)
+
+    await drain._tick()
+    assert await _unacknowledged(db) == event_ids[8:]
+
+    await drain._tick()
     assert await _unacknowledged(db) == ()
 
 
