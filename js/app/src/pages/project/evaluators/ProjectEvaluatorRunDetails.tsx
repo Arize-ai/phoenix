@@ -56,8 +56,8 @@ export function ProjectEvaluatorRunDetails({
       : "no runs yet";
   const evaluatedUnit =
     projectEvaluator.evaluationTarget === "SESSION" ? "sessions" : "spans";
-  const errorCode =
-    runSummary.lastError == null ? null : getErrorCode(runSummary.lastError);
+  const lastError =
+    runSummary.lastError == null ? null : parseLastError(runSummary.lastError);
 
   return (
     <Flex direction="column" gap="size-200">
@@ -86,21 +86,21 @@ export function ProjectEvaluatorRunDetails({
           }
         />
       </EvaluatorStatRow>
-      {runSummary.lastError ? (
+      {lastError ? (
         <div css={lastErrorCSS}>
           <Flex direction="column" gap="size-100">
             <Flex direction="row" gap="size-100" alignItems="center" wrap>
               <Text size="S" weight="heavy">
                 Last error
               </Text>
-              {errorCode == null ? null : (
+              {lastError.code == null ? null : (
                 <Token color="var(--global-color-danger)" maxWidth="none">
-                  {errorCode}
+                  {lastError.code}
                 </Token>
               )}
             </Flex>
             <Text size="S" color="text-700" fontFamily="mono">
-              {getErrorDetail(runSummary.lastError)}
+              {lastError.detail}
             </Text>
           </Flex>
         </div>
@@ -109,17 +109,19 @@ export function ProjectEvaluatorRunDetails({
   );
 }
 
-/**
- * Errors arrive as `CODE: detail`. Splitting them lets the code read as a label
- * and keeps the detail from swallowing it, and an error without a code simply
- * has none to show.
- */
 const ERROR_CODE_PATTERN = /^([A-Z][A-Z0-9_]*):\s*(.*)$/s;
 
-function getErrorCode(lastError: string): string | null {
-  return ERROR_CODE_PATTERN.exec(lastError)?.[1] ?? null;
-}
-
-function getErrorDetail(lastError: string): string {
-  return ERROR_CODE_PATTERN.exec(lastError)?.[2] ?? lastError;
+/**
+ * Errors arrive as `CODE: detail`. Splitting them lets the code read as a label
+ * and keeps the detail from swallowing it; an error without a code is all
+ * detail.
+ */
+function parseLastError(lastError: string): {
+  code: string | null;
+  detail: string;
+} {
+  const match = ERROR_CODE_PATTERN.exec(lastError);
+  return match == null
+    ? { code: null, detail: lastError }
+    : { code: match[1], detail: match[2] };
 }
