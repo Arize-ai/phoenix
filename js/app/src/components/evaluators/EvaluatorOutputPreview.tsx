@@ -3,10 +3,7 @@ import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import { createTestLlmEvaluatorDraftClientAction } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
+import { registerUiOperations } from "@phoenix/agent/uiOperations/catalog";
 import { testLlmEvaluatorDraftOperation } from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
 import {
   Alert,
@@ -269,20 +266,18 @@ export const EvaluatorOutputPreview = () => {
     if (!isLlmEvaluator) {
       return undefined;
     }
-    registerUiOperation({
+    return registerUiOperations({
       agentStore,
-      descriptor: testLlmEvaluatorDraftOperation,
-      handler: createTestLlmEvaluatorDraftClientAction({
-        isDraftMounted: () => true,
-        runEvaluatorPreview,
-      }),
+      operations: [
+        {
+          descriptor: testLlmEvaluatorDraftOperation,
+          handler: createTestLlmEvaluatorDraftClientAction({
+            isDraftMounted: () => true,
+            runEvaluatorPreview,
+          }),
+        },
+      ],
     });
-    return () => {
-      unregisterUiOperation({
-        agentStore,
-        name: testLlmEvaluatorDraftOperation.name,
-      });
-    };
   }, [agentStore, isLlmEvaluator, runEvaluatorPreview]);
 
   const onTestEvaluator = () => {

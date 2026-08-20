@@ -28,10 +28,7 @@ import {
   type SandboxConfigIndex,
   toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
+import { registerUiOperations } from "@phoenix/agent/uiOperations/catalog";
 import {
   editCodeEvaluatorDraftOperation,
   readCodeEvaluatorDraftOperation,
@@ -402,45 +399,36 @@ export const EditCodeEvaluatorDialogContent = ({
 
     const { setPendingCodeEvaluatorEdit } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
-    registerUiOperation({
+    const unregister = registerUiOperations({
       agentStore,
-      descriptor: readCodeEvaluatorDraftOperation,
-      handler: createReadCodeEvaluatorDraftClientAction({ getDraftHost }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: editCodeEvaluatorDraftOperation,
-      handler: createEditCodeEvaluatorDraftClientAction({
-        getDraftHost,
-        setPendingCodeEvaluatorEdit,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: submitCodeEvaluatorDraftOperation,
-      handler: createSubmitCodeEvaluatorDraftClientAction({
-        getDraftHost,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
+      operations: [
+        {
+          descriptor: readCodeEvaluatorDraftOperation,
+          handler: createReadCodeEvaluatorDraftClientAction({ getDraftHost }),
+        },
+        {
+          descriptor: editCodeEvaluatorDraftOperation,
+          handler: createEditCodeEvaluatorDraftClientAction({
+            getDraftHost,
+            setPendingCodeEvaluatorEdit,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: submitCodeEvaluatorDraftOperation,
+          handler: createSubmitCodeEvaluatorDraftClientAction({
+            getDraftHost,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+      ],
     });
     return () => {
       draftHostRef.current = null;
       handleSubmitRef.current = null;
-      unregisterUiOperation({
-        agentStore,
-        name: readCodeEvaluatorDraftOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: editCodeEvaluatorDraftOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: submitCodeEvaluatorDraftOperation.name,
-      });
+      unregister();
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingCodeEvaluatorEditsByToolCallId
       )) {

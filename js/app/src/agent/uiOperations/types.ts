@@ -139,7 +139,7 @@ export function parseUiOperationCallContext(
 
 /**
  * Identity helper that ties the descriptor's inferred input type to its
- * schema so `registerUiOperation` can enforce handler/schema agreement.
+ * schema so `registerUiOperations` can enforce handler/schema agreement.
  */
 export function defineUiOperation<TSchema extends z.ZodType>(
   descriptor: UiOperationDescriptor<TSchema>

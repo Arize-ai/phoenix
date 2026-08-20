@@ -30,8 +30,8 @@ against) + codemode (collapse N tools into search-the-API + execute-code).
   rendering. **Mounted handlers still live in
   `agentStore.registeredClientActions`**, now keyed by operation name — this
   preserves the store-subscription waiters (`waitForRegisteredClientActions`)
-  used by the open-form flows. `registerUiOperation({ agentStore, descriptor,
-handler })` is the typed wrapper components use.
+  used by the open-form flows. `registerUiOperations({ agentStore, operations })` is the typed wrapper
+  components use; it returns the unregister-all cleanup for what it mounted.
 - `dispatch.ts` — the per-call choke point: catalog lookup (unknown names get
   did-you-mean suggestions) → capability gate → session gate → mounted check
   (with route hint) → zod validation → handler invocation.
@@ -260,7 +260,7 @@ meta-tools; lower priority.
 
 - a `UiOperationDescriptor` in `operations/` (name, zod input, `kind`,
   `availability.routeHint`), added to `catalog.ts`;
-- a client-action handler registered on mount via `registerUiOperation`;
+- a client-action handler registered on mount via `registerUiOperations`;
 - for writes: an `ApprovalPreview` built on `ApprovalCard` (danger note on the
   destructive kinds — reuse the `describePreview`/`describeDraft` logic that
   the dataset/annotation cards already carry);

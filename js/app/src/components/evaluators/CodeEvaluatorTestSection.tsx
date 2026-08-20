@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { createTestCodeEvaluatorDraftClientAction } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
+import { registerUiOperations } from "@phoenix/agent/uiOperations/catalog";
 import { testCodeEvaluatorDraftOperation } from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
@@ -287,22 +284,22 @@ export const CodeEvaluatorTestSection = ({
   ]);
 
   const agentStore = useAgentStore();
-  useEffect(() => {
-    registerUiOperation({
-      agentStore,
-      descriptor: testCodeEvaluatorDraftOperation,
-      handler: createTestCodeEvaluatorDraftClientAction({
-        isDraftMounted,
-        runEvaluatorPreview,
-      }),
-    });
-    return () => {
-      unregisterUiOperation({
+  useEffect(
+    () =>
+      registerUiOperations({
         agentStore,
-        name: testCodeEvaluatorDraftOperation.name,
-      });
-    };
-  }, [agentStore, isDraftMounted, runEvaluatorPreview]);
+        operations: [
+          {
+            descriptor: testCodeEvaluatorDraftOperation,
+            handler: createTestCodeEvaluatorDraftClientAction({
+              isDraftMounted,
+              runEvaluatorPreview,
+            }),
+          },
+        ],
+      }),
+    [agentStore, isDraftMounted, runEvaluatorPreview]
+  );
 
   const onTestEvaluator = () => {
     void runEvaluatorPreview();
