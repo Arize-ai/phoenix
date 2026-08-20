@@ -38,24 +38,6 @@ async def reap_session_history(
             request.updated_at < retention_cutoff,
         )
     )
-    aged_terminal_work_exists = exists(
-        select(1).where(
-            work.project_session_rowid == models.ProjectSession.id,
-            _terminal_session_work(work),
-            work.updated_at < retention_cutoff,
-        )
-    )
-    session_ids = tuple(
-        await session.scalars(
-            select(models.ProjectSession.id)
-            .where(or_(aged_fulfilled_request_exists, aged_terminal_work_exists))
-            .order_by(models.ProjectSession.id)
-            .with_for_update()
-        )
-    )
-    if not session_ids:
-        return
-
     replacement = aliased(models.EvalSessionWorkUnit)
     newer_terminal_work_exists = exists(
         select(1).where(
@@ -75,15 +57,35 @@ async def reap_session_history(
             ),
         )
     )
+    reapable_work = and_(
+        _terminal_session_work(work),
+        work.updated_at < retention_cutoff,
+        newer_terminal_work_exists,
+        not_(retained_request_reference_exists),
+    )
+    reapable_work_exists = exists(
+        select(1).where(
+            work.project_session_rowid == models.ProjectSession.id,
+            reapable_work,
+        )
+    )
+    session_ids = tuple(
+        await session.scalars(
+            select(models.ProjectSession.id)
+            .where(or_(aged_fulfilled_request_exists, reapable_work_exists))
+            .order_by(models.ProjectSession.id)
+            .with_for_update()
+        )
+    )
+    if not session_ids:
+        return
+
     work_ids = tuple(
         await session.scalars(
             select(work.id)
             .where(
                 work.project_session_rowid.in_(session_ids),
-                _terminal_session_work(work),
-                work.updated_at < retention_cutoff,
-                newer_terminal_work_exists,
-                not_(retained_request_reference_exists),
+                reapable_work,
             )
             .order_by(work.id)
             .with_for_update()
