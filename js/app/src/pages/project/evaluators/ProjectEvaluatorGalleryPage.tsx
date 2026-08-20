@@ -112,7 +112,7 @@ function EvaluatorGallery() {
         aria-label="Evaluator template categories"
       >
         <Heading level={2} css={sectionHeadingCSS}>
-          Use case
+          Category
         </Heading>
         <ul className="project-evaluator-gallery__category-list">
           {categoryItems.map(({ name, count }) => {
