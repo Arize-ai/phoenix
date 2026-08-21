@@ -1,8 +1,13 @@
 import type { ReactNode } from "react";
 import { Suspense, useRef, useState } from "react";
-import type { ModalOverlayProps } from "react-aria-components";
 
-import { Dialog, Loading, Modal, ModalOverlay } from "@phoenix/components";
+import {
+  Dialog,
+  Loading,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
+import type { ViewportModalOverlayProps } from "@phoenix/components";
 import {
   DiscardEvaluatorChangesDialog,
   isModalUnderlay,
@@ -30,7 +35,7 @@ export function ProjectEvaluatorSlideover({
     close: () => void,
     registerDirtyCheck: RegisterDirtyCheck
   ) => ReactNode;
-} & Omit<ModalOverlayProps, "children">) {
+} & Omit<ViewportModalOverlayProps, "children">) {
   const dirtyCheckRef = useRef<EvaluatorFormDirtyCheck>(() => false);
   const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
   const registerDirtyCheck = (check: EvaluatorFormDirtyCheck) => {
@@ -38,7 +43,7 @@ export function ProjectEvaluatorSlideover({
   };
   return (
     <>
-      <ModalOverlay
+      <ViewportModalOverlay
         {...props}
         isDismissable
         shouldCloseOnInteractOutside={(element) => {
@@ -52,7 +57,7 @@ export function ProjectEvaluatorSlideover({
           return true;
         }}
       >
-        <Modal variant="slideover" size="fullscreen">
+        <ViewportModal size="fullscreen">
           <Dialog aria-label={title}>
             {({ close }) => (
               <Suspense fallback={<Loading />}>
@@ -60,8 +65,8 @@ export function ProjectEvaluatorSlideover({
               </Suspense>
             )}
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
       <DiscardEvaluatorChangesDialog
         isOpen={isDiscardConfirmOpen}
         onKeepEditing={() => setIsDiscardConfirmOpen(false)}
