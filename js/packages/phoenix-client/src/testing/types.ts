@@ -195,6 +195,10 @@ export interface PassRateAcceptanceCriterion extends AcceptanceCriterionBase {
  * - Boolean scores count as `1` (`true`) / `0` (`false`).
  * - If a run logs the same annotation more than once, the last one counts.
  * - Skipped tests are excluded; dry-run tests are included (they still run).
+ * - A run that finishes without logging the criterion's annotation counts as
+ *   not passing for `passRate` and as a score of `0` for `average` (it is not
+ *   dropped from the denominator); the criterion's `sampleCount` is the number
+ *   of eligible (non-skipped) runs.
  * - A criterion whose annotation was never logged on any run fails (rather
  *   than passing vacuously) — see {@link AcceptanceResultFields.failureReason}.
  */
@@ -211,7 +215,7 @@ export interface AcceptanceResultFields {
    * reports `1`).
    */
   value: number | null;
-  /** Number of runs included in the aggregate. */
+  /** Number of eligible runs the aggregate was computed over. */
   sampleCount: number;
   /** Whether the aggregate cleared the criterion. */
   passed: boolean;
