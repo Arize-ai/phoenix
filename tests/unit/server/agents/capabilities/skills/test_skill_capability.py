@@ -47,7 +47,7 @@ def _load_skill(capability: SkillsCapability, skill_name: str) -> str:
     return load_skill(skill_name)
 
 
-class TestGetStaticInstructions:
+class TestGetInstructions:
     def test_neutralizes_closing_skill_tag_in_name_and_description(self) -> None:
         capability = _make_capability(
             _make_skill(
@@ -57,7 +57,7 @@ class TestGetStaticInstructions:
             )
         )
 
-        rendered = capability.get_static_instructions()
+        rendered = capability.get_instructions()
 
         # one `</skill>` per skill — the template's wrapper close, not the payload
         assert rendered.count("</skill>") == 1
@@ -72,7 +72,7 @@ class TestGetStaticInstructions:
             )
         )
 
-        rendered = capability.get_static_instructions()
+        rendered = capability.get_instructions()
 
         assert "<description>line one\nline two\nline three</description>" in rendered
 

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from pydantic_ai.capabilities import AbstractCapability
+
 from phoenix.server.agents.types import AgentDependencies
 
 
 @dataclass
-class UIContextsCapability(AbstractStaticCapability[AgentDependencies]):
+class UIContextsCapability(AbstractCapability[AgentDependencies]):
     """Documents every UI surface the agent can be looking at.
 
     Deliberately static. This text used to be eleven per-run capabilities that
@@ -22,5 +23,5 @@ class UIContextsCapability(AbstractStaticCapability[AgentDependencies]):
 
     instructions: str
 
-    def get_static_instructions(self) -> str:
+    def get_instructions(self) -> str:
         return self.instructions
