@@ -127,6 +127,7 @@ export function createReadPlaygroundOutputClientAction({
       return {
         ok: false,
         error: `Playground instance ${parsed.instanceId} was not found.`,
+        code: "NOT_FOUND",
       };
     }
 

@@ -121,6 +121,7 @@ export function planWritePromptTools({
       return {
         ok: false,
         error: `tools[${index}]: prompt tool ${requestedId} was not found on instance ${playgroundInstance.id}.`,
+        code: "NOT_FOUND",
       };
     }
     if (existing.kind !== "function") {
@@ -145,6 +146,7 @@ export function planWritePromptTools({
       return {
         ok: false,
         error: `deleteToolIds: prompt tool ${deleteId} was not found on instance ${playgroundInstance.id}.`,
+        code: "NOT_FOUND",
       };
     }
   }
@@ -351,6 +353,7 @@ function resolveInstance({
     return {
       ok: false,
       error: `Playground instance ${resolvedInstanceId} was not found.`,
+      code: "NOT_FOUND",
     };
   }
   return {

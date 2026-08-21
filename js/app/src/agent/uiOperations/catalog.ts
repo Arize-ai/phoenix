@@ -372,7 +372,7 @@ export function renderUiOperationCatalog(
       '// ("available on the current page") changes, after navigation.',
     "// UiResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }\n" +
       '// ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"\n' +
-      '//   | "NO_SESSION" | "HANDLER_ERROR" | "STALE_REVISION" | "NO_RUN_OUTPUT"\n' +
+      '//   | "NO_SESSION" | "HANDLER_ERROR" | "NOT_FOUND" | "STALE_REVISION" | "NO_RUN_OUTPUT"\n' +
       "// Branch on `code` (stable), not on the `error` prose (for humans).",
     signatures,
   ].join("\n\n");
