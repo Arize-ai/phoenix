@@ -237,9 +237,7 @@ class TestHasKeysMatcher:
             "bash",
             {"experimentId": "RXhwOjE=", "metadata": {"observations": [{"note": "hi"}]}},
         )
-        expected = {
-            "tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}
-        }
+        expected = {"tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}}
         assert evaluate_tool_call_args(output, expected)["score"] == 1.0
 
     def test_extra_keys_are_ignored(self) -> None:
@@ -283,9 +281,7 @@ class TestHasKeysMatcher:
             {"experimentId": "RXhwOjE=", "metadata": {"observations": [{"note": "hi"}]}},
         )
         expected = {
-            "tool_call_args": {
-                "bash": {"metadata": {"has_keys": ["observations", "hypothesis"]}}
-            }
+            "tool_call_args": {"bash": {"metadata": {"has_keys": ["observations", "hypothesis"]}}}
         }
         assert evaluate_tool_call_args(output, expected)["score"] == 0.0
 
@@ -293,35 +289,25 @@ class TestHasKeysMatcher:
         output = _output_with_tool_call(
             "bash", {"experimentId": "RXhwOjE=", "metadata": "observations"}
         )
-        expected = {
-            "tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}
-        }
+        expected = {"tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}}
         assert evaluate_tool_call_args(output, expected)["score"] == 0.0
 
     def test_fails_when_key_absent(self) -> None:
         output = _output_with_tool_call("bash", {"experimentId": "RXhwOjE="})
-        expected = {
-            "tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}
-        }
+        expected = {"tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}}
         assert evaluate_tool_call_args(output, expected)["score"] == 0.0
 
     def test_literal_dict_expectation_is_not_a_has_keys_matcher(self) -> None:
         # A dict whose keys are not all matcher names stays a literal -- exact
         # equality -- so an arg that happens to carry a ``has_keys`` field
         # alongside others is compared whole, not treated as a matcher.
-        output = _output_with_tool_call(
-            "bash", {"metadata": {"has_keys": ["x"], "other": 1}}
-        )
-        expected = {
-            "tool_call_args": {"bash": {"metadata": {"has_keys": ["x"], "other": 1}}}
-        }
+        output = _output_with_tool_call("bash", {"metadata": {"has_keys": ["x"], "other": 1}})
+        expected = {"tool_call_args": {"bash": {"metadata": {"has_keys": ["x"], "other": 1}}}}
         assert evaluate_tool_call_args(output, expected)["score"] == 1.0
 
     def test_malformed_has_keys_fails_with_error(self) -> None:
         output = _output_with_tool_call("bash", {"metadata": {"observations": []}})
-        expected = {
-            "tool_call_args": {"bash": {"metadata": {"has_keys": "observations"}}}
-        }
+        expected = {"tool_call_args": {"bash": {"metadata": {"has_keys": "observations"}}}}
         result = evaluate_tool_call_args(output, expected)
         assert result["score"] == 0.0
         assert "bash" in result.get("metadata", {})

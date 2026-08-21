@@ -1182,7 +1182,9 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     resolved_assistant_message = stored_messages[-1]
     assert resolved_assistant_message["id"] == assistant_message_id
     tool_part = next(
-        part for part in resolved_assistant_message["parts"] if part["type"] == "tool-get_route_info"
+        part
+        for part in resolved_assistant_message["parts"]
+        if part["type"] == "tool-get_route_info"
     )
     tool_output = {
         "type": "tool-get_route_info",

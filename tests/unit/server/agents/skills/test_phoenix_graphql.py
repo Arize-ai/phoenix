@@ -11,7 +11,13 @@ from phoenix.server.api.schema import build_graphql_schema
 
 _GRAPHQL_BLOCK = re.compile(r"```graphql\n(.*?)```", re.DOTALL)
 _SKILLS_DIR = (
-    Path(__file__).resolve().parents[5] / "src" / "phoenix" / "server" / "agents" / "prompts" / "skills"
+    Path(__file__).resolve().parents[5]
+    / "src"
+    / "phoenix"
+    / "server"
+    / "agents"
+    / "prompts"
+    / "skills"
 )
 GraphQLExample: TypeAlias = tuple[str, str]
 
