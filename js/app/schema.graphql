@@ -3303,7 +3303,7 @@ type ProjectEvaluator implements Node {
   project: Project!
 
   """
-  The project holding the traces this evaluator produces when it runs, or null until the first evaluator trace creates it. Every evaluator traces into this one project, so its spans must be scoped by this evaluator's id to show only its own traces.
+  The project holding the traces this evaluator produces when it runs. Each evaluator traces into its own dedicated project, created with the evaluator.
   """
   traceProject: Project
   evaluator: Evaluator!
@@ -3326,7 +3326,7 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New criteria store the current default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New project evaluators store the default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
   """
   evaluationDelaySeconds: Int!
   inputMapping: EvaluatorInputMapping!

@@ -1,10 +1,10 @@
 """Evaluator tracing for online evaluations.
 
-Every online evaluation is traced into one global ``evaluators`` project so a
+Every online evaluation is traced into the evaluator's own trace project so a
 user can see what an evaluation actually did. Spans are marked as
-evaluator-produced on the way out, and the criteria layer refuses to evaluate
-the destination project, so evaluator traces cannot feed the evaluations that
-produced them.
+evaluator-produced on the way out, and the project_evaluator layer refuses to evaluate
+trace projects, so evaluator traces cannot feed the evaluations that produced
+them.
 """
 
 from __future__ import annotations
@@ -18,13 +18,9 @@ from opentelemetry.sdk.trace import Span as SdkSpan
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.util.types import AttributeValue
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import Tracer
@@ -84,38 +80,33 @@ def marked_evaluator_tracer(
     return tracer
 
 
-async def evaluators_project_id(session: AsyncSession, dialect: SupportedSQLDialect) -> int:
-    """Resolve the evaluator-trace project, creating it if it does not exist."""
-    await session.execute(
-        insert_on_conflict(
-            {
-                "name": EVALUATORS_PROJECT_NAME,
-                "description": "Traces from evaluator executions",
-            },
-            table=models.Project,
-            dialect=dialect,
-            unique_by=("name",),
-            on_conflict=OnConflict.DO_NOTHING,
-        )
-    )
-    project_id = await session.scalar(
-        select(models.Project.id).where(models.Project.name == EVALUATORS_PROJECT_NAME)
-    )
-    assert project_id is not None
-    return project_id
-
-
 async def persist_evaluator_traces(
     *,
     db: DbSessionFactory,
     tracer: Tracer,
+    project_evaluator_id: int,
     event_queue: Optional[CanPutItem[DmlEvent]] = None,
 ) -> None:
-    """Write the tracer's spans into the evaluators project."""
+    """Write the tracer's spans into the evaluator's own trace project.
+
+    The trace project is resolved at write time so an evaluator deleted while
+    its evaluation was in flight drops the trace instead of resurrecting the
+    deleted project's rows.
+    """
     if db.should_not_insert_or_update:
         return
     async with db() as session:
-        project_id = await evaluators_project_id(session, db.dialect)
+        project_id = await session.scalar(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.id == project_evaluator_id
+            )
+        )
+        if project_id is None:
+            logger.info(
+                "Dropping evaluator trace: project evaluator %s no longer exists",
+                project_evaluator_id,
+            )
+            return
         db_traces = tracer.get_db_traces(project_id=project_id)
         if not db_traces:
             return

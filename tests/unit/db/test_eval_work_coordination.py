@@ -18,8 +18,8 @@ _INTEGRITY_ERRORS = (SQLAlchemyIntegrityError, SQLiteIntegrityError)
 
 
 async def _seed_span_evaluator_and_criteria(db: DbSessionFactory) -> tuple[int, int, int]:
-    """Create a span, a builtin evaluator, and a criteria row, returning
-    (span_rowid, evaluator_id, criteria_id)."""
+    """Create a span, a builtin evaluator, and a project_evaluator row, returning
+    (span_rowid, evaluator_id, project_evaluator_id)."""
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -33,27 +33,28 @@ async def _seed_span_evaluator_and_criteria(db: DbSessionFactory) -> tuple[int, 
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        return span.id, evaluator.id, criteria.id
+        return span.id, evaluator.id, project_evaluator.id
 
 
 async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         work_unit = models.EvalWorkUnit(
             span_rowid=span_rowid,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint="fp-1",
         )
         session.add(work_unit)
@@ -67,7 +68,7 @@ async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -
             .options(
                 selectinload(models.EvalWorkUnit.span),
                 selectinload(models.EvalWorkUnit.evaluator),
-                selectinload(models.EvalWorkUnit.criteria),
+                selectinload(models.EvalWorkUnit.project_evaluator),
             )
         )
         assert fetched is not None
@@ -78,24 +79,24 @@ async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -
         assert fetched.cooldown_until is None
         assert fetched.span.id == span_rowid
         assert fetched.evaluator.id == evaluator_id
-        assert fetched.criteria.id == criteria_id
+        assert fetched.project_evaluator.id == project_evaluator_id
 
 
 async def test_eval_work_unit_distinct_fingerprints_coexist(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
     async with db() as session:
         session.add_all(
             [
                 models.EvalWorkUnit(
                     span_rowid=span_rowid,
                     evaluator_id=evaluator_id,
-                    criteria_id=criteria_id,
+                    project_evaluator_id=project_evaluator_id,
                     config_fingerprint="fp-a",
                 ),
                 models.EvalWorkUnit(
                     span_rowid=span_rowid,
                     evaluator_id=evaluator_id,
-                    criteria_id=criteria_id,
+                    project_evaluator_id=project_evaluator_id,
                     config_fingerprint="fp-b",
                 ),
             ]
@@ -110,14 +111,14 @@ async def test_eval_work_unit_distinct_fingerprints_coexist(db: DbSessionFactory
 
 
 async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         session.add(
             models.EvalWorkUnit(
                 span_rowid=span_rowid,
                 evaluator_id=evaluator_id,
-                criteria_id=criteria_id,
+                project_evaluator_id=project_evaluator_id,
                 config_fingerprint="fp-dup",
             )
         )
@@ -129,7 +130,7 @@ async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
                 models.EvalWorkUnit(
                     span_rowid=span_rowid,
                     evaluator_id=evaluator_id,
-                    criteria_id=criteria_id,
+                    project_evaluator_id=project_evaluator_id,
                     config_fingerprint="fp-dup",
                 )
             )
@@ -137,7 +138,7 @@ async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
 
 
 async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
@@ -145,7 +146,7 @@ async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> No
                 models.EvalWorkUnit(
                     span_rowid=span_rowid,
                     evaluator_id=evaluator_id,
-                    criteria_id=criteria_id,
+                    project_evaluator_id=project_evaluator_id,
                     config_fingerprint="fp-bad-status",
                     status="BOGUS",
                 )
@@ -154,13 +155,13 @@ async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> No
 
 
 async def test_eval_work_unit_accepts_expired_status(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         work_unit = models.EvalWorkUnit(
             span_rowid=span_rowid,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint="fp-expired",
             status="EXPIRED",
         )
@@ -191,23 +192,24 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SESSION",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
         evaluator_id = evaluator.id
-        criteria_id = criteria.id
+        project_evaluator_id = project_evaluator.id
         session.add(
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session_id,
                 evaluator_id=evaluator_id,
-                criteria_id=criteria_id,
+                project_evaluator_id=project_evaluator_id,
                 config_fingerprint="fp-session",
                 evaluated_through=evaluated_through,
             )
@@ -223,35 +225,35 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
             select(models.EvalSessionWorkUnit).options(
                 selectinload(models.EvalSessionWorkUnit.project_session),
                 selectinload(models.EvalSessionWorkUnit.evaluator),
-                selectinload(models.EvalSessionWorkUnit.criteria),
+                selectinload(models.EvalSessionWorkUnit.project_evaluator),
             )
         )
         assert work_unit is not None
         assert work_unit.project_session.id == project_session_id
         assert work_unit.evaluator.id == evaluator_id
-        assert work_unit.criteria.id == criteria_id
+        assert work_unit.project_evaluator.id == project_evaluator_id
         assert work_unit.evaluated_through == evaluated_through
         assert work_unit.status == "PENDING"
         assert work_unit.attempts == 0
 
 
-async def test_project_evaluator_criteria_defaults_and_relationships(
+async def test_project_evaluator_defaults_and_relationships(
     db: DbSessionFactory,
 ) -> None:
-    _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    _, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         fetched = await session.scalar(
-            select(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            select(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .options(
-                selectinload(models.ProjectEvaluatorCriteria.project),
-                selectinload(models.ProjectEvaluatorCriteria.evaluator),
+                selectinload(models.ProjectEvaluator.project),
+                selectinload(models.ProjectEvaluator.evaluator),
             )
         )
         assert fetched is not None
         assert fetched.enabled is True
-        assert fetched.name.root.startswith("criteria-")
+        assert fetched.name.root.startswith("project_evaluator-")
         assert fetched.filter_condition == ""
         assert fetched.evaluation_target == "SPAN"
         assert fetched.evaluation_delay_seconds == 300
@@ -261,23 +263,24 @@ async def test_project_evaluator_criteria_defaults_and_relationships(
         assert fetched.project is not None
 
 
-async def test_project_evaluator_criteria_rejects_out_of_range_sampling_rate(
+async def test_project_evaluator_rejects_out_of_range_sampling_rate(
     db: DbSessionFactory,
 ) -> None:
-    _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    _, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
-        existing = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        existing = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert existing is not None
         project_id = existing.project_id
 
     with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
-                models.ProjectEvaluatorCriteria(
+                models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                     project_id=project_id,
                     evaluator_id=evaluator_id,
-                    name=Identifier(root=f"criteria-{token_hex(4)}"),
+                    name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
                     filter_condition="",
                     sampling_rate=1.5,
                     evaluation_target="SPAN",
@@ -286,13 +289,13 @@ async def test_project_evaluator_criteria_rejects_out_of_range_sampling_rate(
             await session.flush()
 
 
-async def test_project_evaluator_criteria_name_is_unique_per_project(
+async def test_project_evaluator_name_is_unique_per_project(
     db: DbSessionFactory,
 ) -> None:
-    _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    _, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
-        existing = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        existing = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert existing is not None
         project_id = existing.project_id
         name = existing.name
@@ -300,7 +303,8 @@ async def test_project_evaluator_criteria_name_is_unique_per_project(
     with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
-                models.ProjectEvaluatorCriteria(
+                models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                     project_id=project_id,
                     evaluator_id=evaluator_id,
                     name=name,
@@ -312,48 +316,50 @@ async def test_project_evaluator_criteria_name_is_unique_per_project(
             await session.flush()
 
 
-async def test_project_evaluator_criteria_preserves_empty_input_mapping(
+async def test_project_evaluator_preserves_empty_input_mapping(
     db: DbSessionFactory,
 ) -> None:
-    _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    _, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
     async with db() as session:
-        existing = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        existing = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert existing is not None
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=existing.project_id,
             evaluator_id=evaluator_id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="TRACE",
             input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        criteria_id = criteria.id
+        project_evaluator_id = project_evaluator.id
 
     async with db() as session:
-        fetched = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        fetched = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert fetched is not None
         assert fetched.input_mapping == InputMapping(literal_mapping={}, path_mapping={})
 
 
-async def test_project_evaluator_criteria_rejects_unknown_target(
+async def test_project_evaluator_rejects_unknown_target(
     db: DbSessionFactory,
 ) -> None:
-    _, evaluator_id, criteria_id = await _seed_span_evaluator_and_criteria(db)
+    _, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
     async with db() as session:
-        existing = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        existing = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert existing is not None
         project_id = existing.project_id
 
     with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
-                models.ProjectEvaluatorCriteria(
+                models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                     project_id=project_id,
                     evaluator_id=evaluator_id,
-                    name=Identifier(root=f"criteria-{token_hex(4)}"),
+                    name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
                     filter_condition="",
                     sampling_rate=1.0,
                     evaluation_target="BOGUS",

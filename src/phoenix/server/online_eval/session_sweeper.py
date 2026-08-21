@@ -47,10 +47,9 @@ from phoenix.db.eval_work import (
 )
 from phoenix.db.helpers import (
     SupportedSQLDialect,
-    exclude_criteria_targeting_evaluator_traces,
+    exclude_project_evaluators_targeting_evaluator_traces,
 )
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
@@ -58,7 +57,8 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
-from phoenix.server.online_eval.session_policy import session_criteria_is_schedulable
+from phoenix.server.online_eval.evaluator_resolution import resolve_evaluators_bulk
+from phoenix.server.online_eval.session_policy import session_evaluator_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS,
@@ -87,8 +87,8 @@ _LIVE_WORK_INDEX_PREDICATE = text(live_eval_session_work_index_predicate())
 
 
 @dataclass(frozen=True)
-class _SessionCriteria:
-    criteria_id: int
+class _SessionEvaluator:
+    project_evaluator_id: int
     project_id: int
     evaluator_id: int
     fingerprint: str
@@ -98,22 +98,22 @@ class _SessionCriteria:
     sampling_rate: float
 
 
-def _criteria_relation(
-    criteria: Sequence[_SessionCriteria],
+def _project_evaluator_relation(
+    project_evaluator: Sequence[_SessionEvaluator],
     dialect: SupportedSQLDialect,
 ) -> Subquery:
-    """Return a portable inline relation for resolved session criteria.
+    """Return a portable inline relation for resolved session project_evaluator.
 
-    Bind names are keyed off ``criteria_id`` rather than row position: several of these
+    Bind names are keyed off ``project_evaluator_id`` rather than row position: several of these
     relations are unioned into one statement, and ``text()`` binds are not unique, so
     position-keyed names from different relations would silently overwrite each other.
     """
     rows = []
     parameters: dict[str, Any] = {}
-    for index, criterion in enumerate(criteria):
-        prefix = f"sc{criterion.criteria_id}"
+    for index, criterion in enumerate(project_evaluator):
+        prefix = f"sc{criterion.project_evaluator_id}"
         row_parameters = {
-            f"{prefix}_criteria_id": criterion.criteria_id,
+            f"{prefix}_project_evaluator_id": criterion.project_evaluator_id,
             f"{prefix}_project_id": criterion.project_id,
             f"{prefix}_evaluator_id": criterion.evaluator_id,
             f"{prefix}_config_fingerprint": criterion.fingerprint,
@@ -139,7 +139,7 @@ def _criteria_relation(
         rows.append(f"({', '.join(placeholders)})")
     statement = text(
         "SELECT "
-        "sc.column1 AS criteria_id, "
+        "sc.column1 AS project_evaluator_id, "
         "sc.column2 AS project_id, "
         "sc.column3 AS evaluator_id, "
         "sc.column4 AS config_fingerprint, "
@@ -151,7 +151,7 @@ def _criteria_relation(
     return (
         statement.bindparams(**parameters)
         .columns(
-            column("criteria_id", Integer),
+            column("project_evaluator_id", Integer),
             column("project_id", Integer),
             column("evaluator_id", Integer),
             column("config_fingerprint", String),
@@ -159,11 +159,11 @@ def _criteria_relation(
             column("created_at", models.UtcTimeStamp()),
             column("sampling_rate", Float),
         )
-        .subquery("sweep_criteria")
+        .subquery("sweep_evaluators")
     )
 
 
-def _live_work_exists(criteria_relation: Subquery) -> ColumnElement[bool]:
+def _live_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
     """Whether the session still holds a live dedup key for this criterion."""
     live_work = aliased(models.EvalSessionWorkUnit)
     return (
@@ -171,8 +171,8 @@ def _live_work_exists(criteria_relation: Subquery) -> ColumnElement[bool]:
         .select_from(live_work)
         .where(
             live_work.project_session_rowid == models.ProjectSession.id,
-            live_work.evaluator_id == criteria_relation.c.evaluator_id,
-            live_work.config_fingerprint == criteria_relation.c.config_fingerprint,
+            live_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
+            live_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             or_(
                 live_work.status.in_(("PENDING", "RUNNING")),
                 live_work.status.in_(SESSION_DECLINED_STATUSES),
@@ -182,13 +182,13 @@ def _live_work_exists(criteria_relation: Subquery) -> ColumnElement[bool]:
                 ),
             ),
         )
-        .correlate(models.ProjectSession, criteria_relation)
+        .correlate(models.ProjectSession, project_evaluator_relation)
         .exists()
     )
 
 
 def _eligible_pairs_statement(
-    criteria_relation: Subquery,
+    project_evaluator_relation: Subquery,
     database_now: datetime,
     dialect: SupportedSQLDialect,
     *,
@@ -200,8 +200,8 @@ def _eligible_pairs_statement(
         select(func.max(terminal_work.evaluated_through))
         .where(
             terminal_work.project_session_rowid == models.ProjectSession.id,
-            terminal_work.evaluator_id == criteria_relation.c.evaluator_id,
-            terminal_work.config_fingerprint == criteria_relation.c.config_fingerprint,
+            terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
+            terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             or_(
                 terminal_work.status == "DONE",
                 terminal_work.status.in_(SESSION_DECLINED_STATUSES),
@@ -218,7 +218,7 @@ def _eligible_pairs_statement(
                 ),
             ),
         )
-        .correlate(models.ProjectSession, criteria_relation)
+        .correlate(models.ProjectSession, project_evaluator_relation)
         .scalar_subquery()
     )
     successful_result_exists = (
@@ -226,49 +226,49 @@ def _eligible_pairs_statement(
         .select_from(successful_work)
         .where(
             successful_work.project_session_rowid == models.ProjectSession.id,
-            successful_work.evaluator_id == criteria_relation.c.evaluator_id,
-            successful_work.config_fingerprint == criteria_relation.c.config_fingerprint,
+            successful_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
+            successful_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             successful_work.status == "DONE",
         )
-        .correlate(models.ProjectSession, criteria_relation)
+        .correlate(models.ProjectSession, project_evaluator_relation)
         .exists()
     )
     if dialect is SupportedSQLDialect.SQLITE:
         due_at = (
             cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float) * 86_400
-            + criteria_relation.c.delay_seconds
+            + project_evaluator_relation.c.delay_seconds
         )
         current_time = cast(func.julianday(database_now), Float) * 86_400
     else:
         due_at = (
             func.extract("epoch", models.ProjectSession.last_span_ingested_at)
-            + criteria_relation.c.delay_seconds
+            + project_evaluator_relation.c.delay_seconds
         )
         current_time = func.extract("epoch", literal(database_now))
     return (
         select(
             models.ProjectSession.id.label("project_session_rowid"),
             models.ProjectSession.session_id,
-            criteria_relation.c.criteria_id,
-            criteria_relation.c.evaluator_id,
-            criteria_relation.c.config_fingerprint,
-            criteria_relation.c.sampling_rate,
+            project_evaluator_relation.c.project_evaluator_id,
+            project_evaluator_relation.c.evaluator_id,
+            project_evaluator_relation.c.config_fingerprint,
+            project_evaluator_relation.c.sampling_rate,
             models.ProjectSession.last_span_ingested_at.label("evaluated_through"),
             due_at.label("effective_due_time"),
             filter_matches.label("filter_matches"),
         )
         .select_from(models.ProjectSession)
         .join(
-            criteria_relation,
-            models.ProjectSession.project_id == criteria_relation.c.project_id,
+            project_evaluator_relation,
+            models.ProjectSession.project_id == project_evaluator_relation.c.project_id,
         )
         .where(
             models.ProjectSession.content_complete.is_(True),
             models.ProjectSession.last_span_ingested_at.is_not(None),
-            models.ProjectSession.last_span_ingested_at >= criteria_relation.c.created_at,
+            models.ProjectSession.last_span_ingested_at >= project_evaluator_relation.c.created_at,
             due_at <= current_time,
             ~successful_result_exists,
-            ~_live_work_exists(criteria_relation),
+            ~_live_work_exists(project_evaluator_relation),
             or_(
                 terminal_watermark.is_(None),
                 terminal_watermark < models.ProjectSession.last_span_ingested_at,
@@ -278,22 +278,22 @@ def _eligible_pairs_statement(
 
 
 def _eligible_pairs_relation(
-    criteria: Sequence[_SessionCriteria],
+    project_evaluator: Sequence[_SessionEvaluator],
     database_now: datetime,
     dialect: SupportedSQLDialect,
 ) -> Subquery:
     statements: list[Select[Any]] = []
-    unfiltered = [criterion for criterion in criteria if not criterion.filter_condition]
+    unfiltered = [criterion for criterion in project_evaluator if not criterion.filter_condition]
     if unfiltered:
         statements.append(
             _eligible_pairs_statement(
-                _criteria_relation(unfiltered, dialect),
+                _project_evaluator_relation(unfiltered, dialect),
                 database_now,
                 dialect,
                 filter_matches=literal(True),
             )
         )
-    for criterion in criteria:
+    for criterion in project_evaluator:
         if not criterion.filter_condition:
             continue
         filter_matches = models.ProjectSession.id.in_(
@@ -304,7 +304,7 @@ def _eligible_pairs_relation(
         )
         statements.append(
             _eligible_pairs_statement(
-                _criteria_relation([criterion], dialect),
+                _project_evaluator_relation([criterion], dialect),
                 database_now,
                 dialect,
                 filter_matches=filter_matches,
@@ -319,7 +319,7 @@ def _session_work_insert_statement(
     decisions: Sequence[dict[str, Any]],
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Insert scheduling decisions whose PostgreSQL criteria and sessions are locked."""
+    """Insert scheduling decisions whose PostgreSQL evaluator and session rows are locked."""
     index_elements = (
         models.EvalSessionWorkUnit.project_session_rowid,
         models.EvalSessionWorkUnit.evaluator_id,
@@ -502,52 +502,52 @@ class SessionEvalSweeper(DaemonTask):
             raise RuntimeError("Database did not return its current time")
         return database_now
 
-    async def _load_criteria(self, session: AsyncSession) -> list[_SessionCriteria]:
+    async def _load_evaluators(self, session: AsyncSession) -> list[_SessionEvaluator]:
         polymorphic_evaluator = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
         )
         rows = (
             await session.execute(
-                exclude_criteria_targeting_evaluator_traces(
-                    select(models.ProjectEvaluatorCriteria, polymorphic_evaluator)
+                exclude_project_evaluators_targeting_evaluator_traces(
+                    select(models.ProjectEvaluator, polymorphic_evaluator)
                     .join(
                         polymorphic_evaluator,
-                        models.ProjectEvaluatorCriteria.evaluator_id == polymorphic_evaluator.id,
+                        models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
                     )
                     .where(
-                        session_criteria_is_schedulable(models.ProjectEvaluatorCriteria),
+                        session_evaluator_is_schedulable(models.ProjectEvaluator),
                     )
                 )
             )
         ).all()
-        criteria_evaluators = [(criteria, evaluator) for criteria, evaluator in rows]
-        criteria_rows: list[_SessionCriteria] = []
-        resolved_rows = await resolve_criteria_bulk(session, criteria_evaluators)
-        for (criteria, evaluator), resolved in zip(
-            criteria_evaluators,
+        evaluator_pairs = [(project_evaluator, evaluator) for project_evaluator, evaluator in rows]
+        project_evaluator_rows: list[_SessionEvaluator] = []
+        resolved_rows = await resolve_evaluators_bulk(session, evaluator_pairs)
+        for (project_evaluator, evaluator), resolved in zip(
+            evaluator_pairs,
             resolved_rows,
             strict=True,
         ):
             if resolved is None:
                 logger.warning(
-                    f"Skipping criteria {criteria.id}: "
+                    f"Skipping project_evaluator {project_evaluator.id}: "
                     f"no resolvable version for evaluator {evaluator.id}"
                 )
                 continue
-            criteria_rows.append(
-                _SessionCriteria(
-                    criteria_id=criteria.id,
-                    project_id=criteria.project_id,
-                    evaluator_id=criteria.evaluator_id,
+            project_evaluator_rows.append(
+                _SessionEvaluator(
+                    project_evaluator_id=project_evaluator.id,
+                    project_id=project_evaluator.project_id,
+                    evaluator_id=project_evaluator.evaluator_id,
                     fingerprint=config_fingerprint(resolved),
-                    delay_seconds=criteria.evaluation_delay_seconds,
-                    created_at=criteria.created_at,
-                    filter_condition=criteria.filter_condition,
-                    sampling_rate=criteria.sampling_rate,
+                    delay_seconds=project_evaluator.evaluation_delay_seconds,
+                    created_at=project_evaluator.created_at,
+                    filter_condition=project_evaluator.filter_condition,
+                    sampling_rate=project_evaluator.sampling_rate,
                 )
             )
-        return criteria_rows
+        return project_evaluator_rows
 
     async def _sweep(
         self,
@@ -559,11 +559,11 @@ class SessionEvalSweeper(DaemonTask):
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None
-        criteria = await self._load_criteria(session)
+        project_evaluator = await self._load_evaluators(session)
         return await self._load_eligible_pairs(
             session,
             database_now,
-            criteria,
+            project_evaluator,
             limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
         )
 
@@ -571,14 +571,14 @@ class SessionEvalSweeper(DaemonTask):
         self,
         session: AsyncSession,
         database_now: datetime,
-        criteria: Sequence[_SessionCriteria],
+        project_evaluator: Sequence[_SessionEvaluator],
         *,
         limit: int,
     ) -> tuple[int, Optional[int]]:
-        if not criteria:
+        if not project_evaluator:
             return 0, 0 if self._publish_metrics else None
         relation = _eligible_pairs_relation(
-            criteria,
+            project_evaluator,
             database_now,
             self._db.dialect,
         )
@@ -596,35 +596,35 @@ class SessionEvalSweeper(DaemonTask):
             .order_by(
                 relation.c.effective_due_time,
                 relation.c.project_session_rowid,
-                relation.c.criteria_id,
+                relation.c.project_evaluator_id,
             )
             .limit(limit)
             .subquery("eligible_pair_page")
         )
-        locked_criteria_ids: Optional[Sequence[int]] = None
+        locked_project_evaluator_ids: Optional[Sequence[int]] = None
         locked_project_session_rowids: Optional[Sequence[int]] = None
         if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-            page_criteria_ids = tuple(
-                dict.fromkeys(await session.scalars(select(eligible_page.c.criteria_id)))
+            page_project_evaluator_ids = tuple(
+                dict.fromkeys(await session.scalars(select(eligible_page.c.project_evaluator_id)))
             )
-            if not page_criteria_ids:
+            if not page_project_evaluator_ids:
                 return 0, eligible_pair_count
-            page_criteria_ids_parameter = bindparam(
-                "page_criteria_ids",
-                page_criteria_ids,
+            page_project_evaluator_ids_parameter = bindparam(
+                "page_project_evaluator_ids",
+                page_project_evaluator_ids,
                 type_=ARRAY(Integer),
             )
-            locked_criteria_ids = tuple(
+            locked_project_evaluator_ids = tuple(
                 await session.scalars(
-                    select(models.ProjectEvaluatorCriteria.id)
+                    select(models.ProjectEvaluator.id)
                     .where(
-                        models.ProjectEvaluatorCriteria.id == any_(page_criteria_ids_parameter),
+                        models.ProjectEvaluator.id == any_(page_project_evaluator_ids_parameter),
                     )
-                    .order_by(models.ProjectEvaluatorCriteria.id)
+                    .order_by(models.ProjectEvaluator.id)
                     .with_for_update()
                 )
             )
-            if len(locked_criteria_ids) != len(page_criteria_ids):
+            if len(locked_project_evaluator_ids) != len(page_project_evaluator_ids):
                 return 0, eligible_pair_count
             page_ids = tuple(
                 dict.fromkeys(await session.scalars(select(eligible_page.c.project_session_rowid)))
@@ -650,9 +650,9 @@ class SessionEvalSweeper(DaemonTask):
             if not locked_project_session_rowids:
                 return 0, eligible_pair_count
         selected_page = select(eligible_page)
-        if locked_criteria_ids is not None:
+        if locked_project_evaluator_ids is not None:
             selected_page = selected_page.where(
-                eligible_page.c.criteria_id.in_(locked_criteria_ids)
+                eligible_page.c.project_evaluator_id.in_(locked_project_evaluator_ids)
             )
         if locked_project_session_rowids is not None:
             selected_page = selected_page.where(
@@ -671,7 +671,7 @@ class SessionEvalSweeper(DaemonTask):
                 {
                     "project_session_rowid": row.project_session_rowid,
                     "evaluator_id": row.evaluator_id,
-                    "criteria_id": row.criteria_id,
+                    "project_evaluator_id": row.project_evaluator_id,
                     "config_fingerprint": row.config_fingerprint,
                     "evaluated_through": row.evaluated_through,
                     "status": status,

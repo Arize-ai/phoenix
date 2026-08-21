@@ -51,7 +51,7 @@ class ClaimedWorkUnit:
     evaluation_target: models.EvaluationTarget
     target_rowid: int
     evaluator_id: int
-    criteria_id: int
+    project_evaluator_id: int
     config_fingerprint: str
     identifier: str
     attempts: int
@@ -120,7 +120,7 @@ class EvalWorkCoordinator(Protocol):
         """Fence a claimed unit for publication and run ``write`` in that transaction.
 
         The fence is stricter than a lifecycle transition's: the unit must still be
-        owned and RUNNING, *and* its criteria still enabled — a result must not be
+        owned and RUNNING, *and* its project_evaluator still enabled — a result must not be
         published under a configuration that has since been turned off. Where the target
         keeps a coverage watermark, it records how much of the target the published
         result actually read and is written in the same transaction; a watermark that

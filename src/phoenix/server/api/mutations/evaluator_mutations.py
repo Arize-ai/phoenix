@@ -14,7 +14,6 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
 from phoenix.db.models import EvaluatorKind
@@ -272,6 +271,21 @@ def _get_dataset_evaluator_project_name_identifier() -> IdentifierModel:
     return IdentifierModel.model_validate(project_name)
 
 
+def _get_trace_project_for_project_evaluator(
+    *,
+    project_name: str,
+    project_evaluator_name: str,
+) -> models.Project:
+    """Build the project that will hold this evaluator's execution traces."""
+    name = IdentifierModel.model_validate(f"project-evaluator-{token_hex(12)}")
+    return models.Project(
+        name=name.root,
+        description=(
+            f"Traces for project evaluator: {project_evaluator_name} on project: {project_name}"
+        ),
+    )
+
+
 async def _ensure_evaluator_prompt_label(
     session: AsyncSession,
     prompt_id: int,
@@ -323,19 +337,23 @@ async def _validate_project_evaluator_project(
     session: AsyncSession,
     project_id: int,
     project_global_id: GlobalID,
-) -> None:
-    """Reject a project that cannot be evaluated.
+) -> models.Project:
+    """Reject a project that cannot be evaluated, returning it otherwise.
 
-    The evaluators project holds the traces of evaluator executions; evaluating
-    it would feed evaluator output back into the evaluators that produced it.
+    An evaluator's trace project holds the traces of its executions; evaluating
+    one would feed evaluator output back into the evaluators that produced it.
     """
     project = await session.get(models.Project, project_id)
     if project is None:
         raise NotFound(f"Project not found: {project_global_id}")
-    if project.name == EVALUATORS_PROJECT_NAME:
-        raise BadRequest(
-            f"The {EVALUATORS_PROJECT_NAME} project holds evaluator traces and cannot be evaluated"
-        )
+    holds_evaluator_traces = await session.scalar(
+        select(models.ProjectEvaluator.id)
+        .where(models.ProjectEvaluator.trace_project_id == project_id)
+        .limit(1)
+    )
+    if holds_evaluator_traces is not None:
+        raise BadRequest("This project holds evaluator traces and cannot be evaluated")
+    return project
 
 
 def _validate_project_evaluator_filter(
@@ -386,10 +404,10 @@ def _materialize_project_evaluator_evaluation_delay(
 
 
 def _validate_project_evaluator_target_update(
-    criteria: models.ProjectEvaluatorCriteria,
+    project_evaluator: models.ProjectEvaluator,
     evaluation_target: EvaluationTarget,
 ) -> None:
-    if criteria.evaluation_target == evaluation_target.value:
+    if project_evaluator.evaluation_target == evaluation_target.value:
         return
     raise BadRequest("evaluationTarget is fixed at project evaluator creation")
 
@@ -408,8 +426,8 @@ async def _garbage_collect_evaluators(
                 ~select(models.DatasetEvaluators.id)
                 .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
                 .exists(),
-                ~select(models.ProjectEvaluatorCriteria.id)
-                .where(models.ProjectEvaluatorCriteria.evaluator_id == models.Evaluator.id)
+                ~select(models.ProjectEvaluator.id)
+                .where(models.ProjectEvaluator.evaluator_id == models.Evaluator.id)
                 .exists(),
             )
         )
@@ -789,7 +807,9 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                project = await _validate_project_evaluator_project(
+                    session, project_id, input.project_id
+                )
                 evaluator_name = await _generate_unique_evaluator_name(session, name)
 
                 target_prompt_version_id: Optional[int] = None
@@ -841,9 +861,16 @@ class EvaluatorMutationMixin:
                     prompt_id=prompt.id,
                     prompt_version_id=target_prompt_version_id or prompt_version.id,
                 )
-                criteria = models.ProjectEvaluatorCriteria(
+                trace_project = _get_trace_project_for_project_evaluator(
+                    project_name=project.name,
+                    project_evaluator_name=name.root,
+                )
+                session.add(trace_project)
+                await session.flush()
+                project_evaluator = models.ProjectEvaluator(
                     project_id=project_id,
                     evaluator_id=evaluator.id,
+                    trace_project_id=trace_project.id,
                     name=name,
                     filter_condition=input.filter_condition,
                     sampling_rate=input.sampling_rate,
@@ -852,13 +879,13 @@ class EvaluatorMutationMixin:
                     evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
-                session.add(criteria)
+                session.add(project_evaluator)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
-            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
         )
 
@@ -870,7 +897,7 @@ class EvaluatorMutationMixin:
         self, info: Info[Context, None], input: UpdateProjectLLMEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
         try:
-            criteria_id = from_global_id_with_expected_type(
+            project_evaluator_id = from_global_id_with_expected_type(
                 input.project_evaluator_id, ProjectEvaluator.__name__
             )
         except ValueError:
@@ -903,23 +930,23 @@ class EvaluatorMutationMixin:
             async with info.context.db() as session:
                 pair = (
                     await session.execute(
-                        select(models.ProjectEvaluatorCriteria, models.LLMEvaluator)
+                        select(models.ProjectEvaluator, models.LLMEvaluator)
                         .join(
                             models.LLMEvaluator,
-                            models.ProjectEvaluatorCriteria.evaluator_id == models.LLMEvaluator.id,
+                            models.ProjectEvaluator.evaluator_id == models.LLMEvaluator.id,
                         )
-                        .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+                        .where(models.ProjectEvaluator.id == project_evaluator_id)
                     )
                 ).one_or_none()
                 if pair is None:
                     raise NotFound(f"LLM project evaluator not found: {input.project_evaluator_id}")
-                criteria, evaluator = pair
+                project_evaluator, evaluator = pair
                 _validate_project_evaluator_target_update(
-                    criteria,
+                    project_evaluator,
                     input.evaluation_target,
                 )
                 shared_evaluator_changed = False
-                if criteria.name != name:
+                if project_evaluator.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)
                     shared_evaluator_changed = True
 
@@ -998,26 +1025,26 @@ class EvaluatorMutationMixin:
                     evaluator.user_id = user_id
                     evaluator.updated_at = datetime.now(timezone.utc)
 
-                criteria.name = name
-                criteria.filter_condition = input.filter_condition
-                criteria.sampling_rate = input.sampling_rate
-                criteria.evaluation_target = input.evaluation_target.value
-                criteria.input_mapping = input.input_mapping.to_orm()
+                project_evaluator.name = name
+                project_evaluator.filter_condition = input.filter_condition
+                project_evaluator.sampling_rate = input.sampling_rate
+                project_evaluator.evaluation_target = input.evaluation_target.value
+                project_evaluator.input_mapping = input.input_mapping.to_orm()
                 if input.evaluation_delay_seconds is not UNSET:
-                    criteria.evaluation_delay_seconds = (
+                    project_evaluator.evaluation_delay_seconds = (
                         _materialize_project_evaluator_evaluation_delay(
                             input.evaluation_delay_seconds, input.evaluation_target
                         )
                     )
                 if input.enabled is not UNSET:
                     assert input.enabled is not None
-                    criteria.enabled = input.enabled
+                    project_evaluator.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
-            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
         )
 
@@ -1054,12 +1081,21 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                project = await _validate_project_evaluator_project(
+                    session, project_id, input.project_id
+                )
                 if await session.get(models.CodeEvaluator, evaluator_id) is None:
                     raise BadRequest("CODE evaluator not found")
-                criteria = models.ProjectEvaluatorCriteria(
+                trace_project = _get_trace_project_for_project_evaluator(
+                    project_name=project.name,
+                    project_evaluator_name=name.root,
+                )
+                session.add(trace_project)
+                await session.flush()
+                project_evaluator = models.ProjectEvaluator(
                     project_id=project_id,
                     evaluator_id=evaluator_id,
+                    trace_project_id=trace_project.id,
                     name=name,
                     filter_condition=input.filter_condition,
                     sampling_rate=input.sampling_rate,
@@ -1070,13 +1106,13 @@ class EvaluatorMutationMixin:
                     evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
-                session.add(criteria)
+                session.add(project_evaluator)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
-            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
         )
 
@@ -1128,7 +1164,9 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                project = await _validate_project_evaluator_project(
+                    session, project_id, input.project_id
+                )
                 evaluator_name = await _generate_unique_evaluator_name(session, name)
                 evaluator = models.CodeEvaluator(
                     name=evaluator_name,
@@ -1148,9 +1186,16 @@ class EvaluatorMutationMixin:
                         user_id=user_id,
                     )
                 )
-                criteria = models.ProjectEvaluatorCriteria(
+                trace_project = _get_trace_project_for_project_evaluator(
+                    project_name=project.name,
+                    project_evaluator_name=name.root,
+                )
+                session.add(trace_project)
+                await session.flush()
+                project_evaluator = models.ProjectEvaluator(
                     project_id=project_id,
                     evaluator_id=evaluator.id,
+                    trace_project_id=trace_project.id,
                     name=name,
                     filter_condition=input.filter_condition,
                     sampling_rate=input.sampling_rate,
@@ -1161,13 +1206,13 @@ class EvaluatorMutationMixin:
                     evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
                 )
-                session.add(criteria)
+                session.add(project_evaluator)
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
-            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
         )
 
@@ -1183,7 +1228,7 @@ class EvaluatorMutationMixin:
         self, info: Info[Context, None], input: UpdateProjectCodeEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
         try:
-            criteria_id = from_global_id_with_expected_type(
+            project_evaluator_id = from_global_id_with_expected_type(
                 input.project_evaluator_id, ProjectEvaluator.__name__
             )
             name = IdentifierModel.model_validate(input.name)
@@ -1223,12 +1268,12 @@ class EvaluatorMutationMixin:
             async with info.context.db() as session:
                 current_pair = (
                     await session.execute(
-                        select(models.ProjectEvaluatorCriteria, models.CodeEvaluator)
+                        select(models.ProjectEvaluator, models.CodeEvaluator)
                         .join(
                             models.CodeEvaluator,
-                            models.ProjectEvaluatorCriteria.evaluator_id == models.CodeEvaluator.id,
+                            models.ProjectEvaluator.evaluator_id == models.CodeEvaluator.id,
                         )
-                        .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+                        .where(models.ProjectEvaluator.id == project_evaluator_id)
                     )
                 ).one_or_none()
                 if current_pair is None:
@@ -1265,25 +1310,25 @@ class EvaluatorMutationMixin:
             async with info.context.db() as session:
                 pair = (
                     await session.execute(
-                        select(models.ProjectEvaluatorCriteria, models.CodeEvaluator)
+                        select(models.ProjectEvaluator, models.CodeEvaluator)
                         .join(
                             models.CodeEvaluator,
-                            models.ProjectEvaluatorCriteria.evaluator_id == models.CodeEvaluator.id,
+                            models.ProjectEvaluator.evaluator_id == models.CodeEvaluator.id,
                         )
-                        .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+                        .where(models.ProjectEvaluator.id == project_evaluator_id)
                     )
                 ).one_or_none()
                 if pair is None:
                     raise NotFound(
                         f"CODE project evaluator not found: {input.project_evaluator_id}"
                     )
-                criteria, evaluator = pair
+                project_evaluator, evaluator = pair
                 _validate_project_evaluator_target_update(
-                    criteria,
+                    project_evaluator,
                     input.evaluation_target,
                 )
                 shared_evaluator_changed = False
-                if criteria.name != name:
+                if project_evaluator.name != name:
                     evaluator.name = await _generate_unique_evaluator_name(session, name)
                     shared_evaluator_changed = True
                 if input.description is not UNSET and evaluator.description != input.description:
@@ -1336,29 +1381,29 @@ class EvaluatorMutationMixin:
                 if shared_evaluator_changed:
                     evaluator.user_id = user_id
 
-                criteria.name = name
-                criteria.filter_condition = input.filter_condition
-                criteria.sampling_rate = input.sampling_rate
-                criteria.evaluation_target = input.evaluation_target.value
+                project_evaluator.name = name
+                project_evaluator.filter_condition = input.filter_condition
+                project_evaluator.sampling_rate = input.sampling_rate
+                project_evaluator.evaluation_target = input.evaluation_target.value
                 if input.input_mapping is not UNSET:
-                    criteria.input_mapping = (
+                    project_evaluator.input_mapping = (
                         input.input_mapping.to_orm() if input.input_mapping is not None else None
                     )
                 if input.evaluation_delay_seconds is not UNSET:
-                    criteria.evaluation_delay_seconds = (
+                    project_evaluator.evaluation_delay_seconds = (
                         _materialize_project_evaluator_evaluation_delay(
                             input.evaluation_delay_seconds, input.evaluation_target
                         )
                     )
                 if input.enabled is not UNSET:
                     assert input.enabled is not None
-                    criteria.enabled = input.enabled
+                    project_evaluator.enabled = input.enabled
                 await session.flush()
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A project evaluator with this name already exists for this project")
 
         return ProjectEvaluatorMutationPayload(
-            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
         )
 
@@ -1374,19 +1419,19 @@ class EvaluatorMutationMixin:
         self, info: Info[Context, None], input: SetProjectEvaluatorEnabledInput
     ) -> ProjectEvaluatorMutationPayload:
         try:
-            criteria_id = from_global_id_with_expected_type(
+            project_evaluator_id = from_global_id_with_expected_type(
                 input.project_evaluator_id, ProjectEvaluator.__name__
             )
         except ValueError as error:
             raise BadRequest(str(error))
         async with info.context.db() as session:
-            criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-            if criteria is None:
+            project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+            if project_evaluator is None:
                 raise NotFound(f"Project evaluator not found: {input.project_evaluator_id}")
-            criteria.enabled = input.enabled
+            project_evaluator.enabled = input.enabled
             await session.flush()
         return ProjectEvaluatorMutationPayload(
-            evaluator=ProjectEvaluator(id=criteria.id, db_record=criteria),
+            evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
         )
 
@@ -1394,15 +1439,15 @@ class EvaluatorMutationMixin:
     async def delete_project_evaluators(
         self, info: Info[Context, None], input: DeleteProjectEvaluatorsInput
     ) -> DeleteProjectEvaluatorsPayload:
-        criteria_ids: list[int] = []
+        project_evaluator_ids: list[int] = []
         for global_id in input.project_evaluator_ids:
             try:
-                criteria_ids.append(
+                project_evaluator_ids.append(
                     from_global_id_with_expected_type(global_id, ProjectEvaluator.__name__)
                 )
             except ValueError:
                 raise BadRequest(f"Invalid project evaluator id: {global_id}")
-        if not criteria_ids:
+        if not project_evaluator_ids:
             return DeleteProjectEvaluatorsPayload(project_evaluator_ids=[], query=Query())
 
         deleted_ids: list[GlobalID] = []
@@ -1411,37 +1456,45 @@ class EvaluatorMutationMixin:
             rows = (
                 await session.execute(
                     select(
-                        models.ProjectEvaluatorCriteria.id,
-                        models.ProjectEvaluatorCriteria.evaluator_id,
+                        models.ProjectEvaluator.id,
+                        models.ProjectEvaluator.evaluator_id,
+                        models.ProjectEvaluator.trace_project_id,
                         models.Evaluator.kind,
                         llm_evaluator_alias.prompt_id,
                     )
                     .join(
                         models.Evaluator,
-                        models.ProjectEvaluatorCriteria.evaluator_id == models.Evaluator.id,
+                        models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
                     )
                     .outerjoin(
                         llm_evaluator_alias,
-                        models.ProjectEvaluatorCriteria.evaluator_id == llm_evaluator_alias.id,
+                        models.ProjectEvaluator.evaluator_id == llm_evaluator_alias.id,
                     )
-                    .where(models.ProjectEvaluatorCriteria.id.in_(criteria_ids))
+                    .where(models.ProjectEvaluator.id.in_(project_evaluator_ids))
                 )
             ).all()
             evaluator_ids: set[int] = set()
             prompt_ids: set[int] = set()
-            actual_criteria_ids: list[int] = []
-            for criteria_id, evaluator_id, kind, prompt_id in rows:
-                actual_criteria_ids.append(criteria_id)
-                deleted_ids.append(GlobalID(ProjectEvaluator.__name__, str(criteria_id)))
+            trace_project_ids: list[int] = []
+            actual_project_evaluator_ids: list[int] = []
+            for project_evaluator_id, evaluator_id, trace_project_id, kind, prompt_id in rows:
+                actual_project_evaluator_ids.append(project_evaluator_id)
+                trace_project_ids.append(trace_project_id)
+                deleted_ids.append(GlobalID(ProjectEvaluator.__name__, str(project_evaluator_id)))
                 if kind != "BUILTIN":
                     evaluator_ids.add(evaluator_id)
                     if prompt_id is not None:
                         prompt_ids.add(prompt_id)
-            if actual_criteria_ids:
+            if actual_project_evaluator_ids:
+                # The project evaluator rows go first: deleting them releases the RESTRICT
+                # FK on the trace projects so those can be deleted with them.
                 await session.execute(
-                    delete(models.ProjectEvaluatorCriteria).where(
-                        models.ProjectEvaluatorCriteria.id.in_(actual_criteria_ids)
+                    delete(models.ProjectEvaluator).where(
+                        models.ProjectEvaluator.id.in_(actual_project_evaluator_ids)
                     )
+                )
+                await session.execute(
+                    delete(models.Project).where(models.Project.id.in_(trace_project_ids))
                 )
                 await _garbage_collect_evaluators(
                     session,
@@ -1931,19 +1984,19 @@ class EvaluatorMutationMixin:
                 cascade_rows = (
                     await session.execute(
                         select(
-                            models.ProjectEvaluatorCriteria.evaluator_id,
+                            models.ProjectEvaluator.evaluator_id,
                             models.Evaluator.kind,
                             llm_evaluator_alias.prompt_id,
                         )
                         .join(
                             models.Evaluator,
-                            models.ProjectEvaluatorCriteria.evaluator_id == models.Evaluator.id,
+                            models.ProjectEvaluator.evaluator_id == models.Evaluator.id,
                         )
                         .outerjoin(
                             llm_evaluator_alias,
-                            models.ProjectEvaluatorCriteria.evaluator_id == llm_evaluator_alias.id,
+                            models.ProjectEvaluator.evaluator_id == llm_evaluator_alias.id,
                         )
-                        .where(models.ProjectEvaluatorCriteria.project_id.in_(project_ids))
+                        .where(models.ProjectEvaluator.project_id.in_(project_ids))
                     )
                 ).all()
                 for evaluator_id, kind, prompt_id in cascade_rows:

@@ -350,8 +350,8 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> int:
-        stmt = select(func.count(models.ProjectEvaluatorCriteria.id)).where(
-            models.ProjectEvaluatorCriteria.project_id == self.id
+        stmt = select(func.count(models.ProjectEvaluator.id)).where(
+            models.ProjectEvaluator.project_id == self.id
         )
         async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
@@ -373,15 +373,15 @@ class Project(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         stmt = (
-            select(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.project_id == self.id)
+            select(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.project_id == self.id)
             .order_by(
-                models.ProjectEvaluatorCriteria.name,
-                models.ProjectEvaluatorCriteria.id,
+                models.ProjectEvaluator.name,
+                models.ProjectEvaluator.id,
             )
         )
         if filter and (value := filter.value.strip()):
-            column = getattr(models.ProjectEvaluatorCriteria, filter.col.value)
+            column = getattr(models.ProjectEvaluator, filter.col.value)
             # `name` is an Identifier-typed column; compare it as text so LIKE applies.
             stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
         async with info.context.db.read() as session:

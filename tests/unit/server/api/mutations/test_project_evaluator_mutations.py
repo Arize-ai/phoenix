@@ -5,8 +5,8 @@ import pytest
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -19,6 +19,7 @@ evaluationTarget
 evaluationDelaySeconds
 schedulabilityStatus
 schedulabilityReason
+traceProject { name description }
 enabled
 inputMapping { literalMapping pathMapping }
 evaluator {
@@ -285,13 +286,13 @@ async def test_project_code_evaluator_crud_and_connection(
     assert updated["inputMapping"] == _mapping(context="override")
     assert updated["evaluator"]["name"] == "updated-code"
 
-    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.input_mapping is not None
-        assert criteria.input_mapping.literal_mapping == {"context": "override"}
-        evaluator = await session.get(models.CodeEvaluator, criteria.evaluator_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        assert project_evaluator.input_mapping is not None
+        assert project_evaluator.input_mapping.literal_mapping == {"context": "override"}
+        evaluator = await session.get(models.CodeEvaluator, project_evaluator.evaluator_id)
         assert evaluator is not None
         user_role_id = await session.scalar(select(models.UserRole.id).limit(1))
         assert user_role_id is not None
@@ -328,11 +329,11 @@ async def test_project_code_evaluator_crud_and_connection(
     assert omitted["schedulabilityStatus"] == "NOT_SCHEDULABLE"
     assert omitted["schedulabilityReason"] == "DISABLED"
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.input_mapping is not None
-        assert criteria.input_mapping.literal_mapping == {"context": "override"}
-        evaluator = await session.get(models.CodeEvaluator, criteria.evaluator_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        assert project_evaluator.input_mapping is not None
+        assert project_evaluator.input_mapping.literal_mapping == {"context": "override"}
+        evaluator = await session.get(models.CodeEvaluator, project_evaluator.evaluator_id)
         assert evaluator is not None
         assert evaluator.description == "updated"
         assert evaluator.input_mapping.literal_mapping == {"output": "updated"}
@@ -362,10 +363,10 @@ async def test_project_code_evaluator_crud_and_connection(
     assert inherited["schedulabilityStatus"] == "SCHEDULABLE"
     assert inherited["schedulabilityReason"] is None
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.input_mapping is None
-        assert criteria.evaluation_delay_seconds == 300
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        assert project_evaluator.input_mapping is None
+        assert project_evaluator.evaluation_delay_seconds == 300
 
     delete_result = await gql_client.execute(
         _DELETE,
@@ -430,10 +431,10 @@ async def test_add_project_code_evaluator_binds_existing_core(
     assert {node["id"] for node in nodes} == {created["id"], attached["id"]}
 
     async with db() as session:
-        criteria_id = int(GlobalID.from_id(attached["id"]).node_id)
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.evaluator_id == int(GlobalID.from_id(core_id).node_id)
+        project_evaluator_id = int(GlobalID.from_id(attached["id"]).node_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        assert project_evaluator.evaluator_id == int(GlobalID.from_id(core_id).node_id)
         assert await session.scalar(select(func.count()).select_from(models.Evaluator)) == (
             evaluator_count_before
         )
@@ -455,7 +456,7 @@ async def test_add_project_code_evaluator_rejects_non_code_evaluator(
     )
     assert create_result.data and not create_result.errors
     evaluator_id = create_result.data["createProjectLlmEvaluator"]["evaluator"]["evaluator"]["id"]
-    criteria_count_before = await _project_evaluator_criteria_count(db)
+    project_evaluator_count_before = await _project_evaluator_count(db)
 
     result = await gql_client.execute(
         _ADD_CODE,
@@ -464,7 +465,7 @@ async def test_add_project_code_evaluator_rejects_non_code_evaluator(
 
     assert result.errors
     assert result.errors[0].message == "Evaluator must be a CODE evaluator"
-    assert await _project_evaluator_criteria_count(db) == criteria_count_before
+    assert await _project_evaluator_count(db) == project_evaluator_count_before
 
 
 async def test_add_project_code_evaluator_rejects_missing_evaluator(
@@ -472,7 +473,7 @@ async def test_add_project_code_evaluator_rejects_missing_evaluator(
     db: DbSessionFactory,
 ) -> None:
     project = await _add_project(db)
-    criteria_count_before = await _project_evaluator_criteria_count(db)
+    project_evaluator_count_before = await _project_evaluator_count(db)
 
     result = await gql_client.execute(
         _ADD_CODE,
@@ -486,7 +487,7 @@ async def test_add_project_code_evaluator_rejects_missing_evaluator(
 
     assert result.errors
     assert result.errors[0].message == "CODE evaluator not found"
-    assert await _project_evaluator_criteria_count(db) == criteria_count_before
+    assert await _project_evaluator_count(db) == project_evaluator_count_before
 
 
 async def test_delete_project_binding_preserves_core_attached_to_another_project(
@@ -521,8 +522,8 @@ async def test_delete_project_binding_preserves_core_attached_to_another_project
         core_rowid = int(GlobalID.from_id(core_id).node_id)
         created_criteria_id = int(GlobalID.from_id(created["id"]).node_id)
         attached_criteria_id = int(GlobalID.from_id(attached["id"]).node_id)
-        assert await session.get(models.ProjectEvaluatorCriteria, created_criteria_id) is None
-        attached_criteria = await session.get(models.ProjectEvaluatorCriteria, attached_criteria_id)
+        assert await session.get(models.ProjectEvaluator, created_criteria_id) is None
+        attached_criteria = await session.get(models.ProjectEvaluator, attached_criteria_id)
         assert attached_criteria is not None
         assert attached_criteria.evaluator_id == core_rowid
         assert await session.get(models.CodeEvaluator, core_rowid) is not None
@@ -571,11 +572,11 @@ async def test_project_llm_evaluator_create_update_delete(
     cleared = clear_result.data["updateProjectLlmEvaluator"]["evaluator"]
     assert cleared["evaluationDelaySeconds"] == 300
 
-    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.evaluation_delay_seconds == 300
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        assert project_evaluator.evaluation_delay_seconds == 300
 
     delete_result = await gql_client.execute(
         _DELETE,
@@ -638,11 +639,11 @@ async def test_update_project_llm_evaluator_preserves_description_and_owner_on_n
     assert create_result.data and not create_result.errors
     created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
 
-    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        evaluator = await session.get(models.LLMEvaluator, criteria.evaluator_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        evaluator = await session.get(models.LLMEvaluator, project_evaluator.evaluator_id)
         assert evaluator is not None
         assert evaluator.description == "original description"
         user_role_id = await session.scalar(select(models.UserRole.id).limit(1))
@@ -672,9 +673,9 @@ async def test_update_project_llm_evaluator_preserves_description_and_owner_on_n
     assert update_result.data and not update_result.errors
 
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        evaluator = await session.get(models.LLMEvaluator, criteria.evaluator_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        evaluator = await session.get(models.LLMEvaluator, project_evaluator.evaluator_id)
         assert evaluator is not None
         assert evaluator.description == "original description"
         assert evaluator.user_id == owner_id
@@ -951,8 +952,8 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
     async with db() as session:
         code_criteria_id = int(GlobalID.from_id(code_evaluator_id).node_id)
         llm_criteria_id = int(GlobalID.from_id(llm_evaluator_id).node_id)
-        code_criteria = await session.get(models.ProjectEvaluatorCriteria, code_criteria_id)
-        llm_criteria = await session.get(models.ProjectEvaluatorCriteria, llm_criteria_id)
+        code_criteria = await session.get(models.ProjectEvaluator, code_criteria_id)
+        llm_criteria = await session.get(models.ProjectEvaluator, llm_criteria_id)
         assert code_criteria is not None and llm_criteria is not None
         assert code_criteria.evaluation_delay_seconds == 300
         assert llm_criteria.evaluation_delay_seconds == 300
@@ -1001,11 +1002,11 @@ async def test_evaluation_delay_rejected_for_span_project_evaluators(
     assert update_result.errors
     assert update_result.errors[0].message == error_message
 
-    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.evaluation_delay_seconds == 300
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        assert project_evaluator.evaluation_delay_seconds == 300
 
 
 async def test_evaluation_target_change_rejected_from_creation(
@@ -1018,7 +1019,7 @@ async def test_evaluation_target_change_rejected_from_creation(
     create_result = await gql_client.execute(_CREATE_CODE, {"input": create_input})
     assert create_result.data and not create_result.errors
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
-    criteria_id = int(GlobalID.from_id(created["id"]).node_id)
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
 
     update_result = await gql_client.execute(
         _UPDATE_CODE,
@@ -1040,9 +1041,9 @@ async def test_evaluation_target_change_rejected_from_creation(
         "evaluationTarget is fixed at project evaluator creation"
     )
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert criteria.evaluation_target == "SPAN"
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        assert project_evaluator.evaluation_target == "SPAN"
 
 
 async def test_update_code_evaluator_rejects_explicit_null_source_code(
@@ -1117,23 +1118,23 @@ async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
     second_result = await gql_client.execute(_CREATE_CODE, {"input": second_input})
     assert second_result.data and not second_result.errors
 
-    criteria_id = int(GlobalID.from_id(first["id"]).node_id)
+    project_evaluator_id = int(GlobalID.from_id(first["id"]).node_id)
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        evaluator = await session.get(models.CodeEvaluator, criteria.evaluator_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        evaluator = await session.get(models.CodeEvaluator, project_evaluator.evaluator_id)
         assert evaluator is not None
         evaluator_id = evaluator.id
         state_before = (
             str(evaluator.name),
             evaluator.description,
             evaluator.input_mapping.model_dump(mode="json"),
-            str(criteria.name),
-            criteria.filter_condition,
-            criteria.sampling_rate,
-            criteria.evaluation_target,
-            criteria.input_mapping,
-            criteria.enabled,
+            str(project_evaluator.name),
+            project_evaluator.filter_condition,
+            project_evaluator.sampling_rate,
+            project_evaluator.evaluation_target,
+            project_evaluator.input_mapping,
+            project_evaluator.enabled,
         )
         versions_before = tuple(
             await session.scalars(
@@ -1168,19 +1169,19 @@ async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
     assert await _row_counts(db) == counts_before
 
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         evaluator = await session.get(models.CodeEvaluator, evaluator_id)
-        assert criteria is not None and evaluator is not None
+        assert project_evaluator is not None and evaluator is not None
         state_after = (
             str(evaluator.name),
             evaluator.description,
             evaluator.input_mapping.model_dump(mode="json"),
-            str(criteria.name),
-            criteria.filter_condition,
-            criteria.sampling_rate,
-            criteria.evaluation_target,
-            criteria.input_mapping,
-            criteria.enabled,
+            str(project_evaluator.name),
+            project_evaluator.filter_condition,
+            project_evaluator.sampling_rate,
+            project_evaluator.evaluation_target,
+            project_evaluator.input_mapping,
+            project_evaluator.enabled,
         )
         versions_after = tuple(
             await session.scalars(
@@ -1193,24 +1194,47 @@ async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
     assert versions_after == versions_before
 
 
-async def test_evaluators_project_cannot_be_given_an_evaluator(
+async def test_an_evaluator_trace_project_cannot_be_given_an_evaluator(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
-        project = models.Project(name=EVALUATORS_PROJECT_NAME)
-        session.add(project)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        trace_project = models.Project(name=f"project-evaluator-{token_hex(12)}")
+        session.add_all([evaluator, trace_project])
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                trace_project=trace_project,
+                project=models.Project(name=f"project-{token_hex(4)}"),
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+        )
         await session.flush()
     counts_before = await _row_counts(db)
 
     result = await gql_client.execute(
         _CREATE_LLM,
-        {"input": _llm_input(project, name="evaluates-evaluators", text="Evaluate {{input}}")},
+        {
+            "input": _llm_input(
+                trace_project, name="evaluates-evaluators", text="Evaluate {{input}}"
+            )
+        },
     )
 
     assert result.errors
     assert result.errors[0].message == (
-        "The evaluators project holds evaluator traces and cannot be evaluated"
+        "This project holds evaluator traces and cannot be evaluated"
     )
     assert await _row_counts(db) == counts_before
 
@@ -1225,7 +1249,7 @@ async def _row_counts(db: DbSessionFactory) -> dict[str, int]:
             models.PromptLabel,
             models.PromptPromptLabel,
             models.CodeEvaluatorVersion,
-            models.ProjectEvaluatorCriteria,
+            models.ProjectEvaluator,
         )
         return {
             model_type.__name__: await session.scalar(select(func.count()).select_from(model_type))
@@ -1234,9 +1258,46 @@ async def _row_counts(db: DbSessionFactory) -> dict[str, int]:
         }
 
 
-async def _project_evaluator_criteria_count(db: DbSessionFactory) -> int:
+async def _project_evaluator_count(db: DbSessionFactory) -> int:
     async with db() as session:
         return (
-            await session.scalar(select(func.count()).select_from(models.ProjectEvaluatorCriteria))
+            await session.scalar(select(func.count()).select_from(models.ProjectEvaluator))
             or 0
         )
+
+
+async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    create_result = await gql_client.execute(
+        _CREATE_CODE,
+        {"input": _code_create_input(project, sandbox_config)},
+    )
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
+    trace_project = created["traceProject"]
+    assert trace_project["name"].startswith("project-evaluator-")
+    assert created["name"] in trace_project["description"]
+    assert project.name in trace_project["description"]
+
+    async with db() as session:
+        trace_project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == trace_project["name"])
+        )
+        assert trace_project_id is not None
+
+    delete_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
+    )
+    assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        assert (
+            await session.scalar(
+                select(models.Project.id).where(models.Project.id == trace_project_id)
+            )
+        ) is None

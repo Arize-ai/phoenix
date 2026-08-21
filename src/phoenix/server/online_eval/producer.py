@@ -1,10 +1,10 @@
 """Online-eval producer daemon.
 
-Materializes span-level eval work units from enabled project evaluator criteria.
+Materializes span-level eval work units from enabled project evaluator project_evaluator.
 The producer runs on every replica but self-elects each tick via the
 ``eval_work_cursors`` CAS lease, so exactly one replica per evaluation target
 scans spans and writes work rows at a time. Each tick: renew the lease, reap
-expired/aged work rows, scan the lag-gated span id window per criteria, and
+expired/aged work rows, scan the lag-gated span id window per project_evaluator, and
 idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
 backstop sweep re-covers a bounded id window behind the watermark to catch spans
 that became visible after their window was scanned.
@@ -35,9 +35,8 @@ from phoenix.config import (
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
-from phoenix.db.helpers import exclude_criteria_targeting_evaluator_traces
+from phoenix.db.helpers import exclude_project_evaluators_targeting_evaluator_traces
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
@@ -46,6 +45,7 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
+from phoenix.server.online_eval.evaluator_resolution import resolve_evaluators_bulk
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
@@ -69,8 +69,8 @@ class _CursorLeaseLost(Exception):
 
 
 @dataclass(frozen=True)
-class _ActiveCriteria:
-    criteria_id: int
+class _ActiveEvaluator:
+    project_evaluator_id: int
     project_id: int
     evaluator_id: int
     name: str
@@ -127,7 +127,7 @@ class OnlineEvalProducer(DaemonTask):
     """Materialize SPAN evaluation work from the span arrival log.
 
     ``produced_through_id`` is a position in that log: every span at or below it has
-    been offered to every enabled SPAN criteria. Session work is materialized from
+    been offered to every enabled SPAN project_evaluator. Session work is materialized from
     entity state instead, by ``SessionEvalSweeper`` — a session becomes eligible when it
     goes quiet, which no position in an arrival log can express.
     """
@@ -205,7 +205,7 @@ class OnlineEvalProducer(DaemonTask):
                 )
 
             budget = await self._admission_budget()
-            active = await self._load_active_criteria() if budget > 0 else []
+            active = await self._load_active_evaluators() if budget > 0 else []
 
             advanced = False
             if budget > 0 and frontier is not None:
@@ -425,54 +425,55 @@ class OnlineEvalProducer(DaemonTask):
             )
         return budget
 
-    async def _load_active_criteria(self) -> list[_ActiveCriteria]:
-        """Load and resolve enabled criteria into scan-ready form.
+    async def _load_active_evaluators(self) -> list[_ActiveEvaluator]:
+        """Load and resolve enabled project evaluators into scan-ready form.
 
-        Skip policy: only *persistent* per-criteria conditions (no resolvable
+        Skip policy: only *persistent* per-project_evaluator conditions (no resolvable
         version, filter fails to compile) are logged and skipped, so one bad
-        criteria cannot stall the shared cursor forever. Anything else — e.g. a
+        project_evaluator cannot stall the shared cursor forever. Anything else — e.g. a
         transient DB error during version resolution — propagates and aborts
         the tick without advancing the cursor (fail closed): advancing is an
-        implicit claim that every enabled criteria either materialized or
-        deliberately skipped the window, and a criteria that failed to load
+        implicit claim that every enabled project_evaluator either materialized or
+        deliberately skipped the window, and a project_evaluator that failed to load
         transiently did neither.
         """
         polymorphic_evaluator = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
         )
-        active: list[_ActiveCriteria] = []
+        active: list[_ActiveEvaluator] = []
         async with self._db() as session:
             rows = (
                 await session.execute(
-                    exclude_criteria_targeting_evaluator_traces(
-                        select(models.ProjectEvaluatorCriteria, polymorphic_evaluator)
+                    exclude_project_evaluators_targeting_evaluator_traces(
+                        select(models.ProjectEvaluator, polymorphic_evaluator)
                         .join(
                             polymorphic_evaluator,
-                            models.ProjectEvaluatorCriteria.evaluator_id
-                            == polymorphic_evaluator.id,
+                            models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
                         )
                         .where(
-                            models.ProjectEvaluatorCriteria.enabled,
-                            models.ProjectEvaluatorCriteria.evaluation_target == "SPAN",
+                            models.ProjectEvaluator.enabled,
+                            models.ProjectEvaluator.evaluation_target == "SPAN",
                         )
                     )
                 )
             ).all()
-            criteria_evaluators = [(criteria, evaluator) for criteria, evaluator in rows]
-            resolved_criteria = await resolve_criteria_bulk(session, criteria_evaluators)
-            for (criteria, evaluator), resolved in zip(
-                criteria_evaluators,
+            evaluator_pairs = [
+                (project_evaluator, evaluator) for project_evaluator, evaluator in rows
+            ]
+            resolved_criteria = await resolve_evaluators_bulk(session, evaluator_pairs)
+            for (project_evaluator, evaluator), resolved in zip(
+                evaluator_pairs,
                 resolved_criteria,
                 strict=True,
             ):
-                # NOT wrapped in a per-criteria except: an unexpected exception
+                # NOT wrapped in a per-evaluator except: an unexpected exception
                 # here (e.g. a transient DB error on a version lookup) must
                 # abort the tick so the cursor cannot advance past a window
-                # this criteria never scanned. See the docstring's skip policy.
+                # this project evaluator never scanned. See the docstring's skip policy.
                 if resolved is None:
                     logger.warning(
-                        f"Skipping criteria {criteria.id}: "
+                        f"Skipping project_evaluator {project_evaluator.id}: "
                         f"no resolvable version for evaluator {evaluator.id}"
                     )
                     continue
@@ -482,19 +483,20 @@ class OnlineEvalProducer(DaemonTask):
                     # SpanFilter construction is pure parsing (no I/O), so a
                     # failure here is deterministic — a persistent condition,
                     # same as an unresolvable version: skip-and-advance rather
-                    # than stalling every other criteria on one bad DSL string.
+                    # than stalling every other project evaluator on one bad DSL string.
                     logger.exception(
-                        f"Skipping criteria {criteria.id}: filter_condition failed to compile"
+                        f"Skipping project evaluator {project_evaluator.id}: "
+                        "filter_condition failed to compile"
                     )
                     continue
                 fingerprint = config_fingerprint(resolved)
                 active.append(
-                    _ActiveCriteria(
-                        criteria_id=criteria.id,
-                        project_id=criteria.project_id,
-                        evaluator_id=criteria.evaluator_id,
+                    _ActiveEvaluator(
+                        project_evaluator_id=project_evaluator.id,
+                        project_id=project_evaluator.project_id,
+                        evaluator_id=project_evaluator.evaluator_id,
                         name=resolved.name,
-                        sampling_rate=criteria.sampling_rate,
+                        sampling_rate=project_evaluator.sampling_rate,
                         fingerprint=fingerprint,
                         identifier=annotation_identifier(fingerprint),
                         span_filter=span_filter,
@@ -504,21 +506,21 @@ class OnlineEvalProducer(DaemonTask):
 
     async def _materialize_and_advance(
         self,
-        active: list[_ActiveCriteria],
+        active: list[_ActiveEvaluator],
         low_exclusive: int,
         frontier: int,
         budget: int,
     ) -> tuple[bool, int]:
         async with self._db() as session:
-            for index, criteria in enumerate(active):
+            for index, project_evaluator in enumerate(active):
                 span_ids = list(
                     await session.scalars(
-                        criteria.materializable_scan_stmt(low_exclusive, frontier)
+                        project_evaluator.materializable_scan_stmt(low_exclusive, frontier)
                     )
                 )
-                sampled_span_ids = criteria.sampled(span_ids)
+                sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, criteria, admitted_span_ids)
+                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
                 budget -= len(admitted_span_ids)
                 if len(admitted_span_ids) < len(sampled_span_ids) or (
                     budget == 0 and index < len(active) - 1
@@ -592,7 +594,7 @@ class OnlineEvalProducer(DaemonTask):
 
     async def _backstop_sweep(
         self,
-        active: list[_ActiveCriteria],
+        active: list[_ActiveEvaluator],
         watermark: int,
         budget: int,
     ) -> int:
@@ -602,12 +604,12 @@ class OnlineEvalProducer(DaemonTask):
         # exactly so every retained terminal row is inside the swept range.
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
         async with self._db() as session:
-            for index, criteria in enumerate(active):
-                stmt = criteria.materializable_scan_stmt(low_exclusive, watermark)
+            for index, project_evaluator in enumerate(active):
+                stmt = project_evaluator.materializable_scan_stmt(low_exclusive, watermark)
                 span_ids = list(await session.scalars(stmt))
-                sampled_span_ids = criteria.sampled(span_ids)
+                sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
-                await self._insert_work_units(session, criteria, admitted_span_ids)
+                await self._insert_work_units(session, project_evaluator, admitted_span_ids)
                 budget -= len(admitted_span_ids)
                 if len(admitted_span_ids) < len(sampled_span_ids) or (
                     budget == 0 and index < len(active) - 1
@@ -638,7 +640,7 @@ class OnlineEvalProducer(DaemonTask):
     async def _insert_work_units(
         self,
         session: AsyncSession,
-        criteria: _ActiveCriteria,
+        project_evaluator: _ActiveEvaluator,
         span_ids: list[int],
     ) -> None:
         if not span_ids:
@@ -646,9 +648,9 @@ class OnlineEvalProducer(DaemonTask):
         records = [
             {
                 "span_rowid": span_rowid,
-                "evaluator_id": criteria.evaluator_id,
-                "criteria_id": criteria.criteria_id,
-                "config_fingerprint": criteria.fingerprint,
+                "evaluator_id": project_evaluator.evaluator_id,
+                "project_evaluator_id": project_evaluator.project_evaluator_id,
+                "config_fingerprint": project_evaluator.fingerprint,
             }
             for span_rowid in span_ids
         ]
@@ -659,15 +661,15 @@ class OnlineEvalProducer(DaemonTask):
                 update(models.EvalWorkUnit)
                 .where(
                     models.EvalWorkUnit.span_rowid.in_(batch_span_ids),
-                    models.EvalWorkUnit.evaluator_id == criteria.evaluator_id,
-                    models.EvalWorkUnit.config_fingerprint == criteria.fingerprint,
+                    models.EvalWorkUnit.evaluator_id == project_evaluator.evaluator_id,
+                    models.EvalWorkUnit.config_fingerprint == project_evaluator.fingerprint,
                     models.EvalWorkUnit.status == "EXPIRED",
                     models.EvalWorkUnit.error == STALE_FINGERPRINT_ERROR,
                     ~exists(
                         select(1).where(
                             models.SpanAnnotation.span_rowid == models.EvalWorkUnit.span_rowid,
-                            models.SpanAnnotation.name == criteria.name,
-                            models.SpanAnnotation.identifier == criteria.identifier,
+                            models.SpanAnnotation.name == project_evaluator.name,
+                            models.SpanAnnotation.identifier == project_evaluator.identifier,
                         )
                     ),
                 )

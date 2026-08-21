@@ -41,53 +41,56 @@ class SchedulabilityReason(Enum):
 
     DISABLED = "DISABLED"
     TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
-    # The row-side voice of exclude_criteria_targeting_evaluator_traces (db/helpers.py):
-    # both sweep loads drop criteria on the evaluators project, so without this reason
-    # such a criteria — possible when the project predates the reservation — would
+    # The row-side voice of exclude_project_evaluators_targeting_evaluator_traces (db/helpers.py):
+    # both sweep loads drop project evaluators targeting a trace project, so without this
+    # reason such a row — possible via a race or a row that predates the guard — would
     # advertise as schedulable while never running.
     TARGETS_EVALUATOR_TRACES = "TARGETS_EVALUATOR_TRACES"
 
 
 @dataclass(frozen=True)
 class SessionSchedulabilityCondition:
-    """One reason a SESSION criteria is unschedulable, in both languages that ask.
+    """One reason a SESSION project evaluator is unschedulable, in both languages that ask.
 
     ``blocks`` answers for a loaded row (the GraphQL field), ``blocks_sql`` for a
-    query (the sweeper's criteria load and the executor's hydration guard). They are
+    query (the sweeper's evaluator load and the executor's hydration guard). They are
     written side by side because drift between them is silent: the UI would advertise
     an evaluator as schedulable that the sweeper never picks up.
     """
 
     reason: SchedulabilityReason
-    blocks: Callable[["models.ProjectEvaluatorCriteria"], bool]
-    blocks_sql: Callable[[type["models.ProjectEvaluatorCriteria"]], ColumnElement[bool]]
+    blocks: Callable[["models.ProjectEvaluator"], bool]
+    blocks_sql: Callable[[type["models.ProjectEvaluator"]], ColumnElement[bool]]
 
 
 SESSION_SCHEDULABILITY_CONDITIONS: tuple[SessionSchedulabilityCondition, ...] = (
     SessionSchedulabilityCondition(
         reason=SchedulabilityReason.DISABLED,
         blocks=lambda record: not record.enabled,
-        blocks_sql=lambda criteria: not_(criteria.enabled),
+        blocks_sql=lambda project_evaluator: not_(project_evaluator.enabled),
     ),
 )
 
 
 def session_schedulability_reason(
-    record: "models.ProjectEvaluatorCriteria",
+    record: "models.ProjectEvaluator",
 ) -> "SchedulabilityReason | None":
-    """The first condition blocking this SESSION criteria, or None if schedulable."""
+    """The first condition blocking this SESSION project_evaluator, or None if schedulable."""
     for condition in SESSION_SCHEDULABILITY_CONDITIONS:
         if condition.blocks(record):
             return condition.reason
     return None
 
 
-def session_criteria_is_schedulable(
-    criteria: type["models.ProjectEvaluatorCriteria"],
+def session_evaluator_is_schedulable(
+    project_evaluator: type["models.ProjectEvaluator"],
 ) -> ColumnElement[bool]:
     return and_(
-        criteria.evaluation_target == "SESSION",
-        *(not_(condition.blocks_sql(criteria)) for condition in SESSION_SCHEDULABILITY_CONDITIONS),
+        project_evaluator.evaluation_target == "SESSION",
+        *(
+            not_(condition.blocks_sql(project_evaluator))
+            for condition in SESSION_SCHEDULABILITY_CONDITIONS
+        ),
     )
 
 

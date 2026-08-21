@@ -22,7 +22,7 @@ from ..._helpers import _add_project, _add_project_session, _add_span, _add_trac
 
 
 async def _seed_work_units(db: DbSessionFactory, n: int) -> list[int]:
-    """Create a span, evaluator, and criteria, plus ``n`` PENDING work units
+    """Create a span, evaluator, and project_evaluator, plus ``n`` PENDING work units
     (distinct fingerprints), returning the work unit ids in id order."""
     async with db() as session:
         project = await _add_project(session)
@@ -37,21 +37,22 @@ async def _seed_work_units(db: DbSessionFactory, n: int) -> list[int]:
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
         units = [
             models.EvalWorkUnit(
                 span_rowid=span.id,
                 evaluator_id=evaluator.id,
-                criteria_id=criteria.id,
+                project_evaluator_id=project_evaluator.id,
                 config_fingerprint=f"fp-{i}-{token_hex(8)}",
             )
             for i in range(n)
@@ -81,15 +82,16 @@ async def _seed_session_work_units(db: DbSessionFactory, n: int) -> tuple[int, l
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SESSION",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
         evaluated_through = datetime.now(timezone.utc)
         project_session.last_span_ingested_at = evaluated_through
@@ -97,7 +99,7 @@ async def _seed_session_work_units(db: DbSessionFactory, n: int) -> tuple[int, l
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session.id,
                 evaluator_id=evaluator.id,
-                criteria_id=criteria.id,
+                project_evaluator_id=project_evaluator.id,
                 config_fingerprint=f"session-fp-{i}-{token_hex(8)}",
                 evaluated_through=evaluated_through,
             )
@@ -116,7 +118,7 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
     claimed = await coordinator.claim(claimed_by="consumer-1", limit=10)
     assert [unit.work_unit_id for unit in claimed] == unit_ids
     for claimed_unit in claimed:
-        assert claimed_unit.criteria_id > 0
+        assert claimed_unit.project_evaluator_id > 0
         assert claimed_unit.identifier == "online:" + claimed_unit.config_fingerprint[:16]
         assert claimed_unit.attempts == 0
         assert claimed_unit.claimed_by == "consumer-1"
@@ -603,7 +605,7 @@ async def test_session_no_result_terminal_history_allows_replacement(
         replacement = models.EvalSessionWorkUnit(
             project_session_rowid=terminal.project_session_rowid,
             evaluator_id=terminal.evaluator_id,
-            criteria_id=terminal.criteria_id,
+            project_evaluator_id=terminal.project_evaluator_id,
             config_fingerprint=terminal.config_fingerprint,
             evaluated_through=terminal.evaluated_through,
         )
@@ -699,8 +701,8 @@ async def test_session_publish_holds_criteria_lock_against_disable(
     async def _disable() -> None:
         async with db() as session:
             await session.execute(
-                update(models.ProjectEvaluatorCriteria)
-                .where(models.ProjectEvaluatorCriteria.id == claim.criteria_id)
+                update(models.ProjectEvaluator)
+                .where(models.ProjectEvaluator.id == claim.project_evaluator_id)
                 .values(enabled=False)
             )
 
@@ -720,8 +722,8 @@ async def test_session_publish_holds_criteria_lock_against_disable(
     await disable
     async with db() as session:
         enabled = await session.scalar(
-            select(models.ProjectEvaluatorCriteria.enabled).where(
-                models.ProjectEvaluatorCriteria.id == claim.criteria_id
+            select(models.ProjectEvaluator.enabled).where(
+                models.ProjectEvaluator.id == claim.project_evaluator_id
             )
         )
     assert enabled is False

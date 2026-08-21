@@ -1,4 +1,4 @@
-"""Resolve project evaluator criteria into fingerprint inputs.
+"""Resolve project evaluators into fingerprint inputs.
 
 ``derivation`` owns the pure fingerprint recipe and explicitly cedes version resolution
 and DB access to its callers; this module is that caller. Both materializers (the span
@@ -18,26 +18,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
-from phoenix.server.online_eval.derivation import ResolvedCriteria
+from phoenix.server.online_eval.derivation import ResolvedEvaluator
 from phoenix.server.online_eval.session_policy import SessionTranscriptPolicy
 
 _SANDBOX_RUNTIME_POLICY_VERSION = "1"
 
 
-async def resolve_criteria(
+async def resolve_evaluator(
     session: AsyncSession,
-    criteria: models.ProjectEvaluatorCriteria,
+    project_evaluator: models.ProjectEvaluator,
     evaluator: models.Evaluator,
-) -> Optional[ResolvedCriteria]:
-    """Resolve one criteria row through the shared bulk-resolution path."""
-    return (await resolve_criteria_bulk(session, [(criteria, evaluator)]))[0]
+) -> Optional[ResolvedEvaluator]:
+    """Resolve one project evaluator row through the shared bulk-resolution path."""
+    return (await resolve_evaluators_bulk(session, [(project_evaluator, evaluator)]))[0]
 
 
-async def resolve_criteria_bulk(
+async def resolve_evaluators_bulk(
     session: AsyncSession,
-    criteria_evaluators: Sequence[tuple[models.ProjectEvaluatorCriteria, models.Evaluator]],
-) -> list[Optional[ResolvedCriteria]]:
-    """Resolve criteria fingerprint inputs in bulk, pinning mutable pointers to
+    evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
+) -> list[Optional[ResolvedEvaluator]]:
+    """Resolve project evaluator fingerprint inputs in bulk, pinning mutable pointers to
     immutable version identities: the tagged (or latest) PromptVersion id for LLM
     evaluators, the latest CodeEvaluatorVersion id for CODE, and
     (key, synced_at, implementation_version) for BUILTIN. Each unresolved row
@@ -49,7 +49,7 @@ async def resolve_criteria_bulk(
     tagged_llm_evaluators: dict[int, models.LLMEvaluator] = {}
     latest_llm_evaluators: dict[int, models.LLMEvaluator] = {}
     code_evaluators: dict[int, models.CodeEvaluator] = {}
-    for _, evaluator in criteria_evaluators:
+    for _, evaluator in evaluator_pairs:
         if isinstance(evaluator, models.LLMEvaluator):
             if evaluator.prompt_version_tag_id is not None:
                 tagged_llm_evaluators[evaluator.id] = evaluator
@@ -154,8 +154,8 @@ async def resolve_criteria_bulk(
             if sandbox_config.enabled and provider.enabled
         }
 
-    resolved: list[Optional[ResolvedCriteria]] = []
-    for criteria, evaluator in criteria_evaluators:
+    resolved: list[Optional[ResolvedEvaluator]] = []
+    for project_evaluator, evaluator in evaluator_pairs:
         version_ref: Any
         if isinstance(evaluator, models.LLMEvaluator):
             if evaluator.prompt_version_tag_id is not None:
@@ -189,7 +189,7 @@ async def resolve_criteria_bulk(
         else:
             resolved.append(None)
             continue
-        resolved.append(_resolved_criteria(criteria, evaluator, version_ref))
+        resolved.append(_resolved_criteria(project_evaluator, evaluator, version_ref))
     return resolved
 
 
@@ -212,35 +212,35 @@ def _sandbox_runtime_fingerprint(
 
 
 def _resolved_criteria(
-    criteria: models.ProjectEvaluatorCriteria,
+    project_evaluator: models.ProjectEvaluator,
     evaluator: models.LLMEvaluator | models.CodeEvaluator | models.BuiltinEvaluator,
     version_ref: Any,
-) -> Optional[ResolvedCriteria]:
+) -> Optional[ResolvedEvaluator]:
     input_mapping: Any = None
     sandbox_config_id: Optional[int] = None
     if isinstance(evaluator, models.CodeEvaluator):
         sandbox_config_id = evaluator.sandbox_config_id
     if version_ref is None:
         return None
-    effective_input_mapping = criteria.input_mapping
+    effective_input_mapping = project_evaluator.input_mapping
     if effective_input_mapping is None and isinstance(evaluator, models.CodeEvaluator):
         effective_input_mapping = evaluator.input_mapping
     if effective_input_mapping is not None:
         input_mapping = effective_input_mapping.model_dump()
-    return ResolvedCriteria(
-        criteria_id=criteria.id,
-        name=criteria.name.root,
+    return ResolvedEvaluator(
+        project_evaluator_id=project_evaluator.id,
+        name=project_evaluator.name.root,
         evaluator_id=evaluator.id,
         version_ref=version_ref,
         output_configs=[config.model_dump() for config in evaluator.output_configs],
         input_mapping=input_mapping,
-        evaluation_target=criteria.evaluation_target,
+        evaluation_target=project_evaluator.evaluation_target,
         sandbox_config_id=sandbox_config_id,
-        filter_condition=criteria.filter_condition,
-        sampling_rate=criteria.sampling_rate,
+        filter_condition=project_evaluator.filter_condition,
+        sampling_rate=project_evaluator.sampling_rate,
         transcript_policy_fingerprint=(
             SessionTranscriptPolicy.from_env().fingerprint
-            if criteria.evaluation_target == "SESSION"
+            if project_evaluator.evaluation_target == "SESSION"
             else None
         ),
     )

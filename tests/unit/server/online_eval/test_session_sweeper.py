@@ -2,6 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
+from secrets import token_hex
 from typing import Sequence, cast
 from unittest.mock import AsyncMock, Mock
 
@@ -9,7 +10,6 @@ import pytest
 from sqlalchemy import Table, func, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import live_eval_session_work_index_predicate
 from phoenix.db.types.identifier import Identifier
@@ -19,13 +19,13 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
 )
-from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
     STALE_FINGERPRINT_ERROR,
-    ResolvedCriteria,
+    ResolvedEvaluator,
     sample_key,
 )
+from phoenix.server.online_eval.evaluator_resolution import resolve_evaluators_bulk
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,
@@ -48,7 +48,7 @@ async def _seed_criteria(
     filter_condition: str = "",
     sampling_rate: float = 1.0,
 ) -> tuple[int, int]:
-    evaluator_id, criteria_id = await _seed_criteria_raw(
+    evaluator_id, project_evaluator_id = await _seed_criteria_raw(
         db,
         project_id,
         evaluation_target=evaluation_target,
@@ -57,11 +57,11 @@ async def _seed_criteria(
     )
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(created_at=_now() - timedelta(days=1))
         )
-    return evaluator_id, criteria_id
+    return evaluator_id, project_evaluator_id
 
 
 def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
@@ -109,21 +109,35 @@ async def test_database_now_uses_statement_time(
     assert expected_clock in str(statement)
 
 
-async def test_criteria_on_the_evaluators_project_are_not_loaded(db: DbSessionFactory) -> None:
+async def test_criteria_targeting_an_evaluator_trace_project_are_not_loaded(
+    db: DbSessionFactory,
+) -> None:
     """The session half of the feedback-loop guard.
 
-    Creation refuses criteria on the evaluators project, but a project that predates
-    the reservation can already carry them — the sweep load is the layer that keeps
-    those from evaluating the evaluators' own traces.
+    Creation refuses project_evaluator targeting an evaluator trace project, but a race or a
+    row that predates the guard can still carry one — the sweep load is the layer
+    that keeps those from evaluating the evaluators' own traces.
     """
     async with db() as session:
-        evaluators_project = await _add_project(session, name=EVALUATORS_PROJECT_NAME)
-    await _seed_criteria(db, evaluators_project.id, evaluation_target="SESSION")
+        project = await _add_project(session)
+    _, owner_criteria_id = await _seed_criteria(db, project.id, evaluation_target="SESSION")
+    async with db() as session:
+        trace_project_id = await session.scalar(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.id == owner_criteria_id
+            )
+        )
+        assert trace_project_id is not None
+    _, offending_criteria_id = await _seed_criteria(
+        db, trace_project_id, evaluation_target="SESSION"
+    )
 
     sweeper = SessionEvalSweeper(db)
 
     async with db() as session:
-        assert await sweeper._load_criteria(session) == []
+        loaded_ids = {c.project_evaluator_id for c in await sweeper._load_evaluators(session)}
+    assert owner_criteria_id in loaded_ids
+    assert offending_criteria_id not in loaded_ids
 
 
 async def test_materialization_rechecks_eligibility_at_write_time(
@@ -137,7 +151,7 @@ async def test_materialization_rechecks_eligibility_at_write_time(
     sweeper = SessionEvalSweeper(db)
 
     async with db() as session:
-        criterion = (await sweeper._load_criteria(session))[0]
+        criterion = (await sweeper._load_evaluators(session))[0]
         database_now = await sweeper._database_now(session)
         await session.execute(
             update(models.ProjectSession)
@@ -198,13 +212,13 @@ async def _add_session_liveness(
 
 async def _set_delay(
     db: DbSessionFactory,
-    criteria_id: int,
+    project_evaluator_id: int,
     delay_seconds: int,
 ) -> None:
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(evaluation_delay_seconds=delay_seconds)
         )
 
@@ -216,7 +230,7 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
         db,
         age_seconds=600,
     )
-    evaluator_id, criteria_id = await _seed_criteria(
+    evaluator_id, project_evaluator_id = await _seed_criteria(
         db,
         project_id,
         evaluation_target="SESSION",
@@ -244,7 +258,7 @@ async def test_materializes_due_complete_session_with_activity_snapshot(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
     assert unit.evaluator_id == evaluator_id
-    assert unit.criteria_id == criteria_id
+    assert unit.project_evaluator_id == project_evaluator_id
     assert unit.evaluated_through == last_span_ingested_at
     assert unit.status == "PENDING"
     assert lease.holder == sweeper._sweeper_id
@@ -258,10 +272,11 @@ async def test_materializes_with_501_schedulable_criteria(
     evaluator_id, _ = await _seed_criteria(db, project_id, evaluation_target="SESSION")
     async with db() as session:
         session.add_all(
-            models.ProjectEvaluatorCriteria(
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                 project_id=project_id,
                 evaluator_id=evaluator_id,
-                name=Identifier(root=f"bulk-criteria-{index}"),
+                name=Identifier(root=f"bulk-project_evaluator-{index}"),
                 filter_condition="",
                 sampling_rate=1.0,
                 evaluation_target="SESSION",
@@ -314,8 +329,8 @@ async def test_materialization_waits_for_publication_criteria_lock_before_sessio
         assert publication_backend_pid is not None
         assert (
             await publication_session.scalar(
-                select(models.ProjectEvaluatorCriteria.id)
-                .where(models.ProjectEvaluatorCriteria.id == first_criteria_id)
+                select(models.ProjectEvaluator.id)
+                .where(models.ProjectEvaluator.id == first_criteria_id)
                 .with_for_update()
             )
             == first_criteria_id
@@ -560,8 +575,8 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
     )
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == disabled_criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == disabled_criteria_id)
             .values(enabled=False)
         )
 
@@ -569,17 +584,17 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
 
     async def unresolved(
         session: AsyncSession,
-        criteria_evaluators: Sequence[tuple[models.ProjectEvaluatorCriteria, models.Evaluator]],
-    ) -> list[ResolvedCriteria | None]:
+        evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
+    ) -> list[ResolvedEvaluator | None]:
         nonlocal resolution_calls
         resolution_calls += 1
-        resolved = await resolve_criteria_bulk(session, criteria_evaluators)
+        resolved = await resolve_evaluators_bulk(session, evaluator_pairs)
         return [
-            None if criteria.id == unresolved_criteria_id else result
-            for (criteria, _), result in zip(criteria_evaluators, resolved, strict=True)
+            None if project_evaluator.id == unresolved_criteria_id else result
+            for (project_evaluator, _), result in zip(evaluator_pairs, resolved, strict=True)
         ]
 
-    monkeypatch.setattr(session_sweeper, "resolve_criteria_bulk", unresolved)
+    monkeypatch.setattr(session_sweeper, "resolve_evaluators_bulk", unresolved)
     sweeper = SessionEvalSweeper(db)
     await sweeper._tick()
     async with db() as session:
@@ -587,13 +602,13 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
             await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == disabled_criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == disabled_criteria_id)
             .values(enabled=True)
         )
 
     assert resolution_calls == 1
-    monkeypatch.setattr(session_sweeper, "resolve_criteria_bulk", resolve_criteria_bulk)
+    monkeypatch.setattr(session_sweeper, "resolve_evaluators_bulk", resolve_evaluators_bulk)
     await sweeper._tick()
     async with db() as session:
         session_ids = set(
@@ -602,17 +617,17 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
     assert session_ids == {disabled_session_id, unresolved_session_id}
 
 
-async def test_closed_admission_gate_skips_criteria_resolution(
+async def test_closed_admission_gate_skips_evaluator_resolution(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sweeper = SessionEvalSweeper(db)
     sweeper._max_outstanding = 0
 
-    async def unexpected_resolution(*_: object) -> list[ResolvedCriteria | None]:
-        pytest.fail("criteria resolution must follow admission")
+    async def unexpected_resolution(*_: object) -> list[ResolvedEvaluator | None]:
+        pytest.fail("project_evaluator resolution must follow admission")
 
-    monkeypatch.setattr(session_sweeper, "resolve_criteria_bulk", unexpected_resolution)
+    monkeypatch.setattr(session_sweeper, "resolve_evaluators_bulk", unexpected_resolution)
     async with db() as session:
         database_now = await sweeper._database_now(session)
         assert await sweeper._sweep(session, database_now) == (0, None)
@@ -758,15 +773,15 @@ async def test_reenabled_criterion_reaches_back_to_creation(
         db,
         age_seconds=600,
     )
-    _, criteria_id = await _seed_criteria_raw(
+    _, project_evaluator_id = await _seed_criteria_raw(
         db,
         project_id,
         evaluation_target="SESSION",
     )
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(created_at=activity_at - timedelta(seconds=1), enabled=False)
         )
 
@@ -777,8 +792,8 @@ async def test_reenabled_criterion_reaches_back_to_creation(
             await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(enabled=True)
         )
 
@@ -797,15 +812,15 @@ async def test_session_without_liveness_becomes_live_after_new_activity(
         db,
         age_seconds=600,
     )
-    _, criteria_id = await _seed_criteria_raw(
+    _, project_evaluator_id = await _seed_criteria_raw(
         db,
         project_id,
         evaluation_target="SESSION",
     )
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(created_at=resumed_at - timedelta(seconds=1))
         )
         await session.execute(
@@ -961,12 +976,12 @@ async def test_session_filter_decisions_are_persisted_before_sampling(
     sweeper = SessionEvalSweeper(db)
     sweeper._publish_metrics = True
     async with db() as session:
-        criteria = await sweeper._load_criteria(session)
+        project_evaluator = await sweeper._load_evaluators(session)
         database_now = await sweeper._database_now(session)
         materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
             session,
             database_now,
-            criteria,
+            project_evaluator,
             limit=2,
         )
 
@@ -1023,29 +1038,29 @@ async def test_filtered_and_unfiltered_criteria_schedule_independently(
     sweeper = SessionEvalSweeper(db)
 
     async with db() as session:
-        criteria = await sweeper._load_criteria(session)
+        project_evaluator = await sweeper._load_evaluators(session)
         database_now = await sweeper._database_now(session)
         compiled = select(
-            session_sweeper._eligible_pairs_relation(criteria, database_now, db.dialect)
+            session_sweeper._eligible_pairs_relation(project_evaluator, database_now, db.dialect)
         ).compile(dialect=session.get_bind().dialect)
     bound_scalars = {
         value for value in compiled.params.values() if not isinstance(value, (list, tuple))
     }
-    assert {criterion.criteria_id for criterion in criteria} <= bound_scalars
-    assert {criterion.fingerprint for criterion in criteria} <= bound_scalars
+    assert {criterion.project_evaluator_id for criterion in project_evaluator} <= bound_scalars
+    assert {criterion.fingerprint for criterion in project_evaluator} <= bound_scalars
 
     await sweeper._tick()
 
     async with db() as session:
         units = (await session.scalars(select(models.EvalSessionWorkUnit))).all()
-    fingerprints = {criterion.criteria_id: criterion.fingerprint for criterion in criteria}
-    assert {(unit.criteria_id, unit.project_session_rowid): unit.status for unit in units} == {
+    fingerprints = {criterion.project_evaluator_id: criterion.fingerprint for criterion in project_evaluator}
+    assert {(unit.project_evaluator_id, unit.project_session_rowid): unit.status for unit in units} == {
         (unfiltered_criteria_id, matching_session_id): "PENDING",
         (unfiltered_criteria_id, excluded_session_id): "PENDING",
         (filtered_criteria_id, matching_session_id): "PENDING",
         (filtered_criteria_id, excluded_session_id): "FILTERED_OUT",
     }
-    assert all(unit.config_fingerprint == fingerprints[unit.criteria_id] for unit in units)
+    assert all(unit.config_fingerprint == fingerprints[unit.project_evaluator_id] for unit in units)
 
 
 async def test_session_sampling_decisions_are_deterministic_and_idempotent(

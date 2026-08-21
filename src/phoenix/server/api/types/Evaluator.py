@@ -1,7 +1,7 @@
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 
 import sqlalchemy as sa
 import strawberry
@@ -11,7 +11,6 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -143,13 +142,13 @@ strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason
 
 
 def _project_evaluator_schedulability(
-    record: models.ProjectEvaluatorCriteria,
+    record: models.ProjectEvaluator,
     *,
     targets_evaluator_traces: bool,
 ) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
     if targets_evaluator_traces:
-        # Mirrors exclude_criteria_targeting_evaluator_traces: both sweep loads drop
-        # these criteria regardless of target, so the row must not advertise otherwise.
+        # Mirrors exclude_project_evaluators_targeting_evaluator_traces: both sweep loads drop
+        # these project evaluators regardless of target, so the row must not advertise otherwise.
         return (
             ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
             SchedulabilityReason.TARGETS_EVALUATOR_TRACES,
@@ -1209,7 +1208,7 @@ class ProjectEvaluator(Node):
     """An evaluator and its project-specific online evaluation policy."""
 
     id: NodeID[int]
-    db_record: strawberry.Private[Optional[models.ProjectEvaluatorCriteria]] = None
+    db_record: strawberry.Private[Optional[models.ProjectEvaluator]] = None
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="The project whose spans this evaluator evaluates."
@@ -1224,24 +1223,17 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "The project holding the traces this evaluator produces when it runs, or null "
-            "until the first evaluator trace creates it. Every evaluator traces into this "
-            "one project, so its spans must be scoped by this evaluator's id to show only "
-            "its own traces."
+            "The project holding the traces this evaluator produces when it runs. Each "
+            "evaluator traces into its own dedicated project, created with the evaluator."
         )
     )
     async def trace_project(
         self, info: Info[Context, None]
     ) -> Optional[Annotated["Project", strawberry.lazy(".Project")]]:
-        async with info.context.db.read() as session:
-            project_id = await session.scalar(
-                sa.select(models.Project.id).where(models.Project.name == EVALUATORS_PROJECT_NAME)
-            )
-        if project_id is None:
-            return None
+        record = await self._get_record(info)
         from .Project import Project
 
-        return Project(id=project_id)
+        return Project(id=record.trace_project_id)
 
     @strawberry.field
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:
@@ -1277,21 +1269,22 @@ class ProjectEvaluator(Node):
         return EvaluationTarget(record.evaluation_target)
 
     async def _targets_evaluator_traces(
-        self, info: Info[Context, None], record: models.ProjectEvaluatorCriteria
+        self, info: Info[Context, None], record: models.ProjectEvaluator
     ) -> bool:
-        """Whether this criteria targets the project holding evaluator traces.
+        """Whether this project evaluator targets a project holding evaluator traces.
 
-        Creation refuses such criteria, but a project that predates the reservation
-        can already carry them; both sweep loads exclude those, and schedulability
-        must say so rather than advertise an evaluator the sweeps never pick up.
+        Creation refuses such project_evaluator, but a race or a row that predates the
+        guard can still carry one; both sweep loads exclude those, and
+        schedulability must say so rather than advertise an evaluator the sweeps
+        never pick up.
         """
-        project_name = cast(
-            str,
-            await info.context.data_loaders.project_fields.load(
-                (record.project_id, models.Project.name),
-            ),
-        )
-        return project_name == EVALUATORS_PROJECT_NAME
+        async with info.context.db.read() as session:
+            holds_evaluator_traces = await session.scalar(
+                sa.select(models.ProjectEvaluator.id)
+                .where(models.ProjectEvaluator.trace_project_id == record.project_id)
+                .limit(1)
+            )
+        return holds_evaluator_traces is not None
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Whether this project evaluator is currently eligible for scheduling."
@@ -1332,7 +1325,7 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
-            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New criteria store the current "
+            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New project evaluators store the "
             f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds when no value is "
             "provided. A session is evaluated only once, and later activity does not schedule "
             "another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator "
@@ -1369,10 +1362,10 @@ class ProjectEvaluator(Node):
     async def updated_at(self, info: Info[Context, None]) -> datetime:
         return (await self._get_record(info)).updated_at
 
-    async def _get_record(self, info: Info[Context, None]) -> models.ProjectEvaluatorCriteria:
+    async def _get_record(self, info: Info[Context, None]) -> models.ProjectEvaluator:
         if self.db_record is not None:
             return self.db_record
-        record = await info.context.data_loaders.project_evaluator_criteria_by_id.load(self.id)
+        record = await info.context.data_loaders.project_evaluator_by_id.load(self.id)
         if record is None:
             project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
             raise NotFound(f"ProjectEvaluator not found: {project_evaluator_id}")
