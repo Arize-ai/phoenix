@@ -9903,7 +9903,8 @@
           "projectNodeId": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/=_-]{1,256}$"
               },
               {
                 "type": "null"
@@ -9914,7 +9915,8 @@
           "spanNodeId": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/=_-]{1,256}$"
               },
               {
                 "type": "null"
@@ -9925,7 +9927,8 @@
           "otelSpanId": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{1,64}$"
               },
               {
                 "type": "null"
@@ -10946,7 +10949,8 @@
           "evaluatorNodeId": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/=_-]{1,256}$"
               },
               {
                 "type": "null"
@@ -12126,12 +12130,14 @@
           },
           "datasetNodeId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Datasetnodeid"
           },
           "datasetVersionNodeId": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/=_-]{1,256}$"
               },
               {
                 "type": "null"
@@ -14754,7 +14760,8 @@
           "evaluatorNodeId": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/=_-]{1,256}$"
               },
               {
                 "type": "null"
@@ -15802,6 +15809,16 @@
             "type": "boolean",
             "title": "Iscompactionmessage",
             "default": false
+          },
+          "uiState": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UIStateSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -15927,6 +15944,7 @@
         "properties": {
           "datasetEvaluatorId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Datasetevaluatorid"
           },
           "name": {
@@ -16030,7 +16048,8 @@
           "experimentId": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/=_-]{1,256}$"
               },
               {
                 "type": "null"
@@ -16085,6 +16104,7 @@
           },
           "projectNodeId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Projectnodeid"
           },
           "spanFilter": {
@@ -16554,6 +16574,7 @@
           },
           "promptNodeId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Promptnodeid"
           }
         },
@@ -17827,10 +17848,12 @@
           },
           "promptNodeId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Promptnodeid"
           },
           "promptVersionNodeId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Promptversionnodeid"
           }
         },
@@ -18432,10 +18455,12 @@
           },
           "projectNodeId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Projectnodeid"
           },
           "sessionNodeId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Sessionnodeid"
           }
         },
@@ -20283,10 +20308,12 @@
           },
           "projectNodeId": {
             "type": "string",
+            "pattern": "^[A-Za-z0-9+/=_-]{1,256}$",
             "title": "Projectnodeid"
           },
           "otelTraceId": {
             "type": "string",
+            "pattern": "^[0-9a-fA-F]{1,64}$",
             "title": "Oteltraceid"
           }
         },
@@ -20533,6 +20560,166 @@
         ],
         "title": "TurnTraceContext",
         "description": "The trace identity a turn's spans are parented to."
+      },
+      "UIStateEnvironment": {
+        "properties": {
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
+          },
+          "isViewer": {
+            "type": "boolean",
+            "title": "Isviewer",
+            "default": false
+          },
+          "hasUsableSandbox": {
+            "type": "boolean",
+            "title": "Hasusablesandbox",
+            "default": false
+          },
+          "hasUsableModelProvider": {
+            "type": "boolean",
+            "title": "Hasusablemodelprovider",
+            "default": false
+          },
+          "graphqlMutationsEnabled": {
+            "type": "boolean",
+            "title": "Graphqlmutationsenabled",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "UIStateEnvironment",
+        "description": "What the server had enabled for the turn.\n\n``is_viewer``, ``has_usable_sandbox``, and ``has_usable_model_provider`` are\nresolved server-side rather than sent by the client, but they still have to\nbe frozen per turn: they gate which branch of the evaluator and dataset\nprose applies, so recomputing them per request would vary the rendered\nhistory."
+      },
+      "UIStateSnapshot": {
+        "properties": {
+          "view": {
+            "$ref": "#/components/schemas/UIStateView"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/UIStateEnvironment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "view",
+          "environment"
+        ],
+        "title": "UIStateSnapshot",
+        "description": "One turn's frozen UI state, persisted on its user message.\n\nBoth sections are always carried in full. Emitting only what changed would\nmake \"the most recent block is authoritative\" false, forcing the model to\nmerge a fresh ``<view>`` against an ``<environment>`` from many turns back."
+      },
+      "UIStateView": {
+        "properties": {
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentSpanContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "promptVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playground": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "codeEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeEvaluatorContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "llmEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LlmEvaluatorContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "UIStateView",
+        "description": "What the user was looking at: the subset of ``ResolvedContexts`` that\ndescribes the mounted view.\n\nDeliberately excludes ``app`` (the browser clock, which the\n``get_current_datetime`` tool reads at call time), ``web_access`` and\n``subagents`` (tool-availability requests, not view state), and ``graphql``\n(folded into ``UIStateEnvironment.graphql_mutations_enabled``)."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

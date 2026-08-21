@@ -1,11 +1,9 @@
 <phoenix_span_context>
-  <description>The span the user has selected.</description>
-{% if span.project_node_id is not none %}
-  <project_node_id format="phoenix_node_id">{{ span.project_node_id }}</project_node_id>
-{% endif %}
-{% if span.span_node_id is not none %}
-  <span_node_id format="phoenix_node_id">{{ span.span_node_id }}</span_node_id>
-{% else %}
-  <otel_span_id format="otel_hex">{{ span.otel_span_id }}</otel_span_id>
-{% endif %}
+  <description>Applies when `phoenix_ui_state/view` contains a `span` element: the user has that span selected.</description>
+  <guidance>
+    - The span carries exactly one identifier: either `spanNodeId` (the Relay global ID) or `otelSpanId` (the OpenTelemetry hex ID). Use whichever is present, and convert only when a tool requires the other form.
+    - Link to the span as `[label](/redirects/spans/<otelSpanId>)`. That route takes the OpenTelemetry hex ID; if only `spanNodeId` is present, read the span's `spanId` field before composing the link rather than passing the node ID.
+    - `projectNodeId` is present only when the span was selected from a project-scoped route. Its absence does not mean the span has no project.
+    - When the user says "this span" or "the selected span", they mean this one.
+  </guidance>
 </phoenix_span_context>

@@ -6,6 +6,8 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints, TypeAdapter, model_validator
 from typing_extensions import assert_never
 
+from phoenix.server.agents.ui_state import UIStateSnapshot
+
 from ._models import CamelBaseModel
 from .provider_metadata import (
     PhoenixToolCallCallbackProviderMetadata,
@@ -125,6 +127,19 @@ class PhoenixUserMessageMetadata(CamelBaseModel):
     current_date_time: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
     time_zone: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)]
     is_compaction_message: bool = False
+    ui_state: UIStateSnapshot | None = None
+    """What the user was looking at, and what the server had enabled, when this
+    message was sent.
+
+    Server-owned: the chat route overwrites whatever the client sent before the
+    message is persisted, because the block rendered from this field carries the
+    server-resolved permission and availability flags. Stored on the message
+    rather than recomputed per request so a turn's rendered state is frozen for
+    the life of the conversation — see :mod:`phoenix.server.agents.ui_state`.
+
+    ``None`` on messages persisted before this field existed, and on turns from
+    clients that run without UI state at all.
+    """
 
 
 PhoenixMessageMetadata = Annotated[

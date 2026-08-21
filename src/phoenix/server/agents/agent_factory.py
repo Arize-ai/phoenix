@@ -20,8 +20,8 @@ from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     NativeToolRetryCapability,
     SkillsCapability,
+    UIContextsCapability,
     build_anthropic_prompt_cache_capability,
-    get_context_capability_function,
 )
 from phoenix.server.agents.capabilities.skills import SkillsToolset
 from phoenix.server.agents.capabilities.tools.external import (
@@ -118,9 +118,7 @@ def build_agent(
         DynamicCapability(
             capability_func=get_external_tool_capability_function(),
         ),
-        DynamicCapability(
-            capability_func=get_context_capability_function(prompts=resolved_prompts),
-        ),
+        UIContextsCapability(instructions=resolved_prompts.ui_contexts),
         build_skills_capability(prompts=resolved_prompts),
     ]
     if schema is not None and build_graphql_context is not None:

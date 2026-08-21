@@ -4315,6 +4315,7 @@ export interface components {
              * @default false
              */
             isCompactionMessage?: boolean;
+            uiState?: components["schemas"]["UIStateSnapshot"] | null;
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -6430,6 +6431,78 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
+        };
+        /**
+         * UIStateEnvironment
+         * @description What the server had enabled for the turn.
+         *
+         *     ``is_viewer``, ``has_usable_sandbox``, and ``has_usable_model_provider`` are
+         *     resolved server-side rather than sent by the client, but they still have to
+         *     be frozen per turn: they gate which branch of the evaluator and dataset
+         *     prose applies, so recomputing them per request would vary the rendered
+         *     history.
+         */
+        UIStateEnvironment: {
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Isviewer
+             * @default false
+             */
+            isViewer?: boolean;
+            /**
+             * Hasusablesandbox
+             * @default false
+             */
+            hasUsableSandbox?: boolean;
+            /**
+             * Hasusablemodelprovider
+             * @default false
+             */
+            hasUsableModelProvider?: boolean;
+            /**
+             * Graphqlmutationsenabled
+             * @default true
+             */
+            graphqlMutationsEnabled?: boolean;
+        };
+        /**
+         * UIStateSnapshot
+         * @description One turn's frozen UI state, persisted on its user message.
+         *
+         *     Both sections are always carried in full. Emitting only what changed would
+         *     make "the most recent block is authoritative" false, forcing the model to
+         *     merge a fresh ``<view>`` against an ``<environment>`` from many turns back.
+         */
+        UIStateSnapshot: {
+            view: components["schemas"]["UIStateView"];
+            environment: components["schemas"]["UIStateEnvironment"];
+        };
+        /**
+         * UIStateView
+         * @description What the user was looking at: the subset of ``ResolvedContexts`` that
+         *     describes the mounted view.
+         *
+         *     Deliberately excludes ``app`` (the browser clock, which the
+         *     ``get_current_datetime`` tool reads at call time), ``web_access`` and
+         *     ``subagents`` (tool-availability requests, not view state), and ``graphql``
+         *     (folded into ``UIStateEnvironment.graphql_mutations_enabled``).
+         */
+        UIStateView: {
+            project?: components["schemas"]["ProjectContext"] | null;
+            trace?: components["schemas"]["TraceContext"] | null;
+            session?: components["schemas"]["SessionContext"] | null;
+            span?: components["schemas"]["AgentSpanContext"] | null;
+            prompt?: components["schemas"]["PromptContext"] | null;
+            promptVersion?: components["schemas"]["PromptVersionContext"] | null;
+            dataset?: components["schemas"]["DatasetContext"] | null;
+            playground?: components["schemas"]["PlaygroundContext"] | null;
+            codeEvaluator?: components["schemas"]["CodeEvaluatorContext"] | null;
+            llmEvaluator?: components["schemas"]["LlmEvaluatorContext"] | null;
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {

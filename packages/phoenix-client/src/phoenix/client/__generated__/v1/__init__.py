@@ -439,13 +439,6 @@ class PatchPromptRequestBody(TypedDict):
     metadata: NotRequired[Mapping[str, Any]]
 
 
-class PhoenixUserMessageMetadata(TypedDict):
-    type: Literal["user"]
-    currentDateTime: str
-    timeZone: str
-    isCompactionMessage: NotRequired[bool]
-
-
 class PlaygroundBuiltinModelContext(TypedDict):
     type: Literal["builtin"]
     provider: str
@@ -1038,6 +1031,14 @@ class TurnTraceContext(TypedDict):
     traceId: str
     rootSpanId: str
     startedAt: str
+
+
+class UIStateEnvironment(TypedDict):
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    isViewer: NotRequired[bool]
+    hasUsableSandbox: NotRequired[bool]
+    hasUsableModelProvider: NotRequired[bool]
+    graphqlMutationsEnabled: NotRequired[bool]
 
 
 class UpdateDatasetLabelRequestBody(TypedDict):
@@ -1852,6 +1853,19 @@ class TraceData(TypedDict):
     spans: NotRequired[Sequence[TraceSpanData]]
 
 
+class UIStateView(TypedDict):
+    project: NotRequired[ProjectContext]
+    trace: NotRequired[TraceContext]
+    session: NotRequired[SessionContext]
+    span: NotRequired[AgentSpanContext]
+    prompt: NotRequired[PromptContext]
+    promptVersion: NotRequired[PromptVersionContext]
+    dataset: NotRequired[DatasetContext]
+    playground: NotRequired[PlaygroundContext]
+    codeEvaluator: NotRequired[CodeEvaluatorContext]
+    llmEvaluator: NotRequired[LlmEvaluatorContext]
+
+
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -2044,11 +2058,6 @@ class LegacyChatSubmitMessage(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
 
 
-class MessageMetadata(TypedDict):
-    phoenix: NotRequired[Union[PhoenixAssistantMessageMetadata, PhoenixUserMessageMetadata]]
-    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
-
-
 class PatchAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
     model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
@@ -2056,37 +2065,6 @@ class PatchAgentSessionRequestBody(TypedDict):
 
 class PatchAgentSessionResponseBody(TypedDict):
     data: AgentSessionData
-
-
-class PhoenixUIMessage(TypedDict):
-    id: str
-    role: Literal["system", "user", "assistant"]
-    parts: Sequence[
-        Union[
-            TextUIPart,
-            ReasoningUIPart,
-            ToolInputStreamingPart,
-            ToolInputAvailablePart,
-            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
-            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
-            ToolApprovalRequestedPart,
-            ToolApprovalRespondedPart,
-            ToolOutputDeniedPart,
-            DynamicToolInputStreamingPart,
-            DynamicToolInputAvailablePart,
-            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
-            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
-            DynamicToolApprovalRequestedPart,
-            DynamicToolApprovalRespondedPart,
-            DynamicToolOutputDeniedPart,
-            SourceUrlUIPart,
-            SourceDocumentUIPart,
-            FileUIPart,
-            DataUIPart,
-            StepStartUIPart,
-        ]
-    ]
-    metadata: NotRequired[MessageMetadata]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):
@@ -2106,66 +2084,17 @@ class PromptMessage(TypedDict):
     ]
 
 
-class SubmitAgentSessionToolApprovalsResponseBody(TypedDict):
-    data: PhoenixUIMessage
+class UIStateSnapshot(TypedDict):
+    view: UIStateView
+    environment: UIStateEnvironment
 
 
-class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
-    data: PhoenixUIMessage
-
-
-class ChatRequestBody(TypedDict):
-    headless: bool
-    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-    id: str
-    contexts: NotRequired[
-        Sequence[
-            Union[
-                AppContext,
-                ProjectContext,
-                TraceContext,
-                SessionContext,
-                PromptContext,
-                PromptVersionContext,
-                AgentSpanContext,
-                PlaygroundContext,
-                CodeEvaluatorContext,
-                LlmEvaluatorContext,
-                DatasetContext,
-                GraphQLContext,
-                WebAccessContext,
-                SubagentsContext,
-            ]
-        ]
-    ]
-    editPermission: NotRequired[Literal["manual", "bypass"]]
-    requestedSkills: NotRequired[Sequence[str]]
-    trigger: NotRequired[Literal["submit-message"]]
-    message: NotRequired[PhoenixUIMessage]
-    toolOutputs: NotRequired[
-        Sequence[
-            Union[
-                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
-                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
-                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
-                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
-            ]
-        ]
-    ]
-    toolApprovals: NotRequired[Sequence[ToolApproval]]
-    lastMessageId: NotRequired[str]
-    recordLocalTraces: NotRequired[bool]
-    exportRemoteTraces: NotRequired[bool]
-    instrumentUserId: NotRequired[bool]
-
-
-class CompactAgentSessionResponseBody(TypedDict):
-    data: PhoenixUIMessage
-
-
-class ListAgentSessionMessagesResponseBody(TypedDict):
-    data: Sequence[PhoenixUIMessage]
-    next_cursor: Optional[str]
+class PhoenixUserMessageMetadata(TypedDict):
+    type: Literal["user"]
+    currentDateTime: str
+    timeZone: str
+    isCompactionMessage: NotRequired[bool]
+    uiState: NotRequired[UIStateSnapshot]
 
 
 class PromptChatTemplate(TypedDict):
@@ -2234,6 +2163,104 @@ class GetPromptResponseBody(TypedDict):
 
 class GetPromptVersionsResponseBody(TypedDict):
     data: Sequence[PromptVersion]
+    next_cursor: Optional[str]
+
+
+class MessageMetadata(TypedDict):
+    phoenix: NotRequired[Union[PhoenixAssistantMessageMetadata, PhoenixUserMessageMetadata]]
+    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
+
+
+class PhoenixUIMessage(TypedDict):
+    id: str
+    role: Literal["system", "user", "assistant"]
+    parts: Sequence[
+        Union[
+            TextUIPart,
+            ReasoningUIPart,
+            ToolInputStreamingPart,
+            ToolInputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
+            ToolApprovalRequestedPart,
+            ToolApprovalRespondedPart,
+            ToolOutputDeniedPart,
+            DynamicToolInputStreamingPart,
+            DynamicToolInputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+            PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
+            DynamicToolApprovalRequestedPart,
+            DynamicToolApprovalRespondedPart,
+            DynamicToolOutputDeniedPart,
+            SourceUrlUIPart,
+            SourceDocumentUIPart,
+            FileUIPart,
+            DataUIPart,
+            StepStartUIPart,
+        ]
+    ]
+    metadata: NotRequired[MessageMetadata]
+
+
+class SubmitAgentSessionToolApprovalsResponseBody(TypedDict):
+    data: PhoenixUIMessage
+
+
+class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
+    data: PhoenixUIMessage
+
+
+class ChatRequestBody(TypedDict):
+    headless: bool
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    id: str
+    contexts: NotRequired[
+        Sequence[
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
+                GraphQLContext,
+                WebAccessContext,
+                SubagentsContext,
+            ]
+        ]
+    ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
+    trigger: NotRequired[Literal["submit-message"]]
+    message: NotRequired[PhoenixUIMessage]
+    toolOutputs: NotRequired[
+        Sequence[
+            Union[
+                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart,
+                PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart,
+            ]
+        ]
+    ]
+    toolApprovals: NotRequired[Sequence[ToolApproval]]
+    lastMessageId: NotRequired[str]
+    recordLocalTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    instrumentUserId: NotRequired[bool]
+
+
+class CompactAgentSessionResponseBody(TypedDict):
+    data: PhoenixUIMessage
+
+
+class ListAgentSessionMessagesResponseBody(TypedDict):
+    data: Sequence[PhoenixUIMessage]
     next_cursor: Optional[str]
 
 

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Annotated, Literal
+from typing import Annotated, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints, model_validator
 from typing_extensions import assert_never
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,38 @@ def sanitize_untrusted_value(
     return cleaned
 
 
+NodeId: TypeAlias = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, pattern=r"^[A-Za-z0-9+/=_-]{1,256}$"),
+]
+"""A Relay global id, checked at the request boundary.
+
+Every id in a context payload is client-supplied, and every one of them is
+interpolated into the model-facing ``<phoenix_ui_state>`` block. Constraining
+the character class here — rather than escaping at render time, which was
+applied inconsistently before — means a crafted id cannot close its element and
+open a forged sibling block that the model would read as authoritative.
+
+The check is a charset-and-length check rather than a strict base64 decode on
+purpose: these ids come from route params the user can type, so a merely wrong
+id should still leave the assistant usable on that page, while a *dangerous* one
+is rejected. The character class is the union of standard and URL-safe base64,
+which contains no XML metacharacter.
+"""
+
+OtelId: TypeAlias = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, pattern=r"^[0-9a-fA-F]{1,64}$"),
+]
+"""An OpenTelemetry trace or span id in hex, checked at the request boundary.
+
+Length is capped rather than pinned to 32/16 for the same reason as
+:data:`NodeId`: the value arrives from a route param, and a user sitting on a
+URL with a malformed trace id should get an assistant that can still talk to
+them.
+"""
+
+
 class _ChatContextBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
@@ -56,37 +88,37 @@ class ProjectContext(_ChatContextBase):
     """
 
     type: Literal["project"]
-    project_node_id: str = Field(alias="projectNodeId")
+    project_node_id: NodeId = Field(alias="projectNodeId")
     span_filter: str | None = Field(default=None, alias="spanFilter")
 
 
 class TraceContext(_ChatContextBase):
     type: Literal["trace"]
-    project_node_id: str = Field(alias="projectNodeId")
-    otel_trace_id: str = Field(alias="otelTraceId")
+    project_node_id: NodeId = Field(alias="projectNodeId")
+    otel_trace_id: OtelId = Field(alias="otelTraceId")
 
 
 class SessionContext(_ChatContextBase):
     """Session the user is currently viewing."""
 
     type: Literal["session"]
-    project_node_id: str = Field(alias="projectNodeId")
-    session_node_id: str = Field(alias="sessionNodeId")
+    project_node_id: NodeId = Field(alias="projectNodeId")
+    session_node_id: NodeId = Field(alias="sessionNodeId")
 
 
 class PromptContext(_ChatContextBase):
     """Prompt the user is currently viewing."""
 
     type: Literal["prompt"]
-    prompt_node_id: str = Field(alias="promptNodeId")
+    prompt_node_id: NodeId = Field(alias="promptNodeId")
 
 
 class PromptVersionContext(_ChatContextBase):
     """Prompt version the user is currently viewing."""
 
     type: Literal["prompt_version"]
-    prompt_node_id: str = Field(alias="promptNodeId")
-    prompt_version_node_id: str = Field(alias="promptVersionNodeId")
+    prompt_node_id: NodeId = Field(alias="promptNodeId")
+    prompt_version_node_id: NodeId = Field(alias="promptVersionNodeId")
 
 
 class AgentSpanContext(_ChatContextBase):
@@ -98,9 +130,9 @@ class AgentSpanContext(_ChatContextBase):
     """
 
     type: Literal["span"]
-    project_node_id: str | None = Field(default=None, alias="projectNodeId")
-    span_node_id: str | None = Field(default=None, alias="spanNodeId")
-    otel_span_id: str | None = Field(default=None, alias="otelSpanId")
+    project_node_id: NodeId | None = Field(default=None, alias="projectNodeId")
+    span_node_id: NodeId | None = Field(default=None, alias="spanNodeId")
+    otel_span_id: OtelId | None = Field(default=None, alias="otelSpanId")
 
     @model_validator(mode="after")
     def _exactly_one_span_id(self) -> "AgentSpanContext":
@@ -154,14 +186,14 @@ class PlaygroundInstanceContext(_ChatContextBase):
 
     instance_id: int = Field(alias="instanceId")
     model: PlaygroundModelContext | None = None
-    experiment_id: str | None = Field(default=None, alias="experimentId")
+    experiment_id: NodeId | None = Field(default=None, alias="experimentId")
 
 
 class PlaygroundEvaluatorContext(_ChatContextBase):
     """One dataset evaluator on the mounted playground's roster. ``name`` is
     user-controlled; sanitize at every model-visible boundary."""
 
-    dataset_evaluator_id: str = Field(alias="datasetEvaluatorId")
+    dataset_evaluator_id: NodeId = Field(alias="datasetEvaluatorId")
     name: str
     kind: Literal["LLM", "CODE", "BUILTIN"]
     is_builtin: bool = Field(alias="isBuiltin")
@@ -210,14 +242,14 @@ class CodeEvaluatorContext(_ChatContextBase):
     """Code-evaluator create/edit form mounted in the current browser route."""
 
     type: Literal["code_evaluator"]
-    evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
+    evaluator_node_id: NodeId | None = Field(default=None, alias="evaluatorNodeId")
 
 
 class LlmEvaluatorContext(_ChatContextBase):
     """LLM-evaluator create/edit form mounted in the current browser route."""
 
     type: Literal["llm_evaluator"]
-    evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
+    evaluator_node_id: NodeId | None = Field(default=None, alias="evaluatorNodeId")
 
 
 class DatasetContext(_ChatContextBase):
@@ -230,8 +262,8 @@ class DatasetContext(_ChatContextBase):
     """
 
     type: Literal["dataset"]
-    dataset_node_id: str = Field(alias="datasetNodeId")
-    dataset_version_node_id: str | None = Field(default=None, alias="datasetVersionNodeId")
+    dataset_node_id: NodeId = Field(alias="datasetNodeId")
+    dataset_version_node_id: NodeId | None = Field(default=None, alias="datasetVersionNodeId")
 
 
 class GraphQLContext(_ChatContextBase):

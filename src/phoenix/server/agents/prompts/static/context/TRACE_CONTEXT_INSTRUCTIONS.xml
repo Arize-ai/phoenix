@@ -1,5 +1,8 @@
 <phoenix_trace_context>
-  <description>The trace the user is currently viewing.</description>
-  <project_node_id format="phoenix_node_id">{{ trace.project_node_id }}</project_node_id>
-  <otel_trace_id format="otel_hex">{{ trace.otel_trace_id }}</otel_trace_id>
+  <description>Applies when `phoenix_ui_state/view` contains a `trace` element: the user is viewing that trace.</description>
+  <guidance>
+    - `projectNodeId` scopes the trace; `otelTraceId` identifies it. Use `otelTraceId` when linking to it as `[label](/redirects/traces/<otelTraceId>)`.
+    - When the user asks about "this trace", "this run", or "what went wrong here", they mean this trace. Read its spans before answering rather than reasoning from the ID alone.
+    - When a `session` element is also present, this trace is the currently selected turn within that session.
+  </guidance>
 </phoenix_trace_context>

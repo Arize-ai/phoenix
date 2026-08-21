@@ -160,6 +160,11 @@ from phoenix.server.agents.ui_message_stream import (
     finalize_interrupted_ui_message_state,
     iter_chunks_with_error_parts,
 )
+from phoenix.server.agents.ui_state import (
+    UIStateSnapshot,
+    build_ui_state_snapshot,
+    render_ui_state,
+)
 from phoenix.server.agents.vercel_ui_message_stream import (
     create_streaming_ui_message_state,
     process_ui_message_stream,
@@ -317,6 +322,81 @@ def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext |
                 time_zone=phoenix_metadata.time_zone,
             )
     return None
+
+
+def _message_ui_state(message: PhoenixUIMessage) -> UIStateSnapshot | None:
+    """Return the UI state frozen onto ``message`` when it was written."""
+    if message.role != "user":
+        return None
+    phoenix_metadata = message.metadata.phoenix if message.metadata is not None else None
+    if not isinstance(phoenix_metadata, PhoenixUserMessageMetadata):
+        return None
+    return phoenix_metadata.ui_state
+
+
+def _freeze_ui_state(message: PhoenixUIMessage, snapshot: UIStateSnapshot) -> None:
+    """Stamp this turn's UI state onto the user message about to be persisted.
+
+    Server-owned, so whatever the client sent is replaced: the snapshot carries
+    permission and availability flags the browser has no say in. Written before
+    the model runs and never rewritten, which is what makes the rendered block
+    for this turn identical on every later turn.
+
+    A message with no ``phoenix`` metadata namespace has nowhere to put the
+    snapshot and is left alone; the browser always sends one (it is the same
+    namespace the browser clock rides on).
+    """
+    phoenix_metadata = message.metadata.phoenix if message.metadata is not None else None
+    if isinstance(phoenix_metadata, PhoenixUserMessageMetadata):
+        phoenix_metadata.ui_state = snapshot
+
+
+def _with_ui_state_block(
+    message: PhoenixUIMessage,
+    snapshot: UIStateSnapshot,
+) -> PhoenixUIMessage:
+    """Return a copy of ``message`` with its state block ahead of the user's text.
+
+    A ``TextUIPart`` rather than a ``DataUIPart``: the Vercel adapter drops data
+    parts from user messages except the tool-availability delta, while text
+    parts collect into the single ``UserPromptPart`` the turn already produces.
+    The copy is model-facing only — the persisted message keeps the snapshot in
+    metadata, so nothing has to be stripped back out on the read paths.
+    """
+    block = TextUIPart(type="text", text=render_ui_state(snapshot))
+    return message.model_copy(update={"parts": [block, *message.parts]})
+
+
+def _inject_ui_state_blocks(messages: Sequence[PhoenixUIMessage]) -> list[PhoenixUIMessage]:
+    """Render each turn's stored UI state into the model-facing transcript.
+
+    A block is emitted at message *i* only when its stored snapshot differs from
+    the newest snapshot before it, so an unchanged turn costs nothing.
+
+    The comparison walks *stored* snapshots exclusively — never the live request.
+    Deciding from the live request would inject at the tail only, and turn N's
+    block would vanish the moment turn N+1 arrived; every earlier turn's bytes
+    would shift and the provider would reprocess the conversation behind them.
+    Because decisions for messages 1..N depend only on snapshots 1..N, which are
+    frozen, the same blocks land in the same positions on every turn and only
+    the newest message can add one.
+
+    Messages with no stored snapshot — compaction checkpoints, turns from before
+    this field existed — are passed through untouched and do not reset the
+    comparison.
+    """
+    rendered: list[PhoenixUIMessage] = []
+    injected = False
+    previous: UIStateSnapshot | None = None
+    for message in messages:
+        snapshot = _message_ui_state(message)
+        if snapshot is None or snapshot == previous:
+            rendered.append(message)
+            continue
+        previous = snapshot
+        injected = True
+        rendered.append(_with_ui_state_block(message, snapshot))
+    return rendered if injected else list(messages)
 
 
 ToolOutputUIPart = (
@@ -3194,6 +3274,21 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if (browser_clock := _resolve_browser_clock(transcript_messages)) is not None:
                 resolved_contexts.app = browser_clock
 
+            # Headless turns run without the availability gate and render no
+            # state blocks, so they record nothing rather than freezing flags
+            # that were never resolved.
+            if body.message is not None and not body.headless:
+                _freeze_ui_state(
+                    body.message,
+                    build_ui_state_snapshot(
+                        contexts=resolved_contexts,
+                        edit_permission=body.edit_permission,
+                        is_viewer=is_viewer,
+                        has_usable_sandbox=sandbox_availability.has_usable,
+                        has_usable_model_provider=model_provider_availability.has_usable,
+                    ),
+                )
+
             web_access_enabled = (
                 resolved_contexts.web_access is not None
                 and resolved_contexts.web_access.enabled
@@ -3354,6 +3449,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     initial_bash_snapshot=initial_bash_snapshot,
                     on_bash_snapshot=_capture_bash_snapshot,
                 )
+                model_transcript_messages = _inject_ui_state_blocks(model_transcript_messages)
                 if body.requested_skills:
                     available_skills = get_all_skills()
                     forced_skills = resolve_requested_skills(

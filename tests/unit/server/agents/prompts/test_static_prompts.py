@@ -5,12 +5,18 @@ from pathlib import Path
 
 import pytest
 
-from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
+from phoenix.server.agents.prompts import (
+    COMPACTION_INSTRUCTIONS,
+    SUMMARIZATION_INSTRUCTIONS,
+    AgentPrompts,
+    ServerAgentPrompts,
+)
 from phoenix.server.agents.prompts.static_prompts import (
     STATIC_PROMPTS_DIR,
     read_static_prompt,
 )
 from phoenix.server.agents.prompts.templating import get_template
+from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 
 _TEMPLATE_SYNTAX = re.compile(r"\{\{|\{%|\{#")
 
@@ -72,3 +78,37 @@ def test_prefix_prompts_are_plain_strings() -> None:
     for prompts in (AgentPrompts(), ServerAgentPrompts()):
         assert isinstance(prompts.base, str)
         assert isinstance(prompts.docs_tool, str)
+    assert isinstance(AgentPrompts().ui_contexts, str)
+
+
+def test_every_ui_context_is_documented() -> None:
+    """The prose covers every surface unconditionally, so a context the model
+    can be handed but has no documentation for would go unnoticed."""
+    ui_contexts = AgentPrompts().ui_contexts
+
+    for tag in (
+        "<phoenix_ui_state_guide>",
+        "<phoenix_project_context>",
+        "<phoenix_trace_context>",
+        "<phoenix_session_context>",
+        "<phoenix_span_context>",
+        "<phoenix_prompt_context>",
+        "<phoenix_prompt_version_context>",
+        "<phoenix_dataset_context>",
+        "<phoenix_playground_context>",
+        "<phoenix_code_evaluator_context>",
+        "<phoenix_llm_evaluator_context>",
+        "<phoenix_gql_mutations_policy>",
+    ):
+        assert tag in ui_contexts
+
+
+def test_summarization_prompt_states_the_real_title_limit() -> None:
+    """The limit is spelled out in the prompt now that it is not interpolated,
+    so it has to be checked against the constant that actually enforces it."""
+    assert f"At most {MAX_AGENT_SESSION_TITLE_LENGTH} characters." in SUMMARIZATION_INSTRUCTIONS
+
+
+def test_summarization_prompts_are_plain_strings() -> None:
+    assert isinstance(SUMMARIZATION_INSTRUCTIONS, str)
+    assert isinstance(COMPACTION_INSTRUCTIONS, str)

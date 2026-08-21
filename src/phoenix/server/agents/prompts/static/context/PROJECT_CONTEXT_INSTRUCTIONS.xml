@@ -1,11 +1,10 @@
 <phoenix_project_context>
-  <description>The project the user is currently viewing.</description>
-  <project_node_id format="phoenix_node_id">{{ project.project_node_id }}</project_node_id>
-{% if project.span_filter is not none %}
-{% if project.span_filter %}
-  <span_filter status="applied"><condition>{{ project.span_filter | sanitize(enclosing_tag="phoenix_project_context", max_chars=512) }}</condition></span_filter>
-{% else %}
-  <span_filter status="available"/>
-{% endif %}
-{% endif %}
+  <description>Applies when `phoenix_ui_state/view` contains a `project` element: the user is viewing that project.</description>
+  <guidance>
+    - Use `projectNodeId` to scope queries about the traces, spans, sessions, latency, cost, and errors the user is asking about. When the user says "this project", "here", or "my traces", they mean this one.
+    - A `span_filter` child describes the project-scoped span filter field. It expresses the view in full, root-span scoping included (root-only is written as `parent_id is None` in the filter DSL).
+    - `span_filter status="applied"`: the element's text is the filter condition currently narrowing the user's view. Questions about "these spans" or "what I'm looking at" mean the spans matching this condition, so carry it into your queries; say so when you deliberately ignore it.
+    - `span_filter status="available"`: the filter field is mounted with no condition applied, so the user is looking at the whole project.
+    - No `span_filter` child: the current view has no span filter field at all. Do not infer a filter.
+  </guidance>
 </phoenix_project_context>
