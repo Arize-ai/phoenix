@@ -399,46 +399,14 @@ retrieved_documents_df
 Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain it's reasoning. This can be useful for debugging and for figuring out potential corrective actions.
 
 ```python
-from phoenix.evals import (
-    ClassificationEvaluator,
-    LLM,
-    async_evaluate_dataframe,
-    bind_evaluator,
-)
-
-DOCUMENT_RELEVANCE_TEMPLATE = """You are comparing a document to a question and trying to determine
-if the document text contains information relevant to answering the
-question. Here is the data:
-
-<data>
-
-<question>
-{input}
-</question>
-
-<document_text>
-{document_text}
-</document_text>
-
-</data>
-
-Compare the question above to the document text. You must determine
-whether the document text contains information that can answer the
-question. Please focus on whether the very specific question can be
-answered by the information in the document text. Your response must be
-either "relevant" or "unrelated". "unrelated" means that the document
-text does not contain an answer to the question. "relevant" means the
-document text contains an answer to the question."""
+from phoenix.evals import LLM, async_evaluate_dataframe, bind_evaluator
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
 llm = LLM(provider="openai", model="gpt-4-turbo-preview")
-relevance_evaluator = ClassificationEvaluator(
-    name="document_relevance",
-    llm=llm,
-    prompt_template=DOCUMENT_RELEVANCE_TEMPLATE,
-    choices={"relevant": 1.0, "unrelated": 0.0},
-)
-# Map the evaluator's `document_text` field to the dataframe's `reference` column.
-relevance_evaluator = bind_evaluator(evaluator=relevance_evaluator, input_mapping={"document_text": "reference"})
+relevance_evaluator = RetrievalRelevanceEvaluator(llm=llm)
+# Score each retrieved document on its own by mapping the evaluator's `context`
+# field to the dataframe's `reference` column (one document per row).
+relevance_evaluator = bind_evaluator(evaluator=relevance_evaluator, input_mapping={"context": "reference"})
 
 retrieved_documents_relevance_df = await async_evaluate_dataframe(
     dataframe=retrieved_documents_df,

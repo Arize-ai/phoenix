@@ -29,39 +29,15 @@ pip install openai  # or anthropic, google-genai, litellm, etc.
 
 ```python
 import os
-from phoenix.evals import ClassificationEvaluator, LLM, async_evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
 os.environ["OPENAI_API_KEY"] = "<your-openai-key>"
 
-DOCUMENT_RELEVANCE_TEMPLATE = """You are comparing a document to a question and trying to determine
-if the document text contains information relevant to answering the
-question. Here is the data:
-
-<data>
-
-<question>
-{input}
-</question>
-
-<document_text>
-{document_text}
-</document_text>
-
-</data>
-
-Compare the question above to the document text. You must determine
-whether the document text contains information that can answer the
-question. Your response must be either "relevant" or "unrelated"."""
-
 llm = LLM(provider="openai", model="gpt-4o")
-relevance_evaluator = ClassificationEvaluator(
-    name="document_relevance",
-    llm=llm,
-    prompt_template=DOCUMENT_RELEVANCE_TEMPLATE,
-    choices={"relevant": 1.0, "unrelated": 0.0},
-)
+relevance_evaluator = RetrievalRelevanceEvaluator(llm=llm)
 
-# DataFrame must have columns matching the evaluator's input fields: 'input' and 'document_text'
+# DataFrame must have columns matching the evaluator's input fields: 'input' and 'context'
 results_df = await async_evaluate_dataframe(
     dataframe=df,
     evaluators=[relevance_evaluator],
@@ -88,6 +64,7 @@ All built-in evaluators live in `phoenix.evals.metrics` and accept `llm: LLM` as
 | :-------- | :----------- | :----- |
 | `FaithfulnessEvaluator` | `input`, `output`, `context` | faithful / unfaithful |
 | `CorrectnessEvaluator` | `input`, `output` | correct / incorrect |
+| `RetrievalRelevanceEvaluator` | `input`, `context` | relevant / irrelevant |
 | `ConcisenessEvaluator` | `input`, `output` | concise / verbose / too_concise |
 | `RefusalEvaluator` | `input`, `output` | refusal / no_refusal |
 | `ToolSelectionEvaluator` | `input`, `output`, `tool_name`, `expected_tool` | correct / incorrect |

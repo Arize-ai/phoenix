@@ -103,53 +103,25 @@ If you'd like to follow along with this evaluation example, you can check out th
 
     Evaluators determine whether the task output for each example is "good," "bad," or somewhere in between. You can use Phoenix pre-built evaluators or define custom evaluators that give you full control over the metrics and logic used to judge application behavior. The evaluator you choose should align with the specific quality or capability you want to measure.
 
-    In this example, we'll define a custom LLM judge that measures **Document Relevancy** using Phoenix's [classification evaluator](pre-built-metrics/). This evaluator checks whether retrieved context actually contains the information needed to answer the user's question—ensuring your application is grounding its responses in the right documents.
+    In this example, we'll use Phoenix's pre-built [Retrieval Relevance evaluator](pre-built-metrics/retrieval-relevance). This evaluator checks whether retrieved context actually contains the information needed to answer the user's question—ensuring your application is grounding its responses in the right documents.
 
     ```typescript
     import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
-    import { createClassificationEvaluator } from "@arizeai/phoenix-evals/llm/createClassificationEvaluator";
+    import { createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals/llm/createRetrievalRelevanceEvaluator";
     import { openai } from "@ai-sdk/openai";
 
-    // Document relevance prompt, defined inline as a custom classification evaluator.
-    const DOCUMENT_RELEVANCE_TEMPLATE = `You are comparing a document to a question and trying to determine
-    if the document text contains information relevant to answering the
-    question. Here is the data:
-
-    <data>
-
-    <question>
-    {{input}}
-    </question>
-
-    <document_text>
-    {{documentText}}
-    </document_text>
-
-    </data>
-
-    Compare the question above to the document text. You must determine
-    whether the document text contains information that can answer the
-    question. Please focus on whether the very specific question can be
-    answered by the information in the document text. Your response must be
-    either "relevant" or "unrelated". "unrelated" means that the document
-    text does not contain an answer to the question. "relevant" means the
-    document text contains an answer to the question.`;
-
-    const documentRelevancyEvaluator = createClassificationEvaluator({
+    const retrievalRelevanceEvaluator = createRetrievalRelevanceEvaluator({
         model: openai("gpt-4o-mini"),
-        name: "document_relevance",
-        promptTemplate: DOCUMENT_RELEVANCE_TEMPLATE,
-        choices: { relevant: 1, unrelated: 0 },
       });
 
-      const documentRelevancyCheck = asExperimentEvaluator({
-        name: "document-relevancy",
+      const retrievalRelevanceCheck = asExperimentEvaluator({
+        name: "retrieval-relevance",
         kind: "LLM",
         evaluate: async ({ input, output }) => {
-          // Use the document relevancy evaluator from phoenix-evals
-          const result = await documentRelevancyEvaluator.evaluate({
+          // Use the retrieval relevance evaluator from phoenix-evals
+          const result = await retrievalRelevanceEvaluator.evaluate({
             input: input.question,
-            documentText: output || "",
+            context: output || "",
           });
           return result; 
         },
@@ -170,7 +142,7 @@ If you'd like to follow along with this evaluation example, you can check out th
         experimentDescription: "Evaluate the relevancy of extracted context from the space knowledge base",
         dataset: dataset,
         task,
-        evaluators: [documentRelevancyCheck],
+        evaluators: [retrievalRelevanceCheck],
       });
     ```
   </Step>
