@@ -22,14 +22,14 @@ _IDENTIFIER_FINGERPRINT_CHARS = 16
 
 # Error recorded when a claimed unit's recomputed fingerprint no longer matches the
 # stored one. The consumer stamps it on expiry and the producer keys its revival
-# scan and reset on it, so a criteria edited and reverted re-materializes; the two
+# scan and reset on it, so a project evaluator edited and reverted re-materializes; the two
 # sides must read the same constant or the revival path can never fire.
 STALE_FINGERPRINT_ERROR = "CONFIG_FINGERPRINT_MISMATCH"
 
 
 @dataclass(frozen=True)
-class ResolvedCriteria:
-    """Fingerprint inputs for one evaluator criteria, resolved by the caller.
+class ResolvedProjectEvaluator:
+    """Fingerprint inputs for one project evaluator, resolved by the caller.
 
     ``version_ref`` must name an immutable version, never a mutable pointer: the
     concrete ``PromptVersion.id`` for LLM evaluators (resolving the tag), the current
@@ -37,7 +37,7 @@ class ResolvedCriteria:
     and implementation version for BUILTIN. Every field must be JSON-serializable.
     """
 
-    criteria_id: int
+    project_evaluator_id: int
     name: str
     evaluator_id: int
     version_ref: Any
@@ -59,8 +59,8 @@ def _canonical_default(obj: Any) -> Any:
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
-def config_fingerprint(resolved: ResolvedCriteria) -> str:
-    """Full 64-char sha256 hex over the canonical JSON form of the resolved criteria.
+def config_fingerprint(resolved: ResolvedProjectEvaluator) -> str:
+    """Full 64-char sha256 hex over the canonical JSON form of the resolved evaluator.
 
     Serves as both the work-unit dedup key component and the consumer's staleness
     guard: the consumer re-resolves the same inputs at claim time and refuses to
@@ -85,7 +85,7 @@ def sample_key(artifact_identity: int | str) -> float:
     """Uniform-in-[0,1) sampling key derived from a stable artifact identity.
 
     An artifact is sampled iff ``sample_key(identity) < sampling_rate``. The
-    key is deliberately unsalted and shared across all criteria so lower-rate samples
+    key is deliberately unsalted and shared across all evaluators so lower-rate samples
     nest inside higher-rate ones (every 20% sample is a subset of every 60% sample).
     """
     digest = hashlib.sha256(str(artifact_identity).encode("utf-8")).digest()

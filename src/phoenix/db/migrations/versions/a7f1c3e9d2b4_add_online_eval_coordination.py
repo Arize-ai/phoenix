@@ -57,9 +57,9 @@ def _create_session_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
-            "criteria_id",
+            "project_evaluator_id",
             _Integer,
-            sa.ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("config_fingerprint", sa.String(), nullable=False),
@@ -142,9 +142,9 @@ def _create_session_work_units_table() -> None:
         ["evaluator_id"],
     )
     op.create_index(
-        "ix_eval_session_work_units_criteria_id",
+        "ix_eval_session_work_units_project_evaluator_id",
         "eval_session_work_units",
-        ["criteria_id"],
+        ["project_evaluator_id"],
     )
 
 
@@ -242,7 +242,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("name"),
     )
     op.create_table(
-        "project_evaluator_criteria",
+        "project_evaluators",
         sa.Column(
             "id",
             _Integer,
@@ -258,6 +258,12 @@ def upgrade() -> None:
             "evaluator_id",
             _Integer,
             sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "trace_project_id",
+            _Integer,
+            sa.ForeignKey("projects.id", ondelete="RESTRICT"),
             nullable=False,
         ),
         sa.Column("name", sa.String(), nullable=False),
@@ -307,14 +313,19 @@ def upgrade() -> None:
         sa.UniqueConstraint("project_id", "name"),
     )
     op.create_index(
-        "ix_project_evaluator_criteria_project_id",
-        "project_evaluator_criteria",
+        "ix_project_evaluators_project_id",
+        "project_evaluators",
         ["project_id"],
     )
     op.create_index(
-        "ix_project_evaluator_criteria_evaluator_id",
-        "project_evaluator_criteria",
+        "ix_project_evaluators_evaluator_id",
+        "project_evaluators",
         ["evaluator_id"],
+    )
+    op.create_index(
+        "ix_project_evaluators_trace_project_id",
+        "project_evaluators",
+        ["trace_project_id"],
     )
     op.create_table(
         "eval_work_units",
@@ -336,9 +347,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "criteria_id",
+            "project_evaluator_id",
             _Integer,
-            sa.ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("config_fingerprint", sa.String(), nullable=False),
@@ -398,15 +409,17 @@ def upgrade() -> None:
         ["evaluator_id"],
     )
     op.create_index(
-        "ix_eval_work_units_criteria_id",
+        "ix_eval_work_units_project_evaluator_id",
         "eval_work_units",
-        ["criteria_id"],
+        ["project_evaluator_id"],
     )
     _create_session_work_units_table()
 
 
 def downgrade() -> None:
-    op.drop_index("ix_eval_session_work_units_criteria_id", table_name="eval_session_work_units")
+    op.drop_index(
+        "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
+    )
     op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_error_attempts", table_name="eval_session_work_units")
     op.drop_index(
@@ -417,19 +430,15 @@ def downgrade() -> None:
     op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
     op.drop_table("eval_session_work_units")
 
-    op.drop_index("ix_eval_work_units_criteria_id", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_error_attempts", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")
-    op.drop_index(
-        "ix_project_evaluator_criteria_evaluator_id", table_name="project_evaluator_criteria"
-    )
-    op.drop_index(
-        "ix_project_evaluator_criteria_project_id", table_name="project_evaluator_criteria"
-    )
-    op.drop_table("project_evaluator_criteria")
+    op.drop_index("ix_project_evaluators_evaluator_id", table_name="project_evaluators")
+    op.drop_index("ix_project_evaluators_project_id", table_name="project_evaluators")
+    op.drop_table("project_evaluators")
     op.drop_table("eval_work_leases")
     op.drop_table("eval_work_cursors")
 

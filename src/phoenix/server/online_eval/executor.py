@@ -1,4 +1,4 @@
-"""Execution glue for claimed online-eval work units: criteria-first hydration,
+"""Execution glue for claimed online-eval work units: configuration-first hydration,
 target context assembly, evaluator invocation, and idempotent annotation writes.
 Publication runs through the coordinator, which fences the claim and records any
 coverage watermark in the same transaction; every lifecycle transition, including
@@ -48,16 +48,16 @@ from phoenix.server.dml_event import (
     SpanAnnotationInsertEvent,
 )
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit, EvalWorkCoordinator
-from phoenix.server.online_eval.criteria_resolution import resolve_criteria_bulk
 from phoenix.server.online_eval.derivation import (
     STALE_FINGERPRINT_ERROR,
     config_fingerprint,
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition
+from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
     SessionTranscriptPolicy,
-    session_criteria_is_schedulable,
+    session_project_evaluator_is_schedulable,
 )
 from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
@@ -102,14 +102,14 @@ class OnlineEvalStoragePaused(Exception):
 
 
 class HydrationFailureReason(str, Enum):
-    CRITERIA_MISSING = "CRITERIA_MISSING"
-    CRITERIA_DISABLED = "CRITERIA_DISABLED"
-    CRITERIA_NOT_SCHEDULABLE = "CRITERIA_NOT_SCHEDULABLE"
+    PROJECT_EVALUATOR_MISSING = "PROJECT_EVALUATOR_MISSING"
+    PROJECT_EVALUATOR_DISABLED = "PROJECT_EVALUATOR_DISABLED"
+    PROJECT_EVALUATOR_NOT_SCHEDULABLE = "PROJECT_EVALUATOR_NOT_SCHEDULABLE"
     EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
     SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
     # The producer's revival scan matches this exact text on an EXPIRED row, so a
-    # criteria edited and reverted re-materializes rather than staying terminal.
+    # project evaluator edited and reverted re-materializes rather than staying terminal.
     CONFIG_FINGERPRINT_MISMATCH = STALE_FINGERPRINT_ERROR
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
@@ -128,7 +128,7 @@ class HydrationFailure:
 
 @dataclass(frozen=True)
 class HydratedWorkUnit:
-    """Everything one eval needs, copied out of the mutable criteria/evaluator
+    """Everything one eval needs, copied out of the mutable project-evaluator/evaluator
     rows while the staleness guard held. The executor never re-reads those rows
     after hydration, so the eval runs under snapshot semantics."""
 
@@ -449,7 +449,7 @@ class OnlineEvalExecutor:
         session: AsyncSession,
         units: Sequence[ClaimedWorkUnit],
     ) -> list[ConfigurationSnapshotOutcome]:
-        criteria_ids = {unit.criteria_id for unit in units}
+        project_evaluator_ids = {unit.project_evaluator_id for unit in units}
         polymorphic = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
@@ -457,39 +457,39 @@ class OnlineEvalExecutor:
         rows = (
             await session.execute(
                 select(
-                    models.ProjectEvaluatorCriteria,
+                    models.ProjectEvaluator,
                     polymorphic,
-                    session_criteria_is_schedulable(models.ProjectEvaluatorCriteria).label(
+                    session_project_evaluator_is_schedulable(models.ProjectEvaluator).label(
                         "session_schedulable"
                     ),
                 )
                 .outerjoin(
                     polymorphic,
-                    models.ProjectEvaluatorCriteria.evaluator_id == polymorphic.id,
+                    models.ProjectEvaluator.evaluator_id == polymorphic.id,
                 )
-                .where(models.ProjectEvaluatorCriteria.id.in_(criteria_ids))
+                .where(models.ProjectEvaluator.id.in_(project_evaluator_ids))
             )
         ).all()
-        rows_by_criteria_id = {
-            criteria.id: (criteria, evaluator, bool(session_schedulable))
-            for criteria, evaluator, session_schedulable in rows
+        rows_by_project_evaluator_id = {
+            project_evaluator.id: (project_evaluator, evaluator, bool(session_schedulable))
+            for project_evaluator, evaluator, session_schedulable in rows
         }
 
         preliminary: list[Optional[HydrationFailure]] = []
-        criteria_evaluators: dict[
-            int, tuple[models.ProjectEvaluatorCriteria, models.Evaluator]
-        ] = {}
+        project_evaluator_pairs: dict[int, tuple[models.ProjectEvaluator, models.Evaluator]] = {}
         for unit in units:
-            row = rows_by_criteria_id.get(unit.criteria_id)
+            row = rows_by_project_evaluator_id.get(unit.project_evaluator_id)
             failure: Optional[HydrationFailure] = None
             if row is None:
-                failure = HydrationFailure(HydrationFailureReason.CRITERIA_MISSING)
+                failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_MISSING)
             else:
-                criteria, evaluator, session_schedulable = row
-                if not criteria.enabled:
-                    failure = HydrationFailure(HydrationFailureReason.CRITERIA_DISABLED)
+                project_evaluator, evaluator, session_schedulable = row
+                if not project_evaluator.enabled:
+                    failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_DISABLED)
                 elif unit.evaluation_target == "SESSION" and not session_schedulable:
-                    failure = HydrationFailure(HydrationFailureReason.CRITERIA_NOT_SCHEDULABLE)
+                    failure = HydrationFailure(
+                        HydrationFailureReason.PROJECT_EVALUATOR_NOT_SCHEDULABLE
+                    )
                 elif unit.evaluation_target not in ("SPAN", "SESSION"):
                     failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
                 elif evaluator is None:
@@ -500,38 +500,42 @@ class OnlineEvalExecutor:
                 ):
                     failure = HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
                 else:
-                    criteria_evaluators.setdefault(criteria.id, (criteria, evaluator))
+                    project_evaluator_pairs.setdefault(
+                        project_evaluator.id, (project_evaluator, evaluator)
+                    )
             preliminary.append(failure)
 
-        criteria_evaluator_rows = list(criteria_evaluators.values())
-        resolved_rows = await resolve_criteria_bulk(session, criteria_evaluator_rows)
-        resolved_by_criteria_id = {
-            criteria.id: resolved
-            for (criteria, _), resolved in zip(
-                criteria_evaluator_rows,
+        project_evaluator_pair_rows = list(project_evaluator_pairs.values())
+        resolved_rows = await resolve_project_evaluators_bulk(session, project_evaluator_pair_rows)
+        resolved_by_project_evaluator_id = {
+            project_evaluator.id: resolved
+            for (project_evaluator, _), resolved in zip(
+                project_evaluator_pair_rows,
                 resolved_rows,
                 strict=True,
             )
         }
         unresolved_failures: dict[int, HydrationFailure] = {}
-        for criteria_id, (_, evaluator) in criteria_evaluators.items():
-            if resolved_by_criteria_id[criteria_id] is not None:
+        for project_evaluator_id, (_, evaluator) in project_evaluator_pairs.items():
+            if resolved_by_project_evaluator_id[project_evaluator_id] is not None:
                 continue
             async with session.begin_nested():
-                unresolved_failures[criteria_id] = await self._unresolved_configuration_failure(
+                unresolved_failures[
+                    project_evaluator_id
+                ] = await self._unresolved_configuration_failure(
                     session,
                     evaluator,
                 )
 
-        matching_criteria_ids: set[int] = set()
+        matching_project_evaluator_ids: set[int] = set()
         outcomes: list[Optional[ConfigurationSnapshotOutcome]] = []
         for unit, failure in zip(units, preliminary, strict=True):
             if failure is not None:
                 outcomes.append(failure)
                 continue
-            resolved = resolved_by_criteria_id[unit.criteria_id]
+            resolved = resolved_by_project_evaluator_id[unit.project_evaluator_id]
             if resolved is None:
-                outcomes.append(unresolved_failures[unit.criteria_id])
+                outcomes.append(unresolved_failures[unit.project_evaluator_id])
                 continue
             try:
                 fingerprint = config_fingerprint(resolved)
@@ -553,13 +557,13 @@ class OnlineEvalExecutor:
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
-            criteria, _ = criteria_evaluators[unit.criteria_id]
+            project_evaluator, _ = project_evaluator_pairs[unit.project_evaluator_id]
             try:
                 async with session.begin_nested():
                     hydrated_context = await self._hydrate_target_context(
                         session,
                         unit,
-                        project_id=criteria.project_id,
+                        project_id=project_evaluator.project_id,
                     )
             except Exception as error:
                 outcomes[index] = error
@@ -567,7 +571,7 @@ class OnlineEvalExecutor:
             if isinstance(hydrated_context, HydrationFailure):
                 outcomes[index] = hydrated_context
                 continue
-            resolved = resolved_by_criteria_id[unit.criteria_id]
+            resolved = resolved_by_project_evaluator_id[unit.project_evaluator_id]
             assert resolved is not None
             try:
                 resolved_input_mapping = (
@@ -585,16 +589,16 @@ class OnlineEvalExecutor:
                 )
             contexts[index] = hydrated_context
             input_mappings[index] = resolved_input_mapping
-            matching_criteria_ids.add(unit.criteria_id)
+            matching_project_evaluator_ids.add(unit.project_evaluator_id)
 
         evaluator_snapshots: dict[
             int, _HydratedEvaluatorSnapshot | HydrationFailure | Exception
         ] = {}
-        for criteria_id in matching_criteria_ids:
-            _, evaluator = criteria_evaluators[criteria_id]
+        for project_evaluator_id in matching_project_evaluator_ids:
+            _, evaluator = project_evaluator_pairs[project_evaluator_id]
             if evaluator.id in evaluator_snapshots:
                 continue
-            resolved = resolved_by_criteria_id[criteria_id]
+            resolved = resolved_by_project_evaluator_id[project_evaluator_id]
             assert resolved is not None
             try:
                 async with session.begin_nested():
@@ -615,12 +619,12 @@ class OnlineEvalExecutor:
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
-            criteria, evaluator = criteria_evaluators[unit.criteria_id]
+            project_evaluator, evaluator = project_evaluator_pairs[unit.project_evaluator_id]
             evaluator_snapshot_outcome = evaluator_snapshots[evaluator.id]
             if isinstance(evaluator_snapshot_outcome, (HydrationFailure, Exception)):
                 outcomes[index] = evaluator_snapshot_outcome
                 continue
-            resolved = resolved_by_criteria_id[unit.criteria_id]
+            resolved = resolved_by_project_evaluator_id[unit.project_evaluator_id]
             assert resolved is not None
             snapshot_context = contexts[index]
             if snapshot_context is None:
@@ -648,7 +652,7 @@ class OnlineEvalExecutor:
                     }
                 }
             outcomes[index] = HydratedConfigurationSnapshot(
-                project_id=criteria.project_id,
+                project_id=project_evaluator.project_id,
                 fingerprint=unit.config_fingerprint,
                 annotation_name=resolved.name,
                 evaluator=evaluator_snapshot_outcome,
@@ -915,7 +919,7 @@ class OnlineEvalExecutor:
         tracer = (
             marked_evaluator_tracer(
                 self._tracer_factory(),
-                project_evaluator_rowid=unit.criteria_id,
+                project_evaluator_rowid=unit.project_evaluator_id,
                 project_evaluator_name=hydrated.annotation_name,
             )
             if self._tracer_factory
@@ -938,7 +942,9 @@ class OnlineEvalExecutor:
                 # unshielded await would re-raise the cancellation before the
                 # persist ran, dropping the trace of exactly the run a user
                 # would want to debug.
-                persist = asyncio.ensure_future(self._persist_evaluator_traces(tracer))
+                persist = asyncio.ensure_future(
+                    self._persist_evaluator_traces(tracer, unit.project_evaluator_id)
+                )
                 try:
                     await asyncio.shield(persist)
                 except asyncio.CancelledError:
@@ -1058,13 +1064,14 @@ class OnlineEvalExecutor:
         if not records:
             raise EvalExecutionError("evaluator returned no results")
 
-    async def _persist_evaluator_traces(self, tracer: Tracer) -> None:
+    async def _persist_evaluator_traces(self, tracer: Tracer, project_evaluator_id: int) -> None:
         """Write the evaluator's trace, never failing the evaluation over it."""
         try:
             async with self._db_phase():
                 await persist_evaluator_traces(
                     db=self._db,
                     tracer=tracer,
+                    project_evaluator_id=project_evaluator_id,
                     event_queue=self._event_queue,
                 )
         except Exception:
