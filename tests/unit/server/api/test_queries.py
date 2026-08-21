@@ -36,6 +36,62 @@ from tests.unit.graphql import AsyncGraphQLClient
 _REDACTOR = Redactor(secret=SecretStr(""))
 
 
+async def test_evaluator_gallery_configs_contract(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phoenix.__generated__.classification_evaluator_configs import (
+        ClassificationEvaluatorConfig,
+        PromptMessage,
+    )
+    from phoenix.server.api import queries
+
+    config = ClassificationEvaluatorConfig.model_validate(
+        {
+            "name": "quality",
+            "description": "Quality evaluator",
+            "optimization_direction": "maximize",
+            "messages": [PromptMessage(role="user", content="Review {{input}}")],
+            "choices": {"good": 1, "bad": 0},
+            "scope": "trace",
+            "recommended": True,
+            "category": "response_quality",
+            "details": "Detailed guidance.",
+            "inputs": {"input": {"description": "The user request."}},
+        }
+    )
+    monkeypatch.setattr(
+        queries,
+        "get_classification_evaluator_configs",
+        lambda *, gallery_ready: [config] if gallery_ready else [],
+    )
+
+    response = await gql_client.execute(
+        query="""
+          query {
+            evaluatorGalleryConfigs {
+              name scope recommended category details
+              inputs { name description }
+            }
+          }
+        """
+    )
+
+    assert response.data == {
+        "evaluatorGalleryConfigs": [
+            {
+                "name": "quality",
+                "scope": "TRACE",
+                "recommended": True,
+                "category": "RESPONSE_QUALITY",
+                "details": "Detailed guidance.",
+                "inputs": [{"name": "input", "description": "The user request."}],
+            }
+        ]
+    }
+    assert not response.errors
+
+
 async def test_projects_omits_experiment_projects(
     gql_client: AsyncGraphQLClient,
     projects_with_and_without_experiments: Any,

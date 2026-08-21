@@ -1,7 +1,21 @@
 name: tool_selection
 description: For determining if the correct tool was selected for a given context.
+scope: span
+category: agents
 labels:
   - promoted_dataset_evaluator
+recommended: false
+details: >-
+  Determines whether an LLM selected the most appropriate tool or tools for a
+  given task. It focuses on what tool was chosen rather than whether the invocation
+  arguments were correct.
+inputs:
+  available_tools:
+    description: "The list of available tools, including names and descriptions. A simple human-readable list is better than including the full tool schemas as JSON."
+  input:
+    description: "The conversational context, whether that is a single input query or a full turn-by-turn conversation. Intermediate tool calls/results are not required."
+  tool_selection:
+    description: "The tool or tools called by the LLM."
 optimization_direction: maximize
 messages:
   - role: user
@@ -51,9 +65,9 @@ messages:
       </data>
 
       Given the above data, is the tool selection correct or incorrect?
-choices:
-  correct: 1.0
-  incorrect: 0.0
 substitutions:
   available_tools: available_tools_list
   tool_selection: output_with_tool_calls
+choices:
+  correct: 1.0
+  incorrect: 0.0

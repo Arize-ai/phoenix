@@ -15,7 +15,13 @@ from ._faithfulness_classification_evaluator_config import (
 from ._hallucination_classification_evaluator_config import (
     HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 from ._refusal_classification_evaluator_config import REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG
 from ._retrieval_relevance_classification_evaluator_config import (
     RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG,
@@ -36,6 +42,9 @@ from ._user_friction_classification_evaluator_config import (
 
 __all__ = [
     "ClassificationEvaluatorConfig",
+    "EvaluatorCategory",
+    "EvaluatorInput",
+    "EvaluatorScope",
     "PromptMessage",
     "CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG",
