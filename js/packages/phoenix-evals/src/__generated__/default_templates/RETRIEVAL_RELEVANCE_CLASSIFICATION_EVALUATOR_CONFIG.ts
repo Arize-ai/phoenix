@@ -29,7 +29,6 @@ IRRELEVANT - The retrieved information does NOT contain content that helps addre
 - Is about a different topic, entity, or time period than the request asks about, or
 - Is only superficially or tangentially related — e.g. shares a keyword but not the substance of the request — and does not help answer it, or
 - Is empty, an error, a timeout, or a "no results found" response, or
-- Duplicates information already established as irrelevant, adding nothing new.
 
 </rubric>
 
@@ -49,7 +48,7 @@ Apply these rules when deciding:
 </request>
 
 <retrieved_information>
-{{retrievedContext}}
+{{context}}
 </retrieved_information>
 
 </data>

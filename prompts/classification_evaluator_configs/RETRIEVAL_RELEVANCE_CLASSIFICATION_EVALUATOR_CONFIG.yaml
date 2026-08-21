@@ -43,7 +43,7 @@ messages:
       </request>
 
       <retrieved_information>
-      {{retrieved_context}}
+      {{context}}
       </retrieved_information>
 
       </data>

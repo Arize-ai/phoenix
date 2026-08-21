@@ -35,7 +35,7 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
         - ``input`` should generally be the user's request (e.g. the trace
           root's ``input.value``) rather than a reformulated tool argument or a
           generated SQL query.
-        - ``retrieved_context`` should be the retrieved information for the
+        - ``context`` should be the retrieved information for the
           step, with all returned items joined together.
         - Returns one `Score` with `label` (relevant or irrelevant), `score`
           (1.0 if relevant, 0.0 if irrelevant), and an `explanation` from the
@@ -56,7 +56,7 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
 
         eval_input = {
             "input": "What is the capital of France?",
-            "retrieved_context": "Paris is the capital and largest city of France.",
+            "context": "Paris is the capital and largest city of France.",
         }
         scores = relevance_eval.evaluate(eval_input)
         print(scores)
@@ -73,7 +73,7 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
 
     class RetrievalRelevanceInputSchema(BaseModel):
         input: str = Field(description="The request the retrieval was serving.")
-        retrieved_context: str = Field(
+        context: str = Field(
             description="The external information retrieved during the step, all items joined."
         )
 

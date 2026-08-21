@@ -28,7 +28,7 @@ export interface RetrievalRelevanceEvaluationRecord {
    * joined together. Source-agnostic: vector search, tool/MCP call, web search,
    * or content embedded in an LLM turn.
    */
-  retrievedContext: string;
+  context: string;
   [key: string]: unknown;
 }
 
@@ -57,7 +57,7 @@ export interface RetrievalRelevanceEvaluationRecord {
  * const evaluator = createRetrievalRelevanceEvaluator({ model: openai("gpt-4o-mini") });
  * const result = await evaluator.evaluate({
  *   input: "What is the capital of France?",
- *   retrievedContext: "Paris is the capital and largest city of France.",
+ *   context: "Paris is the capital and largest city of France.",
  * });
  * console.log(result.label); // "relevant"
  * ```

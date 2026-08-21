@@ -18,7 +18,7 @@ describe("createRetrievalRelevanceEvaluator", () => {
 
   const record = {
     input: "What is the capital of France?",
-    retrievedContext: "Paris is the capital and largest city of France.",
+    context: "Paris is the capital and largest city of France.",
   };
 
   it("should create a retrieval relevance evaluator with default template and choices", async () => {
@@ -58,7 +58,7 @@ describe("createRetrievalRelevanceEvaluator", () => {
     const retrievalRelevance = createRetrievalRelevanceEvaluator({ model });
     expect(retrievalRelevance.promptTemplateVariables).toEqual([
       "input",
-      "retrievedContext",
+      "context",
     ]);
   });
 
@@ -87,7 +87,7 @@ describe("createRetrievalRelevanceEvaluator", () => {
 
     await evaluator.evaluate(record);
 
-    for (const expected of [record.input, record.retrievedContext]) {
+    for (const expected of [record.input, record.context]) {
       expect(mockGenerateClassification).toHaveBeenCalledWith(
         expect.objectContaining({
           prompt: expect.arrayContaining([

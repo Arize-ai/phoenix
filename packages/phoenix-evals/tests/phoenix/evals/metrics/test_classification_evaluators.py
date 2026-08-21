@@ -63,7 +63,7 @@ ALL_EVALUATORS = [
     ),
     pytest.param(
         RetrievalRelevanceEvaluator,
-        {"input": "Q", "retrieved_context": "C"},
+        {"input": "Q", "context": "C"},
         id="RetrievalRelevanceEvaluator",
     ),
     pytest.param(
