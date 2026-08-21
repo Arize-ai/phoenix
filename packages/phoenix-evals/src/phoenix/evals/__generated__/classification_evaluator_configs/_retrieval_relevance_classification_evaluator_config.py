@@ -1,7 +1,10 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    PromptMessage,
+)
 
 RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="retrieval_relevance",
