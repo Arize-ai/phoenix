@@ -23,7 +23,6 @@ from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
-from phoenix.server.agents.prompts.static_prompts import read_static_prompt
 from phoenix.server.api.context import Context
 
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -43,7 +42,33 @@ class GraphQLMutationPolicy:
         return self.allow_mutations and (not self.require_approval or self.approved)
 
 
-_BASH_TOOL_DESCRIPTION = read_static_prompt("tools/BASH_TOOL_DESCRIPTION.txt")
+_BASH_TOOL_DESCRIPTION = """\
+Run a shell command inside a server-side virtual shell to run built-in utilities and \
+operate on a scratch filesystem.
+
+- Runs inside an in-process virtual shell, not a host machine or container.
+- Write scratch files only under /home/user/workspace.
+- General-purpose network access is disabled, so curl/wget and remote package installs \
+should not be assumed to work.
+- Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or \
+other host binaries exist.
+- Language runtimes such as python, python3, and node are not available.
+- phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
+Run `phoenix-gql --help` for usage and current permissions.
+
+Args:
+    summary: Short, user-facing description of what this command does. Shown as the
+        collapsed preview in the UI.
+    command: The shell command to execute.
+    mutation_description: Provide if and only if the command invokes a GraphQL \
+mutation via phoenix-gql: a concise, user-facing, one-sentence description of the \
+change the mutation will make, starting with "This command will ...". This is the \
+entire approval prompt the user reads before the command runs, so describe the \
+actual change, not your goal. Omitting it on a mutating command does not skip \
+approval — the mutation is refused and you must re-issue the call with it.
+
+Returns a dict with the command's `stdout`, `stderr`, and `exitCode`.\
+"""
 
 
 def _operation_types(query: str) -> set[GraphQLOperationType]:
