@@ -78,7 +78,7 @@ describe("read_dataset_evaluator_definition client action", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid read_dataset_evaluator_definition input.",
+        error: "Invalid evaluators.readDefinition input.",
       })
     );
   });

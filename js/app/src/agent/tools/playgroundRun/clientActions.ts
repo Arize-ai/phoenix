@@ -98,7 +98,7 @@ export function createRunPlaygroundClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseRunPlaygroundInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid run_playground input." };
+      return { ok: false, error: "Invalid playground.run input." };
     }
 
     const state = playgroundStore.getState();
@@ -158,7 +158,7 @@ export function createCancelPlaygroundRunClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseCancelPlaygroundRunInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid cancel_playground_run input." };
+      return { ok: false, error: "Invalid playground.run.cancel input." };
     }
 
     const state = playgroundStore.getState();

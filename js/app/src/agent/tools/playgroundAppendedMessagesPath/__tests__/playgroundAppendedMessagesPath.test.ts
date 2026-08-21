@@ -91,7 +91,7 @@ describe("playground appended messages path agent tool", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "No dataset is loaded; call load_dataset first.",
+        error: "No dataset is loaded; stage ui.playground.dataset.load first.",
       })
     );
   });
@@ -112,7 +112,7 @@ describe("playground appended messages path agent tool", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid set_appended_messages_path input.",
+        error: "Invalid playground.messages.setPath input.",
       })
     );
     expect(

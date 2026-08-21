@@ -32,7 +32,7 @@ export function createReadPromptClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseReadPromptInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid read_prompt_instance input." };
+      return { ok: false, error: "Invalid playground.prompt.read input." };
     }
     const snapshot = getPromptSnapshot({
       playgroundStore,
@@ -57,7 +57,7 @@ export function createClonePromptInstanceClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseClonePromptInstanceInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid clone_prompt_instance input." };
+      return { ok: false, error: "Invalid playground.instance.clone input." };
     }
     return clonePromptInstance({
       playgroundStore,
@@ -79,7 +79,7 @@ export function createAddPromptInstanceClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseAddPromptInstanceInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid add_prompt_instance input." };
+      return { ok: false, error: "Invalid playground.instance.add input." };
     }
     return addPromptInstance({ playgroundStore });
   };

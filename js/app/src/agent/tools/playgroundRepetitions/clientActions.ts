@@ -13,7 +13,7 @@ export function createSetPlaygroundRepetitionsClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid set_playground_repetitions input.",
+        error: "Invalid playground.repetitions.set input.",
       };
     }
 
