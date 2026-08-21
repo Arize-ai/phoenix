@@ -250,13 +250,13 @@ async def test_a_stream_past_its_deadline_times_out() -> None:
 async def test_a_mistyped_column_is_reported_not_leaked(db: DbSessionFactory) -> None:
     """The most common caller mistake must not surface as a driver traceback.
 
-    It used to reach the engine, where EXPLAIN resolves names, and returned
+    Reaching the engine, where EXPLAIN resolves names, produces
     ``(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class
-    'asyncpg.exceptions.UndefinedColumnError'>: ...`` -- naming our driver stack
+    'asyncpg.exceptions.UndefinedColumnError'>: ...`` -- naming the driver stack
     and inviting the caller to debug the server instead of the query.
 
-    Admission now refuses it first, since the column policy is an allowlist, so
-    the statement never reaches PostgreSQL and its "did you mean" never arrives.
+    Admission refuses it first, since the column policy is an allowlist, so the
+    statement never reaches PostgreSQL and its "did you mean" never arrives.
     The suggestion is made here instead, from the manifest -- which knows the
     exposed columns, so it will not propose one the caller cannot read.
     """
@@ -379,16 +379,16 @@ async def test_the_schema_is_resolved_not_assumed(
 ) -> None:
     """Both tools must name the schema Phoenix's ORM actually reads.
 
-    `load_allowlist("sqlite")` returns "public" and only the execute path overrode it,
-    so `describeSqlSchema` published indexes belonging to whatever sits in
-    `public` while the executor read somewhere else — names and JSON path
-    literals from a different instance's tables, and "repeat this spelling"
-    advice that was wrong for every entry.
+    `load_allowlist("sqlite")` returns "public", so a tool that does not override
+    it publishes indexes belonging to whatever sits in `public` while the
+    executor reads somewhere else — names and JSON path literals from a
+    different instance's tables, and "repeat this spelling" advice wrong for
+    every entry.
 
-    The execute path was not right either. It used `get_env_database_schema()
-    or "public"`, the hardcoded fallback #14172 removed from the usage
-    statistics: with the variable unset and the tables reached through
-    `search_path`, "public" names a schema that does not hold them.
+    `get_env_database_schema() or "public"` is not an override either: it is the
+    hardcoded fallback #14172 removed from the usage statistics. With the
+    variable unset and the tables reached through `search_path`, "public" names
+    a schema that does not hold them.
 
     Resolution follows that PR: the environment variable when set, otherwise
     the schema an unqualified `projects` reference resolves from. Deliberately

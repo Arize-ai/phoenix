@@ -79,9 +79,9 @@ PERMITTED = [
     # SQLite materialises a CTE when it carries GROUP BY, ORDER BY, DISTINCT or
     # LIMIT, and reports reads of the materialised result as reads of a table
     # named after the alias. Admission sees a CTE and permits it; the authorizer
-    # saw a table nobody allowlisted and refused it. The inlinable case passed,
-    # so the gap was invisible to any corpus that tested CTEs generically --
-    # each materialising clause is listed separately for that reason.
+    # sees a table nobody allowlisted. An inlined CTE reports the underlying
+    # table and passes, so a corpus that tests CTEs generically cannot reach
+    # this -- each materialising clause is therefore listed separately.
     pytest.param(
         "WITH t AS (SELECT span_kind, COUNT(*) AS c FROM spans GROUP BY span_kind) "
         "SELECT COUNT(*) AS v FROM t",
@@ -134,9 +134,9 @@ PERMITTED = [
         id="nth_value",
     ),
     pytest.param("SELECT ntile(4) OVER (ORDER BY id) AS v FROM spans", id="ntile"),
-    # The JSON family. These are the ones that were admitted and then refused:
-    # json_extract because rendering turns it into an operator, json_each because
-    # a table-valued function reads a pseudo-table rather than calling a function.
+    # The JSON family, where admission and the authorizer see different things:
+    # rendering turns json_extract into an operator, and json_each reads a
+    # pseudo-table rather than calling a function.
     pytest.param("SELECT json_extract(attributes, '$.a.b') AS v FROM spans", id="json_extract"),
     pytest.param("SELECT key AS v FROM spans, json_each(attributes)", id="json_each"),
     pytest.param(
@@ -449,17 +449,17 @@ async def test_queue_slot_is_returned_when_a_waiter_is_cancelled() -> None:
 
 
 async def test_queue_slot_is_returned_when_a_waiter_is_cancelled_twice() -> None:
-    """One cancellation was survivable; a second during the unwind was not.
+    """A second cancellation arriving during the unwind must still return the slot.
 
-    The decrement used to run under the same lock the admission check holds, so
-    it awaited inside a `finally` that a cancellation was already unwinding. A
-    second cancellation delivered during that await skipped it, and the slot was
-    gone for the life of the process -- the identical denial of service the test
-    above exists to prevent, reachable whenever the lock happened to be held.
+    Releasing the slot under the lock the admission check holds means awaiting
+    inside a `finally` that a cancellation is already unwinding. A second
+    cancellation delivered during that await skips the release, and the slot is
+    gone for the life of the process -- the denial of service the single-
+    cancellation test above exists to prevent, reachable whenever the lock is
+    held.
 
-    The comment on that decrement asserted the `finally` made a leak
-    impossible. It did not, which is why this case is separate: the single
-    cancellation above passed throughout.
+    A `finally` alone does not make the leak impossible, which is why this case
+    is separate: a single cancellation passes either way.
     """
     import asyncio
 
@@ -522,8 +522,7 @@ async def test_newly_allowed_function_executes(
 ) -> None:
     """Admitting a function is not the same as being able to run it.
 
-    Each of these was refused until the allowlist was widened, and widening it
-    only settles the parser's view. The engine still has to accept the rendered
+    Widening the allowlist settles only the parser's view. The engine still has to accept the rendered
     spelling, which is not always the one the caller wrote -- group_concat is
     emitted as string_agg on PostgreSQL, from the same node class.
     """
@@ -729,13 +728,11 @@ async def test_no_window_is_imposed_when_none_is_asked_for(
 ) -> None:
     """A query with no bounds reads all of history, and the envelope says so.
 
-    The surface used to inject a trailing seven-day window. It could not bound a
-    determined caller, since defeating it cost one parameter, and for everyone
-    else it answered a different question than the one asked while reporting
-    success. Across roughly twenty-five cold-agent runs every caller noticed it
-    and worked around it, so it protected nobody and charged everybody a round
-    trip. The row and byte caps bound the answer; the statement deadline bounds
-    the work.
+    An implicit trailing window cannot bound a determined caller -- defeating one
+    costs a single parameter -- while for everyone else it answers a different
+    question than the one asked and reports success. Bounding belongs to limits
+    that do not change the question: the row and byte caps bound the answer, and
+    the statement deadline bounds the work.
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(
@@ -1085,11 +1082,11 @@ async def test_portable_function_classes_are_executable_on_sqlite(
 ) -> None:
     """A class in the portable allowlist must also be in the authorizer's set.
 
-    exp.Upper, exp.Length, exp.CurrentTimestamp and exp.CurrentDate were
-    admitted by the parser policy and denied by the SQLite authorizer, so each
-    worked on PostgreSQL and was refused here -- the divergence the two
-    policies exist to prevent, and the one the allowlist comment claims the
-    liveness suite makes fail loudly. It did not, because no case covered them.
+    A class the parser policy admits but the authorizer denies works on
+    PostgreSQL and is refused here -- the divergence the two policies exist to
+    prevent. The allowlist comment claims this suite makes that fail loudly,
+    which holds only for classes a case actually executes, so every portable
+    class carries one.
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
@@ -1113,8 +1110,8 @@ async def test_distinct_on_executes(analytics_postgres_db: DbSessionFactory, sql
     In `DISTINCT ON` the same text is grammar, and `ROW` there is a syntax
     error, so admission accepted a statement the engine then rejected.
 
-    Executed rather than rendered: the corpus pinned admission for this shape
-    and could not see that the emitted SQL does not parse.
+    Executed rather than rendered: admission accepting the shape says nothing
+    about whether the emitted SQL parses.
     """
     result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
     assert result.envelope.row_count > 0

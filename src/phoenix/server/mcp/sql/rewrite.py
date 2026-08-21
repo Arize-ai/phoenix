@@ -206,29 +206,20 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
 def _assert_rewrites_preserved_policy(root: exp.Expression, ctx: RewriteContext) -> None:
     """Re-check the finished tree against the guarantees admission established.
 
-    Admission validates the statement the caller sent. The rewrite passes then
-    edit that statement, and until this ran, nothing looked at the result -- so an
-    admitted query could become a different query on its way to the engine, and
-    twice it did. One pass redirected a CTE reference to the base table it was
-    named after, turning a filtered count into a count of everything. Another
-    silently dropped a TABLESAMPLE clause on exactly the tables it wrapped.
+    Admission validates the statement the caller sent; the rewrite passes then
+    edit it. Without a check between the last pass and the engine, an admitted
+    query can become a different query on the way there -- a relation reference
+    redirected to a table it was merely named after, or a clause dropped from
+    the tables it constrained -- and nothing downstream distinguishes that from
+    the query the caller asked for.
 
-    Neither was caught by a check, because no check existed between the last
-    pass and the engine. Both would have failed here.
-
-    This used to raise AssertionError, on the reasoning that reaching it meant
-    our own code had produced something admission would not have accepted --
-    a defect on this side, which should surface as one. The reasoning was
-    sound and the premise was not: a table aliased to a CTE's name was dropped
-    from the scope map admission reads, so ordinary caller SQL reached here and
-    the AssertionError left through the caller's response rather than the error
-    envelope, exactly as an unhandled driver error would.
-
-    So it refuses, and logs at error level. The loud signal is kept where it is
-    useful -- to whoever runs the server -- rather than delivered to a caller
-    who can neither act on it nor tell it apart from a crash. Both halves
-    matter: a silent refusal here would hide the defect, and an escaping
-    exception hides it just as well while also breaking the response contract.
+    Reaching this normally means a defect in the rewrite passes, but not always:
+    a scope the passes model differently from admission sends ordinary caller
+    SQL here too. It therefore refuses rather than asserting, so the failure
+    leaves through the error envelope instead of escaping as an unhandled
+    exception, and logs at error level so the signal reaches whoever runs the
+    server. Both halves are load-bearing: a silent refusal hides the defect, and
+    an escaping exception hides it while also breaking the response contract.
     """
     for table in root.find_all(exp.Table):
         name = table.name or ""
@@ -426,8 +417,8 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
         if ctx.dialect == "sqlite":
             rendered = format_timestamp_for_sqlite(instant)
         else:
-            # isoformat keeps whole seconds as `...00+00:00` and retains
-            # subseconds that `%Y-%m-%dT%H:%M:%S+00:00` used to drop.
+            # isoformat keeps whole seconds as `...00+00:00` and retains the
+            # subseconds an explicit `%Y-%m-%dT%H:%M:%S+00:00` format drops.
             rendered = instant.isoformat()
         replacement: exp.Expression = exp.Literal.string(rendered)
         # CAST(1719792000 AS bigint) compared to timestamptz: replacing only
