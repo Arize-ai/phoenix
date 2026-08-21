@@ -36,6 +36,7 @@ jobs:
       ddl: ${{ steps.filter.outputs.ddl }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
+      trace_filter_dsl: ${{ steps.filter.outputs.trace_filter_dsl }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -77,6 +78,10 @@ jobs:
             uv_lock:
               - "**/pyproject.toml"
               - "uv.lock"
+            trace_filter_dsl:
+              - "js/app/src/pages/project/traceFilterDSL.ts"
+              - "src/phoenix/trace/dsl/**"
+              - "scripts/ci/check_trace_filter_snippets.py"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -90,6 +95,7 @@ jobs:
           DDL: ${{ steps.filter.outputs.ddl }}
           UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
           JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
+          TRACE_FILTER_DSL: ${{ steps.filter.outputs.trace_filter_dsl }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -102,6 +108,7 @@ jobs:
           echo "ddl: $DDL"
           echo "uv_lock: $UV_LOCK"
           echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
+          echo "trace_filter_dsl: $TRACE_FILTER_DSL"
 
   phoenix-client:
     name: Phoenix Client
@@ -271,6 +278,37 @@ jobs:
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
+
+  check-trace-filter-snippets:
+    name: Check Trace Filter Snippets
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.trace_filter_dsl == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/ci/
+            requirements/
+            src/phoenix/
+            js/app/src/pages/project/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.12.1"
+      - name: Check UI trace filter snippets against the Python DSL
+        run: make check-trace-filter-snippets
 
   doctests:
     name: Doctests
@@ -492,7 +530,6 @@ jobs:
             src/phoenix/
             evals/
             packages/phoenix-evals/
-            js/app/src/pages/project/
             tests/unit/
             tests/conftest.py
             tests/__generated__/
@@ -704,6 +741,7 @@ jobs:
       - phoenix-otel
       - clean-jupyter-notebooks
       - build-graphql-schema
+      - check-trace-filter-snippets
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
