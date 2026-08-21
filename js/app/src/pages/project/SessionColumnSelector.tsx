@@ -51,6 +51,7 @@ export function SessionColumnSelector({
           names: getNonNoteAnnotationNames(data.sessionAnnotationNames),
           visibility: annotationColumnVisibility,
           onVisibilityChange: setAnnotationColumnVisibility,
+          targetType: "session",
           getColumnId: (name) => makeAnnotationColumnId(name, "score"),
         },
       ]}

@@ -1,5 +1,7 @@
 import type { Column } from "@tanstack/react-table";
 
+import { AnnotationTargetTypeBadge } from "@phoenix/components/annotation/AnnotationTargetTypeBadge";
+import type { AnnotationTargetType } from "@phoenix/components/annotation/types";
 import type { ColumnSelectorColumn } from "@phoenix/components/table";
 import {
   applySubsetColumnOrder,
@@ -21,10 +23,14 @@ export interface AnnotationColumnKind {
   names: string[];
   visibility: Record<string, boolean>;
   onVisibilityChange: (visibility: Record<string, boolean>) => void;
+  /**
+   * What this kind's annotations annotate. Shown as a badge beside each
+   * annotation column so same-named annotations of different kinds can be
+   * told apart.
+   */
+  targetType: AnnotationTargetType;
   /** Returns the TanStack id for this annotation's visible flat column. */
   getColumnId: (name: string) => string;
-  /** Distinguishes an annotation from a same-named one of another kind. */
-  getLabel?: (name: string) => string;
 }
 
 export interface TracingColumnSelectorProps {
@@ -111,8 +117,12 @@ export function TracingColumnSelector({
         return [
           {
             id,
-            label:
-              annotation.kind.getLabel?.(annotation.name) ?? annotation.name,
+            label: annotation.name,
+            trailingVisual: (
+              <AnnotationTargetTypeBadge
+                targetType={annotation.kind.targetType}
+              />
+            ),
           },
         ];
       }

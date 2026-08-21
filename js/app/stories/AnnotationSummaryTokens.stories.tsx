@@ -108,9 +108,7 @@ export const UnifiedHoverPreview: Story = {
       timeout: 2000,
     });
     await expect(within(preview).getByText("quality")).toBeInTheDocument();
-    await expect(
-      within(preview).getByText("span annotation")
-    ).toBeInTheDocument();
+    await expect(within(preview).getByText("span")).toBeInTheDocument();
     await expect(
       within(preview).getByText("Grounded in the supplied context.")
     ).toBeInTheDocument();

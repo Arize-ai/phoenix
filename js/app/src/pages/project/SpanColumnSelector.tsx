@@ -74,6 +74,7 @@ export function SpanColumnSelector({
           names: getNonNoteAnnotationNames(annotationsData.spanAnnotationNames),
           visibility: annotationColumnVisibility,
           onVisibilityChange: setAnnotationColumnVisibility,
+          targetType: "span",
           getColumnId: (name) => makeAnnotationColumnId(name, "score"),
         },
         {
@@ -82,7 +83,7 @@ export function SpanColumnSelector({
           ),
           visibility: traceAnnotationColumnVisibility,
           onVisibilityChange: setTraceAnnotationColumnVisibility,
-          getLabel: (name) => `${name} (trace)`,
+          targetType: "trace",
           getColumnId: (name) => makeAnnotationColumnId(name, "score", "trace"),
         },
       ]}

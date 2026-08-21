@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
 import { type ReactNode, useId } from "react";
 
-import { Badge, Flex, Text, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { AnnotationTargetTypeBadge } from "@phoenix/components/annotation/AnnotationTargetTypeBadge";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
@@ -103,7 +104,7 @@ export function AnnotationDetailsList({
               </Truncate>
             </View>
             <View flex="none">
-              <Badge variant="info">{`${annotationTargetType} annotation`}</Badge>
+              <AnnotationTargetTypeBadge targetType={annotationTargetType} />
             </View>
           </Flex>
           {meanScore != null ? (
