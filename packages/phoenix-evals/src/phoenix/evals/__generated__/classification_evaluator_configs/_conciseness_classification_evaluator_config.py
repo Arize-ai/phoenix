@@ -1,7 +1,13 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 
 CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="conciseness",
@@ -16,4 +22,13 @@ CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"concise": 1.0, "verbose": 0.0},
     substitutions={"output": "output_messages_to_conversation"},
     labels=[],
+    scope=EvaluatorScope.SPAN,
+    category=EvaluatorCategory.RESPONSE_QUALITY,
+    details="Assesses whether an LLM's response uses the minimum number of words necessary to fully answer the question. It detects unnecessary pleasantries, hedging language, meta-commentary, redundant restatements, and unsolicited explanations.",
+    inputs={
+        "input": EvaluatorInput(
+            description="The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+        ),
+        "output": EvaluatorInput(description="The LLM's output response to be evaluated."),
+    },
 )
