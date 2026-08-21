@@ -14,7 +14,7 @@ export function createSetTemplateVariablesPathClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseSetTemplateVariablesPathInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid set_template_variables_path input." };
+      return { ok: false, error: "Invalid playground.variables.setPath input." };
     }
 
     // Resolve like the playground page (shared helper), then fall back to the store.

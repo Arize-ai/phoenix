@@ -19,7 +19,7 @@ export function createReadDatasetEvaluatorDefinitionClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid read_dataset_evaluator_definition input.",
+        error: "Invalid evaluators.readDefinition input.",
       };
     }
 

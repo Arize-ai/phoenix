@@ -26,7 +26,7 @@ export function createReadCodeEvaluatorDraftClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid read_code_evaluator_draft input.",
+        error: "Invalid evaluators.code.read input.",
       };
     }
     const host = getDraftHost();
@@ -137,7 +137,7 @@ export function createTestCodeEvaluatorDraftClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid test_code_evaluator_draft input.",
+        error: "Invalid evaluators.code.test input.",
       };
     }
     if (!isDraftMounted()) {

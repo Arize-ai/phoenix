@@ -15,7 +15,7 @@ export function createSetVariableValuesClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseSetVariableValuesInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid set_variable_values input." };
+      return { ok: false, error: "Invalid playground.variables.set input." };
     }
 
     playgroundStore.getState().setVariableValues(parsed.values);

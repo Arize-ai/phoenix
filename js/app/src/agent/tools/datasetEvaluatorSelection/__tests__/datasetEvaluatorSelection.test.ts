@@ -83,7 +83,7 @@ describe("set_dataset_evaluator_selection client action", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid set_dataset_evaluator_selection input.",
+        error: "Invalid evaluators.select input.",
       })
     );
   });

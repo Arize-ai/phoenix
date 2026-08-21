@@ -43,7 +43,7 @@ describe("playground output agent tool", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid read_playground_output input.",
+        error: "Invalid playground.run.readOutput input.",
       })
     );
   });

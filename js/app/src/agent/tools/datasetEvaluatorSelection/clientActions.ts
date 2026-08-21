@@ -24,7 +24,7 @@ export function createSetDatasetEvaluatorSelectionClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid set_dataset_evaluator_selection input.",
+        error: "Invalid evaluators.select input.",
       };
     }
 

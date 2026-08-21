@@ -26,7 +26,7 @@ export function createReadLlmEvaluatorDraftClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid read_llm_evaluator_draft input.",
+        error: "Invalid evaluators.llm.read input.",
       };
     }
     const host = getDraftHost();
@@ -137,7 +137,7 @@ export function createTestLlmEvaluatorDraftClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid test_llm_evaluator_draft input.",
+        error: "Invalid evaluators.llm.test input.",
       };
     }
     if (!isDraftMounted()) {

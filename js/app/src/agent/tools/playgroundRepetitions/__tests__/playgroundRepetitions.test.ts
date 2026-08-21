@@ -69,7 +69,7 @@ describe("playground repetitions agent tool", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid set_playground_repetitions input.",
+        error: "Invalid playground.repetitions.set input.",
       })
     );
     expect(playgroundStore.getState().repetitions).toBe(1);

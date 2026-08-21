@@ -19,7 +19,7 @@ export function createSetAppendedMessagesPathClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseSetAppendedMessagesPathInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid set_appended_messages_path input." };
+      return { ok: false, error: "Invalid playground.messages.setPath input." };
     }
 
     // Resolve like the playground page (shared helper), then fall back to the store.
@@ -38,7 +38,7 @@ export function createSetAppendedMessagesPathClientAction({
     if (datasetId == null) {
       return {
         ok: false,
-        error: "No dataset is loaded; call load_dataset first.",
+        error: "No dataset is loaded; stage ui.playground.dataset.load first.",
       };
     }
 

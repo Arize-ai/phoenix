@@ -116,7 +116,7 @@ describe("playground experiment recording agent tool", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid set_playground_experiment_recording input.",
+        error: "Invalid playground.experiment.setRecording input.",
       })
     );
     expect(playgroundStore.getState().recordExperiments).toBe(true);

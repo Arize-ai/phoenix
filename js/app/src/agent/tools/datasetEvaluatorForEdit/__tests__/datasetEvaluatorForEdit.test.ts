@@ -152,7 +152,7 @@ describe("open_dataset_evaluator_for_edit client action", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid open_dataset_evaluator_for_edit input.",
+        error: "Invalid evaluators.openForEdit input.",
       })
     );
   });

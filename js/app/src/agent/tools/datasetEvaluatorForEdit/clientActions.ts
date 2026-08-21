@@ -70,7 +70,7 @@ export function createOpenDatasetEvaluatorForEditClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid open_dataset_evaluator_for_edit input.",
+        error: "Invalid evaluators.openForEdit input.",
       };
     }
 
