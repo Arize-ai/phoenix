@@ -10,7 +10,7 @@ describe("PXI tool icon configuration", () => {
   it.each([
     ["ask_user", "MessagesSquare"],
     ["bash", "Console"],
-    ["create_dataset", "Database"],
+    ["load_dataset", "Database"],
     ["query_docs_filesystem_phoenix", "Search"],
     ["search_phoenix", "Search"],
     ["web_search", "Globe"],

@@ -1,7 +1,7 @@
 ---
 name: annotate-spans
 description: >
-  Write effective, consistent annotations on LLM/agent spans and traces, and coach the user on annotation practice. Load this whenever you are about to record structured feedback with the `batch_span_annotate` tool, or when the user asks how to annotate, label, score, or review spans/traces, build a failure taxonomy, or set up human/LLM review. Do NOT load for: pure analysis with no intent to save feedback (use debug-trace), latency or cost statistics, or prompt authoring (use playground).
+  Write effective, consistent annotations on LLM/agent spans and traces, and coach the user on annotation practice. Load this whenever you are about to record structured feedback, or when the user asks how to annotate, label, score, or review spans/traces, build a failure taxonomy, or set up human/LLM review. Do NOT load for: pure analysis with no intent to save feedback (use debug-trace), latency or cost statistics, or prompt authoring (use playground).
 summary: Create consistent span or trace annotations and help design useful feedback taxonomies.
 ---
 
@@ -16,7 +16,7 @@ A good annotation earns its place by being useful *later*:
 - **Auditable** — months later, the explanation still justifies the judgment without rerunning anything.
 - **Curatable** — failing spans can be pulled into a dataset to drive evals or fixes.
 
-This skill governs the *judgment* behind annotations. The `batch_span_annotate` tool description governs the *mechanics* (one array, ID requirements, update keying); follow both, and never contradict the tool's naming and identifier rules.
+This skill governs the *judgment* behind annotations. Load the `phoenix-graphql` skill for the mutation mechanics and schema details. Execute exactly one annotation mutation per `phoenix-gql` call so each write has its own approval surface.
 
 ## What Makes an Annotation Useful
 
@@ -62,9 +62,9 @@ Before writing any annotation:
    }
    ```
 2. **Reuse an existing config when one fits.** Annotate with the config's exact `name` and a `label` from its `values` (or a `score` within its bounds). This is what keeps `annotations['tool_selection'].label == 'incorrect'` filterable and aggregatable across runs. A config that already defines the scale also answers questions you would otherwise stop to ask the user (e.g. "what numeric range?") — don't `ask_user` for something a config already specifies.
-3. **When a new category emerges that no config covers, codify it before (or as) you annotate** — don't add an ad-hoc annotation and move on. Use the annotation-config tools rather than raw GraphQL mutations; the tools provide the approval surface and the frontend owns the write path.
-   - **No close config** → call `create_annotation_config` with the new rubric and the current project's `projectId`, then annotate against that config's `name` after the proposal is accepted.
-   - **A config is close but missing a label** → call `update_annotation_config` to replace it with the complete desired scheme, then annotate. Update is a full replace: pass the existing `values` plus the new one, keep the same `name`, and do not omit values you want to keep.
+3. **When a new category emerges that no config covers, codify it before (or as) you annotate** — don't add an ad-hoc annotation and move on. Load the `phoenix-graphql` skill and use its annotation-config mutations through `phoenix-gql`.
+   - **No close config** → create the new rubric for the current project, then annotate against that config's `name` after the mutation is approved.
+   - **A config is close but missing a label** → update it with the complete desired scheme, then annotate. Update is a full replace: pass the existing `values` plus the new one, keep the same `name`, and do not omit values you want to keep.
 
    Codifying first means the next visit to this project rediscovers the criteria instead of growing a second, differently-named rubric for the same thing. Use `type: "categorical" | "continuous" | "freeform"` and set `optimizationDirection` to `MINIMIZE`, `MAXIMIZE`, or `NONE` when it matters.
 4. **Surface the choice explicitly.** Tell the user when you reused a config versus proposed a new one or extended an existing one, and why. Naming or changing a rubric is a decision they may want to weigh in on.
@@ -93,7 +93,7 @@ When the user asks you to save annotations:
 3. **Pick the dimension(s) from the project's annotation configs.** Pull the configs first and reuse a matching config's `name` and label/score scheme; if a needed category has no config, create or extend one (see [Work From the Project's Annotation Configs](#work-from-the-projects-annotation-configs)) before writing. Then judge every span in the batch on that fixed vocabulary. If you're judging more than one dimension, settle each one's config up front.
 4. **Annotate the right span for each judgment** (principle 3) and the first failure (principle 4). Use only real IDs from context or prior tool results — never guess span IDs.
 5. **Write a grounded explanation per annotation** citing the specific evidence in that span.
-6. **Batch the related annotations into one `batch_span_annotate` call** and pick the `identifier` to match your intent (annotations are keyed by `(name, span, identifier)`):
+6. **Load the `phoenix-graphql` skill and write annotations with `phoenix-gql`. Use exactly one mutation per call** so every write is independently reviewable. Pick the `identifier` to match your intent (annotations are keyed by `(name, span, identifier)`):
    - Use a **stable** identifier that names you as the author — e.g. `pxi` — when the judgment should be *updatable*: re-reviewing the same span and dimension overwrites the prior annotation instead of duplicating it.
    - Use a **descriptive, run-scoped** identifier — e.g. `pxi:tool-misuse-2026-05-29` — for a discrete review batch you may want to query or revert as a unit later. This mirrors the Phoenix CLI's `coding-run:<topic>-<date>` convention: a descriptive id carries meaning for whoever opens the data later, far better than an opaque constant.
    - Either way, the author prefix keeps your annotations distinguishable from human or other-evaluator annotations on the same span. Do not reuse one identifier for two unrelated runs you'd want to revert separately.

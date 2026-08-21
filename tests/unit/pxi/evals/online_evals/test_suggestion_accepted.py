@@ -73,7 +73,7 @@ def test_manual_acceptance_scores_one() -> None:
     assert score.metadata == {"tool_name": "edit_prompt_instance"}
 
 
-@pytest.mark.parametrize("tool_name", ["save_prompt", "load_dataset", "create_dataset"])
+@pytest.mark.parametrize("tool_name", ["save_prompt", "load_dataset", "get_route_info"])
 def test_acceptance_uses_marker_across_tool_output_shapes(tool_name: str) -> None:
     score = _evaluate(
         _tool_span(

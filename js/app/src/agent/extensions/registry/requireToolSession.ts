@@ -5,7 +5,7 @@ import type { AddToolOutput, AgentToolCall } from "./defineTool";
  *
  * Requiring a session is orthogonal to whether a tool delegates to a page
  * action: both `defineClientActionTool` (via its `requireSession` knob) and
- * standalone `defineTool` tools (`ask_user`, `batch_span_annotate`) compose this
+ * standalone `defineTool` tools (such as `ask_user`) compose this
  * guard instead of hand-rolling the same check. Returns the non-null session id,
  * or emits an `output-error` and returns `null` so the caller can bail.
  *

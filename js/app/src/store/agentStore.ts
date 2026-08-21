@@ -12,13 +12,9 @@ import {
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
-import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
-import type { PendingAnnotationConfigWrite } from "@phoenix/agent/tools/annotationConfig";
-import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import type { PendingPatchExperiment } from "@phoenix/agent/tools/patchExperiment";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type {
   PendingPromptEdit,
@@ -479,34 +475,6 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     removal: PendingPromptInstanceRemoval | null
   ) => void;
-  pendingBatchSpanAnnotatesByToolCallId: Partial<
-    Record<string, PendingBatchSpanAnnotate>
-  >;
-  setPendingBatchSpanAnnotate: (
-    toolCallId: string,
-    annotation: PendingBatchSpanAnnotate | null
-  ) => void;
-  pendingDatasetWritesByToolCallId: Partial<
-    Record<string, PendingDatasetWrite>
-  >;
-  setPendingDatasetWrite: (
-    toolCallId: string,
-    pending: PendingDatasetWrite | null
-  ) => void;
-  pendingAnnotationConfigWritesByToolCallId: Partial<
-    Record<string, PendingAnnotationConfigWrite>
-  >;
-  setPendingAnnotationConfigWrite: (
-    toolCallId: string,
-    pending: PendingAnnotationConfigWrite | null
-  ) => void;
-  pendingPatchExperimentsByToolCallId: Partial<
-    Record<string, PendingPatchExperiment>
-  >;
-  setPendingPatchExperiment: (
-    toolCallId: string,
-    patch: PendingPatchExperiment | null
-  ) => void;
   pendingPromptToolWritesByToolCallId: Partial<
     Record<string, PendingPromptToolWrite>
   >;
@@ -628,15 +596,6 @@ export type AgentClientAction = (
   context?: unknown
 ) => Promise<AgentClientActionResult>;
 
-function removeToolCallRecordForSession<T extends { sessionId: string }>(
-  record: Partial<Record<string, T>>,
-  sessionId: string
-): Partial<Record<string, T>> {
-  return Object.fromEntries(
-    Object.entries(record).filter(([, value]) => value?.sessionId !== sessionId)
-  );
-}
-
 /**
  * Base local-storage key for the persisted assistant state. Used verbatim for
  * single-tenant deployments and as a prefix when scoping by root path.
@@ -682,10 +641,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
     pendingPromptInstanceRemovalsByToolCallId: {},
-    pendingBatchSpanAnnotatesByToolCallId: {},
-    pendingDatasetWritesByToolCallId: {},
-    pendingAnnotationConfigWritesByToolCallId: {},
-    pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
     pendingCodeEvaluatorEditsByToolCallId: {},
@@ -753,11 +708,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...state.pendingMessageBySessionId,
           };
           delete newPendingMessageBySessionId[sessionId];
-          const newPendingPatchExperimentsByToolCallId =
-            removeToolCallRecordForSession(
-              state.pendingPatchExperimentsByToolCallId,
-              sessionId
-            );
           return {
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
@@ -767,8 +717,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             sessionNoticeBySessionId: newSessionNoticeBySessionId,
             draftInputBySessionId: newDraftInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
-            pendingPatchExperimentsByToolCallId:
-              newPendingPatchExperimentsByToolCallId,
           };
         },
         false,
@@ -1104,68 +1052,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingPromptInstanceRemoval" }
-      );
-    },
-
-    setPendingDatasetWrite: (toolCallId, pending) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingDatasetWritesByToolCallId };
-          if (pending) {
-            next[toolCallId] = pending;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingDatasetWritesByToolCallId: next };
-        },
-        false,
-        { type: "setPendingDatasetWrite" }
-      );
-    },
-    setPendingAnnotationConfigWrite: (toolCallId, pending) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingAnnotationConfigWritesByToolCallId };
-          if (pending) {
-            next[toolCallId] = pending;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingAnnotationConfigWritesByToolCallId: next };
-        },
-        false,
-        { type: "setPendingAnnotationConfigWrite" }
-      );
-    },
-    setPendingBatchSpanAnnotate: (toolCallId, annotation) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingBatchSpanAnnotatesByToolCallId };
-          if (annotation) {
-            next[toolCallId] = annotation;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingBatchSpanAnnotatesByToolCallId: next };
-        },
-        false,
-        { type: "setPendingBatchSpanAnnotate" }
-      );
-    },
-
-    setPendingPatchExperiment: (toolCallId, patch) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingPatchExperimentsByToolCallId };
-          if (patch) {
-            next[toolCallId] = patch;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingPatchExperimentsByToolCallId: next };
-        },
-        false,
-        { type: "setPendingPatchExperiment" }
       );
     },
 

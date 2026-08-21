@@ -31,12 +31,17 @@ _RESOURCE_SPECS: tuple[ResourceSpec, ...] = (
     ),
     (
         "datasets",
-        "Dataset and DatasetExample: examples, versions, splits, and labels.",
+        "Dataset and DatasetExample reads and writes: versions, examples, and span ingestion.",
         "datasets.md",
     ),
     (
+        "dataset-labels-splits",
+        "Instance-wide dataset label/split vocabulary, assignment, and CRUD mutations.",
+        "dataset-labels-splits.md",
+    ),
+    (
         "experiments",
-        "Experiment and ExperimentRun: runs, aggregate metrics, and comparison.",
+        "Experiment and ExperimentRun reads, aggregate metrics, comparison, and edits.",
         "experiments.md",
     ),
     (
@@ -46,7 +51,7 @@ _RESOURCE_SPECS: tuple[ResourceSpec, ...] = (
     ),
     (
         "annotations",
-        "Span/Trace/ExperimentRun annotation fields and how to read them.",
+        "Annotation reads, batch span writes, and annotation-config mutations.",
         "annotations.md",
     ),
 )

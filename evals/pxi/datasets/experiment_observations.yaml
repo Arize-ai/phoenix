@@ -3,9 +3,9 @@ description: >-
   PXI eval suite for the experiment notes/metadata workflow. Covers staging an
   experiment scaffold (hypothesis, changed variable, baseline) on the recording
   tool before a recorded run, and appending a timestamped observation to an
-  experiment's metadata after reading its results — preserving the scaffold keys
-  a whole-metadata replace would otherwise clobber. Negatives cover read-only
-  requests that must not write any metadata back.
+  experiment's metadata through phoenix-gql after reading its results — preserving
+  the scaffold keys a whole-metadata replace would otherwise clobber. Negatives
+  cover read-only requests that must not write any metadata back.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
@@ -29,7 +29,6 @@ examples:
     expected:
       tools:
         required: [set_playground_experiment_recording]
-        forbidden: [patch_experiment]
       tool_call_args:
         set_playground_experiment_recording:
           recordExperiments: true
@@ -59,7 +58,6 @@ examples:
     expected:
       tools:
         required: [set_playground_experiment_recording]
-        forbidden: [patch_experiment]
       tool_call_args:
         set_playground_experiment_recording:
           recordExperiments: true
@@ -74,7 +72,7 @@ examples:
 
   # --- Observations after reading results: append to metadata, preserving existing keys ---
   - id: append-observation-after-reading
-    # quarantined: systematic patch_experiment observation-append deficiency;
+    # quarantined: systematic experiment observation-append deficiency;
     # see CI runs 28554517868 + 28801811562
     splits: [dev]
     input:
@@ -105,11 +103,9 @@ examples:
             that as an observation on this experiment so I remember it next time.
     expected:
       tools:
-        required: [patch_experiment]
-      tool_call_args:
-        patch_experiment:
-          experimentId: { non_empty: true }
-          metadata: { has_keys: [observations] }
+        required: [bash]
+      bash_command:
+        contains: [phoenix-gql, patchExperiment, observations]
       budgets:
         max_tool_calls: 2
     metadata:
@@ -118,7 +114,7 @@ examples:
       polarity: positive
 
   - id: preserve-scaffold-when-appending
-    # quarantined: systematic patch_experiment observation-append deficiency;
+    # quarantined: systematic experiment observation-append deficiency;
     # see CI runs 28554517868 + 28801811562
     splits: [dev]
     input:
@@ -151,16 +147,15 @@ examples:
             and baseline that are already on it.
     expected:
       tools:
-        required: [patch_experiment]
-      tool_call_args:
-        patch_experiment:
-          experimentId: { non_empty: true }
-          metadata:
-            has_keys:
-              - observations
-              - hypothesis
-              - changed_variable
-              - baseline_experiment_id
+        required: [bash]
+      bash_command:
+        contains:
+          - phoenix-gql
+          - patchExperiment
+          - observations
+          - hypothesis
+          - changed_variable
+          - baseline_experiment_id
       budgets:
         max_tool_calls: 2
     metadata:
@@ -183,7 +178,11 @@ examples:
           content: Just show me how this experiment's results came out — quality, latency, and cost.
     expected:
       tools:
-        forbidden: [patch_experiment, set_playground_experiment_recording]
+        required: [bash]
+        forbidden: [set_playground_experiment_recording]
+      bash_command:
+        contains: [phoenix-gql]
+        not_contains: [patchExperiment]
       budgets:
         max_tool_calls: 3
     metadata:
@@ -207,7 +206,10 @@ examples:
             handled the failure cases better.
     expected:
       tools:
-        forbidden: [patch_experiment]
+        required: [bash]
+      bash_command:
+        contains: [phoenix-gql]
+        not_contains: [patchExperiment]
       budgets:
         max_tool_calls: 3
     metadata:
