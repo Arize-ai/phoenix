@@ -10,6 +10,8 @@ import {
 } from "@phoenix/agent/uiOperations/runtime/uiScriptBridge";
 import type { UiOperationResult } from "@phoenix/agent/uiOperations/types";
 
+import uiScriptBridgeSource from "../uiScriptBridge.ts?raw";
+
 /** A real approval-kind operation, so the bridge pauses the budget for it. */
 const APPROVAL_OP = "playground.prompt.edit";
 
@@ -132,6 +134,75 @@ describe("runUiScript worker failure backstop", () => {
     }
   });
 
+  it("hard-kills a run whose approval never settles, once the wait budget is spent", async () => {
+    vi.useFakeTimers();
+    try {
+      const worker = createFakeWorker();
+      const neverSettles = new Promise<UiOperationResult>(() => {});
+      const dispatchCall = vi.fn(() => neverSettles);
+
+      const runPromise = runUiScript({
+        script: "await ui.something();",
+        dispatchCall,
+        createWorker: () => worker,
+        timeoutMs: 1000,
+        maxPausedMs: 2000,
+      });
+
+      // An approval goes in flight, switching the clock to the wait budget...
+      worker.emitMessage({
+        type: "call",
+        callId: 1,
+        operationName: APPROVAL_OP,
+        input: {},
+      });
+      await Promise.resolve();
+
+      // ...and the user never decides. Without a wait budget the run would
+      // live forever with the execution clock paused; now it dies when the
+      // 2000ms of waiting is spent.
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(worker.isTerminated).toBe(false);
+      await vi.advanceTimersByTimeAsync(2);
+
+      const result = await runPromise;
+      expect(result).toMatchObject({
+        ok: false,
+        error: expect.stringContaining("awaiting approvals"),
+      });
+      expect(worker.isTerminated).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still enforces the execution budget when no approval is in flight", async () => {
+    vi.useFakeTimers();
+    try {
+      const worker = createFakeWorker();
+      const runPromise = runUiScript({
+        script: "while (true) {}",
+        dispatchCall: vi.fn(),
+        createWorker: () => worker,
+        timeoutMs: 1000,
+        maxPausedMs: 2000,
+      });
+
+      await vi.advanceTimersByTimeAsync(999);
+      expect(worker.isTerminated).toBe(false);
+      await vi.advanceTimersByTimeAsync(2);
+
+      const result = await runPromise;
+      expect(result).toMatchObject({
+        ok: false,
+        error: expect.stringContaining("execution budget"),
+      });
+      expect(worker.isTerminated).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reports a script-posted parse failure as the run error", async () => {
     const worker = createFakeWorker();
     const runPromise = runUiScript({
@@ -151,5 +222,11 @@ describe("runUiScript worker failure backstop", () => {
       ok: false,
       error: expect.stringContaining("failed to parse"),
     });
+  });
+});
+
+describe("createUiScriptWorker bundler contract", () => {
+  it("imports the worker with ?worker&url so Vite emits a JS chunk", () => {
+    expect(uiScriptBridgeSource).toMatch(/uiScriptWorker\.ts\?worker&url/);
   });
 });
