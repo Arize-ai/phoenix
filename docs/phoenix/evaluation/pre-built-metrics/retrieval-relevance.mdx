@@ -1,0 +1,259 @@
+---
+title: "Retrieval Relevance"
+description: "Evaluate whether externally retrieved information is relevant to the request it was serving."
+---
+
+## Overview
+
+The **Retrieval Relevance** evaluator determines whether the external information retrieved during a step is relevant to the request it was meant to serve. It is **source-agnostic**: the retrieved information may come from a vector-database / semantic search, a tool or function call, an MCP server, a web search, or a database query. It scores the retrieved information as a whole — holistically, per retrieval step — against the request.
+
+### When to Use
+
+Use the Retrieval Relevance evaluator when you need to:
+
+- **Diagnose RAG quality** - Check whether retrieved documents actually bear on the user's question
+- **Evaluate tool- and MCP-based retrieval** - Judge whether a tool call, MCP query, or web search returned information relevant to the request, not just whether it succeeded
+- **Compare retrieval strategies** - Measure the relevance of what a retriever, reranker, or agent surfaces across different pipelines
+
+<Info>
+This evaluator judges the **retrieved information against the request** — it is independent of any final answer. To judge whether the answer is grounded in the context, use the [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness).
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply to the span that performed the retrieval. Provide the request as `input` and the retrieved information as `context`. |
+
+**Relevant span kinds:** `RETRIEVER` and `RERANKER` spans, `TOOL` spans that return information (knowledge base, web search, MCP, SQL), and `LLM` spans that retrieved information themselves (e.g. server-side / native web search, where results are embedded in the message content). Action tools with side effects (e.g. `send_email`) and pure LLM turns are not retrieval steps and should not be scored.
+
+## Input Requirements
+
+The Retrieval Relevance evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The request the retrieval was serving |
+| `context` | `string` | The external information retrieved during the step, with all returned items joined together |
+
+### Formatting Tips
+
+For best results:
+
+- **Use the user's request as `input`.** For tool and SQL steps, prefer the user's request (e.g. the trace root's `input.value`) over a reformulated tool argument or a generated SQL query.
+- **Join multiple retrieved items** into a single `context` string with clear separators (see [Input Mapping](#using-input-mapping) below):
+  ```
+  Our return policy allows returns within 30 days of purchase.
+
+  Refunds are processed within 5 business days.
+  ```
+- **Use human-readable strings** rather than raw JSON where possible.
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"relevant"` or `"irrelevant"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = relevant, 0.0 = irrelevant) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"maximize"` | Higher scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Interpretation:**
+- **Relevant (1.0)**: The retrieved information contains content that materially helps address the request. If any meaningful part of the retrieved information helps, the step is relevant — even when the set is partial or mixed with unrelated material.
+- **Irrelevant (0.0)**: The retrieved information does not help address the request — it is off-topic, about a different entity or time period, only tangentially related, empty, or an error.
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    relevance_eval = RetrievalRelevanceEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(relevance_eval.describe())
+
+    # Evaluate a single example
+    eval_input = {
+        "input": "What is the capital of France?",
+        "context": "Paris is the capital and largest city of France."
+    }
+
+    scores = relevance_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='retrieval_relevance', score=1.0, label='relevant', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const retrievalRelevanceEvaluator = createRetrievalRelevanceEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate an example
+    const result = await retrievalRelevanceEvaluator.evaluate({
+      input: "What is the capital of France?",
+      context: "Paris is the capital and largest city of France.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "relevant", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+When your data has different field names or requires transformation, use input mapping. This is especially useful for combining multiple retrieved items into a single context string.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    relevance_eval = RetrievalRelevanceEvaluator(llm=llm)
+
+    # Example with a query and multiple retrieved documents
+    eval_input = {
+        "query": "What is the return policy?",
+        "retrieved": {
+            "documents": [
+                "Our return policy allows returns within 30 days.",
+                "Refunds are processed within 5 business days."
+            ]
+        }
+    }
+
+    # Use input mapping with a lambda to concatenate documents
+    input_mapping = {
+        "input": "query",
+        "context": lambda x: "\n\n".join(x["retrieved"]["documents"])
+    }
+
+    scores = relevance_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const retrievalRelevanceEvaluator = createRetrievalRelevanceEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Bind with input mapping for different field names
+    const boundEvaluator = bindEvaluator(retrievalRelevanceEvaluator, {
+      inputMapping: {
+        input: "query",
+        context: (data) => data.documents.join("\n\n"),
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      query: "What is the return policy?",
+      documents: [
+        "Our return policy allows returns within 30 days.",
+        "Refunds are processed within 5 business days."
+      ],
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = RetrievalRelevanceEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="retrieval_relevance",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"relevant": 1.0, "irrelevant": 0.0},
+        direction="maximize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG, createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createRetrievalRelevanceEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Retrieval Relevance evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [RetrievalRelevanceEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createRetrievalRelevanceEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Document Relevance Evaluator](/docs/phoenix/evaluation/pre-built-metrics/document-relevance) - Score a single retrieved document against a question
+- [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) - Evaluate whether a response is grounded in the retrieved context
+- [Q&A Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/qa-correctness) - Evaluate whether an answer is correct
