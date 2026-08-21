@@ -266,6 +266,15 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 )
             )
 
+        if reasoning_cost := float(model_info.get("output_cost_per_reasoning_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="reasoning",
+                    base_rate=reasoning_cost,
+                    is_prompt=False,
+                )
+            )
+
         if token_prices:
             _, provider, stripped_name = parse_provider_prefix(model_id)
             pricing_entries.append(
