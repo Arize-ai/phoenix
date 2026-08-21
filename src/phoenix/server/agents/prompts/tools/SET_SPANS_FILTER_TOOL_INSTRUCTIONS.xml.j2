@@ -24,6 +24,8 @@
     - Span annotations: `annotations['Name'].label`, `annotations['Name'].score`, `annotations['Name'].explanation`, or bare `annotations['Name']` to test existence.
     - Trace annotations: `trace_annotations['Name'].label`, `trace_annotations['Name'].score`, `trace_annotations['Name'].explanation`, or bare `trace_annotations['Name']`. A matching trace annotation selects spans belonging to that trace.
     - Substring search: `'needle' in input.value` (any string field, ignores case).
+    - Cost and tokens for a span: `total_cost`, `prompt_cost`, `completion_cost`, `total_tokens`, `prompt_tokens`, `completion_tokens`. These are bare names and read this span's own cost row. There is no cost-per-token name -- divide, e.g. `total_cost / total_tokens > 0.0001`, which yields null rather than an error when tokens are zero; `attributes['total_cost']` is the separate, unrelated spelling for a span attribute of that name.
+    - Per-token-type cost rows: `cost_details`, iterated with `any`/`all`/`len`/`sum`/`max`/`min`, e.g. `any(cost_detail.token_type == 'cache_read' for cost_detail in cost_details)`. Element fields: `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token`.
     - Combine clauses with `and`, `or`, `not`.
   </dsl_reference>
   <value_conventions>
@@ -41,6 +43,9 @@
     - "Include orphaned spans as roots" → `parent_span is None`.
     - "Hallucinations" → `annotations['Hallucination'].label == 'hallucinated'`.
     - "Top-level spans from traces rated as poor quality" → `trace_annotations['quality'].label == 'poor' and parent_id is None`.
+    - "Expensive spans" → `total_cost > 0.1`.
+    - "Expensive LLM calls" → `span_kind == 'LLM' and total_cost > 0.1`.
+    - "Spans that hit the prompt cache" → `any(cost_detail.token_type == 'cache_read' for cost_detail in cost_details)`.
     - "Spans mentioning agent in input" → `'agent' in input.value`.
     - "Show everything" → `''`.
     - "Reset to default view" → `parent_id is None`.
