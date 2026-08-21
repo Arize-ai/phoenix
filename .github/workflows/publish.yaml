@@ -140,6 +140,42 @@ jobs:
               sys.exit(1)
           print(f"Verified bundled UI assets in {wheel.name}")
           PY
+      - name: Enforce starter datagen asset ceiling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          expected = {
+              "phoenix/datagen/assets/index.json",
+              "phoenix/datagen/assets/langchain_agent_rag/manifest.json",
+              "phoenix/datagen/assets/langchain_agent_rag/traces.jsonl",
+              "phoenix/datagen/assets/openai_chat_sessions/manifest.json",
+              "phoenix/datagen/assets/openai_chat_sessions/traces.jsonl",
+          }
+          wheels = sorted(Path("dist").glob("*.whl"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected one wheel in dist/, found {len(wheels)}")
+          with ZipFile(wheels[0]) as wheel:
+              assets = {
+                  entry.filename: entry.file_size
+                  for entry in wheel.infolist()
+                  if entry.filename.startswith("phoenix/datagen/assets/")
+                  and not entry.is_dir()
+              }
+          if assets.keys() != expected:
+              raise SystemExit(
+                  "wheel datagen assets differ from the starter set; "
+                  f"missing={sorted(expected - assets.keys())}, "
+                  f"unexpected={sorted(assets.keys() - expected)}"
+              )
+          total_bytes = sum(assets.values())
+          if total_bytes > 512 * 1024:
+              raise SystemExit(
+                  f"wheel starter datagen assets use {total_bytes} bytes; limit is 524288"
+              )
+          print(f"Verified {total_bytes} bytes of starter datagen assets in {wheels[0].name}")
+          PY
       - name: Check wheel contents
         run: uv run --with check-wheel-contents check-wheel-contents --ignore W004 dist/*.whl
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -564,6 +600,42 @@ jobs:
           PY
       - name: Build distribution
         run: rm -rf dist && uv build
+      - name: Enforce starter datagen asset ceiling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          expected = {
+              "phoenix/datagen/assets/index.json",
+              "phoenix/datagen/assets/langchain_agent_rag/manifest.json",
+              "phoenix/datagen/assets/langchain_agent_rag/traces.jsonl",
+              "phoenix/datagen/assets/openai_chat_sessions/manifest.json",
+              "phoenix/datagen/assets/openai_chat_sessions/traces.jsonl",
+          }
+          wheels = sorted(Path("dist").glob("*.whl"))
+          if len(wheels) != 1:
+              raise SystemExit(f"expected one wheel in dist/, found {len(wheels)}")
+          with ZipFile(wheels[0]) as wheel:
+              assets = {
+                  entry.filename: entry.file_size
+                  for entry in wheel.infolist()
+                  if entry.filename.startswith("phoenix/datagen/assets/")
+                  and not entry.is_dir()
+              }
+          if assets.keys() != expected:
+              raise SystemExit(
+                  "wheel datagen assets differ from the starter set; "
+                  f"missing={sorted(expected - assets.keys())}, "
+                  f"unexpected={sorted(assets.keys() - expected)}"
+              )
+          total_bytes = sum(assets.values())
+          if total_bytes > 512 * 1024:
+              raise SystemExit(
+                  f"wheel starter datagen assets use {total_bytes} bytes; limit is 524288"
+              )
+          print(f"Verified {total_bytes} bytes of starter datagen assets in {wheels[0].name}")
+          PY
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           skip-existing: true

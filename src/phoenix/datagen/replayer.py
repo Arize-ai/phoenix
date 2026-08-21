@@ -18,7 +18,9 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
+from phoenix.datagen.composer import ComposerConfig, SessionComposer
 from phoenix.datagen.loader import Scenario
+from phoenix.datagen.schema import Archetype
 
 _SESSION_ID = "session.id"
 _PROMPT_TOKENS = "llm.token_count.prompt"
@@ -91,6 +93,13 @@ class Replayer:
         epsilon: float = 0.02,
         seed: int | None = None,
         project_name: str | None = None,
+        session_fragments_median: float | None = None,
+        session_fragments_sigma: float | None = None,
+        session_fragments_max: int | None = None,
+        archetype_mix: Mapping[Archetype, float] | None = None,
+        fragment_gap_median_seconds: float | None = None,
+        fragment_gap_sigma: float | None = None,
+        fragment_gap_max_seconds: float | None = None,
     ) -> None:
         if not 0.0 <= epsilon <= 1.0:
             raise ValueError("epsilon must be between 0 and 1")
@@ -102,6 +111,24 @@ class Replayer:
         )
         self._identity_random = np.random.default_rng(identity_seed)
         self._project_name = project_name or f"datagen-{_scenario_name(scenario)}"
+        self._composer = (
+            SessionComposer(
+                scenario,
+                config=ComposerConfig.from_manifest(
+                    scenario.manifest,
+                    session_fragments_median=session_fragments_median,
+                    session_fragments_sigma=session_fragments_sigma,
+                    session_fragments_max=session_fragments_max,
+                    archetype_mix=archetype_mix,
+                    fragment_gap_median_seconds=fragment_gap_median_seconds,
+                    fragment_gap_sigma=fragment_gap_sigma,
+                    fragment_gap_max_seconds=fragment_gap_max_seconds,
+                ),
+                random=self._random,
+            )
+            if scenario.fragments
+            else None
+        )
         self._numerics = _NumericsEngine.from_requests(
             scenario.requests,
             epsilon=epsilon,
@@ -130,9 +157,15 @@ class Replayer:
         self._queues: dict[str, deque[_TraceTemplate]] = {}
         self._session_ids: dict[str, str] = {}
         self._ready_sessions: deque[str] = deque()
+        self._composed_queue: deque[EmittedTrace] = deque()
 
     def emit(self, *, now_ns: int | None = None) -> EmittedTrace:
         """Emit the next scheduled trace with fresh identity and numeric values."""
+        current_time_ns = time.time_ns() if now_ns is None else now_ns
+        if self._composer is not None:
+            if not self._composed_queue:
+                self._begin_composed_session(now_ns=current_time_ns)
+            return self._composed_queue.popleft()
         if not any(self._queues.values()):
             self._begin_cycle()
         if not self._ready_sessions:
@@ -143,7 +176,7 @@ class Replayer:
         template = self._queues[session_key].popleft()
         return self._rewrite(
             template,
-            now_ns=time.time_ns() if now_ns is None else now_ns,
+            now_ns=current_time_ns,
             session_id=self._session_ids.get(session_key),
         )
 
@@ -170,6 +203,33 @@ class Replayer:
             if templates[0].has_session
         }
         self._ready_sessions.clear()
+
+    def _begin_composed_session(self, *, now_ns: int) -> None:
+        assert self._composer is not None
+        session = self._composer.compose(now_ns=now_ns)
+        session_id = f"datagen-{self._fresh_id(16).hex()}"
+        emissions = [
+            self._rewrite(
+                _TraceTemplate(
+                    request=trace.request,
+                    session_key=trace.fragment_id,
+                    has_session=True,
+                ),
+                now_ns=trace.virtual_start_ns,
+                session_id=session_id,
+            )
+            for trace in session.traces
+        ]
+        latest_end_ns = max(
+            span.end_time_unix_nano
+            for emission in emissions
+            for span in _iter_spans(emission.request)
+        )
+        if latest_end_ns > now_ns:
+            offset_ns = now_ns - latest_end_ns
+            for emission in emissions:
+                _shift_request_times(emission.request, offset_ns)
+        self._composed_queue.extend(emissions)
 
     def _rewrite(
         self,
@@ -383,6 +443,14 @@ def _clamp_event_times(spans: Sequence[Span]) -> None:
                 span.end_time_unix_nano,
                 max(span.start_time_unix_nano, event.time_unix_nano),
             )
+
+
+def _shift_request_times(request: ExportTraceServiceRequest, offset_ns: int) -> None:
+    for span in _iter_spans(request):
+        span.start_time_unix_nano += offset_ns
+        span.end_time_unix_nano += offset_ns
+        for event in span.events:
+            event.time_unix_nano += offset_ns
 
 
 def _refresh_anomaly_latencies(

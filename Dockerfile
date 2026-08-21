@@ -116,6 +116,28 @@ sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}'))" &&
        sleep "$delay"; \
      done
 
+# DATAGEN_BANK_SCENARIO selects one URL/SHA-256/size tuple from the packaged
+# asset index. Keep the index and fetcher copy paths aligned with pyproject.toml.
+FROM ${UV_IMAGE} AS datagen-assets
+ARG DATAGEN_BANK_SCENARIO=""
+COPY ./src/phoenix/datagen/fetcher.py /tmp/phoenix-datagen/fetcher.py
+COPY ./src/phoenix/datagen/assets/index.json /tmp/phoenix-datagen/index.json
+RUN mkdir -p /datagen-assets \
+  && if [ -n "$DATAGEN_BANK_SCENARIO" ]; then \
+       DATAGEN_BANK_SCENARIO="$DATAGEN_BANK_SCENARIO" \
+       PYTHONPATH=/tmp/phoenix-datagen \
+       python -c "import os, shutil; \
+from pathlib import Path; \
+from fetcher import fetch_scenario; \
+scenario = os.environ['DATAGEN_BANK_SCENARIO']; \
+source = fetch_scenario( \
+    scenario, \
+    cache_dir=Path('/tmp/datagen-cache'), \
+    index_path=Path('/tmp/phoenix-datagen/index.json'), \
+); \
+shutil.copytree(source, Path('/datagen-assets') / scenario)"; \
+     fi
+
 # The production image is distroless, meaning that it is a minimal image that
 # contains only the necessary dependencies to run the application. This is
 # useful for security and performance reasons. If you need to debug the
@@ -139,6 +161,7 @@ COPY --from=backend-builder /phoenix/.venv/ ./.venv
 # distroless image's default PATH (inherited via the base image's ENV).
 COPY --chmod=755 --from=deno-binary /deno /usr/local/bin/deno
 COPY --from=wasm-runtime /wasm/python-3.12.0.wasm /opt/phoenix/wasm/python-3.12.0.wasm
+COPY --from=datagen-assets /datagen-assets/ /phoenix/.venv/lib/python3.13/site-packages/phoenix/datagen/assets/
 ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
 # Ensure /usr/local/bin is on PATH so shutil.which("deno") in
 # deno_backend.py resolves to the bundled binary above. The base

@@ -1,4 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "httpx==0.28.1",
+# ]
+# ///
 """Serve deterministic, realistic OpenAI chat-completion responses."""
 
 from __future__ import annotations
@@ -6,11 +12,178 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import time
-import uuid
+from hashlib import sha256
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, Mapping
+
+SCRIPTED_TOOL_NAME = "raise_scripted_tool_error"
+
+
+class ScriptedToolError(RuntimeError):
+    """Raised when playback reaches a declared tool failure."""
+
+
+class PlaybackProvider:
+    """Serve a conversation script through an in-process OpenAI-compatible transport."""
+
+    def __init__(self, script: Mapping[str, Any]) -> None:
+        self._script = script
+        self._turn_index = 0
+        turns = script.get("turns")
+        if not isinstance(turns, list) or not turns:
+            raise ValueError("playback script must contain a non-empty turns array")
+
+    @property
+    def turn_index(self) -> int:
+        return self._turn_index
+
+    def http_client(self) -> Any:
+        import httpx
+
+        return httpx.Client(transport=httpx.MockTransport(self._handle_http_request))
+
+    def _handle_http_request(self, request: Any) -> Any:
+        import httpx
+
+        if request.url.path != "/v1/chat/completions":
+            return httpx.Response(
+                HTTPStatus.NOT_FOUND,
+                json={"error": {"message": "not found", "type": "invalid_request_error"}},
+                request=request,
+            )
+        try:
+            body = json.loads(request.content)
+        except (json.JSONDecodeError, TypeError):
+            return httpx.Response(
+                HTTPStatus.BAD_REQUEST,
+                json={"error": {"message": "invalid JSON", "type": "invalid_request_error"}},
+                request=request,
+            )
+        turn = self._current_turn()
+        expected_user = turn.get("user")
+        actual_user = (_latest_message(body.get("messages", []), "user") or {}).get("content")
+        if actual_user != expected_user:
+            return httpx.Response(
+                HTTPStatus.BAD_REQUEST,
+                json={
+                    "error": {
+                        "message": f"expected scripted user message {expected_user!r}",
+                        "type": "invalid_request_error",
+                    }
+                },
+                request=request,
+            )
+
+        failure_mode = self._script.get("failure_mode", "none")
+        failure_turn = self._script.get("failure_turn")
+        if failure_turn == self._turn_index:
+            if failure_mode == "provider_429":
+                return httpx.Response(
+                    HTTPStatus.TOO_MANY_REQUESTS,
+                    headers={"retry-after": "1", "x-request-id": self._request_id()},
+                    json={
+                        "error": {
+                            "message": "scripted rate limit",
+                            "type": "rate_limit_error",
+                            "code": "rate_limit_exceeded",
+                        }
+                    },
+                    request=request,
+                )
+            if failure_mode == "provider_timeout":
+                raise httpx.ReadTimeout("scripted provider timeout", request=request)
+            if failure_mode == "malformed_response":
+                return httpx.Response(
+                    HTTPStatus.OK,
+                    content=b'{"choices":[',
+                    headers={"content-type": "application/json"},
+                    request=request,
+                )
+            if failure_mode == "tool_exception":
+                response = self._tool_exception_completion(body)
+                self._turn_index += 1
+                return httpx.Response(HTTPStatus.OK, json=response, request=request)
+            if failure_mode != "none":
+                raise ValueError(f"unsupported playback failure mode {failure_mode!r}")
+
+        response = self._success_completion(body, str(turn.get("assistant", "")))
+        self._turn_index += 1
+        return httpx.Response(HTTPStatus.OK, json=response, request=request)
+
+    def _current_turn(self) -> Mapping[str, Any]:
+        turns = self._script["turns"]
+        if self._turn_index >= len(turns):
+            raise ValueError("playback received more turns than the script declares")
+        turn = turns[self._turn_index]
+        if not isinstance(turn, Mapping):
+            raise ValueError(f"playback turn {self._turn_index} must be an object")
+        return turn
+
+    def _success_completion(self, request: dict[str, Any], content: str) -> dict[str, Any]:
+        return self._completion(
+            request,
+            message={"role": "assistant", "content": content},
+            finish_reason="stop",
+        )
+
+    def _tool_exception_completion(self, request: dict[str, Any]) -> dict[str, Any]:
+        tool_call = {
+            "id": f"call_{self._request_id()[-18:]}",
+            "type": "function",
+            "function": {
+                "name": SCRIPTED_TOOL_NAME,
+                "arguments": json.dumps(
+                    {"message": "scripted tool exception"}, separators=(",", ":")
+                ),
+            },
+        }
+        return self._completion(
+            request,
+            message={"role": "assistant", "content": None, "tool_calls": [tool_call]},
+            finish_reason="tool_calls",
+        )
+
+    def _completion(
+        self,
+        request: dict[str, Any],
+        *,
+        message: dict[str, Any],
+        finish_reason: str,
+    ) -> dict[str, Any]:
+        prompt_tokens = _token_count(request.get("messages", []))
+        completion_tokens = _token_count(message)
+        return {
+            "id": f"chatcmpl-{self._request_id()}",
+            "object": "chat.completion",
+            "created": 0,
+            "model": request.get("model", self._script.get("model", "datagen-playback")),
+            "choices": [{"index": 0, "message": message, "finish_reason": finish_reason}],
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+                "prompt_tokens_details": {"cached_tokens": 0},
+                "completion_tokens_details": {"reasoning_tokens": 0},
+            },
+        }
+
+    def _request_id(self) -> str:
+        cell_id = str(self._script.get("cell_id", "script"))
+        return sha256(f"{cell_id}:{self._turn_index}".encode()).hexdigest()[:24]
+
+
+def execute_scripted_tool_call(tool_call: Mapping[str, Any]) -> None:
+    function = tool_call.get("function")
+    if not isinstance(function, Mapping) or function.get("name") != SCRIPTED_TOOL_NAME:
+        raise ValueError("tool call is not the scripted failure tool")
+    raw_arguments = function.get("arguments")
+    try:
+        arguments = json.loads(raw_arguments) if isinstance(raw_arguments, str) else {}
+    except json.JSONDecodeError as error:
+        raise ValueError("scripted failure tool arguments are invalid JSON") from error
+    message = arguments.get("message", "scripted tool exception")
+    raise ScriptedToolError(str(message))
 
 
 def _token_count(value: Any) -> int:
@@ -162,8 +335,9 @@ def _tool_call(
     function = tools[0].get("function", {}) if tools else {}
     postal_code = (re.search(r"\b\d{5}\b", user) or ["10001"])[0]
     service_level = "express" if re.search(r"\b(express|expedited)\b", user, re.I) else "standard"
+    identifier = _stable_id({"messages": messages, "tools": tools})
     return {
-        "id": f"call_{uuid.uuid4().hex[:18]}",
+        "id": f"call_{identifier[:18]}",
         "type": "function",
         "function": {
             "name": function.get("name", "estimate_delivery_days"),
@@ -185,10 +359,11 @@ def create_chat_completion(request: dict[str, Any]) -> dict[str, Any]:
         _token_count(messages) + _token_count(tools) if tools else _token_count(messages)
     )
     completion_tokens = _token_count(completion_payload)
+    identifier = _stable_id(request)
     return {
-        "id": f"chatcmpl-{uuid.uuid4().hex[:24]}",
+        "id": f"chatcmpl-{identifier[:24]}",
         "object": "chat.completion",
-        "created": int(time.time()),
+        "created": 0,
         "model": request.get("model", "gpt-4.1-mini"),
         "system_fingerprint": "fp_datagen_scenario",
         "choices": [
@@ -210,6 +385,11 @@ def create_chat_completion(request: dict[str, Any]) -> dict[str, Any]:
             "completion_tokens_details": {"reasoning_tokens": 0},
         },
     }
+
+
+def _stable_id(value: Any) -> str:
+    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    return sha256(encoded).hexdigest()
 
 
 class ChatCompletionsHandler(BaseHTTPRequestHandler):

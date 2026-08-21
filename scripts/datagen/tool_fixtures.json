@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "fixture_sets": {
+    "retail": {
+      "name": "retail",
+      "documents": [
+        {
+          "id": "doc-shipping",
+          "title": "Shipping windows",
+          "text": "Standard delivery takes four to six business days. Express delivery takes one to two business days."
+        },
+        {
+          "id": "doc-returns",
+          "title": "Return policy",
+          "text": "Unused items may be returned within thirty days. Final-sale items are not eligible for return."
+        },
+        {
+          "id": "doc-security",
+          "title": "Account security",
+          "text": "Reset the password and revoke active sessions after an unfamiliar account login."
+        }
+      ],
+      "records": [
+        {
+          "id": "order-1001",
+          "customer": "Avery Chen",
+          "total": 84.5,
+          "currency": "USD"
+        },
+        {
+          "id": "order-1002",
+          "customer": "Sam Rivera",
+          "total": 129.0,
+          "currency": "USD"
+        }
+      ],
+      "statuses": [
+        {
+          "id": "order-1001",
+          "state": "in_transit",
+          "detail": "Carrier scan received"
+        },
+        {
+          "id": "order-1002",
+          "state": "processing",
+          "detail": "Preparing for shipment"
+        }
+      ]
+    },
+    "travel": {
+      "name": "travel",
+      "documents": [
+        {
+          "id": "doc-baggage",
+          "title": "Baggage allowance",
+          "text": "Economy fares include one carry-on bag. Checked baggage depends on route and fare class."
+        },
+        {
+          "id": "doc-changes",
+          "title": "Flight changes",
+          "text": "Flexible fares permit itinerary changes before departure without a change fee."
+        },
+        {
+          "id": "doc-delays",
+          "title": "Delay support",
+          "text": "Travelers delayed overnight may request hotel and meal assistance at the service desk."
+        }
+      ],
+      "records": [
+        {
+          "id": "trip-2001",
+          "traveler": "Morgan Lee",
+          "origin": "JFK",
+          "destination": "SFO"
+        },
+        {
+          "id": "trip-2002",
+          "traveler": "Jordan Patel",
+          "origin": "BOS",
+          "destination": "LHR"
+        }
+      ],
+      "statuses": [
+        {
+          "id": "trip-2001",
+          "state": "confirmed",
+          "detail": "On time"
+        },
+        {
+          "id": "trip-2002",
+          "state": "delayed",
+          "detail": "Departure moved by 45 minutes"
+        }
+      ]
+    }
+  }
+}

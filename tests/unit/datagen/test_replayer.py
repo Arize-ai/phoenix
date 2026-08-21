@@ -200,6 +200,76 @@ def test_replayer_sets_project_resource_attribute() -> None:
     } == {"datagen-synthetic-chat"}
 
 
+def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -> None:
+    scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
+    for request in scenario.requests:
+        for span in _iter_spans(request):
+            attribute = span.attributes.add(key="input.value")
+            attribute.value.string_value = f"recorded:{span.name}"
+    recorded_trace_ids = {
+        span.trace_id for request in scenario.requests for span in _iter_spans(request)
+    }
+    replayer = Replayer(
+        scenario,
+        epsilon=0,
+        seed=7,
+        session_fragments_median=2,
+        session_fragments_sigma=0,
+        session_fragments_max=2,
+        archetype_mix={"plain_chat": 1},
+        fragment_gap_median_seconds=5,
+        fragment_gap_sigma=0,
+        fragment_gap_max_seconds=5,
+    )
+    wall_time_ns = 100_000_000_000
+
+    emissions = tuple(
+        replayer.emit(now_ns=wall_time_ns + index * 1_000_000_000) for index in range(4)
+    )
+    spans_by_emission = [tuple(_iter_spans(emission.request)) for emission in emissions]
+
+    assert [spans[0].name for spans in spans_by_emission] == [
+        "turn-1",
+        "turn-2",
+        "turn-1",
+        "turn-2",
+    ]
+    session_ids = {_attribute(span, "session.id") for spans in spans_by_emission for span in spans}
+    assert len(session_ids) == 1
+    assert session_ids != {"session-a"}
+    emitted_trace_ids = {span.trace_id for spans in spans_by_emission for span in spans}
+    assert len(emitted_trace_ids) == 4
+    assert emitted_trace_ids.isdisjoint(recorded_trace_ids)
+    assert [_attribute(span, "input.value") for spans in spans_by_emission for span in spans] == [
+        "recorded:turn-1",
+        "recorded:chat",
+        "recorded:turn-2",
+        "recorded:turn-1",
+        "recorded:chat",
+        "recorded:turn-2",
+    ]
+    trace_starts = [min(span.start_time_unix_nano for span in spans) for spans in spans_by_emission]
+    assert [start - trace_starts[0] for start in trace_starts] == [
+        0,
+        2_000_000_000,
+        7_600_000_000,
+        9_600_000_000,
+    ]
+    assert (
+        max(span.end_time_unix_nano for spans in spans_by_emission for span in spans)
+        <= wall_time_ns
+    )
+    for spans in (spans_by_emission[0], spans_by_emission[2]):
+        root = next(span for span in spans if span.name == "turn-1")
+        child = next(span for span in spans if span.name == "chat")
+        assert child.parent_span_id == root.span_id
+
+    next_session = replayer.emit(now_ns=wall_time_ns + 20_000_000_000)
+    assert {
+        _attribute(span, "session.id") for span in _iter_spans(next_session.request)
+    } != session_ids
+
+
 def test_contamination_labels_match_anomaly_manifest(tmp_path: Path) -> None:
     replayer = Replayer(_fixture_scenario(), epsilon=1, seed=11)
     emitted = replayer.emit(now_ns=10_000_000_000)

@@ -14,17 +14,55 @@ HTTP ``/v1/traces`` route. Importing Phoenix does not import this package; the
 ``phoenix datagen`` command loads it only when invoked.
 """
 
+from phoenix.datagen.composer import (
+    ComposedSession,
+    ComposedTrace,
+    ComposerConfig,
+    SessionComposer,
+)
 from phoenix.datagen.exporter import OTLPHTTPExporter
 from phoenix.datagen.loader import Scenario, ScenarioError, load_scenario
 from phoenix.datagen.replayer import Anomaly, AnomalyManifest, EmittedTrace, Replayer
+from phoenix.datagen.schema import (
+    Archetype,
+    ComposerDefaults,
+    Fragment,
+    FragmentRecordV2,
+    GenerationLane,
+    LengthBand,
+    ModelUsed,
+    ModelUsedRecord,
+    QualityTier,
+    ScenarioManifestV2,
+    SchemaValidationError,
+    validate_fragment_v2,
+    validate_manifest_v2,
+)
 
 __all__ = [
     "Anomaly",
     "AnomalyManifest",
+    "Archetype",
+    "ComposedSession",
+    "ComposedTrace",
+    "ComposerConfig",
+    "ComposerDefaults",
     "EmittedTrace",
+    "Fragment",
+    "FragmentRecordV2",
+    "GenerationLane",
+    "LengthBand",
+    "ModelUsed",
+    "ModelUsedRecord",
     "OTLPHTTPExporter",
+    "QualityTier",
     "Replayer",
     "Scenario",
     "ScenarioError",
+    "ScenarioManifestV2",
+    "SchemaValidationError",
+    "SessionComposer",
     "load_scenario",
+    "validate_fragment_v2",
+    "validate_manifest_v2",
 ]

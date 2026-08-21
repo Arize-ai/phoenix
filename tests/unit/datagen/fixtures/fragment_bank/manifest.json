@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "scenario_name": "fragment-bank",
+  "generated_at": "2026-08-21T00:00:00Z",
+  "generation_revision": "fixture-v1",
+  "matrix_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "matrix_seed": 7,
+  "fragment_count": 2,
+  "trace_count": 3,
+  "span_count": 4,
+  "span_kinds": ["CHAIN", "LLM"],
+  "instrumenter_package_versions": {"synthetic": "1.0.0"},
+  "files": {
+    "fragments.jsonl": {
+      "sha256": "06da07dc4a62e556773bb2c3ede1a40d3cc4fc9644f7fe6bf3c67bc2f4c5f09b",
+      "size_bytes": 1204
+    },
+    "traces.jsonl": {
+      "sha256": "6ec2d5f5d18ce33b4f0dfdfa2bfe7f292fc844c5a3703a7943fceb3f6cb97f1e",
+      "size_bytes": 2617
+    }
+  },
+  "quality_gate_summary": {"accepted": 2, "rejected": 0},
+  "composer_defaults": {
+    "session_fragments_median": 2,
+    "session_fragments_sigma": 1.0,
+    "session_fragments_max": 24,
+    "archetype_mix": {"plain_chat": 1.0, "rag": 1.0},
+    "fragment_gap_median_seconds": 180,
+    "fragment_gap_sigma": 0.9,
+    "fragment_gap_max_seconds": 3600
+  }
+}
