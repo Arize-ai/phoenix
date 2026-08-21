@@ -18,11 +18,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import {
-  Empty,
-  EmptyState,
-  EmptyStateGraphic,
-} from "@phoenix/components/core/empty";
+import { Empty } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   ConnectedTimeRangeSelector,
@@ -164,10 +160,10 @@ function ProjectEvaluatorDetailsPageLoaded({
           </LazyTabPanel>
           <LazyTabPanel id="traces">
             <Suspense fallback={<Loading />}>
-              <ProjectEvaluatorTracesTabPanel
+              <ProjectEvaluatorTraces
+                projectId={projectEvaluator.traceProject.id}
                 projectEvaluatorId={projectEvaluator.id}
                 hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
-                traceProjectId={projectEvaluator.traceProject?.id ?? null}
               />
             </Suspense>
           </LazyTabPanel>
@@ -178,55 +174,6 @@ function ProjectEvaluatorDetailsPageLoaded({
         </Suspense>
       </main>
     </TimeRangeProvider>
-  );
-}
-
-/**
- * The Traces tab, or the reason there is nothing to put in it.
- *
- * An evaluator that has never run and one whose past runs left no trace are
- * different situations with different remedies, so they get different copy.
- * Everything else is the table's to explain.
- */
-function ProjectEvaluatorTracesTabPanel({
-  projectEvaluatorId,
-  hasEverRun,
-  traceProjectId,
-}: {
-  projectEvaluatorId: string;
-  hasEverRun: boolean;
-  traceProjectId: string | null;
-}) {
-  // The table renders whenever the trace project exists: run status only reaches
-  // back as far as the online-evaluation retention window, so an evaluator whose
-  // runs have aged out of it may still have traces worth showing.
-  if (traceProjectId == null) {
-    if (!hasEverRun) {
-      return (
-        <View paddingTop="size-1000">
-          <EmptyState
-            graphic={<EmptyStateGraphic variant="trace" />}
-            title="This evaluator has not run yet"
-            description="Traces appear here once the evaluator runs. It runs on its own against the spans its scope selects — there is nothing to start."
-          />
-        </View>
-      );
-    }
-    return (
-      <View paddingTop="size-1000">
-        <EmptyState
-          graphic={<EmptyStateGraphic variant="trace" />}
-          title="No traces to show"
-          description="This evaluator has run, but none of its runs produced a trace. Evaluations that ran before evaluator tracing was added did not record one."
-        />
-      </View>
-    );
-  }
-  return (
-    <ProjectEvaluatorTraces
-      projectId={traceProjectId}
-      projectEvaluatorId={projectEvaluatorId}
-    />
   );
 }
 

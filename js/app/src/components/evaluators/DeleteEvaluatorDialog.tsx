@@ -97,7 +97,8 @@ export function DeleteEvaluatorDialog({
             <View padding="size-200">
               <Flex direction="column" gap="size-100">
                 <Text>
-                  Remove “{evaluatorName}” from this {target}.
+                  Remove “{evaluatorName}” from this {target}. Its evaluation
+                  traces are deleted with it.
                   {evaluatorKind === "BUILTIN"
                     ? " The built-in evaluator remains available elsewhere."
                     : " The evaluator is deleted only if it isn't used anywhere else."}

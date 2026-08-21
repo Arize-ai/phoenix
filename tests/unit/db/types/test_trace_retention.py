@@ -278,7 +278,8 @@ class TestTraceRetentionRuleMaxCount:
             )
             session.add(evaluator)
             await session.flush()
-            criteria = models.ProjectEvaluatorCriteria(
+            criteria = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                 project_id=project.id,
                 evaluator_id=evaluator.id,
                 name=Identifier(root=f"criteria-{token_hex(4)}"),
@@ -291,7 +292,7 @@ class TestTraceRetentionRuleMaxCount:
             work_unit = models.EvalSessionWorkUnit(
                 project_session_rowid=project_session.id,
                 evaluator_id=evaluator.id,
-                criteria_id=criteria.id,
+                project_evaluator_id=criteria.id,
                 config_fingerprint=token_hex(8),
                 evaluated_through=now,
                 status="RUNNING",
