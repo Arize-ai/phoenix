@@ -1,6 +1,5 @@
 import base64
 from binascii import Error as BinasciiError
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
@@ -66,17 +65,6 @@ class CursorSortColumn:
         else:
             assert_never(type)
         return cls(type=type, value=value)
-
-
-#: The Python type `CursorSortColumn.from_string` produces for each data type,
-#: so that a decoded value can be checked against the type tag that produced it.
-_VALUE_TYPES: Mapping[CursorSortColumnDataType, type] = {
-    CursorSortColumnDataType.STRING: str,
-    CursorSortColumnDataType.INT: int,
-    CursorSortColumnDataType.FLOAT: float,
-    CursorSortColumnDataType.DATETIME: datetime,
-    CursorSortColumnDataType.NULL: type(None),
-}
 
 
 @dataclass
@@ -201,13 +189,21 @@ class Cursor:
             accepted = {sort_column_type}
             if nullable:
                 accepted.add(CursorSortColumnDataType.NULL)
-            if (
-                sort_column is None
-                or sort_column.type not in accepted
-                or not isinstance(sort_column.value, _VALUE_TYPES[sort_column.type])
-            ):
+            if sort_column is None or sort_column.type not in accepted:
                 raise ValueError(f"Cursor was not minted for this sort column: {cursor}")
         return parsed
+
+
+#: How much of a rejected cursor an error repeats back. The token is supplied
+#: by the client and bounded by nothing, so quoting it whole would let a caller
+#: choose the size and content of a line in the logs.
+_ECHO_LIMIT = 200
+
+
+def echo_cursor(cursor: str) -> str:
+    """Renders a rejected cursor for an error message, bounded and printable."""
+    printable = "".join(c if c.isprintable() else "?" for c in cursor[: _ECHO_LIMIT + 1])
+    return printable[:_ECHO_LIMIT] + "..." if len(printable) > _ECHO_LIMIT else printable
 
 
 def parse_cursor(
@@ -240,7 +236,7 @@ def parse_cursor(
     try:
         return Cursor.parse(cursor, sort_column_type=sort_column_type, nullable=nullable)
     except ValueError as error:
-        raise BadRequest(f"Invalid cursor: {cursor}") from error
+        raise BadRequest(f"Invalid cursor: {echo_cursor(cursor)}") from error
 
 
 def offset_to_cursor(offset: int) -> CursorString:
