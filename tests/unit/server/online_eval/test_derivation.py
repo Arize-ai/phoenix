@@ -12,7 +12,7 @@ from random import Random
 from typing import Any
 
 from phoenix.server.online_eval.derivation import (
-    ResolvedCriteria,
+    ResolvedProjectEvaluator,
     annotation_identifier,
     config_fingerprint,
     sample_key,
@@ -35,12 +35,12 @@ def _json_value(rng: Random, depth: int = 0) -> Any:
     return {_word(rng): _json_value(rng, depth + 1) for _ in range(rng.randint(0, 3))}
 
 
-def _criteria(rng: Random) -> ResolvedCriteria:
+def _criteria(rng: Random) -> ResolvedProjectEvaluator:
     version_ref: Any = (
         rng.randint(1, 10_000) if rng.random() < 0.5 else [_word(rng), "2026-07-01T00:00:00+00:00"]
     )
-    return ResolvedCriteria(
-        criteria_id=rng.randint(1, 10_000),
+    return ResolvedProjectEvaluator(
+        project_evaluator_id=rng.randint(1, 10_000),
         name=_word(rng),
         evaluator_id=rng.randint(1, 10_000),
         version_ref=version_ref,
@@ -54,8 +54,8 @@ def _criteria(rng: Random) -> ResolvedCriteria:
 
 
 _EDGE_CRITERIA = [
-    ResolvedCriteria(
-        criteria_id=0,
+    ResolvedProjectEvaluator(
+        project_evaluator_id=0,
         name="",
         evaluator_id=0,
         version_ref=0,
@@ -66,8 +66,8 @@ _EDGE_CRITERIA = [
         filter_condition="",
         sampling_rate=0.0,
     ),
-    ResolvedCriteria(
-        criteria_id=1,
+    ResolvedProjectEvaluator(
+        project_evaluator_id=1,
         name="ünïcode ✓",
         evaluator_id=1,
         version_ref=["exact_match", "2026-07-01T00:00:00+00:00"],
@@ -85,11 +85,11 @@ _EDGE_SPAN_IDS = [0, 1, 2, 7, 2**31, 2**63, 10**30]
 
 class TestConfigFingerprint:
     def test_deterministic(self) -> None:
-        """Same resolved criteria always yields the same fingerprint, including across
+        """Same resolved project_evaluator always yields the same fingerprint, including across
         an independently constructed equal instance."""
         rng = Random(0)
         for resolved in [_criteria(rng) for _ in range(_N_EXAMPLES)] + _EDGE_CRITERIA:
-            rebuilt = ResolvedCriteria(**asdict(resolved))
+            rebuilt = ResolvedProjectEvaluator(**asdict(resolved))
             assert config_fingerprint(resolved) == config_fingerprint(resolved)
             assert config_fingerprint(resolved) == config_fingerprint(rebuilt)
 
@@ -119,8 +119,12 @@ class TestConfigFingerprint:
             resolved = _criteria(rng)
             pretty = json.loads(json.dumps(asdict(resolved), indent=4))
             spaced = json.loads(json.dumps(asdict(resolved), separators=(" ,  ", " :   ")))
-            assert config_fingerprint(ResolvedCriteria(**pretty)) == config_fingerprint(resolved)
-            assert config_fingerprint(ResolvedCriteria(**spaced)) == config_fingerprint(resolved)
+            assert config_fingerprint(ResolvedProjectEvaluator(**pretty)) == config_fingerprint(
+                resolved
+            )
+            assert config_fingerprint(ResolvedProjectEvaluator(**spaced)) == config_fingerprint(
+                resolved
+            )
 
     def test_any_field_change_changes_fingerprint(self) -> None:
         """Every fingerprint input is load-bearing: mutating any single field yields a
@@ -129,7 +133,7 @@ class TestConfigFingerprint:
         for _ in range(_N_EXAMPLES // 10):
             resolved = _criteria(rng)
             mutations = [
-                replace(resolved, criteria_id=resolved.criteria_id + 1),
+                replace(resolved, project_evaluator_id=resolved.project_evaluator_id + 1),
                 replace(resolved, name=resolved.name + "x"),
                 replace(resolved, evaluator_id=resolved.evaluator_id + 1),
                 replace(resolved, version_ref=[resolved.version_ref, "bumped"]),
@@ -150,8 +154,8 @@ class TestConfigFingerprint:
     def test_golden_vector(self) -> None:
         """Pins the exact canonicalization recipe; producer/consumer fingerprint
         agreement depends on these bytes never changing silently."""
-        resolved = ResolvedCriteria(
-            criteria_id=7,
+        resolved = ResolvedProjectEvaluator(
+            project_evaluator_id=7,
             name="toxicity",
             evaluator_id=42,
             version_ref=1301,
@@ -172,7 +176,7 @@ class TestConfigFingerprint:
         )
         assert (
             config_fingerprint(resolved)
-            == "803253c6427c634cbf28f14b1627e4c4b77d93344086326f1c336e5ec8d09001"
+            == "afeb2700f734441a5afd4ee3f916752fa2f86aec2e690d6f53098953a60c76e2"
         )
 
 
