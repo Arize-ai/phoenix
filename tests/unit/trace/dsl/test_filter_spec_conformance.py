@@ -121,7 +121,8 @@ ACCEPTED = [
     "total_cost > 0.1",
     "prompt_cost + completion_cost == total_cost",
     "total_tokens > 100",
-    "total_cost_per_token > 0.0001",
+    # The rate has no member of its own; division expresses it, guarded by `nullif`.
+    "total_cost / total_tokens > 0.0001",
     # The root shadows only the dotted spelling. Subscripting `attributes` names the
     # attribute called `span` explicitly and is untouched, and a bare `total_cost` is
     # `span` is an ordinary attribute key again -- nothing is reserved, so this reads the

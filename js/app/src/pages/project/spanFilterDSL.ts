@@ -128,24 +128,6 @@ export const coreSpanFilterCompletions: Completion[] = [
     info: "Completion tokens recorded for this span. 0 when none are recorded, never null.",
   },
   {
-    label: "total_cost_per_token",
-    type: "variable",
-    detail: "cost rate of this span",
-    info: "Cost per token for this span. Null when the span has no cost row or no tokens, so it fails every comparison — test for it with `is None`.",
-  },
-  {
-    label: "prompt_cost_per_token",
-    type: "variable",
-    detail: "prompt cost rate of this span",
-    info: "Prompt cost per token for this span. Null when the span has no cost row or no prompt tokens, so it fails every comparison — test for it with `is None`.",
-  },
-  {
-    label: "completion_cost_per_token",
-    type: "variable",
-    detail: "completion cost rate of this span",
-    info: "Completion cost per token for this span. Null when the span has no cost row or no completion tokens, so it fails every comparison — test for it with `is None`.",
-  },
-  {
     label: "cost_details",
     type: "variable",
     detail: "per-token-type cost rows",

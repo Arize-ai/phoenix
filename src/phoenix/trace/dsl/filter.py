@@ -177,10 +177,21 @@ def _span_cost_binding(member: str) -> str:
     return f"__span_cost_{member}__"
 
 
-# The `span` root reads this span's own cost row. Cost lives on `span_costs`, not on
-# `spans`, so these are not columns of the filtered row -- they are bound per-instance
-# against an aliased outer join (see `SpanFilter.__call__`), which is also why they are
-# absent from `_FLOAT_NAMES` and so from `Projector`'s namespace.
+# These read this span's own cost row. Cost lives on `span_costs`, not on `spans`, so they
+# are not columns of the filtered row -- they are bound per-instance against an aliased
+# outer join (see `SpanFilter.__call__`), which is also why they are absent from
+# `_FLOAT_NAMES` and so from `Projector`'s namespace.
+#
+# Every one coalesces to 0, matching the session grain's rollups ("0 when no cost is
+# configured, never null") so one name means one thing across grains.
+#
+# The set is the cost row's stored columns and nothing derived. `models.SpanCost` also
+# carries `*_cost_per_token` hybrids, and those were members here until it turned out the
+# language already expresses them: `total_cost / total_tokens` divides through the DSL's
+# own `nullif` guard and answers identically on every row, including the no-cost-row and
+# zero-token cases. Sugar for `a / b` is not worth a name, because a name here is not free
+# -- each one is claimed out of the attribute namespace, and claiming it silently changes
+# what a stored condition keying that attribute means.
 _SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
     {
         "total_cost": "number",
@@ -189,18 +200,7 @@ _SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
         "total_tokens": "number",
         "prompt_tokens": "number",
         "completion_tokens": "number",
-        "total_cost_per_token": "number",
-        "prompt_cost_per_token": "number",
-        "completion_cost_per_token": "number",
     }
-)
-# Costs and token counts coalesce to 0, matching the session grain's rollups ("0 when no
-# cost is configured, never null") so one name means one thing across grains. Ratios do
-# not: a span with no cost row has no cost *per token* either, and coalescing would assert
-# a rate that was never recorded. Those stay NULL and so fail every comparison, which is
-# the family's rule for a missing value.
-_SPAN_COST_RATIOS: frozenset[str] = frozenset(
-    {"total_cost_per_token", "prompt_cost_per_token", "completion_cost_per_token"}
 )
 _SPAN_COST_DETAILS = "cost_details"
 # The per-token-type rows behind this span's cost. Element fields stay nullable rather than
@@ -1240,11 +1240,10 @@ def _join_span_cost(
     stmt = stmt.outerjoin(span_cost, onclause=span_cost.span_rowid == models.Span.id)
     bindings: dict[str, typing.Any] = {}
     for member in members:
-        column = getattr(span_cost, member)
-        # An absent cost row and a recorded-but-null column are the same answer to the user's
-        # question, so both coalesce; see `_SPAN_COST_RATIOS` for why ratios do not.
-        bindings[_span_cost_binding(member)] = (
-            column if member in _SPAN_COST_RATIOS else sqlalchemy.func.coalesce(column, 0)
+        # An absent cost row and a recorded-but-null column are the same answer to the
+        # user's question, so both coalesce.
+        bindings[_span_cost_binding(member)] = sqlalchemy.func.coalesce(
+            getattr(span_cost, member), 0
         )
     # The alias is returned so a caller that nests the predicate in a subquery can correlate
     # it, rather than have the relation re-rendered there as a cross join.

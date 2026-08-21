@@ -215,9 +215,7 @@ supported. A span attribute literally named `parent_span` is still reachable as
 demand — see [Cost names](#cost-names)):
 
 - **Number** — `total_cost`, `prompt_cost`, `completion_cost`,
-  `total_tokens`, `prompt_tokens`, `completion_tokens`,
-  `total_cost_per_token`, `prompt_cost_per_token`,
-  `completion_cost_per_token`
+  `total_tokens`, `prompt_tokens`, `completion_tokens`
 - **Collection** — `cost_details`, iterable only, with element fields
   `token_type` (string), `is_prompt` (boolean), `cost`, `tokens`,
   `cost_per_token` (number)
@@ -290,13 +288,21 @@ evaluates the outermost `for` clause's iterable in the enclosing scope — and
 every other `span` in the line is the element. Inside such a comprehension the
 filtered row is unreachable, exactly as a shadowed name is in Python.
 
-**Missing values.** Cost and token members coalesce to `0`, matching the session
-grain's rollups so that one name means one thing across grains — a span with no
-cost row answers `total_cost == 0`. The three `*_cost_per_token` ratios do
-not: a span with no cost row has no rate to report, and coalescing would assert
-one. They are NULL and so fail every comparison, per [Unknown
-types](#unknown-types). Element fields of `cost_details` are likewise
-nullable — a detail row's missing `cost` is a fact about that row.
+**Missing values.** Every cost and token member coalesces to `0`, matching the
+session grain's rollups so that one name means one thing across grains — a span
+with no cost row answers `total_cost == 0`. Element fields of `cost_details` are
+the exception and stay nullable — a detail row's missing `cost` is a fact about
+that row, not about the span, so it fails every comparison per [Unknown
+types](#unknown-types).
+
+**Cost per token has no member.** `models.SpanCost` carries `*_cost_per_token`
+hybrids and they were part of this vocabulary until it turned out the language
+already expresses them: `total_cost / total_tokens` puts the divisor through the
+DSL's `nullif` guard, so it is NULL — never a division error, and never a rate of
+`0` — for both cases a rate can be undefined, no cost row and zero tokens. It
+answers identically to the hybrid on every row. A name here is not free: each one
+is claimed out of the attribute namespace, and three of them spent on sugar for
+`a / b` is three silent breaks bought for nothing.
 
 ### Backward-compatibility aliases
 
