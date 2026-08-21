@@ -155,22 +155,60 @@ export function searchUiOperations({
 }
 
 /**
- * Suggest catalog names for an unknown operation name, so dispatch errors are
- * actionable ("Did you mean...?") instead of dead ends.
+ * Levenshtein edit distance, two-row DP. Catalog names are short (≤30
+ * chars) and there are ~60 of them, so the quadratic cost is nothing.
+ */
+function editDistance(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+const MAX_OPERATION_NAME_SUGGESTIONS = 5;
+
+/**
+ * Suggest catalog names for an unknown operation name — the top
+ * {@link MAX_OPERATION_NAME_SUGGESTIONS} by edit distance, so dispatch
+ * errors read "did you mean" instead of dumping a namespace. A candidate is
+ * scored against both its full name and its same-segment-count suffix, so a
+ * dropped namespace still ranks its target first: `prompt.readt` is one
+ * edit from the `prompt.read` suffix of `playground.prompt.read` even
+ * though it is far from the full name.
  */
 export function suggestUiOperationNames(unknownName: string): string[] {
-  const segments = unknownName.toLowerCase().split(".").filter(Boolean);
-  const suggestions = knownUiOperations
-    .map((operation) => operation.name)
-    .filter((name) => {
+  const unknown = unknownName.toLowerCase();
+  const unknownSegmentCount = unknown.split(".").filter(Boolean).length;
+  return knownUiOperations
+    .map(({ name }) => {
       const candidate = name.toLowerCase();
-      return segments.some(
-        (segment) => candidate.includes(segment) || segment.includes(candidate)
-      );
-    });
-  return suggestions.length > 0
-    ? suggestions
-    : knownUiOperations.map((operation) => operation.name);
+      const suffix = candidate.split(".").slice(-unknownSegmentCount).join(".");
+      return {
+        name,
+        score: Math.min(
+          editDistance(unknown, candidate),
+          editDistance(unknown, suffix)
+        ),
+      };
+    })
+    .sort(
+      (left, right) =>
+        left.score - right.score || left.name.localeCompare(right.name)
+    )
+    .slice(0, MAX_OPERATION_NAME_SUGGESTIONS)
+    .map(({ name }) => name);
 }
 
 /**
