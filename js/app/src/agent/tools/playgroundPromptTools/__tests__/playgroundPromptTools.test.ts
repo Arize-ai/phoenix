@@ -304,8 +304,12 @@ describe("playground prompt tools agent tools", () => {
       expect(result).toEqual(
         expect.objectContaining({
           ok: false,
-          error: expect.stringContaining("has changed"),
+          error: expect.stringContaining("does not match"),
         })
+      );
+      // The error carries the current revision so a script can self-heal.
+      expect((result as { error: string }).error).toContain(
+        revisionOf(playgroundStore)
       );
       expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(1);
     });
