@@ -1,6 +1,6 @@
 -r ../ci.txt
 arize-phoenix-evals
-harbor>=0.18.0; python_version >= "3.12"
+harbor>=0.21.0; python_version >= "3.12"
 pandas<3
 pandas-stubs<3
 google-genai>=2.17.0

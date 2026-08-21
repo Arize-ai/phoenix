@@ -475,7 +475,7 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # Environment backend for trials (harbor run -e): docker, daytona, etc.
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
-HARBOR_VERSION ?= 0.18.0
+HARBOR_VERSION ?= 0.21.0
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
 HARBOR_PYTHON ?= 3.13

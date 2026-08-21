@@ -22,7 +22,7 @@ from phoenix.client.__generated__ import v1
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TASKS_DIR = REPO_ROOT / "evals" / "harbor" / "tasks"
 DIRECT_TASK = TASKS_DIR / "regression-triage"
-HARBOR_VERSION = os.environ.get("HARBOR_VERSION", "0.18.0")
+HARBOR_VERSION = os.environ.get("HARBOR_VERSION", "0.21.0")
 HARBOR_PYTHON = os.environ.get("HARBOR_PYTHON", "3.13")
 
 

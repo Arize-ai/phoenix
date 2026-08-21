@@ -1,13 +1,24 @@
+# pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportUntypedBaseClass=false, reportGeneralTypeIssues=false
+# pyright: reportAttributeAccessIssue=false
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import logging
-import sys
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Literal
 
 import httpx
+from harbor.job import Job
+from harbor.models.job.config import RetryConfig
+from harbor.models.job.plugin import BaseJobPlugin
+from harbor.models.job.result import JobResult
+from harbor.models.trial.result import TrialResult
+from harbor.trial.hooks import TrialHookEvent
+from typing_extensions import override
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.client import (
@@ -27,16 +38,6 @@ from phoenix.client.harbor._recorder import (
 )
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key, get_env_project_name
 
-# Harbor is an optional dependency that requires Python >=3.12.
-if TYPE_CHECKING and sys.version_info >= (3, 12):
-    from harbor.job import Job
-    from harbor.models.job.result import JobResult
-    from harbor.trial.hooks import TrialHookEvent
-else:
-    Job = Any
-    JobResult = Any
-    TrialHookEvent = Any
-
 logger = logging.getLogger(__name__)
 
 TraceMode = Literal["atif", "otlp", "none"]
@@ -44,7 +45,7 @@ TraceMode = Literal["atif", "otlp", "none"]
 _TRACE_MODES: tuple[str, ...] = ("atif", "otlp", "none")
 
 
-class PhoenixJobPlugin:
+class PhoenixJobPlugin(BaseJobPlugin):
     """Record a Harbor job as a Phoenix dataset and experiments."""
 
     def __init__(
@@ -57,6 +58,7 @@ class PhoenixJobPlugin:
         trace_mode: TraceMode = "atif",
         experiment_name_template: str = DEFAULT_EXPERIMENT_NAME_TEMPLATE,
     ) -> None:
+        super().__init__()
         if trace_mode not in _TRACE_MODES:
             raise ValueError(f"unsupported trace_mode: {trace_mode!r}")
 
@@ -73,10 +75,11 @@ class PhoenixJobPlugin:
         self.experiments: dict[str, ExperimentHandle] = {}
         self._runs: dict[RunKey, v1.ExperimentRun] = {}
         self._attempts: dict[str, int] = {}
-        self._retry_config: Any = None
+        self._retry_config: RetryConfig | None = None
         self._record_lock = asyncio.Lock()
         self._terminal_failure: Exception | None = None
 
+    @override
     async def on_job_start(self, job: Job) -> None:
         plan = build_job_plan(job, dataset_override=self.dataset)
         resumed_trials = existing_trial_results(job)
@@ -106,6 +109,7 @@ class PhoenixJobPlugin:
             ) from error
         self._report_started(plan, experiments)
 
+    @override
     async def on_job_end(self, job_result: JobResult) -> None:
         del job_result
         if self.plan is None:
@@ -136,24 +140,24 @@ class PhoenixJobPlugin:
                 raise
 
     def _will_retry(self, event: TrialHookEvent) -> bool:
-        error = getattr(event.result, "exception_info", None)
+        error = event.result.exception_info
         if error is None or error.exception_type == "CancelledError":
             return False
         retry = self._retry_config
         if retry is None:
             return False
-        excluded = getattr(retry, "exclude_exceptions", ()) or ()
+        excluded = retry.exclude_exceptions or set()
         if error.exception_type in excluded:
             return False
-        included = getattr(retry, "include_exceptions", ()) or ()
+        included = retry.include_exceptions or set()
         if included and error.exception_type not in included:
             return False
         attempts = self._attempts.get(str(event.trial_name), 1)
-        return attempts <= int(getattr(retry, "max_retries", 0) or 0)
+        return attempts <= retry.max_retries
 
     async def _record_trial(
         self,
-        trial_result: Any,
+        trial_result: TrialResult,
         *,
         recorder: PhoenixRecorder | None = None,
     ) -> None:

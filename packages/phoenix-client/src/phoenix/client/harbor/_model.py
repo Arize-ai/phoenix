@@ -1,3 +1,6 @@
+# pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Harbor job records used by the Phoenix plugin."""
 
 from __future__ import annotations
@@ -7,6 +10,10 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
+
+from harbor.models.job.config import JobConfig
+from harbor.models.job.lock import TaskLock
+from harbor.models.trial.config import AgentConfig, TrialConfig
 
 __all__ = [
     "DatasetIdentity",
@@ -50,16 +57,28 @@ class DatasetIdentity:
 
 @dataclass(frozen=True)
 class TaskRecord:
-    task_id: str
-    """Harbor task ID, used as the Phoenix example's external ID."""
+    lock: TaskLock
     name: str
-    source: str | None
-    task_type: str
-    version: str | None
-    digest: str
     instruction: str
     steps: tuple[StepRecord, ...] = ()
     config: Mapping[str, Any] = field(default_factory=dict)
+
+    @property
+    def task_id(self) -> str:
+        """Harbor task ID, used as the Phoenix example's external ID."""
+        return self.lock.name
+
+    @property
+    def source(self) -> str | None:
+        return self.lock.source
+
+    @property
+    def digest(self) -> str:
+        return self.lock.digest
+
+    @property
+    def version(self) -> str | None:
+        return self.lock.version
 
     def to_example(self) -> dict[str, Any]:
         """Convert the task to a Phoenix dataset example."""
@@ -78,9 +97,9 @@ class TaskRecord:
             # Harbor verifies environment state, not a reference response.
             "output": {},
             "metadata": {
-                "task_digest": self.digest,
-                "task_source": self.source,
-                "task_type": self.task_type,
+                "task_digest": self.lock.digest,
+                "task_source": self.lock.source,
+                "task_type": self.lock.type,
                 "task_version": self.version,
                 "task_config": dict(self.config),
             },
@@ -90,11 +109,15 @@ class TaskRecord:
 @dataclass(frozen=True)
 class ExperimentSlice:
     identity_digest: str
-    agent_name: str
-    model_name: str | None
-    import_path: str | None
-    skills: tuple[str, ...] = ()
-    mcp_servers: tuple[str, ...] = ()
+    agent: AgentConfig
+
+    @property
+    def agent_name(self) -> str:
+        return self.agent.name or "agent"
+
+    @property
+    def model_name(self) -> str | None:
+        return self.agent.model_name
 
     @property
     def short_identity(self) -> str:
@@ -104,31 +127,45 @@ class ExperimentSlice:
         return {
             "agent_name": self.agent_name,
             "model_name": self.model_name,
-            "import_path": self.import_path,
-            "skills": list(self.skills),
-            "mcp_servers": list(self.mcp_servers),
+            "import_path": self.agent.import_path,
+            "skills": list(self.agent.skills),
+            "mcp_servers": [server.name for server in self.agent.mcp_servers],
         }
 
 
 @dataclass(frozen=True)
 class TrialSlot:
-    trial_name: str
+    config: TrialConfig
     identity_digest: str
-    task_id: str
     repetition: int
     """One-based because Phoenix rejects repetition zero."""
+
+    @property
+    def trial_name(self) -> str:
+        return self.config.trial_name
+
+    @property
+    def task_id(self) -> str:
+        return self.config.task.get_task_id().get_name()
 
 
 @dataclass(frozen=True)
 class JobPlan:
     job_id: str
-    job_name: str
-    harbor_version: str | None
+    harbor_version: str
+    config: JobConfig
     dataset: DatasetIdentity
     tasks: tuple[TaskRecord, ...]
     slices: tuple[ExperimentSlice, ...]
     trials: tuple[TrialSlot, ...]
-    repetitions: int
+
+    @property
+    def job_name(self) -> str:
+        return self.config.job_name
+
+    @property
+    def repetitions(self) -> int:
+        return max(1, self.config.n_attempts)
 
     def slice_for(self, identity_digest: str) -> ExperimentSlice:
         for experiment_slice in self.slices:

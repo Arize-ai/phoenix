@@ -1,3 +1,7 @@
+# pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportUntypedBaseClass=false, reportAttributeAccessIssue=false
 """Tests for the Harbor plugin."""
 
 from __future__ import annotations
@@ -6,10 +10,21 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
+
+pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
+
+from harbor.job import Job
+from harbor.models.job.config import JobConfig, RetryConfig
+from harbor.models.job.lock import TaskLock
+from harbor.models.job.result import JobResult
+from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
+from harbor.models.trial.result import TrialResult
+from harbor.trial.hooks import HookCallback, TrialHookEvent
 
 from phoenix.client.harbor import PhoenixJobPlugin
 from phoenix.client.harbor._errors import HarborPluginError
@@ -24,74 +39,100 @@ from phoenix.client.harbor._plugin import TraceMode
 
 from .test_recorder import FakeClient, FakeDataset, FakeDatasets, FakeExperiments, example_row
 
+PLAN_AGENT = AgentConfig(name="claude-code", model_name="sonnet")
+PLAN_TASK = TaskConfig(path=Path("task-a"), source="phoenix-evals")
 PLAN = JobPlan(
     job_id="job-1",
-    job_name="2026-08-18__12-00-00",
     harbor_version="0.21.0",
+    config=JobConfig(
+        job_name="2026-08-18__12-00-00",
+        tasks=[PLAN_TASK],
+        agents=[PLAN_AGENT],
+    ),
     dataset=DatasetIdentity(name="phoenix-evals", kind="local", inferred_name="phoenix-evals"),
     tasks=(
         TaskRecord(
-            task_id="task-a",
+            lock=TaskLock(
+                name="task-a",
+                type="local",
+                source="phoenix-evals",
+                digest="sha256:" + "a" * 64,
+            ),
             name="task-a",
-            source="phoenix-evals",
-            task_type="local",
-            version=None,
-            digest="sha256:" + "a" * 64,
             instruction="do the thing",
         ),
     ),
     slices=(
         ExperimentSlice(
             identity_digest="sha256:" + "1" * 64,
-            agent_name="claude-code",
-            model_name="sonnet",
-            import_path=None,
+            agent=PLAN_AGENT,
         ),
     ),
     trials=(
         TrialSlot(
-            trial_name="task-a__1",
+            config=TrialConfig(
+                task=PLAN_TASK,
+                agent=PLAN_AGENT,
+                trial_name="task-a__1",
+            ),
             identity_digest="sha256:" + "1" * 64,
-            task_id="task-a",
             repetition=1,
         ),
     ),
-    repetitions=1,
 )
 
 
-class FakeJob:
+class FakeJob(Job):
     def __init__(self, *, max_retries: int = 0, existing: tuple[Any, ...] = ()) -> None:
-        self.config = SimpleNamespace(
-            retry=SimpleNamespace(
+        self.config = JobConfig(
+            tasks=[PLAN_TASK],
+            agents=[PLAN_AGENT],
+            retry=RetryConfig(
                 max_retries=max_retries,
-                include_exceptions=[],
-                exclude_exceptions=[],
-            )
+                include_exceptions=set(),
+                exclude_exceptions=set(),
+            ),
         )
         self._existing_trial_results = list(existing)
-        self.started_hook: Any = None
-        self.ended_hook: Any = None
+        self.started_hook: HookCallback | None = None
+        self.ended_hook: HookCallback | None = None
 
-    def on_trial_started(self, callback: Any) -> None:
+    def on_trial_started(self, callback: HookCallback) -> Job:
         self.started_hook = callback
+        return self
 
-    def on_trial_ended(self, callback: Any) -> None:
+    def on_trial_ended(self, callback: HookCallback) -> Job:
         self.ended_hook = callback
+        return self
 
 
-def trial_result(*, error: Any = None) -> Any:
+def trial_result(*, error: Any = None) -> TrialResult:
     now = datetime.now(timezone.utc)
-    return SimpleNamespace(
-        id="trial-id",
-        trial_name="task-a__1",
-        trial_uri="file:///trial",
-        task_name="task-a",
-        started_at=now,
-        finished_at=now,
-        exception_info=error,
-        compute_token_cost_totals=lambda: (None, None, None, None),
+    return cast(
+        TrialResult,
+        SimpleNamespace(
+            id="trial-id",
+            trial_name="task-a__1",
+            trial_uri="file:///trial",
+            task_name="task-a",
+            started_at=now,
+            finished_at=now,
+            exception_info=error,
+            compute_token_cost_totals=lambda: (None, None, None, None),
+        ),
     )
+
+
+def hook_event(result: TrialResult) -> TrialHookEvent:
+    return cast(
+        TrialHookEvent,
+        SimpleNamespace(trial_name=result.trial_name, result=result),
+    )
+
+
+def require_hook(hook: HookCallback | None) -> HookCallback:
+    assert hook is not None
+    return hook
 
 
 def successful_run(result: Any, **overrides: Any) -> dict[str, Any]:
@@ -194,8 +235,8 @@ class TestJobStart:
         await plugin.on_job_start(job)
         result = trial_result()
 
-        await job.started_hook(SimpleNamespace(trial_name=result.trial_name))
-        await job.ended_hook(SimpleNamespace(trial_name=result.trial_name, result=result))
+        await require_hook(job.started_hook)(hook_event(result))
+        await require_hook(job.ended_hook)(hook_event(result))
 
         (logged,) = wired.experiments.logged_runs
         assert logged["repetition_number"] == 1
@@ -208,8 +249,8 @@ class TestJobStart:
         error = SimpleNamespace(exception_type="TimeoutError", exception_message="timed out")
         result = trial_result(error=error)
 
-        await job.started_hook(SimpleNamespace(trial_name=result.trial_name))
-        await job.ended_hook(SimpleNamespace(trial_name=result.trial_name, result=result))
+        await require_hook(job.started_hook)(hook_event(result))
+        await require_hook(job.ended_hook)(hook_event(result))
 
         assert wired.experiments.logged_runs == []
 
@@ -259,11 +300,11 @@ class TestJobStart:
         plugin = PhoenixJobPlugin()
         job = FakeJob()
         await plugin.on_job_start(job)
-        event = SimpleNamespace(trial_name="task-a__1", result=trial_result())
+        event = hook_event(trial_result())
 
         with pytest.raises(HarborPluginError, match="connection lost"):
-            await job.ended_hook(event)
-        await job.ended_hook(event)
+            await require_hook(job.ended_hook)(event)
+        await require_hook(job.ended_hook)(event)
 
         assert len(wired.experiments.logged_runs) == 1
 
@@ -275,5 +316,5 @@ class TestJobEnd:
         plugin = PhoenixJobPlugin()
         await plugin.on_job_start(FakeJob())
         with caplog.at_level(logging.INFO, logger="phoenix.client.harbor._plugin"):
-            await plugin.on_job_end(SimpleNamespace(trial_results=[]))
+            await plugin.on_job_end(cast(JobResult, SimpleNamespace(trial_results=[])))
         assert "phoenix-evals" in caplog.text

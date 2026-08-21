@@ -1,6 +1,7 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportAttributeAccessIssue=false
 """Convert Harbor's private job plan into records used by the Phoenix plugin.
 
 Contract tests pin the private attributes read here to supported Harbor versions.
@@ -12,7 +13,20 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+import harbor
+from harbor.job import Job
+from harbor.models.job.config import DatasetConfig, JobConfig
+from harbor.models.job.lock import (
+    TaskDownloadResolution,
+    TrialLock,
+    build_job_lock,
+)
+from harbor.models.task.task import Task
+from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
+from harbor.models.trial.result import TrialResult
+from harbor.tasks.client import TaskIdType
 
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import (
@@ -27,39 +41,33 @@ from phoenix.client.harbor._model import (
 
 __all__ = ["MINIMUM_HARBOR_VERSION", "build_job_plan", "existing_trial_results"]
 
-MINIMUM_HARBOR_VERSION = (0, 18, 0)
-
-# Agent settings that distinguish Phoenix experiments.
-_AGENT_IDENTITY_FIELDS = (
-    "name",
-    "import_path",
-    "model_name",
-    "skills",
-    "kwargs",
-    "override_timeout_sec",
-    "override_setup_timeout_sec",
-    "max_timeout_sec",
-    "resume_trajectory",
-    "load_trajectory",
-    "extra_allowed_hosts",
-)
+MINIMUM_HARBOR_VERSION = (0, 21, 0)
 
 
-def build_job_plan(job: Any, *, dataset_override: str | None = None) -> JobPlan:
+def build_job_plan(job: object, *, dataset_override: str | None = None) -> JobPlan:
     """Resolve a Harbor job into the records the plugin writes to Phoenix."""
+    if not isinstance(job, Job):
+        raise HarborPluginError(
+            f"The Phoenix Harbor plugin expected `harbor.job.Job`; found {type(job).__name__}."
+        )
     harbor_version = _require_supported_harbor()
-    config = _require_attr(job, "config")
+    config = job.config
 
     _validate_job_shape(config)
 
-    task_configs: Sequence[Any] = _require_attr(job, "_task_configs")
-    downloads: Mapping[Any, Any] = _require_attr(job, "_task_download_results")
-    trial_configs: Sequence[Any] = _require_attr(job, "_trial_configs")
+    task_configs = job._task_configs  # pyright: ignore[reportPrivateUsage]
+    downloads = job._task_download_results  # pyright: ignore[reportPrivateUsage]
+    trial_configs = job._trial_configs  # pyright: ignore[reportPrivateUsage]
     if not task_configs:
         raise HarborPluginError("Harbor resolved no tasks for this job.")
 
-    tasks = _build_task_records(task_configs, downloads)
-    dataset_configs: Sequence[Any] = getattr(config, "datasets", ()) or ()
+    job_lock = build_job_lock(
+        config=config,
+        trial_configs=trial_configs,
+        task_download_results=downloads,
+    )
+    tasks = _build_task_records(task_configs, downloads, job_lock.trials)
+    dataset_configs = config.datasets
     if dataset_configs:
         dataset = _resolve_dataset_identity(dataset_configs[0], tasks, dataset_override)
     else:
@@ -68,27 +76,18 @@ def build_job_plan(job: Any, *, dataset_override: str | None = None) -> JobPlan:
     trials = _build_trial_slots(trial_configs, slices)
 
     return JobPlan(
-        job_id=str(_require_attr(job, "id")),
-        job_name=str(getattr(config, "job_name", "") or ""),
+        job_id=str(job.id),
         harbor_version=harbor_version,
+        config=config,
         dataset=dataset,
         tasks=tasks,
         slices=slices,
         trials=trials,
-        repetitions=max(1, int(getattr(config, "n_attempts", 1) or 1)),
     )
 
 
-def _require_supported_harbor() -> str | None:
-    try:
-        import harbor
-    except ImportError as error:  # pragma: no cover - exercised only without Harbor
-        raise HarborPluginError(
-            "The Phoenix Harbor plugin requires the `harbor` package (Python >=3.12)."
-        ) from error
-    version = getattr(harbor, "__version__", None)
-    if version is None:
-        return None
+def _require_supported_harbor() -> str:
+    version = harbor.__version__
     minimum = ".".join(str(part) for part in MINIMUM_HARBOR_VERSION)
     release, is_prerelease = _parse_version(str(version))
     if release < MINIMUM_HARBOR_VERSION or (release == MINIMUM_HARBOR_VERSION and is_prerelease):
@@ -112,32 +111,19 @@ def _parse_version(version: str) -> tuple[tuple[int, int, int], bool]:
     return release, is_prerelease
 
 
-def _require_attr(obj: Any, name: str) -> Any:
-    try:
-        return getattr(obj, name)
-    except AttributeError as error:
-        minimum = ".".join(str(part) for part in MINIMUM_HARBOR_VERSION)
-        raise HarborPluginError(
-            f"The Harbor job is missing `{name}`, which the Phoenix plugin needs to map "
-            f"tasks and trials. Install a compatible release (harbor>={minimum}) or omit "
-            "`--plugin phoenix`."
-        ) from error
-
-
-def existing_trial_results(job: Any) -> tuple[Any, ...]:
+def existing_trial_results(job: Job) -> tuple[TrialResult, ...]:
     """Return terminal trials loaded by Harbor when resuming a job."""
-    results: Sequence[Any] = _require_attr(job, "_existing_trial_results")
-    return tuple(results)
+    return tuple(job._existing_trial_results)  # pyright: ignore[reportPrivateUsage]
 
 
-def _validate_job_shape(config: Any) -> None:
+def _validate_job_shape(config: JobConfig) -> None:
     """Require one task source that can map to one Phoenix dataset."""
-    if getattr(config, "source_jobs", None):
+    if config.source_jobs:
         raise HarborPluginError(
             "Regrade and source-job runs are unsupported. Omit `--plugin arize-phoenix`."
         )
-    tasks: Sequence[Any] = getattr(config, "tasks", ()) or ()
-    datasets: Sequence[Any] = getattr(config, "datasets", ()) or ()
+    tasks = config.tasks
+    datasets = config.datasets
     if tasks and datasets:
         raise HarborPluginError(
             "A Harbor job cannot combine ad-hoc tasks and datasets when recording to Phoenix."
@@ -148,34 +134,33 @@ def _validate_job_shape(config: Any) -> None:
         )
     if not tasks and not datasets:
         raise HarborPluginError("Harbor resolved neither a dataset nor ad-hoc tasks.")
-    if not getattr(config, "agents", None):
+    if not config.agents:
         raise HarborPluginError("Harbor resolved no agents for this job.")
 
 
 def _build_task_records(
-    task_configs: Sequence[Any],
-    downloads: Mapping[Any, Any],
+    task_configs: Sequence[TaskConfig],
+    downloads: Mapping[TaskIdType, TaskDownloadResolution],
+    trial_locks: Sequence[TrialLock],
 ) -> tuple[TaskRecord, ...]:
     records: list[TaskRecord] = []
     seen: set[str] = set()
+    task_locks = {trial_lock.task.name: trial_lock.task for trial_lock in trial_locks}
     for task_config in task_configs:
         download = _lookup_download(task_config, downloads)
-        task_lock = _build_task_lock(task_config, download)
-        task_id = str(task_lock.name)
+        task_id = task_config.get_task_id().get_name()
         if task_id in seen:
             raise HarborPluginError(f"Duplicate Harbor task name {task_id!r}. Rename one task.")
         seen.add(task_id)
+        try:
+            task_lock = task_locks[task_id]
+        except KeyError:
+            raise HarborPluginError(f"Harbor produced no task lock for {task_id!r}.") from None
         content = _read_task_content(download.path)
         records.append(
             TaskRecord(
-                task_id=task_id,
+                lock=task_lock,
                 name=content.name,
-                source=getattr(task_config, "source", None),
-                task_type=str(task_lock.type),
-                # Harbor added ``TaskLock.version`` in 0.21. Keep the field
-                # optional for the plugin's supported 0.18-0.20 releases.
-                version=getattr(task_lock, "version", None),
-                digest=str(task_lock.digest),
                 instruction=content.instruction,
                 steps=content.steps,
                 config=content.config,
@@ -184,7 +169,10 @@ def _build_task_records(
     return tuple(records)
 
 
-def _lookup_download(task_config: Any, downloads: Mapping[Any, Any]) -> Any:
+def _lookup_download(
+    task_config: TaskConfig,
+    downloads: Mapping[TaskIdType, TaskDownloadResolution],
+) -> TaskDownloadResolution:
     task_id = task_config.get_task_id()
     try:
         return downloads[task_id]
@@ -196,22 +184,6 @@ def _lookup_download(task_config: Any, downloads: Mapping[Any, Any]) -> Any:
         if key.get_name() == name:
             return value
     raise HarborPluginError(f"No download for task {name!r}; cannot compute its digest.")
-
-
-def _build_task_lock(task_config: Any, download: Any) -> Any:
-    """Build a task lock once per task, not once per trial."""
-    try:
-        from harbor.models.job.lock import (
-            _build_lock_trial_task,  # pyright: ignore[reportPrivateUsage]
-        )
-    except ImportError as error:
-        raise HarborPluginError(
-            "Harbor does not expose the task-lock builder needed for digests."
-        ) from error
-    try:
-        return _build_lock_trial_task(task_config, download)
-    except Exception as error:
-        raise HarborPluginError(f"Harbor could not resolve the task digest: {error}") from error
 
 
 @dataclass(frozen=True)
@@ -229,23 +201,19 @@ def _read_task_content(task_dir: Path) -> _TaskContent:
     ``task.toml``.
     """
     try:
-        from harbor.models.task.task import Task
-    except ImportError as error:  # pragma: no cover - exercised only without Harbor
-        raise HarborPluginError("This Harbor version does not expose `Task`.") from error
-    try:
         # Harbor validated the task while resolving the plan.
         task = Task(task_dir, disable_verification=True)
     except Exception as error:
         raise HarborPluginError(f"Could not load Harbor task at {task_dir}: {error}") from error
 
     steps: list[StepRecord] = []
-    for step in getattr(task.config, "steps", None) or []:
+    for step in task.config.steps or []:
         instruction = task.step_instruction(step.name)
         steps.append(StepRecord(name=str(step.name), instruction=str(instruction)))
 
     task_toml = task.config.model_dump(mode="json", exclude_defaults=True)
     return _TaskContent(
-        name=str(getattr(task, "name", "") or task_dir.name),
+        name=task.name or task_dir.name,
         instruction=str(task.instruction),
         steps=tuple(steps),
         config=_redact_env(task_toml),
@@ -256,19 +224,20 @@ def _redact_env(value: Any) -> Any:
     """Remove possible secrets from ``env`` while preserving its key names."""
     if isinstance(value, dict):
         redacted: dict[str, Any] = {}
-        for key, item in value.items():  # pyright: ignore[reportUnknownVariableType]
-            if key == "env" and isinstance(item, dict):
-                redacted[key] = sorted(str(name) for name in item)  # pyright: ignore[reportUnknownArgumentType]
+        for key, item in cast(dict[object, object], value).items():
+            key_name = str(key)
+            if key_name == "env" and isinstance(item, dict):
+                redacted[key_name] = sorted(str(name) for name in cast(dict[object, object], item))
             else:
-                redacted[key] = _redact_env(item)
+                redacted[key_name] = _redact_env(item)
         return redacted
     if isinstance(value, list):
-        return [_redact_env(item) for item in value]  # pyright: ignore[reportUnknownVariableType]
+        return [_redact_env(item) for item in cast(list[object], value)]
     return value
 
 
 def _resolve_dataset_identity(
-    dataset_config: Any,
+    dataset_config: DatasetConfig,
     tasks: Sequence[TaskRecord],
     override: str | None,
 ) -> DatasetIdentity:
@@ -314,15 +283,19 @@ def _resolve_adhoc_dataset_identity(
     return DatasetIdentity(name=name, kind="adhoc", inferred_name=inferred)
 
 
-def _dataset_kind(dataset_config: Any) -> str:
-    for kind in ("repo", "local", "package", "registry"):
-        classifier = getattr(dataset_config, f"is_{kind}", None)
-        if callable(classifier) and classifier():
-            return kind
+def _dataset_kind(dataset_config: DatasetConfig) -> str:
+    if dataset_config.is_repo():
+        return "repo"
+    if dataset_config.is_local():
+        return "local"
+    if dataset_config.is_package():
+        return "package"
+    if dataset_config.is_registry():
+        return "registry"
     return "unknown"
 
 
-def _build_slices(agent_configs: Sequence[Any]) -> tuple[ExperimentSlice, ...]:
+def _build_slices(agent_configs: Sequence[AgentConfig]) -> tuple[ExperimentSlice, ...]:
     slices: list[ExperimentSlice] = []
     seen: set[str] = set()
     for agent_config in agent_configs:
@@ -336,56 +309,29 @@ def _build_slices(agent_configs: Sequence[Any]) -> tuple[ExperimentSlice, ...]:
     return tuple(slices)
 
 
-def _build_slice(agent_config: Any) -> ExperimentSlice:
-    model_name = getattr(agent_config, "model_name", None)
-    import_path = getattr(agent_config, "import_path", None)
-    mcp_servers = tuple(
-        str(getattr(server, "name", server)) for server in getattr(agent_config, "mcp_servers", ())
-    )
+def _build_slice(agent_config: AgentConfig) -> ExperimentSlice:
     return ExperimentSlice(
         identity_digest=_agent_identity_digest(agent_config),
-        agent_name=str(getattr(agent_config, "name", None) or "agent"),
-        model_name=None if model_name is None else str(model_name),
-        import_path=None if import_path is None else str(import_path),
-        skills=tuple(str(skill) for skill in getattr(agent_config, "skills", ()) or ()),
-        mcp_servers=mcp_servers,
+        agent=agent_config,
     )
 
 
-def _agent_identity_digest(agent_config: Any) -> str:
+def _agent_identity_digest(agent_config: AgentConfig) -> str:
     """Digest behavior settings without storing secrets.
 
     Environment key names affect identity, but their values do not. Scheduler
     and logging settings are omitted because they do not change agent behavior.
     """
-    payload: dict[str, Any] = {}
-    for field_name in _AGENT_IDENTITY_FIELDS:
-        payload[field_name] = _jsonable(getattr(agent_config, field_name, None))
-    payload["mcp_servers"] = [
-        _jsonable(server) for server in getattr(agent_config, "mcp_servers", ()) or ()
-    ]
-    env: Mapping[str, Any] = getattr(agent_config, "env", None) or {}
-    payload["env_keys"] = sorted(str(key) for key in env)
+    payload = agent_config.model_dump(
+        mode="json",
+        exclude={"n_concurrent", "concurrency_group", "include_logs", "exclude_logs", "env"},
+    )
+    payload["env_keys"] = sorted(agent_config.env)
     return canonical_digest(payload)
 
 
-def _jsonable(value: Any) -> Any:
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, Mapping):
-        return {str(key): _jsonable(item) for key, item in value.items()}  # pyright: ignore[reportUnknownVariableType]
-    if isinstance(value, (list, tuple, set)):
-        return [_jsonable(item) for item in value]  # pyright: ignore[reportUnknownVariableType]
-    dump = getattr(value, "model_dump", None)
-    if callable(dump):
-        return _jsonable(dump(mode="json"))
-    return str(value)
-
-
 def _build_trial_slots(
-    trial_configs: Sequence[Any],
+    trial_configs: Sequence[TrialConfig],
     slices: Sequence[ExperimentSlice],
 ) -> tuple[TrialSlot, ...]:
     """Assign repetitions from Harbor's ordered trial plan.
@@ -405,9 +351,8 @@ def _build_trial_slots(
         counters[key] = counters.get(key, 0) + 1
         slots.append(
             TrialSlot(
-                trial_name=str(getattr(trial_config, "trial_name", "") or ""),
+                config=trial_config,
                 identity_digest=identity,
-                task_id=task_id,
                 repetition=counters[key],
             )
         )

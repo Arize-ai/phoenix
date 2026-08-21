@@ -1,3 +1,7 @@
+# pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportAttributeAccessIssue=false, reportCallIssue=false
 """Write a resolved Harbor job to Phoenix."""
 
 from __future__ import annotations
@@ -8,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import httpx
+from harbor.models.trial.result import TrialResult
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.client import AsyncClient
@@ -161,7 +166,7 @@ class PhoenixRecorder:
     def can_reuse_run(
         run: v1.ExperimentRun,
         *,
-        trial_result: Any,
+        trial_result: TrialResult,
     ) -> bool:
         """Validate an immutable successful run or allow a failed run to be replaced."""
         if run.get("error"):
@@ -192,7 +197,7 @@ class PhoenixRecorder:
         experiment: ExperimentHandle,
         dataset_example_id: str,
         repetition: int,
-        trial_result: Any,
+        trial_result: TrialResult,
     ) -> v1.ExperimentRun:
         matches = [
             run
@@ -219,7 +224,7 @@ class PhoenixRecorder:
         plan: JobPlan,
         snapshot: DatasetSnapshot,
         experiments: Mapping[str, ExperimentHandle],
-        trial_result: Any,
+        trial_result: TrialResult,
     ) -> v1.ExperimentRun:
         """Record one terminal Harbor trial as a Phoenix experiment run."""
         trial_name = str(trial_result.trial_name)
@@ -231,8 +236,8 @@ class PhoenixRecorder:
             ) from error
         experiment = experiments[slot.identity_digest]
         example_id = snapshot.example_ids[slot.task_id]
-        start_time = getattr(trial_result, "started_at", None)
-        end_time = getattr(trial_result, "finished_at", None)
+        start_time = trial_result.started_at
+        end_time = trial_result.finished_at
         if start_time is None or end_time is None:
             raise HarborPluginError(
                 f"Harbor trial {trial_name!r} has no complete start and end timestamps."
@@ -409,7 +414,7 @@ def _run_key(identity: str, run: v1.ExperimentRun) -> RunKey:
     )
 
 
-def _trial_output(trial_result: Any) -> dict[str, Any]:
+def _trial_output(trial_result: TrialResult) -> dict[str, Any]:
     n_input, n_cache, n_output, cost = trial_result.compute_token_cost_totals()
     output: dict[str, Any] = {
         "harbor_trial_id": str(trial_result.id),
@@ -429,8 +434,8 @@ def _trial_output(trial_result: Any) -> dict[str, Any]:
     return output
 
 
-def _trial_error(trial_result: Any) -> str | None:
-    error = getattr(trial_result, "exception_info", None)
+def _trial_error(trial_result: TrialResult) -> str | None:
+    error = trial_result.exception_info
     if error is None:
         return None
     return f"{error.exception_type}: {error.exception_message}"

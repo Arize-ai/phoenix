@@ -44,6 +44,9 @@ pytest = [
 evals = [
   "arize-phoenix-evals",
 ]
+harbor = [
+  "harbor>=0.21.0; python_version >= '3.12'",
+]
 
 [project.entry-points.pytest11]
 phoenix = "phoenix.client.pytest.plugin"
@@ -101,13 +104,19 @@ exclude = [
   "src/phoenix/client/helpers/sdk/",
 ]
 
-# `harbor` is a type-only import in phoenix.client.harbor. It is not installed in most
-# environments (it requires Python >=3.12), and even where it is installed it ships no
-# py.typed. This override covers both cases (import-not-found and import-untyped) so the
-# annotations degrade to Any rather than failing the strict type check.
+# Harbor does not yet ship a py.typed marker. Follow its inline annotations so changes to
+# the plugin ABC and the models consumed by phoenix.client.harbor fail type checking.
 [[tool.mypy.overrides]]
 module = ["harbor.*"]
+follow_untyped_imports = true
 ignore_missing_imports = true
+
+# Harbor requires Python 3.12. On the client's 3.10 and 3.11 CI jobs its types resolve to Any;
+# supported Python jobs install Harbor and check the concrete types above.
+[[tool.mypy.overrides]]
+module = ["phoenix.client.harbor.*", "src.phoenix.client.harbor.*", "tests.client.harbor.*"]
+allow_subclassing_any = true
+warn_return_any = false
 
 [tool.pyright]
 typeCheckingMode = "strict"

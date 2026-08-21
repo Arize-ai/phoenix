@@ -1,14 +1,25 @@
+# pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Tests for Harbor dataset and experiment recording."""
 
 from __future__ import annotations
 
 import builtins
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
+
+pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
+
+from harbor.models.job.config import JobConfig
+from harbor.models.job.lock import TaskLock
+from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
+from harbor.models.trial.result import TrialResult
 
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import (
@@ -27,39 +38,50 @@ from phoenix.client.harbor._recorder import (
 
 
 def task(task_id: str, digest: str = "sha256:" + "a" * 64, **overrides: Any) -> TaskRecord:
+    version = overrides.pop("version", None)
+    source = overrides.pop("source", "phoenix-evals")
+    task_type = overrides.pop("task_type", "local")
     defaults: dict[str, Any] = {
-        "task_id": task_id,
+        "lock": TaskLock(
+            name=task_id,
+            version=version,
+            source=source,
+            type=task_type,
+            digest=digest,
+        ),
         "name": task_id,
-        "source": "phoenix-evals",
-        "task_type": "local",
-        "version": None,
-        "digest": digest,
         "instruction": "do the thing",
     }
     return TaskRecord(**{**defaults, **overrides})
 
 
-def slice_(agent_name: str = "claude-code", model: str | None = "sonnet", seed: str = "1") -> Any:
+def slice_(
+    agent_name: str = "claude-code", model: str | None = "sonnet", seed: str = "1"
+) -> ExperimentSlice:
     return ExperimentSlice(
         identity_digest="sha256:" + seed * 64,
-        agent_name=agent_name,
-        model_name=model,
-        import_path=None,
+        agent=AgentConfig(name=agent_name, model_name=model),
     )
 
 
 def plan(*slices: ExperimentSlice, tasks: tuple[TaskRecord, ...] = (), **overrides: Any) -> JobPlan:
+    repetitions = overrides.pop("repetitions", 1)
+    job_name = overrides.pop("job_name", "2026-08-18__12-00-00")
     defaults: dict[str, Any] = {
         "job_id": "job-1",
-        "job_name": "2026-08-18__12-00-00",
         "harbor_version": "0.21.0",
+        "config": JobConfig(
+            job_name=job_name,
+            n_attempts=repetitions,
+            tasks=[TaskConfig(path=Path("task-a"))],
+            agents=[experiment_slice.agent for experiment_slice in slices] or [slice_().agent],
+        ),
         "dataset": DatasetIdentity(
             name="phoenix-evals", kind="local", inferred_name="phoenix-evals"
         ),
         "tasks": tasks or (task("task-a"),),
         "slices": slices or (slice_(),),
         "trials": (),
-        "repetitions": 1,
     }
     return JobPlan(**{**defaults, **overrides})
 
@@ -142,17 +164,20 @@ def example_row(task_id: str, node_id: str) -> dict[str, Any]:
     }
 
 
-def trial_result(*, trial_name: str = "task-a__1", error: Any = None) -> Any:
+def trial_result(*, trial_name: str = "task-a__1", error: Any = None) -> TrialResult:
     now = datetime.now(timezone.utc)
-    return SimpleNamespace(
-        id="trial-id",
-        trial_name=trial_name,
-        trial_uri="file:///trial",
-        task_name="task-a",
-        started_at=now,
-        finished_at=now,
-        exception_info=error,
-        compute_token_cost_totals=lambda: (10, 2, 4, 0.01),
+    return cast(
+        TrialResult,
+        SimpleNamespace(
+            id="trial-id",
+            trial_name=trial_name,
+            trial_uri="file:///trial",
+            task_name="task-a",
+            started_at=now,
+            finished_at=now,
+            exception_info=error,
+            compute_token_cost_totals=lambda: (10, 2, 4, 0.01),
+        ),
     )
 
 
@@ -371,9 +396,12 @@ class TestRecordTrial:
         job = plan(
             trials=(
                 TrialSlot(
-                    trial_name="task-a__2",
+                    config=TrialConfig(
+                        task=TaskConfig(path=Path("task-a")),
+                        agent=slice_().agent,
+                        trial_name="task-a__2",
+                    ),
                     identity_digest=slice_().identity_digest,
-                    task_id="task-a",
                     repetition=2,
                 ),
             ),
@@ -428,9 +456,12 @@ class TestRecordTrial:
         job = plan(
             trials=(
                 TrialSlot(
-                    trial_name="task-a__1",
+                    config=TrialConfig(
+                        task=TaskConfig(path=Path("task-a")),
+                        agent=slice_().agent,
+                        trial_name="task-a__1",
+                    ),
                     identity_digest=slice_().identity_digest,
-                    task_id="task-a",
                     repetition=1,
                 ),
             )

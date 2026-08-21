@@ -6,14 +6,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
+pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
+
 from phoenix.client.harbor._adapter import build_job_plan, existing_trial_results
 from phoenix.client.harbor._errors import HarborPluginError
-
-pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
 
 TASK_TOML = """schema_version = "1.3"
 
@@ -72,17 +72,22 @@ async def make_job(config: Any) -> Any:
 class TestPluginRegistration:
     async def test_harbor_loads_the_plugin_by_entry_point_name(self) -> None:
         from harbor.cli.job_plugins import attach_job_plugin
+        from harbor.job import Job
 
         # The first adapter read proves Harbor loaded and called the plugin.
-        with pytest.raises(HarborPluginError, match="missing `config`"):
-            await attach_job_plugin(object(), "arize-phoenix", kwargs={"trace_mode": "none"})
+        with pytest.raises(HarborPluginError, match="expected `harbor.job.Job`"):
+            await attach_job_plugin(
+                cast(Job, object()), "arize-phoenix", kwargs={"trace_mode": "none"}
+            )
 
     async def test_plugin_satisfies_harbors_protocol(self) -> None:
-        from harbor.models.job.plugin import JobPlugin
+        from harbor.models.job.plugin import BaseJobPlugin, JobPlugin
 
         from phoenix.client.harbor import PhoenixJobPlugin
 
-        assert isinstance(PhoenixJobPlugin(trace_mode="none"), JobPlugin)
+        assert issubclass(PhoenixJobPlugin, BaseJobPlugin)
+        plugin: JobPlugin = PhoenixJobPlugin(trace_mode="none")
+        assert isinstance(plugin, JobPlugin)
 
 
 class TestResolvedPlan:

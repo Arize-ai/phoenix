@@ -1,30 +1,39 @@
+# pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportUntypedBaseClass=false, reportAttributeAccessIssue=false
 """Unit tests for Harbor plan conversion."""
 
 from __future__ import annotations
 
-import sys
-from types import ModuleType, SimpleNamespace
-from typing import Any
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
+pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
+
+from harbor.models.job.config import DatasetConfig, JobConfig
+from harbor.models.job.lock import TaskLock
+from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
+
 from phoenix.client.harbor._adapter import (
+    MINIMUM_HARBOR_VERSION,
     _agent_identity_digest,  # pyright: ignore[reportPrivateUsage]
     _build_slices,  # pyright: ignore[reportPrivateUsage]
-    _build_task_records,  # pyright: ignore[reportPrivateUsage]
     _build_trial_slots,  # pyright: ignore[reportPrivateUsage]
     _redact_env,  # pyright: ignore[reportPrivateUsage]
     _require_supported_harbor,  # pyright: ignore[reportPrivateUsage]
     _resolve_adhoc_dataset_identity,  # pyright: ignore[reportPrivateUsage]
     _resolve_dataset_identity,  # pyright: ignore[reportPrivateUsage]
-    _TaskContent,  # pyright: ignore[reportPrivateUsage]
     _validate_job_shape,  # pyright: ignore[reportPrivateUsage]
 )
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import TaskRecord
 
 
-def agent(**overrides: Any) -> Any:
+def agent(**overrides: Any) -> AgentConfig:
     defaults: dict[str, Any] = {
         "name": "claude-code",
         "import_path": None,
@@ -44,54 +53,68 @@ def agent(**overrides: Any) -> Any:
         "include_logs": [],
         "exclude_logs": [],
     }
-    return SimpleNamespace(**{**defaults, **overrides})
+    return AgentConfig(**{**defaults, **overrides})
 
 
 def task_record(task_id: str, source: str | None = "phoenix-evals") -> TaskRecord:
     return TaskRecord(
-        task_id=task_id,
+        lock=TaskLock(
+            name=task_id,
+            type="local",
+            source=source,
+            digest="sha256:" + "0" * 64,
+        ),
         name=task_id,
-        source=source,
-        task_type="local",
-        version=None,
-        digest="sha256:" + "0" * 64,
         instruction="do the thing",
     )
 
 
-def dataset_config(**flags: bool) -> Any:
-    return SimpleNamespace(
-        is_local=lambda: flags.get("local", False),
-        is_registry=lambda: flags.get("registry", False),
-        is_package=lambda: flags.get("package", False),
-        is_repo=lambda: flags.get("repo", False),
+def dataset_config(**flags: bool) -> DatasetConfig:
+    if flags.get("local"):
+        return DatasetConfig(path=Path("phoenix-evals"))
+    if flags.get("registry"):
+        return DatasetConfig(name="phoenix-evals")
+    if flags.get("package"):
+        return DatasetConfig(name="arize/phoenix-evals")
+    if flags.get("repo"):
+        return DatasetConfig(repo="Arize-ai/phoenix", path=Path("evals/harbor"))
+    return cast(
+        DatasetConfig,
+        SimpleNamespace(
+            is_local=lambda: flags.get("local", False),
+            is_registry=lambda: flags.get("registry", False),
+            is_package=lambda: flags.get("package", False),
+            is_repo=lambda: flags.get("repo", False),
+        ),
     )
 
 
-def trial(agent_config: Any, task_id: str, trial_name: str) -> Any:
-    return SimpleNamespace(
+def trial(agent_config: AgentConfig, task_id: str, trial_name: str) -> TrialConfig:
+    return TrialConfig(
         agent=agent_config,
         trial_name=trial_name,
-        task=SimpleNamespace(get_task_id=lambda: SimpleNamespace(get_name=lambda: task_id)),
+        task=TaskConfig(path=Path(task_id)),
     )
 
 
 class TestHarborVersion:
+    def test_client_extra_matches_the_runtime_minimum(self) -> None:
+        pyproject = Path(__file__).parents[3] / "pyproject.toml"
+        minimum = ".".join(str(part) for part in MINIMUM_HARBOR_VERSION)
+
+        assert f'"harbor>={minimum};' in pyproject.read_text()
+
     def test_accepts_major_versions_above_the_minimum(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        harbor = ModuleType("harbor")
-        setattr(harbor, "__version__", "1.0.0")
-        monkeypatch.setitem(sys.modules, "harbor", harbor)
+        monkeypatch.setattr("phoenix.client.harbor._adapter.harbor.__version__", "1.0.0")
 
         assert _require_supported_harbor() == "1.0.0"
 
     def test_rejects_versions_below_the_minimum(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        harbor = ModuleType("harbor")
-        setattr(harbor, "__version__", "0.18.0rc1")
-        monkeypatch.setitem(sys.modules, "harbor", harbor)
+        monkeypatch.setattr("phoenix.client.harbor._adapter.harbor.__version__", "0.21.0rc1")
 
-        with pytest.raises(HarborPluginError, match=r"harbor>=0\.18\.0"):
+        with pytest.raises(HarborPluginError, match=r"harbor>=0\.21\.0"):
             _require_supported_harbor()
 
 
@@ -132,53 +155,6 @@ class TestSlices:
             _build_slices([agent(), agent()])
 
 
-class TestTaskRecords:
-    def test_task_lock_version_is_optional_for_harbor_before_0_21(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        task_config = SimpleNamespace(source="phoenix-evals")
-        task_lock = SimpleNamespace(
-            name="task-a",
-            type="local",
-            digest="sha256:" + "0" * 64,
-        )
-        content = _TaskContent(
-            name="arize/task-a",
-            instruction="do the thing",
-            steps=(),
-            config={},
-        )
-
-        def _download(task_config: Any, downloads: Any) -> Any:
-            del task_config, downloads
-            return SimpleNamespace(path="/unused")
-
-        def _task_lock(task_config: Any, download: Any) -> Any:
-            del task_config, download
-            return task_lock
-
-        def _content(task_dir: Any) -> _TaskContent:
-            del task_dir
-            return content
-
-        monkeypatch.setattr(
-            "phoenix.client.harbor._adapter._lookup_download",
-            _download,
-        )
-        monkeypatch.setattr(
-            "phoenix.client.harbor._adapter._build_task_lock",
-            _task_lock,
-        )
-        monkeypatch.setattr(
-            "phoenix.client.harbor._adapter._read_task_content",
-            _content,
-        )
-
-        (record,) = _build_task_records([task_config], {})
-
-        assert record.version is None
-
-
 class TestJobShape:
     @pytest.mark.parametrize(
         ("config", "message"),
@@ -201,9 +177,7 @@ class TestJobShape:
             _validate_job_shape(config)
 
     def test_accepts_ad_hoc_tasks_without_a_dataset(self) -> None:
-        _validate_job_shape(
-            SimpleNamespace(source_jobs=[], tasks=[object()], datasets=[], agents=[object()])
-        )
+        _validate_job_shape(JobConfig(tasks=[TaskConfig(path=Path("task-a"))], agents=[agent()]))
 
 
 class TestDatasetIdentity:
