@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Button, Flex } from "@phoenix/components";
+import { Flex, LinkButton } from "@phoenix/components";
 import {
   EmptyState,
   EmptyStateArea,
@@ -59,15 +59,9 @@ export function NotFoundContent({
         <p css={identifierCSS}>{identifier}</p>
       ) : null}
       <div css={actionsCSS}>
-        <Button
-          variant="primary"
-          size="S"
-          onPress={() => {
-            window.location.href = "/";
-          }}
-        >
+        <LinkButton variant="primary" size="S" to="/">
           Return Home
-        </Button>
+        </LinkButton>
       </div>
     </>
   );
@@ -109,12 +103,12 @@ export function ProjectOnboardingNotFound({
               href: SETUP_TRACING_HREF,
             },
             {
-              kind: "button",
-              variant: "primary",
-              children: "View projects",
-              onPress: () => {
-                window.location.href = "/projects";
-              },
+              kind: "node",
+              node: (
+                <LinkButton variant="primary" size="S" to="/projects">
+                  View projects
+                </LinkButton>
+              ),
             },
           ],
         }}
