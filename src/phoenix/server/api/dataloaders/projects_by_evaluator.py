@@ -24,12 +24,12 @@ class ProjectsByEvaluatorDataLoader(DataLoader[Key, Result]):
 
         async with self._db.read() as session:
             stmt = (
-                select(models.ProjectEvaluatorCriteria.evaluator_id, models.Project)
+                select(models.ProjectEvaluator.evaluator_id, models.Project)
                 .join(
                     models.Project,
-                    models.ProjectEvaluatorCriteria.project_id == models.Project.id,
+                    models.ProjectEvaluator.project_id == models.Project.id,
                 )
-                .where(models.ProjectEvaluatorCriteria.evaluator_id.in_(keys))
+                .where(models.ProjectEvaluator.evaluator_id.in_(keys))
                 .distinct()
                 .order_by(models.Project.name.asc())
             )
