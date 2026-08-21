@@ -141,9 +141,7 @@ def record(output_dir: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    default_output = (
-        Path(__file__).resolve().parents[2] / "src/phoenix/datagen/assets" / SCENARIO_NAME
-    )
+    default_output = Path(__file__).resolve().parents[2] / "dist/datagen-assets" / SCENARIO_NAME
     parser.add_argument("--output-dir", type=Path, default=default_output)
     args = parser.parse_args()
 

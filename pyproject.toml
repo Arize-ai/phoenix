@@ -264,11 +264,6 @@ exclude = [
   "src/phoenix/otel/",
 ]
 artifacts = [
-  "src/phoenix/datagen/assets/index.json",
-  "src/phoenix/datagen/assets/langchain_agent_rag/manifest.json",
-  "src/phoenix/datagen/assets/langchain_agent_rag/traces.jsonl",
-  "src/phoenix/datagen/assets/openai_chat_sessions/manifest.json",
-  "src/phoenix/datagen/assets/openai_chat_sessions/traces.jsonl",
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
@@ -293,11 +288,6 @@ exclude = [
   "js/",
 ]
 artifacts = [
-  "src/phoenix/datagen/assets/index.json",
-  "src/phoenix/datagen/assets/langchain_agent_rag/manifest.json",
-  "src/phoenix/datagen/assets/langchain_agent_rag/traces.jsonl",
-  "src/phoenix/datagen/assets/openai_chat_sessions/manifest.json",
-  "src/phoenix/datagen/assets/openai_chat_sessions/traces.jsonl",
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",

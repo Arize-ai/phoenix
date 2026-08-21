@@ -27,20 +27,16 @@ def test_load_scenario_parses_local_fixture() -> None:
     )
 
 
-def test_load_scenario_parses_bundled_scenarios() -> None:
-    for source in ("langchain_agent_rag", "openai_chat_sessions"):
-        scenario = load_scenario(source)
+def test_load_scenario_resolves_a_published_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenario_path = Path(__file__).parent / "fixtures" / "scenario"
+    monkeypatch.setattr("phoenix.datagen.fetcher.fetch_scenario", lambda _source: scenario_path)
 
-        assert len(scenario.requests) == scenario.manifest["trace_count"]
-        assert (
-            sum(
-                len(scope_spans.spans)
-                for request in scenario.requests
-                for resource_spans in request.resource_spans
-                for scope_spans in resource_spans.scope_spans
-            )
-            == scenario.manifest["span_count"]
-        )
+    scenario = load_scenario("openai_chat_sessions")
+
+    assert scenario.manifest["scenario"] == "synthetic-chat"
+    assert len(scenario.requests) == 3
 
 
 def test_load_scenario_parses_v2_fragment_bank() -> None:

@@ -3,9 +3,9 @@ title: "Synthetic trace generation"
 description: Run phoenix datagen beside a development or demo Phoenix instance
 ---
 
-`phoenix datagen` continuously replays bundled OpenInference trace scenarios into a Phoenix
-collector over OTLP HTTP. It is useful for development, demonstrations, and testing ingestion or
-evaluation workflows without connecting a real application.
+`phoenix datagen` downloads and caches published OpenInference trace scenarios, then continuously
+replays them into a Phoenix collector over OTLP HTTP. It is useful for development, demonstrations,
+and testing ingestion or evaluation workflows without connecting a real application.
 
 <Warning>
   Never enable `phoenix datagen` against a production instance. It writes synthetic traces to the
@@ -33,6 +33,11 @@ phoenix datagen
 
 Stop the generator with `Ctrl+C`. Run `phoenix datagen --help` to see the scenario, burstiness,
 authentication, and anomaly-manifest options.
+
+The first run needs network access to the public Phoenix asset bucket. Later runs use the verified
+local cache if the index cannot be refreshed. To use another HTTPS asset prefix, set
+`PHOENIX_DATAGEN_ASSETS_BASE_URL`; to prefetch a scenario before going offline, run
+`phoenix datagen pull <scenario>`.
 
 ## Docker Compose
 

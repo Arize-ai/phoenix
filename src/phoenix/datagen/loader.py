@@ -1,4 +1,4 @@
-"""Load recorded OTLP trace scenarios from disk or HTTP."""
+"""Load recorded OTLP trace scenarios from disk, HTTP, or the asset cache."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ class Scenario:
 
 
 def load_scenario(source: str | Path = "default") -> Scenario:
-    """Load a bundled scenario name, local directory, or HTTP(S) directory."""
+    """Load a published scenario name, local directory, or HTTP(S) directory."""
     if isinstance(source, str) and urlparse(source).scheme in {"http", "https"}:
         display_source = source
         manifest_bytes = _read_http_file(source, "manifest.json")
@@ -101,33 +101,12 @@ def _resolve_local_scenario(source: str | Path) -> Path:
     if isinstance(source, Path) or path.is_absolute() or len(path.parts) != 1:
         raise ScenarioError(f"Scenario directory does not exist: {path}")
 
-    assets_path = Path(__file__).with_name("assets")
-    if source == "default":
-        if _is_scenario_directory(assets_path):
-            return assets_path
-        default_path = assets_path / "default"
-        if _is_scenario_directory(default_path):
-            return default_path
-        candidates = sorted(
-            candidate for candidate in assets_path.glob("*") if _is_scenario_directory(candidate)
-        )
-        if not candidates:
-            raise ScenarioError("No bundled scenarios are installed")
-        return candidates[0]
-
-    bundled_path = assets_path / source
-    if _is_scenario_directory(bundled_path):
-        return bundled_path
     from phoenix.datagen.fetcher import AssetFetchError, fetch_scenario
 
     try:
         return fetch_scenario(source)
     except AssetFetchError as error:
         raise ScenarioError(f"Unable to resolve scenario {source!r}: {error}") from error
-
-
-def _is_scenario_directory(path: Path) -> bool:
-    return (path / "manifest.json").is_file() and (path / "traces.jsonl").is_file()
 
 
 def _read_http_file(source: str, filename: str) -> bytes:

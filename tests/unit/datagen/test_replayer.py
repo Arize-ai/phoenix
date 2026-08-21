@@ -96,7 +96,7 @@ def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> Non
 
 @pytest.mark.parametrize("seed", range(10))
 def test_replayer_preserves_temporal_and_token_contracts_across_seeds(seed: int) -> None:
-    scenario = load_scenario("langchain_agent_rag")
+    scenario = _fixture_scenario()
     replayer = Replayer(scenario, epsilon=0, seed=seed)
 
     for _ in range(scenario.manifest["trace_count"]):
