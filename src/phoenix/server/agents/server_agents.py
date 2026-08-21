@@ -84,7 +84,6 @@ def build_server_agent(
         BashCapability[None](
             schema=schema,
             build_graphql_context=build_graphql_context,
-            instructions=resolved_prompts.bash_tool.render(),
             allow_mutations=allow_mutations,
             require_mutation_approval=require_mutation_approval,
             initial_snapshot=initial_bash_snapshot,
@@ -93,7 +92,6 @@ def build_server_agent(
         WriteSpanNoteCapability(
             db=db,
             event_queue=event_queue,
-            instructions=resolved_prompts.write_span_note_tool.render(),
             read_only=read_only,
             auth_enabled=auth_enabled,
             user_id=user_id,
@@ -146,7 +144,6 @@ def build_server_agent(
         capabilities.append(
             CallSubAgentCapability[None](
                 server_agent=server_agent,
-                instructions=resolved_prompts.call_subagent_tool.render(),
                 publish_subagent_message_chunk=_discard_subagent_message_chunk,
                 set_subagent_final_tool_output=_discard_subagent_final_tool_output,
             )

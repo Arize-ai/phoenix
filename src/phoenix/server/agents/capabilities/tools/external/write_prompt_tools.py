@@ -3,13 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "write_prompt_tools"
@@ -21,8 +20,16 @@ DESCRIPTION = (
     "the whole batch is rejected if the tool list changed since that read. "
     "Within each entry of `tools`, pass `id` to update an existing function tool (patch — "
     "only fields present in the entry change); omit `id` or pass null to create a new one "
-    "(the runtime assigns the id). Each entry's `name` is always required. `parameters` is "
-    "a JSON Schema object describing the function arguments. "
+    "(the runtime assigns the id). Each entry's `name` is always required. Entries apply "
+    "atomically in the order given against the single `expectedRevision`, and every `id` "
+    "must come from the most recent `read_prompt_tools` snapshot — you cannot reference an "
+    "id created earlier in the same batch. `parameters` is a JSON Schema object describing "
+    "the function arguments; the typical shape is "
+    '{"type":"object","properties":{...},"required":[...]}. Keep parameter names lowercase '
+    "snake_case to match common provider conventions unless the user specifies otherwise. "
+    "Only emit `strict: true` if the user asks for strict mode; strict mode rejects schemas "
+    "that are not fully constrained on some providers, so the safe default is to leave it "
+    "unset. "
     "`deleteToolIds` is a list of tool ids to remove; unlike writes, deletes may target "
     "either function tools or vendor passthrough (raw) tools, since removing a tool needs "
     "no knowledge of its shape. Provide at least one of `tools` or `deleteToolIds`. "
@@ -30,7 +37,23 @@ DESCRIPTION = (
     "write path, or the same id in both `tools` and `deleteToolIds`, nothing is applied and "
     "the error explains which. Deleting the tool that is the forced tool choice succeeds: the "
     "tool choice is reset to auto (zero-or-more) and the result reports `resetToolChoiceFrom` "
-    "with that tool's name — surface this to the user. "
+    "with that tool's name — surface this to the user. Renaming the forced tool choice also "
+    "succeeds: the tool choice follows the rename and the result reports `renamedToolChoiceTo` "
+    "with the new name; mention that too. "
+    "Prefer one batch call over several sequential calls: each successful write or delete "
+    "changes the `revision`, so a second call without re-reading is rejected. "
+    "Before adding a tool, check whether one with the same `name` already exists in the read "
+    "snapshot; if so, update it by `id` rather than creating a duplicate. "
+    "The batch is proposed as an accept/reject diff the user reviews before it is applied "
+    "(the same approval flow as `edit_prompt_instance`); with auto-approve on it is applied "
+    "immediately. Either way the output reports whether the change was accepted, "
+    "auto-approved, or rejected — do not assume it landed until you see an `accepted` status, "
+    "and if it comes back `rejected` do not retry the same batch, ask the user what they'd "
+    "like changed. After the change is accepted, briefly summarize in plain English which "
+    "tools were created, updated, or deleted. "
+    "If the user describes tools but the design isn't fully specified (parameter types, "
+    "required fields), propose a concrete schema; do not stop to ask unless something is "
+    "genuinely ambiguous. "
     "Common valid examples: "
     'create two: {"instanceId":1,"expectedRevision":"prompt-tools-abc","tools":['
     '{"name":"get_weather","description":"Look up the current weather for a city",'
@@ -138,19 +161,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class WritePromptToolsCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class WritePromptToolsCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         return ctx.deps.contexts.playground is not None
