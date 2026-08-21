@@ -1328,6 +1328,59 @@ async def test_parent_root_predicate_selects_expected_spans(
     assert span_ids == expected
 
 
+@pytest.fixture
+async def annotated_parent_predicate_project(
+    db: DbSessionFactory, parent_predicate_project: None
+) -> None:
+    """Every span in the parent fixture annotated alike, so only the parent half selects."""
+    async with db() as session:
+        rowids = dict((await session.execute(select(models.Span.span_id, models.Span.id))).all())
+        for span_id in ("A", "B", "C", "D"):
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    span_rowid=rowids[span_id],
+                    name="q",
+                    label="ok",
+                    score=1.0,
+                    explanation="",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    identifier="",
+                    source="APP",
+                )
+            )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        ("parent_span is None and annotations['q'].score > 0.5", ["A", "C"]),
+        ("parent_span is not None and annotations['q'].score > 0.5", ["B", "D"]),
+    ],
+)
+async def test_parent_root_predicate_reads_this_span_beside_an_annotation(
+    db: DbSessionFactory,
+    annotated_parent_predicate_project: None,
+    condition: str,
+    expected: list[str],
+) -> None:
+    """The parent test has to keep meaning *this* span when an annotation is also read.
+
+    An annotation predicate is evaluated inside a correlated `EXISTS`, and the whole
+    compiled predicate rides along inside it, so the parent subquery ends up nested one
+    level deeper than the query it correlates to. Left to auto-correlation it re-rendered
+    `spans` in its own FROM as a cross join, and the test collapsed to "no span anywhere
+    has a parent": the `is None` form matched nothing and the `is not None` form matched
+    everything. Valid SQL either way, which is why this is asserted on rows.
+    """
+    f = SpanFilter(condition)
+    async with db() as session:
+        span_ids = list(
+            await session.scalars(f(select(models.Span.span_id)).order_by(models.Span.span_id))
+        )
+    assert span_ids == expected
+
+
 @pytest.mark.parametrize(
     "condition",
     [
