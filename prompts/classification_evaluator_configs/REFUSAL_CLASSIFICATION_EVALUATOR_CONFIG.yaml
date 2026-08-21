@@ -1,6 +1,18 @@
 name: refusal
 description: Detect when an LLM refuses or declines to answer a query.
+scope: span
+category: user_experience
 labels: []
+recommended: false
+details: >-
+  Detects when an LLM refuses, declines, or avoids answering a user query. It
+  captures explicit refusals, scope disclaimers, lack-of-information responses,
+  safety refusals, redirections, and apologetic non-answers. It does not judge whether the refusal was the appropriate response.
+inputs:
+  input:
+    description: "The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+  output:
+    description: "The LLM's output response to be evaluated."
 optimization_direction: neutral
 messages:
   - role: user
