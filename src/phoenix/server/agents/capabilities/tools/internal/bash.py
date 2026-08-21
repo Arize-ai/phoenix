@@ -16,13 +16,13 @@ from graphql import parse as parse_graphql
 from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
 from pydantic_ai import RunContext, Tool
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
 
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -513,12 +513,11 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
 
 
 @dataclass
-class BashCapability(AbstractStaticCapability[AgentDepsT], Generic[AgentDepsT]):
+class BashCapability(AbstractCapability[AgentDepsT], Generic[AgentDepsT]):
     """Capability that adds a ``bash`` toolset."""
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]
-    instructions: str
     allow_mutations: bool = False
     require_mutation_approval: bool = True
     initial_snapshot: Optional[bytes] = None
@@ -533,6 +532,3 @@ class BashCapability(AbstractStaticCapability[AgentDepsT], Generic[AgentDepsT]):
             initial_snapshot=self.initial_snapshot,
             on_snapshot=self.on_snapshot,
         )
-
-    def get_static_instructions(self) -> str:
-        return self.instructions

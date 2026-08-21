@@ -3,24 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "add_spans_to_dataset"
 
-DESCRIPTION = (
-    "Add the span the user is viewing (or specific spans by id) to a dataset, identified by "
-    "dataset name. Each span becomes a new dataset row built from the span's input, output, and "
-    "metadata. The dataset must already exist; resolve it by name with list_datasets, or create "
-    "it with create_dataset first. By default the span in view is added; pass spanIds to add "
-    "other spans."
-)
+DESCRIPTION = """\
+Add the span the user is viewing (or specific spans by id) to a dataset, identified by dataset name. Each span becomes a new dataset example built from the span's input, output, and metadata. By default the span in view is added; pass `spanIds` to add other spans, such as ids you obtained from a spans query.
+The dataset must already exist. Resolve it by name with list_datasets when you are unsure it exists or which one the user means; if it does not exist, create it with create_dataset first. If the name does not resolve to exactly one dataset the call fails — disambiguate or create rather than retrying.
+Propose the addition by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and adds the span(s) only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -54,19 +50,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class AddSpansToDatasetCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class AddSpansToDatasetCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         # Needs a span in view to add; writes are blocked server-side for viewers.
