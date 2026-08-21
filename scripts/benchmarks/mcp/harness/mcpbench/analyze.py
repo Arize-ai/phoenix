@@ -17,7 +17,6 @@ from typing import Any, Optional
 from .config import BenchConfig, Task
 from .invocation import safe_label
 from .metrics import iteration_rows, parse_transcript, run_row, tool_call_rows
-from .otel import trace_hex
 from .report import build_report
 
 #: Tables keyed the way the store expects them.
@@ -61,20 +60,26 @@ def write_destination(out_dir: Path, **fields: Any) -> None:
     (out_dir / DESTINATION_FILE).write_text(json.dumps(fields, indent=2))
 
 
-def trace_url(destination: dict[str, Any], run_id: str, transcript: str) -> Optional[str]:
-    """A permalink to one cell's trace, or ``None`` if the run was never sent.
+def trace_key(run_id: str, transcript: str) -> str:
+    """How a cell is named in the record of what was sent."""
+    stem = transcript[:-6] if transcript.endswith(".jsonl") else transcript
+    return f"{run_id}/{stem}"
 
-    Addresses the trace by its OpenTelemetry id through the backend's redirect,
-    rather than by project and trace: the project in a direct link is an
-    internal id this side has no way to know, and asking for it would make a
-    report that builds offline depend on the server being up.
+
+def trace_url(destination: dict[str, Any], run_id: str, transcript: str) -> Optional[str]:
+    """A permalink to one cell's trace, or ``None`` if it was never sent.
+
+    Read from what the export recorded rather than recomputed, so the link goes
+    to the trace that exists rather than to the one that should. Addressed by
+    OpenTelemetry id through the backend's redirect, because a direct link needs
+    the project's internal id, which this side has no way to know and should not
+    have to be online to ask for.
     """
-    endpoint, project = destination.get("endpoint"), destination.get("project")
-    if not endpoint or not project:
+    endpoint = destination.get("endpoint")
+    trace_id = (destination.get("traces") or {}).get(trace_key(run_id, transcript))
+    if not endpoint or not trace_id:
         return None
-    key = f"{run_id}/{transcript[:-6] if transcript.endswith('.jsonl') else transcript}"
-    hex_id = trace_hex(project, key, int(destination.get("max_chars") or 0))
-    return f"{str(endpoint).rstrip('/')}/redirects/traces/{hex_id}"
+    return f"{str(endpoint).rstrip('/')}/redirects/traces/{trace_id}"
 
 
 def read_annotation(out_dir: Path) -> dict[str, Any]:

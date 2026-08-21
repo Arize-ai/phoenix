@@ -17,7 +17,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from hashlib import sha256
 from pathlib import Path
 from typing import Any, Optional
 
@@ -490,25 +489,3 @@ def build_spans(
     if result.get("is_error") or metadata.get("invalid_reason"):
         root.status_error = str(metadata.get("invalid_reason") or result.get("subtype") or "error")
     return [root, *spans]
-
-
-def trace_hex(project: str, cell_key: str, max_chars: int) -> str:
-    """The trace id a cell would be given, as the hex a URL carries.
-
-    Computable without asking the backend anything, which is the whole use of
-    deriving ids rather than drawing them: a report built from transcripts can
-    link straight to the trace, offline, before or after it was ever sent.
-    """
-    return digest_id(f"{project}|{cell_key}|{max_chars}|trace", 16).to_bytes(16, "big").hex()
-
-
-def digest_id(seed: str, nbytes: int) -> int:
-    """A span or trace id derived from what it identifies rather than at random.
-
-    Re-exporting the same transcript then addresses the same rows, so a replay
-    that is repeated is not a replay that is duplicated. The backend ignores a
-    span it already holds, which also means an id must change before an edited
-    exporter can be seen: that is what the project name in the seed is for.
-    """
-    value = int.from_bytes(sha256(seed.encode()).digest()[:nbytes], "big")
-    return value or 1
