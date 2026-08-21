@@ -143,7 +143,7 @@ export function SecretsTable({
     return cols;
   }, [authenticationEnabled, connectionId]);
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<SecretRow>({
     columns,
     data,

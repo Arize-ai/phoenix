@@ -240,6 +240,8 @@ class AppConfig(NamedTuple):
     auth_error_messages: dict[AuthErrorCode, str]
     """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
+    password_reset_email_enabled: bool = False
+    """ Whether password reset emails can be sent """
     basic_auth_disabled: bool = False
     ldap_enabled: bool = False
     """ Whether LDAP authentication is configured """
@@ -326,6 +328,7 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "password_reset_email_enabled": self._app_config.password_reset_email_enabled,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "ldap_enabled": self._app_config.ldap_enabled,
                     "ldap_manual_user_creation_enabled": self._app_config.ldap_manual_user_creation_enabled,  # noqa: E501
@@ -1259,6 +1262,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    password_reset_email_enabled=email_sender is not None,
                     basic_auth_disabled=basic_auth_disabled,
                     ldap_enabled=ldap_config is not None,
                     # Disable manual user creation when LDAP disabled or no email attr

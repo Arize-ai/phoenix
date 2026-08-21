@@ -92,6 +92,9 @@ export function AIQueryModelPicker({
       <Flex direction="column" gap="size-50" alignItems="start">
         <Flex direction="row" gap="size-100" alignItems="center">
           <ModelMenu
+            // AI query executes through the server's chat-completions proxy,
+            // which cannot authenticate with browser-local keys.
+            credentialSource="server"
             value={
               config.kind === "server" && config.modelName
                 ? {

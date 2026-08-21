@@ -1,6 +1,54 @@
 ---
-title: "What is the difference between Phoenix and Arize?"
-description: "Arize is the company that makes Phoenix. Phoenix is an open source LLM observability tool offered by Arize. It can be access in its Cloud form online, or self-hosted and run on your own machine or server."
+title: "Arize Phoenix or Arize AX"
+description: "How the open-source Phoenix platform and the commercial Arize AX platform differ, and how to choose between them."
 ---
 
-"Arize" can also refer to Arize's enterprise platform, often called Arize AX, available on arize.com. Arize AX is the enterprise SaaS version of Phoenix that comes with additional features like Copilot, ML and CV support, HIPAA compliance, Security Reviews, a customer success team, and more. See [here for a breakdown](https://arize.com/pricing/) of the two tools.
+[Arize](https://arize.com/) is the company behind both products. Its mission is to make the world's AI work, and it pursues that mission through two platforms: Arize AX, a commercial offering, and Phoenix, an open-source one. The two are not rivals separated by a paywall. They are complementary observability and evaluation tools, and the choice between them comes down to how a team prefers to operate: on a managed commercial platform, or on open-source software it hosts and scales itself.
+
+## The two platforms, side by side
+
+**Phoenix** is Arize's open-source platform for agent development and evaluation: self-hosted, free to use, and fully open end-to-end. There is no closed core and no paywalled tier within Phoenix itself: no Phoenix feature is gated by the commercial offering, and Phoenix will never decline to build a feature because Arize AX offers it. It has a dedicated team of core maintainers but lives as a community project, built for developers and teams who want to grow their agent observability on open-source tools.
+
+**[Arize AX](https://arize.com/products/ax?utm_source=docs&utm_medium=web&utm_content=phoenix)** is Arize's managed, all-in-one AI engineering platform for observing, evaluating, and improving agents in production. It is geared toward teams that require large-scale managed deployments: in its managed form, the infrastructure, the scaling, and the operational burden belong to Arize, not to you.
+
+|                | Phoenix                                                                 | Arize AX                                                                       |
+| -------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| What it is     | Open-source agent development and evaluation platform                    | Managed, all-in-one AI engineering platform                                     |
+| How it runs    | Self-hosted: your laptop, your cloud, your air-gapped network            | Fully managed SaaS (self-hosting available under a commercial license)          |
+| Cost           | Free to use                                                              | Commercial, with a free tier (see [pricing](https://arize.com/pricing?utm_source=docs&utm_medium=web&utm_content=phoenix)) |
+| Scaling        | Your team provisions and scales the deployment                          | Infrastructure auto-scales, managed by Arize                                    |
+| Support        | Community support                                                        | Enterprise-grade support and SLAs                                               |
+
+The two platforms share a common DNA and core. Both are built on the same open standards, [OpenTelemetry](https://opentelemetry.io/) and [OpenInference](https://github.com/Arize-ai/openinference), and use the same core tracing and evaluation workflow, which makes them complementary tools for teams and companies of any size. An application instrumented for one can send the same data to the other without re-instrumenting; you simply point your traces at the other destination, or even at both when needed.
+
+## How do I choose?
+
+Either platform will get you started, and starting with one never closes the door on the other. The choice comes down to what your team values:
+
+* **Choose Phoenix** if you are deeply passionate about open source and want a platform you can read, extend, and contribute back to, with a roadmap you can help shape. Phoenix is also extremely privacy-conscious: it runs in the most regulated, air-gapped environments, keeping both your data _and_ your infrastructure entirely under your own control. In scenarios where a commercial offering is largely off the table, Phoenix is often the preferred choice, and sometimes the only viable one. Your team owns the deployment, upgrades, and scaling, with community support behind it.
+* **Choose Arize AX** if you prefer a SaaS experience: enterprise-ready out of the box, with dedicated support, SLAs, and infrastructure that auto-scales without a single ticket to your platform team. If you are looking to procure an observability and evaluation platform as a B2B purchase, start with Arize AX. [Arize AX can also be self-hosted](https://arize.com/docs/ax?utm_source=docs&utm_medium=web&utm_content=phoenix) in your own environment, though this requires a commercial license.
+
+## What does Arize AX include that Phoenix does not?
+
+Arize AX is backed by an industry-leading engineering team that builds infrastructure beyond the scope of an open-source project, such as ADB (the Arize database) and [Signal](https://arize.com/docs/ax/observe/signal?utm_source=docs&utm_medium=web&utm_content=phoenix), and offers managed services that become more valuable as teams scale up their agents:
+
+* **Managed compute for heavy workloads.** Large evaluation jobs and features like [Signal](https://arize.com/docs/ax/observe/signal?utm_source=docs&utm_medium=web&utm_content=phoenix), a built-in worker that scans your traces on a schedule and groups recurring failure patterns into issues, run on infrastructure Arize AX manages for you. With Phoenix, the same workflows are possible through the Phoenix APIs, but the compute behind them is provisioned and operated by your own infrastructure team.
+* **Built for large AI engineering teams.** Dedicated workspaces and organizations keep many teams and projects in order, powerful auditing capabilities track who did what across them, and the evaluation infrastructure is designed to run on massive production workloads.
+* **Monitors and custom dashboards.** Production monitoring, alerting, and dashboards tailored for non-developer stakeholders.
+* **Compliance certifications.** As a managed SaaS, Arize AX carries the certifications enterprises expect, including HIPAA and SOC 2. Phoenix is no less secure; those certifications simply don't apply to it in the same way. Because Phoenix is self-hosted, your data resides entirely on your own premises and never touches Arize's infrastructure, so compliance is governed by your own environment rather than by a vendor's certification.
+* **Enterprise-grade support.** Dedicated support and SLAs rather than community support.
+
+For the full breakdown of Arize AX plans and features, see [arize.com/pricing](https://arize.com/pricing?utm_source=docs&utm_medium=web&utm_content=phoenix).
+
+## Can Phoenix run in production?
+
+Yes. Phoenix runs in production today at companies of every size, from small teams to large enterprises that have scaled to tens of Phoenix instances in production. The real question is not whether Phoenix can handle production workloads (it can), but who operates the platform and what level of support sits behind it.
+
+## Do I have to pick one?
+
+No, and the strongest teams often don't. Because both platforms speak the same open standards, adopting one never locks you out of the other, and they work well together:
+
+* **Start with Phoenix, grow into Arize AX.** Teams often begin with Phoenix for development and early production, then move to Arize AX when enterprise constraints such as support requirements, SLAs, and monitoring for a broader set of stakeholders come into play. Your instrumentation carries over unchanged.
+* **Use Arize AX, keep Phoenix for the workloads you choose.** Teams on Arize AX still reach for Phoenix where a local, self-contained instance fits best: local experimentation, CI pipelines, skunkworks projects, internal agent observability, isolated and regulated environments, and more.
+
+Whichever you pick first, the other is always there when you need it: an open platform you can shape, a managed platform that scales for you, and one set of instrumentation that works with both.

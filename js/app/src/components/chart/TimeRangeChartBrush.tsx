@@ -265,6 +265,7 @@ export function TimeRangeChartBrush({
   const overlayTop = selection?.plotArea.top ?? 0;
   const overlayHeight = selection?.plotArea.height ?? 0;
 
+  /* eslint-disable react/refs */
   return (
     <div
       css={timeRangeChartBrushCSS}
@@ -302,4 +303,5 @@ export function TimeRangeChartBrush({
       </div>
     </div>
   );
+  /* eslint-enable react/refs */
 }

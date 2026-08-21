@@ -13,6 +13,17 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
 
+<ReleaseUpdate label="08.17.2026" href="/docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql" title="Trace Filter Expressions and Analytics SQL">
+**Available in arize-phoenix 20.2.0+ (analytics SQL) and 20.3.0+ (trace filters, annotation details)**
+
+Filter the traces table with a full expression language, and let an agent ask Phoenix analytical questions no fixed endpoint anticipates.
+
+- **Trace filter expressions** — trace intrinsics, span rollups, root-span reach-through, and comprehensions over spans, annotations, and cost details, with span topology via `children`, `parent_span`, and `siblings`
+- **Read-only analytics SQL over MCP** — `describeSqlSchema` publishes the queryable schema and live indexes, `executeSql` runs one bounded read-only statement
+- **Annotation details on hover** — every annotation under a name, with score, label, explanation, author, and inline filter chips
+- **PXI approval decisions on spans** — `pxi.approval.decision` and `pxi.approval.source` make accepted and rejected tool calls filterable
+</ReleaseUpdate>
+
 <ReleaseUpdate label="08.12.2026" href="/docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config" title="Session Filter Expressions, REST API Expansion, and Endpoint Configuration">
 **Available in arize-phoenix 19.18.0–20.1.0, arize-phoenix-client 3.0.0+ (Python), @arizeai/phoenix-client 7.4.0+, @arizeai/phoenix-otel 2.2.0+, @arizeai/phoenix-cli 1.15.0+ (TypeScript)**
 

@@ -5,6 +5,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import {
   Dialog,
   Switch,
+  Text,
   View,
   ViewportModal,
   ViewportModalOverlay,
@@ -17,7 +18,11 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-type FeatureFlag = "agent-experimental-settings";
+/**
+ * No flags are currently in flight — add new pre-release gates here.
+ * (The last one, "agent-experimental-settings", shipped and was lifted.)
+ */
+type FeatureFlag = never;
 
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
@@ -26,9 +31,7 @@ export type FeatureFlagsContextType = {
 
 export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
-const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
-  "agent-experimental-settings": false,
-};
+const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {};
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
   const featureFlagsFromLocalStorage = localStorage.getItem(
@@ -123,6 +126,11 @@ function FeatureFlagsControls(props: PropsWithChildren) {
                 </DialogTitleExtra>
               </DialogHeader>
               <View padding="size-100">
+                {Object.keys(featureFlags).length === 0 && (
+                  <Text color="text-500">
+                    No feature flags are currently in flight.
+                  </Text>
+                )}
                 {Object.keys(featureFlags).map((featureFlag) => (
                   <Switch
                     key={featureFlag}

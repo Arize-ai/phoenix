@@ -4,6 +4,7 @@ import { Pressable } from "react-aria-components";
 import { Link, NavLink as RRNavLink } from "react-router";
 
 import {
+  Divider,
   Icon,
   Icons,
   Text,
@@ -223,6 +224,32 @@ export function SideNavbar({
     <nav data-expanded={isExpanded} css={sideNavCSS}>
       {children}
     </nav>
+  );
+}
+
+const navSeparatorCSS = css`
+  list-style: none;
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+
+  hr {
+    transition: opacity 0.15s ease-in-out;
+  }
+
+  &[data-expanded="false"] hr {
+    opacity: 0;
+  }
+`;
+
+/**
+ * A grouping divider between side-nav links. The hairline only shows in the
+ * expanded nav; collapsed, it fades out but keeps its space so the icon
+ * column still reads as grouped and nothing jumps mid width-transition.
+ */
+export function NavSeparator({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <li role="presentation" data-expanded={isExpanded} css={navSeparatorCSS}>
+      <Divider />
+    </li>
   );
 }
 

@@ -1,35 +1,49 @@
-"""Exercises scripts/generate_session_filter_ai_query_vocabulary.py, whose --check mode
-guards the checked-in sessionFilterCoreVocabulary.generated.ts against drift."""
-
-import subprocess
-import sys
+import ast
+import re
 from pathlib import Path
 
+import pytest
 
-def test_session_filter_ai_query_vocabulary_check_detects_drift(tmp_path: Path) -> None:
-    repo_root = Path(__file__).parents[5]
-    generator = repo_root / "scripts/generate_session_filter_ai_query_vocabulary.py"
-    output = tmp_path / "sessionFilterCoreVocabulary.generated.ts"
+from phoenix.trace.dsl.session_filter import SessionFilter
+from phoenix.trace.dsl.trace_filter import TraceFilter
 
-    subprocess.run(
-        [sys.executable, generator, "--output", output],
-        check=True,
-        cwd=repo_root,
-    )
-    subprocess.run(
-        [sys.executable, generator, "--check", "--output", output],
-        check=True,
-        cwd=repo_root,
-    )
+_REPO_ROOT = Path(__file__).parents[5]
+_TRACE_DSL_PATH = _REPO_ROOT / "js/app/src/pages/project/traceFilterDSL.ts"
+_SESSION_DSL_PATH = _REPO_ROOT / "js/app/src/pages/project/sessionFilterDSL.ts"
 
-    output.write_text(f"{output.read_text()}// drift\n")
-    result = subprocess.run(
-        [sys.executable, generator, "--check", "--output", output],
-        check=False,
-        capture_output=True,
-        cwd=repo_root,
-        text=True,
-    )
 
-    assert result.returncode == 1
-    assert "is stale" in result.stdout
+def _filter_dsl_expressions(path: Path, key: str) -> list[str]:
+    """Extracts every `<key>: "<literal>"` filter expression from a frontend DSL module.
+
+    The typeahead snippets (`snippet:`) and the AI-query examples (`expression:`)
+    both reach users — one through completion, one through the model's prompt —
+    so each must compile under the real filter. Tab-through placeholders
+    (`${...}`) are reduced to their example text, exactly as the typeahead
+    inserts them.
+    """
+    source = path.read_text()
+    string_literal = r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')'
+    literals = [
+        ast.literal_eval(match.group(1))
+        for match in re.finditer(rf"\b{key}:\s*{string_literal}", source)
+    ]
+    assert len(literals) == source.count(f"{key}:")
+    return [re.sub(r"\$\{([^{}]*)\}", r"\1", literal) for literal in literals]
+
+
+@pytest.mark.parametrize(
+    "condition",
+    _filter_dsl_expressions(_TRACE_DSL_PATH, "snippet")
+    + _filter_dsl_expressions(_TRACE_DSL_PATH, "expression"),
+)
+def test_trace_filter_dsl_expressions_compile(condition: str) -> None:
+    TraceFilter(condition)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    _filter_dsl_expressions(_SESSION_DSL_PATH, "snippet")
+    + _filter_dsl_expressions(_SESSION_DSL_PATH, "expression"),
+)
+def test_session_filter_dsl_expressions_compile(condition: str) -> None:
+    SessionFilter(condition)

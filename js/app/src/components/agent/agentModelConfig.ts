@@ -1,30 +1,24 @@
 import { z } from "zod";
 
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
+import { modelProviderSchema } from "@phoenix/utils/generativeUtils";
+import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 
-export const AGENT_MODEL_LOCAL_STORAGE_KEY =
+const BASE_AGENT_MODEL_STORAGE_KEY =
   "__experimental__arize-phoenix-agent-config";
 
-const GENERATIVE_PROVIDER_KEY_SCHEMA = z.enum([
-  "ANTHROPIC",
-  "AWS",
-  "AZURE_OPENAI",
-  "CEREBRAS",
-  "DEEPSEEK",
-  "FIREWORKS",
-  "GOOGLE",
-  "GROQ",
-  "MOONSHOT",
-  "OLLAMA",
-  "OPENAI",
-  "PERPLEXITY",
-  "TOGETHER",
-  "XAI",
-]) satisfies z.ZodType<GenerativeProviderKey>;
+/**
+ * Resolves the agent model-config key, scoped to the deployment's root path
+ * so co-hosted workspaces don't share the preference (see
+ * {@link scopeStorageKeyToBasename}). Resolved at read/write time — the key
+ * depends on `window.Config`, which isn't set at module load.
+ */
+export function resolveAgentModelStorageKey(): string {
+  return scopeStorageKeyToBasename(BASE_AGENT_MODEL_STORAGE_KEY);
+}
 
 const AGENT_MODEL_CONFIG_SCHEMA = z.object({
-  provider: GENERATIVE_PROVIDER_KEY_SCHEMA,
+  provider: modelProviderSchema,
   model: z.string(),
   customProviderId: z.string().optional(),
 });
@@ -67,7 +61,7 @@ export function toModelMenuValue(config: AgentModelConfig): ModelMenuValue {
  */
 export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
   try {
-    const raw = localStorage.getItem(AGENT_MODEL_LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(resolveAgentModelStorageKey());
     if (!raw) {
       return null;
     }

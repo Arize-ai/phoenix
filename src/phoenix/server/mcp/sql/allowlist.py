@@ -479,10 +479,9 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
             "jsonb_path_query_array",
             "jsonb_path_exists",
             "jsonb_path_match",
-            # Dynamic-key extraction. Not a workaround: callers write these, and
-            # PostgreSQL defines them. The rewrite that emits them for
-            # ``jsonb -> expr`` is the workaround (sqlglot<=30.15.0, remove when
-            # pin > 30.16.0; tobymao/sqlglot#8063). The names stay after that.
+            # Path extraction by name. Callers write these, and PostgreSQL
+            # defines them for jsonb; the rewrite of a portable
+            # ``json_extract`` call also emits them.
             "jsonb_extract_path",
             "jsonb_extract_path_text",
             # Key enumeration, which is how an undeclared key space is explored.

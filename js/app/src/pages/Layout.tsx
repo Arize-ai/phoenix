@@ -28,6 +28,7 @@ import {
   GitHubLink,
   NavBreadcrumb,
   NavLink,
+  NavSeparator,
   NavTitle,
   SideNavbar,
   SideNavToggleButton,
@@ -333,14 +334,6 @@ function SideNavContent({
               isExpanded={isExpanded}
             />
           </li>
-          <li key="playground">
-            <NavLink
-              to="/playground"
-              text="Playground"
-              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-              isExpanded={isExpanded}
-            />
-          </li>
           <li key="evaluators">
             <NavLink
               to="/evaluators"
@@ -354,6 +347,9 @@ function SideNavContent({
               isExpanded={isExpanded}
             />
           </li>
+          {/* The generative workbench: destinations for talking to models
+              directly rather than observing an application. */}
+          <NavSeparator key="generative-start" isExpanded={isExpanded} />
           <li key="prompts">
             <NavLink
               to="/prompts"
@@ -367,6 +363,23 @@ function SideNavContent({
               isExpanded={isExpanded}
             />
           </li>
+          <li key="playground">
+            <NavLink
+              to="/playground"
+              text="Playground"
+              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+              isExpanded={isExpanded}
+            />
+          </li>
+          <li key="chat">
+            <NavLink
+              to="/chat"
+              text="Chat"
+              leadingVisual={<Icon svg={<Icons.MessageCircle />} />}
+              isExpanded={isExpanded}
+            />
+          </li>
+          <NavSeparator key="generative-end" isExpanded={isExpanded} />
           <li key="rest-api">
             <NavLink
               to="/apis/rest"

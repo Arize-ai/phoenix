@@ -493,6 +493,7 @@ export const EditCodeEvaluatorDialogContent = ({
       sandboxConfigId: nextSandboxConfigId,
     });
   };
+  // eslint-disable-next-line react/refs
   handleSubmitRef.current = handleSubmit;
 
   return (

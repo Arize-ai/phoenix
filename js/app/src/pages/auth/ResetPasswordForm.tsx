@@ -46,7 +46,9 @@ export function ResetPasswordForm(props: {
   const [commit, isCommitting] = useMutation<ResetPasswordFormMutation>(graphql`
     mutation ResetPasswordFormMutation($input: PatchViewerInput!) {
       patchViewer(input: $input) {
-        __typename
+        user {
+          passwordNeedsReset
+        }
       }
     }
   `);
@@ -112,6 +114,7 @@ export function ResetPasswordForm(props: {
             type="password"
             name={name}
             isRequired
+            autoFocus
             isInvalid={invalid}
             onChange={onChange}
             onBlur={onBlur}
