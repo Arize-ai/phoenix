@@ -20,7 +20,7 @@ from openinference.semconv.trace import SpanAttributes
 from .analyze import rows_for_transcript, split_cell_id, tasks_as_run, write_destination
 from .config import BenchConfig, ConfigError, Task
 from .invocation import safe_label
-from .otel import DEFAULT_MAX_CHARS, Span, build_spans, digest_id
+from .otel import DEFAULT_MAX_CHARS, Span, build_spans
 
 DEFAULT_ENDPOINT = "http://localhost:6006"
 DEFAULT_PROJECT = "mcpbench"
@@ -229,36 +229,34 @@ class Sink:
     building one per cell would flush and tear that down thirty times over.
     """
 
-    def __init__(self, provider: Any, tracer: Any, ids: Any, exporter: Any, max_chars: int):
-        # One trace at a time. The generator is a single mutable object seeded
-        # per cell and read by every `start_span` after it, and cells finish on
-        # several threads: two overlapping sends interleave their seeds, and the
-        # spans come out under each other's traces with ids nothing can
-        # reproduce -- which is silent, because they are still valid spans.
-        self._lock = threading.Lock()
+    def __init__(self, provider: Any, tracer: Any, exporter: Any):
         self._provider = provider
         self._tracer = tracer
-        self._ids = ids
         self._exporter = exporter
-        self._max_chars = max_chars
+        # Guards the bookkeeping, not the emitting: the SDK is safe to call from
+        # several threads, and cells finish on a pool.
+        self._lock = threading.Lock()
+        #: The trace each cell was given, keyed as the cell is. This is the
+        #: record of what was sent -- both what to link to and what not to send
+        #: again -- so it is the caller's to persist.
+        self.traces: dict[str, str] = {}
 
-    def send(self, cell_id: str, spans: list[Span]) -> None:
-        """Emit one trace. The root is opened first; children hang off it."""
+    def send(self, cell_id: str, spans: list[Span]) -> Optional[str]:
+        """Emit one trace and return the id it was given.
 
-        if not spans:
-            return
-        with self._lock:
-            self._emit(cell_id, spans)
-
-    def _emit(self, cell_id: str, spans: list[Span]) -> None:
+        The id is read back rather than decided in advance. Deriving it meant
+        smuggling a seed into the SDK's id generator, which has no argument to
+        carry one -- so the seed lived on one shared object and the spans took
+        their identity from the order the calls happened to arrive in. Under a
+        pool that silently stitched cells into each other's traces. Letting the
+        SDK do what it is for costs nothing here, because what the id is never
+        mattered; only knowing it afterwards did.
+        """
         from opentelemetry.context import Context
         from opentelemetry.trace import Status, StatusCode, set_span_in_context
 
-        # Every input that changes what a span says belongs in the seed. The
-        # backend keeps the first span it sees for an id, so a setting left out
-        # of the seed is a setting that silently does nothing on a re-export.
-        self._ids.seed = f"{cell_id}|{self._max_chars}"
-        self._ids.count = 0
+        if not spans:
+            return None
         root, *children = spans
         low, high = root.start, root.end
 
@@ -286,7 +284,11 @@ class Sink:
         context = set_span_in_context(emitted_root)
         for child in children:
             emit(child, context)
-        self._exporter.delivery.planned += len(spans)
+        trace_id = format(emitted_root.get_span_context().trace_id, "032x")
+        with self._lock:
+            self.traces[cell_id] = trace_id
+            self._exporter.delivery.planned += len(spans)
+        return trace_id
 
     def close(self) -> Delivery:
         """Flush, shut down, and report what the collector took."""
@@ -300,7 +302,6 @@ def open_sink(
     endpoint: str,
     project: str,
     headers: Optional[dict[str, str]] = None,
-    max_chars: int = DEFAULT_MAX_CHARS,
 ) -> Sink:
     """Connect to a collector.
 
@@ -310,31 +311,14 @@ def open_sink(
     instead. Acceptance is still not ingestion: the collector answers as soon as
     it has the batch, and stores it after.
 
-    The project name seeds the span ids along with the cell, so the same run
-    sent to two projects is two sets of spans rather than one set the second
-    project silently drops.
     """
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import SpanLimits, TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, SpanExportResult
-    from opentelemetry.sdk.trace.id_generator import IdGenerator
 
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # isort: skip
         OTLPSpanExporter,
     )
-
-    class SeededIds(IdGenerator):
-        """Ids derived from the cell, so a repeated replay is not a duplicate."""
-
-        seed = ""
-        count = 0
-
-        def generate_span_id(self) -> int:
-            self.count += 1
-            return digest_id(f"{project}|{self.seed}|span|{self.count}", 8)
-
-        def generate_trace_id(self) -> int:
-            return digest_id(f"{project}|{self.seed}|trace", 16)
 
     class CountingExporter(SpanExporter):
         """Passes batches through and keeps score of what came back."""
@@ -360,7 +344,6 @@ def open_sink(
     exporter = CountingExporter(OTLPSpanExporter(endpoint=endpoint, headers=headers or {}))
     provider = TracerProvider(
         resource=Resource.create({ResourceAttributes.PROJECT_NAME: project}),
-        id_generator=SeededIds(),
         # A replayed conversation is one attribute per field per message, so a
         # long run passes the SDK's default of 128 partway through its history.
         # The bound evicts what was written first, which is the span kind and
@@ -368,28 +351,20 @@ def open_sink(
         span_limits=SpanLimits(max_attributes=16_384, max_span_attribute_length=None),
     )
     provider.add_span_processor(BatchSpanProcessor(exporter))
-    tracer = provider.get_tracer("mcpbench")
-    return Sink(provider, tracer, provider.id_generator, exporter, max_chars)
+    return Sink(provider, provider.get_tracer("mcpbench"), exporter)
 
 
-def record_destination(out_dir: Path, *, endpoint: str, project: str, max_chars: int) -> None:
-    """Note where this run's spans went, so the report can link to them."""
-    write_destination(out_dir, endpoint=endpoint, project=project, max_chars=max_chars)
+def record_destination(
+    out_dir: Path, *, endpoint: str, project: str, traces: dict[str, str]
+) -> None:
+    """Note where this run's spans went, and which trace each cell became.
 
-
-def send(
-    traces: list[tuple[str, list[Span]]],
-    *,
-    endpoint: str,
-    project: str,
-    headers: Optional[dict[str, str]] = None,
-    max_chars: int = DEFAULT_MAX_CHARS,
-) -> Delivery:
-    """Emit every trace at once, for a run that is already finished."""
-    sink = open_sink(endpoint=endpoint, project=project, headers=headers, max_chars=max_chars)
-    for cell_id, spans in traces:
-        sink.send(cell_id, spans)
-    return sink.close()
+    The map is the record of what was sent: it is what the report links to, and
+    what a later export consults to avoid sending a cell twice. Written after
+    every cell rather than at the end, so an interrupted run still leaves a page
+    whose links work.
+    """
+    write_destination(out_dir, endpoint=endpoint, project=project, traces=traces)
 
 
 def as_json(traces: list[tuple[str, list[Span]]]) -> list[dict[str, Any]]:

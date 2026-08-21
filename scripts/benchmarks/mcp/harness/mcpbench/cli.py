@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Optional
 
 from .analyze import (
+    read_destination,
     report_for_run,
     rows_for_run,
     summarize,
@@ -34,7 +35,6 @@ from .export import (
     record_destination,
     resolve_endpoint,
     resolve_headers,
-    send,
 )
 from .invocation import safe_label
 from .otel import DEFAULT_MAX_CHARS
@@ -134,6 +134,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 project=args.export,
                 headers=resolve_headers(),
             )
+            already_sent = (read_destination(out_dir).get("traces") or {}).copy()
         except ImportError as exc:
             # Raised here rather than at the first finished cell: the matrix
             # costs money, and a sink that cannot be opened is knowable now.
@@ -141,9 +142,6 @@ def cmd_run(args: argparse.Namespace) -> int:
             print('install the extra: uv pip install -e "harness[otel]"', file=sys.stderr)
             return 1
         planner = Planner(config, tasks, out_dir)
-        record_destination(
-            out_dir, endpoint=args.endpoint, project=args.export, max_chars=DEFAULT_MAX_CHARS
-        )
 
     cells = plan_matrix(config, tasks)
     done = 0
@@ -183,8 +181,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         if sink is None or planner is None:
             return
         try:
-            if trace := planner.cell(out_dir / "raw" / f"{cell.cell_id}.jsonl"):
+            trace = planner.cell(out_dir / "raw" / f"{cell.cell_id}.jsonl")
+            if trace and trace[0] not in already_sent:
                 sink.send(*trace)
+                # Rewritten per cell, not at the end: an interrupted run should
+                # still leave a page whose links work.
+                record_destination(
+                    out_dir,
+                    endpoint=args.endpoint,
+                    project=args.export,
+                    traces={**already_sent, **sink.traces},
+                )
         except Exception as exc:
             if not warned_export:
                 warned_export = True
@@ -295,14 +302,17 @@ def cmd_export(args: argparse.Namespace) -> int:
             path.write_text(json.dumps(as_json(traces), indent=2, default=str))
             print(f"{out_dir.name}: {len(traces)} traces, {spans} spans -> {path}")
             continue
+        # Random ids now, so a cell sent twice is a cell in the project twice.
+        # What was already sent is on record; sending it again is a choice.
+        sent = read_destination(out_dir)
+        already = sent.get("traces") or {} if sent.get("project") == args.project else {}
+        pending = [t for t in traces if args.force or t[0] not in already]
+        skipped = len(traces) - len(pending)
         try:
-            delivery = send(
-                traces,
-                endpoint=endpoint,
-                project=args.project,
-                headers=resolve_headers(),
-                max_chars=args.max_chars,
-            )
+            sink = open_sink(endpoint=endpoint, project=args.project, headers=resolve_headers())
+            for cell_id, cell_spans in pending:
+                sink.send(cell_id, cell_spans)
+            delivery = sink.close()
         except ImportError as exc:
             # The SDK is the extra; everything up to here worked without it, so
             # the planned replay is still worth naming before giving up.
@@ -310,11 +320,15 @@ def cmd_export(args: argparse.Namespace) -> int:
             print('install the extra: uv pip install -e "harness[otel]"', file=sys.stderr)
             return 1
         record_destination(
-            out_dir, endpoint=args.endpoint, project=args.project, max_chars=args.max_chars
+            out_dir,
+            endpoint=args.endpoint,
+            project=args.project,
+            traces={**already, **sink.traces},
         )
         where = f"{args.project} at {endpoint}"
-        print(f"{out_dir.name}: {len(traces)} traces, {delivery.describe()} -> {where}")
-        if not delivery.ok:
+        note = f", {skipped} already sent" if skipped else ""
+        print(f"{out_dir.name}: {len(pending)} traces{note}, {delivery.describe()} -> {where}")
+        if pending and not delivery.ok:
             undelivered += delivery.rejected + delivery.missing
     if undelivered:
         # Exits non-zero so a scripted export cannot pass while the collector
@@ -396,6 +410,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export.add_argument(
         "--dry-run", action="store_true", help="Write replay.json beside the transcripts instead."
+    )
+    export.add_argument(
+        "--force", action="store_true", help="Send cells already recorded as sent, again."
     )
     export.set_defaults(func=cmd_export)
 

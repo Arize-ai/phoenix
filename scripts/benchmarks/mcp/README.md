@@ -181,12 +181,11 @@ did not land. The SDK reports a failed batch by logging it, so counting what was
 would call a closed port a success. Acceptance is still not ingestion — Phoenix stores
 the batch after answering, so a count read immediately after an export reads low.
 
-Exporting records where the spans went, and the report grows a **trace** column
-linking each row to it. The link is computed, not looked up: ids are derived from
-`(project, run, cell, max-chars)`, so the page knows the trace id without asking the
-backend anything. It addresses the trace through `/redirects/traces/<id>`, because a
-direct link needs the project's internal id and a report that builds offline should not
-need the server to be up. A run nobody exported has no column rather than an empty one.
+Exporting records which trace each cell became, and the report grows a **trace** column
+linking each row to it. The link goes through `/redirects/traces/<id>`, because a direct
+link needs the project's internal id, which this side has no way to know and should not
+have to be online to ask for. A run nobody exported has no column rather than an empty
+one.
 
 `run --export` holds one connection open for the matrix and sends each cell the moment
 its transcript lands, so traces appear as the run goes rather than after it. Per cell,
@@ -195,11 +194,10 @@ captured whole. It cannot fail a run — the transcript is already durable by th
 unreachable sink is reported once and otherwise ignored. The sink is opened before the
 matrix is planned, so a missing extra or a bad endpoint costs nothing.
 
-Span ids are seeded from `(project, run, cell, max-chars)`, so re-exporting the same run
-with the same settings is a no-op rather than a duplicate — which is what lets a
-streamed run be re-exported afterwards without doubling it. Ingest keeps the first span
-it sees for an id and never updates it, so re-rendering into the same project adds a
-second copy alongside the first — use a fresh `--project` instead.
+A cell already recorded as sent is skipped, so re-exporting a run — or resuming one that
+was streaming — sends only what is new. `--force` sends it anyway. The record is the same
+map the trace links are read from, so what the report points at and what the exporter
+declines to send again are by construction the same thing.
 
 **Comparing labels requires one run directory.** Transcript filenames carry the label,
 so a directory can hold several; the report compares whatever it finds. Pass the same
