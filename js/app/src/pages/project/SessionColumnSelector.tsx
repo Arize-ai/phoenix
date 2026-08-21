@@ -4,14 +4,16 @@ import { graphql, useFragment } from "react-relay";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SessionColumnSelector_annotations$key } from "./__generated__/SessionColumnSelector_annotations.graphql";
+import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
+import { makeFlatAnnotationColumnId } from "./tableUtils";
 import { TracingColumnSelector } from "./TracingColumnSelector";
 
 const UN_HIDABLE_COLUMN_IDS = ["sessionId"];
 
 type SessionColumnSelectorProps = {
   /**
-   * All of the top-level columns of the session table (including group columns,
-   * which represent the visible dynamic annotation columns)
+   * All of the top-level columns of the session table, including visible
+   * dynamic annotation columns.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
@@ -44,9 +46,13 @@ export function SessionColumnSelector({
       unHidableColumnIds={UN_HIDABLE_COLUMN_IDS}
       annotationKinds={[
         {
-          names: [...data.sessionAnnotationNames],
+          // The summary fragment behind the cells excludes "note" annotations,
+          // so a note column would render permanently blank.
+          names: getNonNoteAnnotationNames(data.sessionAnnotationNames),
           visibility: annotationColumnVisibility,
           onVisibilityChange: setAnnotationColumnVisibility,
+          targetType: "session",
+          getColumnId: (name) => makeFlatAnnotationColumnId(name),
         },
       ]}
     />
