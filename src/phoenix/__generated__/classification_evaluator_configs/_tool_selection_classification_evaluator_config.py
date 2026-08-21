@@ -1,7 +1,13 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 
 TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="tool_selection",
@@ -19,4 +25,16 @@ TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
         "tool_selection": "output_with_tool_calls",
     },
     labels=["promoted_dataset_evaluator"],
+    scope=EvaluatorScope.SPAN,
+    category=EvaluatorCategory.AGENTS,
+    details="Determines whether an LLM selected the most appropriate tool or tools for a given task. It focuses on what tool was chosen rather than whether the invocation arguments were correct.",
+    inputs={
+        "available_tools": EvaluatorInput(
+            description="The list of available tools, including names and descriptions. A simple human-readable list is better than including the full tool schemas as JSON."
+        ),
+        "input": EvaluatorInput(
+            description="The conversational context, whether that is a single input query or a full turn-by-turn conversation. Intermediate tool calls/results are not required."
+        ),
+        "tool_selection": EvaluatorInput(description="The tool or tools called by the LLM."),
+    },
 )

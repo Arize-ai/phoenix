@@ -698,6 +698,12 @@ type ClassificationEvaluatorConfig {
   optimizationDirection: OptimizationDirection!
   messages: [PromptMessage!]!
   choices: JSON!
+  labels: [String!]!
+  scope: EvaluatorScope
+  recommended: Boolean!
+  category: EvaluatorCategory
+  details: String
+  inputs: [EvaluatorInput!]
 }
 
 input ClearProjectInput {
@@ -1841,6 +1847,17 @@ interface Evaluator implements Node {
   datasetEvaluators: [DatasetEvaluator!]!
 }
 
+"""
+Stable category identifiers whose display labels are supplied by clients.
+"""
+enum EvaluatorCategory {
+  GROUNDING_AND_RETRIEVAL
+  AGENTS
+  RESPONSE_QUALITY
+  SAFETY_AND_SECURITY
+  USER_EXPERIENCE
+}
+
 enum EvaluatorColumn {
   name
   kind
@@ -1874,6 +1891,11 @@ input EvaluatorFilter {
 
 enum EvaluatorFilterColumn {
   name
+}
+
+type EvaluatorInput {
+  name: String!
+  description: String!
 }
 
 type EvaluatorInputMapping {
@@ -1917,6 +1939,12 @@ input EvaluatorPreviewsInput {
 
 type EvaluatorPreviewsPayload {
   results: [EvaluationResult!]!
+}
+
+enum EvaluatorScope {
+  SPAN
+  TRACE
+  SESSION
 }
 
 """The sort key and direction for evaluator connections"""
@@ -4133,6 +4161,7 @@ type Query {
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   classificationEvaluatorConfigs(labels: [String!]): [ClassificationEvaluatorConfig!]!
+  evaluatorGalleryConfigs: [ClassificationEvaluatorConfig!]!
   defaultProjectTraceRetentionPolicy: ProjectTraceRetentionPolicy!
   projectTraceRetentionPolicies(first: Int = 100, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
 
