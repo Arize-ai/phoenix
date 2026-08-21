@@ -279,13 +279,21 @@ async def test_postgres_intervals_are_normalized_before_result_validation(
 ) -> None:
     result = await execute_analytics_sql(
         analytics_postgres_db,
-        ExecuteParams(sql="SELECT end_time - start_time AS duration FROM spans", row_limit=1),
+        ExecuteParams(
+            sql=(
+                "SELECT end_time - start_time AS duration, latency_ms "
+                "FROM spans WHERE span_id = 'span-1'"
+            )
+        ),
     )
 
-    assert result.envelope.rows
-    duration = result.envelope.rows[0][0]
-    assert isinstance(duration, str)
-    assert duration.startswith("P")
+    # An interval is normalized to an ISO-8601 string, so the assertion is on
+    # the elapsed time the fixture implies rather than on the shape of the
+    # rendering: a normalizer that dropped the fractional second would still
+    # produce a well-formed `P`-prefixed string.
+    duration, latency_ms = result.envelope.rows[0]
+    assert duration == "PT1.5S"
+    assert latency_ms == pytest.approx(1500.0, rel=1e-4)
 
 
 @pytest.mark.postgres_only
