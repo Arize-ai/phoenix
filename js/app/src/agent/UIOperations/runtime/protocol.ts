@@ -11,6 +11,13 @@ import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 export type UIScriptRunMessage = {
   type: "run";
   script: string;
+  /**
+   * Every operation name in the catalog, so the worker's `ui` proxy can
+   * answer `in` and `Object.keys` truthfully. Without this the proxy
+   * returned a callable for every property path, which made feature
+   * detection silently lie (`typeof ui.anything === "function"`).
+   */
+  operationNames: string[];
 };
 
 /** Main thread → worker: the result of one proxied `ui.*` call. */

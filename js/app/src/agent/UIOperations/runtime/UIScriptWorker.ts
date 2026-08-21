@@ -133,16 +133,51 @@ function postOperationCall(operationName: string, input: unknown) {
 /**
  * Build the `ui` object as nested proxies so any property path terminates in
  * a callable: `ui.timeRange.set(input)` posts a call for `"timeRange.set"`.
- * Unknown names are deliberately let through — the main-thread dispatch
- * rejects them with a did-you-mean error the model can act on, which beats a
- * bare `undefined is not a function` inside the script.
+ *
+ * Property *access* is deliberately permissive — unknown names still return
+ * a callable so the main-thread dispatch can reject them with a
+ * did-you-mean error the model can act on, which beats a bare `undefined is
+ * not a function` inside the script. Introspection, however, answers
+ * truthfully from the catalog: `'prompt' in ui.playground` and
+ * `Object.keys(ui.playground)` reflect real operations only. (A proxy that
+ * answered `in` like `get` made feature detection silently lie — `'has' in
+ * ui` looked like an API and wasn't.) Detection contract: use `in` or
+ * `Object.keys`, never `typeof`.
+ *
+ * The proxy target is an arrow function on purpose: it has no
+ * non-configurable own properties (no `prototype`), so the truthful
+ * `ownKeys`/`has` traps cannot violate proxy invariants.
  */
-function createUIProxy(): unknown {
+export function createUIProxy(operationNames: readonly string[]): unknown {
+  const operationPaths = operationNames.map((name) => name.split("."));
+  const childSegments = (path: string[]): string[] => {
+    const children = new Set<string>();
+    for (const segments of operationPaths) {
+      if (
+        segments.length > path.length &&
+        path.every((segment, index) => segments[index] === segment)
+      ) {
+        children.add(segments[path.length]);
+      }
+    }
+    return [...children];
+  };
   const buildNode = (path: string[]): unknown =>
-    new Proxy(function () {}, {
+    new Proxy(() => {}, {
       get: (_target, property) =>
         typeof property === "string"
           ? buildNode([...path, property])
+          : undefined,
+      has: (_target, property) =>
+        typeof property === "string" && childSegments(path).includes(property),
+      ownKeys: (_target) => childSegments(path),
+      getOwnPropertyDescriptor: (_target, property) =>
+        typeof property === "string" && childSegments(path).includes(property)
+          ? {
+              configurable: true,
+              enumerable: true,
+              value: buildNode([...path, property]),
+            }
           : undefined,
       apply: (_target, _thisArg, args) =>
         postOperationCall(path.join("."), args[0]),
@@ -194,9 +229,12 @@ export function referencesDynamicImport(script: string): boolean {
   return DYNAMIC_IMPORT_PATTERN.test(maskNonCode(script));
 }
 
-async function evaluateUIScript(script: string) {
+async function evaluateUIScript(
+  script: string,
+  operationNames: readonly string[]
+) {
   removeBlockedGlobals();
-  const ui = createUIProxy();
+  const ui = createUIProxy(operationNames);
   const log = (message: unknown) => {
     postMessageToMain({ type: "log", message: String(message) });
   };
@@ -248,7 +286,7 @@ async function evaluateUIScript(script: string) {
 workerScope.addEventListener("message", (event: MessageEvent) => {
   const message = event.data as UIScriptMessageToWorker;
   if (message.type === "run") {
-    void evaluateUIScript(message.script);
+    void evaluateUIScript(message.script, message.operationNames ?? []);
     return;
   }
   if (message.type === "callResult") {
