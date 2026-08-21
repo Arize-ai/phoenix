@@ -18,25 +18,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
-from phoenix.server.online_eval.derivation import ResolvedEvaluator
+from phoenix.server.online_eval.derivation import ResolvedProjectEvaluator
 from phoenix.server.online_eval.session_policy import SessionTranscriptPolicy
 
 _SANDBOX_RUNTIME_POLICY_VERSION = "1"
 
 
-async def resolve_evaluator(
+async def resolve_project_evaluator(
     session: AsyncSession,
     project_evaluator: models.ProjectEvaluator,
     evaluator: models.Evaluator,
-) -> Optional[ResolvedEvaluator]:
+) -> Optional[ResolvedProjectEvaluator]:
     """Resolve one project evaluator row through the shared bulk-resolution path."""
-    return (await resolve_evaluators_bulk(session, [(project_evaluator, evaluator)]))[0]
+    return (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[0]
 
 
-async def resolve_evaluators_bulk(
+async def resolve_project_evaluators_bulk(
     session: AsyncSession,
-    evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
-) -> list[Optional[ResolvedEvaluator]]:
+    project_evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
+) -> list[Optional[ResolvedProjectEvaluator]]:
     """Resolve project evaluator fingerprint inputs in bulk, pinning mutable pointers to
     immutable version identities: the tagged (or latest) PromptVersion id for LLM
     evaluators, the latest CodeEvaluatorVersion id for CODE, and
@@ -49,7 +49,7 @@ async def resolve_evaluators_bulk(
     tagged_llm_evaluators: dict[int, models.LLMEvaluator] = {}
     latest_llm_evaluators: dict[int, models.LLMEvaluator] = {}
     code_evaluators: dict[int, models.CodeEvaluator] = {}
-    for _, evaluator in evaluator_pairs:
+    for _, evaluator in project_evaluator_pairs:
         if isinstance(evaluator, models.LLMEvaluator):
             if evaluator.prompt_version_tag_id is not None:
                 tagged_llm_evaluators[evaluator.id] = evaluator
@@ -154,8 +154,8 @@ async def resolve_evaluators_bulk(
             if sandbox_config.enabled and provider.enabled
         }
 
-    resolved: list[Optional[ResolvedEvaluator]] = []
-    for project_evaluator, evaluator in evaluator_pairs:
+    resolved: list[Optional[ResolvedProjectEvaluator]] = []
+    for project_evaluator, evaluator in project_evaluator_pairs:
         version_ref: Any
         if isinstance(evaluator, models.LLMEvaluator):
             if evaluator.prompt_version_tag_id is not None:
@@ -189,7 +189,7 @@ async def resolve_evaluators_bulk(
         else:
             resolved.append(None)
             continue
-        resolved.append(_resolved_criteria(project_evaluator, evaluator, version_ref))
+        resolved.append(_resolved_project_evaluator(project_evaluator, evaluator, version_ref))
     return resolved
 
 
@@ -211,11 +211,11 @@ def _sandbox_runtime_fingerprint(
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def _resolved_criteria(
+def _resolved_project_evaluator(
     project_evaluator: models.ProjectEvaluator,
     evaluator: models.LLMEvaluator | models.CodeEvaluator | models.BuiltinEvaluator,
     version_ref: Any,
-) -> Optional[ResolvedEvaluator]:
+) -> Optional[ResolvedProjectEvaluator]:
     input_mapping: Any = None
     sandbox_config_id: Optional[int] = None
     if isinstance(evaluator, models.CodeEvaluator):
@@ -227,7 +227,7 @@ def _resolved_criteria(
         effective_input_mapping = evaluator.input_mapping
     if effective_input_mapping is not None:
         input_mapping = effective_input_mapping.model_dump()
-    return ResolvedEvaluator(
+    return ResolvedProjectEvaluator(
         project_evaluator_id=project_evaluator.id,
         name=project_evaluator.name.root,
         evaluator_id=evaluator.id,

@@ -81,11 +81,25 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
             stale_ids = [row[0] for row in stale_ids_result.fetchall()]
 
             if stale_ids:
+                # Deleting an evaluator cascades its project_evaluators rows
+                # away, so their trace projects are collected first and
+                # removed after the cascade releases the RESTRICT constraint.
+                trace_project_ids = (
+                    await session.scalars(
+                        select(models.ProjectEvaluator.trace_project_id).where(
+                            models.ProjectEvaluator.evaluator_id.in_(stale_ids)
+                        )
+                    )
+                ).all()
                 delete_stmt = delete(models.Evaluator).where(
                     models.Evaluator.kind == "BUILTIN",
                     models.Evaluator.id.in_(stale_ids),
                 )
                 result = await session.execute(delete_stmt)
+                if trace_project_ids:
+                    await session.execute(
+                        delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+                    )
                 if result.rowcount and result.rowcount > 0:  # type: ignore[attr-defined]
                     logger.warning(
                         f"Removed {result.rowcount} stale builtin evaluator(s) "  # type: ignore[attr-defined]

@@ -15,7 +15,11 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    code_evaluator_with_latest_version,
+    delete_projects_and_evaluator_trace_projects,
+)
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
@@ -340,11 +344,14 @@ async def _validate_project_evaluator_project(
 ) -> models.Project:
     """Reject a project that cannot be evaluated, returning it otherwise.
 
-    Trace projects are internal plumbing, so aiming an evaluator at one is
-    refused as a mistake. This gate is the only guard needed: an evaluator's
-    own trace project is minted after this check, in the same transaction, and
-    the project binding never changes, so a cycle of evaluators evaluating
-    their own output cannot be constructed through the API.
+    Evaluator-owned projects — a project evaluator's trace project or a
+    dataset evaluator's project — are internal plumbing, so aiming an
+    evaluator at one is refused as a mistake. This gate is the only guard
+    needed against evaluators evaluating their own output: trace projects are
+    always freshly minted rows a caller can never pick as a target, and no
+    update mutation accepts a project id, so the target binding set here is
+    final. That immutability is the load-bearing half — an update path that
+    starts accepting a project id must run this gate again.
     """
     project = await session.get(models.Project, project_id)
     if project is None:
@@ -354,6 +361,12 @@ async def _validate_project_evaluator_project(
         .where(models.ProjectEvaluator.trace_project_id == project_id)
         .limit(1)
     )
+    if holds_evaluator_traces is None:
+        holds_evaluator_traces = await session.scalar(
+            select(models.DatasetEvaluators.id)
+            .where(models.DatasetEvaluators.project_id == project_id)
+            .limit(1)
+        )
     if holds_evaluator_traces is not None:
         raise BadRequest("This project holds evaluator traces and cannot be evaluated")
     return project
@@ -864,16 +877,13 @@ class EvaluatorMutationMixin:
                     prompt_id=prompt.id,
                     prompt_version_id=target_prompt_version_id or prompt_version.id,
                 )
-                trace_project = _get_trace_project_for_project_evaluator(
-                    project_name=project.name,
-                    project_evaluator_name=name.root,
-                )
-                session.add(trace_project)
-                await session.flush()
                 project_evaluator = models.ProjectEvaluator(
                     project_id=project_id,
                     evaluator_id=evaluator.id,
-                    trace_project_id=trace_project.id,
+                    trace_project=_get_trace_project_for_project_evaluator(
+                        project_name=project.name,
+                        project_evaluator_name=name.root,
+                    ),
                     name=name,
                     filter_condition=input.filter_condition,
                     sampling_rate=input.sampling_rate,
@@ -1089,16 +1099,13 @@ class EvaluatorMutationMixin:
                 )
                 if await session.get(models.CodeEvaluator, evaluator_id) is None:
                     raise BadRequest("CODE evaluator not found")
-                trace_project = _get_trace_project_for_project_evaluator(
-                    project_name=project.name,
-                    project_evaluator_name=name.root,
-                )
-                session.add(trace_project)
-                await session.flush()
                 project_evaluator = models.ProjectEvaluator(
                     project_id=project_id,
                     evaluator_id=evaluator_id,
-                    trace_project_id=trace_project.id,
+                    trace_project=_get_trace_project_for_project_evaluator(
+                        project_name=project.name,
+                        project_evaluator_name=name.root,
+                    ),
                     name=name,
                     filter_condition=input.filter_condition,
                     sampling_rate=input.sampling_rate,
@@ -1189,16 +1196,13 @@ class EvaluatorMutationMixin:
                         user_id=user_id,
                     )
                 )
-                trace_project = _get_trace_project_for_project_evaluator(
-                    project_name=project.name,
-                    project_evaluator_name=name.root,
-                )
-                session.add(trace_project)
-                await session.flush()
                 project_evaluator = models.ProjectEvaluator(
                     project_id=project_id,
                     evaluator_id=evaluator.id,
-                    trace_project_id=trace_project.id,
+                    trace_project=_get_trace_project_for_project_evaluator(
+                        project_name=project.name,
+                        project_evaluator_name=name.root,
+                    ),
                     name=name,
                     filter_condition=input.filter_condition,
                     sampling_rate=input.sampling_rate,
@@ -2026,9 +2030,7 @@ class EvaluatorMutationMixin:
                 )
 
             if project_ids:
-                await session.execute(
-                    delete(models.Project).where(models.Project.id.in_(project_ids))
-                )
+                await delete_projects_and_evaluator_trace_projects(session, project_ids)
 
             await _garbage_collect_evaluators(
                 session,

@@ -12,7 +12,7 @@ from random import Random
 from typing import Any
 
 from phoenix.server.online_eval.derivation import (
-    ResolvedEvaluator,
+    ResolvedProjectEvaluator,
     annotation_identifier,
     config_fingerprint,
     sample_key,
@@ -35,11 +35,11 @@ def _json_value(rng: Random, depth: int = 0) -> Any:
     return {_word(rng): _json_value(rng, depth + 1) for _ in range(rng.randint(0, 3))}
 
 
-def _criteria(rng: Random) -> ResolvedEvaluator:
+def _criteria(rng: Random) -> ResolvedProjectEvaluator:
     version_ref: Any = (
         rng.randint(1, 10_000) if rng.random() < 0.5 else [_word(rng), "2026-07-01T00:00:00+00:00"]
     )
-    return ResolvedEvaluator(
+    return ResolvedProjectEvaluator(
         project_evaluator_id=rng.randint(1, 10_000),
         name=_word(rng),
         evaluator_id=rng.randint(1, 10_000),
@@ -54,7 +54,7 @@ def _criteria(rng: Random) -> ResolvedEvaluator:
 
 
 _EDGE_CRITERIA = [
-    ResolvedEvaluator(
+    ResolvedProjectEvaluator(
         project_evaluator_id=0,
         name="",
         evaluator_id=0,
@@ -66,7 +66,7 @@ _EDGE_CRITERIA = [
         filter_condition="",
         sampling_rate=0.0,
     ),
-    ResolvedEvaluator(
+    ResolvedProjectEvaluator(
         project_evaluator_id=1,
         name="ünïcode ✓",
         evaluator_id=1,
@@ -89,7 +89,7 @@ class TestConfigFingerprint:
         an independently constructed equal instance."""
         rng = Random(0)
         for resolved in [_criteria(rng) for _ in range(_N_EXAMPLES)] + _EDGE_CRITERIA:
-            rebuilt = ResolvedEvaluator(**asdict(resolved))
+            rebuilt = ResolvedProjectEvaluator(**asdict(resolved))
             assert config_fingerprint(resolved) == config_fingerprint(resolved)
             assert config_fingerprint(resolved) == config_fingerprint(rebuilt)
 
@@ -119,8 +119,12 @@ class TestConfigFingerprint:
             resolved = _criteria(rng)
             pretty = json.loads(json.dumps(asdict(resolved), indent=4))
             spaced = json.loads(json.dumps(asdict(resolved), separators=(" ,  ", " :   ")))
-            assert config_fingerprint(ResolvedEvaluator(**pretty)) == config_fingerprint(resolved)
-            assert config_fingerprint(ResolvedEvaluator(**spaced)) == config_fingerprint(resolved)
+            assert config_fingerprint(ResolvedProjectEvaluator(**pretty)) == config_fingerprint(
+                resolved
+            )
+            assert config_fingerprint(ResolvedProjectEvaluator(**spaced)) == config_fingerprint(
+                resolved
+            )
 
     def test_any_field_change_changes_fingerprint(self) -> None:
         """Every fingerprint input is load-bearing: mutating any single field yields a
@@ -150,7 +154,7 @@ class TestConfigFingerprint:
     def test_golden_vector(self) -> None:
         """Pins the exact canonicalization recipe; producer/consumer fingerprint
         agreement depends on these bytes never changing silently."""
-        resolved = ResolvedEvaluator(
+        resolved = ResolvedProjectEvaluator(
             project_evaluator_id=7,
             name="toxicity",
             evaluator_id=42,

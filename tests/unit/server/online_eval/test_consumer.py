@@ -65,10 +65,6 @@ from phoenix.server.online_eval.derivation import (
     annotation_identifier,
     config_fingerprint,
 )
-from phoenix.server.online_eval.evaluator_resolution import (
-    resolve_evaluator,
-    resolve_evaluators_bulk,
-)
 from phoenix.server.online_eval.executor import (
     EvalExecutionError,
     EvaluatorResultValidationError,
@@ -81,6 +77,10 @@ from phoenix.server.online_eval.executor import (
     span_eval_context,
 )
 from phoenix.server.online_eval.failure_policy import is_transient_error
+from phoenix.server.online_eval.project_evaluator_resolution import (
+    resolve_project_evaluator,
+    resolve_project_evaluators_bulk,
+)
 from phoenix.server.online_eval.session_policy import (
     MAX_SESSION_EVAL_TURNS,
     SessionTranscriptPolicy,
@@ -388,7 +388,7 @@ async def _seed_llm_criteria(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target=evaluation_target,
@@ -465,7 +465,7 @@ async def _seed_code_criteria(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target=evaluation_target,
@@ -500,7 +500,7 @@ async def _seed_builtin_criteria(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target=evaluation_target,
@@ -524,7 +524,7 @@ async def _materialize_unit(
         )
         evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
         assert evaluator is not None
-        resolved = await resolve_evaluator(session, project_evaluator, evaluator)
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
         unit = models.EvalWorkUnit(
@@ -555,7 +555,7 @@ async def _materialize_session_unit(
         assert evaluator is not None
         project_session = await session.get(models.ProjectSession, project_session_rowid)
         assert project_session is not None
-        resolved = await resolve_evaluator(session, project_evaluator, evaluator)
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
         evaluated_through = project_session.last_span_ingested_at
@@ -931,9 +931,9 @@ async def test_configuration_versions_are_resolved_once_per_claim_batch(
 
     async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
         call_sizes.append(len(args[1]))
-        return await resolve_evaluators_bulk(*args, **kwargs)
+        return await resolve_project_evaluators_bulk(*args, **kwargs)
 
-    monkeypatch.setattr(executor_module, "resolve_evaluators_bulk", _counting_resolver)
+    monkeypatch.setattr(executor_module, "resolve_project_evaluators_bulk", _counting_resolver)
 
     consumer = OnlineEvalConsumer(
         db,
@@ -1007,7 +1007,7 @@ async def test_shared_hydration_failure_releases_claims_without_attempts(
     async def _fail_shared_query(session: Any, rows: Any) -> Any:
         await session.execute(text("SELECT 1 / 0"))
 
-    monkeypatch.setattr(executor_module, "resolve_evaluators_bulk", _fail_shared_query)
+    monkeypatch.setattr(executor_module, "resolve_project_evaluators_bulk", _fail_shared_query)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
 
     await consumer._cycle()
@@ -1733,7 +1733,7 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator_id,
-            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",

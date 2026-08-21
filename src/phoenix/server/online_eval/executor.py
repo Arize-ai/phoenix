@@ -1,4 +1,4 @@
-"""Execution glue for claimed online-eval work units: project_evaluator-first hydration,
+"""Execution glue for claimed online-eval work units: configuration-first hydration,
 target context assembly, evaluator invocation, and idempotent annotation writes.
 Publication runs through the coordinator, which fences the claim and records any
 coverage watermark in the same transaction; every lifecycle transition, including
@@ -52,12 +52,12 @@ from phoenix.server.online_eval.derivation import (
     STALE_FINGERPRINT_ERROR,
     config_fingerprint,
 )
-from phoenix.server.online_eval.evaluator_resolution import resolve_evaluators_bulk
 from phoenix.server.online_eval.failure_policy import FailureDisposition
+from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
     SessionTranscriptPolicy,
-    session_evaluator_is_schedulable,
+    session_project_evaluator_is_schedulable,
 )
 from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
@@ -128,7 +128,7 @@ class HydrationFailure:
 
 @dataclass(frozen=True)
 class HydratedWorkUnit:
-    """Everything one eval needs, copied out of the mutable project_evaluator/evaluator
+    """Everything one eval needs, copied out of the mutable project-evaluator/evaluator
     rows while the staleness guard held. The executor never re-reads those rows
     after hydration, so the eval runs under snapshot semantics."""
 
@@ -459,7 +459,7 @@ class OnlineEvalExecutor:
                 select(
                     models.ProjectEvaluator,
                     polymorphic,
-                    session_evaluator_is_schedulable(models.ProjectEvaluator).label(
+                    session_project_evaluator_is_schedulable(models.ProjectEvaluator).label(
                         "session_schedulable"
                     ),
                 )
@@ -476,7 +476,7 @@ class OnlineEvalExecutor:
         }
 
         preliminary: list[Optional[HydrationFailure]] = []
-        evaluator_pairs: dict[int, tuple[models.ProjectEvaluator, models.Evaluator]] = {}
+        project_evaluator_pairs: dict[int, tuple[models.ProjectEvaluator, models.Evaluator]] = {}
         for unit in units:
             row = rows_by_project_evaluator_id.get(unit.project_evaluator_id)
             failure: Optional[HydrationFailure] = None
@@ -500,21 +500,23 @@ class OnlineEvalExecutor:
                 ):
                     failure = HydrationFailure(HydrationFailureReason.SANDBOX_RUNTIME_UNAVAILABLE)
                 else:
-                    evaluator_pairs.setdefault(project_evaluator.id, (project_evaluator, evaluator))
+                    project_evaluator_pairs.setdefault(
+                        project_evaluator.id, (project_evaluator, evaluator)
+                    )
             preliminary.append(failure)
 
-        evaluator_pair_rows = list(evaluator_pairs.values())
-        resolved_rows = await resolve_evaluators_bulk(session, evaluator_pair_rows)
+        project_evaluator_pair_rows = list(project_evaluator_pairs.values())
+        resolved_rows = await resolve_project_evaluators_bulk(session, project_evaluator_pair_rows)
         resolved_by_project_evaluator_id = {
             project_evaluator.id: resolved
             for (project_evaluator, _), resolved in zip(
-                evaluator_pair_rows,
+                project_evaluator_pair_rows,
                 resolved_rows,
                 strict=True,
             )
         }
         unresolved_failures: dict[int, HydrationFailure] = {}
-        for project_evaluator_id, (_, evaluator) in evaluator_pairs.items():
+        for project_evaluator_id, (_, evaluator) in project_evaluator_pairs.items():
             if resolved_by_project_evaluator_id[project_evaluator_id] is not None:
                 continue
             async with session.begin_nested():
@@ -555,7 +557,7 @@ class OnlineEvalExecutor:
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
-            project_evaluator, _ = evaluator_pairs[unit.project_evaluator_id]
+            project_evaluator, _ = project_evaluator_pairs[unit.project_evaluator_id]
             try:
                 async with session.begin_nested():
                     hydrated_context = await self._hydrate_target_context(
@@ -593,7 +595,7 @@ class OnlineEvalExecutor:
             int, _HydratedEvaluatorSnapshot | HydrationFailure | Exception
         ] = {}
         for project_evaluator_id in matching_project_evaluator_ids:
-            _, evaluator = evaluator_pairs[project_evaluator_id]
+            _, evaluator = project_evaluator_pairs[project_evaluator_id]
             if evaluator.id in evaluator_snapshots:
                 continue
             resolved = resolved_by_project_evaluator_id[project_evaluator_id]
@@ -617,7 +619,7 @@ class OnlineEvalExecutor:
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
-            project_evaluator, evaluator = evaluator_pairs[unit.project_evaluator_id]
+            project_evaluator, evaluator = project_evaluator_pairs[unit.project_evaluator_id]
             evaluator_snapshot_outcome = evaluator_snapshots[evaluator.id]
             if isinstance(evaluator_snapshot_outcome, (HydrationFailure, Exception)):
                 outcomes[index] = evaluator_snapshot_outcome

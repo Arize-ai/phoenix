@@ -22,10 +22,10 @@ from phoenix.server.online_eval.coordinator import (
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
     STALE_FINGERPRINT_ERROR,
-    ResolvedEvaluator,
+    ResolvedProjectEvaluator,
     sample_key,
 )
-from phoenix.server.online_eval.evaluator_resolution import resolve_evaluators_bulk
+from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_sweeper import (
     SESSION_SWEEP_LEASE_TTL_SECONDS,
     SessionEvalSweeper,
@@ -553,17 +553,19 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
 
     async def unresolved(
         session: AsyncSession,
-        evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
-    ) -> list[ResolvedEvaluator | None]:
+        project_evaluator_pairs: Sequence[tuple[models.ProjectEvaluator, models.Evaluator]],
+    ) -> list[ResolvedProjectEvaluator | None]:
         nonlocal resolution_calls
         resolution_calls += 1
-        resolved = await resolve_evaluators_bulk(session, evaluator_pairs)
+        resolved = await resolve_project_evaluators_bulk(session, project_evaluator_pairs)
         return [
             None if project_evaluator.id == unresolved_criteria_id else result
-            for (project_evaluator, _), result in zip(evaluator_pairs, resolved, strict=True)
+            for (project_evaluator, _), result in zip(
+                project_evaluator_pairs, resolved, strict=True
+            )
         ]
 
-    monkeypatch.setattr(session_sweeper, "resolve_evaluators_bulk", unresolved)
+    monkeypatch.setattr(session_sweeper, "resolve_project_evaluators_bulk", unresolved)
     sweeper = SessionEvalSweeper(db)
     await sweeper._tick()
     async with db() as session:
@@ -577,7 +579,9 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
         )
 
     assert resolution_calls == 1
-    monkeypatch.setattr(session_sweeper, "resolve_evaluators_bulk", resolve_evaluators_bulk)
+    monkeypatch.setattr(
+        session_sweeper, "resolve_project_evaluators_bulk", resolve_project_evaluators_bulk
+    )
     await sweeper._tick()
     async with db() as session:
         session_ids = set(
@@ -593,10 +597,10 @@ async def test_closed_admission_gate_skips_evaluator_resolution(
     sweeper = SessionEvalSweeper(db)
     sweeper._max_outstanding = 0
 
-    async def unexpected_resolution(*_: object) -> list[ResolvedEvaluator | None]:
+    async def unexpected_resolution(*_: object) -> list[ResolvedProjectEvaluator | None]:
         pytest.fail("project_evaluator resolution must follow admission")
 
-    monkeypatch.setattr(session_sweeper, "resolve_evaluators_bulk", unexpected_resolution)
+    monkeypatch.setattr(session_sweeper, "resolve_project_evaluators_bulk", unexpected_resolution)
     async with db() as session:
         database_now = await sweeper._database_now(session)
         assert await sweeper._sweep(session, database_now) == (0, None)

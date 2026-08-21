@@ -54,8 +54,8 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
-from phoenix.server.online_eval.evaluator_resolution import resolve_evaluators_bulk
-from phoenix.server.online_eval.session_policy import session_evaluator_is_schedulable
+from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
+from phoenix.server.online_eval.session_policy import session_project_evaluator_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS,
@@ -84,7 +84,7 @@ _LIVE_WORK_INDEX_PREDICATE = text(live_eval_session_work_index_predicate())
 
 
 @dataclass(frozen=True)
-class _SessionEvaluator:
+class _SessionProjectEvaluator:
     project_evaluator_id: int
     project_id: int
     evaluator_id: int
@@ -96,10 +96,10 @@ class _SessionEvaluator:
 
 
 def _project_evaluator_relation(
-    project_evaluator: Sequence[_SessionEvaluator],
+    project_evaluators: Sequence[_SessionProjectEvaluator],
     dialect: SupportedSQLDialect,
 ) -> Subquery:
-    """Return a portable inline relation for resolved session project_evaluator.
+    """Return a portable inline relation for resolved session project evaluators.
 
     Bind names are keyed off ``project_evaluator_id`` rather than row position: several of these
     relations are unioned into one statement, and ``text()`` binds are not unique, so
@@ -107,16 +107,16 @@ def _project_evaluator_relation(
     """
     rows = []
     parameters: dict[str, Any] = {}
-    for index, criterion in enumerate(project_evaluator):
-        prefix = f"sc{criterion.project_evaluator_id}"
+    for index, project_evaluator in enumerate(project_evaluators):
+        prefix = f"sc{project_evaluator.project_evaluator_id}"
         row_parameters = {
-            f"{prefix}_project_evaluator_id": criterion.project_evaluator_id,
-            f"{prefix}_project_id": criterion.project_id,
-            f"{prefix}_evaluator_id": criterion.evaluator_id,
-            f"{prefix}_config_fingerprint": criterion.fingerprint,
-            f"{prefix}_delay_seconds": criterion.delay_seconds,
-            f"{prefix}_created_at": criterion.created_at,
-            f"{prefix}_sampling_rate": criterion.sampling_rate,
+            f"{prefix}_project_evaluator_id": project_evaluator.project_evaluator_id,
+            f"{prefix}_project_id": project_evaluator.project_id,
+            f"{prefix}_evaluator_id": project_evaluator.evaluator_id,
+            f"{prefix}_config_fingerprint": project_evaluator.fingerprint,
+            f"{prefix}_delay_seconds": project_evaluator.delay_seconds,
+            f"{prefix}_created_at": project_evaluator.created_at,
+            f"{prefix}_sampling_rate": project_evaluator.sampling_rate,
         }
         parameters.update(row_parameters)
         placeholders = [f":{name}" for name in row_parameters]
@@ -275,12 +275,12 @@ def _eligible_pairs_statement(
 
 
 def _eligible_pairs_relation(
-    project_evaluator: Sequence[_SessionEvaluator],
+    project_evaluators: Sequence[_SessionProjectEvaluator],
     database_now: datetime,
     dialect: SupportedSQLDialect,
 ) -> Subquery:
     statements: list[Select[Any]] = []
-    unfiltered = [criterion for criterion in project_evaluator if not criterion.filter_condition]
+    unfiltered = [pe for pe in project_evaluators if not pe.filter_condition]
     if unfiltered:
         statements.append(
             _eligible_pairs_statement(
@@ -290,18 +290,18 @@ def _eligible_pairs_relation(
                 filter_matches=literal(True),
             )
         )
-    for criterion in project_evaluator:
-        if not criterion.filter_condition:
+    for project_evaluator in project_evaluators:
+        if not project_evaluator.filter_condition:
             continue
         filter_matches = models.ProjectSession.id.in_(
             get_filtered_session_rowids_subquery(
-                criterion.filter_condition,
-                [criterion.project_id],
+                project_evaluator.filter_condition,
+                [project_evaluator.project_id],
             )
         )
         statements.append(
             _eligible_pairs_statement(
-                _project_evaluator_relation([criterion], dialect),
+                _project_evaluator_relation([project_evaluator], dialect),
                 database_now,
                 dialect,
                 filter_matches=filter_matches,
@@ -499,7 +499,7 @@ class SessionEvalSweeper(DaemonTask):
             raise RuntimeError("Database did not return its current time")
         return database_now
 
-    async def _load_evaluators(self, session: AsyncSession) -> list[_SessionEvaluator]:
+    async def _load_evaluators(self, session: AsyncSession) -> list[_SessionProjectEvaluator]:
         polymorphic_evaluator = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
@@ -512,15 +512,17 @@ class SessionEvalSweeper(DaemonTask):
                     models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
                 )
                 .where(
-                    session_evaluator_is_schedulable(models.ProjectEvaluator),
+                    session_project_evaluator_is_schedulable(models.ProjectEvaluator),
                 )
             )
         ).all()
-        evaluator_pairs = [(project_evaluator, evaluator) for project_evaluator, evaluator in rows]
-        project_evaluator_rows: list[_SessionEvaluator] = []
-        resolved_rows = await resolve_evaluators_bulk(session, evaluator_pairs)
+        project_evaluator_pairs = [
+            (project_evaluator, evaluator) for project_evaluator, evaluator in rows
+        ]
+        project_evaluator_rows: list[_SessionProjectEvaluator] = []
+        resolved_rows = await resolve_project_evaluators_bulk(session, project_evaluator_pairs)
         for (project_evaluator, evaluator), resolved in zip(
-            evaluator_pairs,
+            project_evaluator_pairs,
             resolved_rows,
             strict=True,
         ):
@@ -531,7 +533,7 @@ class SessionEvalSweeper(DaemonTask):
                 )
                 continue
             project_evaluator_rows.append(
-                _SessionEvaluator(
+                _SessionProjectEvaluator(
                     project_evaluator_id=project_evaluator.id,
                     project_id=project_evaluator.project_id,
                     evaluator_id=project_evaluator.evaluator_id,
@@ -554,11 +556,11 @@ class SessionEvalSweeper(DaemonTask):
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None
-        project_evaluator = await self._load_evaluators(session)
+        project_evaluators = await self._load_evaluators(session)
         return await self._load_eligible_pairs(
             session,
             database_now,
-            project_evaluator,
+            project_evaluators,
             limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
         )
 
@@ -566,14 +568,14 @@ class SessionEvalSweeper(DaemonTask):
         self,
         session: AsyncSession,
         database_now: datetime,
-        project_evaluator: Sequence[_SessionEvaluator],
+        project_evaluators: Sequence[_SessionProjectEvaluator],
         *,
         limit: int,
     ) -> tuple[int, Optional[int]]:
-        if not project_evaluator:
+        if not project_evaluators:
             return 0, 0 if self._publish_metrics else None
         relation = _eligible_pairs_relation(
-            project_evaluator,
+            project_evaluators,
             database_now,
             self._db.dialect,
         )

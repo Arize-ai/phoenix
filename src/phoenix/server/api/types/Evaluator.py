@@ -1220,7 +1220,7 @@ class ProjectEvaluator(Node):
     )
     async def trace_project(
         self, info: Info[Context, None]
-    ) -> Optional[Annotated["Project", strawberry.lazy(".Project")]]:
+    ) -> Annotated["Project", strawberry.lazy(".Project")]:
         record = await self._get_record(info)
         from .Project import Project
 

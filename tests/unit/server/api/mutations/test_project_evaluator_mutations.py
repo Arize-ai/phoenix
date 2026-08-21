@@ -1206,7 +1206,8 @@ async def test_an_evaluator_trace_project_cannot_be_given_an_evaluator(
             input_schema={},
             output_configs=[],
         )
-        trace_project = models.Project(name=f"project-evaluator-{token_hex(12)}")
+        # An arbitrary name: the gate keys off the FK, not a name pattern.
+        trace_project = models.Project(name=f"trace-sink-{token_hex(4)}")
         session.add_all([evaluator, trace_project])
         await session.flush()
         session.add(
@@ -1214,7 +1215,7 @@ async def test_an_evaluator_trace_project_cannot_be_given_an_evaluator(
                 trace_project=trace_project,
                 project=models.Project(name=f"project-{token_hex(4)}"),
                 evaluator_id=evaluator.id,
-                name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
                 evaluation_target="SPAN",
                 filter_condition="",
                 sampling_rate=1.0,
@@ -1242,6 +1243,7 @@ async def test_an_evaluator_trace_project_cannot_be_given_an_evaluator(
 async def _row_counts(db: DbSessionFactory) -> dict[str, int]:
     async with db() as session:
         model_types = (
+            models.Project,
             models.Evaluator,
             models.Prompt,
             models.PromptVersion,

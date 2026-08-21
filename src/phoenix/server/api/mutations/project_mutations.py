@@ -9,7 +9,11 @@ from strawberry.types import Info
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.helpers import delete_traces, mark_session_content_incomplete
+from phoenix.db.helpers import (
+    delete_projects_and_evaluator_trace_projects,
+    delete_traces,
+    mark_session_content_incomplete,
+)
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict
@@ -68,7 +72,16 @@ class ProjectMutationMixin:
                 raise ValueError(f"Unknown project: {id}")
             if project.name == DEFAULT_PROJECT_NAME:
                 raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
-            await session.delete(project)
+            holds_evaluator_traces = await session.scalar(
+                select(models.ProjectEvaluator.id)
+                .where(models.ProjectEvaluator.trace_project_id == project_id)
+                .limit(1)
+            )
+            if holds_evaluator_traces is not None:
+                raise Conflict(
+                    "This project holds an evaluator's traces; delete the evaluator instead"
+                )
+            await delete_projects_and_evaluator_trace_projects(session, [project_id])
         info.context.event_queue.put(ProjectDeleteEvent((project_id,)))
         return Query()
 

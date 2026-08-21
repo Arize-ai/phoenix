@@ -505,3 +505,100 @@ class TestProjectMutations:
             assert project.description is None
             assert project.gradient_start_color == "#5bdbff"
             assert project.gradient_end_color == "#1c76fc"
+
+
+async def test_delete_project_also_deletes_its_evaluators_trace_projects(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        evaluated_project = models.Project(name=f"project-{token_hex(4)}")
+        trace_project = models.Project(name=f"trace-sink-{token_hex(4)}")
+        session.add_all([evaluated_project, trace_project])
+        await session.flush()
+        evaluator = models.BuiltinEvaluator(
+            name=models.Identifier(root=f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                project_id=evaluated_project.id,
+                evaluator_id=evaluator.id,
+                trace_project=trace_project,
+                name=models.Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+        )
+        await session.flush()
+        evaluated_project_id = evaluated_project.id
+        trace_project_id = trace_project.id
+
+    response = await gql_client.execute(
+        """mutation ($id: ID!) {
+            deleteProject(id: $id) { __typename }
+        }""",
+        variables={"id": str(GlobalID("Project", str(evaluated_project_id)))},
+    )
+    assert not response.errors
+
+    async with db() as session:
+        remaining = (
+            await session.scalars(
+                select(models.Project.id).where(
+                    models.Project.id.in_([evaluated_project_id, trace_project_id])
+                )
+            )
+        ).all()
+    assert remaining == []
+
+
+async def test_delete_project_refuses_an_evaluator_trace_project(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        evaluated_project = models.Project(name=f"project-{token_hex(4)}")
+        trace_project = models.Project(name=f"trace-sink-{token_hex(4)}")
+        session.add_all([evaluated_project, trace_project])
+        await session.flush()
+        evaluator = models.BuiltinEvaluator(
+            name=models.Identifier(root=f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                project_id=evaluated_project.id,
+                evaluator_id=evaluator.id,
+                trace_project=trace_project,
+                name=models.Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+        )
+        await session.flush()
+        trace_project_id = trace_project.id
+
+    response = await gql_client.execute(
+        """mutation ($id: ID!) {
+            deleteProject(id: $id) { __typename }
+        }""",
+        variables={"id": str(GlobalID("Project", str(trace_project_id)))},
+    )
+    assert response.errors
+    assert "delete the evaluator instead" in response.errors[0].message
+
+    async with db() as session:
+        assert await session.get(models.Project, trace_project_id) is not None

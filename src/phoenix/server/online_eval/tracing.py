@@ -2,9 +2,8 @@
 
 Every online evaluation is traced into the evaluator's own trace project so a
 user can see what an evaluation actually did. Spans are marked as
-evaluator-produced on the way out, and the project_evaluator layer refuses to evaluate
-trace projects, so evaluator traces cannot feed the evaluations that produced
-them.
+evaluator-produced on the way out, and evaluator creation refuses trace projects
+as targets, so evaluator traces cannot feed the evaluations that produced them.
 """
 
 from __future__ import annotations

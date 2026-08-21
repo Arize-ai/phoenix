@@ -1,10 +1,10 @@
 """Online-eval producer daemon.
 
-Materializes span-level eval work units from enabled project evaluator project_evaluator.
+Materializes span-level eval work units from enabled project evaluators.
 The producer runs on every replica but self-elects each tick via the
 ``eval_work_cursors`` CAS lease, so exactly one replica per evaluation target
 scans spans and writes work rows at a time. Each tick: renew the lease, reap
-expired/aged work rows, scan the lag-gated span id window per project_evaluator, and
+expired/aged work rows, scan the lag-gated span id window per project evaluator, and
 idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
 backstop sweep re-covers a bounded id window behind the watermark to catch spans
 that became visible after their window was scanned.
@@ -44,7 +44,7 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
-from phoenix.server.online_eval.evaluator_resolution import resolve_evaluators_bulk
+from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
@@ -68,7 +68,7 @@ class _CursorLeaseLost(Exception):
 
 
 @dataclass(frozen=True)
-class _ActiveEvaluator:
+class _ActiveProjectEvaluator:
     project_evaluator_id: int
     project_id: int
     evaluator_id: int
@@ -126,7 +126,7 @@ class OnlineEvalProducer(DaemonTask):
     """Materialize SPAN evaluation work from the span arrival log.
 
     ``produced_through_id`` is a position in that log: every span at or below it has
-    been offered to every enabled SPAN project_evaluator. Session work is materialized from
+    been offered to every enabled SPAN project evaluator. Session work is materialized from
     entity state instead, by ``SessionEvalSweeper`` — a session becomes eligible when it
     goes quiet, which no position in an arrival log can express.
     """
@@ -204,7 +204,7 @@ class OnlineEvalProducer(DaemonTask):
                 )
 
             budget = await self._admission_budget()
-            active = await self._load_active_evaluators() if budget > 0 else []
+            active = await self._load_active_project_evaluators() if budget > 0 else []
 
             advanced = False
             if budget > 0 and frontier is not None:
@@ -424,23 +424,23 @@ class OnlineEvalProducer(DaemonTask):
             )
         return budget
 
-    async def _load_active_evaluators(self) -> list[_ActiveEvaluator]:
+    async def _load_active_project_evaluators(self) -> list[_ActiveProjectEvaluator]:
         """Load and resolve enabled project evaluators into scan-ready form.
 
-        Skip policy: only *persistent* per-project_evaluator conditions (no resolvable
+        Skip policy: only *persistent* per-evaluator conditions (no resolvable
         version, filter fails to compile) are logged and skipped, so one bad
-        project_evaluator cannot stall the shared cursor forever. Anything else — e.g. a
+        project evaluator cannot stall the shared cursor forever. Anything else — e.g. a
         transient DB error during version resolution — propagates and aborts
         the tick without advancing the cursor (fail closed): advancing is an
-        implicit claim that every enabled project_evaluator either materialized or
-        deliberately skipped the window, and a project_evaluator that failed to load
+        implicit claim that every enabled project evaluator either materialized or
+        deliberately skipped the window, and a project evaluator that failed to load
         transiently did neither.
         """
         polymorphic_evaluator = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
         )
-        active: list[_ActiveEvaluator] = []
+        active: list[_ActiveProjectEvaluator] = []
         async with self._db() as session:
             rows = (
                 await session.execute(
@@ -455,13 +455,15 @@ class OnlineEvalProducer(DaemonTask):
                     )
                 )
             ).all()
-            evaluator_pairs = [
+            project_evaluator_pairs = [
                 (project_evaluator, evaluator) for project_evaluator, evaluator in rows
             ]
-            resolved_criteria = await resolve_evaluators_bulk(session, evaluator_pairs)
+            resolved_project_evaluators = await resolve_project_evaluators_bulk(
+                session, project_evaluator_pairs
+            )
             for (project_evaluator, evaluator), resolved in zip(
-                evaluator_pairs,
-                resolved_criteria,
+                project_evaluator_pairs,
+                resolved_project_evaluators,
                 strict=True,
             ):
                 # NOT wrapped in a per-evaluator except: an unexpected exception
@@ -470,7 +472,7 @@ class OnlineEvalProducer(DaemonTask):
                 # this project evaluator never scanned. See the docstring's skip policy.
                 if resolved is None:
                     logger.warning(
-                        f"Skipping project_evaluator {project_evaluator.id}: "
+                        f"Skipping project evaluator {project_evaluator.id}: "
                         f"no resolvable version for evaluator {evaluator.id}"
                     )
                     continue
@@ -488,7 +490,7 @@ class OnlineEvalProducer(DaemonTask):
                     continue
                 fingerprint = config_fingerprint(resolved)
                 active.append(
-                    _ActiveEvaluator(
+                    _ActiveProjectEvaluator(
                         project_evaluator_id=project_evaluator.id,
                         project_id=project_evaluator.project_id,
                         evaluator_id=project_evaluator.evaluator_id,
@@ -503,7 +505,7 @@ class OnlineEvalProducer(DaemonTask):
 
     async def _materialize_and_advance(
         self,
-        active: list[_ActiveEvaluator],
+        active: list[_ActiveProjectEvaluator],
         low_exclusive: int,
         frontier: int,
         budget: int,
@@ -591,7 +593,7 @@ class OnlineEvalProducer(DaemonTask):
 
     async def _backstop_sweep(
         self,
-        active: list[_ActiveEvaluator],
+        active: list[_ActiveProjectEvaluator],
         watermark: int,
         budget: int,
     ) -> int:
@@ -637,7 +639,7 @@ class OnlineEvalProducer(DaemonTask):
     async def _insert_work_units(
         self,
         session: AsyncSession,
-        project_evaluator: _ActiveEvaluator,
+        project_evaluator: _ActiveProjectEvaluator,
         span_ids: list[int],
     ) -> None:
         if not span_ids:

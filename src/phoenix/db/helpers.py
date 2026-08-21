@@ -424,10 +424,40 @@ def exclude_dataset_evaluator_projects(
 def exclude_project_evaluator_trace_projects(
     stmt: Select[_AnyTuple],
 ) -> Select[_AnyTuple]:
+    """Drop projects that hold some project evaluator's execution traces."""
     return stmt.outerjoin(
         models.ProjectEvaluator,
         models.Project.id == models.ProjectEvaluator.trace_project_id,
     ).where(models.ProjectEvaluator.trace_project_id.is_(None))
+
+
+async def delete_projects_and_evaluator_trace_projects(
+    session: AsyncSession,
+    project_ids: Iterable[int],
+) -> None:
+    """Delete projects together with their evaluators' trace projects.
+
+    Deleting a project cascades its project_evaluators rows away without
+    touching their RESTRICT-protected trace projects, so the trace-project ids
+    are collected first and deleted after the cascade releases the constraint.
+    Without this, the trace projects would outlive their evaluators and
+    reappear in project listings, whose exclusion requires a live evaluator row.
+    """
+    ids = set(project_ids)
+    if not ids:
+        return
+    trace_project_ids = (
+        await session.scalars(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.project_id.in_(ids)
+            )
+        )
+    ).all()
+    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
+    if trace_project_ids:
+        await session.execute(
+            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+        )
 
 
 def date_trunc(

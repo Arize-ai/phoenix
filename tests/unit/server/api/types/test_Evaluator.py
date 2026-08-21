@@ -300,7 +300,7 @@ async def test_project_evaluator_scheduling_fields(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
             evaluation_target="SESSION",
             filter_condition="span_kind == 'LLM'",
             sampling_rate=1.0,
@@ -1707,7 +1707,7 @@ async def test_project_evaluator_run_summary(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
             evaluation_target="SPAN",
             filter_condition="",
             sampling_rate=1.0,
@@ -1888,7 +1888,7 @@ async def test_project_evaluator_run_summary_reports_failing_when_failure_is_new
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
             evaluation_target="SPAN",
             filter_condition="",
             sampling_rate=1.0,
@@ -1983,7 +1983,7 @@ async def test_project_evaluator_trace_project_resolves_to_its_dedicated_project
             trace_project=trace_project,
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
             evaluation_target="SPAN",
             filter_condition="",
             sampling_rate=1.0,
@@ -2011,7 +2011,7 @@ async def test_project_evaluator_trace_project_resolves_to_its_dedicated_project
     assert resolved["name"] == trace_project_name
 
 
-async def test_project_evaluator_traces_land_in_the_evaluator_own_project(
+async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -2032,7 +2032,7 @@ async def test_project_evaluator_traces_land_in_the_evaluator_own_project(
                 trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                 project_id=project.id,
                 evaluator_id=evaluator.id,
-                name=Identifier(f"project_evaluator-{token_hex(4)}"),
+                name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
                 evaluation_target="SPAN",
                 filter_condition="",
                 sampling_rate=1.0,
@@ -2042,17 +2042,19 @@ async def test_project_evaluator_traces_land_in_the_evaluator_own_project(
         session.add_all(project_evaluator)
         await session.flush()
         project_evaluator_ids = [c.id for c in project_evaluator]
-        # One root span per evaluator, written into that evaluator's own trace
-        # project the way persist_evaluator_traces routes it.
+        # Both spans land in the FIRST evaluator's trace project, each stamped
+        # with its own evaluator's id, so the projectEvaluatorId scope below has
+        # a foreign span to filter out — the shape legacy shared-project data
+        # (or any mixed project) can still take.
+        trace = models.Trace(
+            trace_id=token_hex(8),
+            project_rowid=project_evaluator[0].trace_project_id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add(trace)
+        await session.flush()
         for c in project_evaluator:
-            trace = models.Trace(
-                trace_id=token_hex(8),
-                project_rowid=c.trace_project_id,
-                start_time=now,
-                end_time=now,
-            )
-            session.add(trace)
-            await session.flush()
             session.add(
                 models.Span(
                     trace_rowid=trace.id,
@@ -2083,7 +2085,7 @@ async def test_project_evaluator_traces_land_in_the_evaluator_own_project(
             node(id: $id) {
                 ... on ProjectEvaluator {
                     traceProject {
-                        spans(first: 10) {
+                        spans(first: 10, projectEvaluatorId: $id) {
                             edges { node { name } }
                         }
                     }

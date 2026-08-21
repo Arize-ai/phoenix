@@ -38,11 +38,11 @@ from phoenix.server.online_eval.derivation import (
     annotation_identifier,
     config_fingerprint,
 )
-from phoenix.server.online_eval.evaluator_resolution import (
-    resolve_evaluator,
-    resolve_evaluators_bulk,
-)
 from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.project_evaluator_resolution import (
+    resolve_project_evaluator,
+    resolve_project_evaluators_bulk,
+)
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_span, _add_trace
@@ -80,7 +80,7 @@ async def _seed_criteria(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition=filter_condition,
             sampling_rate=sampling_rate,
             evaluation_target=evaluation_target,
@@ -124,7 +124,7 @@ async def _seed_code_criteria(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
@@ -257,7 +257,7 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         assert project_evaluator is not None
         evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
         assert evaluator is not None
-        resolved = await resolve_evaluator(session, project_evaluator, evaluator)
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert resolved is not None
         expected_fingerprint = config_fingerprint(resolved)
     for unit in units:
@@ -313,10 +313,10 @@ async def test_builtin_implementation_version_changes_fingerprint(
         session.add(project_evaluator)
         await session.flush()
 
-        first = await resolve_evaluator(session, project_evaluator, evaluator)
+        first = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert first is not None
         monkeypatch.setattr(ContainsEvaluator, "implementation_version", "2")
-        second = await resolve_evaluator(session, project_evaluator, evaluator)
+        second = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert second is not None
 
     assert config_fingerprint(first) != config_fingerprint(second)
@@ -385,7 +385,7 @@ async def test_llm_custom_provider_edit_changes_fingerprint(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"project_evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
@@ -393,7 +393,7 @@ async def test_llm_custom_provider_edit_changes_fingerprint(
         session.add(project_evaluator)
         await session.flush()
 
-        before = await resolve_evaluator(session, project_evaluator, evaluator)
+        before = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert before is not None
 
         # Repoint the provider at a different endpoint. The prompt version — and so the
@@ -402,7 +402,7 @@ async def test_llm_custom_provider_edit_changes_fingerprint(
         provider.updated_at = _now() + timedelta(minutes=1)
         await session.flush()
 
-        after = await resolve_evaluator(session, project_evaluator, evaluator)
+        after = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert after is not None
 
     assert config_fingerprint(before) != config_fingerprint(after)
@@ -435,7 +435,7 @@ async def test_unregistered_builtin_cannot_resolve_criteria(
         session.add(project_evaluator)
         await session.flush()
 
-        assert await resolve_evaluator(session, project_evaluator, evaluator) is None
+        assert await resolve_project_evaluator(session, project_evaluator, evaluator) is None
 
 
 async def test_sandbox_runtime_changes_code_criteria_fingerprint(
@@ -454,12 +454,12 @@ async def test_sandbox_runtime_changes_code_criteria_fingerprint(
         assert evaluator is not None
         assert project_evaluator is not None
         assert sandbox_config is not None
-        first = await resolve_evaluator(session, project_evaluator, evaluator)
+        first = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert first is not None
         sandbox_config.timeout += 1
         sandbox_config.updated_at = _now() + timedelta(seconds=1)
         await session.flush()
-        second = await resolve_evaluator(session, project_evaluator, evaluator)
+        second = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert second is not None
 
     assert config_fingerprint(first) != config_fingerprint(second)
@@ -484,7 +484,7 @@ async def test_disabled_sandbox_runtime_does_not_resolve_code_criteria(
         sandbox_config.enabled = False
         await session.flush()
 
-        assert await resolve_evaluator(session, project_evaluator, evaluator) is None
+        assert await resolve_project_evaluator(session, project_evaluator, evaluator) is None
 
 
 async def test_active_criteria_are_bulk_resolved_once(
@@ -501,11 +501,11 @@ async def test_active_criteria_are_bulk_resolved_once(
 
     async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
         call_sizes.append(len(args[1]))
-        return await resolve_evaluators_bulk(*args, **kwargs)
+        return await resolve_project_evaluators_bulk(*args, **kwargs)
 
-    monkeypatch.setattr(producer_module, "resolve_evaluators_bulk", _counting_resolver)
+    monkeypatch.setattr(producer_module, "resolve_project_evaluators_bulk", _counting_resolver)
 
-    active = await OnlineEvalProducer(db)._load_active_evaluators()
+    active = await OnlineEvalProducer(db)._load_active_project_evaluators()
 
     assert len(active) == 3
     assert call_sizes == [3]
@@ -522,7 +522,7 @@ async def test_future_targets_are_not_loaded_by_span_producer(
 
     producer = OnlineEvalProducer(db)
 
-    assert await producer._load_active_evaluators() == []
+    assert await producer._load_active_project_evaluators() == []
 
 
 async def test_tick_advances_at_most_one_id_chunk(
@@ -676,7 +676,7 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
         claimed_by=producer._producer_id,
         claimed_at=_now(),
     )
-    active = await producer._load_active_evaluators()
+    active = await producer._load_active_project_evaluators()
     assert len(active) == 1
     project_evaluator = active[0]
 
@@ -730,7 +730,7 @@ async def test_backstop_stops_at_insertion_budget(db: DbSessionFactory) -> None:
         claimed_by=producer._producer_id,
         claimed_at=_now(),
     )
-    active = await producer._load_active_evaluators()
+    active = await producer._load_active_project_evaluators()
     remaining = await producer._backstop_sweep(active, spans[-1].id, 2)
 
     assert remaining == 0
@@ -762,7 +762,7 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
         assert project_evaluator is not None
         original_key = evaluator.key
         original_synced_at = evaluator.synced_at
-        resolved = await resolve_evaluator(session, project_evaluator, evaluator)
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert resolved is not None
         original_fingerprint = config_fingerprint(resolved)
         evaluator.key = f"{original_key}-changed"
@@ -863,7 +863,7 @@ async def test_transcript_caps_enter_the_session_fingerprint(
             evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
             assert project_evaluator is not None
             assert evaluator is not None
-            resolved = await resolve_evaluator(session, project_evaluator, evaluator)
+            resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
             assert resolved is not None
             return config_fingerprint(resolved)
 
@@ -947,7 +947,7 @@ async def test_ttl_expired_row_is_not_resurrected(
         )
 
     await producer._reap(_now(), span.id)
-    active = await producer._load_active_evaluators()
+    active = await producer._load_active_project_evaluators()
     await producer._backstop_sweep(active, span.id, 10)
 
     async with db() as session:
@@ -1286,7 +1286,7 @@ async def test_unexpected_criteria_load_error_fails_closed(
     async def _transient_boom(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError("transient version-lookup failure")
 
-    monkeypatch.setattr(producer_module, "resolve_evaluators_bulk", _transient_boom)
+    monkeypatch.setattr(producer_module, "resolve_project_evaluators_bulk", _transient_boom)
 
     producer = OnlineEvalProducer(db)
     with pytest.raises(RuntimeError, match="transient version-lookup failure"):

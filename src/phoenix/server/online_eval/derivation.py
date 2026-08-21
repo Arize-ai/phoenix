@@ -28,8 +28,8 @@ STALE_FINGERPRINT_ERROR = "CONFIG_FINGERPRINT_MISMATCH"
 
 
 @dataclass(frozen=True)
-class ResolvedEvaluator:
-    """Fingerprint inputs for one evaluator project_evaluator, resolved by the caller.
+class ResolvedProjectEvaluator:
+    """Fingerprint inputs for one project evaluator, resolved by the caller.
 
     ``version_ref`` must name an immutable version, never a mutable pointer: the
     concrete ``PromptVersion.id`` for LLM evaluators (resolving the tag), the current
@@ -59,7 +59,7 @@ def _canonical_default(obj: Any) -> Any:
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
-def config_fingerprint(resolved: ResolvedEvaluator) -> str:
+def config_fingerprint(resolved: ResolvedProjectEvaluator) -> str:
     """Full 64-char sha256 hex over the canonical JSON form of the resolved evaluator.
 
     Serves as both the work-unit dedup key component and the consumer's staleness

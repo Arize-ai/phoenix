@@ -3132,7 +3132,7 @@ type Project implements Node {
     orphanSpanAsRootSpan: Boolean = true
 
     """
-    Restrict to spans produced by this project evaluator. Every evaluator traces into one shared project, so its own traces are only reachable through this scope.
+    Restrict to spans produced by this project evaluator. Each evaluator traces into its own dedicated project, so this scope is only needed when querying a project that mixes spans from other sources.
     """
     projectEvaluatorId: ID
   ): SpanConnection!
@@ -3305,7 +3305,7 @@ type ProjectEvaluator implements Node {
   """
   The project holding the traces this evaluator produces when it runs. Each evaluator traces into its own dedicated project, created with the evaluator.
   """
-  traceProject: Project
+  traceProject: Project!
   evaluator: Evaluator!
   name: Identifier!
   filterCondition: String!
