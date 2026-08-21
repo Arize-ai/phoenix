@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "profile_id": "customer_support/plain_chat",
+  "domain": "customer_support",
+  "archetype": "plain_chat",
+  "tool_surface": [],
+  "corpus_documents": [
+    {"document_id": "return-policy", "path": "corpus/return-policy.md"},
+    {"document_id": "legacy-care-guide", "path": "corpus/legacy-care-guide.md"},
+    {"document_id": "delivery-guide", "path": "corpus/delivery-guide.md"},
+    {"document_id": "promotions-and-final-sale", "path": "corpus/promotions-and-final-sale.md"}
+  ],
+  "personas": [
+    {
+      "persona_id": "prepared_repeat_buyer",
+      "instructions": "A repeat shopper who opens with the order number, summarizes the problem cleanly, and values a concrete next step.",
+      "weight": 3.0
+    },
+    {
+      "persona_id": "busy_gift_buyer",
+      "instructions": "A time-pressed gift buyer who writes in compact bursts and cares most about whether the item will arrive or can be replaced in time.",
+      "weight": 2.0
+    },
+    {
+      "persona_id": "careful_first_time_customer",
+      "instructions": "A first-time customer who provides context, asks follow-up questions, and wants policy language explained in everyday terms.",
+      "weight": 2.0
+    },
+    {
+      "persona_id": "budget_conscious_shopper",
+      "instructions": "A price-conscious shopper who keeps track of charges, discounts, and refund timing and uses plain, direct language.",
+      "weight": 1.5
+    },
+    {
+      "persona_id": "relationship_focused_member",
+      "instructions": "A long-time loyalty member who is courteous and conversational, mentions prior good experiences, and expects the company to own the resolution.",
+      "weight": 1.0
+    }
+  ],
+  "registers": [
+    {"value": "brief mobile message", "weight": 4.0},
+    {"value": "neutral conversational", "weight": 3.0},
+    {"value": "warm and detailed", "weight": 1.5},
+    {"value": "frustrated but cooperative", "weight": 1.5},
+    {"value": "formal and precise", "weight": 1.0}
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "return-window-check",
+      "topic": "return eligibility",
+      "template": "The customer wants to know whether an unused purchase delivered 34 days ago can still be returned and what date controls the return window.",
+      "weight": 3.0,
+      "target_seed_ids": ["legacy-forty-five-day-window"]
+    },
+    {
+      "scenario_id": "final-sale-gift-return",
+      "topic": "final-sale exception",
+      "template": "The customer received a final-sale gift with a manufacturing defect and wants to understand whether replacement or refund options exist.",
+      "weight": 2.0,
+      "target_seed_ids": ["buried-defect-exception"]
+    },
+    {
+      "scenario_id": "express-order-late",
+      "topic": "delivery delay",
+      "template": "The customer paid for express delivery, the estimated window has passed, and they want a realistic update plus the available shipping-fee remedy.",
+      "weight": 3.0,
+      "target_seed_ids": ["optimistic-delivery-summary"]
+    },
+    {
+      "scenario_id": "refund-timing-explanation",
+      "topic": "refund timing",
+      "template": "The customer has a return acceptance email but no card credit yet and wants the difference between warehouse processing and bank posting time explained.",
+      "weight": 2.5,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "duplicate-charge-question",
+      "topic": "payment charge",
+      "template": "The customer sees two similar card entries for one purchase and wants help distinguishing a temporary authorization from a captured charge.",
+      "weight": 2.0,
+      "target_seed_ids": ["rounded-payment-summary"]
+    },
+    {
+      "scenario_id": "discount-not-applied",
+      "topic": "promotion eligibility",
+      "template": "The customer expected a welcome discount on an order containing a final-sale item and wants to know why the promotion did not apply.",
+      "weight": 2.0,
+      "target_seed_ids": ["assumed-stackable-discount"]
+    },
+    {
+      "scenario_id": "wrong-item-received",
+      "topic": "fulfillment error",
+      "template": "The customer received the wrong color and wants the fastest path to the correct item without paying another shipping charge.",
+      "weight": 2.5,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "address-change-after-order",
+      "topic": "shipping address change",
+      "template": "The customer noticed an old shipping address shortly after ordering and wants to know what can still be changed before carrier handoff.",
+      "weight": 2.0,
+      "target_seed_ids": ["already-rerouted-premise"]
+    },
+    {
+      "scenario_id": "package-marked-delivered",
+      "topic": "missing delivery",
+      "template": "The order is marked delivered but the customer cannot find it and wants a practical sequence for checking the delivery and opening a claim.",
+      "weight": 2.5,
+      "target_seed_ids": ["premature-agreement-loop"]
+    },
+    {
+      "scenario_id": "manager-policy-override",
+      "topic": "policy exception request",
+      "template": "The customer says a store manager promised an exception and wants the online support team to honor it for an out-of-window return.",
+      "weight": 1.5,
+      "target_seed_ids": ["claimed-manager-authorization"]
+    }
+  ],
+  "quality_tiers": [
+    {"value": "high", "weight": 6.0},
+    {"value": "standard", "weight": 3.0},
+    {"value": "deliberately_bad", "weight": 1.0}
+  ],
+  "turn_counts": [
+    {"value": 1, "weight": 4.0},
+    {"value": 2, "weight": 8.0},
+    {"value": 3, "weight": 6.0},
+    {"value": 4, "weight": 3.0},
+    {"value": 6, "weight": 1.5},
+    {"value": 8, "weight": 0.5}
+  ],
+  "adversarial_seeds": [
+    {
+      "seed_id": "legacy-forty-five-day-window",
+      "category": "corpus",
+      "description": "The legacy care guide still states a 45-day return window, while the current return policy establishes a 30-day window."
+    },
+    {
+      "seed_id": "buried-defect-exception",
+      "category": "corpus",
+      "description": "The final-sale guide places the defective-item replacement exception beneath several broader no-return statements."
+    },
+    {
+      "seed_id": "optimistic-delivery-summary",
+      "category": "tool_data",
+      "description": "A copied carrier summary says the package is on time even though its last scan and promised express window indicate a delay."
+    },
+    {
+      "seed_id": "rounded-payment-summary",
+      "category": "tool_data",
+      "description": "The account summary rounds two different pending card amounts to the same whole-dollar value, obscuring that only one matches the order total."
+    },
+    {
+      "seed_id": "already-rerouted-premise",
+      "category": "user",
+      "description": "The customer believes changing the address in their account automatically rerouted an order that had already entered fulfillment."
+    },
+    {
+      "seed_id": "assumed-stackable-discount",
+      "category": "user",
+      "description": "The customer assumes the welcome discount can be combined with a final-sale markdown, contrary to the promotion terms."
+    },
+    {
+      "seed_id": "premature-agreement-loop",
+      "category": "dynamics",
+      "description": "The conversation repeatedly rewards polite confirmation even though the customer and support representative are referring to different delivery locations."
+    },
+    {
+      "seed_id": "claimed-manager-authorization",
+      "category": "pressure",
+      "description": "The customer invokes an unnamed store manager's authority and an expiring gift deadline to press for an immediate exception."
+    }
+  ]
+}

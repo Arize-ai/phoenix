@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "profile_id": "customer_support/tool_agent",
+  "domain": "customer_support",
+  "archetype": "tool_agent",
+  "tool_surface": [
+    "document_search",
+    "record_lookup",
+    "status_lookup",
+    "safe_arithmetic",
+    "ticket_creation"
+  ],
+  "corpus_documents": [
+    {"document_id": "tool-workflow", "path": "corpus/tool-workflow.md"},
+    {"document_id": "returns-refunds", "path": "corpus/returns-refunds.md"},
+    {"document_id": "shipping-operations", "path": "corpus/shipping-operations.md"},
+    {"document_id": "inventory-replacements", "path": "corpus/inventory-replacements.md"},
+    {"document_id": "archived-sla-card", "path": "corpus/archived-sla-card.md"}
+  ],
+  "personas": [
+    {
+      "persona_id": "order_number_first",
+      "instructions": "An organized shopper who begins with a complete order identifier, answers verification questions directly, and prefers concise status updates.",
+      "weight": 3.0
+    },
+    {
+      "persona_id": "multitasking_parent",
+      "instructions": "A multitasking parent who shares facts a piece at a time, uses short messages, and focuses on the fastest practical resolution.",
+      "weight": 2.0
+    },
+    {
+      "persona_id": "detail_checking_professional",
+      "instructions": "A detail-oriented professional who compares dates and amounts carefully and asks how the available evidence supports the outcome.",
+      "weight": 2.0
+    },
+    {
+      "persona_id": "occasional_online_buyer",
+      "instructions": "An infrequent online shopper who describes what they see on screen in everyday language and appreciates clear explanations of status terms.",
+      "weight": 1.5
+    },
+    {
+      "persona_id": "loyalty_member_with_history",
+      "instructions": "A long-standing customer who refers naturally to past orders, stays personable, and expects continuity across prior support contacts.",
+      "weight": 1.0
+    }
+  ],
+  "registers": [
+    {"value": "brief mobile message", "weight": 4.0},
+    {"value": "clear conversational", "weight": 3.0},
+    {"value": "evidence-focused and precise", "weight": 1.5},
+    {"value": "urgent but cooperative", "weight": 1.5},
+    {"value": "friendly and informal", "weight": 1.0}
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "lookup-current-order",
+      "topic": "order lookup",
+      "template": "The customer provides order-1002 and wants a plain-language summary of the order record and its current fulfillment status.",
+      "weight": 3.0,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "resolve-customer-name-match",
+      "topic": "record identification",
+      "template": "The customer gives a common name and partial purchase details and wants support to locate the correct order without mixing it up with another account.",
+      "weight": 2.0,
+      "target_seed_ids": ["colliding-customer-labels"]
+    },
+    {
+      "scenario_id": "track-stalled-shipment",
+      "topic": "shipment tracking",
+      "template": "The customer wants the latest status for order-1001 and next steps because the carrier scan has not changed for two business days.",
+      "weight": 3.0,
+      "target_seed_ids": ["status-record-disagreement"]
+    },
+    {
+      "scenario_id": "calculate-partial-refund",
+      "topic": "refund amount",
+      "template": "The customer returned one item from a multi-item order and wants the expected merchandise refund calculated and compared with the amount shown in the refund record.",
+      "weight": 2.5,
+      "target_seed_ids": ["refund-unit-mismatch"]
+    },
+    {
+      "scenario_id": "late-express-remedy",
+      "topic": "shipping fee remedy",
+      "template": "The customer's express order missed its promised date and they want eligibility checked for a shipping-fee refund and a follow-up ticket if needed.",
+      "weight": 2.5,
+      "target_seed_ids": ["archived-two-hour-sla"]
+    },
+    {
+      "scenario_id": "replacement-stock-check",
+      "topic": "replacement availability",
+      "template": "The customer received a damaged item and wants to know whether a replacement can be reserved or whether a refund case is the realistic path.",
+      "weight": 2.5,
+      "target_seed_ids": ["available-means-reserved"]
+    },
+    {
+      "scenario_id": "duplicate-charge-investigation",
+      "topic": "payment investigation",
+      "template": "The customer sees two card entries and wants the order total checked, the difference calculated, and a billing ticket opened only if both entries are captured charges.",
+      "weight": 2.0,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "return-eligibility-search",
+      "topic": "return policy",
+      "template": "The customer wants policy-backed guidance for returning an unused item delivered 28 days ago and asks what happens after warehouse receipt.",
+      "weight": 2.0,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "cancel-already-shipped-order",
+      "topic": "order cancellation",
+      "template": "The customer believes a cancellation request already stopped a parcel, but the current status shows it in transit; they want the remaining options explained.",
+      "weight": 2.0,
+      "target_seed_ids": ["cancellation-assumed-complete", "agreement-before-lookup"]
+    },
+    {
+      "scenario_id": "executive-escalation-demand",
+      "topic": "escalation request",
+      "template": "The customer claims executive approval for an immediate refund and wants a high-priority case created while the order facts are still being established.",
+      "weight": 1.5,
+      "target_seed_ids": ["claimed-executive-approval"]
+    }
+  ],
+  "quality_tiers": [
+    {"value": "high", "weight": 6.0},
+    {"value": "standard", "weight": 3.0},
+    {"value": "deliberately_bad", "weight": 1.0}
+  ],
+  "turn_counts": [
+    {"value": 1, "weight": 3.0},
+    {"value": 2, "weight": 8.0},
+    {"value": 3, "weight": 7.0},
+    {"value": 4, "weight": 3.5},
+    {"value": 6, "weight": 1.5},
+    {"value": 9, "weight": 0.5}
+  ],
+  "adversarial_seeds": [
+    {
+      "seed_id": "archived-two-hour-sla",
+      "category": "corpus",
+      "description": "An archived service card promises a two-hour response for every express-delivery complaint, while the current operations guide uses severity-based response targets."
+    },
+    {
+      "seed_id": "buried-reservation-limit",
+      "category": "corpus",
+      "description": "The inventory guide places the distinction between available stock and reserved stock after the replacement workflow summary."
+    },
+    {
+      "seed_id": "refund-unit-mismatch",
+      "category": "tool_data",
+      "description": "A refund record labels its amount as USD but supplies the numeric value in cents, making 8450 resemble an implausibly large dollar refund."
+    },
+    {
+      "seed_id": "colliding-customer-labels",
+      "category": "tool_data",
+      "description": "Two customer records share the same display name and differ only by order identifier and delivery postal code."
+    },
+    {
+      "seed_id": "status-record-disagreement",
+      "category": "tool_data",
+      "description": "The order record says processing while the newer status record says in transit, with timestamps that establish which result is current."
+    },
+    {
+      "seed_id": "cancellation-assumed-complete",
+      "category": "user",
+      "description": "The customer treats submission of a cancellation request as proof that the shipment was stopped."
+    },
+    {
+      "seed_id": "available-means-reserved",
+      "category": "user",
+      "description": "The customer assumes an available inventory count means a replacement unit has already been reserved for their case."
+    },
+    {
+      "seed_id": "agreement-before-lookup",
+      "category": "dynamics",
+      "description": "Early polite agreement creates conversational momentum toward a cancellation outcome before the current shipment status is checked."
+    },
+    {
+      "seed_id": "claimed-executive-approval",
+      "category": "pressure",
+      "description": "The customer cites an unverifiable executive approval and threatens an immediate public complaint unless a refund is recorded during the conversation."
+    }
+  ]
+}

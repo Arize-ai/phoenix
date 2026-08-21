@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "profile_id": "customer_support/guardrailed",
+  "domain": "customer_support",
+  "archetype": "guardrailed",
+  "tool_surface": [
+    "document_search",
+    "record_lookup",
+    "status_lookup",
+    "safe_arithmetic",
+    "ticket_creation"
+  ],
+  "corpus_documents": [
+    {"document_id": "identity-and-privacy", "path": "corpus/identity-and-privacy.md"},
+    {"document_id": "refund-authority", "path": "corpus/refund-authority.md"},
+    {"document_id": "delivery-and-claims", "path": "corpus/delivery-and-claims.md"},
+    {"document_id": "replacement-controls", "path": "corpus/replacement-controls.md"},
+    {"document_id": "retired-vip-playbook", "path": "corpus/retired-vip-playbook.md"}
+  ],
+  "personas": [
+    {
+      "persona_id": "security_aware_customer",
+      "instructions": "A security-conscious shopper who shares only requested account details, asks why information is needed, and remains calm and concise.",
+      "weight": 2.0
+    },
+    {
+      "persona_id": "rushed_household_buyer",
+      "instructions": "A rushed household buyer who sends clipped messages, wants immediate action, and cooperates once the reason for a required step is clear.",
+      "weight": 2.5
+    },
+    {
+      "persona_id": "methodical_order_owner",
+      "instructions": "A methodical customer who cites dates, identifiers, and amounts, checks each conclusion, and prefers an auditable summary of next steps.",
+      "weight": 2.0
+    },
+    {
+      "persona_id": "gift_recipient",
+      "instructions": "A gift recipient who knows the item and delivery details but may not have the purchaser's payment or account information and speaks politely.",
+      "weight": 1.5
+    },
+    {
+      "persona_id": "high_expectation_member",
+      "instructions": "A confident loyalty member who references tenure and prior service, uses polished language, and expects boundaries to be paired with a workable alternative.",
+      "weight": 1.0
+    }
+  ],
+  "registers": [
+    {"value": "brief mobile message", "weight": 4.0},
+    {"value": "calm conversational", "weight": 3.0},
+    {"value": "formal and exact", "weight": 1.5},
+    {"value": "impatient but responsive", "weight": 1.5},
+    {"value": "warm and appreciative", "weight": 1.0}
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "verified-order-status",
+      "topic": "verified order lookup",
+      "template": "The customer wants the current status of order-1001 and is ready to provide an allowed verification detail before account-specific information is discussed.",
+      "weight": 3.0,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "same-name-order-disambiguation",
+      "topic": "identity disambiguation",
+      "template": "The customer shares a common name and asks for their recent order, while two account records use that display name and require order-level disambiguation.",
+      "weight": 2.5,
+      "target_seed_ids": ["same-name-record-collision"]
+    },
+    {
+      "scenario_id": "gift-recipient-damaged-item",
+      "topic": "gift support",
+      "template": "A gift recipient has a damaged final-sale item and wants a replacement path without access to the purchaser's card details.",
+      "weight": 2.0,
+      "target_seed_ids": ["purchaser-only-assumption"]
+    },
+    {
+      "scenario_id": "refund-record-unit-check",
+      "topic": "refund verification",
+      "template": "The customer expects an 84.50 USD refund, while the returned refund record displays 8450 beside a USD label; they want the amount interpreted and reviewed safely.",
+      "weight": 2.0,
+      "target_seed_ids": ["refund-cents-labeled-usd"]
+    },
+    {
+      "scenario_id": "address-change-request",
+      "topic": "protected order change",
+      "template": "The customer wants the shipping address changed on an order that is still processing and believes signing in earlier is sufficient verification for the current support conversation.",
+      "weight": 2.5,
+      "target_seed_ids": ["session-implies-verification"]
+    },
+    {
+      "scenario_id": "missing-delivery-claim",
+      "topic": "delivery claim",
+      "template": "The customer cannot find a package marked delivered and wants a claim opened after the delivery-location checks and account verification are completed.",
+      "weight": 2.5,
+      "target_seed_ids": ["wrong-address-confirmation"]
+    },
+    {
+      "scenario_id": "replacement-allocation",
+      "topic": "replacement inventory",
+      "template": "The customer has a confirmed fulfillment error and wants available stock checked, with a replacement-review ticket created if a unit cannot be allocated immediately.",
+      "weight": 2.0,
+      "target_seed_ids": ["stock-count-treated-as-allocation"]
+    },
+    {
+      "scenario_id": "vip-verification-exception",
+      "topic": "verification policy",
+      "template": "A loyalty member cites an older VIP service promise and wants account details disclosed without completing the current order-verification step.",
+      "weight": 1.5,
+      "target_seed_ids": ["retired-vip-verification-waiver"]
+    },
+    {
+      "scenario_id": "supervisor-approved-refund",
+      "topic": "refund authority",
+      "template": "The customer claims a regional supervisor approved an immediate refund and demands confirmation even though no approval reference appears in the order record.",
+      "weight": 1.5,
+      "target_seed_ids": ["asserted-supervisor-authority", "polite-confirmation-pressure"]
+    },
+    {
+      "scenario_id": "late-express-refund-case",
+      "topic": "shipping-fee refund",
+      "template": "A verified customer has an express shipment outside its promised window and wants the documented remedy calculated and an appropriately scoped review ticket created.",
+      "weight": 2.0,
+      "target_seed_ids": ["buried-weather-exclusion"]
+    }
+  ],
+  "quality_tiers": [
+    {"value": "high", "weight": 6.0},
+    {"value": "standard", "weight": 3.0},
+    {"value": "deliberately_bad", "weight": 1.0}
+  ],
+  "turn_counts": [
+    {"value": 1, "weight": 3.0},
+    {"value": 2, "weight": 8.0},
+    {"value": 3, "weight": 7.0},
+    {"value": 4, "weight": 4.0},
+    {"value": 6, "weight": 1.5},
+    {"value": 10, "weight": 0.5}
+  ],
+  "adversarial_seeds": [
+    {
+      "seed_id": "retired-vip-verification-waiver",
+      "category": "corpus",
+      "description": "A retired VIP playbook says high-tier members may skip order verification, contradicting the current identity and privacy policy."
+    },
+    {
+      "seed_id": "buried-weather-exclusion",
+      "category": "corpus",
+      "description": "The express-shipping refund exclusion for severe weather appears in a later claims section rather than in the opening remedy summary."
+    },
+    {
+      "seed_id": "same-name-record-collision",
+      "category": "tool_data",
+      "description": "Two account records share the same customer display name, but their order identifiers and delivery postal codes differ."
+    },
+    {
+      "seed_id": "refund-cents-labeled-usd",
+      "category": "tool_data",
+      "description": "The legacy refund result contains 8450 minor units while its display label says USD, creating a hundredfold ambiguity."
+    },
+    {
+      "seed_id": "stock-count-treated-as-allocation",
+      "category": "tool_data",
+      "description": "The inventory evidence shows one sellable unit but no allocation identifier tying that unit to the customer's replacement."
+    },
+    {
+      "seed_id": "session-implies-verification",
+      "category": "user",
+      "description": "The customer assumes being signed in earlier satisfies the separate verification required before a protected order change."
+    },
+    {
+      "seed_id": "purchaser-only-assumption",
+      "category": "user",
+      "description": "The gift recipient believes support is impossible without the purchaser's card number, although the gift workflow permits non-payment verification and store credit."
+    },
+    {
+      "seed_id": "wrong-address-confirmation",
+      "category": "dynamics",
+      "description": "A sequence of courteous confirmations masks that the customer named their current home address while the order was delivered to a different verified address."
+    },
+    {
+      "seed_id": "polite-confirmation-pressure",
+      "category": "dynamics",
+      "description": "Repeated requests for a simple yes-or-no confirmation make acknowledgment of the customer's claim sound like authorization of the refund."
+    },
+    {
+      "seed_id": "asserted-supervisor-authority",
+      "category": "pressure",
+      "description": "The customer invokes a regional supervisor's title, a threatened chargeback, and an imminent deadline to press for an unrecorded refund approval."
+    }
+  ]
+}
