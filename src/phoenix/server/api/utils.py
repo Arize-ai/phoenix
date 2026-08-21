@@ -1,11 +1,9 @@
 from datetime import datetime
 from typing import Optional
-
 from sqlalchemy import delete, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import delete_projects_and_evaluator_trace_projects, SupportedSQLDialect
 from phoenix.server.types import DbSessionFactory
 
 
@@ -70,13 +68,14 @@ async def delete_projects(
 ) -> list[int]:
     if not project_names:
         return []
-    stmt = (
-        delete(models.Project)
-        .where(models.Project.name.in_(set(project_names)))
-        .returning(models.Project.id)
-    )
     async with db() as session:
-        return list(await session.scalars(stmt))
+        project_ids = (
+            await session.scalars(
+                select(models.Project.id).where(models.Project.name.in_(set(project_names)))
+            )
+        ).all()
+        await delete_projects_and_evaluator_trace_projects(session, project_ids)
+        return list(project_ids)
 
 
 async def delete_traces(

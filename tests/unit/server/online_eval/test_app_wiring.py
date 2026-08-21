@@ -1,5 +1,5 @@
 """End-to-end wiring test for the online-eval daemons: a writable app starts
-target-specific consumers, and a seeded criteria + span flows producer tick →
+target-specific consumers, and a seeded project_evaluator + span flows producer tick →
 consumer cycle → span annotation with the work unit DONE.
 """
 
@@ -146,7 +146,7 @@ async def test_app_runs_seeded_criteria_end_to_end(
                 trace,
                 attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
             )
-        _, criteria_id = await _seed_llm_criteria(db, project.id)
+        _, project_evaluator_id = await _seed_llm_criteria(db, project.id)
 
         # Age the cursor's high-water observation past the frontier lag so the
         # next tick's scan window covers the seeded span. The daemon's own
@@ -184,7 +184,7 @@ async def test_app_runs_seeded_criteria_end_to_end(
                 select(models.EvalWorkUnit).where(models.EvalWorkUnit.span_rowid == span.id)
             )
         assert unit is not None
-        assert unit.criteria_id == criteria_id
+        assert unit.project_evaluator_id == project_evaluator_id
 
         await consumer._cycle()
 

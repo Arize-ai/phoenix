@@ -183,7 +183,7 @@ class DbEvalWorkCoordinator:
                             work_unit_model.id,
                             self._target_row_column.label("target_rowid"),
                             work_unit_model.evaluator_id,
-                            work_unit_model.criteria_id,
+                            work_unit_model.project_evaluator_id,
                             work_unit_model.config_fingerprint,
                             work_unit_model.attempts,
                         )
@@ -202,7 +202,7 @@ class DbEvalWorkCoordinator:
                 evaluation_target=self._evaluation_target,
                 target_rowid=row.target_rowid,
                 evaluator_id=row.evaluator_id,
-                criteria_id=row.criteria_id,
+                project_evaluator_id=row.project_evaluator_id,
                 config_fingerprint=row.config_fingerprint,
                 identifier=annotation_identifier(row.config_fingerprint),
                 attempts=row.attempts,
@@ -255,13 +255,13 @@ class DbEvalWorkCoordinator:
             identity_statement: Any
             if self._evaluation_target == "SESSION":
                 identity_statement = select(
-                    work_unit_model.criteria_id,
+                    work_unit_model.project_evaluator_id,
                     self._target_row_column.label("project_session_rowid"),
                 ).where(work_unit_model.id == work_unit_id)
             else:
                 identity_statement = (
                     select(
-                        work_unit_model.criteria_id,
+                        work_unit_model.project_evaluator_id,
                         models.Trace.project_session_rowid,
                     )
                     .select_from(work_unit_model)
@@ -273,17 +273,17 @@ class DbEvalWorkCoordinator:
             if identity is None:
                 raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
 
-            # Global lock order: criteria (C) -> session (S) -> work unit (W) -> write.
+            # Global lock order: project evaluator (E) -> session (S) -> work unit (W) -> write.
             # Publication takes C -> S -> W; SESSION materialization takes C -> S before
             # inserting W. Retention takes S -> W, and no path may invert either edge.
-            criteria_enabled = await session.scalar(
-                select(models.ProjectEvaluatorCriteria.enabled)
-                .where(models.ProjectEvaluatorCriteria.id == identity.criteria_id)
+            project_evaluator_enabled = await session.scalar(
+                select(models.ProjectEvaluator.enabled)
+                .where(models.ProjectEvaluator.id == identity.project_evaluator_id)
                 .with_for_update()
             )
-            if criteria_enabled is not True:
+            if project_evaluator_enabled is not True:
                 raise PublicationClaimLostError(
-                    f"work unit {work_unit_id} criteria is disabled or missing"
+                    f"work unit {work_unit_id} project evaluator is disabled or missing"
                 )
             project_session_rowid = identity.project_session_rowid
             if project_session_rowid is not None:

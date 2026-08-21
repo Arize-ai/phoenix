@@ -6,7 +6,6 @@ from unittest.mock import Mock
 import pytest
 from sqlalchemy import func, select, update
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
@@ -32,10 +31,6 @@ from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
 )
-from phoenix.server.online_eval.criteria_resolution import (
-    resolve_criteria,
-    resolve_criteria_bulk,
-)
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
@@ -44,6 +39,10 @@ from phoenix.server.online_eval.derivation import (
     config_fingerprint,
 )
 from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.project_evaluator_resolution import (
+    resolve_project_evaluator,
+    resolve_project_evaluators_bulk,
+)
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_span, _add_trace
@@ -61,8 +60,8 @@ async def _seed_criteria(
     sampling_rate: float = 1.0,
     evaluation_target: models.EvaluationTarget = "SPAN",
 ) -> tuple[int, int]:
-    """Create a builtin evaluator and a criteria row, returning
-    (evaluator_id, criteria_id)."""
+    """Create a builtin evaluator and a project_evaluator row, returning
+    (evaluator_id, project_evaluator_id)."""
     async with db() as session:
         evaluator = await session.scalar(
             select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == "contains")
@@ -77,17 +76,18 @@ async def _seed_criteria(
             )
             session.add(evaluator)
             await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition=filter_condition,
             sampling_rate=sampling_rate,
             evaluation_target=evaluation_target,
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        return evaluator.id, criteria.id
+        return evaluator.id, project_evaluator.id
 
 
 async def _seed_code_criteria(
@@ -120,17 +120,18 @@ async def _seed_code_criteria(
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        return evaluator.id, criteria.id, sandbox_config.id
+        return evaluator.id, project_evaluator.id, sandbox_config.id
 
 
 async def _seed_cursor(
@@ -232,7 +233,7 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         other_project = await _add_project(session)
         other_trace = await _add_trace(session, other_project)
         other_span = await _add_span(session, other_trace, span_kind="LLM")
-    evaluator_id, criteria_id = await _seed_criteria(
+    evaluator_id, project_evaluator_id = await _seed_criteria(
         db, project.id, filter_condition="span_kind == 'LLM'"
     )
     high_water = other_span.id
@@ -252,17 +253,17 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
 
     async with db() as session:
         units = list(await session.scalars(select(models.EvalWorkUnit)))
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
         evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
         assert evaluator is not None
-        resolved = await resolve_criteria(session, criteria, evaluator)
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert resolved is not None
         expected_fingerprint = config_fingerprint(resolved)
     for unit in units:
         assert unit.status == "PENDING"
         assert unit.evaluator_id == evaluator_id
-        assert unit.criteria_id == criteria_id
+        assert unit.project_evaluator_id == project_evaluator_id
         assert unit.config_fingerprint == expected_fingerprint
 
     cursor = await _get_cursor(db, cursor_id)
@@ -300,21 +301,22 @@ async def test_builtin_implementation_version_changes_fingerprint(
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root="criteria"),
+            name=Identifier(root="project_evaluator"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
 
-        first = await resolve_criteria(session, criteria, evaluator)
+        first = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert first is not None
         monkeypatch.setattr(ContainsEvaluator, "implementation_version", "2")
-        second = await resolve_criteria(session, criteria, evaluator)
+        second = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert second is not None
 
     assert config_fingerprint(first) != config_fingerprint(second)
@@ -379,18 +381,19 @@ async def test_llm_custom_provider_edit_changes_fingerprint(
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
 
-        before = await resolve_criteria(session, criteria, evaluator)
+        before = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert before is not None
 
         # Repoint the provider at a different endpoint. The prompt version — and so the
@@ -399,7 +402,7 @@ async def test_llm_custom_provider_edit_changes_fingerprint(
         provider.updated_at = _now() + timedelta(minutes=1)
         await session.flush()
 
-        after = await resolve_criteria(session, criteria, evaluator)
+        after = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert after is not None
 
     assert config_fingerprint(before) != config_fingerprint(after)
@@ -420,18 +423,19 @@ async def test_unregistered_builtin_cannot_resolve_criteria(
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(root="criteria"),
+            name=Identifier(root="project_evaluator"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
 
-        assert await resolve_criteria(session, criteria, evaluator) is None
+        assert await resolve_project_evaluator(session, project_evaluator, evaluator) is None
 
 
 async def test_sandbox_runtime_changes_code_criteria_fingerprint(
@@ -439,21 +443,23 @@ async def test_sandbox_runtime_changes_code_criteria_fingerprint(
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
-    evaluator_id, criteria_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+    evaluator_id, project_evaluator_id, sandbox_config_id = await _seed_code_criteria(
+        db, project.id
+    )
 
     async with db() as session:
         evaluator = await session.get(models.CodeEvaluator, evaluator_id)
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
         assert evaluator is not None
-        assert criteria is not None
+        assert project_evaluator is not None
         assert sandbox_config is not None
-        first = await resolve_criteria(session, criteria, evaluator)
+        first = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert first is not None
         sandbox_config.timeout += 1
         sandbox_config.updated_at = _now() + timedelta(seconds=1)
         await session.flush()
-        second = await resolve_criteria(session, criteria, evaluator)
+        second = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert second is not None
 
     assert config_fingerprint(first) != config_fingerprint(second)
@@ -464,19 +470,21 @@ async def test_disabled_sandbox_runtime_does_not_resolve_code_criteria(
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
-    evaluator_id, criteria_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+    evaluator_id, project_evaluator_id, sandbox_config_id = await _seed_code_criteria(
+        db, project.id
+    )
 
     async with db() as session:
         evaluator = await session.get(models.CodeEvaluator, evaluator_id)
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
         assert evaluator is not None
-        assert criteria is not None
+        assert project_evaluator is not None
         assert sandbox_config is not None
         sandbox_config.enabled = False
         await session.flush()
 
-        assert await resolve_criteria(session, criteria, evaluator) is None
+        assert await resolve_project_evaluator(session, project_evaluator, evaluator) is None
 
 
 async def test_active_criteria_are_bulk_resolved_once(
@@ -493,11 +501,11 @@ async def test_active_criteria_are_bulk_resolved_once(
 
     async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
         call_sizes.append(len(args[1]))
-        return await resolve_criteria_bulk(*args, **kwargs)
+        return await resolve_project_evaluators_bulk(*args, **kwargs)
 
-    monkeypatch.setattr(producer_module, "resolve_criteria_bulk", _counting_resolver)
+    monkeypatch.setattr(producer_module, "resolve_project_evaluators_bulk", _counting_resolver)
 
-    active = await OnlineEvalProducer(db)._load_active_criteria()
+    active = await OnlineEvalProducer(db)._load_active_project_evaluators()
 
     assert len(active) == 3
     assert call_sizes == [3]
@@ -514,17 +522,7 @@ async def test_future_targets_are_not_loaded_by_span_producer(
 
     producer = OnlineEvalProducer(db)
 
-    assert await producer._load_active_criteria() == []
-
-
-async def test_criteria_on_the_evaluators_project_are_not_loaded(db: DbSessionFactory) -> None:
-    async with db() as session:
-        evaluators_project = await _add_project(session, name=EVALUATORS_PROJECT_NAME)
-    await _seed_criteria(db, evaluators_project.id)
-
-    producer = OnlineEvalProducer(db)
-
-    assert await producer._load_active_criteria() == []
+    assert await producer._load_active_project_evaluators() == []
 
 
 async def test_tick_advances_at_most_one_id_chunk(
@@ -669,7 +667,7 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
         late_span = await _add_span(session, trace)
         annotated_span = await _add_span(session, trace)
         expired_span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
     watermark = expired_span.id
     producer = OnlineEvalProducer(db)
     await _seed_cursor(
@@ -678,21 +676,21 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
         claimed_by=producer._producer_id,
         claimed_at=_now(),
     )
-    active = await producer._load_active_criteria()
+    active = await producer._load_active_project_evaluators()
     assert len(active) == 1
-    criteria = active[0]
+    project_evaluator = active[0]
 
     async with db() as session:
         session.add(
             models.SpanAnnotation(
                 span_rowid=annotated_span.id,
-                name=criteria.name,
+                name=project_evaluator.name,
                 label="ok",
                 score=1.0,
                 explanation=None,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=criteria.identifier,
+                identifier=project_evaluator.identifier,
                 source="API",
                 user_id=None,
             )
@@ -701,8 +699,8 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
             models.EvalWorkUnit(
                 span_rowid=expired_span.id,
                 evaluator_id=evaluator_id,
-                criteria_id=criteria_id,
-                config_fingerprint=criteria.fingerprint,
+                project_evaluator_id=project_evaluator_id,
+                config_fingerprint=project_evaluator.fingerprint,
                 status="EXPIRED",
             )
         )
@@ -732,7 +730,7 @@ async def test_backstop_stops_at_insertion_budget(db: DbSessionFactory) -> None:
         claimed_by=producer._producer_id,
         claimed_at=_now(),
     )
-    active = await producer._load_active_criteria()
+    active = await producer._load_active_project_evaluators()
     remaining = await producer._backstop_sweep(active, spans[-1].id, 2)
 
     assert remaining == 0
@@ -746,7 +744,7 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         spans = [await _add_span(session, trace) for _ in range(3)]
-    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
     await _seed_cursor(
         db,
         produced_through_id=spans[0].id - 1,
@@ -759,12 +757,12 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
 
     async with db() as session:
         evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert evaluator is not None
-        assert criteria is not None
+        assert project_evaluator is not None
         original_key = evaluator.key
         original_synced_at = evaluator.synced_at
-        resolved = await resolve_criteria(session, criteria, evaluator)
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert resolved is not None
         original_fingerprint = config_fingerprint(resolved)
         evaluator.key = f"{original_key}-changed"
@@ -786,16 +784,16 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
 
     async with db() as session:
         evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert evaluator is not None
-        assert criteria is not None
+        assert project_evaluator is not None
         evaluator.key = original_key
         evaluator.synced_at = original_synced_at
         session.add_all(
             [
                 models.SpanAnnotation(
                     span_rowid=spans[0].id,
-                    name=criteria.name.root,
+                    name=project_evaluator.name.root,
                     label="old",
                     score=0.0,
                     explanation=None,
@@ -807,7 +805,7 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
                 ),
                 models.SpanAnnotation(
                     span_rowid=spans[1].id,
-                    name=criteria.name.root,
+                    name=project_evaluator.name.root,
                     label="done",
                     score=1.0,
                     explanation=None,
@@ -853,7 +851,7 @@ async def test_transcript_caps_enter_the_session_fingerprint(
     has to change the identity — results under one identifier must be comparable."""
     async with db() as session:
         project = await _add_project(session)
-    evaluator_id, criteria_id = await _seed_criteria(
+    evaluator_id, project_evaluator_id = await _seed_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -861,11 +859,11 @@ async def test_transcript_caps_enter_the_session_fingerprint(
 
     async def _fingerprint() -> str:
         async with db() as session:
-            criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
+            project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
             evaluator = await session.get(models.BuiltinEvaluator, evaluator_id)
-            assert criteria is not None
+            assert project_evaluator is not None
             assert evaluator is not None
-            resolved = await resolve_criteria(session, criteria, evaluator)
+            resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
             assert resolved is not None
             return config_fingerprint(resolved)
 
@@ -882,12 +880,12 @@ async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
     db: DbSessionFactory,
 ) -> None:
     """The consumer's fingerprint-mismatch expiry and the producer's revival scan
-    key on one constant; drifting apart makes a reverted criteria terminal."""
+    key on one constant; drifting apart makes a reverted project_evaluator terminal."""
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    _, criteria_id = await _seed_criteria(db, project.id)
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
     await _seed_cursor(
         db,
         produced_through_id=span.id - 1,
@@ -898,10 +896,10 @@ async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
     await producer._tick()
 
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        original_sampling_rate = criteria.sampling_rate
-        criteria.sampling_rate = 0.5
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        original_sampling_rate = project_evaluator.sampling_rate
+        project_evaluator.sampling_rate = 0.5
 
     await OnlineEvalConsumer(db, decrypt=lambda value: value)._cycle()
 
@@ -910,9 +908,9 @@ async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
         assert unit is not None
         assert unit.status == "EXPIRED"
         assert unit.error == STALE_FINGERPRINT_ERROR
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        criteria.sampling_rate = original_sampling_rate
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        project_evaluator.sampling_rate = original_sampling_rate
 
     producer._backstop_interval_seconds = 0
     await producer._tick()
@@ -949,7 +947,7 @@ async def test_ttl_expired_row_is_not_resurrected(
         )
 
     await producer._reap(_now(), span.id)
-    active = await producer._load_active_criteria()
+    active = await producer._load_active_project_evaluators()
     await producer._backstop_sweep(active, span.id, 10)
 
     async with db() as session:
@@ -968,7 +966,7 @@ async def test_reaper_transitions_and_deletes(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         spans = [await _add_span(session, trace) for _ in range(5)]
-    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
     produced_through = spans[-1].id
     outside, inside = spans[0].id, spans[-1].id
     now = _now()
@@ -978,7 +976,7 @@ async def test_reaper_transitions_and_deletes(
         return models.EvalWorkUnit(
             span_rowid=span_rowid,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint=f"fp-{token_hex(8)}",
             **kwargs,
         )
@@ -1047,14 +1045,14 @@ async def test_reaper_default_keeps_old_pending_work(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
     now = _now()
     ancient = now - timedelta(days=30)
     async with db() as session:
         old_pending = models.EvalWorkUnit(
             span_rowid=span.id,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint=f"fp-{token_hex(8)}",
             status="PENDING",
             created_at=ancient,
@@ -1079,7 +1077,7 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
     now = _now()
     lapsed = now - timedelta(seconds=LEASE_TTL_SECONDS + 1)
 
@@ -1087,7 +1085,7 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
         lapsed_unit = models.EvalWorkUnit(
             span_rowid=span.id,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint=f"fp-{token_hex(8)}",
             status="RUNNING",
             attempts=MAX_ATTEMPTS - 1,
@@ -1097,7 +1095,7 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
         failed_lapsed_unit = models.EvalWorkUnit(
             span_rowid=span.id,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint=f"fp-{token_hex(8)}",
             status="RUNNING",
             attempts=MAX_ATTEMPTS - 1,
@@ -1108,7 +1106,7 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
         fresh_unit = models.EvalWorkUnit(
             span_rowid=span.id,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint=f"fp-{token_hex(8)}",
             status="RUNNING",
             attempts=MAX_ATTEMPTS - 1,
@@ -1153,14 +1151,14 @@ async def test_admission_gate_skips_materialization(
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
         backlog_span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
     async with db() as session:
         session.add_all(
             [
                 models.EvalWorkUnit(
                     span_rowid=backlog_span.id,
                     evaluator_id=evaluator_id,
-                    criteria_id=criteria_id,
+                    project_evaluator_id=project_evaluator_id,
                     config_fingerprint=f"fp-{token_hex(8)}",
                 )
                 for _ in range(2)
@@ -1191,13 +1189,13 @@ async def test_admission_budget_counts_nonterminal_backlog(db: DbSessionFactory)
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
 
     def _unit(status: str, **kwargs: Any) -> models.EvalWorkUnit:
         return models.EvalWorkUnit(
             span_rowid=span.id,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint=f"fp-{token_hex(8)}",
             status=status,
             **kwargs,
@@ -1247,14 +1245,14 @@ async def test_admission_budget_count_is_bounded_at_ceiling(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
     async with db() as session:
         session.add_all(
             [
                 models.EvalWorkUnit(
                     span_rowid=span.id,
                     evaluator_id=evaluator_id,
-                    criteria_id=criteria_id,
+                    project_evaluator_id=project_evaluator_id,
                     config_fingerprint=f"fp-{token_hex(8)}",
                 )
                 for _ in range(outstanding_count)
@@ -1271,9 +1269,9 @@ async def test_unexpected_criteria_load_error_fails_closed(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An unexpected exception during criteria resolution (e.g. a transient DB
+    """An unexpected exception during project_evaluator resolution (e.g. a transient DB
     error) must abort the tick without advancing the cursor — advancing would
-    silently skip the window for the criteria that failed to load."""
+    silently skip the window for the project_evaluator that failed to load."""
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -1288,7 +1286,7 @@ async def test_unexpected_criteria_load_error_fails_closed(
     async def _transient_boom(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError("transient version-lookup failure")
 
-    monkeypatch.setattr(producer_module, "resolve_criteria_bulk", _transient_boom)
+    monkeypatch.setattr(producer_module, "resolve_project_evaluators_bulk", _transient_boom)
 
     producer = OnlineEvalProducer(db)
     with pytest.raises(RuntimeError, match="transient version-lookup failure"):
@@ -1300,9 +1298,9 @@ async def test_unexpected_criteria_load_error_fails_closed(
 
 
 async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFactory) -> None:
-    """A filter_condition that fails to compile is a persistent per-criteria
-    condition: the criteria is skipped (operator-visibly, via log) while the
-    cursor still advances for the healthy criteria — one bad DSL string must
+    """A filter_condition that fails to compile is a persistent per-project_evaluator
+    condition: the project_evaluator is skipped (operator-visibly, via log) while the
+    cursor still advances for the healthy project_evaluator — one bad DSL string must
     not stall the shared cursor forever."""
     async with db() as session:
         project = await _add_project(session)
@@ -1322,7 +1320,7 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
     async with db() as session:
         units = list(await session.scalars(select(models.EvalWorkUnit)))
     assert {unit.evaluator_id for unit in units} == {good_evaluator_id}
-    assert bad_criteria_id not in {unit.criteria_id for unit in units}
+    assert bad_criteria_id not in {unit.project_evaluator_id for unit in units}
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.produced_through_id == span.id
 
@@ -1386,10 +1384,10 @@ async def test_lost_lease_rolls_back_materialization_and_aborts_tick(
 
     async def _insert_then_lose_lease(
         session: Any,
-        criteria: Any,
+        project_evaluator: Any,
         span_ids: list[int],
     ) -> None:
-        await insert_work_units(session, criteria, span_ids)
+        await insert_work_units(session, project_evaluator, span_ids)
         await session.execute(
             update(models.EvalWorkCursor)
             .where(models.EvalWorkCursor.id == cursor_id)
@@ -1435,7 +1433,7 @@ async def test_separate_lease_steal_rolls_back_truncated_frontier(
 
     async def _steal_then_insert(
         session: Any,
-        criteria: Any,
+        project_evaluator: Any,
         span_ids: list[int],
     ) -> None:
         async with db() as rival_session:
@@ -1444,7 +1442,7 @@ async def test_separate_lease_steal_rolls_back_truncated_frontier(
                 .where(models.EvalWorkCursor.id == cursor_id)
                 .values(claimed_by="rival-producer")
             )
-        await insert_work_units(session, criteria, span_ids)
+        await insert_work_units(session, project_evaluator, span_ids)
 
     monkeypatch.setattr(producer, "_insert_work_units", _steal_then_insert)
 
@@ -1475,7 +1473,7 @@ async def test_separate_lease_steal_rolls_back_backstop(
 
     async def _steal_then_insert(
         session: Any,
-        criteria: Any,
+        project_evaluator: Any,
         span_ids: list[int],
     ) -> None:
         async with db() as rival_session:
@@ -1484,7 +1482,7 @@ async def test_separate_lease_steal_rolls_back_backstop(
                 .where(models.EvalWorkCursor.id == cursor_id)
                 .values(claimed_by="rival-producer")
             )
-        await insert_work_units(session, criteria, span_ids)
+        await insert_work_units(session, project_evaluator, span_ids)
 
     monkeypatch.setattr(producer, "_insert_work_units", _steal_then_insert)
 
