@@ -23,11 +23,11 @@ expect_tools: [] # preflight insists on these, e.g. [execute, search]
 
 tasks_dir: tasks
 
-# Traces must not land in an instance under test: spans one trial ingests are
-# visible to the next, so the database stops being the same between trials.
-# Sink is $PHOENIX_ENDPOINT / $PHOENIX_API_KEY (the plugin hardcodes those names).
+# On when $PHOENIX_ENDPOINT is set (typically in .env). Set enabled: false to
+# force off. Spans go to mcp-bench-<label>, not the fixture the tasks name, so
+# the sink may be the same instance as the target.
+# Sink keys: $PHOENIX_ENDPOINT / $PHOENIX_API_KEY (the plugin hardcodes those names).
 tracing:
-  enabled: false # On, every run needs a second Phoenix + plugin + canary.
   # Version-pinned plugin cache path: works locally, not portable to teammates.
   # Swap for a pinned checkout before sharing.
   plugin_dir: ~/.claude/plugins/cache/arize-claude-plugin/claude-code-tracing/1.0.0
