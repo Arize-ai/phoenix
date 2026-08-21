@@ -29,7 +29,6 @@ async def resolve_project_evaluator(
     project_evaluator: models.ProjectEvaluator,
     evaluator: models.Evaluator,
 ) -> Optional[ResolvedProjectEvaluator]:
-    """Resolve one project evaluator row through the shared bulk-resolution path."""
     return (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[0]
 
 

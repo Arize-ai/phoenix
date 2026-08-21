@@ -2993,12 +2993,6 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLE
 
 
 class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
-    """Records the outgoing request URL on the span without altering the request.
-
-    Provider SDKs disagree on their HTTP library: the openai SDK is built on httpx2, the
-    others on httpx. Both are accepted because only ``request.url`` is read.
-    """
-
     def __init__(
         self,
         wrapped: httpx.AsyncClient | httpx2.AsyncClient,
