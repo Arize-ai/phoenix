@@ -5,7 +5,7 @@ from typing import Optional, cast
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import and_, delete, select, true
+from sqlalchemy import and_, delete, select, true, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -69,7 +69,7 @@ from phoenix.server.online_eval.session_policy import (
     DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
 )
-from phoenix.server.online_eval.tracing import new_trace_project
+from phoenix.server.online_eval.tracing import new_trace_project, trace_project_description
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
 from phoenix.server.session_filters import validate_session_filter_condition
@@ -341,6 +341,38 @@ async def _validate_project_evaluator_project(
     ):
         raise BadRequest("This project holds evaluator traces and cannot be evaluated")
     return project
+
+
+async def _refresh_trace_project_description(
+    session: AsyncSession,
+    criteria: models.ProjectEvaluatorCriteria,
+    *,
+    name: IdentifierModel,
+) -> None:
+    """Keep the trace project's description naming the evaluator whose traces it holds.
+
+    Called before the rename is applied, so a no-op rename costs nothing. The
+    project's own name is generated, so a description left behind by a rename
+    would be the only thing on its page and would name an evaluator that no
+    longer exists under that name.
+    """
+    if criteria.trace_project_id is None or criteria.name == name:
+        return
+    project_name = await session.scalar(
+        select(models.Project.name).where(models.Project.id == criteria.project_id)
+    )
+    if project_name is None:
+        return
+    await session.execute(
+        update(models.Project)
+        .where(models.Project.id == criteria.trace_project_id)
+        .values(
+            description=trace_project_description(
+                evaluator_name=str(name),
+                project_name=project_name,
+            )
+        )
+    )
 
 
 def _validate_project_evaluator_filter(
@@ -1009,6 +1041,7 @@ class EvaluatorMutationMixin:
                     evaluator.user_id = user_id
                     evaluator.updated_at = datetime.now(timezone.utc)
 
+                await _refresh_trace_project_description(session, criteria, name=name)
                 criteria.name = name
                 criteria.filter_condition = input.filter_condition
                 criteria.sampling_rate = input.sampling_rate
@@ -1359,6 +1392,7 @@ class EvaluatorMutationMixin:
                 if shared_evaluator_changed:
                     evaluator.user_id = user_id
 
+                await _refresh_trace_project_description(session, criteria, name=name)
                 criteria.name = name
                 criteria.filter_condition = input.filter_condition
                 criteria.sampling_rate = input.sampling_rate

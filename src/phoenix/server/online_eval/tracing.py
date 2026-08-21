@@ -83,18 +83,29 @@ def marked_evaluator_tracer(
     return tracer
 
 
+def trace_project_description(*, evaluator_name: str, project_name: str) -> str:
+    """What a trace project holds, in the terms the user named it in.
+
+    The project's own name is generated, so this is the only thing on its page
+    that says whose traces it holds -- which is why a rename refreshes it.
+    """
+    return f"Traces for project evaluator: {evaluator_name} on project: {project_name}"
+
+
 def new_trace_project(*, evaluator_name: str, project_name: str) -> models.Project:
     """The project a project evaluator's own executions trace into.
 
     The name is generated rather than derived from the evaluator: project names
     are unique deployment-wide, so a derived name could collide with a project a
     user already has, and a name nobody would type is a name nobody accidentally
-    attaches an evaluator to. Dataset evaluators name theirs the same way. That
-    leaves the description as the only place the project explains itself.
+    attaches an evaluator to. Dataset evaluators name theirs the same way.
     """
     return models.Project(
         name=f"project-evaluator-{token_hex(12)}",
-        description=f"Traces for project evaluator: {evaluator_name} on project: {project_name}",
+        description=trace_project_description(
+            evaluator_name=evaluator_name,
+            project_name=project_name,
+        ),
     )
 
 

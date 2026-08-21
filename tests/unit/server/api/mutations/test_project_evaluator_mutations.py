@@ -1244,6 +1244,35 @@ async def test_each_project_evaluator_gets_its_own_trace_project(
     assert trace_project_ids[0] != trace_project_ids[1]
 
 
+async def test_renaming_a_project_evaluator_refreshes_its_trace_project_description(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """The trace project's own name is generated, so its description is the only thing
+    that says whose traces it holds. A rename must not leave it naming the old one."""
+    project = await _add_project(db)
+    result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="before-rename", text="Evaluate {{input}}")},
+    )
+    assert not result.errors and result.data
+    evaluator = result.data["createProjectLlmEvaluator"]["evaluator"]
+
+    update_input = _llm_input(project, name="after-rename", text="Evaluate {{input}}")
+    update_input.pop("projectId")
+    update_input["projectEvaluatorId"] = evaluator["id"]
+    result = await gql_client.execute(_UPDATE_LLM, {"input": update_input})
+
+    assert not result.errors and result.data
+    trace_project = result.data["updateProjectLlmEvaluator"]["evaluator"]["traceProject"]
+    # Same project, renamed evaluator.
+    assert trace_project["id"] == evaluator["traceProject"]["id"]
+    assert trace_project["name"] == evaluator["traceProject"]["name"]
+    assert trace_project["description"] == (
+        f"Traces for project evaluator: after-rename on project: {project.name}"
+    )
+
+
 async def test_deleting_a_project_evaluator_deletes_its_trace_project(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
