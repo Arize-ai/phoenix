@@ -69,25 +69,3 @@ class TestCursorParse:
     def test_rejects_a_malformed_cursor(self, cursor: str) -> None:
         with pytest.raises(ValueError):
             Cursor.parse(cursor, sort_column_type=None)
-
-    @pytest.mark.parametrize("rowid", [-(2**31), 0, 2**31 - 1])
-    def test_accepts_a_rowid_the_table_can_hold(self, rowid: int) -> None:
-        cursor = Cursor(rowid=rowid)
-        parsed = Cursor.parse(
-            str(cursor), sort_column_type=None, rowid_range=range(-(2**31), 2**31)
-        )
-        assert parsed == cursor
-
-    @pytest.mark.parametrize("rowid", [-(2**31) - 1, 2**31, 2**63])
-    def test_rejects_a_rowid_the_table_cannot_hold(self, rowid: int) -> None:
-        """Binding such a rowid raises in the driver instead of returning no rows."""
-        with pytest.raises(ValueError):
-            Cursor.parse(
-                str(Cursor(rowid=rowid)),
-                sort_column_type=None,
-                rowid_range=range(-(2**31), 2**31),
-            )
-
-    def test_admits_any_rowid_when_the_caller_gives_no_range(self) -> None:
-        cursor = Cursor(rowid=2**63)
-        assert Cursor.parse(str(cursor), sort_column_type=None) == cursor

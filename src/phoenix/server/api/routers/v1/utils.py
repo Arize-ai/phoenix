@@ -1,4 +1,3 @@
-from collections.abc import Mapping
 from typing import Annotated, Any, Generic, Optional, TypedDict, TypeVar, Union
 
 from fastapi import HTTPException
@@ -9,7 +8,6 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumnDataType
@@ -211,34 +209,10 @@ async def get_dataset_by_identifier(
     return dataset
 
 
-#: The rowids each dialect can hold for a table whose primary key is declared as
-#: a plain `Mapped[int]`: postgres `SERIAL` is 32-bit, while sqlite's `INTEGER
-#: PRIMARY KEY` is the 64-bit rowid. Tables declared with `models._Integer` are
-#: `BIGINT` on postgres and hold the wider range, so they need their own bound.
-_DEFAULT_ROWID_RANGES: Mapping[SupportedSQLDialect, range] = {
-    SupportedSQLDialect.POSTGRESQL: range(-(2**31), 2**31),
-    SupportedSQLDialect.SQLITE: range(-(2**63), 2**63),
-}
-
-
-def default_rowid_range(dialect: SupportedSQLDialect) -> range:
-    """
-    The rowids a table whose primary key is a plain `Mapped[int]` can hold.
-
-    Args:
-        dialect: The dialect the query runs against.
-
-    Returns:
-        The range to pass as `Cursor.parse`'s `rowid_range`.
-    """
-    return _DEFAULT_ROWID_RANGES[dialect]
-
-
 def parse_cursor(
     cursor: str,
     *,
     sort_column_type: Optional[CursorSortColumnDataType],
-    rowid_range: Optional[range] = None,
 ) -> Cursor:
     """
     Decodes a pagination cursor, answering one this route cannot use with 422.
@@ -252,7 +226,6 @@ def parse_cursor(
         cursor: The token as received from the client.
         sort_column_type: The data type of the column the route sorts on, or
             None if the route orders by rowid alone.
-        rowid_range: The rowids the table's primary key can hold.
 
     Returns:
         The decoded cursor.
@@ -261,10 +234,6 @@ def parse_cursor(
         HTTPException: 422, if the cursor is not one this route can page with.
     """
     try:
-        return Cursor.parse(
-            cursor,
-            sort_column_type=sort_column_type,
-            rowid_range=rowid_range,
-        )
+        return Cursor.parse(cursor, sort_column_type=sort_column_type)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}") from error

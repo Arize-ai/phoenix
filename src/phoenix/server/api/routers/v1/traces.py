@@ -51,7 +51,6 @@ from .utils import (
     RequestBody,
     ResponseBody,
     add_errors_to_responses,
-    default_rowid_range,
     get_project_by_identifier,
     parse_cursor,
 )
@@ -230,12 +229,7 @@ async def list_project_traces(
             stmt = stmt.where(models.Trace.start_time < normalize_datetime(end_time, timezone.utc))
 
         if cursor:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
-            parsed_cursor = parse_cursor(
-                cursor,
-                sort_column_type=_CURSOR_SORT_TYPES[sort],
-                rowid_range=default_rowid_range(dialect),
-            )
+            parsed_cursor = parse_cursor(cursor, sort_column_type=_CURSOR_SORT_TYPES[sort])
             assert parsed_cursor.sort_column is not None
             # Keyset predicate over the query's full ordering key: `sort_col` is
             # not unique and the row id does not order the result, so the pair is
