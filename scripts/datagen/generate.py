@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "openai==2.54.0",
+#   "openai==3.2.0",
 # ]
 # ///
 """Create and operate a resumable offline datagen pass."""

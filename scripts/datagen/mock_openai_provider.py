@@ -333,8 +333,6 @@ def _tool_call(
     if not re.search(r"\b(arrive|delivery|deliver|shipping|shipment|order)\b", user, re.I):
         return None
     function = tools[0].get("function", {}) if tools else {}
-    postal_code = (re.search(r"\b\d{5}\b", user) or ["10001"])[0]
-    service_level = "express" if re.search(r"\b(express|expedited)\b", user, re.I) else "standard"
     identifier = _stable_id({"messages": messages, "tools": tools})
     return {
         "id": f"call_{identifier[:18]}",
@@ -342,11 +340,58 @@ def _tool_call(
         "function": {
             "name": function.get("name", "estimate_delivery_days"),
             "arguments": json.dumps(
-                {"postal_code": postal_code, "service_level": service_level},
+                _tool_arguments(function.get("parameters"), user),
+                sort_keys=True,
                 separators=(",", ":"),
             ),
         },
     }
+
+
+def _tool_arguments(parameters: Any, user: str) -> dict[str, Any]:
+    """Fill the tool's own declared required properties, so any caller schema validates."""
+    if not isinstance(parameters, Mapping):
+        return {"postal_code": _postal_code(user), "service_level": _service_level(user)}
+    properties = parameters.get("properties")
+    properties = properties if isinstance(properties, Mapping) else {}
+    required = parameters.get("required")
+    names = required if isinstance(required, list) and required else list(properties)
+    return {name: _property_value(name, properties.get(name, {}), user) for name in names}
+
+
+def _property_value(name: str, schema: Any, user: str) -> Any:
+    schema = schema if isinstance(schema, Mapping) else {}
+    if enum := schema.get("enum"):
+        return enum[0]
+    kind = schema.get("type")
+    if kind in ("integer", "number"):
+        return schema.get("minimum", 1)
+    if kind == "boolean":
+        return True
+    if kind == "array":
+        return []
+    if name == "postal_code":
+        return _postal_code(user)
+    if name == "service_level":
+        return _service_level(user)
+    if name.endswith("_id"):
+        match = re.search(r"\b[A-Za-z]{1,6}-?\d{2,8}\b", user)
+        value = match.group(0) if match else f"record-{_stable_id(user)[:8]}"
+    elif "expression" in name:
+        value = "2 + 2"
+    else:
+        value = user.strip() or "customer request"
+    maximum = schema.get("maxLength")
+    return value[:maximum] if isinstance(maximum, int) else value
+
+
+def _postal_code(user: str) -> str:
+    match = re.search(r"\b\d{5}\b", user)
+    return match.group(0) if match else "10001"
+
+
+def _service_level(user: str) -> str:
+    return "express" if re.search(r"\b(express|expedited)\b", user, re.I) else "standard"
 
 
 def create_chat_completion(request: dict[str, Any]) -> dict[str, Any]:
@@ -387,6 +432,52 @@ def create_chat_completion(request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def stream_chat_completion(completion: Mapping[str, Any]) -> bytes:
+    """Encode a completion as the server-sent-event stream the OpenAI client expects."""
+    choice = completion["choices"][0]
+    content = choice["message"].get("content") or ""
+    midpoint = max(1, len(content) // 2)
+    chunks = []
+    for part in (content[:midpoint], content[midpoint:]):
+        if part:
+            chunks.append(
+                {
+                    "id": completion["id"],
+                    "object": "chat.completion.chunk",
+                    "created": completion["created"],
+                    "model": completion["model"],
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {"content": part},
+                            "finish_reason": None,
+                        }
+                    ],
+                }
+            )
+    chunks.append(
+        {
+            "id": completion["id"],
+            "object": "chat.completion.chunk",
+            "created": completion["created"],
+            "model": completion["model"],
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+        }
+    )
+    chunks.append(
+        {
+            "id": completion["id"],
+            "object": "chat.completion.chunk",
+            "created": completion["created"],
+            "model": completion["model"],
+            "choices": [],
+            "usage": completion["usage"],
+        }
+    )
+    events = [f"data: {json.dumps(chunk, separators=(',', ':'))}\n\n" for chunk in chunks]
+    return ("".join(events) + "data: [DONE]\n\n").encode()
+
+
 def _stable_id(value: Any) -> str:
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     return sha256(encoded).hexdigest()
@@ -408,12 +499,23 @@ class ChatCompletionsHandler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("content-length", "0"))
             request = json.loads(self.rfile.read(length))
-            self._send_json(HTTPStatus.OK, create_chat_completion(request))
+            completion = create_chat_completion(request)
+            if request.get("stream"):
+                self._send_stream(stream_chat_completion(completion))
+            else:
+                self._send_json(HTTPStatus.OK, completion)
         except (json.JSONDecodeError, TypeError, ValueError) as exc:
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": {"message": str(exc)}})
 
     def log_message(self, format: str, *args: Any) -> None:
         print(f"{self.address_string()} - {format % args}")
+
+    def _send_stream(self, events: bytes) -> None:
+        self.send_response(HTTPStatus.OK)
+        self.send_header("content-type", "text/event-stream")
+        self.send_header("content-length", str(len(events)))
+        self.end_headers()
+        self.wfile.write(events)
 
     def _send_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload).encode()

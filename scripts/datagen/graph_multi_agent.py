@@ -2,8 +2,9 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "langchain-core==0.3.75",
-#   "openinference-instrumentation-langchain==0.1.11",
+#   "langchain-core==1.5.6",
+#   "openinference-instrumentation==0.1.57",
+#   "openinference-instrumentation-langchain==0.1.70",
 #   "opentelemetry-exporter-otlp-proto-common==1.44.0",
 #   "opentelemetry-sdk==1.44.0",
 #   "protobuf==7.35.1",

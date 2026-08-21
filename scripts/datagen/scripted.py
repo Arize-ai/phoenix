@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "openai==3.1.0",
+#   "openai==3.2.0",
 # ]
 # ///
 """Build and decode Batch requests for scripted datagen conversations."""

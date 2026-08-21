@@ -3,10 +3,11 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "httpx==0.28.1",
-#   "langchain-core==0.3.75",
-#   "langchain-openai==0.3.32",
-#   "openai==2.54.0",
-#   "openinference-instrumentation-langchain==0.1.11",
+#   "langchain-core==1.5.6",
+#   "langchain-openai==1.5.1",
+#   "openai==3.2.0",
+#   "openinference-instrumentation==0.1.57",
+#   "openinference-instrumentation-langchain==0.1.70",
 #   "opentelemetry-exporter-otlp-proto-common==1.44.0",
 #   "opentelemetry-sdk==1.44.0",
 #   "protobuf==7.35.1",

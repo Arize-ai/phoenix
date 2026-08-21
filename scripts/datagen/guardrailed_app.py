@@ -2,8 +2,9 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "guardrails-ai==0.6.7",
-#   "openinference-instrumentation-guardrails==0.1.11",
+#   "guardrails-ai==0.5.0",
+#   "openinference-instrumentation==0.1.57",
+#   "openinference-instrumentation-guardrails==0.1.16",
 #   "opentelemetry-exporter-otlp-proto-common==1.44.0",
 #   "opentelemetry-sdk==1.44.0",
 #   "protobuf==7.35.1",

@@ -3,7 +3,8 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #   "httpx==0.28.1",
-#   "openai==3.1.0",
+#   "openai==3.2.0",
+#   "openinference-instrumentation==0.1.57",
 #   "openinference-instrumentation-openai==0.1.54",
 #   "opentelemetry-exporter-otlp-proto-common==1.44.0",
 #   "opentelemetry-sdk==1.44.0",
@@ -297,9 +298,13 @@ def write_manifest(output_dir: Path) -> None:
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 
-def in_process_http_client() -> httpx.Client:
+def _provider_module() -> Any:
     module_name = "scripts.datagen.mock_openai_provider" if __package__ else "mock_openai_provider"
-    create_chat_completion = importlib.import_module(module_name).create_chat_completion
+    return importlib.import_module(module_name)
+
+
+def in_process_http_client() -> httpx.Client:
+    create_chat_completion = _provider_module().create_chat_completion
 
     def handle(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
@@ -317,48 +322,7 @@ def in_process_http_client() -> httpx.Client:
 
 
 def _streaming_response(completion: Mapping[str, Any]) -> bytes:
-    choice = completion["choices"][0]
-    content = choice["message"].get("content") or ""
-    midpoint = max(1, len(content) // 2)
-    chunks = []
-    for part in (content[:midpoint], content[midpoint:]):
-        if part:
-            chunks.append(
-                {
-                    "id": completion["id"],
-                    "object": "chat.completion.chunk",
-                    "created": completion["created"],
-                    "model": completion["model"],
-                    "choices": [
-                        {
-                            "index": 0,
-                            "delta": {"content": part},
-                            "finish_reason": None,
-                        }
-                    ],
-                }
-            )
-    chunks.append(
-        {
-            "id": completion["id"],
-            "object": "chat.completion.chunk",
-            "created": completion["created"],
-            "model": completion["model"],
-            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-        }
-    )
-    chunks.append(
-        {
-            "id": completion["id"],
-            "object": "chat.completion.chunk",
-            "created": completion["created"],
-            "model": completion["model"],
-            "choices": [],
-            "usage": completion["usage"],
-        }
-    )
-    events = [f"data: {json.dumps(chunk, separators=(',', ':'))}\n\n" for chunk in chunks]
-    return ("".join(events) + "data: [DONE]\n\n").encode()
+    return _provider_module().stream_chat_completion(completion)
 
 
 def main() -> None:

@@ -2,8 +2,9 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "llama-index-core==0.14.24",
+#   "llama-index-core==0.14.23",
 #   "llama-index-postprocessor-cohere-rerank==0.9.0",
+#   "openinference-instrumentation==0.1.57",
 #   "openinference-instrumentation-llama-index==4.4.5",
 #   "opentelemetry-exporter-otlp-proto-common==1.44.0",
 #   "opentelemetry-sdk==1.44.0",
