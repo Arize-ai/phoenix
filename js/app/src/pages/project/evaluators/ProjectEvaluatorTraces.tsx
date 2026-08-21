@@ -27,15 +27,12 @@ type ProjectEvaluatorTracesProps = {
   /** The evaluator's own trace project. */
   projectId: string;
   projectEvaluatorId: string;
-  /** Whether any run is on record, choosing which empty state to show. */
   hasEverRun: boolean;
 };
 
 /**
  * One evaluator's own traces: what it read, the model call it made, and the
- * judgment it parsed out. Each evaluator writes into its own trace project,
- * and the evaluator's id is still passed to the server as a scope, so the
- * rows here are always this evaluator's.
+ * judgment it parsed out.
  */
 export function ProjectEvaluatorTraces(props: ProjectEvaluatorTracesProps) {
   // Reset the mount-time filter and time-range seed when the tab is reused for
@@ -152,10 +149,6 @@ function ProjectEvaluatorTracesTable({
   );
 }
 
-/**
- * An evaluator that has never run and one whose past runs left no trace here
- * are different situations with different remedies, so they get different copy.
- */
 function ProjectEvaluatorTracesEmpty({ hasEverRun }: { hasEverRun: boolean }) {
   if (!hasEverRun) {
     return (
