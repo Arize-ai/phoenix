@@ -60,7 +60,7 @@ relevance_evaluator = bind_evaluator(evaluator=relevance_evaluator, input_mappin
 
 evals_df = await async_evaluate_dataframe(dataframe=df_sample, evaluators=[relevance_evaluator], concurrency=10)
 relevance_classifications = evals_df["retrieval_relevance_score"].str["label"].tolist()
-choices = ["relevant", "irrelevant"]
+choices = relevance_evaluator.labels
 ```
 
 ## Evaluate Results
