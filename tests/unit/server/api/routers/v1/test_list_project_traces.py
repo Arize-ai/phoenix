@@ -9,12 +9,9 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     Cursor,
-    CursorSortColumn,
-    CursorSortColumnDataType,
 )
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
@@ -692,43 +689,6 @@ class TestListProjectTracesKeysetPagination:
             params={"limit": 2, "cursor": str(Cursor(rowid=1))},
         )
         assert response.status_code == 422
-
-    @staticmethod
-    def _rowid_cursor(rowid: int) -> str:
-        return str(
-            Cursor(
-                rowid=rowid,
-                sort_column=CursorSortColumn(
-                    type=CursorSortColumnDataType.DATETIME,
-                    value=datetime(2024, 1, 1, tzinfo=timezone.utc),
-                ),
-            )
-        )
-
-    async def test_cursor_with_an_out_of_range_rowid_is_rejected(
-        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
-    ) -> None:
-        project = await _insert_traces_out_of_order(db)
-        # A rowid too large for any dialect's id column would raise when bound.
-        response = await httpx_client.get(
-            f"v1/projects/{project.name}/traces",
-            params={"limit": 2, "cursor": self._rowid_cursor(2**63)},
-        )
-        assert response.status_code == 422
-
-    async def test_rowid_bound_matches_what_the_dialect_can_hold(
-        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
-    ) -> None:
-        """Sqlite row ids are 64-bit, so a 32-bit bound would reject its own cursors."""
-        project = await _insert_traces_out_of_order(db)
-        response = await httpx_client.get(
-            f"v1/projects/{project.name}/traces",
-            params={"limit": 2, "cursor": self._rowid_cursor(2**31)},
-        )
-        if db.dialect is SupportedSQLDialect.SQLITE:
-            assert response.status_code == 200, response.text
-        else:
-            assert response.status_code == 422
 
     async def test_pages_do_not_repeat_or_skip_when_sort_values_tie(
         self, httpx_client: httpx.AsyncClient, db: DbSessionFactory

@@ -163,25 +163,20 @@ class Cursor:
         cursor: str,
         *,
         sort_column_type: Optional[CursorSortColumnDataType],
-        rowid_range: Optional[range] = None,
     ) -> "Cursor":
         """
         Decodes a cursor and rejects one the caller's query cannot use.
 
         A cursor is only meaningful to the query that minted it: its sort value
-        is compared against one particular column, and its rowid indexes one
-        particular table. `from_string` decodes the token; this additionally
-        checks that the token describes the caller's query, so that a cursor
-        from elsewhere is refused rather than silently compared against the
-        wrong column or bound as an unusable rowid.
+        is compared against one particular column. `from_string` decodes the
+        token; this additionally checks that the token describes the caller's
+        query, so that a cursor from elsewhere is refused rather than silently
+        compared against the wrong column.
 
         Args:
             sort_column_type: The data type of the column the query sorts on, or
                 None if the query orders by rowid alone. A cursor whose sort
                 column disagrees carries a value for a different column.
-            rowid_range: The rowids the table's primary key can hold. A rowid
-                outside the range matches no row, and the driver raises on
-                binding it instead of returning an empty page.
 
         Raises:
             ValueError: If the cursor is malformed or describes a different query.
@@ -200,8 +195,6 @@ class Cursor:
             or not isinstance(sort_column.value, _VALUE_TYPES[sort_column_type])
         ):
             raise ValueError(f"Cursor was not minted for this sort column: {cursor}")
-        if rowid_range is not None and parsed.rowid not in rowid_range:
-            raise ValueError(f"Cursor rowid is outside what the table can hold: {cursor}")
         return parsed
 
 

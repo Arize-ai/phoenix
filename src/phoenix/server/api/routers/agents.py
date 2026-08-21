@@ -178,7 +178,6 @@ from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
-    default_rowid_range,
     parse_cursor,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -2417,11 +2416,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if (user_id := _get_request_user_id(request)) is not None:
             statement = statement.where(models.AgentSession.user_id == user_id)
         if cursor is not None:
-            parsed_cursor = parse_cursor(
-                cursor,
-                sort_column_type=CursorSortColumnDataType.DATETIME,
-                rowid_range=default_rowid_range(request.app.state.db.dialect),
-            )
+            parsed_cursor = parse_cursor(cursor, sort_column_type=CursorSortColumnDataType.DATETIME)
             assert parsed_cursor.sort_column is not None
             statement = statement.where(
                 tuple_(models.AgentSession.updated_at, models.AgentSession.id)
@@ -2531,11 +2526,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             models.AgentSessionMessage.agent_session_id == session_rowid
         )
         if cursor is not None:
-            parsed_cursor = parse_cursor(
-                cursor,
-                sort_column_type=None,
-                rowid_range=default_rowid_range(request.app.state.db.dialect),
-            )
+            parsed_cursor = parse_cursor(cursor, sort_column_type=None)
             statement = statement.where(models.AgentSessionMessage.id > parsed_cursor.rowid)
         statement = statement.order_by(models.AgentSessionMessage.id).limit(limit + 1)
         async with request.app.state.db() as session:
