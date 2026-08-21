@@ -9,6 +9,7 @@ from phoenix.server.agents.prompts.templating import get_template
 _BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
 _BASE_SUBAGENT_INSTRUCTIONS = get_template("base/BASE_SUBAGENT_INSTRUCTIONS.xml.j2")
 _DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
+_PHOENIX_MCP_TOOL_INSTRUCTIONS = get_template("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml.j2")
 _BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2")
 _WRITE_SPAN_NOTE_TOOL_INSTRUCTIONS = get_template("tools/WRITE_SPAN_NOTE_TOOL_INSTRUCTIONS.xml.j2")
 _ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2")
@@ -210,6 +211,7 @@ class AgentPrompts:
 
     base: Template = _BASE_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
+    phoenix_mcp_tools: Template = _PHOENIX_MCP_TOOL_INSTRUCTIONS
     bash_tool: Template = _BASH_TOOL_INSTRUCTIONS
     write_span_note_tool: Template = _WRITE_SPAN_NOTE_TOOL_INSTRUCTIONS
     ask_user_tool: Template = _ASK_USER_TOOL_INSTRUCTIONS
