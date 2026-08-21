@@ -208,7 +208,13 @@ export const openLlmEvaluatorFormOperation = defineUIOperation({
   kind: "write",
   defaultSuccessOutput: "LLM evaluator form opened.",
   availability: {
-    routeHint: "the Prompt Playground page (a /playground route)",
+    // The handler registers only while the playground has a dataset loaded
+    // (Playground.tsx guards registration on `datasetId`), so the hint must
+    // name that precondition — a route-only hint reads as a lie to an agent
+    // that is already on /playground.
+    routeHint:
+      "the Prompt Playground page with a dataset loaded " +
+      "(load one with playground.dataset.load)",
   },
 });
 
