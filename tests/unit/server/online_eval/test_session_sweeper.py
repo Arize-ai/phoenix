@@ -1053,8 +1053,12 @@ async def test_filtered_and_unfiltered_criteria_schedule_independently(
 
     async with db() as session:
         units = (await session.scalars(select(models.EvalSessionWorkUnit))).all()
-    fingerprints = {criterion.project_evaluator_id: criterion.fingerprint for criterion in project_evaluator}
-    assert {(unit.project_evaluator_id, unit.project_session_rowid): unit.status for unit in units} == {
+    fingerprints = {
+        criterion.project_evaluator_id: criterion.fingerprint for criterion in project_evaluator
+    }
+    assert {
+        (unit.project_evaluator_id, unit.project_session_rowid): unit.status for unit in units
+    } == {
         (unfiltered_criteria_id, matching_session_id): "PENDING",
         (unfiltered_criteria_id, excluded_session_id): "PENDING",
         (filtered_criteria_id, matching_session_id): "PENDING",

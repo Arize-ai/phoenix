@@ -1260,10 +1260,7 @@ async def _row_counts(db: DbSessionFactory) -> dict[str, int]:
 
 async def _project_evaluator_count(db: DbSessionFactory) -> int:
     async with db() as session:
-        return (
-            await session.scalar(select(func.count()).select_from(models.ProjectEvaluator))
-            or 0
-        )
+        return await session.scalar(select(func.count()).select_from(models.ProjectEvaluator)) or 0
 
 
 async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(

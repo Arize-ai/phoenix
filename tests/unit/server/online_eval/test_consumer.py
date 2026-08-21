@@ -922,7 +922,8 @@ async def test_configuration_versions_are_resolved_once_per_claim_batch(
         spans = [await _add_span(session, trace) for _ in range(3)]
     evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     unit_ids = [
-        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0] for span in spans
+        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0]
+        for span in spans
     ]
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
@@ -999,7 +1000,8 @@ async def test_shared_hydration_failure_releases_claims_without_attempts(
         spans = [await _add_span(session, trace) for _ in range(2)]
     evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     unit_ids = [
-        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0] for span in spans
+        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0]
+        for span in spans
     ]
 
     async def _fail_shared_query(session: Any, rows: Any) -> Any:
@@ -1026,7 +1028,8 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
         spans = [await _add_span(session, trace) for _ in range(2)]
     evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     unit_ids = [
-        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0] for span in spans
+        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0]
+        for span in spans
     ]
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
@@ -1952,8 +1955,7 @@ async def test_evaluation_is_traced_into_the_evaluator_own_project(db: DbSession
                 .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
                 .join(
                     models.ProjectEvaluator,
-                    models.Trace.project_rowid
-                    == models.ProjectEvaluator.trace_project_id,
+                    models.Trace.project_rowid == models.ProjectEvaluator.trace_project_id,
                 )
                 .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
             )

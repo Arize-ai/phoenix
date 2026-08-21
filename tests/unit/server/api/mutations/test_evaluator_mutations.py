@@ -3377,9 +3377,7 @@ class TestDeleteDatasetEvaluators:
             assert await session.get(models.Prompt, dedicated_prompt_id) is None
 
             assert await session.get(models.Project, survivor_project_id) is not None
-            assert (
-                await session.get(models.ProjectEvaluator, survivor_criteria_id) is not None
-            )
+            assert await session.get(models.ProjectEvaluator, survivor_criteria_id) is not None
             assert await session.get(models.CodeEvaluator, shared_code_id) is not None
 
     async def test_delete_multiple_evaluators_mixed(

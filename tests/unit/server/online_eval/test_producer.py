@@ -443,7 +443,9 @@ async def test_sandbox_runtime_changes_code_criteria_fingerprint(
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
-    evaluator_id, project_evaluator_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+    evaluator_id, project_evaluator_id, sandbox_config_id = await _seed_code_criteria(
+        db, project.id
+    )
 
     async with db() as session:
         evaluator = await session.get(models.CodeEvaluator, evaluator_id)
@@ -468,7 +470,9 @@ async def test_disabled_sandbox_runtime_does_not_resolve_code_criteria(
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
-    evaluator_id, project_evaluator_id, sandbox_config_id = await _seed_code_criteria(db, project.id)
+    evaluator_id, project_evaluator_id, sandbox_config_id = await _seed_code_criteria(
+        db, project.id
+    )
 
     async with db() as session:
         evaluator = await session.get(models.CodeEvaluator, evaluator_id)
