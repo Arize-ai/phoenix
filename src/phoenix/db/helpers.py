@@ -412,7 +412,7 @@ def exclude_experiment_projects(
     ).where(models.Experiment.project_name.is_(None))
 
 
-def project_evaluator_trace_project_ids() -> Select[tuple[int]]:
+def project_evaluator_trace_project_ids() -> Select[tuple[Optional[int]]]:
     """The projects that collect the traces project evaluators produce.
 
     A subquery rather than a name test: each evaluator's trace project is

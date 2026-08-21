@@ -133,14 +133,14 @@ async def evaluator_trace_project_id(
     ).first()
     if row is None:
         return None
-    trace_project_id, evaluator_name, project_name = row
+    trace_project_id: Optional[int] = row[0]
     if trace_project_id is not None:
         return trace_project_id
     return await _create_trace_project(
         session,
         project_evaluator_rowid=project_evaluator_rowid,
-        evaluator_name=str(evaluator_name),
-        project_name=project_name,
+        evaluator_name=str(row[1]),
+        project_name=str(row[2]),
     )
 
 
@@ -155,12 +155,13 @@ async def _create_trace_project(
     project = new_trace_project(evaluator_name=evaluator_name, project_name=project_name)
     session.add(project)
     await session.flush()
-    claimed = await session.execute(
+    claimed = await session.scalar(
         update(criteria)
         .where(criteria.id == project_evaluator_rowid, criteria.trace_project_id.is_(None))
         .values(trace_project_id=project.id)
+        .returning(criteria.id)
     )
-    if claimed.rowcount:
+    if claimed is not None:
         return project.id
     # Another replica got there first, or the evaluator was deleted. Either way
     # the project just created belongs to nothing, and an evaluator with two
