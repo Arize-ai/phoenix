@@ -5,13 +5,17 @@ from secrets import token_hex
 from typing import Optional
 
 import httpx
+import pytest
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
 )
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
@@ -717,3 +721,55 @@ class TestListProjectTracesKeysetPagination:
                     httpx_client, project, sort="start_time", order=order, limit=limit
                 )
                 assert len(seen) == len(set(seen)) == 3, f"tie mishandled with {order}/{limit}"
+
+
+class TestListProjectTracesOversizedCursor:
+    """A cursor integer no column can hold is answered, not crashed on."""
+
+    @staticmethod
+    def _cursor(rowid: int) -> str:
+        return str(
+            Cursor(
+                rowid=rowid,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                ),
+            )
+        )
+
+    @pytest.mark.parametrize("rowid", [2**63, 10**40])
+    async def test_a_rowid_wider_than_any_integer_column_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+        rowid: int,
+    ) -> None:
+        """No SQL integer is this wide, so no schema knowledge is needed to refuse it."""
+        project = await _insert_traces_out_of_order(db)
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2, "cursor": self._cursor(rowid)},
+        )
+        assert response.status_code == 422, response.text
+
+    async def test_a_rowid_too_wide_for_this_dialect_is_answered_not_crashed(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """Postgres `traces.id` is `int4`; sqlite holds the full 64-bit rowid.
+
+        Too wide to bind is a property of the column, so the answer differs by
+        dialect: sqlite pages normally, while postgres refuses the parameter and
+        the refusal is reported as the request's fault rather than the server's.
+        """
+        project = await _insert_traces_out_of_order(db)
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2, "cursor": self._cursor(2**31)},
+        )
+        if db.dialect is SupportedSQLDialect.SQLITE:
+            assert response.status_code == 200, response.text
+        else:
+            assert response.status_code == 422, response.text
