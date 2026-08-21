@@ -1,5 +1,6 @@
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
 
+import { listUiOperationNames } from "./catalog";
 import { dispatchUiOperationCall } from "./dispatch";
 import { runUiScript } from "./runtime/uiScriptBridge";
 
@@ -434,6 +435,7 @@ export const executeUiAgentTool = defineTool<ExecuteUiInput>({
     const callRecords: UiCallRecord[] = [];
     const run = await runUiScript({
       script: input.script,
+      operationNames: listUiOperationNames(),
       dispatchCall: async ({
         operationName,
         input: operationInput,

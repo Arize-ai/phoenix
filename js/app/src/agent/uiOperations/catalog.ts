@@ -109,6 +109,15 @@ export function registerUiOperations<TSchemas extends readonly z.ZodType[]>({
   };
 }
 
+/**
+ * Every catalog operation name, in catalog order. Shipped to the script
+ * worker so the `ui` proxy's `in`/`Object.keys` introspection answers from
+ * the real catalog.
+ */
+export function listUiOperationNames(): string[] {
+  return knownUiOperations.map((operation) => operation.name);
+}
+
 export function getUiOperationDescriptor(
   name: string
 ): UiOperationDescriptor | undefined {
