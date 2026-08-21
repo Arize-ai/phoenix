@@ -274,7 +274,7 @@ class DbEvalWorkCoordinator:
                 raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
 
             # Global lock order: project evaluator (E) -> session (S) -> work unit (W) -> write.
-            # Publication takes C -> S -> W; SESSION materialization takes C -> S before
+            # Publication takes E -> S -> W; SESSION materialization takes E -> S before
             # inserting W. Retention takes S -> W, and no path may invert either edge.
             project_evaluator_enabled = await session.scalar(
                 select(models.ProjectEvaluator.enabled)
