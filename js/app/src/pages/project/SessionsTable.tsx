@@ -83,8 +83,7 @@ import {
   ANNOTATION_COLUMN_SIZING,
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
-  makeAnnotationColumnId,
-  makeAnnotationColumnIdsByName,
+  makeFlatAnnotationColumnId,
   normalizeAnnotationColumnOrder,
 } from "./tableUtils";
 type SessionsTableProps = {
@@ -309,7 +308,7 @@ export function SessionsTable(props: SessionsTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        accessorKey: makeAnnotationColumnId(name, "score"),
+        accessorKey: makeFlatAnnotationColumnId(name),
         cell: ({ row }) => {
           return (
             <SessionAnnotationSummaryGroupToken
@@ -526,12 +525,14 @@ export function SessionsTable(props: SessionsTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
-  const annotationColumnIdsByName = makeAnnotationColumnIdsByName({
-    annotationNames: visibleAnnotationColumnNames,
-  });
   const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
     columnOrder: storedColumnOrder,
-    annotationColumnIdsByName,
+    annotationKinds: [
+      {
+        names: visibleAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name),
+      },
+    ],
   });
   const {
     leafColumnOrder,

@@ -46,6 +46,7 @@ import {
   TraceAnnotationSummaryGroupToken,
   TraceAnnotationSummaryGroupTokens,
 } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import type { Annotation } from "@phoenix/components/annotation/types";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -109,8 +110,7 @@ import {
   ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
-  makeAnnotationColumnId,
-  makeAnnotationColumnIdsByName,
+  makeFlatAnnotationColumnId,
   normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
@@ -121,6 +121,10 @@ type TracesTableProps = {
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+const renderTraceSpanAnnotationFilterActions = (annotation: Annotation) => (
+  <TraceSpanAnnotationTooltipFilterActions annotation={annotation} />
+);
 const NUM_DESCENDANTS = 50;
 
 const toolbarFilterFieldCSS = css`
@@ -503,7 +507,7 @@ export function TracesTable(props: TracesTableProps) {
       visibleAnnotationColumnNames.map((name) => {
         return {
           header: name,
-          accessorKey: makeAnnotationColumnId(name, "score"),
+          accessorKey: makeFlatAnnotationColumnId(name),
           cell: ({ row }) => {
             if (row.original.__additionalRow) {
               return null;
@@ -514,11 +518,7 @@ export function TracesTable(props: TracesTableProps) {
                 annotationName={name}
                 annotationConfigsByName={annotationConfigsByName}
                 showFilterActions
-                renderFilterActions={(annotation) => (
-                  <TraceSpanAnnotationTooltipFilterActions
-                    annotation={annotation}
-                  />
-                )}
+                renderFilterActions={renderTraceSpanAnnotationFilterActions}
               />
             );
           },
@@ -532,7 +532,7 @@ export function TracesTable(props: TracesTableProps) {
       visibleTraceAnnotationColumnNames.map((name) => {
         return {
           header: name,
-          accessorKey: makeAnnotationColumnId(name, "score", "trace"),
+          accessorKey: makeFlatAnnotationColumnId(name, "trace"),
           enableSorting: false,
           cell: ({ row }) => {
             if (row.depth !== 0 || row.original.__additionalRow) {
@@ -586,11 +586,7 @@ export function TracesTable(props: TracesTableProps) {
                 span={row.original}
                 annotationConfigsByName={annotationConfigsByName}
                 showFilterActions
-                renderFilterActions={(annotation) => (
-                  <TraceSpanAnnotationTooltipFilterActions
-                    annotation={annotation}
-                  />
-                )}
+                renderFilterActions={renderTraceSpanAnnotationFilterActions}
               />
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
@@ -998,13 +994,18 @@ export function TracesTable(props: TracesTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
-  const annotationColumnIdsByName = makeAnnotationColumnIdsByName({
-    annotationNames: visibleAnnotationColumnNames,
-    traceAnnotationNames: visibleTraceAnnotationColumnNames,
-  });
   const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
     columnOrder: storedColumnOrder,
-    annotationColumnIdsByName,
+    annotationKinds: [
+      {
+        names: visibleAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name),
+      },
+      {
+        names: visibleTraceAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name, "trace"),
+      },
+    ],
   });
   const {
     leafColumnOrder,

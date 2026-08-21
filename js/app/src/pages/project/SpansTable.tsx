@@ -36,6 +36,7 @@ import {
   TraceAnnotationSummaryGroupToken,
   TraceAnnotationSummaryGroupTokens,
 } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import type { Annotation } from "@phoenix/components/annotation/types";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -109,8 +110,7 @@ import {
   ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
-  makeAnnotationColumnId,
-  makeAnnotationColumnIdsByName,
+  makeFlatAnnotationColumnId,
   normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
@@ -126,6 +126,10 @@ type SpansTableProps = {
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+const renderSpanTraceAnnotationFilterActions = (annotation: Annotation) => (
+  <SpanTraceAnnotationTooltipFilterActions annotation={annotation} />
+);
 
 const defaultColumnSettings = {
   minSize: 100,
@@ -439,7 +443,7 @@ export function SpansTable(props: SpansTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        accessorKey: makeAnnotationColumnId(name, "score"),
+        accessorKey: makeFlatAnnotationColumnId(name),
         cell: ({ row }) => {
           return (
             <AnnotationSummaryGroupToken
@@ -457,7 +461,7 @@ export function SpansTable(props: SpansTableProps) {
     visibleTraceAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        accessorKey: makeAnnotationColumnId(name, "score", "trace"),
+        accessorKey: makeFlatAnnotationColumnId(name, "trace"),
         enableSorting: false,
         cell: ({ row }) => {
           return (
@@ -466,11 +470,7 @@ export function SpansTable(props: SpansTableProps) {
               annotationName={name}
               annotationConfigsByName={annotationConfigsByName}
               showFilterActions
-              renderFilterActions={(annotation) => (
-                <SpanTraceAnnotationTooltipFilterActions
-                  annotation={annotation}
-                />
-              )}
+              renderFilterActions={renderSpanTraceAnnotationFilterActions}
             />
           );
         },
@@ -555,11 +555,7 @@ export function SpansTable(props: SpansTableProps) {
               trace={row.original.trace}
               annotationConfigsByName={annotationConfigsByName}
               showFilterActions
-              renderFilterActions={(annotation) => (
-                <SpanTraceAnnotationTooltipFilterActions
-                  annotation={annotation}
-                />
-              )}
+              renderFilterActions={renderSpanTraceAnnotationFilterActions}
             />
           </OverflowRow>
         );
@@ -857,13 +853,18 @@ export function SpansTable(props: SpansTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
-  const annotationColumnIdsByName = makeAnnotationColumnIdsByName({
-    annotationNames: visibleAnnotationColumnNames,
-    traceAnnotationNames: visibleTraceAnnotationColumnNames,
-  });
   const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
     columnOrder: storedColumnOrder,
-    annotationColumnIdsByName,
+    annotationKinds: [
+      {
+        names: visibleAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name),
+      },
+      {
+        names: visibleTraceAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name, "trace"),
+      },
+    ],
   });
   const {
     leafColumnOrder,

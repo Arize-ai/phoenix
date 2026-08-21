@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getGqlSessionSort,
   getGqlSort,
-  makeAnnotationColumnId,
+  makeFlatAnnotationColumnId,
   normalizeAnnotationColumnOrder,
 } from "../tableUtils";
 
@@ -12,7 +12,7 @@ describe("tableUtils", () => {
     it("extracts the score attribute from a flat annotation column id", () => {
       expect(
         getGqlSort({
-          id: makeAnnotationColumnId("quality", "score"),
+          id: makeFlatAnnotationColumnId("quality"),
           desc: true,
         })
       ).toEqual({
@@ -25,7 +25,7 @@ describe("tableUtils", () => {
     it("does not sort trace annotation columns", () => {
       expect(
         getGqlSort({
-          id: makeAnnotationColumnId("quality", "score", "trace"),
+          id: makeFlatAnnotationColumnId("quality", "trace"),
           desc: false,
         })
       ).toEqual({ col: null, evalResultKey: null, dir: "asc" });
@@ -36,7 +36,7 @@ describe("tableUtils", () => {
     it("extracts the score attribute from a flat annotation column id", () => {
       expect(
         getGqlSessionSort({
-          id: makeAnnotationColumnId("quality", "score"),
+          id: makeFlatAnnotationColumnId("quality"),
           desc: false,
         })
       ).toEqual({
@@ -49,7 +49,7 @@ describe("tableUtils", () => {
     it("does not sort trace annotation columns", () => {
       expect(
         getGqlSessionSort({
-          id: makeAnnotationColumnId("quality", "score", "trace"),
+          id: makeFlatAnnotationColumnId("quality", "trace"),
           desc: true,
         })
       ).toEqual({ col: null, annoResultKey: null, dir: "desc" });
@@ -58,14 +58,39 @@ describe("tableUtils", () => {
 
   describe("normalizeAnnotationColumnOrder", () => {
     it("maps grouped annotation names to flat ids without changing other ids", () => {
-      const qualityColumnId = makeAnnotationColumnId("quality", "score");
+      const qualityColumnId = makeFlatAnnotationColumnId("quality");
 
       expect(
         normalizeAnnotationColumnOrder({
           columnOrder: ["name", "quality", qualityColumnId, "startTime"],
-          annotationColumnIdsByName: new Map([["quality", qualityColumnId]]),
+          annotationKinds: [
+            {
+              names: ["quality"],
+              getColumnId: (name) => makeFlatAnnotationColumnId(name),
+            },
+          ],
         })
       ).toEqual(["name", qualityColumnId, "startTime"]);
+    });
+
+    it("resolves a name shared across kinds to the first kind listed", () => {
+      const spanColumnId = makeFlatAnnotationColumnId("quality");
+
+      expect(
+        normalizeAnnotationColumnOrder({
+          columnOrder: ["quality"],
+          annotationKinds: [
+            {
+              names: ["quality"],
+              getColumnId: (name) => makeFlatAnnotationColumnId(name),
+            },
+            {
+              names: ["quality"],
+              getColumnId: (name) => makeFlatAnnotationColumnId(name, "trace"),
+            },
+          ],
+        })
+      ).toEqual([spanColumnId]);
     });
   });
 });

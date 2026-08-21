@@ -9,7 +9,7 @@ import {
 import { useState } from "react";
 
 import { Checkbox, Flex, Text, View } from "@phoenix/components";
-import { AnnotationTargetTypeBadge } from "@phoenix/components/annotation/AnnotationTargetTypeBadge";
+import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
 import {
   ColumnHeaderCell,
   ColumnOrderingProvider,
@@ -364,7 +364,7 @@ export const SelectorMenuWithSections: Story = {
 
 /**
  * Columns can carry a `trailingVisual` rendered after their label — here the
- * annotation target-type badge, as used by the tracing column selectors to
+ * annotation target-type token, as used by the tracing column selectors to
  * tell same-named span/trace/session annotation columns apart.
  */
 export const SelectorMenuWithTrailingVisuals: Story = {
@@ -399,7 +399,7 @@ export const SelectorMenuWithTrailingVisuals: Story = {
           id,
           label,
           trailingVisual: isAnnotation ? (
-            <AnnotationTargetTypeBadge
+            <AnnotationTargetTypeToken
               targetType={isTraceAnnotation ? "trace" : "span"}
             />
           ) : undefined,

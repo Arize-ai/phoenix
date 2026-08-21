@@ -1,6 +1,6 @@
 import type { Column } from "@tanstack/react-table";
 
-import { AnnotationTargetTypeBadge } from "@phoenix/components/annotation/AnnotationTargetTypeBadge";
+import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
 import type { AnnotationTargetType } from "@phoenix/components/annotation/types";
 import type { ColumnSelectorColumn } from "@phoenix/components/table";
 import {
@@ -24,7 +24,7 @@ export interface AnnotationColumnKind {
   visibility: Record<string, boolean>;
   onVisibilityChange: (visibility: Record<string, boolean>) => void;
   /**
-   * What this kind's annotations annotate. Shown as a badge beside each
+   * What this kind's annotations annotate. Shown as a token beside each
    * annotation column so same-named annotations of different kinds can be
    * told apart.
    */
@@ -80,21 +80,14 @@ export function TracingColumnSelector({
     string,
     { kind: AnnotationColumnKind; name: string }
   >();
-  const annotationColumnIdsByName = new Map<string, string>();
   for (const kind of annotationKinds) {
     for (const name of kind.names) {
-      const columnId = kind.getColumnId(name);
-      annotationByColumnId.set(columnId, { kind, name });
-      // The old grouped columns could not distinguish same-named span and
-      // trace annotations, so map that legacy id to the first kind.
-      if (!annotationColumnIdsByName.has(name)) {
-        annotationColumnIdsByName.set(name, columnId);
-      }
+      annotationByColumnId.set(kind.getColumnId(name), { kind, name });
     }
   }
   const normalizedColumnOrder = normalizeAnnotationColumnOrder({
     columnOrder,
-    annotationColumnIdsByName,
+    annotationKinds,
   });
 
   // One flat order over everything: table columns (including visible
@@ -119,7 +112,7 @@ export function TracingColumnSelector({
             id,
             label: annotation.name,
             trailingVisual: (
-              <AnnotationTargetTypeBadge
+              <AnnotationTargetTypeToken
                 targetType={annotation.kind.targetType}
               />
             ),

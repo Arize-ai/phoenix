@@ -5,7 +5,7 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SessionColumnSelector_annotations$key } from "./__generated__/SessionColumnSelector_annotations.graphql";
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
-import { makeAnnotationColumnId } from "./tableUtils";
+import { makeFlatAnnotationColumnId } from "./tableUtils";
 import { TracingColumnSelector } from "./TracingColumnSelector";
 
 const UN_HIDABLE_COLUMN_IDS = ["sessionId"];
@@ -52,7 +52,7 @@ export function SessionColumnSelector({
           visibility: annotationColumnVisibility,
           onVisibilityChange: setAnnotationColumnVisibility,
           targetType: "session",
-          getColumnId: (name) => makeAnnotationColumnId(name, "score"),
+          getColumnId: (name) => makeFlatAnnotationColumnId(name),
         },
       ]}
     />

@@ -90,63 +90,55 @@ export function getGqlSessionSort(
   };
 }
 
-export function makeAnnotationColumnId(
+/** The id of the flat table column for one named annotation. */
+export function makeFlatAnnotationColumnId(
   name: string,
-  type: string,
   kind: "span" | "trace" = "span"
 ) {
   const prefix =
     kind === "trace"
       ? TRACE_ANNOTATIONS_COLUMN_PREFIX
       : ANNOTATIONS_COLUMN_PREFIX;
+  // The "score" segment survives from the grouped-column era so persisted
+  // sort, order, and visibility ids stay valid.
   return (
-    `${prefix}${ANNOTATIONS_KEY_SEPARATOR}${type}${ANNOTATIONS_KEY_SEPARATOR}${name}`
+    `${prefix}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`
       // replace anything that's not alphanumeric with a dash
       .replace(/[^a-zA-Z0-9]/g, "-")
   );
 }
 
-/**
- * Builds the raw-name → flat-column-id map used to migrate legacy grouped
- * column ids via {@link normalizeAnnotationColumnOrder}. Trace entries are
- * inserted first so a name existing as both a span and a trace annotation
- * resolves to the span column id (Map last-entry-wins). This precedence must
- * agree with TracingColumnSelector, which lists the span kind first and keeps
- * the first column id per name.
- */
-export function makeAnnotationColumnIdsByName({
-  annotationNames,
-  traceAnnotationNames = [],
-}: {
-  annotationNames: readonly string[];
-  traceAnnotationNames?: readonly string[];
-}): Map<string, string> {
-  return new Map([
-    ...traceAnnotationNames.map(
-      (name) => [name, makeAnnotationColumnId(name, "score", "trace")] as const
-    ),
-    ...annotationNames.map(
-      (name) => [name, makeAnnotationColumnId(name, "score")] as const
-    ),
-  ]);
+/** A kind of flat annotation columns: names plus the column id each maps to. */
+export interface AnnotationColumnIdSource {
+  names: readonly string[];
+  getColumnId: (name: string) => string;
 }
 
 /**
  * Converts annotation-name ids from the former grouped columns to the flat
- * columns' sortable ids while leaving ordinary and already-flat ids unchanged.
+ * columns' ids while leaving ordinary and already-flat ids unchanged. The
+ * first kind listed wins a name shared across kinds, so every reader of the
+ * same persisted order must list its kinds in the same order (span before
+ * trace, as the column selectors do).
  */
 export function normalizeAnnotationColumnOrder({
   columnOrder,
-  annotationColumnIdsByName,
+  annotationKinds,
 }: {
   columnOrder: string[];
-  annotationColumnIdsByName: ReadonlyMap<string, string>;
+  annotationKinds: readonly AnnotationColumnIdSource[];
 }) {
+  const columnIdsByName = new Map<string, string>();
+  for (const kind of annotationKinds) {
+    for (const name of kind.names) {
+      if (!columnIdsByName.has(name)) {
+        columnIdsByName.set(name, kind.getColumnId(name));
+      }
+    }
+  }
   return [
     ...new Set(
-      columnOrder.map(
-        (columnId) => annotationColumnIdsByName.get(columnId) ?? columnId
-      )
+      columnOrder.map((columnId) => columnIdsByName.get(columnId) ?? columnId)
     ),
   ];
 }

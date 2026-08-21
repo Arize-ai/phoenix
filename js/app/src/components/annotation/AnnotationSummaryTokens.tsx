@@ -13,15 +13,18 @@ import { hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
 import type { Annotation, AnnotationTargetType } from "./types";
 
+/* Keeps a value-less token the same height as one with a score/label chart. */
+const tokenMinHeight = "var(--global-dimension-size-250)";
+
 const annotationLabelCSS = css`
-  min-height: 20px;
+  min-height: ${tokenMinHeight};
   align-items: center;
   justify-content: center;
   display: flex;
 `;
 
 const annotationValueCSS = css`
-  min-height: 20px;
+  min-height: ${tokenMinHeight};
   padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
   display: flex;
   align-items: center;
@@ -40,7 +43,7 @@ type AnnotationSummaryTokenProps = {
   annotations: readonly Annotation[];
   annotationConfig?: AnnotationOptimizationConfig;
   showFilterActions?: boolean;
-  /** Grain-specific filter actions rendered for each annotation. */
+  /** Filter actions for one annotation, specific to its target type. */
   renderFilterActions?: (annotation: Annotation) => ReactNode;
   /**
    * The full token includes the annotation name for mixed-summary contexts.
@@ -49,7 +52,7 @@ type AnnotationSummaryTokenProps = {
   variant?: "token" | "value";
 };
 
-export function AnnotationSummaryToken({
+function AnnotationSummaryToken({
   summary,
   annotationTargetType,
   annotations,
@@ -59,6 +62,10 @@ export function AnnotationSummaryToken({
   variant = "token",
 }: AnnotationSummaryTokenProps) {
   const latestValuedAnnotation = annotations.find(hasAnnotationValue);
+  // Explanation-only entries belong in details but cannot represent a token.
+  if (variant === "token" && !latestValuedAnnotation) {
+    return null;
+  }
   const prototypicalAnnotation = latestValuedAnnotation ?? annotations[0];
   if (!prototypicalAnnotation) {
     return null;
@@ -108,7 +115,7 @@ export function AnnotationSummaryToken({
 
 /**
  * The flat table-column cell for one named annotation: finds the named
- * summary within a grain's summary group and renders it as a value-variant
+ * summary within a target's summary group and renders it as a value-variant
  * token. Spans, traces and sessions read their annotations from different
  * Relay fragments but render the cell identically, so they share this.
  */
@@ -128,7 +135,7 @@ export function AnnotationSummaryValueToken({
   annotationsByName: Partial<Record<string, readonly Annotation[]>>;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
-  /** Grain-specific filter actions rendered for each annotation. */
+  /** Filter actions for one annotation, specific to its target type. */
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   const summary = sortedSummariesByName.find(
@@ -170,31 +177,22 @@ export function AnnotationSummaryTokens({
   annotationsByName: Partial<Record<string, readonly Annotation[]>>;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
-  /** Grain-specific filter actions rendered for each annotation. */
+  /** Filter actions for one annotation, specific to its target type. */
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   return (
     <>
-      {summaries.map((summary) => {
-        // Explanation-only entries belong in details but cannot represent a token.
-        const annotations = annotationsByName[summary.name] ?? [];
-        const latestAnnotation = annotations.find(hasAnnotationValue);
-        const annotationConfig = annotationConfigsByName.get(summary.name);
-        if (!latestAnnotation) {
-          return null;
-        }
-        return (
-          <AnnotationSummaryToken
-            key={latestAnnotation.id}
-            summary={summary}
-            annotationTargetType={annotationTargetType}
-            annotations={annotations}
-            annotationConfig={annotationConfig}
-            showFilterActions={showFilterActions}
-            renderFilterActions={renderFilterActions}
-          />
-        );
-      })}
+      {summaries.map((summary) => (
+        <AnnotationSummaryToken
+          key={summary.name}
+          summary={summary}
+          annotationTargetType={annotationTargetType}
+          annotations={annotationsByName[summary.name] ?? []}
+          annotationConfig={annotationConfigsByName.get(summary.name)}
+          showFilterActions={showFilterActions}
+          renderFilterActions={renderFilterActions}
+        />
+      ))}
     </>
   );
 }

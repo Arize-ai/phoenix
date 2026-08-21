@@ -9,7 +9,7 @@ import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   TRACE_ANNOTATIONS_COLUMN_ID,
   TRACE_ANNOTATIONS_COLUMN_LABEL,
-  makeAnnotationColumnId,
+  makeFlatAnnotationColumnId,
 } from "./tableUtils";
 import { TracingColumnSelector } from "./TracingColumnSelector";
 
@@ -75,7 +75,7 @@ export function SpanColumnSelector({
           visibility: annotationColumnVisibility,
           onVisibilityChange: setAnnotationColumnVisibility,
           targetType: "span",
-          getColumnId: (name) => makeAnnotationColumnId(name, "score"),
+          getColumnId: (name) => makeFlatAnnotationColumnId(name),
         },
         {
           names: getNonNoteAnnotationNames(
@@ -84,7 +84,7 @@ export function SpanColumnSelector({
           visibility: traceAnnotationColumnVisibility,
           onVisibilityChange: setTraceAnnotationColumnVisibility,
           targetType: "trace",
-          getColumnId: (name) => makeAnnotationColumnId(name, "score", "trace"),
+          getColumnId: (name) => makeFlatAnnotationColumnId(name, "trace"),
         },
       ]}
     />
