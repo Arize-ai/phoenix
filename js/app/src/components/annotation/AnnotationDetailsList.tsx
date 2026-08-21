@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { type ReactNode, useId } from "react";
 
-import { Flex, Text, View } from "@phoenix/components";
+import { Badge, Flex, Text, View } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -15,7 +15,7 @@ import {
   getPositiveOptimizationFromConfig,
   type AnnotationOptimizationConfig,
 } from "./optimizationUtils";
-import type { Annotation } from "./types";
+import type { Annotation, AnnotationScope } from "./types";
 
 const annotationListCSS = css`
   list-style: none;
@@ -45,11 +45,13 @@ const annotationValueCSS = css`
 
 export function AnnotationDetailsList({
   annotations,
+  annotationScope,
   annotationConfig,
   meanScore,
   renderFilterActions,
 }: {
   annotations: readonly Annotation[];
+  annotationScope: AnnotationScope;
   annotationConfig?: AnnotationOptimizationConfig;
   meanScore?: number | null;
   renderFilterActions?: (annotation: Annotation) => ReactNode;
@@ -80,19 +82,30 @@ export function AnnotationDetailsList({
           justifyContent="space-between"
           gap="size-100"
         >
-          <View minWidth={0} flex="1 1 auto">
-            <Truncate maxWidth="100%" title={annotationName}>
-              <Text
-                id={headingId}
-                weight="heavy"
-                color="inherit"
-                size="S"
-                elementType="h3"
-              >
-                {annotationName}
-              </Text>
-            </Truncate>
-          </View>
+          <Flex
+            direction="row"
+            alignItems="center"
+            gap="size-100"
+            minWidth={0}
+            flex="1 1 auto"
+          >
+            <View minWidth={0} flex="0 1 auto">
+              <Truncate maxWidth="100%" title={annotationName}>
+                <Text
+                  id={headingId}
+                  weight="heavy"
+                  color="inherit"
+                  size="S"
+                  elementType="h3"
+                >
+                  {annotationName}
+                </Text>
+              </Truncate>
+            </View>
+            <View flex="none">
+              <Badge variant="info">{`${annotationScope} annotation`}</Badge>
+            </View>
+          </Flex>
           {meanScore != null ? (
             <View flex="none">
               <MeanScore

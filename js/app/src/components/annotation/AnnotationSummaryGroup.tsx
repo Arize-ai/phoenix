@@ -119,6 +119,7 @@ export const AnnotationSummaryGroupTokens = ({
   return (
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
+      annotationScope="span"
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
@@ -146,6 +147,7 @@ export const AnnotationSummaryGroupToken = ({
   return (
     <AnnotationSummaryToken
       summary={summary}
+      annotationScope="span"
       annotations={annotations}
       annotationConfig={annotationConfigsByName.get(annotationName)}
       showFilterActions={showFilterActions}

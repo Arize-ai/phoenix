@@ -11,7 +11,7 @@ import {
 
 import { hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
-import type { Annotation } from "./types";
+import type { Annotation, AnnotationScope } from "./types";
 
 const annotationLabelCSS = css`
   min-height: 20px;
@@ -35,6 +35,7 @@ export type AnnotationSummary = {
 
 type AnnotationSummaryTokenProps = {
   summary: AnnotationSummary;
+  annotationScope: AnnotationScope;
   /** Every annotation behind the summary, newest first. */
   annotations: readonly Annotation[];
   annotationConfig?: AnnotationOptimizationConfig;
@@ -50,6 +51,7 @@ type AnnotationSummaryTokenProps = {
 
 export function AnnotationSummaryToken({
   summary,
+  annotationScope,
   annotations,
   annotationConfig,
   showFilterActions = false,
@@ -83,6 +85,7 @@ export function AnnotationSummaryToken({
   return (
     <AnnotationSummaryPopover
       annotations={annotations}
+      annotationScope={annotationScope}
       annotationConfig={annotationConfig}
       meanScore={meanScore}
       showFilterActions={showFilterActions}
@@ -110,12 +113,14 @@ export function AnnotationSummaryToken({
  */
 export function AnnotationSummaryTokens({
   summaries,
+  annotationScope,
   annotationsByName,
   annotationConfigsByName,
   showFilterActions = false,
   renderFilterActions,
 }: {
   summaries: readonly AnnotationSummary[];
+  annotationScope: AnnotationScope;
   /** Every annotation behind a summary, newest first, keyed by summary name */
   annotationsByName: Partial<Record<string, readonly Annotation[]>>;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
@@ -137,6 +142,7 @@ export function AnnotationSummaryTokens({
           <AnnotationSummaryToken
             key={latestAnnotation.id}
             summary={summary}
+            annotationScope={annotationScope}
             annotations={annotations}
             annotationConfig={annotationConfig}
             showFilterActions={showFilterActions}

@@ -127,6 +127,7 @@ export const TraceAnnotationSummaryGroupTokens = ({
   return (
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
+      annotationScope="trace"
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
@@ -159,6 +160,7 @@ export const TraceAnnotationSummaryGroupToken = ({
   return (
     <AnnotationSummaryToken
       summary={summary}
+      annotationScope="trace"
       annotations={annotations}
       annotationConfig={annotationConfigsByName.get(annotationName)}
       showFilterActions={showFilterActions}

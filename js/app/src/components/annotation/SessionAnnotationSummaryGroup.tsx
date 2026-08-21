@@ -122,6 +122,7 @@ export const SessionAnnotationSummaryGroupTokens = ({
   return (
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
+      annotationScope="session"
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
@@ -150,6 +151,7 @@ export const SessionAnnotationSummaryGroupToken = ({
   return (
     <AnnotationSummaryToken
       summary={summary}
+      annotationScope="session"
       annotations={annotations}
       annotationConfig={annotationConfigsByName.get(annotationName)}
       showFilterActions={showFilterActions}
