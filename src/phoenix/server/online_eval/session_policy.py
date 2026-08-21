@@ -70,7 +70,6 @@ SESSION_SCHEDULABILITY_CONDITIONS: tuple[SessionSchedulabilityCondition, ...] = 
 def session_schedulability_reason(
     record: "models.ProjectEvaluator",
 ) -> "SchedulabilityReason | None":
-    """The first condition blocking this SESSION project evaluator, or None if schedulable."""
     for condition in SESSION_SCHEDULABILITY_CONDITIONS:
         if condition.blocks(record):
             return condition.reason
