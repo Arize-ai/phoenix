@@ -84,8 +84,11 @@ export const setPlaygroundModelOperation = defineUiOperation({
     "applies immediately, like the playground model menu. If there is exactly " +
     "one playground instance, `instanceId` may be omitted. If there are " +
     "multiple comparison instances, pass the numeric `instanceId` from the " +
-    "playground context. Use `target.type = 'builtin'` for Phoenix built-in " +
-    "providers, and `target.type = 'custom'` for a configured custom provider.",
+    "playground context. Take `target` verbatim from a `playground.model.list` " +
+    "result (`builtinModels[].target` or `customProviderModels[].target`): " +
+    "{type: 'builtin', provider, modelName} for Phoenix built-in providers, " +
+    "{type: 'custom', customProviderId, modelName} for a configured custom " +
+    "provider.",
   inputSchema: setPlaygroundModelInputSchema,
   kind: "write",
   defaultSuccessOutput: "Playground model updated.",
@@ -105,8 +108,32 @@ export const listPlaygroundModelTargetsOperation = defineUiOperation({
     "List the model targets currently available in the mounted playground. Use this " +
     "before suggesting playground model options, building model-choice questions, " +
     "or resolving exact provider/model/custom-provider target payloads for " +
-    "`playground.model.set`.",
+    "`playground.model.set` — each entry's `target` is a ready-made `target` input " +
+    "for that operation.",
   inputSchema: listPlaygroundModelTargetsInputSchema,
+  outputSchema: z.object({
+    builtinModels: z.array(
+      z.object({
+        target: z.object({
+          type: z.literal("builtin"),
+          provider: z.string(),
+          modelName: z.string(),
+        }),
+      })
+    ),
+    customProviderModels: z.array(
+      z.object({
+        target: z.object({
+          type: z.literal("custom"),
+          customProviderId: z.string(),
+          modelName: z.string(),
+        }),
+        customProviderName: z.string(),
+        provider: z.string(),
+      })
+    ),
+    message: z.string(),
+  }),
   kind: "read",
   defaultSuccessOutput: "Model targets listed.",
   availability: {

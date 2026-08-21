@@ -261,10 +261,13 @@ type JsonSchemaNode = {
  * throwing, and falls back to `undefined` (rendered `unknown`) if the
  * conversion still fails — `search_ui` must never crash on a schema.
  */
-function toJsonSchemaNode(schema: z.ZodType): JsonSchemaNode | undefined {
+function toJsonSchemaNode(
+  schema: z.ZodType,
+  io: "input" | "output" = "input"
+): JsonSchemaNode | undefined {
   try {
     return z.toJSONSchema(schema, {
-      io: "input",
+      io,
       unrepresentable: "any",
     }) as JsonSchemaNode;
   } catch {
@@ -323,12 +326,20 @@ export function renderUiOperationSignature({
       ? " Stages a change the user must accept; the returned promise resolves with the decision."
       : "";
   const inputType = renderInlineType(toJsonSchemaNode(descriptor.inputSchema));
+  // Declared output shapes render as `UiResult<T>`; operations without one
+  // stay `UiResult` (output: unknown).
+  const outputType =
+    descriptor.outputSchema != null
+      ? renderInlineType(toJsonSchemaNode(descriptor.outputSchema, "output"))
+      : null;
+  const resultType =
+    outputType != null ? `UiResult<${outputType}>` : "UiResult";
   return [
     "/**",
     ` * ${descriptor.description}`,
     ` * kind: ${descriptor.kind}; ${availability}.${approvalNote}`,
     " */",
-    `ui.${descriptor.name}(input: ${inputType}): Promise<UiResult>;`,
+    `ui.${descriptor.name}(input: ${inputType}): Promise<${resultType}>;`,
   ].join("\n");
 }
 

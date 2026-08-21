@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { readExperimentResultsInputSchema } from "@phoenix/agent/tools/experimentResults/schemas";
 import { readPlaygroundOutputInputSchema } from "@phoenix/agent/tools/playgroundOutput/schemas";
 import {
@@ -69,6 +71,13 @@ export const readPlaygroundOutputOperation = defineUiOperation({
     "and traceId when the run produced a Phoenix trace. Use this after `playground.run` " +
     "finishes so you can inspect the model response and analyze the trace.",
   inputSchema: readPlaygroundOutputInputSchema,
+  // Documentation-only: `instances` carries per-instance repetition
+  // snapshots (output text, traceId once finished); kept approximate here.
+  outputSchema: z.object({
+    status: z.enum(["not_started", "running", "partial", "finished"]),
+    instances: z.array(z.unknown()),
+    message: z.string(),
+  }),
   kind: "read",
   defaultSuccessOutput: "Playground output read.",
   availability: {
