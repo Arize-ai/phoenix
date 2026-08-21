@@ -105,9 +105,9 @@ def build_env(config: BenchConfig) -> dict[str, str]:
     """Environment for one run.
 
     The tracing plugin selects its backend from ``PHOENIX_ENDPOINT``, so that
-    variable is set explicitly (or removed) rather than inherited -- an inherited
-    value pointing at the instance under test would have each trial ingest spans
-    that later trials can then observe.
+    variable is set explicitly (or removed) rather than inherited. An inherited
+    value with tracing off would still load the plugin against whatever Phoenix
+    the shell pointed at.
     """
     env = dict(os.environ)
     env.pop("PHOENIX_ENDPOINT", None)

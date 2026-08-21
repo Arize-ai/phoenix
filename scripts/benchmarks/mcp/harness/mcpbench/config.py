@@ -67,8 +67,9 @@ class Task:
 class Tracing:
     """Where the Arize Claude Code plugin sends its spans.
 
-    Deliberately separate from the target: tracing into the instance under test
-    would let each trial observe the previous trial's spans.
+    Same host as the target is fine: spans land in ``mcp-bench-<label>``, and
+    the tasks ask about a fixture project (trail-gaia), so a correctly filtered
+    query does not see them. Tracing *into* a project the tasks name is not.
     """
 
     enabled: bool = False
@@ -147,10 +148,49 @@ class BenchConfig:
         return task.trials if task.trials is not None else self.trials
 
 
+def _load_dotenv(path: Path) -> None:
+    """Load KEY=VALUE lines into ``os.environ`` without overriding what is set.
+
+    Lives beside ``bench.yaml``, not the working directory: ``mcpbench`` is
+    invoked from anywhere, and a repo-root ``.env`` would mix with Phoenix's
+    own secrets. Process environment wins so ``export`` still overrides the file.
+    """
+    if not path.is_file():
+        return
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+def _tracing_enabled(tracing_raw: dict[str, Any]) -> bool:
+    """On when ``tracing.enabled`` is true, or when unset and a sink URL is set.
+
+    ``enabled: false`` in ``bench.yaml`` still forces off. Omitting it means a
+    ``PHOENIX_ENDPOINT`` in ``.env`` is enough to trace — the switch people
+    actually have in hand.
+    """
+    if "enabled" in tracing_raw and tracing_raw["enabled"] is not None:
+        return bool(tracing_raw["enabled"])
+    return bool(os.environ.get("PHOENIX_ENDPOINT", "").strip())
+
+
 def load_config(path: Path) -> BenchConfig:
     """Read ``bench.yaml``. Paths inside it resolve relative to the file."""
     if not path.is_file():
         raise ConfigError(f"No benchmark config at {path}.")
+    _load_dotenv(path.parent / ".env")
     raw = yaml.safe_load(path.read_text()) or {}
     if not isinstance(raw, dict):
         raise ConfigError(f"{path} must contain a YAML mapping.")
@@ -172,7 +212,7 @@ def load_config(path: Path) -> BenchConfig:
         expect_tools=tuple(raw.get("expect_tools") or ()),
         tasks_dir=raw.get("tasks_dir", defaults.tasks_dir),
         tracing=Tracing(
-            enabled=bool(tracing_raw.get("enabled", False)),
+            enabled=_tracing_enabled(tracing_raw),
             plugin_dir=tracing_raw.get("plugin_dir"),
             project_prefix=tracing_raw.get("project_prefix", "mcp-bench"),
         ),

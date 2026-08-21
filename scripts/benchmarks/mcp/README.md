@@ -72,9 +72,14 @@ Then invoke it as `mcpbench`, from any directory.
 The shipped tasks have answers pinned to the **`trail-gaia`** project (Patronus TRAIL
 / GAIA agent traces), so the target must be an instance holding it.
 
+Put a `.env` next to `bench.yaml` — `scripts/benchmarks/mcp/.env`, gitignored.
+`mcpbench` reads it from there regardless of the working directory; already-set
+environment variables win.
+
 ```bash
-export BENCH_TARGET_URL=https://app.phoenix.arize.com/s/phoenix-devs/mcp
-export BENCH_TARGET_API_KEY=<viewer key>   # omit if the target has auth disabled
+# scripts/benchmarks/mcp/.env
+BENCH_TARGET_URL=https://app.phoenix.arize.com/s/phoenix-devs/mcp
+BENCH_TARGET_API_KEY=<viewer key>   # omit if the target has auth disabled
 ```
 
 Use a **read-only (viewer)** key when one is needed. Under code mode the model writes
@@ -113,22 +118,23 @@ which `summarize` warns about; if you see it, drop to 1.
 
 ## Optional: tracing the benchmark itself
 
-Off by default, because turning it on makes every run depend on a second Phoenix.
-Set `tracing.enabled` in `bench.yaml`, point `plugin_dir` at a checkout of
-[arize-claude-code-plugin](https://github.com/Arize-ai/arize-claude-code-plugin), and:
+Off unless `$PHOENIX_ENDPOINT` is set (or `tracing.enabled: true` in `bench.yaml`).
+Point `plugin_dir` at a checkout of
+[arize-claude-code-plugin](https://github.com/Arize-ai/arize-claude-code-plugin), and
+put the sink in `.env`:
 
 ```bash
-export PHOENIX_ENDPOINT=http://localhost:6006   # sink — base URL, no /mcp
-export PHOENIX_API_KEY=<member-or-admin key>    # omit if the sink has auth disabled
+PHOENIX_ENDPOINT=http://localhost:6006   # sink — base URL, no /mcp
+PHOENIX_API_KEY=<member-or-admin key>    # omit if the sink has auth disabled
 ```
 
 It adds **zero** context tokens: the plugin's hooks write only to stderr, and
 `--plugin-dir` loads them without restoring the settings `--setting-sources ""` strips.
 
-The sink must not be the instance under test — spans one trial ingests are visible to
-the next, and the tasks count traces and spans, so they would measure their own
-instrumentation. Preflight refuses if the hosts match, and posts a canary span,
-because the plugin swallows every delivery error.
+Spans land in `mcp-bench-<label>`, not in the fixture the tasks name (`trail-gaia`),
+so the sink may be the same Phoenix as the target. Preflight refuses only when the
+sink *project* appears in a task prompt. It also posts a canary span, because the
+plugin swallows every delivery error.
 
 Sink keys need **member or admin**: span ingest is viewer-restricted, unlike the
 read-only target key.

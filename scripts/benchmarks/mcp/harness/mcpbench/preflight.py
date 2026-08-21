@@ -105,29 +105,39 @@ def check_target(config: BenchConfig, workdir: Path) -> Check:
     return Check(name, True, f"Connected with {len(tools)} tools: {sorted(tools)}")
 
 
-def check_sink_distinct(config: BenchConfig) -> Optional[Check]:
-    """Refuse to trace into an instance under test.
+def check_sink_distinct(config: BenchConfig, tasks: Optional[list[Task]] = None) -> Optional[Check]:
+    """Refuse to trace into a project the tasks ask about.
 
-    Spans ingested by one trial are visible to the next, so the instance would
-    stop being the same database from trial to trial.
+    Same host is not the hazard: the plugin writes to ``mcp-bench-<label>``, and
+    a trail-gaia count does not include those rows. Same *project* is: then a
+    later trial would count this trial's spans.
     """
     if not config.tracing.enabled:
         return None
     try:
         sink_host = urlsplit(config.tracing.sink_endpoint()).netloc
     except Exception as exc:
-        return Check("trace sink distinct", False, str(exc))
+        return Check("trace sink", False, str(exc))
+
+    sink_project = config.tracing.project_for(config.resolved_label())
+    mentioned = [t.name for t in (tasks or []) if sink_project.casefold() in t.prompt.casefold()]
+    if mentioned:
+        return Check(
+            "trace sink",
+            False,
+            f"Traces would land in {sink_project!r}, which {', '.join(mentioned)} "
+            "ask about. Set tracing.project_prefix so the sink project is not a fixture.",
+        )
 
     if config.uses_mcp:
         target_host = urlsplit(config.target).netloc
         if target_host and target_host == sink_host:
             return Check(
-                "trace sink distinct",
-                False,
-                f"The target and the trace sink are both {sink_host}. Point "
-                "$PHOENIX_ENDPOINT at a separate instance.",
+                "trace sink",
+                True,
+                f"Same instance {sink_host}; traces go to {sink_project!r}, not the fixture.",
             )
-    return Check("trace sink distinct", True, f"Sink {sink_host} is not the target.")
+    return Check("trace sink", True, f"Sink {sink_host} project {sink_project!r}.")
 
 
 def _sink_request(url: str, *, data: Optional[bytes] = None) -> tuple[int, bytes]:
@@ -239,5 +249,5 @@ def run_preflight(
     checks = [check_cli(), check_target(config, workdir)]
     if tasks is not None:
         checks.insert(0, check_grading(tasks))
-    checks += [c for c in (check_sink_distinct(config), check_canary_span(config)) if c]
+    checks += [c for c in (check_sink_distinct(config, tasks), check_canary_span(config)) if c]
     return checks
