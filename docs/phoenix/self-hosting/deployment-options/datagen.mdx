@@ -1,0 +1,120 @@
+---
+title: "Synthetic trace generation"
+description: Run phoenix datagen beside a development or demo Phoenix instance
+---
+
+`phoenix datagen` continuously replays bundled OpenInference trace corpora into a Phoenix
+collector over OTLP HTTP. It is useful for development, demonstrations, and testing ingestion or
+evaluation workflows without connecting a real application.
+
+<Warning>
+  Never enable `phoenix datagen` against a production instance. It writes synthetic traces to the
+  configured Phoenix project.
+</Warning>
+
+## Local terminals
+
+Install Phoenix, then start the server in one terminal:
+
+```bash
+phoenix serve
+```
+
+Run the generator in a second terminal:
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006 \
+PHOENIX_PROJECT_NAME=datagen-demo \
+PHOENIX_DATAGEN_RATE=12 \
+PHOENIX_DATAGEN_EPSILON=0.02 \
+PHOENIX_DATAGEN_SEED=0 \
+phoenix datagen
+```
+
+Stop the generator with `Ctrl+C`. Run `phoenix datagen --help` to see the corpus, burstiness,
+authentication, and anomaly-manifest options.
+
+## Docker Compose
+
+The repository's `docker-compose.yml` includes an opt-in `datagen` profile. From the repository
+root, start Phoenix, PostgreSQL, and the generator with:
+
+```bash
+docker compose --profile datagen up --build
+```
+
+Running `docker compose up` without the profile does not start the generator. Override the project,
+rate, epsilon, or seed by setting `PHOENIX_PROJECT_NAME`, `PHOENIX_DATAGEN_RATE`,
+`PHOENIX_DATAGEN_EPSILON`, or `PHOENIX_DATAGEN_SEED` before the command.
+
+## Helm
+
+The Phoenix Helm chart keeps the generator disabled by default. Enable it in your values file:
+
+```yaml
+datagen:
+  enabled: true
+  projectName: datagen-demo
+  rate: 12
+  epsilon: 0.02
+  seed: 0
+  args: []
+  additionalEnv:
+    - name: PHOENIX_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: phoenix-datagen
+          key: api-key
+```
+
+The Deployment inherits the main Phoenix image and sends traces to the chart's Phoenix Service by
+default. Set `datagen.endpoint` only when the collector is at another address. Because the chart
+enables authentication by default, create the referenced Secret with a Phoenix system API key, or
+omit `additionalEnv` only when authentication is disabled.
+
+## Kustomize
+
+The repository includes an opt-in overlay that deploys the generator beside the base Phoenix and
+PostgreSQL resources:
+
+```bash
+kubectl apply -k kustomize/datagen
+```
+
+Edit `kustomize/datagen/deployment.yaml` to change the project, rate, epsilon, or seed before
+applying the overlay.
+
+## Render
+
+The repository's `render.yaml` includes a commented-out `phoenix-datagen` worker. For a development
+or demo blueprint, uncomment the worker block. It uses the same Phoenix image, runs
+`phoenix datagen`, and sends traces to the `phoenix` web service over Render's private network. Set
+the prompted `PHOENIX_API_KEY` to a Phoenix system API key.
+
+## Railway
+
+In a non-production Railway environment, add a second service beside the Phoenix service:
+
+1. Use the same Phoenix image and version as the server service.
+2. Set the start command to `phoenix datagen`.
+3. Set `PHOENIX_COLLECTOR_ENDPOINT` to
+   `http://${{phoenix.RAILWAY_PRIVATE_DOMAIN}}:6006`, replacing `phoenix` with the server service's
+   Railway name.
+4. Add `PHOENIX_PROJECT_NAME`, `PHOENIX_DATAGEN_RATE`, `PHOENIX_DATAGEN_EPSILON`, and
+   `PHOENIX_DATAGEN_SEED` with your demo settings.
+5. If the Phoenix service has authentication enabled, add `PHOENIX_API_KEY` as a sealed variable.
+
+Railway private service addresses use HTTP and remain inside the project environment. Do not add a
+public domain to the generator service.
+
+## Google Cloud Run
+
+Create a second Cloud Run job from the same image as the Phoenix service. Override the container
+command to `phoenix`, set the argument to `datagen`, and configure `PHOENIX_COLLECTOR_ENDPOINT` with
+the Phoenix service URL. Add the project, rate, epsilon, and seed environment variables shown
+above. If the Phoenix service requires authentication, also configure a Phoenix API key and ensure
+the job can reach its ingress.
+
+Because `phoenix datagen` runs continuously, set a job timeout for the intended demo window and stop
+or delete the job afterward. A standalone Cloud Run service is not appropriate because the
+generator does not listen on the injected HTTP port.

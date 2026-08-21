@@ -46,6 +46,28 @@ services:
           name: phoenix-db
           property: connectionString
 
+  # This optional worker continuously sends synthetic traces to Phoenix.
+  # Uncomment it only for development or demo instances.
+  # - type: worker
+  #   name: phoenix-datagen
+  #   runtime: image
+  #   image:
+  #     url: docker.io/arizephoenix/phoenix:latest
+  #   dockerCommand: phoenix datagen
+  #   envVars:
+  #     - key: PHOENIX_COLLECTOR_ENDPOINT
+  #       value: http://phoenix:6006
+  #     - key: PHOENIX_PROJECT_NAME
+  #       value: datagen-default
+  #     - key: PHOENIX_DATAGEN_RATE
+  #       value: "12"
+  #     - key: PHOENIX_DATAGEN_EPSILON
+  #       value: "0.02"
+  #     - key: PHOENIX_DATAGEN_SEED
+  #       value: "0"
+  #     - key: PHOENIX_API_KEY
+  #       sync: false
+
 databases:
   - name: phoenix-db
     plan: basic-1gb
