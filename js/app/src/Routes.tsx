@@ -9,6 +9,7 @@ import { RouterProvider } from "react-router/dom";
 
 import { buildRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/catalog";
 import { registerRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/routeCatalogRegistry";
+import type { ParentCrumbToFn } from "@phoenix/hooks/useMatchesWithCrumb";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -85,6 +86,10 @@ import {
   LoggedOutPage,
   LoginPage,
   NewCodeProjectEvaluatorPage,
+  NewGalleryCodeProjectEvaluatorPage,
+  NewGalleryLlmFromTemplateProjectEvaluatorPage,
+  NewGalleryLlmProjectEvaluatorPage,
+  NewLlmFromTemplateProjectEvaluatorPage,
   NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
   PlaygroundPage,
@@ -96,6 +101,7 @@ import {
   ProfilePage,
   ProfilePreferencesPage,
   ProjectEvaluatorsPage,
+  ProjectEvaluatorGalleryPage,
   projectEvaluatorsLoader,
   ProjectIndexPage,
   projectLoader,
@@ -497,6 +503,17 @@ export const appRouteObjects = createRoutesFromElements(
                   }}
                 />
                 <Route
+                  path="new/template/:templateName"
+                  element={<NewLlmFromTemplateProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "New Project Evaluator From Template",
+                      description:
+                        "Create a project LLM evaluator seeded from a classification evaluator template. The templateName route param is the template's name.",
+                    },
+                  }}
+                />
+                <Route
                   path="new/copy/:evaluatorId"
                   element={<CopyLlmProjectEvaluatorPage />}
                   handle={{
@@ -519,6 +536,56 @@ export const appRouteObjects = createRoutesFromElements(
                   }}
                 />
               </Route>
+            </Route>
+            <Route
+              path="evaluator-gallery"
+              element={<ProjectEvaluatorGalleryPage />}
+              handle={{
+                crumb: () => "Evaluator gallery",
+                parentCrumbTo: (({ parentPathname, search }) => ({
+                  pathname: `${parentPathname}/evaluators`,
+                  search,
+                })) satisfies ParentCrumbToFn,
+                agentRoute: {
+                  label: "Project Evaluator Gallery",
+                  description:
+                    "Browse evaluator templates and start a project evaluator from a template or from scratch.",
+                },
+              }}
+            >
+              <Route
+                path="new/llm"
+                element={<NewGalleryLlmProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project LLM Evaluator From Gallery",
+                    description:
+                      "Author a new LLM-as-a-judge evaluator from scratch while browsing the evaluator gallery.",
+                  },
+                }}
+              />
+              <Route
+                path="new/code"
+                element={<NewGalleryCodeProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project Code Evaluator From Gallery",
+                    description:
+                      "Author a new Python or TypeScript code evaluator from scratch while browsing the evaluator gallery.",
+                  },
+                }}
+              />
+              <Route
+                path="new/template/:templateName"
+                element={<NewGalleryLlmFromTemplateProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project Evaluator From Gallery Template",
+                    description:
+                      "Create a project LLM evaluator seeded from the selected evaluator gallery template.",
+                  },
+                }}
+              />
             </Route>
             {/* The evaluator details page is a full page rather than a tab,
                 mirroring the dataset evaluator details route. The edit

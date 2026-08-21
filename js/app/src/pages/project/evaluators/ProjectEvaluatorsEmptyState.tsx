@@ -21,6 +21,8 @@ const MAX_ATTACH_CARDS = 3;
 const EVALUATOR_CARD_HEIGHT = 90;
 
 export function ProjectEvaluatorsEmptyState() {
+  const navigate = useNavigate();
+  const paths = useProjectEvaluatorPaths();
   return (
     <EmptyStateArea>
       <Flex
@@ -34,10 +36,21 @@ export function ProjectEvaluatorsEmptyState() {
           graphic={<EmptyStateGraphic variant="evaluator" />}
           title="No evaluators for this project"
           description="Add an evaluator to score spans, traces, or sessions automatically as they arrive."
+          action={{
+            type: "strip",
+            items: [
+              {
+                kind: "button",
+                variant: "primary",
+                children: "Browse the whole library",
+                onPress: () => navigate(paths.gallery),
+              },
+            ],
+          }}
         />
-        <ErrorBoundary fallback={EvaluatorGalleryError}>
-          <Suspense fallback={<EvaluatorGallerySkeleton />}>
-            <EvaluatorGallery />
+        <ErrorBoundary fallback={EvaluatorOptionsError}>
+          <Suspense fallback={<EvaluatorOptionsSkeleton />}>
+            <EvaluatorOptions />
           </Suspense>
         </ErrorBoundary>
       </Flex>
@@ -45,7 +58,7 @@ export function ProjectEvaluatorsEmptyState() {
   );
 }
 
-function EvaluatorGallery() {
+function EvaluatorOptions() {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
@@ -126,7 +139,7 @@ function EvaluatorCard({
   );
 }
 
-function EvaluatorGallerySkeleton() {
+function EvaluatorOptionsSkeleton() {
   const column = (
     <div css={evaluatorColumnCSS}>
       <Skeleton height={EVALUATOR_CARD_HEIGHT} />
@@ -141,7 +154,7 @@ function EvaluatorGallerySkeleton() {
   );
 }
 
-function EvaluatorGalleryError() {
+function EvaluatorOptionsError() {
   return (
     <Text size="S" color="text-500">
       Existing evaluators could not be loaded.

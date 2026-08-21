@@ -6,6 +6,9 @@ import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 const projectEvaluatorsPath = (projectRootPath: string) =>
   `${projectRootPath}/evaluators`;
 
+const projectEvaluatorGalleryPath = (projectRootPath: string) =>
+  `${projectRootPath}/evaluator-gallery`;
+
 /**
  * Exported for the loader that forwards the legacy `?createLlmEvaluator` and
  * `?createCodeEvaluator` links, which has a path rather than a project root.
@@ -27,18 +30,30 @@ export const newCodeProjectEvaluatorPath = (projectRootPath: string) =>
  */
 export function useProjectEvaluatorPaths() {
   const { rootPath } = useProjectRootPath();
-  // A slideover is a sub-view of the list, not a new destination, so opening
-  // and closing one carries the page's URL state -- above all a custom time
-  // range, which would otherwise be dropped on the way in and again on the way
-  // out.
+  // A slideover is a sub-view of its parent page, not a new destination, so
+  // opening and closing one carries the page's URL state -- above all a custom
+  // time range, which would otherwise be dropped on the way in and again on
+  // the way out.
   const { search } = useLocation();
   return useMemo(() => {
     const list = projectEvaluatorsPath(rootPath);
+    const gallery = projectEvaluatorGalleryPath(rootPath);
     const withCurrentSearch = (path: string) => `${path}${search}`;
     return {
       list: withCurrentSearch(list),
+      gallery: withCurrentSearch(gallery),
       newLlm: withCurrentSearch(newLlmProjectEvaluatorPath(rootPath)),
+      newLlmFromTemplate: (templateName: string) =>
+        withCurrentSearch(
+          `${list}/new/template/${encodeURIComponent(templateName)}`
+        ),
       newCode: withCurrentSearch(newCodeProjectEvaluatorPath(rootPath)),
+      galleryNewLlm: withCurrentSearch(`${gallery}/new/llm`),
+      galleryNewLlmFromTemplate: (templateName: string) =>
+        withCurrentSearch(
+          `${gallery}/new/template/${encodeURIComponent(templateName)}`
+        ),
+      galleryNewCode: withCurrentSearch(`${gallery}/new/code`),
       copyLlm: (evaluatorId: string) =>
         withCurrentSearch(
           `${list}/new/copy/${encodeURIComponent(evaluatorId)}`
