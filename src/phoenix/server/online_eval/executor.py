@@ -938,7 +938,9 @@ class OnlineEvalExecutor:
                 # unshielded await would re-raise the cancellation before the
                 # persist ran, dropping the trace of exactly the run a user
                 # would want to debug.
-                persist = asyncio.ensure_future(self._persist_evaluator_traces(tracer))
+                persist = asyncio.ensure_future(
+                    self._persist_evaluator_traces(tracer, project_evaluator_rowid=unit.criteria_id)
+                )
                 try:
                     await asyncio.shield(persist)
                 except asyncio.CancelledError:
@@ -1058,13 +1060,16 @@ class OnlineEvalExecutor:
         if not records:
             raise EvalExecutionError("evaluator returned no results")
 
-    async def _persist_evaluator_traces(self, tracer: Tracer) -> None:
+    async def _persist_evaluator_traces(
+        self, tracer: Tracer, *, project_evaluator_rowid: int
+    ) -> None:
         """Write the evaluator's trace, never failing the evaluation over it."""
         try:
             async with self._db_phase():
                 await persist_evaluator_traces(
                     db=self._db,
                     tracer=tracer,
+                    project_evaluator_rowid=project_evaluator_rowid,
                     event_queue=self._event_queue,
                 )
         except Exception:

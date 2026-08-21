@@ -1269,22 +1269,23 @@ CREATE TABLE project_evaluator_criteria (
     project_id INTEGER NOT NULL,
     evaluator_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
-    filter_condition VARCHAR DEFAULT '' NOT NULL,
-    sampling_rate FLOAT NOT NULL
-        CONSTRAINT "ck_project_evaluator_criteria_`valid_sampling_rate`"
-        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
-    evaluation_target VARCHAR NOT NULL
-        CONSTRAINT "ck_project_evaluator_criteria_`valid_evaluation_target`"
-        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
-    evaluation_delay_seconds INTEGER DEFAULT '300' NOT NULL
-        CONSTRAINT "ck_project_evaluator_criteria_`valid_evaluation_delay_seconds`"
-        CHECK (evaluation_delay_seconds >= 10),
+    filter_condition VARCHAR DEFAULT ('') NOT NULL,
+    sampling_rate FLOAT NOT NULL,
+    evaluation_target VARCHAR NOT NULL,
+    evaluation_delay_seconds INTEGER DEFAULT '300' NOT NULL,
     input_mapping JSONB,
-    enabled BOOLEAN DEFAULT true NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    enabled BOOLEAN DEFAULT (true) NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    trace_project_id INTEGER,
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
     CONSTRAINT uq_project_evaluator_criteria_project_id_name UNIQUE (project_id, name),
+    CONSTRAINT "ck_project_evaluator_criteria_`valid_evaluation_delay_seconds`"
+        CHECK (evaluation_delay_seconds >= 10),
+    CONSTRAINT "ck_project_evaluator_criteria_`valid_evaluation_target`"
+        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
+    CONSTRAINT "ck_project_evaluator_criteria_`valid_sampling_rate`"
+        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
     CONSTRAINT fk_project_evaluator_criteria_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES evaluators (id)
@@ -1292,13 +1293,19 @@ CREATE TABLE project_evaluator_criteria (
     CONSTRAINT fk_project_evaluator_criteria_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES projects (id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_criteria_trace_project_id_projects
+        FOREIGN KEY (trace_project_id)
+        REFERENCES projects (id)
+        ON DELETE SET NULL
 );
 
 CREATE INDEX ix_project_evaluator_criteria_evaluator_id ON project_evaluator_criteria
     (evaluator_id);
 CREATE INDEX ix_project_evaluator_criteria_project_id ON project_evaluator_criteria
     (project_id);
+CREATE INDEX ix_project_evaluator_criteria_trace_project_id ON project_evaluator_criteria
+    (trace_project_id);
 
 
 -- Table: eval_session_work_units

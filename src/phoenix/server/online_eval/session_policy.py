@@ -42,9 +42,9 @@ class SchedulabilityReason(Enum):
     DISABLED = "DISABLED"
     TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
     # The row-side voice of exclude_criteria_targeting_evaluator_traces (db/helpers.py):
-    # both sweep loads drop criteria on the evaluators project, so without this reason
-    # such a criteria — possible when the project predates the reservation — would
-    # advertise as schedulable while never running.
+    # both sweep loads drop criteria on a project holding evaluator traces, so without
+    # this reason such a criteria — which creation refuses, leaving this a backstop —
+    # would advertise as schedulable while never running.
     TARGETS_EVALUATOR_TRACES = "TARGETS_EVALUATOR_TRACES"
 
 

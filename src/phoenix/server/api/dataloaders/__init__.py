@@ -68,6 +68,7 @@ from .project_evaluator_criteria_by_id import ProjectEvaluatorCriteriaByIdDataLo
 from .project_evaluator_run_counts import ProjectEvaluatorRunCountsDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
+from .project_is_evaluator_trace_target import ProjectIsEvaluatorTraceTargetDataLoader
 from .projects_by_evaluator import ProjectsByEvaluatorDataLoader
 from .prompt_label_usage_counts import PromptLabelUsageCountsDataLoader
 from .prompt_labels_by_prompt import PromptLabelsByPromptDataLoader
@@ -225,6 +226,7 @@ class DataLoaders:
     num_spans_per_trace: NumSpansPerTraceDataLoader
     project_by_name: ProjectByNameDataLoader
     project_has_traces: ProjectHasTracesDataLoader
+    project_is_evaluator_trace_target: ProjectIsEvaluatorTraceTargetDataLoader
     project_fields: TableFieldsDataLoader
     project_evaluator_criteria_by_id: ProjectEvaluatorCriteriaByIdDataLoader
     project_evaluator_run_counts: ProjectEvaluatorRunCountsDataLoader
@@ -495,6 +497,7 @@ def build_data_loaders(
         trace_user_ids=UserIdsDataLoader(db, "trace"),
         project_by_name=ProjectByNameDataLoader(db),
         project_has_traces=ProjectHasTracesDataLoader(db),
+        project_is_evaluator_trace_target=ProjectIsEvaluatorTraceTargetDataLoader(db),
         user_credential_counts=UserCredentialCountsDataLoader(db),
         users=UsersDataLoader(db),
         user_api_key_fields=TableFieldsDataLoader(db, models.ApiKey),

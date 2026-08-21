@@ -5,6 +5,7 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
 from ...._helpers import _add_live_session_work_unit
@@ -265,6 +266,51 @@ class TestProjectMutations:
                 )
             )
         assert all(status == "EXPIRED" for status in statuses)
+
+    async def test_delete_project_deletes_its_evaluators_trace_projects(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Deleting a project takes its evaluators with it, and each evaluator's trace
+        project exists for that evaluator alone — so it goes too, rather than lingering
+        as a project nothing explains."""
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            trace_project = models.Project(name=f"project-evaluator-{token_hex(12)}")
+            session.add_all([project, trace_project])
+            await session.flush()
+            evaluator = await session.scalar(select(models.BuiltinEvaluator).limit(1))
+            assert evaluator is not None
+            session.add(
+                models.ProjectEvaluatorCriteria(
+                    project_id=project.id,
+                    evaluator_id=evaluator.id,
+                    name=Identifier(root="criteria"),
+                    filter_condition="",
+                    sampling_rate=1.0,
+                    evaluation_target="SPAN",
+                    trace_project_id=trace_project.id,
+                )
+            )
+            await session.flush()
+            project_id, trace_project_id = project.id, trace_project.id
+
+        result = await gql_client.execute(
+            query="""
+            mutation($id: ID!) {
+                deleteProject(id: $id) {
+                    __typename
+                }
+            }
+            """,
+            variables={"id": str(GlobalID("Project", str(project_id)))},
+        )
+        assert not result.errors
+
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is None
+            assert await session.get(models.Project, trace_project_id) is None
 
     async def test_create_project(
         self,

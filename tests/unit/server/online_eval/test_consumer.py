@@ -10,11 +10,10 @@ import httpx
 import pytest
 from opentelemetry.context import Context
 from opentelemetry.trace import format_trace_id
-from sqlalchemy import func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.db.types.annotation_configs import (
@@ -1922,7 +1921,7 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
     assert events.empty()
 
 
-async def test_evaluation_is_traced_into_the_evaluators_project(db: DbSessionFactory) -> None:
+async def test_evaluation_is_traced_into_the_evaluators_own_project(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -1946,8 +1945,11 @@ async def test_evaluation_is_traced_into_the_evaluators_project(db: DbSessionFac
             await session.execute(
                 select(models.Span, models.Trace.trace_id)
                 .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                .join(models.Project, models.Trace.project_rowid == models.Project.id)
-                .where(models.Project.name == EVALUATORS_PROJECT_NAME)
+                .join(
+                    models.ProjectEvaluatorCriteria,
+                    models.ProjectEvaluatorCriteria.trace_project_id == models.Trace.project_rowid,
+                )
+                .where(models.ProjectEvaluatorCriteria.id == unit.criteria_id)
             )
         ).all()
     assert {span.name for span, _ in traced} == {"Evaluator: criterion", "Parse Eval Result"}
@@ -1962,6 +1964,85 @@ async def test_evaluation_is_traced_into_the_evaluators_project(db: DbSessionFac
     (_, evaluator_trace_id) = traced[0]
     (annotation,) = await _annotations(db)
     assert annotation.metadata_["phoenix.evaluator_trace_id"] == evaluator_trace_id
+
+
+async def test_each_evaluator_traces_into_a_project_of_its_own(db: DbSessionFactory) -> None:
+    """Two evaluators on one project trace into two projects. The trace project is
+    created with the evaluator; an evaluator that lost its own (a user deleted it)
+    gets a fresh one here rather than borrowing another's."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(2)]
+    trace_project_ids = []
+    for span in spans:
+        hydrated = _hydrated_stub(
+            results=[_evaluation_result("criterion")],
+            evaluator_kind="LLM",
+            output_configs=[_output_config("quality")],
+        )
+        executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
+        unit = await _claim_materialized_unit(
+            db,
+            project_id=project.id,
+            span_rowid=span.id,
+        )
+
+        await executor.evaluate_and_annotate(unit, hydrated)
+
+        async with db() as session:
+            trace_project_id = await session.scalar(
+                select(models.ProjectEvaluatorCriteria.trace_project_id).where(
+                    models.ProjectEvaluatorCriteria.id == unit.criteria_id
+                )
+            )
+            traced_span_count = await session.scalar(
+                select(func.count(models.Span.id))
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .where(models.Trace.project_rowid == trace_project_id)
+            )
+        assert trace_project_id is not None
+        assert traced_span_count
+        trace_project_ids.append(trace_project_id)
+
+    assert trace_project_ids[0] != trace_project_ids[1]
+
+
+async def test_evaluator_trace_is_dropped_when_the_evaluator_is_deleted(
+    db: DbSessionFactory,
+) -> None:
+    """An evaluation still running when its evaluator is deleted has nowhere to put
+    its trace, and must not create a project for an evaluator that no longer exists."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    hydrated = _hydrated_stub(
+        results=[_evaluation_result("criterion")],
+        evaluator_kind="LLM",
+        output_configs=[_output_config("quality")],
+    )
+    executor = _executor(db, tracer_factory=lambda: Tracer(span_cost_calculator=Mock()))
+    unit = await _claim_materialized_unit(
+        db,
+        project_id=project.id,
+        span_rowid=span.id,
+    )
+    async with db() as session:
+        project_count_before = await session.scalar(select(func.count(models.Project.id)))
+        await session.execute(
+            delete(models.ProjectEvaluatorCriteria).where(
+                models.ProjectEvaluatorCriteria.id == unit.criteria_id
+            )
+        )
+
+    # The deleted criteria took its work unit with it, so publication finds nothing
+    # to publish against — after the trace persist has already run in its `finally`.
+    with pytest.raises(PublicationClaimLostError):
+        await executor.evaluate_and_annotate(unit, hydrated)
+
+    async with db() as session:
+        assert await session.scalar(select(func.count(models.Project.id))) == project_count_before
 
 
 async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) -> None:
@@ -1992,8 +2073,11 @@ async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) ->
         traced_span_count = await session.scalar(
             select(func.count(models.Span.id))
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .join(models.Project, models.Trace.project_rowid == models.Project.id)
-            .where(models.Project.name == EVALUATORS_PROJECT_NAME)
+            .join(
+                models.ProjectEvaluatorCriteria,
+                models.ProjectEvaluatorCriteria.trace_project_id == models.Trace.project_rowid,
+            )
+            .where(models.ProjectEvaluatorCriteria.id == unit.criteria_id)
         )
     assert traced_span_count
 

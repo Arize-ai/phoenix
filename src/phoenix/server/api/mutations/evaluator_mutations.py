@@ -14,7 +14,6 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version
 from phoenix.db.models import EvaluatorKind
@@ -70,6 +69,7 @@ from phoenix.server.online_eval.session_policy import (
     DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
 )
+from phoenix.server.online_eval.tracing import new_trace_project
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
 from phoenix.server.session_filters import validate_session_filter_condition
@@ -323,19 +323,24 @@ async def _validate_project_evaluator_project(
     session: AsyncSession,
     project_id: int,
     project_global_id: GlobalID,
-) -> None:
-    """Reject a project that cannot be evaluated.
+) -> models.Project:
+    """Return the project to evaluate, or reject it.
 
-    The evaluators project holds the traces of evaluator executions; evaluating
+    A trace project holds the traces of one evaluator's executions; evaluating
     it would feed evaluator output back into the evaluators that produced it.
     """
     project = await session.get(models.Project, project_id)
     if project is None:
         raise NotFound(f"Project not found: {project_global_id}")
-    if project.name == EVALUATORS_PROJECT_NAME:
-        raise BadRequest(
-            f"The {EVALUATORS_PROJECT_NAME} project holds evaluator traces and cannot be evaluated"
+    if await session.scalar(
+        select(
+            select(models.ProjectEvaluatorCriteria.id)
+            .where(models.ProjectEvaluatorCriteria.trace_project_id == project_id)
+            .exists()
         )
+    ):
+        raise BadRequest("This project holds evaluator traces and cannot be evaluated")
+    return project
 
 
 def _validate_project_evaluator_filter(
@@ -789,7 +794,9 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                project = await _validate_project_evaluator_project(
+                    session, project_id, input.project_id
+                )
                 evaluator_name = await _generate_unique_evaluator_name(session, name)
 
                 target_prompt_version_id: Optional[int] = None
@@ -851,6 +858,10 @@ class EvaluatorMutationMixin:
                     input_mapping=input.input_mapping.to_orm(),
                     evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
+                    trace_project=new_trace_project(
+                        evaluator_name=str(name),
+                        project_name=project.name,
+                    ),
                 )
                 session.add(criteria)
                 await session.flush()
@@ -1054,7 +1065,9 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                project = await _validate_project_evaluator_project(
+                    session, project_id, input.project_id
+                )
                 if await session.get(models.CodeEvaluator, evaluator_id) is None:
                     raise BadRequest("CODE evaluator not found")
                 criteria = models.ProjectEvaluatorCriteria(
@@ -1069,6 +1082,10 @@ class EvaluatorMutationMixin:
                     ),
                     evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
+                    trace_project=new_trace_project(
+                        evaluator_name=str(name),
+                        project_name=project.name,
+                    ),
                 )
                 session.add(criteria)
                 await session.flush()
@@ -1128,7 +1145,9 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                await _validate_project_evaluator_project(session, project_id, input.project_id)
+                project = await _validate_project_evaluator_project(
+                    session, project_id, input.project_id
+                )
                 evaluator_name = await _generate_unique_evaluator_name(session, name)
                 evaluator = models.CodeEvaluator(
                     name=evaluator_name,
@@ -1160,6 +1179,10 @@ class EvaluatorMutationMixin:
                     ),
                     evaluation_delay_seconds=evaluation_delay_seconds,
                     enabled=input.enabled,
+                    trace_project=new_trace_project(
+                        evaluator_name=str(name),
+                        project_name=project.name,
+                    ),
                 )
                 session.add(criteria)
                 await session.flush()
@@ -1413,6 +1436,7 @@ class EvaluatorMutationMixin:
                     select(
                         models.ProjectEvaluatorCriteria.id,
                         models.ProjectEvaluatorCriteria.evaluator_id,
+                        models.ProjectEvaluatorCriteria.trace_project_id,
                         models.Evaluator.kind,
                         llm_evaluator_alias.prompt_id,
                     )
@@ -1429,10 +1453,13 @@ class EvaluatorMutationMixin:
             ).all()
             evaluator_ids: set[int] = set()
             prompt_ids: set[int] = set()
+            trace_project_ids: set[int] = set()
             actual_criteria_ids: list[int] = []
-            for criteria_id, evaluator_id, kind, prompt_id in rows:
+            for criteria_id, evaluator_id, trace_project_id, kind, prompt_id in rows:
                 actual_criteria_ids.append(criteria_id)
                 deleted_ids.append(GlobalID(ProjectEvaluator.__name__, str(criteria_id)))
+                if trace_project_id is not None:
+                    trace_project_ids.add(trace_project_id)
                 if kind != "BUILTIN":
                     evaluator_ids.add(evaluator_id)
                     if prompt_id is not None:
@@ -1443,6 +1470,13 @@ class EvaluatorMutationMixin:
                         models.ProjectEvaluatorCriteria.id.in_(actual_criteria_ids)
                     )
                 )
+                if trace_project_ids:
+                    # The trace project exists for this evaluator alone, so it
+                    # goes with it rather than lingering as a project no
+                    # evaluator explains.
+                    await session.execute(
+                        delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+                    )
                 await _garbage_collect_evaluators(
                     session,
                     evaluator_ids=evaluator_ids,

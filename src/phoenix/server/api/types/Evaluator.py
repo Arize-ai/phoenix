@@ -1,7 +1,7 @@
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 
 import sqlalchemy as sa
 import strawberry
@@ -11,7 +11,6 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -1224,24 +1223,21 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "The project holding the traces this evaluator produces when it runs, or null "
-            "until the first evaluator trace creates it. Every evaluator traces into this "
-            "one project, so its spans must be scoped by this evaluator's id to show only "
-            "its own traces."
+            "The project holding the traces this evaluator produces when it runs. It holds "
+            "this evaluator's traces and no others, and is created with the evaluator; null "
+            "only for an evaluator whose trace project has since been deleted, until the "
+            "next execution creates another."
         )
     )
     async def trace_project(
         self, info: Info[Context, None]
     ) -> Optional[Annotated["Project", strawberry.lazy(".Project")]]:
-        async with info.context.db.read() as session:
-            project_id = await session.scalar(
-                sa.select(models.Project.id).where(models.Project.name == EVALUATORS_PROJECT_NAME)
-            )
-        if project_id is None:
+        record = await self._get_record(info)
+        if record.trace_project_id is None:
             return None
         from .Project import Project
 
-        return Project(id=project_id)
+        return Project(id=record.trace_project_id)
 
     @strawberry.field
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:
@@ -1279,19 +1275,15 @@ class ProjectEvaluator(Node):
     async def _targets_evaluator_traces(
         self, info: Info[Context, None], record: models.ProjectEvaluatorCriteria
     ) -> bool:
-        """Whether this criteria targets the project holding evaluator traces.
+        """Whether this criteria targets a project holding evaluator traces.
 
-        Creation refuses such criteria, but a project that predates the reservation
-        can already carry them; both sweep loads exclude those, and schedulability
-        must say so rather than advertise an evaluator the sweeps never pick up.
+        Creation refuses such a criteria, so this is a backstop for one that got in
+        another way: both sweep loads drop it, and schedulability has to agree
+        rather than advertise an evaluator the sweeps never pick up.
         """
-        project_name = cast(
-            str,
-            await info.context.data_loaders.project_fields.load(
-                (record.project_id, models.Project.name),
-            ),
+        return await info.context.data_loaders.project_is_evaluator_trace_target.load(
+            record.project_id
         )
-        return project_name == EVALUATORS_PROJECT_NAME
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Whether this project evaluator is currently eligible for scheduling."

@@ -30,7 +30,6 @@ from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
 from phoenix.config import (
-    EVALUATORS_PROJECT_NAME,
     PLAYGROUND_PROJECT_NAME,
     get_env_database_schema,
 )
@@ -413,18 +412,27 @@ def exclude_experiment_projects(
     ).where(models.Experiment.project_name.is_(None))
 
 
+def project_evaluator_trace_project_ids() -> Select[tuple[int]]:
+    """The projects that collect the traces project evaluators produce.
+
+    A subquery rather than a name test: each evaluator's trace project is
+    created for it and named unpredictably, so the only thing that identifies
+    one is a criteria row pointing at it.
+    """
+    criteria = aliased(models.ProjectEvaluatorCriteria, name="trace_project_criteria")
+    return select(criteria.trace_project_id).where(criteria.trace_project_id.is_not(None))
+
+
 def exclude_criteria_targeting_evaluator_traces(
     stmt: Select[_AnyTuple],
 ) -> Select[_AnyTuple]:
-    """Drop criteria whose project is the one collecting evaluator traces.
+    """Drop criteria whose project is one collecting evaluator traces.
 
-    Evaluating that project would feed evaluator output back into the
+    Evaluating such a project would feed evaluator output back into the
     evaluators that produced it.
     """
     return stmt.where(
-        models.ProjectEvaluatorCriteria.project_id.not_in(
-            select(models.Project.id).where(models.Project.name == EVALUATORS_PROJECT_NAME)
-        )
+        models.ProjectEvaluatorCriteria.project_id.not_in(project_evaluator_trace_project_ids())
     )
 
 
@@ -435,6 +443,18 @@ def exclude_dataset_evaluator_projects(
         models.DatasetEvaluators,
         models.Project.id == models.DatasetEvaluators.project_id,
     ).where(models.DatasetEvaluators.project_id.is_(None))
+
+
+def exclude_project_evaluator_trace_projects(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    """Drop the projects holding project evaluators' own traces.
+
+    They are reached from the evaluator whose traces they hold, not from the
+    project list, which is a list of the things a user set up to observe. One
+    line per evaluator there would bury them.
+    """
+    return stmt.where(models.Project.id.not_in(project_evaluator_trace_project_ids()))
 
 
 def date_trunc(

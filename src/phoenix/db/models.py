@@ -3631,8 +3631,20 @@ class ProjectEvaluatorCriteria(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    trace_project_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    """The project holding the traces this evaluator's own executions emit, kept apart
+    from the project it evaluates so one evaluator's traces are never mixed with
+    another's. Nullable because the project is a real project a user can delete; the
+    next execution creates a fresh one."""
 
-    project: Mapped["Project"] = relationship("Project")
+    project: Mapped["Project"] = relationship("Project", foreign_keys=[project_id])
+    trace_project: Mapped[Optional["Project"]] = relationship(
+        "Project", foreign_keys=[trace_project_id]
+    )
     evaluator: Mapped["Evaluator"] = relationship("Evaluator")
 
     __table_args__ = (UniqueConstraint("project_id", "name"),)

@@ -26,6 +26,7 @@ from phoenix.db.helpers import (
     SupportedSQLDialect,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
+    exclude_project_evaluator_trace_projects,
     pg_table_sizes_stmt,
 )
 from phoenix.db.models import LatencyMs
@@ -497,6 +498,7 @@ class Query:
             )
         projects_query = exclude_experiment_projects(projects_query)
         projects_query = exclude_dataset_evaluator_projects(projects_query)
+        projects_query = exclude_project_evaluator_trace_projects(projects_query)
         async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
             data = [Project(id=project.id, db_record=project) async for project in projects]
@@ -1211,12 +1213,14 @@ class Query:
         # escaping LIKE metacharacters (% and _) so they match literally rather
         # than acting as wildcards.
         projects_stmt = (
-            exclude_dataset_evaluator_projects(
-                exclude_experiment_projects(
-                    select(models.Project).where(
-                        or_(
-                            models.Project.name.icontains(search_term, autoescape=True),
-                            models.Project.description.icontains(search_term, autoescape=True),
+            exclude_project_evaluator_trace_projects(
+                exclude_dataset_evaluator_projects(
+                    exclude_experiment_projects(
+                        select(models.Project).where(
+                            or_(
+                                models.Project.name.icontains(search_term, autoescape=True),
+                                models.Project.description.icontains(search_term, autoescape=True),
+                            )
                         )
                     )
                 )
@@ -1931,6 +1935,7 @@ class Query:
         stmt = select(func.count(models.Project.id))
         stmt = exclude_experiment_projects(stmt)
         stmt = exclude_dataset_evaluator_projects(stmt)
+        stmt = exclude_project_evaluator_trace_projects(stmt)
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 

@@ -68,7 +68,23 @@ class ProjectMutationMixin:
                 raise ValueError(f"Unknown project: {id}")
             if project.name == DEFAULT_PROJECT_NAME:
                 raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
+            # This project's evaluators go with it, and each one's trace project
+            # exists for that evaluator alone. Collected before the delete, since
+            # the criteria rows naming them are about to cascade away.
+            trace_project_ids = set(
+                await session.scalars(
+                    select(models.ProjectEvaluatorCriteria.trace_project_id).where(
+                        models.ProjectEvaluatorCriteria.project_id == project_id,
+                        models.ProjectEvaluatorCriteria.trace_project_id.is_not(None),
+                    )
+                )
+            )
             await session.delete(project)
+            if trace_project_ids:
+                await session.flush()
+                await session.execute(
+                    delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+                )
         info.context.event_queue.put(ProjectDeleteEvent((project_id,)))
         return Query()
 

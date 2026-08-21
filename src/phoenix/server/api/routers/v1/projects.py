@@ -11,6 +11,7 @@ from phoenix.db import models
 from phoenix.db.helpers import (
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
+    exclude_project_evaluator_trace_projects,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
@@ -116,6 +117,11 @@ async def get_projects(
         stmt = exclude_experiment_projects(stmt)
     if not include_dataset_evaluator_projects:
         stmt = exclude_dataset_evaluator_projects(stmt)
+    # A project evaluator's trace project is reached through the evaluator that
+    # owns it, never listed here: it holds one evaluator's own executions, was
+    # never a project a user set up, and one line per evaluator would bury the
+    # projects that are.
+    stmt = exclude_project_evaluator_trace_projects(stmt)
     if name_contains:
         stmt = stmt.where(models.CaseInsensitiveContains(models.Project.name, name_contains))
     async with request.app.state.db() as session:

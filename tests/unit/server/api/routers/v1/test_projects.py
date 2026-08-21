@@ -953,6 +953,45 @@ class TestProjects:
             "Dataset evaluator project should be included when explicitly requested"
         )
 
+    async def test_project_evaluator_trace_projects_are_excluded(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """A project evaluator's trace project is reached through the evaluator that
+        owns it, so the project list never carries a line per evaluator."""
+        regular_projects = await self._insert_projects(db, 2)
+
+        async with db() as session:
+            trace_project = models.Project(
+                name="project-evaluator-0123456789ab",
+                description="Traces for project evaluator: criteria on project: project-0",
+            )
+            session.add(trace_project)
+            await session.flush()
+            evaluator = await session.scalar(select(models.BuiltinEvaluator).limit(1))
+            assert evaluator is not None
+            session.add(
+                models.ProjectEvaluatorCriteria(
+                    project_id=regular_projects[0].id,
+                    evaluator_id=evaluator.id,
+                    name=Identifier(root="criteria"),
+                    filter_condition="",
+                    sampling_rate=1.0,
+                    evaluation_target="SPAN",
+                    trace_project_id=trace_project.id,
+                )
+            )
+            await session.flush()
+            trace_project_id = str(GlobalID(Project.__name__, str(trace_project.id)))
+
+        response = await httpx_client.get("v1/projects")
+        assert response.status_code == 200, response.text
+
+        returned_project_ids = [project["id"] for project in response.json()["data"]]
+        assert len(returned_project_ids) == len(regular_projects)
+        assert trace_project_id not in returned_project_ids
+
     @staticmethod
     def _compare_project(
         data: dict[str, Any],

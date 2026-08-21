@@ -24,16 +24,17 @@ import {
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 
 type ProjectEvaluatorTracesProps = {
-  /** The shared project every evaluator traces into. */
+  /** The evaluator's own trace project. */
   projectId: string;
   projectEvaluatorId: string;
 };
 
 /**
  * One evaluator's own traces: what it read, the model call it made, and the
- * judgment it parsed out. Every evaluator writes into the same project, so the
- * evaluator's id is passed to the server as a scope the filter field cannot
- * widen — the rows here are always this evaluator's.
+ * judgment it parsed out. The project holds only this evaluator's traces, and
+ * the evaluator's id is still passed to the server as a scope the filter field
+ * cannot widen — so the rows here are this evaluator's whatever else a project
+ * carries from before it had one of its own.
  */
 export function ProjectEvaluatorTraces(props: ProjectEvaluatorTracesProps) {
   // Reset the mount-time filter and time-range seed when the tab is reused for

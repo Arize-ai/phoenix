@@ -167,7 +167,7 @@ function ProjectEvaluatorDetailsPageLoaded({
               <ProjectEvaluatorTracesTabPanel
                 projectEvaluatorId={projectEvaluator.id}
                 hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
-                traceProjectId={projectEvaluator.traceProject?.id ?? null}
+                traceProject={projectEvaluator.traceProject ?? null}
               />
             </Suspense>
           </LazyTabPanel>
@@ -191,16 +191,18 @@ function ProjectEvaluatorDetailsPageLoaded({
 function ProjectEvaluatorTracesTabPanel({
   projectEvaluatorId,
   hasEverRun,
-  traceProjectId,
+  traceProject,
 }: {
   projectEvaluatorId: string;
   hasEverRun: boolean;
-  traceProjectId: string | null;
+  traceProject: { id: string; hasTraces: boolean } | null;
 }) {
-  // The table renders whenever the trace project exists: run status only reaches
-  // back as far as the online-evaluation retention window, so an evaluator whose
-  // runs have aged out of it may still have traces worth showing.
-  if (traceProjectId == null) {
+  // The table renders whenever the evaluator's trace project holds anything:
+  // run status only reaches back as far as the online-evaluation retention
+  // window, so an evaluator whose runs have aged out of it may still have
+  // traces worth showing. The project itself is created with the evaluator, so
+  // its existence says nothing about whether the evaluator has ever run.
+  if (traceProject == null || !traceProject.hasTraces) {
     if (!hasEverRun) {
       return (
         <View paddingTop="size-1000">
@@ -217,14 +219,14 @@ function ProjectEvaluatorTracesTabPanel({
         <EmptyState
           graphic={<EmptyStateGraphic variant="trace" />}
           title="No traces to show"
-          description="This evaluator has run, but none of its runs produced a trace. Evaluations that ran before evaluator tracing was added did not record one."
+          description="This evaluator has run, but none of its runs left a trace in its own trace project. Runs from before evaluator tracing, or from before each evaluator traced into a project of its own, did not record one here."
         />
       </View>
     );
   }
   return (
     <ProjectEvaluatorTraces
-      projectId={traceProjectId}
+      projectId={traceProject.id}
       projectEvaluatorId={projectEvaluatorId}
     />
   );

@@ -1363,6 +1363,7 @@ CREATE TABLE public.project_evaluator_criteria (
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    trace_project_id BIGINT,
     CONSTRAINT pk_project_evaluator_criteria PRIMARY KEY (id),
     CONSTRAINT uq_project_evaluator_criteria_project_id_name
         UNIQUE (project_id, name),
@@ -1381,13 +1382,19 @@ CREATE TABLE public.project_evaluator_criteria (
     CONSTRAINT fk_project_evaluator_criteria_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_evaluator_criteria_trace_project_id_projects
+        FOREIGN KEY (trace_project_id)
+        REFERENCES public.projects (id)
+        ON DELETE SET NULL
 );
 
 CREATE INDEX ix_project_evaluator_criteria_evaluator_id ON public.project_evaluator_criteria
     USING btree (evaluator_id);
 CREATE INDEX ix_project_evaluator_criteria_project_id ON public.project_evaluator_criteria
     USING btree (project_id);
+CREATE INDEX ix_project_evaluator_criteria_trace_project_id ON public.project_evaluator_criteria
+    USING btree (trace_project_id);
 
 
 -- Table: eval_session_work_units

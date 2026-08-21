@@ -5,7 +5,6 @@ import pytest
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -21,6 +20,7 @@ schedulabilityStatus
 schedulabilityReason
 enabled
 inputMapping { literalMapping pathMapping }
+traceProject { id name description }
 evaluator {
   id
   kind
@@ -1193,31 +1193,85 @@ async def test_update_rolls_back_code_version_and_state_on_late_name_conflict(
     assert versions_after == versions_before
 
 
-async def test_evaluators_project_cannot_be_given_an_evaluator(
+async def test_a_trace_project_cannot_be_given_an_evaluator(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
-    async with db() as session:
-        project = models.Project(name=EVALUATORS_PROJECT_NAME)
-        session.add(project)
-        await session.flush()
-    counts_before = await _row_counts(db)
-
+    """A project holding an evaluator's traces cannot itself be evaluated: doing so
+    would feed evaluator output back into the evaluator that produced it."""
+    project = await _add_project(db)
     result = await gql_client.execute(
         _CREATE_LLM,
-        {"input": _llm_input(project, name="evaluates-evaluators", text="Evaluate {{input}}")},
+        {"input": _llm_input(project, name="traced-evaluator", text="Evaluate {{input}}")},
     )
+    assert not result.errors and result.data
+    trace_project_id = result.data["createProjectLlmEvaluator"]["evaluator"]["traceProject"]["id"]
+    counts_before = await _row_counts(db)
+
+    evaluator_input = _llm_input(project, name="evaluates-evaluators", text="Evaluate {{input}}")
+    evaluator_input["projectId"] = trace_project_id
+    result = await gql_client.execute(_CREATE_LLM, {"input": evaluator_input})
 
     assert result.errors
     assert result.errors[0].message == (
-        "The evaluators project holds evaluator traces and cannot be evaluated"
+        "This project holds evaluator traces and cannot be evaluated"
     )
     assert await _row_counts(db) == counts_before
+
+
+async def test_each_project_evaluator_gets_its_own_trace_project(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Two evaluators on one project trace into two projects, each described by the
+    evaluator whose traces it holds -- never into a project they share."""
+    project = await _add_project(db)
+
+    trace_project_ids = []
+    for name in ("first-evaluator", "second-evaluator"):
+        result = await gql_client.execute(
+            _CREATE_LLM,
+            {"input": _llm_input(project, name=name, text="Evaluate {{input}}")},
+        )
+        assert not result.errors and result.data
+        trace_project = result.data["createProjectLlmEvaluator"]["evaluator"]["traceProject"]
+        assert trace_project["name"].startswith("project-evaluator-")
+        assert trace_project["description"] == (
+            f"Traces for project evaluator: {name} on project: {project.name}"
+        )
+        trace_project_ids.append(trace_project["id"])
+
+    assert trace_project_ids[0] != trace_project_ids[1]
+
+
+async def test_deleting_a_project_evaluator_deletes_its_trace_project(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    result = await gql_client.execute(
+        _CREATE_LLM,
+        {"input": _llm_input(project, name="doomed-evaluator", text="Evaluate {{input}}")},
+    )
+    assert not result.errors and result.data
+    evaluator = result.data["createProjectLlmEvaluator"]["evaluator"]
+    trace_project_rowid = int(GlobalID.from_id(evaluator["traceProject"]["id"]).node_id)
+
+    result = await gql_client.execute(
+        _DELETE, {"input": {"projectEvaluatorIds": [evaluator["id"]]}}
+    )
+
+    assert not result.errors
+    async with db() as session:
+        assert await session.get(models.Project, trace_project_rowid) is None
 
 
 async def _row_counts(db: DbSessionFactory) -> dict[str, int]:
     async with db() as session:
         model_types = (
+            # Project is here for the trace project each project evaluator creates:
+            # a rejected or rolled-back creation must leave none behind.
+            models.Project,
             models.Evaluator,
             models.Prompt,
             models.PromptVersion,

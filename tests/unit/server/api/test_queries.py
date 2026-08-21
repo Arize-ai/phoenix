@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import pytest
 from pydantic import SecretStr
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -93,6 +93,38 @@ async def test_projects_omits_dataset_evaluator_projects(
                     "project": {
                         "id": str(GlobalID("Project", str(1))),
                         "name": "non-dataset-evaluator-project-name",
+                    }
+                }
+            ]
+        }
+    }
+
+
+async def test_projects_omits_project_evaluator_trace_projects(
+    gql_client: AsyncGraphQLClient,
+    projects_with_and_without_project_evaluator_traces: Any,
+) -> None:
+    query = """
+      query {
+        projects {
+          edges {
+            project: node {
+              id
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data == {
+        "projects": {
+            "edges": [
+                {
+                    "project": {
+                        "id": str(GlobalID("Project", str(1))),
+                        "name": "evaluated-project-name",
                     }
                 }
             ]
@@ -717,6 +749,33 @@ async def projects_with_and_without_experiments(
                 project_name="experiment-project-name",
             )
         )
+
+
+@pytest.fixture
+async def projects_with_and_without_project_evaluator_traces(
+    db: DbSessionFactory,
+) -> None:
+    """Insert a project with an evaluator on it, plus the project that evaluator
+    traces into."""
+    async with db() as session:
+        evaluated_project = models.Project(name="evaluated-project-name")
+        trace_project = models.Project(name="project-evaluator-0123456789ab")
+        session.add_all([evaluated_project, trace_project])
+        await session.flush()
+        evaluator = await session.scalar(select(models.BuiltinEvaluator).limit(1))
+        assert evaluator is not None
+        session.add(
+            models.ProjectEvaluatorCriteria(
+                project_id=evaluated_project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root="criteria"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+                trace_project_id=trace_project.id,
+            )
+        )
+        await session.flush()
 
 
 @pytest.fixture

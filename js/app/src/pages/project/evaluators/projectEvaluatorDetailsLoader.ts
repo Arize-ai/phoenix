@@ -20,6 +20,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         }
         traceProject {
           id
+          hasTraces
         }
         runSummary {
           status
@@ -50,7 +51,7 @@ export async function projectEvaluatorDetailsLoader(
     typeof loadQuery<projectEvaluatorDetailsLoaderQuery>
   > | null;
   evaluatorDisplayName: string | null;
-  /** The shared evaluator-trace project, or null until the first trace creates it. */
+  /** This evaluator's own trace project, or null if it has been deleted. */
   traceProjectId: string | null;
 }> {
   const { projectEvaluatorId } = args.params;

@@ -9,7 +9,6 @@ import pytest
 from sqlalchemy import Table, func, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import live_eval_session_work_index_predicate
 from phoenix.db.types.identifier import Identifier
@@ -109,16 +108,22 @@ async def test_database_now_uses_statement_time(
     assert expected_clock in str(statement)
 
 
-async def test_criteria_on_the_evaluators_project_are_not_loaded(db: DbSessionFactory) -> None:
+async def test_criteria_targeting_a_trace_project_are_not_loaded(db: DbSessionFactory) -> None:
     """The session half of the feedback-loop guard.
 
-    Creation refuses criteria on the evaluators project, but a project that predates
-    the reservation can already carry them — the sweep load is the layer that keeps
-    those from evaluating the evaluators' own traces.
+    Creation refuses criteria on a project holding evaluator traces; the sweep load
+    is the layer that keeps one that got in another way from evaluating the
+    evaluators' own traces.
     """
     async with db() as session:
-        evaluators_project = await _add_project(session, name=EVALUATORS_PROJECT_NAME)
-    await _seed_criteria(db, evaluators_project.id, evaluation_target="SESSION")
+        project = await _add_project(session)
+    _, criteria_id = await _seed_criteria(db, project.id, evaluation_target="SESSION")
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(trace_project_id=project.id)
+        )
 
     sweeper = SessionEvalSweeper(db)
 

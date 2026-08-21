@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.db.types.annotation_configs import (
@@ -1959,14 +1958,15 @@ async def test_project_evaluator_run_summary_reports_failing_when_failure_is_new
     assert run_summary["lastError"] == "credentials expired"
 
 
-async def test_project_evaluator_on_the_evaluators_project_is_not_schedulable(
+async def test_project_evaluator_targeting_a_trace_project_is_not_schedulable(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """A criteria row on the evaluators project — possible when the project predates
-    the name reservation — must report why the sweeps will never pick it up."""
+    """A criteria row on a project holding evaluator traces — possible when it
+    predates per-evaluator trace projects — must report why the sweeps will never
+    pick it up."""
     async with db() as session:
-        evaluators_project = models.Project(name=EVALUATORS_PROJECT_NAME)
+        project = models.Project(name=f"project-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
             name=Identifier(f"evaluator-{token_hex(4)}"),
             kind="BUILTIN",
@@ -1974,16 +1974,18 @@ async def test_project_evaluator_on_the_evaluators_project_is_not_schedulable(
             input_schema={},
             output_configs=[],
         )
-        session.add_all([evaluators_project, evaluator])
+        session.add_all([project, evaluator])
         await session.flush()
         criteria = models.ProjectEvaluatorCriteria(
-            project_id=evaluators_project.id,
+            project_id=project.id,
             evaluator_id=evaluator.id,
             name=Identifier(f"criteria-{token_hex(4)}"),
             evaluation_target="SPAN",
             filter_condition="",
             sampling_rate=1.0,
             enabled=True,
+            # The evaluator traces into the very project it evaluates.
+            trace_project_id=project.id,
         )
         session.add(criteria)
         await session.flush()
@@ -2007,12 +2009,15 @@ async def test_project_evaluator_on_the_evaluators_project_is_not_schedulable(
     assert node["schedulabilityReason"] == "TARGETS_EVALUATOR_TRACES"
 
 
-async def test_project_evaluator_trace_project_is_null_before_any_evaluator_runs(
+async def test_project_evaluator_trace_project_is_null_once_the_project_is_deleted(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
+    """The trace project is a real project a user can delete. The reference clears
+    with it rather than pointing at a project that is no longer there."""
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
+        trace_project = models.Project(name=f"project-evaluator-{token_hex(12)}")
         evaluator = models.BuiltinEvaluator(
             name=Identifier(f"evaluator-{token_hex(4)}"),
             kind="BUILTIN",
@@ -2020,7 +2025,7 @@ async def test_project_evaluator_trace_project_is_null_before_any_evaluator_runs
             input_schema={},
             output_configs=[],
         )
-        session.add_all([project, evaluator])
+        session.add_all([project, trace_project, evaluator])
         await session.flush()
         criteria = models.ProjectEvaluatorCriteria(
             project_id=project.id,
@@ -2029,10 +2034,12 @@ async def test_project_evaluator_trace_project_is_null_before_any_evaluator_runs
             evaluation_target="SPAN",
             filter_condition="",
             sampling_rate=1.0,
+            trace_project_id=trace_project.id,
         )
         session.add(criteria)
         await session.flush()
         criteria_id = criteria.id
+        await session.delete(trace_project)
 
     response = await gql_client.execute(
         """query ($id: ID!) {
@@ -2053,10 +2060,15 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
+    """Each evaluator reads its own trace project, and the evaluator scope still
+    holds inside it: two evaluators, two projects, and only the queried
+    evaluator's root span comes back."""
     now = datetime.now(timezone.utc)
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
-        evaluators_project = models.Project(name=EVALUATORS_PROJECT_NAME)
+        trace_projects = [
+            models.Project(name=f"project-evaluator-{token_hex(12)}") for _ in range(2)
+        ]
         evaluator = models.BuiltinEvaluator(
             name=Identifier(f"evaluator-{token_hex(4)}"),
             kind="BUILTIN",
@@ -2064,7 +2076,7 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
             input_schema={},
             output_configs=[],
         )
-        session.add_all([project, evaluators_project, evaluator])
+        session.add_all([project, *trace_projects, evaluator])
         await session.flush()
         criteria = [
             models.ProjectEvaluatorCriteria(
@@ -2074,20 +2086,25 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
                 evaluation_target="SPAN",
                 filter_condition="",
                 sampling_rate=1.0,
+                trace_project_id=trace_project.id,
             )
-            for _ in range(2)
+            for trace_project in trace_projects
         ]
-        trace = models.Trace(
-            trace_id=token_hex(8),
-            project_rowid=evaluators_project.id,
-            start_time=now,
-            end_time=now,
-        )
-        session.add_all([*criteria, trace])
+        traces = [
+            models.Trace(
+                trace_id=token_hex(8),
+                project_rowid=trace_project.id,
+                start_time=now,
+                end_time=now,
+            )
+            for trace_project in trace_projects
+        ]
+        session.add_all([*criteria, *traces])
         await session.flush()
         criteria_ids = [c.id for c in criteria]
-        # One root span per evaluator, each stamped the way the evaluator tracer
-        # stamps it, plus a child so the root scoping is exercised too.
+        # One root span per evaluator, in that evaluator's own trace project and
+        # stamped the way the evaluator tracer stamps it, plus a child so the root
+        # scoping is exercised too.
         session.add_all(
             [
                 models.Span(
@@ -2113,18 +2130,19 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
                     cumulative_llm_token_count_prompt=0,
                     cumulative_llm_token_count_completion=0,
                 )
-                for criteria_id in criteria_ids
+                for criteria_id, trace in zip(criteria_ids, traces)
                 for is_root in (True, False)
             ]
         )
         await session.flush()
+        trace_project_ids = [trace_project.id for trace_project in trace_projects]
 
     response = await gql_client.execute(
         """query ($id: ID!) {
             node(id: $id) {
                 ... on ProjectEvaluator {
                     traceProject {
-                        name
+                        id
                         spans(
                             first: 10
                             projectEvaluatorId: $id
@@ -2141,7 +2159,7 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
 
     assert not response.errors and response.data
     trace_project = response.data["node"]["traceProject"]
-    assert trace_project["name"] == EVALUATORS_PROJECT_NAME
+    assert trace_project["id"] == str(GlobalID("Project", str(trace_project_ids[0])))
     assert [edge["node"]["name"] for edge in trace_project["spans"]["edges"]] == [
         f"Evaluator: {criteria_ids[0]}"
     ]

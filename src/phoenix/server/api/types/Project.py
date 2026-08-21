@@ -658,9 +658,9 @@ class Project(Node):
             Optional[GlobalID],
             strawberry.argument(
                 description=(
-                    "Restrict to spans produced by this project evaluator. Every evaluator "
-                    "traces into one shared project, so its own traces are only reachable "
-                    "through this scope."
+                    "Restrict to spans produced by this project evaluator. An evaluator's "
+                    "own trace project holds only its traces, so this scope matters for a "
+                    "project that also holds traces from before it had one of its own."
                 )
             ),
         ] = UNSET,

@@ -6,7 +6,6 @@ from unittest.mock import Mock
 import pytest
 from sqlalchemy import func, select, update
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
@@ -517,10 +516,18 @@ async def test_future_targets_are_not_loaded_by_span_producer(
     assert await producer._load_active_criteria() == []
 
 
-async def test_criteria_on_the_evaluators_project_are_not_loaded(db: DbSessionFactory) -> None:
+async def test_criteria_targeting_a_trace_project_are_not_loaded(db: DbSessionFactory) -> None:
     async with db() as session:
-        evaluators_project = await _add_project(session, name=EVALUATORS_PROJECT_NAME)
-    await _seed_criteria(db, evaluators_project.id)
+        project = await _add_project(session)
+    _, criteria_id = await _seed_criteria(db, project.id)
+    # The evaluator now traces into the very project it evaluates: the feedback
+    # loop the guard exists to stop.
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluatorCriteria)
+            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            .values(trace_project_id=project.id)
+        )
 
     producer = OnlineEvalProducer(db)
 

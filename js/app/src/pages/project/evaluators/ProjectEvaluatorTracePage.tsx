@@ -36,8 +36,8 @@ export function ProjectEvaluatorTracePage() {
 
   invariant(traceId, "traceId is required");
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
-  // The trace lives in the shared evaluator-trace project, which exists as soon
-  // as any trace does -- so reaching this route without it is not possible.
+  // The trace lives in the evaluator's own trace project, which is created with
+  // the evaluator -- so reaching this route without it is not possible.
   invariant(projectId, "traceProjectId is required");
 
   return (
