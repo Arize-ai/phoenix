@@ -35,3 +35,16 @@ query ExperimentMetrics($id: ID!) {
   }
 }
 ```
+
+## Edit an experiment
+
+`patchExperiment` changes only supplied fields. Its `metadata` input replaces the entire metadata
+object; it does not merge. Read current metadata first, preserve every unrelated key, and submit the
+complete replacement object. For observations, append to the existing `observations` array rather
+than overwriting earlier entries.
+
+```graphql
+mutation PatchExperiment($input: PatchExperimentInput!) {
+  patchExperiment(input: $input) { experiment { id name description metadata } }
+}
+```

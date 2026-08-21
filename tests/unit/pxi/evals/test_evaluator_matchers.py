@@ -234,11 +234,11 @@ class TestEqualsMatcher:
 class TestHasKeysMatcher:
     def test_passes_when_all_keys_present(self) -> None:
         output = _output_with_tool_call(
-            "patch_experiment",
+            "bash",
             {"experimentId": "RXhwOjE=", "metadata": {"observations": [{"note": "hi"}]}},
         )
         expected = {
-            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": ["observations"]}}}
+            "tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}
         }
         assert evaluate_tool_call_args(output, expected)["score"] == 1.0
 
@@ -246,7 +246,7 @@ class TestHasKeysMatcher:
         # The preservation case: scaffold keys must survive a whole-metadata
         # replace, and the agent may carry additional keys beyond those asserted.
         output = _output_with_tool_call(
-            "patch_experiment",
+            "bash",
             {
                 "experimentId": "RXhwOjE=",
                 "metadata": {
@@ -262,7 +262,7 @@ class TestHasKeysMatcher:
         )
         expected = {
             "tool_call_args": {
-                "patch_experiment": {
+                "bash": {
                     "metadata": {
                         "has_keys": [
                             "observations",
@@ -279,29 +279,29 @@ class TestHasKeysMatcher:
     def test_fails_when_a_key_is_missing(self) -> None:
         # Clobbering the scaffold (dropping ``hypothesis``) must fail the check.
         output = _output_with_tool_call(
-            "patch_experiment",
+            "bash",
             {"experimentId": "RXhwOjE=", "metadata": {"observations": [{"note": "hi"}]}},
         )
         expected = {
             "tool_call_args": {
-                "patch_experiment": {"metadata": {"has_keys": ["observations", "hypothesis"]}}
+                "bash": {"metadata": {"has_keys": ["observations", "hypothesis"]}}
             }
         }
         assert evaluate_tool_call_args(output, expected)["score"] == 0.0
 
     def test_fails_when_observed_value_is_not_a_dict(self) -> None:
         output = _output_with_tool_call(
-            "patch_experiment", {"experimentId": "RXhwOjE=", "metadata": "observations"}
+            "bash", {"experimentId": "RXhwOjE=", "metadata": "observations"}
         )
         expected = {
-            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": ["observations"]}}}
+            "tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}
         }
         assert evaluate_tool_call_args(output, expected)["score"] == 0.0
 
     def test_fails_when_key_absent(self) -> None:
-        output = _output_with_tool_call("patch_experiment", {"experimentId": "RXhwOjE="})
+        output = _output_with_tool_call("bash", {"experimentId": "RXhwOjE="})
         expected = {
-            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": ["observations"]}}}
+            "tool_call_args": {"bash": {"metadata": {"has_keys": ["observations"]}}}
         }
         assert evaluate_tool_call_args(output, expected)["score"] == 0.0
 
@@ -310,21 +310,21 @@ class TestHasKeysMatcher:
         # equality -- so an arg that happens to carry a ``has_keys`` field
         # alongside others is compared whole, not treated as a matcher.
         output = _output_with_tool_call(
-            "patch_experiment", {"metadata": {"has_keys": ["x"], "other": 1}}
+            "bash", {"metadata": {"has_keys": ["x"], "other": 1}}
         )
         expected = {
-            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": ["x"], "other": 1}}}
+            "tool_call_args": {"bash": {"metadata": {"has_keys": ["x"], "other": 1}}}
         }
         assert evaluate_tool_call_args(output, expected)["score"] == 1.0
 
     def test_malformed_has_keys_fails_with_error(self) -> None:
-        output = _output_with_tool_call("patch_experiment", {"metadata": {"observations": []}})
+        output = _output_with_tool_call("bash", {"metadata": {"observations": []}})
         expected = {
-            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": "observations"}}}
+            "tool_call_args": {"bash": {"metadata": {"has_keys": "observations"}}}
         }
         result = evaluate_tool_call_args(output, expected)
         assert result["score"] == 0.0
-        assert "patch_experiment" in result.get("metadata", {})
+        assert "bash" in result.get("metadata", {})
 
 
 class TestUnconstrainedArgsAreIgnored:

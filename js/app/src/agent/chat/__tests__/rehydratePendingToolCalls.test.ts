@@ -18,7 +18,7 @@ const SERVER_EXECUTION_METADATA = {
   phoenix: { toolExecutionEnvironment: "server" },
 };
 
-const REHYDRATABLE_TOOL = "create_annotation_config";
+const REHYDRATABLE_TOOL = "ask_user";
 const NON_REHYDRATABLE_TOOL = "edit_prompt_instance";
 
 const isRehydratableTool = (toolName: string) => toolName === REHYDRATABLE_TOOL;

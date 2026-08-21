@@ -31,10 +31,11 @@ Per-entity field references and examples are split into resources. Read **only**
 
 - `project-spans-traces` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
 - `sessions` — ProjectSession: multi-turn session metrics, token/cost, session traces.
-- `datasets` — Dataset and DatasetExample: examples, versions, splits, labels.
-- `experiments` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
+- `datasets` — Dataset and DatasetExample reads and writes.
+- `dataset-labels-splits` — Instance-wide label/split vocabulary and assignment mutations.
+- `experiments` — Experiment and ExperimentRun reads, comparison, and edits.
 - `prompts` — Prompt and PromptVersion: versions, templates, tags.
-- `annotations` — Span/Trace/ExperimentRun annotation fields and how to read them.
+- `annotations` — Annotation reads, span annotation writes, and annotation-config mutations.
 
 ### Conventions
 
@@ -84,6 +85,15 @@ query Overview($name: String!, $timeRange: TimeRange) {
 ### Execution surfaces (internal mode)
 
 - `phoenix-gql` (bash): run `phoenix-gql --help` for flags and current permissions. Use `--data-only` when piping to `jq`, `--output <file>` for large results, `--vars '<json>'` for variables. Mutations are allowed only when runtime permissions say so; the tool reports its permissions on every invocation.
+
+### Write protocol
+
+For every mutation:
+
+1. When the target entity is in view, use its Relay node ID from the Phoenix context block instead of querying for it again. Otherwise, resolve IDs with a read and require a by-name lookup to match exactly one entity; never infer or hand-encode IDs.
+2. Read the relevant resource and verify the current data shape and associations before composing the write. Preserve fields or associations that replacement mutations would otherwise remove.
+3. Execute exactly one mutation field per `phoenix-gql` call. Never automatically retry after an unknown result because the write may already have committed.
+4. Re-read the affected entity to verify the resulting state.
 
 ### External API usage (user-facing mode)
 

@@ -100,7 +100,7 @@ const toolIconItems = [
   {
     label: "Data",
     part: makePart({
-      toolName: "list_datasets",
+      toolName: "load_dataset",
       state: "input-available",
       input: { nameContains: "support", limit: 20 },
     }),
@@ -129,7 +129,7 @@ const toolIconItems = [
   {
     label: "Edit",
     part: makePart({
-      toolName: "batch_span_annotate",
+      toolName: "edit_prompt_instance",
       state: "input-available",
       input: {
         annotations: [

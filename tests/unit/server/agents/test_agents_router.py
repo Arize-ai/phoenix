@@ -388,13 +388,13 @@ def _client_tool_model() -> FunctionModel:
         agent_info: AgentInfo,
     ) -> AsyncIterator[str | DeltaToolCalls]:
         has_tool_result = any(
-            isinstance(part, ToolReturnPart) and part.tool_name == "list_datasets"
+            isinstance(part, ToolReturnPart) and part.tool_name == "get_route_info"
             for part in messages[-1].parts
         )
         if has_tool_result:
             yield "done"
         else:
-            yield {1: DeltaToolCall(name="list_datasets", json_args="{}")}
+            yield {1: DeltaToolCall(name="get_route_info", json_args="{}")}
 
     def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
         return ModelResponse(parts=[])
@@ -416,14 +416,14 @@ def _two_client_tool_model() -> FunctionModel:
             1
             for message in messages
             for part in message.parts
-            if isinstance(part, ToolReturnPart) and part.tool_name == "list_datasets"
+            if isinstance(part, ToolReturnPart) and part.tool_name == "get_route_info"
         )
         if tool_result_count >= 2:
             yield "done"
         else:
             yield {
-                1: DeltaToolCall(name="list_datasets", json_args="{}"),
-                2: DeltaToolCall(name="list_datasets", json_args="{}"),
+                1: DeltaToolCall(name="get_route_info", json_args="{}"),
+                2: DeltaToolCall(name="get_route_info", json_args="{}"),
             }
 
     def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
@@ -1182,10 +1182,10 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     resolved_assistant_message = stored_messages[-1]
     assert resolved_assistant_message["id"] == assistant_message_id
     tool_part = next(
-        part for part in resolved_assistant_message["parts"] if part["type"] == "tool-list_datasets"
+        part for part in resolved_assistant_message["parts"] if part["type"] == "tool-get_route_info"
     )
     tool_output = {
-        "type": "tool-list_datasets",
+        "type": "tool-get_route_info",
         "toolCallId": tool_part["toolCallId"],
         "state": "output-available",
         "input": tool_part.get("input"),
@@ -1271,7 +1271,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
         assert agent_session_rowid is not None
         stored_messages = await _load_session_messages(session, agent_session_rowid)
     pending_parts = [
-        part for part in stored_messages[-1]["parts"] if part["type"] == "tool-list_datasets"
+        part for part in stored_messages[-1]["parts"] if part["type"] == "tool-get_route_info"
     ]
     assert len(pending_parts) == 2
     assert all(part["state"] == "input-available" for part in pending_parts)
@@ -1279,7 +1279,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
 
     def _tool_output_for(pending_part: dict[str, Any]) -> dict[str, Any]:
         return {
-            "type": "tool-list_datasets",
+            "type": "tool-get_route_info",
             "toolCallId": pending_part["toolCallId"],
             "state": "output-available",
             "input": pending_part.get("input"),
@@ -1302,7 +1302,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
     response_parts_by_call_id = {
         part["toolCallId"]: part
         for part in response_message["parts"]
-        if part["type"] == "tool-list_datasets"
+        if part["type"] == "tool-get_route_info"
     }
     assert response_parts_by_call_id[answered_call["toolCallId"]]["state"] == "output-available"
     assert response_parts_by_call_id[unanswered_call["toolCallId"]]["state"] == "input-available"
@@ -1317,7 +1317,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
     persisted_parts_by_call_id = {
         part["toolCallId"]: part
         for part in stored_messages[-1]["parts"]
-        if part["type"] == "tool-list_datasets"
+        if part["type"] == "tool-get_route_info"
     }
     applied_part = persisted_parts_by_call_id[answered_call["toolCallId"]]
     assert applied_part["state"] == "output-available"
@@ -1353,7 +1353,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
         stored_messages = await _load_session_messages(session, agent_session_rowid)
     final_assistant_message = stored_messages[-1]
     final_tool_parts = [
-        part for part in final_assistant_message["parts"] if part["type"] == "tool-list_datasets"
+        part for part in final_assistant_message["parts"] if part["type"] == "tool-get_route_info"
     ]
     assert all(part["state"] == "output-available" for part in final_tool_parts)
     assert any(

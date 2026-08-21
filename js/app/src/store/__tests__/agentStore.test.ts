@@ -134,18 +134,9 @@ describe("agentStore", () => {
   });
 
   describe("clearSessionEphemeralState", () => {
-    it("drops a session's pending patch, draft input, pending message, and chat status", () => {
+    it("drops a session's draft input, pending message, and chat status", () => {
       const store = createAgentStore();
       const sessionId = "session-node-id";
-      store.getState().setPendingPatchExperiment("tool-call-1", {
-        toolCallId: "tool-call-1",
-        sessionId,
-        experimentId: "exp-1",
-        experimentName: "baseline",
-        expectedUpdatedAt: "2026-06-10T00:00:00Z",
-        payload: { name: "renamed" },
-        diff: [{ field: "name", previous: "baseline", next: "renamed" }],
-      });
       store.getState().setDraftInput(sessionId, "hello");
       store
         .getState()
@@ -155,9 +146,6 @@ describe("agentStore", () => {
       store.getState().clearSessionEphemeralState(sessionId);
 
       const state = store.getState();
-      expect(
-        state.pendingPatchExperimentsByToolCallId["tool-call-1"]
-      ).toBeUndefined();
       expect(state.draftInputBySessionId[sessionId]).toBeUndefined();
       expect(state.pendingMessageBySessionId[sessionId]).toBeUndefined();
       expect(state.chatStatusBySessionId[sessionId]).toBeUndefined();
