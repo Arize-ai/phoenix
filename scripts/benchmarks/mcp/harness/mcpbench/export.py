@@ -96,31 +96,22 @@ class Planner:
         self.out_dir = out_dir
         self.max_chars = max_chars
         self._tasks = tasks
-        self._lock = threading.Lock()
-        self._loaded = False
-        self.manifest: dict[str, Any] = {}
-        self.as_run: dict[str, Task] = {}
-        # Whether this run recorded the questions it asked; a run predating that
-        # is graded against today's wording, which the row carries as a warning.
-        self.graded_as_run = False
 
-    def _load(self) -> None:
-        """Read the manifest, the first time a cell needs it.
+    def manifest(self) -> dict[str, Any]:
+        """What the run recorded about itself, re-read for every cell.
 
-        Not in the constructor: a live run builds its planner before the matrix
-        starts, and the manifest is written by the matrix. Read too early it is
-        absent, and every span then claims the run predates the manifest and
-        carries a sanitised label -- while the table beside it, which re-reads
-        from disk, says otherwise about the same cell.
+        Not held from construction: a live run builds its planner before the
+        matrix starts, and the matrix is what writes the manifest. Read once, up
+        front, it is absent -- and every span then claims the run predates the
+        manifest and carries a sanitised label, while the table beside it, which
+        re-reads from disk, says otherwise about the same cell.
+
+        Re-read rather than cached-on-first-use because the file is 3.5 KB and
+        costs 0.06 ms to parse. Caching it bought nothing and was what made the
+        lifetime worth getting wrong.
         """
-        with self._lock:
-            if self._loaded:
-                return
-            if (path := self.out_dir / "manifest.json").is_file():
-                self.manifest = json.loads(path.read_text())
-            self.as_run = tasks_as_run(self.manifest, self._tasks)
-            self.graded_as_run = any("expect" in e for e in (self.manifest.get("tasks") or []))
-            self._loaded = True
+        path = self.out_dir / "manifest.json"
+        return json.loads(path.read_text()) if path.is_file() else {}
 
     def cell(self, path: Path) -> Optional[tuple[str, list[Span]]]:
         """One transcript as a trace, or ``None`` if it is not a run of a task.
@@ -128,16 +119,16 @@ class Planner:
         Grading comes from the report's own row derivation, so a span and the
         table row beside it cannot disagree about what happened.
         """
-        self._load()
         if not (parsed := split_cell_id(path.stem)):
             return None
+        manifest = self.manifest()
         file_label, task_name, trial = parsed
         # The filename is authoritative: a run directory can hold transcripts
         # from several labels, and the manifest describes only the most recent.
         label = file_label
-        if (typed := self.manifest.get("label")) and safe_label(typed) == file_label:
+        if (typed := manifest.get("label")) and safe_label(typed) == file_label:
             label = typed  # same label -- recover the exact wording
-        task = self.as_run.get(task_name)
+        task = tasks_as_run(manifest, self._tasks).get(task_name)
         rows = rows_for_transcript(
             path,
             run_id=self.out_dir.name,
@@ -145,11 +136,14 @@ class Planner:
             task=task,
             task_name=task_name,
             trial=trial,
-            meta=self.manifest,
+            meta=manifest,
         )["runs"]
         if not rows:
             return None
-        row = {**rows[0], "graded_as_run": self.graded_as_run}
+        # Whether this run recorded the questions it asked; a run predating that
+        # is graded against today's wording, which the row carries as a warning.
+        graded_as_run = any("expect" in e for e in (manifest.get("tasks") or []))
+        row = {**rows[0], "graded_as_run": graded_as_run}
         spans = build_spans(
             path,
             prompt=" ".join((task.prompt if task else "").split()),
