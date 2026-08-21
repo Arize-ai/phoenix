@@ -205,20 +205,21 @@ async def _add_live_session_work_unit(
     )
     session.add(evaluator)
     await session.flush()
-    criteria = models.ProjectEvaluatorCriteria(
+    project_evaluator = models.ProjectEvaluator(
+        trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
         project_id=project_session.project_id,
         evaluator_id=evaluator.id,
-        name=Identifier(root=f"criteria-{token_hex(4)}"),
+        name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
         filter_condition="",
         sampling_rate=1.0,
         evaluation_target="SESSION",
     )
-    session.add(criteria)
+    session.add(project_evaluator)
     await session.flush()
     work_unit = models.EvalSessionWorkUnit(
         project_session_rowid=project_session.id,
         evaluator_id=evaluator.id,
-        criteria_id=criteria.id,
+        project_evaluator_id=project_evaluator.id,
         config_fingerprint=token_hex(8),
         evaluated_through=now,
         status="RUNNING",
