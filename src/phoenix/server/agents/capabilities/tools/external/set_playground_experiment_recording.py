@@ -14,31 +14,12 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "set_playground_experiment_recording"
 
 DESCRIPTION = """\
-Set whether future dataset-backed playground runs in the currently mounted playground are recorded \
-as persistent experiments or created as temporary unrecorded runs, and optionally stage a name, \
-description, and metadata for the experiments the next run produces. Use this before running when \
-the user asks to record, persist, or save the run as an experiment, asks for a temporary or \
-unrecorded run, or asks to name, describe, or attach notes (such as a hypothesis or the variable \
-being changed) to the next experiment.
-Read the current playground context's `recordExperiments` value and `nextExperimentScaffold` \
-first. If the requested recording mode and scaffold fields already match the advertised values, do \
-not call this tool — call `run_playground` directly when the user asked to run. Set \
-`recordExperiments` to true only when the current value is false and the user wants the run \
-recorded; set it to false only when the current value is true and the user explicitly asks for a \
-temporary or unrecorded run.
-`experimentName`, `experimentDescription`, and `experimentMetadata` are optional. Set them only \
-when the user asks to name, describe, or attach notes to the next experiment, and only for fields \
-whose requested value differs from the advertised `nextExperimentScaffold`. Omit a field to leave \
-it at its default. `experimentMetadata` replaces the staged metadata object as a whole; include \
-every key the next experiment should carry, not just the changed ones.
-The staged scaffold applies to every comparison instance of the next dataset-backed run and is \
-consumed once that run starts. It does not carry over to later runs; re-stage it if a subsequent \
-run should reuse the same notes.
-Changing experiment recording after a run starts is not allowed; wait for the run to finish or ask \
-whether to stop it with `cancel_playground_run`.
-This only controls dataset-backed playground run persistence and naming. It does not save prompt \
-versions; use `save_prompt` only when the user asks to save the prompt itself.\
-"""
+Set whether future dataset-backed playground runs in the currently mounted playground are recorded as persistent experiments or created as temporary unrecorded runs, and optionally stage a name, description, and metadata for the experiments the next run produces. Use this before running when the user asks to record, persist, or save the run as an experiment, asks for a temporary or unrecorded run, or asks to name, describe, or attach notes (such as a hypothesis or the variable being changed) to the next experiment.
+Read the current playground context's `recordExperiments` value and `nextExperimentScaffold` first. If the requested recording mode and scaffold fields already match the advertised values, do not call this tool — call `run_playground` directly when the user asked to run. Set `recordExperiments` to true only when the current value is false and the user wants the run recorded; set it to false only when the current value is true and the user explicitly asks for a temporary or unrecorded run.
+`experimentName`, `experimentDescription`, and `experimentMetadata` are optional. Set them only when the user asks to name, describe, or attach notes to the next experiment, and only for fields whose requested value differs from the advertised `nextExperimentScaffold`. Omit a field to leave it at its default. `experimentMetadata` replaces the staged metadata object as a whole; include every key the next experiment should carry, not just the changed ones.
+The staged scaffold applies to every comparison instance of the next dataset-backed run and is consumed once that run starts. It does not carry over to later runs; re-stage it if a subsequent run should reuse the same notes.
+Changing experiment recording after a run starts is not allowed; wait for the run to finish or ask whether to stop it with `cancel_playground_run`.
+This only controls dataset-backed playground run persistence and naming. It does not save prompt versions; use `save_prompt` only when the user asks to save the prompt itself."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

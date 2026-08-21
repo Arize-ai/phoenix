@@ -14,56 +14,37 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "edit_llm_evaluator_draft"
 
 DESCRIPTION = """\
-Propose edits to the open LLM-evaluator draft. This tool does not change the form immediately: the \
-browser renders an inline diff and the user must accept or reject it. Call \
-`read_llm_evaluator_draft` first to see the current draft before proposing edits.
-OPERATIONS: `operations` must always be an array, even for a single edit, and they apply in order. \
-Use camelCase field names exactly as shown. Common shapes:
-- {"type":"set_judge_prompt","messages":[{"role":"system","content":"You are a strict grader."},\
-{"role":"user","content":"Question: {{input}}\\nAnswer: {{output}}\\nIs the answer correct?"}]} — \
-whole-list replace of the judge prompt messages; `templateFormat` is optional and only set when \
-changing it.
-- {"type":"set_judge_model","model":"gpt-4o","provider":"OPENAI"} — `model` and `provider` are \
-required together, `invocationParameters` is optional. Do NOT change the model via \
-`set_judge_prompt`. Prefer a provider whose credentials are already configured (see \
-`<available_model_providers>`) and alert the user if the chosen provider still needs credentials \
-at /settings/providers.
-- {"type":"set_include_explanation","includeExplanation":true} — whether the judge emits a \
-free-text `explanation` alongside its label.
-- {"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}
-- {"type":"set_description","description":"Scores answer correctness"}
-- {"type":"set_name","name":"correctness-v2"}
-- {"type":"set_output_configs","outputConfigs":[{"kind":"classification","name":"correctness-v2",\
-"optimizationDirection":"MAXIMIZE","values":[{"label":"correct","score":1},{"label":"incorrect",\
-"score":0}]}]} — whole-list replace. LLM evaluators use the `classification` kind: each config \
-lists the labels the judge can return. Use the draft evaluator name on each entry unless the judge \
-clearly returns multiple independent outputs.
-- {"type":"set_test_payload","testPayload":{"input":{},"output":{"messages":[{"role":"assistant",\
-"content":"Final answer"}]},"reference":{},"metadata":{}}} — whole-value replacement for the JSON \
-mapping source used by the preview/test section.
-INVARIANTS: do NOT set the judge prompt `tools` or `toolChoice` — they are derived from \
-`outputConfigs` and `includeExplanation` and regenerated when the edit is applied, so changing \
-`set_output_configs` or `set_include_explanation` keeps the judge tool consistent automatically. \
-The judge prompt `messages` reference run fields via template variables ({{input}}, {{output}}, \
-{{reference}}, {{metadata}}); for dataset-backed evaluators `output` is the new experiment run \
-output at runtime and Phoenix passes the dataset example `output` as `reference`. Treat the \
-dataset example shape as evidence for which fields carry the signal, especially chat-style \
-`messages` arrays, assistant content parts, `tool_calls`/`toolCalls`, or `function_call`; do not \
-assume the signal is at a top-level key.
-INPUT MAPPING: keep `inputMapping` at the safe default ({"literalMapping": {}, "pathMapping": {}}) \
-unless the user explicitly asks for custom mapping or the current draft already uses mapping \
-intentionally.
-TEST PAYLOAD: `testPayload` is the JSON mapping source the form preview uses while the user is \
-authoring the evaluator, with `input`, `output`, `reference`, and `metadata` object fields. Shape \
-`testPayload.output` from the dataset `output` shape or the user's concrete target case; treat it \
-as representative evidence, not a fixed schema guarantee. Use `set_test_payload` when preview \
-failures show the test case is missing the signal the judge should score, or when the user asks to \
-try a different representative output.
-Emit operations ONLY for fields you intend to change; redundant ops produce noisy diff previews \
-and waste tokens. Keep edits small and focused so the user can read the diff, grouping related \
-field changes that form one logical intent. After proposing the edit, briefly summarize what the \
-diff will show so the user knows what they are accepting or rejecting.\
-"""
+Propose edits to the open LLM-evaluator draft. This tool does not change the form immediately: the browser renders an inline diff and the user must accept or reject it. Call `read_llm_evaluator_draft` first to see the current draft before proposing edits.
+
+OPERATIONS
+- `operations` must always be an array, even for a single edit, and they apply in order.
+- Use camelCase field names exactly as shown. Common shapes:
+  - {"type":"set_judge_prompt","messages":[{"role":"system","content":"You are a strict grader."},{"role":"user","content":"Question: {{input}}\\nAnswer: {{output}}\\nIs the answer correct?"}]} — whole-list replace of the judge prompt messages; `templateFormat` is optional and only set when changing it.
+  - {"type":"set_judge_model","model":"gpt-4o","provider":"OPENAI"} — `model` and `provider` are required together, `invocationParameters` is optional. Do NOT change the model via `set_judge_prompt`. Prefer a provider whose credentials are already configured (see `<available_model_providers>`) and alert the user if the chosen provider still needs credentials at /settings/providers.
+  - {"type":"set_include_explanation","includeExplanation":true} — whether the judge emits a free-text `explanation` alongside its label.
+  - {"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}
+  - {"type":"set_description","description":"Scores answer correctness"}
+  - {"type":"set_name","name":"correctness-v2"}
+  - {"type":"set_output_configs","outputConfigs":[{"kind":"classification","name":"correctness-v2","optimizationDirection":"MAXIMIZE","values":[{"label":"correct","score":1},{"label":"incorrect","score":0}]}]} — whole-list replace. LLM evaluators use the `classification` kind: each config lists the labels the judge can return. Use the draft evaluator name on each entry unless the judge clearly returns multiple independent outputs.
+  - {"type":"set_test_payload","testPayload":{"input":{},"output":{"messages":[{"role":"assistant","content":"Final answer"}]},"reference":{},"metadata":{}}} — whole-value replacement for the JSON mapping source used by the preview/test section.
+
+INVARIANTS
+- Do NOT set the judge prompt `tools` or `toolChoice` — they are derived from `outputConfigs` and `includeExplanation` and regenerated when the edit is applied, so changing `set_output_configs` or `set_include_explanation` keeps the judge tool consistent automatically.
+- The judge prompt `messages` reference run fields via template variables ({{input}}, {{output}}, {{reference}}, {{metadata}}); for dataset-backed evaluators `output` is the new experiment run output at runtime and Phoenix passes the dataset example `output` as `reference`.
+- Treat the dataset example shape as evidence for which fields carry the signal, especially chat-style `messages` arrays, assistant content parts, `tool_calls`/`toolCalls`, or `function_call`; do not assume the signal is at a top-level key.
+
+INPUT MAPPING
+- Keep `inputMapping` at the safe default ({"literalMapping": {}, "pathMapping": {}}) unless the user explicitly asks for custom mapping or the current draft already uses mapping intentionally.
+
+TEST PAYLOAD
+- `testPayload` is the JSON mapping source the form preview uses while the user is authoring the evaluator, with `input`, `output`, `reference`, and `metadata` object fields.
+- Shape `testPayload.output` from the dataset `output` shape or the user's concrete target case; treat it as representative evidence, not a fixed schema guarantee.
+- Use `set_test_payload` when preview failures show the test case is missing the signal the judge should score, or when the user asks to try a different representative output.
+
+GUIDELINES
+- Emit operations ONLY for fields you intend to change; redundant ops produce noisy diff previews and waste tokens.
+- Keep edits small and focused so the user can read the diff, grouping related field changes that form one logical intent.
+- After proposing the edit, briefly summarize what the diff will show so the user knows what they are accepting or rejecting."""
 
 JSON_RECORD_SCHEMA: dict[str, Any] = {
     "type": "object",

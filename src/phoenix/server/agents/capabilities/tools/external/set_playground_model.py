@@ -17,20 +17,10 @@ NAME = "set_playground_model"
 MODEL_PROVIDER_ENUM = [provider.value for provider in ModelProvider]
 
 DESCRIPTION = """\
-Switch the selected model for one mounted playground instance. This tool applies immediately, like \
-the playground model menu, and does not show an approval diff — ask the user first only when the \
-requested target is ambiguous.
-Use the alphabetic instance labels (A, B, C, D) when discussing instances with the user, but pass \
-the numeric `instanceId` when calling this tool. If there is exactly one playground instance, \
-`instanceId` may be omitted; with multiple comparison instances, pass the specific `instanceId`.
-For Phoenix built-in providers, call with `target: {"type":"builtin","provider":"OPENAI",\
-"modelName":"gpt-5"}` using one of the available built-in provider keys. For custom providers, \
-call with `target: {"type":"custom","customProviderId":"...","modelName":"..."}` using the custom \
-provider ID returned by `list_playground_model_targets`.
-Call `list_playground_model_targets` first when you need to suggest model options, choose the \
-latest available model for a provider, or resolve available provider/model/custom-provider \
-targets.\
-"""
+Switch the selected model for one mounted playground instance. This tool applies immediately, like the playground model menu, and does not show an approval diff — ask the user first only when the requested target is ambiguous.
+Use the alphabetic instance labels (A, B, C, D) when discussing instances with the user, but pass the numeric `instanceId` when calling this tool. If there is exactly one playground instance, `instanceId` may be omitted; with multiple comparison instances, pass the specific `instanceId`.
+For Phoenix built-in providers, call with `target: {"type":"builtin","provider":"OPENAI","modelName":"gpt-5"}` using one of the available built-in provider keys. For custom providers, call with `target: {"type":"custom","customProviderId":"...","modelName":"..."}` using the custom provider ID returned by `list_playground_model_targets`.
+Call `list_playground_model_targets` first when you need to suggest model options, choose the latest available model for a provider, or resolve available provider/model/custom-provider targets."""
 
 BUILTIN_TARGET_SCHEMA: dict[str, Any] = {
     "type": "object",

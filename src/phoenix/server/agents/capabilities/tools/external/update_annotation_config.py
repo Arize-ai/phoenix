@@ -14,22 +14,12 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "update_annotation_config"
 
 DESCRIPTION = """\
-Update an existing annotation config. Use this to extend a config that is close but missing a \
-label (or bound), or to revise its scheme, rather than growing a second differently-named rubric \
-for the same thing. To create a brand-new config, use create_annotation_config instead.
-Read the current config first (see the annotate-spans skill) so you have its id and its existing \
-scheme, and pass the config's GraphQL node id as `id`.
-This is a FULL REPLACE, not a patch. Pass the complete config as it should be afterward: keep the \
-same `name`, the same `type`, and include every value you want to keep plus any new ones. Omitting \
-an existing value deletes it.
+Update an existing annotation config. Use this to extend a config that is close but missing a label (or bound), or to revise its scheme, rather than growing a second differently-named rubric for the same thing. To create a brand-new config, use create_annotation_config instead.
+Read the current config first (see the annotate-spans skill) so you have its id and its existing scheme, and pass the config's GraphQL node id as `id`.
+This is a FULL REPLACE, not a patch. Pass the complete config as it should be afterward: keep the same `name`, the same `type`, and include every value you want to keep plus any new ones. Omitting an existing value deletes it.
 Keep the `name` stable so existing annotations stay attached to the same dimension.
-Propose the change by calling this tool directly. In manual approval mode the browser renders an \
-inline accept/reject card and writes only when the user accepts; in bypass mode it is written \
-immediately. The card is the approval surface — do not ask a separate yes/no question (or call \
-ask_user) to confirm before calling it.
-Tell the user what you changed and why — changing a rubric is a decision they may want to weigh in \
-on.\
-"""
+Propose the change by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and writes only when the user accepts; in bypass mode it is written immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+Tell the user what you changed and why — changing a rubric is a decision they may want to weigh in on."""
 
 _VALUE_ITEM: dict[str, Any] = {
     "type": "object",

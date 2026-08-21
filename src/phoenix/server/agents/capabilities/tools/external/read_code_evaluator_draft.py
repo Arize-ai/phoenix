@@ -14,17 +14,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "read_code_evaluator_draft"
 
 DESCRIPTION = """\
-Read the open code-evaluator draft. Returns the draft's name, description, language, sourceCode, \
-sandboxConfigId, inputMapping, outputConfigs, testPayload, and form mode (`create` or `edit`). \
-Call this before `edit_code_evaluator_draft` or `test_code_evaluator_draft` to see the current \
-draft, and whenever the user asks what the draft contains or wants a review of the in-progress \
-evaluator.
-The `mode` field is either `create` (a new evaluator is being authored) or `edit` (an existing \
-evaluator is being modified). In `edit` mode, `language` is immutable and a `set_language` op will \
-be rejected.
-The draft's `sourceCode` defines a function called `evaluate`. Preserve that name and the \
-supported parameter set (`input`, `output`, `reference`, `metadata`) when proposing edits.\
-"""
+Read the open code-evaluator draft. Returns the draft's name, description, language, sourceCode, sandboxConfigId, inputMapping, outputConfigs, testPayload, and form mode (`create` or `edit`). Call this before `edit_code_evaluator_draft` or `test_code_evaluator_draft` to see the current draft, and whenever the user asks what the draft contains or wants a review of the in-progress evaluator.
+The `mode` field is either `create` (a new evaluator is being authored) or `edit` (an existing evaluator is being modified). In `edit` mode, `language` is immutable and a `set_language` op will be rejected.
+The draft's `sourceCode` defines a function called `evaluate`. Preserve that name and the supported parameter set (`input`, `output`, `reference`, `metadata`) when proposing edits."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

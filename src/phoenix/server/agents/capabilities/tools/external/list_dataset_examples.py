@@ -14,16 +14,10 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "list_dataset_examples"
 
 DESCRIPTION = """\
-List a page of rows from the dataset the user is currently viewing, including each row's id, \
-input, output, and metadata. Read-only. Use this to learn the dataset's shape before adding rows \
-so new rows match, or to inspect existing content. Prefer this over hand-writing GraphQL queries \
-(e.g. via bash) to read the dataset in view.
-A small `limit` is usually enough to learn the shape. If the result reports more pages, call again \
-with the returned cursor in `after`.
-To read a specific split, pass its name in `splitNames`. The result lists the dataset's available \
-split names, so read once without a filter first if you are unsure which splits exist.
-Remember an output is a reference, not necessarily the correct answer.\
-"""
+List a page of examples from the dataset the user is currently viewing, including each example's id, input, output, and metadata. Read-only. Use this to learn the dataset's shape before adding examples so new examples match, or to inspect existing content. Prefer this over hand-writing GraphQL queries (e.g. via bash) to read the dataset in view.
+A small `limit` is usually enough to learn the shape. If the result reports more pages, call again with the returned cursor in `after`.
+To read a specific split, pass its name in `splitNames`. The result lists the dataset's available split names, so read once without a filter first if you are unsure which splits exist.
+Remember an output is a reference, not necessarily the correct answer."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -32,7 +26,7 @@ PARAMETERS: dict[str, Any] = {
             "type": "integer",
             "minimum": 1,
             "maximum": 50,
-            "description": "Maximum number of rows to return (default 10).",
+            "description": "Maximum number of examples to return (default 10).",
         },
         "after": {
             "type": ["string", "null"],
@@ -45,7 +39,7 @@ PARAMETERS: dict[str, Any] = {
             "type": "array",
             "items": {"type": "string", "minLength": 1},
             "description": (
-                "Optional split names to filter rows by; a row is included if it belongs to any "
+                "Optional split names to filter examples by; an example is included if it belongs to any "
                 "of them. Omit to read across all splits. The result lists the dataset's available "
                 "split names."
             ),

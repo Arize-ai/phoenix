@@ -14,14 +14,8 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "patch_dataset"
 
 DESCRIPTION = """\
-Edit the dataset the user is viewing — its name, description, and/or metadata. Only the fields you \
-pass are changed; omitted fields are left as they are. Does not change the dataset's rows. Dataset \
-names are unique; if the new name is taken the call fails and you should pick a different name.
-Propose the edit by calling this tool directly. In manual approval mode the browser renders an \
-inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied \
-immediately. The card is the approval surface — do not ask a separate yes/no question (or call \
-ask_user) to confirm before calling it.\
-"""
+Edit the dataset the user is viewing — its name, description, and/or metadata. Only the fields you pass are changed; omitted fields are left as they are. Does not change the dataset's examples. Dataset names are unique; if the new name is taken the call fails and you should pick a different name.
+Propose the edit by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

@@ -14,16 +14,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "read_llm_evaluator_draft"
 
 DESCRIPTION = """\
-Read the open LLM-evaluator draft. Returns the draft's name, description, judge prompt messages, \
-model, provider, invocationParameters, outputConfigs, inputMapping, includeExplanation, \
-testPayload, and form mode (`create` or `edit`). Call this before `edit_llm_evaluator_draft` or \
-`test_llm_evaluator_draft` to see the current draft, and whenever the user asks what the draft \
-contains or wants a review of the in-progress evaluator.
-The `mode` field is either `create` (a new evaluator is being authored) or `edit` (an existing \
-evaluator is being modified).
-The judge prompt is the `messages` array; `outputConfigs` are the named classification annotation \
-configs the judge produces. Read both before proposing edits.\
-"""
+Read the open LLM-evaluator draft. Returns the draft's name, description, judge prompt messages, model, provider, invocationParameters, outputConfigs, inputMapping, includeExplanation, testPayload, and form mode (`create` or `edit`). Call this before `edit_llm_evaluator_draft` or `test_llm_evaluator_draft` to see the current draft, and whenever the user asks what the draft contains or wants a review of the in-progress evaluator.
+The `mode` field is either `create` (a new evaluator is being authored) or `edit` (an existing evaluator is being modified).
+The judge prompt is the `messages` array; `outputConfigs` are the named classification annotation configs the judge produces. Read both before proposing edits."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

@@ -13,16 +13,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "list_labels"
 
 DESCRIPTION = """\
-List the dataset labels that exist across this Phoenix instance, returning each label's id, name, \
-description, and color. Read-only. A label is a tag you can attach to datasets to organize and \
-find them (filter datasets with list_datasets, or apply with set_dataset_labels). Use this to \
-discover what labels exist instance-wide; for just the labels on the dataset in view, use \
-list_dataset_labels. Prefer this over hand-writing GraphQL.
-The list is paginated: if the result reports more pages (`hasNextPage`), call again with the \
-returned cursor in `after` before concluding a label does not exist. The set/delete label tools \
-already resolve names against the full label set.
-If a label the user wants does not exist yet, create it with create_dataset_label.\
-"""
+List the dataset labels that exist across this Phoenix instance, returning each label's id, name, description, and color. Read-only. A label is a tag you can attach to datasets to organize and find them (filter datasets with list_datasets, or apply with set_dataset_labels). Use this to discover what labels exist instance-wide; for just the labels on the dataset in view, use list_dataset_labels. Prefer this over hand-writing GraphQL.
+The list is paginated: if the result reports more pages (`hasNextPage`), call again with the returned cursor in `after` before concluding a label does not exist. The set/delete label tools already resolve names against the full label set.
+If a label the user wants does not exist yet, create it with create_dataset_label."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

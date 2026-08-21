@@ -14,16 +14,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "set_dataset_evaluator_selection"
 
 DESCRIPTION = """\
-Set which existing dataset evaluators are applied to the mounted playground so they run in the \
-next experiment. Use this when the user asks to choose, add, remove, or clear which existing \
-evaluators score the dataset.
-Pass `datasetEvaluatorIds` as the complete desired set of ids from the playground roster \
-(`existing_dataset_evaluators`); it replaces the current selection wholesale, so include every \
-evaluator that should stay applied. To add to or remove from the current set, compute the new full \
-set from the roster's `applied` flags rather than passing only the delta.
-This tool only toggles which evaluators run. It does not create, edit, or delete evaluators; to \
-change an evaluator's configuration use `open_dataset_evaluator_for_edit`.\
-"""
+Set which existing dataset evaluators are applied to the mounted playground so they run in the next experiment. Use this when the user asks to choose, add, remove, or clear which existing evaluators score the dataset.
+Pass `datasetEvaluatorIds` as the complete desired set of ids from the playground roster (`existing_dataset_evaluators`); it replaces the current selection wholesale, so include every evaluator that should stay applied. To add to or remove from the current set, compute the new full set from the roster's `applied` flags rather than passing only the delta.
+This tool only toggles which evaluators run. It does not create, edit, or delete evaluators; to change an evaluator's configuration use `open_dataset_evaluator_for_edit`."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

@@ -13,16 +13,11 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "ask_user"
 
 DESCRIPTION = """\
-Ask the user one or more structured questions to gather preferences, clarify requirements, or get \
-decisions. Use this when you need user input before proceeding with a task.
+Ask the user one or more structured questions to gather preferences, clarify requirements, or get decisions. Use this when you need user input before proceeding with a task.
 Keep the number of questions small (1-5 per call); prefer fewer, focused questions.
 Write clear, concise prompts. Avoid jargon unless the user has used it first.
-Use the `freeform` question type only when the answer space is truly open-ended; otherwise offer \
-`single`/`multi` options and set `allow_freeform` when the user might want a value outside your \
-list. Set `allow_skip` for optional questions.
-After receiving answers, summarize what you understood and proceed. Do not re-ask the same \
-questions.\
-"""
+Use the `freeform` question type only when the answer space is truly open-ended; otherwise offer `single`/`multi` options and set `allow_freeform` when the user might want a value outside your list. Set `allow_skip` for optional questions.
+After receiving answers, summarize what you understood and proceed. Do not re-ask the same questions."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

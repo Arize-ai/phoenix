@@ -14,14 +14,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "list_dataset_labels"
 
 DESCRIPTION = """\
-List the labels applied to the dataset the user is viewing, returning each label's id, name, \
-description, and color. Read-only. A label is a tag attached to datasets to organize and find \
-them. Prefer this over hand-writing GraphQL.
-Call this before set_dataset_labels to see what is already applied — that tool replaces the \
-dataset's labels, so include the current ones you want to keep.
-This shows only the labels on this dataset. To see every label that exists in the instance (e.g. \
-to apply one that is not yet on this dataset), use list_labels.\
-"""
+List the labels applied to the dataset the user is viewing, returning each label's id, name, description, and color. Read-only. A label is a tag attached to datasets to organize and find them. Prefer this over hand-writing GraphQL.
+Call this before set_dataset_labels to see what is already applied — that tool replaces the dataset's labels, so include the current ones you want to keep.
+This shows only the labels on this dataset. To see every label that exists in the instance (e.g. to apply one that is not yet on this dataset), use list_labels."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

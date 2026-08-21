@@ -15,26 +15,11 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "open_dataset_evaluator_for_edit"
 
 DESCRIPTION = """\
-Open an existing dataset evaluator's edit form in the mounted playground without navigating away. \
-The browser stays on the current playground route and keeps the playground/dataset state intact. \
-Use this when the user wants to change an existing code or LLM evaluator's configuration (prompt, \
-code, mapping, or output config); identify the target by name from the playground roster and pass \
-its `datasetEvaluatorId`. It does not select which evaluators run or persist any change.
-The tool name is internal. In replies to users, call the opened surface the evaluator form, and do \
-not describe saving as approving a diff — saving is the form's Save action.
-Call `open_dataset_evaluator_for_edit` first, then wait for the evaluator context and draft tools \
-to appear. After the form is mounted, call the matching `read_*_evaluator_draft`, then propose \
-changes with `edit_*_evaluator_draft`. For testing and saving, follow the mounted \
-`<phoenix_code_evaluator_context>` or `<phoenix_llm_evaluator_context>` guidance — it is \
-permission-aware and, under auto-accept, drives the populated draft through the matching \
-`test_*_evaluator_draft` and `submit_*_evaluator_draft` automatically. Do not prescribe a manual \
-Save step or claim the evaluator was updated until that save's success result comes back; let the \
-mounted context govern persistence.
-Only code and LLM evaluators can be opened here. If the user asks to edit a built-in evaluator, \
-tell them built-in evaluators are not yet editable via the assistant.
-If another evaluator form is already open (a create or edit form), this call is rejected. Ask the \
-user to close the open form, then retry — do not try to discard their in-progress draft yourself.\
-"""
+Open an existing dataset evaluator's edit form in the mounted playground without navigating away. The browser stays on the current playground route and keeps the playground/dataset state intact. Use this when the user wants to change an existing code or LLM evaluator's configuration (prompt, code, mapping, or output config); identify the target by name from the playground roster and pass its `datasetEvaluatorId`. It does not select which evaluators run or persist any change.
+The tool name is internal. In replies to users, call the opened surface the evaluator form, and do not describe saving as approving a diff — saving is the form's Save action.
+Call `open_dataset_evaluator_for_edit` first, then wait for the evaluator context and draft tools to appear. After the form is mounted, call the matching `read_*_evaluator_draft`, then propose changes with `edit_*_evaluator_draft`. For testing and saving, follow the mounted `<phoenix_code_evaluator_context>` or `<phoenix_llm_evaluator_context>` guidance — it is permission-aware and, under auto-accept, drives the populated draft through the matching `test_*_evaluator_draft` and `submit_*_evaluator_draft` automatically. Do not prescribe a manual Save step or claim the evaluator was updated until that save's success result comes back; let the mounted context govern persistence.
+Only code and LLM evaluators can be opened here. If the user asks to edit a built-in evaluator, tell them built-in evaluators are not yet editable via the assistant.
+If another evaluator form is already open (a create or edit form), this call is rejected. Ask the user to close the open form, then retry — do not try to discard their in-progress draft yourself."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

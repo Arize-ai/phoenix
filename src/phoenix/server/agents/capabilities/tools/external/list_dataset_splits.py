@@ -14,16 +14,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "list_dataset_splits"
 
 DESCRIPTION = """\
-List the splits the dataset the user is currently viewing is using (splits with at least one of \
-this dataset's rows), returning each split's id, name, description, and color. Read-only. A split \
-is a named slice of dataset examples (e.g. train/validation/test). Prefer this over hand-writing \
-GraphQL.
-Call this before list_dataset_examples with a split filter, to learn the split names this dataset \
-actually uses.
-A dataset only "has" a split once some of its rows belong to it, so a brand-new empty split will \
-not appear here. Splits are global: to see every split that exists in the instance (e.g. to assign \
-rows to one not yet on this dataset), use list_splits.\
-"""
+List the splits the dataset the user is currently viewing is using (splits with at least one of this dataset's examples), returning each split's id, name, description, and color. Read-only. A split is a named slice of dataset examples (e.g. train/validation/test). Prefer this over hand-writing GraphQL.
+Call this before list_dataset_examples with a split filter, to learn the split names this dataset actually uses.
+A dataset only "has" a split once some of its examples belong to it, so a brand-new empty split will not appear here. Splits are global: to see every split that exists in the instance (e.g. to assign examples to one not yet on this dataset), use list_splits."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

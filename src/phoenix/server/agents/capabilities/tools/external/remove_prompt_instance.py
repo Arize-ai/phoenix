@@ -14,17 +14,10 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "remove_prompt_instance"
 
 DESCRIPTION = """\
-Remove one playground prompt instance. Use this only when the user asks to delete, remove, or \
-close a comparison instance, or when the playground has reached the comparison limit and the user \
-chooses which instance should be removed.
-Pass the numeric `instanceId`; use alphabetic labels (A, B, C, D) only when discussing instances \
-with the user.
-The playground must keep at least one prompt instance, so this tool is rejected when only one \
-instance remains; explain that the playground must keep one prompt.
-In manual approval mode the browser asks the user to accept or reject the removal; in bypass mode \
-it removes immediately. Do not assume the removal landed until the tool output reports an accepted \
-or removed status.\
-"""
+Remove one playground prompt instance. Use this only when the user asks to delete, remove, or close a comparison instance, or when the playground has reached the comparison limit and the user chooses which instance should be removed.
+Pass the numeric `instanceId`; use alphabetic labels (A, B, C, D) only when discussing instances with the user.
+The playground must keep at least one prompt instance, so this tool is rejected when only one instance remains; explain that the playground must keep one prompt.
+In manual approval mode the browser asks the user to accept or reject the removal; in bypass mode it removes immediately. Do not assume the removal landed until the tool output reports an accepted or removed status."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

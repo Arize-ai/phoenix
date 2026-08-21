@@ -14,21 +14,11 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "create_dataset_split"
 
 DESCRIPTION = """\
-Create a new split, optionally seeded with rows from the dataset the user is viewing. A split is a \
-named slice of dataset rows (e.g. train/validation/test). To put existing rows into a split that \
-already exists, use set_dataset_example_splits instead.
-Pick a clear, unique name (deciding the name is a content question and is fine to ask about). \
-Split names are unique instance-wide, so check existing splits with list_splits first; if one \
-already exists, assign rows to it with set_dataset_example_splits rather than creating a \
-duplicate. If creation fails because the name is already taken, choose a different name.
-To seed the split with rows, pass their example ids (obtained from list_dataset_examples). A split \
-with no rows will not show up under the dataset until rows are assigned to it.
+Create a new split, optionally seeded with examples from the dataset the user is viewing. A split is a named slice of dataset examples (e.g. train/validation/test). To put existing examples into a split that already exists, use set_dataset_example_splits instead.
+Pick a clear, unique name (deciding the name is a content question and is fine to ask about). Split names are unique instance-wide, so check existing splits with list_splits first; if one already exists, assign examples to it with set_dataset_example_splits rather than creating a duplicate. If creation fails because the name is already taken, choose a different name.
+To seed the split with examples, pass their example ids (obtained from list_dataset_examples). A split with no examples will not show up under the dataset until examples are assigned to it.
 `color` is optional (a hex value like #33c5e8); omit it for a default.
-Propose the split by calling this tool directly. In manual approval mode the browser renders an \
-inline accept/reject card and creates the split only when the user accepts; in bypass mode it is \
-created immediately. The card is the approval surface — do not ask a separate yes/no question (or \
-call ask_user) to confirm before calling it.\
-"""
+Propose the split by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and creates the split only when the user accepts; in bypass mode it is created immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

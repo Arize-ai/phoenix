@@ -48,22 +48,11 @@ PARAMETERS: dict[str, Any] = {
 }
 
 DESCRIPTION = """\
-Set the Phoenix app time range selector, scoping traces, spans, evaluations, and other \
-time-windowed views to the period the user cares about. Use it when the user asks to look at data \
-over a specific window ("last hour", "yesterday", "since 9am", "this week"), when the current \
-selection is clearly wrong for the question being asked, or when you need to widen or narrow the \
-window before applying further filters.
-Prefer preset `timeRangeKey` values (15m, 1h, 12h, 1d, 7d, 30d) when the request maps cleanly to \
-one. Use `custom` with `startTime` and optional `endTime` only when the user names specific \
-calendar times; omit `endTime` for open-ended ranges ("since 9am").
-Call the `get_current_datetime` tool first to read the current date/time in the user's browser \
-timezone, and base relative calendar phrases on that value — never on prior knowledge or on the \
-currently selected time range.
-Include a timezone offset (or `Z`) on custom ISO 8601 timestamps when possible; otherwise the \
-browser interprets them in the user's local timezone.
-Confirm in your response which window was applied so the user knows what scope subsequent answers \
-are based on.\
-"""
+Set the Phoenix app time range selector, scoping traces, spans, evaluations, and other time-windowed views to the period the user cares about. Use it when the user asks to look at data over a specific window ("last hour", "yesterday", "since 9am", "this week"), when the current selection is clearly wrong for the question being asked, or when you need to widen or narrow the window before applying further filters.
+Prefer preset `timeRangeKey` values (15m, 1h, 12h, 1d, 7d, 30d) when the request maps cleanly to one. Use `custom` with `startTime` and optional `endTime` only when the user names specific calendar times; omit `endTime` for open-ended ranges ("since 9am").
+Call the `get_current_datetime` tool first to read the current date/time in the user's browser timezone, and base relative calendar phrases on that value — never on prior knowledge or on the currently selected time range.
+Include a timezone offset (or `Z`) on custom ISO 8601 timestamps when possible; otherwise the browser interprets them in the user's local timezone.
+Confirm in your response which window was applied so the user knows what scope subsequent answers are based on."""
 
 TOOL_DEFINITION = ToolDefinition(
     name=NAME,

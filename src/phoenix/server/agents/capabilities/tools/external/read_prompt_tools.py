@@ -15,20 +15,10 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "read_prompt_tools"
 
 DESCRIPTION = """\
-Read the function/tool definitions attached to one playground prompt instance. Returns the list of \
-tools (id, name, description, parameters JSON Schema, strict flag) and a `revision` token. Call \
-this before `write_prompt_tools` — you need the latest `revision` to pass as `expectedRevision` \
-and the existing tool `id`s to do an update — and whenever the user asks what tools the prompt \
-currently exposes or wants to add to / refine the existing list.
-The returned `revision` is opaque. Pass it back unchanged as `expectedRevision`; if the tool list \
-changes between read and write, the write is rejected, so re-read and retry.
-Each tool entry includes a `kind`: `function` tools are editable via `write_prompt_tools`; `raw` \
-tools are vendor passthrough blobs (provider builtins like `web_search`) that cannot be authored \
-from PXI — the user manages them directly in the playground tool editor.
-If there is exactly one playground instance, `instanceId` may be omitted. Otherwise pass the \
-specific numeric `instanceId`; use the alphabetic `label` (A, B, C, D) only when talking to the \
-user.\
-"""
+Read the function/tool definitions attached to one playground prompt instance. Returns the list of tools (id, name, description, parameters JSON Schema, strict flag) and a `revision` token. Call this before `write_prompt_tools` — you need the latest `revision` to pass as `expectedRevision` and the existing tool `id`s to do an update — and whenever the user asks what tools the prompt currently exposes or wants to add to / refine the existing list.
+The returned `revision` is opaque. Pass it back unchanged as `expectedRevision`; if the tool list changes between read and write, the write is rejected, so re-read and retry.
+Each tool entry includes a `kind`: `function` tools are editable via `write_prompt_tools`; `raw` tools are vendor passthrough blobs (provider builtins like `web_search`) that cannot be authored from PXI — the user manages them directly in the playground tool editor.
+If there is exactly one playground instance, `instanceId` may be omitted. Otherwise pass the specific numeric `instanceId`; use the alphabetic `label` (A, B, C, D) only when talking to the user."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

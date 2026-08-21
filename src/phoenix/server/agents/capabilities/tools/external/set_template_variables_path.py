@@ -14,20 +14,11 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "set_template_variables_path"
 
 DESCRIPTION = """\
-Set the dataset field path that playground template variables resolve against, when a prompt \
-references dataset fields outside the default `input` root. Set it proactively when prompt \
-variables reference fields outside `input` and resolve empty — don't wait for the user to ask.
-The path selects which dataset field a variable name resolves against (`input`, `reference`, or \
-`metadata`); an empty string or null means the whole example (the example root).
-Variable names are relative to this path: a name's first segment must be a key at the path. Under \
-`input`, a field is named `question`; at the example root, the same field is `input.question` and \
-an output field is `reference.answer`.
-Changing the path changes which names resolve, so the prompt's variable names must match the new \
-root. This tool changes only the path, not prompt messages; rename the references with \
-`edit_prompt_instance`.
-This only updates browser UI state and only applies when a dataset is loaded. If no dataset is \
-loaded, call `load_dataset` first.\
-"""
+Set the dataset field path that playground template variables resolve against, when a prompt references dataset fields outside the default `input` root. Set it proactively when prompt variables reference fields outside `input` and resolve empty — don't wait for the user to ask.
+The path selects which dataset field a variable name resolves against (`input`, `reference`, or `metadata`); an empty string or null means the whole example (the example root).
+Variable names are relative to this path: a name's first segment must be a key at the path. Under `input`, a field is named `question`; at the example root, the same field is `input.question` and an output field is `reference.answer`.
+Changing the path changes which names resolve, so the prompt's variable names must match the new root. This tool changes only the path, not prompt messages; rename the references with `edit_prompt_instance`.
+This only updates browser UI state and only applies when a dataset is loaded. If no dataset is loaded, call `load_dataset` first."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

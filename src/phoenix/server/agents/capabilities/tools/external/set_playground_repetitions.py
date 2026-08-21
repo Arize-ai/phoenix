@@ -16,19 +16,11 @@ MIN_REPETITIONS = 1
 MAX_REPETITIONS = 30
 
 DESCRIPTION = """\
-Set the playground-wide repetitions count in the currently mounted playground. Use this before \
-running when the user asks to run a prompt multiple times, check for flakiness, build confidence, \
-or validate nondeterministic behavior — including when structured output, tool-call behavior, or \
-pre-save validation needs more confidence than a single run provides.
-Set repetitions before calling `run_playground`; changing repetitions after a run starts is not \
-allowed.
-Use repetitions to build confidence because LLM outputs are nondeterministic. Do not claim a \
-prompt is reliable based on one successful run.
-After a repeated run finishes, inspect every repetition with `read_playground_output` before \
-summarizing confidence or recommending that the user save the prompt.
-Keep the requested value between 1 and 30. If the user asks for more than 30, explain that the \
-playground supports up to 30 repetitions.\
-"""
+Set the playground-wide repetitions count in the currently mounted playground. Use this before running when the user asks to run a prompt multiple times, check for flakiness, build confidence, or validate nondeterministic behavior — including when structured output, tool-call behavior, or pre-save validation needs more confidence than a single run provides.
+Set repetitions before calling `run_playground`; changing repetitions after a run starts is not allowed.
+Use repetitions to build confidence because LLM outputs are nondeterministic. Do not claim a prompt is reliable based on one successful run.
+After a repeated run finishes, inspect every repetition with `read_playground_output` before summarizing confidence or recommending that the user save the prompt.
+Keep the requested value between 1 and 30. If the user asks for more than 30, explain that the playground supports up to 30 repetitions."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

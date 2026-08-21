@@ -14,18 +14,10 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "read_prompt_instance"
 
 DESCRIPTION = """\
-Read the current playground prompt for one instance, including its messages, message IDs, and the \
-revision token required to safely propose edits. Call this before `edit_prompt_instance` on any \
-playground prompt, before `clone_prompt_instance` when you want to summarize the source for the \
-user, and whenever the user asks what a prompt instance currently contains.
-The result includes both the numeric `instanceId` for tool calls and the alphabetic `label` (A, B, \
-C, D) shown to the user; use labels when discussing instances with the user.
-If there is exactly one playground instance, `instanceId` may be omitted. If there are multiple \
-comparison instances, always pass the specific `instanceId` you want.
-Treat the returned `revision` as opaque: pass it back unchanged as `expectedRevision` when calling \
-`edit_prompt_instance`. If the prompt has changed since you read it, the edit is rejected and you \
-should re-read before retrying.\
-"""
+Read the current playground prompt for one instance, including its messages, message IDs, and the revision token required to safely propose edits. Call this before `edit_prompt_instance` on any playground prompt, before `clone_prompt_instance` when you want to summarize the source for the user, and whenever the user asks what a prompt instance currently contains.
+The result includes both the numeric `instanceId` for tool calls and the alphabetic `label` (A, B, C, D) shown to the user; use labels when discussing instances with the user.
+If there is exactly one playground instance, `instanceId` may be omitted. If there are multiple comparison instances, always pass the specific `instanceId` you want.
+Treat the returned `revision` as opaque: pass it back unchanged as `expectedRevision` when calling `edit_prompt_instance`. If the prompt has changed since you read it, the edit is rejected and you should re-read before retrying."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

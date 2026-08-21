@@ -14,14 +14,10 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "cancel_playground_run"
 
 DESCRIPTION = """\
-Cancel the currently active run in the mounted playground. This stops the same run the user would \
-stop with the playground Stop button and clears the active run state for all currently visible \
-comparison instances.
-This tool has no arguments; the browser decides what to cancel from the current playground UI \
-state.
+Cancel the currently active run in the mounted playground. This stops the same run the user would stop with the playground Stop button and clears the active run state for all currently visible comparison instances.
+This tool has no arguments; the browser decides what to cancel from the current playground UI state.
 Do not call it when no playground run is active — tell the user there is no active run to cancel.
-After cancellation, call `run_playground` again only if the user asks to rerun.\
-"""
+After cancellation, call `run_playground` again only if the user asks to rerun."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

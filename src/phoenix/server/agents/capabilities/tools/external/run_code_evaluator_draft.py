@@ -16,15 +16,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "test_code_evaluator_draft"
 
 DESCRIPTION = """\
-Run the open code-evaluator draft against its current test payload through the form preview path \
-and return the preview result. Use it after reading the draft when the user asks for or agrees to \
-a preview test, or when you need execution feedback before deciding whether to revise the \
-evaluator or test payload again. Call `read_code_evaluator_draft` first if you want to confirm the \
-current draft before testing.
-Treat preview failures as iteration signals: inspect the error/result, revise the source or \
-`testPayload`, and test again.
-This previews the draft only; it does not persist, create, or update an evaluator.\
-"""
+Run the open code-evaluator draft against its current test payload through the form preview path and return the preview result. Use it after reading the draft when the user asks for or agrees to a preview test, or when you need execution feedback before deciding whether to revise the evaluator or test payload again. Call `read_code_evaluator_draft` first if you want to confirm the current draft before testing.
+Treat preview failures as iteration signals: inspect the error/result, revise the source or `testPayload`, and test again.
+This previews the draft only; it does not persist, create, or update an evaluator."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

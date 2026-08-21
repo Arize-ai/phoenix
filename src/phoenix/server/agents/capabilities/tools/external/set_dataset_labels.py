@@ -14,19 +14,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "set_dataset_labels"
 
 DESCRIPTION = """\
-Set the labels on the dataset the user is viewing, by label name. This SETS the dataset's labels \
-to exactly the named labels — it replaces whatever labels were on it. To keep the dataset's \
-current labels and add another, first read what is applied with list_dataset_labels and include \
-those names as well. This tool cannot pass an empty list, so it cannot remove all labels — say so \
-to the user.
-Get valid label names from list_labels (the instance-wide vocabulary). Do not guess names. \
-`labelNames` must name labels that already exist; to create a new label, use create_dataset_label \
-first.
-Propose the change by calling this tool directly. In manual approval mode the browser renders an \
-inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied \
-immediately. The card is the approval surface — do not ask a separate yes/no question (or call \
-ask_user) to confirm before calling it.\
-"""
+Set the labels on the dataset the user is viewing, by label name. This SETS the dataset's labels to exactly the named labels — it replaces whatever labels were on it. To keep the dataset's current labels and add another, first read what is applied with list_dataset_labels and include those names as well. This tool cannot pass an empty list, so it cannot remove all labels — say so to the user.
+Get valid label names from list_labels (the instance-wide vocabulary). Do not guess names. `labelNames` must name labels that already exist; to create a new label, use create_dataset_label first.
+Propose the change by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",

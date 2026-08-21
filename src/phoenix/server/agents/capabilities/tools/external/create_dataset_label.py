@@ -14,21 +14,11 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "create_dataset_label"
 
 DESCRIPTION = """\
-Create a new dataset label and, by default, attach it to the dataset the user is viewing. A label \
-is a tag used to organize and find datasets. To attach a label that already exists, use \
-set_dataset_labels instead.
-Check existing labels with list_labels first; if the label already exists, attach it with \
-set_dataset_labels rather than creating a duplicate.
-Pick a clear, unique name (deciding the name is a content question and is fine to ask about). \
-Label names are unique across this Phoenix instance; if creation fails because the name is already \
-taken, choose a different name.
-`color` is optional (a hex value like #33c5e8); omit it for a default. Set `attachToDataset` to \
-false to create the label without tagging the current dataset.
-Propose the label by calling this tool directly. In manual approval mode the browser renders an \
-inline accept/reject card and creates it only when the user accepts; in bypass mode it is created \
-immediately. The card is the approval surface — do not ask a separate yes/no question (or call \
-ask_user) to confirm before calling it.\
-"""
+Create a new dataset label and, by default, attach it to the dataset the user is viewing. A label is a tag used to organize and find datasets. To attach a label that already exists, use set_dataset_labels instead.
+Check existing labels with list_labels first; if the label already exists, attach it with set_dataset_labels rather than creating a duplicate.
+Pick a clear, unique name (deciding the name is a content question and is fine to ask about). Label names are unique across this Phoenix instance; if creation fails because the name is already taken, choose a different name.
+`color` is optional (a hex value like #33c5e8); omit it for a default. Set `attachToDataset` to false to create the label without tagging the current dataset.
+Propose the label by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and creates it only when the user accepts; in bypass mode it is created immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
