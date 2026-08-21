@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 
 import { Checkbox, Flex, Text, View } from "@phoenix/components";
+import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
 import {
   ColumnHeaderCell,
   ColumnOrderingProvider,
@@ -356,6 +357,68 @@ export const SelectorMenuWithSections: Story = {
             </ul>
           </section>
         </ColumnSelectorMenu>
+      </View>
+    );
+  },
+};
+
+/**
+ * Columns can carry a `trailingVisual` rendered after their label — here the
+ * annotation target-type token, as used by the tracing column selectors to
+ * tell same-named span/trace/session annotation columns apart.
+ */
+export const SelectorMenuWithTrailingVisuals: Story = {
+  render: function SelectorMenuWithTrailingVisualsStory() {
+    const annotationColumns = [
+      { id: "annotations-score-correctness", name: "correctness" },
+      { id: "annotations-score-hallucination", name: "hallucination" },
+      { id: "trace-annotations-score-correctness", name: "correctness" },
+    ];
+    const [columnOrder, setColumnOrder] = useState<string[]>(() => [
+      ...getTopLevelColumnIds(baseColumns),
+      ...annotationColumns.map((column) => column.id),
+    ]);
+    const [columnVisibility, setColumnVisibility] = useState<
+      Record<string, boolean>
+    >({});
+    const columnsById = new Map([
+      ...baseColumns.map(
+        (def) => [getColumnDefId(def), getColumnLabel(def)] as const
+      ),
+      ...annotationColumns.map((column) => [column.id, column.name] as const),
+    ]);
+    const selectorColumns = columnOrder.flatMap((id) => {
+      const label = columnsById.get(id);
+      if (label == null) {
+        return [];
+      }
+      const isTraceAnnotation = id.startsWith("trace-annotations");
+      const isAnnotation = isTraceAnnotation || id.startsWith("annotations");
+      return [
+        {
+          id,
+          label,
+          trailingVisual: isAnnotation ? (
+            <AnnotationTargetTypeToken
+              targetType={isTraceAnnotation ? "trace" : "span"}
+            />
+          ) : undefined,
+        },
+      ];
+    });
+    return (
+      <View
+        borderColor="default"
+        borderWidth="thin"
+        borderRadius="medium"
+        width="260px"
+      >
+        <ColumnSelectorMenu
+          columns={selectorColumns}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
+          onColumnOrderChange={setColumnOrder}
+        />
       </View>
     );
   },

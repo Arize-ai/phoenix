@@ -593,36 +593,3 @@ export function SummaryValueBreakdown({
     </View>
   );
 }
-
-/**
- * A component that displays the highest proportion label, and a count of the total number of labels
- * annotated for the given annotation name. On hover, it displays a tooltip with the breakdown of the
- * labels.
- */
-export function SummaryValueLabels({
-  name,
-  labelFractions,
-  annotationConfig,
-}: {
-  name: string;
-  labelFractions: readonly { label: string; fraction: number }[];
-  annotationConfig?: AnnotationOptimizationConfig;
-}) {
-  if (labelFractions.length === 0) {
-    return null;
-  }
-  return (
-    <TooltipTrigger delay={0}>
-      <TriggerWrap>
-        <SummaryValueLabelPreview labelFractions={labelFractions} />
-      </TriggerWrap>
-      <RichTooltip placement="bottom">
-        <SummaryValueBreakdown
-          annotationName={name}
-          labelFractions={labelFractions}
-          annotationConfig={annotationConfig}
-        />
-      </RichTooltip>
-    </TooltipTrigger>
-  );
-}

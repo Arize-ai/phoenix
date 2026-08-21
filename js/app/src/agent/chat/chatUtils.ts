@@ -8,7 +8,11 @@ import {
   type UITools,
 } from "ai";
 
+import type { components } from "@phoenix/api/__generated__/v1";
 import { isRecord } from "@phoenix/utils/typeUtils";
+
+/** A user's answer to a tool call awaiting approval, as the API models it. */
+export type SubmittedToolApproval = components["schemas"]["ToolApproval"];
 
 /** Whether the chat has a request in flight (submitted or streaming). */
 export function isRequestActive(status: ChatStatus): boolean {
@@ -55,6 +59,34 @@ export function isResolvedClientToolOutputPart<TOOLS extends UITools>(
     return false;
   }
   return isClientExecutedToolPart(part);
+}
+
+/** A tool part carrying the user's answer to an approval request. */
+export type AnsweredToolApprovalPart<TOOLS extends UITools = UITools> = Extract<
+  ToolUIPart<TOOLS> | DynamicToolUIPart,
+  { state: "approval-responded" }
+>;
+
+/**
+ * Whether a message part is an answered approval — the parts a request
+ * carries to the server as `toolApprovals`.
+ */
+export function isAnsweredToolApprovalPart<TOOLS extends UITools>(
+  part: UIMessagePart<UIDataTypes, TOOLS>
+): part is AnsweredToolApprovalPart<TOOLS> {
+  return isToolUIPart(part) && part.state === "approval-responded";
+}
+
+/**
+ * Project an answered approval onto the wire shape the tool-approvals route
+ * and the chat continuation share. Only the decision travels: the server
+ * copies the rest from the persisted call, so a client cannot approve one
+ * tool input and persist another.
+ */
+export function toSubmittedToolApproval(
+  part: AnsweredToolApprovalPart
+): SubmittedToolApproval {
+  return { toolCallId: part.toolCallId, approved: part.approval.approved };
 }
 
 /**

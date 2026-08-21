@@ -1483,27 +1483,41 @@ const appGlobalStylesCSS = css`
     border: none;
     padding: 0;
   }
-  /* this css class is added to html via modernizr @see modernizr.js */
-  .no-hiddenscroll {
-    /* Works on Firefox */
-    * {
+  /* Firefox recognizes ::-webkit-scrollbar for compatibility, but does not
+     support the complete pseudo-element family. Probe the thumb so Firefox
+     uses the standard properties instead of partially applying this style. */
+  @supports not selector(::-webkit-scrollbar-thumb) {
+    html:not([data-native-scrollbars]),
+    html:not([data-native-scrollbars]) * {
       scrollbar-width: thin;
-      scrollbar-color: var(--global-color-gray-300) var(--global-color-gray-400);
+      scrollbar-color: rgba(var(--global-color-gray-900-rgb), 0.18) transparent;
+    }
+  }
+
+  @supports selector(::-webkit-scrollbar-thumb) {
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
     }
 
-    /* Works on Chrome, Edge, and Safari */
-    *::-webkit-scrollbar {
-      width: 14px;
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-track,
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-corner {
+      background: transparent;
     }
 
-    *::-webkit-scrollbar-track {
-      background: var(--global-color-gray-100);
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb {
+      background-color: rgba(var(--global-color-gray-900-rgb), 0.18);
+      border: 3px solid transparent;
+      border-radius: var(--global-rounding-full);
+      background-clip: padding-box;
     }
 
-    *::-webkit-scrollbar-thumb {
-      background-color: var(--global-color-gray-75);
-      border-radius: 8px;
-      border: 1px solid var(--global-color-gray-300);
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(var(--global-color-gray-900-rgb), 0.3);
+    }
+
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-button {
+      display: none;
     }
   }
 

@@ -63,6 +63,7 @@ def build_server_agent(
     docs_mcp_server: MCPToolset[None] | None = None,
     enable_web_access: bool = False,
     allow_mutations: bool = False,
+    require_mutation_approval: bool = True,
     read_only: bool = False,
     auth_enabled: bool = False,
     user_id: int | None = None,
@@ -83,15 +84,14 @@ def build_server_agent(
         BashCapability[None](
             schema=schema,
             build_graphql_context=build_graphql_context,
-            instructions=resolved_prompts.bash_tool.render(),
             allow_mutations=allow_mutations,
+            require_mutation_approval=require_mutation_approval,
             initial_snapshot=initial_bash_snapshot,
             on_snapshot=on_bash_snapshot,
         ),
         WriteSpanNoteCapability(
             db=db,
             event_queue=event_queue,
-            instructions=resolved_prompts.write_span_note_tool.render(),
             read_only=read_only,
             auth_enabled=auth_enabled,
             user_id=user_id,
@@ -133,6 +133,7 @@ def build_server_agent(
             docs_mcp_server=docs_mcp_server,
             enable_web_access=enable_web_access,
             allow_mutations=allow_mutations,
+            require_mutation_approval=require_mutation_approval,
             read_only=read_only,
             auth_enabled=auth_enabled,
             user_id=user_id,
@@ -143,7 +144,6 @@ def build_server_agent(
         capabilities.append(
             CallSubAgentCapability[None](
                 server_agent=server_agent,
-                instructions=resolved_prompts.call_subagent_tool.render(),
                 publish_subagent_message_chunk=_discard_subagent_message_chunk,
                 set_subagent_final_tool_output=_discard_subagent_final_tool_output,
             )

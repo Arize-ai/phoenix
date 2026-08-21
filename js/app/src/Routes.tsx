@@ -79,6 +79,7 @@ import {
   PlaygroundPage,
   playgroundPageLoader,
   ProfileAccountPage,
+  ProfileAccessibilityPage,
   ProfileAPIKeysPage,
   ProfileAuthorizedApplicationsPage,
   ProfileGenerativeAIPage,
@@ -115,6 +116,7 @@ import { GraphQLPage } from "./pages/apis/GraphQLPage";
 import { RestAPIPage } from "./pages/apis/RestAPIPage";
 import { Layout } from "./pages/Layout";
 import { layoutLoader } from "./pages/layoutLoader";
+import { NotFoundPage } from "./pages/NotFound";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
@@ -208,7 +210,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Profile",
               description:
-                "Open personal account settings, API keys, connected applications, and display preferences.",
+                "Open personal account settings, API keys, connected applications, display preferences, and accessibility options.",
             },
           }}
           element={<ProfilePage />}
@@ -285,6 +287,24 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Preferences",
                 description: "Theme, timezone, and code defaults",
                 icon: "Options",
+              },
+            }}
+          />
+          <Route
+            path="accessibility"
+            element={<ProfileAccessibilityPage />}
+            handle={{
+              crumb: () => "Accessibility",
+              agentRoute: {
+                label: "Profile Accessibility",
+                description:
+                  "Configure accessibility options and use native scrollbars from your browser and operating system.",
+              },
+              navigation: {
+                section: "Profile",
+                label: "Accessibility",
+                description: "Native scrollbar and accessibility options",
+                icon: "Eye",
               },
             }}
           />
@@ -1139,6 +1159,8 @@ export const appRouteObjects = createRoutesFromElements(
           loader={exampleRedirectLoader}
           errorElement={<ErrorElement />}
         />
+        {/* Catch-all: render a 404 page for any unmatched URL. */}
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Route>
   </Route>

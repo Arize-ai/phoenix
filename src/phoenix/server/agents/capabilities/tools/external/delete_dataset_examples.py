@@ -3,21 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "delete_dataset_examples"
 
-DESCRIPTION = (
-    "Remove rows from the dataset the user is viewing, by row id. This creates a new dataset "
-    "version that no longer contains those rows. Get row ids from list_dataset_examples."
-)
+DESCRIPTION = """\
+Remove examples from the dataset the user is viewing, by example id. This creates a new dataset version that no longer contains those examples.
+Get each example's id from list_dataset_examples. Do not guess ids.
+Propose the deletion by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and removes the examples only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -26,7 +25,7 @@ PARAMETERS: dict[str, Any] = {
             "type": "array",
             "minItems": 1,
             "items": {"type": "string", "minLength": 1},
-            "description": "The ids of the rows to remove (from list_dataset_examples).",
+            "description": "The ids of the examples to remove (from list_dataset_examples).",
         },
         "versionDescription": {
             "type": ["string", "null"],
@@ -46,19 +45,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class DeleteDatasetExamplesCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class DeleteDatasetExamplesCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         # Writes are blocked server-side for viewers; don't advertise to them.

@@ -160,6 +160,12 @@ export function useAgentSessionSync({
       ) {
         return;
       }
+      // A flush of this client's outputs or answers is still in flight, so
+      // the fetched transcript predates it. Applying it would reset answers
+      // the user gave, and an approval cannot be re-derived.
+      if (getTurnClientState(chatInstance)?.hasPendingFlush() ?? false) {
+        return;
+      }
       // Clear a lingering conflict error only after the other client's turn
       // has completed; the SDK can assign error state after onError runs.
       if (wasBusyElsewhere) {

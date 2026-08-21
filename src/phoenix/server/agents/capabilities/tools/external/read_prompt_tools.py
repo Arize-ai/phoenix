@@ -3,29 +3,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 from typing_extensions import override
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "read_prompt_tools"
 
-DESCRIPTION = (
-    "Read the function/tool definitions attached to one playground prompt instance. "
-    "Returns the list of tools (id, name, description, parameters JSON Schema, strict flag) "
-    "and a `revision` token. Always call this before `write_prompt_tools` and pass the "
-    "returned `revision` back as `expectedRevision`; stale writes are rejected if the "
-    "tool list changed in between. "
-    "If there is exactly one playground instance, `instanceId` may be omitted. If there "
-    "are multiple comparison instances, pass the specific `instanceId`. Vendor passthrough "
-    'tools (e.g. provider builtins like `web_search`) are surfaced with `kind: "raw"` '
-    "and an opaque `raw` blob; only function tools can be written via `write_prompt_tools`."
-)
+DESCRIPTION = """\
+Read the function/tool definitions attached to one playground prompt instance. Returns the list of tools (id, name, description, parameters JSON Schema, strict flag) and a `revision` token. Call this before `write_prompt_tools` — you need the latest `revision` to pass as `expectedRevision` and the existing tool `id`s to do an update — and whenever the user asks what tools the prompt currently exposes or wants to add to / refine the existing list.
+The returned `revision` is opaque. Pass it back unchanged as `expectedRevision`; if the tool list changes between read and write, the write is rejected, so re-read and retry.
+Each tool entry includes a `kind`: `function` tools are editable via `write_prompt_tools`; `raw` tools are vendor passthrough blobs (provider builtins like `web_search`) that cannot be authored from PXI — the user manages them directly in the playground tool editor.
+If there is exactly one playground instance, `instanceId` may be omitted. Otherwise pass the specific numeric `instanceId`; use the alphabetic `label` (A, B, C, D) only when talking to the user."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -50,20 +43,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class ReadPromptToolsCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class ReadPromptToolsCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    @override
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     @override
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:

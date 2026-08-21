@@ -85,6 +85,7 @@ def build_agent(
     schema: strawberry.Schema | None = None,
     build_graphql_context: Callable[[], Context] | None = None,
     allow_mutations: bool = False,
+    require_mutation_approval: bool = True,
     initial_bash_snapshot: bytes | None = None,
     on_bash_snapshot: Callable[[bytes], None] | None = None,
 ) -> AbstractAgent[AgentDependencies, AgentOutput]:
@@ -111,19 +112,14 @@ def build_agent(
         WriteSpanNoteCapability(
             db=db,
             event_queue=event_queue,
-            instructions=resolved_prompts.write_span_note_tool.render(),
             read_only=read_only,
             auth_enabled=auth_enabled,
             user_id=user_id,
             is_viewer=is_viewer,
         ),
-        GetCurrentDatetimeCapability(
-            instructions=resolved_prompts.get_current_datetime_tool.render(),
-        ),
+        GetCurrentDatetimeCapability(),
         DynamicCapability(
-            capability_func=get_external_tool_capability_function(
-                prompts=resolved_prompts,
-            ),
+            capability_func=get_external_tool_capability_function(),
         ),
         DynamicCapability(
             capability_func=get_context_capability_function(prompts=resolved_prompts),
@@ -139,8 +135,8 @@ def build_agent(
             BashCapability[AgentDependencies](
                 schema=schema,
                 build_graphql_context=build_graphql_context,
-                instructions=resolved_prompts.bash_tool.render(),
                 allow_mutations=allow_mutations,
+                require_mutation_approval=require_mutation_approval,
                 initial_snapshot=initial_bash_snapshot,
                 on_snapshot=on_bash_snapshot,
             )
@@ -165,7 +161,6 @@ def build_agent(
         capabilities.append(
             CallSubAgentCapability[AgentDependencies](
                 server_agent=server_agent,
-                instructions=resolved_prompts.call_subagent_tool.render(),
                 publish_subagent_message_chunk=publish_subagent_message_chunk,
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
