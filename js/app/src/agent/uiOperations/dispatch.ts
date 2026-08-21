@@ -60,7 +60,7 @@ export async function dispatchUiOperationCall({
     return {
       ok: false,
       error:
-        `Unknown operation "${operationName}". Known operations: ${suggestions}. ` +
+        `Unknown operation "${operationName}". Did you mean: ${suggestions}? ` +
         "Use search_ui to discover operations and their signatures.",
     };
   }
