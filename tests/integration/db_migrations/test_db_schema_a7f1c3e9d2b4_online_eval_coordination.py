@@ -186,8 +186,8 @@ class TestEvalWorkLeases(_OnlineEvalSchemaTest):
         )
 
 
-class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
-    table_name = "project_evaluator_criteria"
+class TestProjectEvaluators(_OnlineEvalSchemaTest):
+    table_name = "project_evaluators"
 
     @override
     @classmethod
@@ -196,6 +196,7 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "id",
             "project_id",
             "evaluator_id",
+            "trace_project_id",
             "name",
             "filter_condition",
             "sampling_rate",
@@ -207,27 +208,29 @@ class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
             "updated_at",
         }
         index_names = {
-            "ix_project_evaluator_criteria_project_id",
-            "ix_project_evaluator_criteria_evaluator_id",
+            "ix_project_evaluators_project_id",
+            "ix_project_evaluators_evaluator_id",
+            "ix_project_evaluators_trace_project_id",
         }
         constraint_names = {
-            "pk_project_evaluator_criteria",
-            "uq_project_evaluator_criteria_project_id_name",
-            "fk_project_evaluator_criteria_project_id_projects",
-            "fk_project_evaluator_criteria_evaluator_id_evaluators",
-            "ck_project_evaluator_criteria_`valid_sampling_rate`",
-            "ck_project_evaluator_criteria_`valid_evaluation_target`",
-            "ck_project_evaluator_criteria_`valid_evaluation_delay_seconds`",
+            "pk_project_evaluators",
+            "uq_project_evaluators_project_id_name",
+            "fk_project_evaluators_project_id_projects",
+            "fk_project_evaluators_evaluator_id_evaluators",
+            "fk_project_evaluators_trace_project_id_projects",
+            "ck_project_evaluators_`valid_sampling_rate`",
+            "ck_project_evaluators_`valid_evaluation_target`",
+            "ck_project_evaluators_`valid_evaluation_delay_seconds`",
         }
         if db_backend == "postgresql":
             index_names.update(
                 {
-                    "pk_project_evaluator_criteria",
-                    "uq_project_evaluator_criteria_project_id_name",
+                    "pk_project_evaluators",
+                    "uq_project_evaluators_project_id_name",
                 }
             )
         elif db_backend == "sqlite":
-            index_names.update({"sqlite_autoindex_project_evaluator_criteria_1"})
+            index_names.update({"sqlite_autoindex_project_evaluators_1"})
         else:
             assert_never(db_backend)
         return _TableSchemaInfo(
@@ -249,7 +252,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             "id",
             "span_rowid",
             "evaluator_id",
-            "criteria_id",
+            "project_evaluator_id",
             "config_fingerprint",
             "status",
             "claimed_at",
@@ -263,7 +266,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         index_names = {
             "ix_eval_work_units_claimable",
             "ix_eval_work_units_evaluator_id",
-            "ix_eval_work_units_criteria_id",
+            "ix_eval_work_units_project_evaluator_id",
             "ix_eval_work_units_error_attempts",
             "ix_eval_work_units_terminal",
         }
@@ -272,7 +275,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             "uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint",
             "fk_eval_work_units_span_rowid_spans",
             "fk_eval_work_units_evaluator_id_evaluators",
-            "fk_eval_work_units_criteria_id_project_evaluator_criteria",
+            "fk_eval_work_units_project_evaluator_id_project_evaluators",
             "ck_eval_work_units_`valid_eval_work_status`",
         }
         if db_backend == "postgresql":
@@ -306,7 +309,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
         index_names = {
             "ix_eval_session_work_units_claimable",
             "ix_eval_session_work_units_evaluator_id",
-            "ix_eval_session_work_units_criteria_id",
+            "ix_eval_session_work_units_project_evaluator_id",
             "ix_eval_session_work_units_error_attempts",
             "ix_eval_session_work_units_terminal",
             "ix_eval_session_work_units_terminal_watermark",
@@ -323,7 +326,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                 db_backend,
             ),
             _constraint_name(
-                "fk_eval_session_work_units_criteria_id_project_evaluator_criteria",
+                "fk_eval_session_work_units_project_evaluator_id_project_evaluators",
                 db_backend,
             ),
             "ck_eval_session_work_units_`valid_eval_work_status`",
@@ -341,7 +344,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                     "id",
                     "project_session_rowid",
                     "evaluator_id",
-                    "criteria_id",
+                    "project_evaluator_id",
                     "config_fingerprint",
                     "evaluated_through",
                     "transcript_covered_through",

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e7b97619a97f9eb45cc6f9218bd2898>>
+ * @generated SignedSource<<e6b1c353df51bd141596888a87281465>>
  * @lightSyntaxTransform
  */
 
@@ -29,7 +29,7 @@ export type projectEvaluatorDetailsLoaderQuery$data = {
     };
     readonly traceProject: {
       readonly id: string;
-    } | null;
+    };
     readonly " $fragmentSpreads": FragmentRefs<"LLMProjectEvaluatorDetails_projectEvaluator" | "ProjectEvaluatorRunDetails_projectEvaluator" | "ProjectEvaluatorScopeDetails_projectEvaluator">;
   } | {
     // This will never be '%other', but we need some
