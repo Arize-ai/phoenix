@@ -1,7 +1,13 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 
 REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="refusal",
@@ -16,4 +22,13 @@ REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"refused": 1.0, "answered": 0.0},
     substitutions=None,
     labels=[],
+    scope=EvaluatorScope.SPAN,
+    category=EvaluatorCategory.USER_EXPERIENCE,
+    details="Detects when an LLM refuses, declines, or avoids answering a user query. It captures explicit refusals, scope disclaimers, lack-of-information responses, safety refusals, redirections, and apologetic non-answers. It does not judge whether the refusal was the appropriate response.",
+    inputs={
+        "input": EvaluatorInput(
+            description="The conversational context, whether that is a single input query or a full turn-by-turn conversation."
+        ),
+        "output": EvaluatorInput(description="The LLM's output response to be evaluated."),
+    },
 )
