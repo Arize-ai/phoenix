@@ -39,7 +39,7 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 
 ### Goals
 
-- One-command setup through `harbor run --plugin phoenix`.
+- One-command setup through `harbor run --plugin arize-phoenix`.
 - Support any Harbor dataset and agent that meets the selected trace mode's requirements.
 - Preserve Harbor's task, trial, attempt, agent, model, and reward identities.
 - Show comparable results across agents and models.

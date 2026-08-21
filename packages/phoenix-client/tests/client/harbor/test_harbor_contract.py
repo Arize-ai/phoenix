@@ -75,7 +75,7 @@ class TestPluginRegistration:
 
         # The first adapter read proves Harbor loaded and called the plugin.
         with pytest.raises(HarborPluginError, match="missing `config`"):
-            await attach_job_plugin(object(), "phoenix", kwargs={"trace_mode": "none"})
+            await attach_job_plugin(object(), "arize-phoenix", kwargs={"trace_mode": "none"})
 
     async def test_plugin_satisfies_harbors_protocol(self) -> None:
         from harbor.models.job.plugin import JobPlugin

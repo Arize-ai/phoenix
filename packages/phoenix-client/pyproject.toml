@@ -48,9 +48,9 @@ evals = [
 [project.entry-points.pytest11]
 phoenix = "phoenix.client.pytest.plugin"
 
-# Harbor is opt-in and only imported when selected with ``--plugin phoenix``.
+# Harbor is opt-in and only imported when selected with ``--plugin arize-phoenix``.
 [project.entry-points."harbor.plugins"]
-phoenix = "phoenix.client.harbor:PhoenixJobPlugin"
+arize-phoenix = "phoenix.client.harbor:PhoenixJobPlugin"
 
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"

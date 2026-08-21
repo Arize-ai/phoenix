@@ -177,7 +177,7 @@ def _harbor_command(
         "--jobs-dir",
         str(jobs_dir),
         "--plugin",
-        "phoenix",
+        "arize-phoenix",
         "--plugin-kwarg",
         f"endpoint={endpoint}",
         "--plugin-kwarg",

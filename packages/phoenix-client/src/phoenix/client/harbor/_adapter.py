@@ -134,7 +134,7 @@ def _validate_job_shape(config: Any) -> None:
     """Require one task source that can map to one Phoenix dataset."""
     if getattr(config, "source_jobs", None):
         raise HarborPluginError(
-            "Regrade and source-job runs are unsupported. Omit `--plugin phoenix`."
+            "Regrade and source-job runs are unsupported. Omit `--plugin arize-phoenix`."
         )
     tasks: Sequence[Any] = getattr(config, "tasks", ()) or ()
     datasets: Sequence[Any] = getattr(config, "datasets", ()) or ()

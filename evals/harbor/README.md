@@ -30,7 +30,7 @@ uv build --wheel packages/phoenix-client
 CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
 uvx --python 3.13 --from 'harbor[daytona]==0.18.0' --with "$CLIENT_WHEEL" \
   harbor run -p evals/harbor/tasks/regression-triage -a oracle -e docker \
-  --plugin phoenix \
+  --plugin arize-phoenix \
   --plugin-kwarg endpoint=http://127.0.0.1:6006 \
   --plugin-kwarg trace_mode=none \
   --yes
