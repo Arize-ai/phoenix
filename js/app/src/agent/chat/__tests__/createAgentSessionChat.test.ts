@@ -13,7 +13,6 @@ import type {
   AgentUIMessage,
   AgentUIMessagePart,
 } from "@phoenix/agent/chat/types";
-import { CREATE_ANNOTATION_CONFIG_TOOL_NAME } from "@phoenix/agent/tools/annotationConfig";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -184,86 +183,5 @@ describe("createAgentSessionChat rehydration", () => {
       errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
     });
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("re-stages a seeded pending approval so a page refresh restores the Accept/Reject card", async () => {
-    const store = createAgentStore();
-    const seedMessages: AgentUIMessage[] = [
-      {
-        id: "user-1",
-        role: "user",
-        parts: [{ type: "text", text: "propose an annotation config" }],
-      },
-      {
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: `tool-${CREATE_ANNOTATION_CONFIG_TOOL_NAME}`,
-            toolCallId: "tool-call-1",
-            state: "input-available",
-            input: {
-              type: "categorical",
-              name: "quality",
-              values: [
-                { label: "good", score: 1 },
-                { label: "bad", score: 0 },
-              ],
-            },
-            callProviderMetadata: CLIENT_EXECUTION_METADATA,
-          } as AgentUIMessagePart,
-        ],
-      },
-    ];
-
-    createAgentSessionChat({
-      sessionId: "test-session",
-      seedMessages,
-      store,
-      relayEnvironment: createRelayEnvironment(),
-      onTranscriptSynced: () => undefined,
-    });
-    await flushMicrotasks();
-
-    const pending =
-      store.getState().pendingAnnotationConfigWritesByToolCallId["tool-call-1"];
-    expect(pending).toBeDefined();
-    expect(pending?.preview.kind).toBe("create");
-    expect(pending?.accept).toBeDefined();
-    expect(pending?.reject).toBeDefined();
-  });
-
-  it("does not stage anything when the seeded tail has no pending client tool calls", async () => {
-    const store = createAgentStore();
-    const seedMessages: AgentUIMessage[] = [
-      {
-        id: "assistant-1",
-        role: "assistant",
-        parts: [
-          {
-            type: `tool-${CREATE_ANNOTATION_CONFIG_TOOL_NAME}`,
-            toolCallId: "tool-call-1",
-            state: "output-available",
-            input: {},
-            output: { status: "accepted" },
-            callProviderMetadata: CLIENT_EXECUTION_METADATA,
-          } as AgentUIMessagePart,
-          { type: "text", text: "Created the config." },
-        ],
-      },
-    ];
-
-    createAgentSessionChat({
-      sessionId: "test-session",
-      seedMessages,
-      store,
-      relayEnvironment: createRelayEnvironment(),
-      onTranscriptSynced: () => undefined,
-    });
-    await flushMicrotasks();
-
-    expect(store.getState().pendingAnnotationConfigWritesByToolCallId).toEqual(
-      {}
-    );
   });
 });

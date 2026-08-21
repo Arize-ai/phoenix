@@ -6,40 +6,19 @@ from pydantic_ai.tools import ToolDefinition
 
 from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.capabilities.tools.external import (
-    add_dataset_examples,
     add_prompt_instance,
-    add_spans_to_dataset,
     ask_user,
-    batch_span_annotate,
     cancel_playground_run,
     clone_prompt_instance,
-    create_annotation_config,
-    create_dataset,
-    create_dataset_label,
-    create_dataset_split,
-    delete_dataset,
-    delete_dataset_examples,
-    delete_dataset_labels,
-    delete_dataset_splits,
     edit_code_evaluator_draft,
     edit_llm_evaluator_draft,
     edit_prompt_instance,
     get_route_info,
-    list_dataset_examples,
-    list_dataset_labels,
-    list_dataset_splits,
-    list_datasets,
-    list_labels,
     list_playground_model_targets,
-    list_splits,
     load_dataset,
     open_code_evaluator_form,
     open_dataset_evaluator_for_edit,
     open_llm_evaluator_form,
-    patch_dataset,
-    patch_dataset_examples,
-    patch_dataset_split,
-    patch_experiment,
     read_code_evaluator_draft,
     read_dataset_evaluator_definition,
     read_llm_evaluator_draft,
@@ -54,8 +33,6 @@ from phoenix.server.agents.capabilities.tools.external import (
     save_prompt,
     set_appended_messages_path,
     set_dataset_evaluator_selection,
-    set_dataset_example_splits,
-    set_dataset_labels,
     set_playground_experiment_recording,
     set_playground_model,
     set_playground_repetitions,
@@ -65,51 +42,17 @@ from phoenix.server.agents.capabilities.tools.external import (
     set_variable_values,
     submit_code_evaluator_draft,
     submit_llm_evaluator_draft,
-    update_annotation_config,
     write_prompt_tools,
-)
-from phoenix.server.agents.capabilities.tools.external.add_dataset_examples import (
-    AddDatasetExamplesCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.add_prompt_instance import (
     AddPromptInstanceCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.add_spans_to_dataset import (
-    AddSpansToDatasetCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
-from phoenix.server.agents.capabilities.tools.external.batch_span_annotate import (
-    BatchSpanAnnotateCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.cancel_playground_run import (
     CancelPlaygroundRunCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.clone_prompt_instance import (
     ClonePromptInstanceCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.create_annotation_config import (
-    CreateAnnotationConfigCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.create_dataset import (
-    CreateDatasetCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.create_dataset_label import (
-    CreateDatasetLabelCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.create_dataset_split import (
-    CreateDatasetSplitCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.delete_dataset import (
-    DeleteDatasetCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.delete_dataset_examples import (
-    DeleteDatasetExamplesCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.delete_dataset_labels import (
-    DeleteDatasetLabelsCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.delete_dataset_splits import (
-    DeleteDatasetSplitsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft import (
     EditCodeEvaluatorDraftCapability,
@@ -123,26 +66,8 @@ from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance impo
 from phoenix.server.agents.capabilities.tools.external.get_route_info import (
     GetRouteInfoCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.list_dataset_examples import (
-    ListDatasetExamplesCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.list_dataset_labels import (
-    ListDatasetLabelsCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.list_dataset_splits import (
-    ListDatasetSplitsCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.list_datasets import (
-    ListDatasetsCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.list_labels import (
-    ListLabelsCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.list_playground_model_targets import (
     ListPlaygroundModelTargetsCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.list_splits import (
-    ListSplitsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.load_dataset import (
     LoadDatasetCapability,
@@ -155,18 +80,6 @@ from phoenix.server.agents.capabilities.tools.external.open_dataset_evaluator_fo
 )
 from phoenix.server.agents.capabilities.tools.external.open_llm_evaluator_form import (
     OpenLlmEvaluatorFormCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.patch_dataset import (
-    PatchDatasetCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.patch_dataset_examples import (
-    PatchDatasetExamplesCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.patch_dataset_split import (
-    PatchDatasetSplitCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
-    PatchExperimentCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
     ReadCodeEvaluatorDraftCapability,
@@ -208,12 +121,6 @@ from phoenix.server.agents.capabilities.tools.external.set_appended_messages_pat
 from phoenix.server.agents.capabilities.tools.external.set_dataset_evaluator_selection import (
     SetDatasetEvaluatorSelectionCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.set_dataset_example_splits import (
-    SetDatasetExampleSplitsCapability,
-)
-from phoenix.server.agents.capabilities.tools.external.set_dataset_labels import (
-    SetDatasetLabelsCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.set_playground_experiment_recording import (
     SetPlaygroundExperimentRecordingCapability,
 )
@@ -241,9 +148,6 @@ from phoenix.server.agents.capabilities.tools.external.submit_code_evaluator_dra
 from phoenix.server.agents.capabilities.tools.external.submit_llm_evaluator_draft import (
     SubmitLlmEvaluatorDraftCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.update_annotation_config import (
-    UpdateAnnotationConfigCapability,
-)
 from phoenix.server.agents.capabilities.tools.external.write_prompt_tools import (
     WritePromptToolsCapability,
 )
@@ -253,30 +157,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
     tool_def.name: tool_def
     for tool_def in (
         ask_user.TOOL_DEFINITION,
-        add_dataset_examples.TOOL_DEFINITION,
-        add_spans_to_dataset.TOOL_DEFINITION,
-        list_dataset_examples.TOOL_DEFINITION,
-        list_dataset_splits.TOOL_DEFINITION,
-        list_datasets.TOOL_DEFINITION,
-        list_labels.TOOL_DEFINITION,
-        list_splits.TOOL_DEFINITION,
-        create_dataset.TOOL_DEFINITION,
-        create_dataset_split.TOOL_DEFINITION,
-        set_dataset_example_splits.TOOL_DEFINITION,
-        list_dataset_labels.TOOL_DEFINITION,
-        create_dataset_label.TOOL_DEFINITION,
-        set_dataset_labels.TOOL_DEFINITION,
-        patch_dataset.TOOL_DEFINITION,
-        delete_dataset.TOOL_DEFINITION,
-        patch_dataset_examples.TOOL_DEFINITION,
-        delete_dataset_examples.TOOL_DEFINITION,
-        patch_dataset_split.TOOL_DEFINITION,
-        delete_dataset_splits.TOOL_DEFINITION,
-        delete_dataset_labels.TOOL_DEFINITION,
         add_prompt_instance.TOOL_DEFINITION,
-        batch_span_annotate.TOOL_DEFINITION,
-        create_annotation_config.TOOL_DEFINITION,
-        update_annotation_config.TOOL_DEFINITION,
         cancel_playground_run.TOOL_DEFINITION,
         clone_prompt_instance.TOOL_DEFINITION,
         edit_code_evaluator_draft.TOOL_DEFINITION,
@@ -287,7 +168,6 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         open_code_evaluator_form.TOOL_DEFINITION,
         open_dataset_evaluator_for_edit.TOOL_DEFINITION,
         open_llm_evaluator_form.TOOL_DEFINITION,
-        patch_experiment.TOOL_DEFINITION,
         read_code_evaluator_draft.TOOL_DEFINITION,
         read_dataset_evaluator_definition.TOOL_DEFINITION,
         read_llm_evaluator_draft.TOOL_DEFINITION,
@@ -329,32 +209,11 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
     """
     ungated_capabilities: list[AbstractCapability[AgentDependencies]] = [
         AskUserCapability(),
-        BatchSpanAnnotateCapability(),
-        ListDatasetsCapability(),
-        ListLabelsCapability(),
-        ListSplitsCapability(),
         SetTimeRangeCapability(),
         GetRouteInfoCapability(),
         RenderGenerativeUICapability(),
     ]
     gated_capabilities: list[AbstractGatedToolCapability[AgentDependencies]] = [
-        AddDatasetExamplesCapability(),
-        AddSpansToDatasetCapability(),
-        CreateDatasetCapability(),
-        ListDatasetExamplesCapability(),
-        ListDatasetSplitsCapability(),
-        CreateDatasetSplitCapability(),
-        SetDatasetExampleSplitsCapability(),
-        ListDatasetLabelsCapability(),
-        CreateDatasetLabelCapability(),
-        SetDatasetLabelsCapability(),
-        PatchDatasetCapability(),
-        DeleteDatasetCapability(),
-        PatchDatasetExamplesCapability(),
-        DeleteDatasetExamplesCapability(),
-        PatchDatasetSplitCapability(),
-        DeleteDatasetSplitsCapability(),
-        DeleteDatasetLabelsCapability(),
         SetSpansFilterCapability(),
         SetPlaygroundModelCapability(),
         ListPlaygroundModelTargetsCapability(),
@@ -378,9 +237,6 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
         SetDatasetEvaluatorSelectionCapability(),
         OpenDatasetEvaluatorForEditCapability(),
         ReadDatasetEvaluatorDefinitionCapability(),
-        PatchExperimentCapability(),
-        CreateAnnotationConfigCapability(),
-        UpdateAnnotationConfigCapability(),
         OpenCodeEvaluatorFormCapability(),
         OpenLlmEvaluatorFormCapability(),
         ReadCodeEvaluatorDraftCapability(),
@@ -402,30 +258,7 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
 
 __all__ = [
     "AskUserCapability",
-    "AddDatasetExamplesCapability",
-    "AddSpansToDatasetCapability",
-    "ListDatasetExamplesCapability",
-    "ListDatasetSplitsCapability",
-    "CreateDatasetSplitCapability",
-    "SetDatasetExampleSplitsCapability",
-    "ListDatasetLabelsCapability",
-    "CreateDatasetLabelCapability",
-    "SetDatasetLabelsCapability",
-    "PatchDatasetCapability",
-    "DeleteDatasetCapability",
-    "PatchDatasetExamplesCapability",
-    "DeleteDatasetExamplesCapability",
-    "PatchDatasetSplitCapability",
-    "DeleteDatasetSplitsCapability",
-    "DeleteDatasetLabelsCapability",
-    "ListDatasetsCapability",
-    "ListLabelsCapability",
-    "ListSplitsCapability",
-    "CreateDatasetCapability",
     "AddPromptInstanceCapability",
-    "BatchSpanAnnotateCapability",
-    "CreateAnnotationConfigCapability",
-    "UpdateAnnotationConfigCapability",
     "CancelPlaygroundRunCapability",
     "ClonePromptInstanceCapability",
     "EditCodeEvaluatorDraftCapability",
@@ -437,7 +270,6 @@ __all__ = [
     "OpenCodeEvaluatorFormCapability",
     "OpenDatasetEvaluatorForEditCapability",
     "OpenLlmEvaluatorFormCapability",
-    "PatchExperimentCapability",
     "ReadCodeEvaluatorDraftCapability",
     "ReadDatasetEvaluatorDefinitionCapability",
     "ReadLlmEvaluatorDraftCapability",

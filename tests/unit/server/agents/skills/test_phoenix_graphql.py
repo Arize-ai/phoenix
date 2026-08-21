@@ -1,35 +1,40 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import TypeAlias
 
 import pytest
 from graphql import parse, validate
 
-from phoenix.server.agents.capabilities.skills import ContentSkillResource
-from phoenix.server.agents.skills.phoenix_graphql import PHOENIX_GRAPHQL_SKILL
 from phoenix.server.api.schema import build_graphql_schema
 
 _GRAPHQL_BLOCK = re.compile(r"```graphql\n(.*?)```", re.DOTALL)
+_SKILLS_DIR = (
+    Path(__file__).resolve().parents[5]
+    / "src"
+    / "phoenix"
+    / "server"
+    / "agents"
+    / "prompts"
+    / "skills"
+)
 GraphQLExample: TypeAlias = tuple[str, str]
-SkillContentSource: TypeAlias = tuple[str, str]
 
 
 def _iter_graphql_examples() -> list[GraphQLExample]:
-    """Yield (source_label, query_text) for every ```graphql block in the skill.
+    """Return every GraphQL fence in every prompt skill and resource.
 
-    Covers the skill body and every resource so a renamed schema field fails the
-    suite instead of silently rotting the documented examples.
+    This intentionally scans files rather than registered resources: an unregistered
+    or newly added resource must receive the same anti-rot validation.
     """
-    sources: list[SkillContentSource] = [("SKILL.md body", PHOENIX_GRAPHQL_SKILL.content)]
-    for resource in PHOENIX_GRAPHQL_SKILL.resources:
-        assert isinstance(resource, ContentSkillResource)
-        sources.append((f"resource:{resource.name}", resource.content))
-
     examples: list[GraphQLExample] = []
-    for label, text in sources:
+    for path in sorted(_SKILLS_DIR.rglob("*")):
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
         for idx, match in enumerate(_GRAPHQL_BLOCK.finditer(text)):
-            examples.append((f"{label}#{idx}", match.group(1).strip()))
+            examples.append((f"{path.relative_to(_SKILLS_DIR)}#{idx}", match.group(1).strip()))
     return examples
 
 
@@ -38,7 +43,7 @@ _GRAPHQL_EXAMPLES = _iter_graphql_examples()
 
 def test_skill_documents_graphql_examples() -> None:
     # Guard against the extractor silently matching nothing.
-    assert _GRAPHQL_EXAMPLES, "expected at least one ```graphql example in the skill"
+    assert _GRAPHQL_EXAMPLES, "expected at least one ```graphql example under prompts/skills"
 
 
 @pytest.mark.parametrize(

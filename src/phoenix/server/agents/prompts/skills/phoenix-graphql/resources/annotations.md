@@ -42,6 +42,60 @@ query Hallucinations($id: ID!) {
 }
 ```
 
+## Batch span annotation
+
+`createSpanAnnotations` batch-upserts annotations keyed by `(name, span, identifier)`. Reusing the
+same name and identifier on the same span updates in place; use a distinct identifier only when a
+separate annotation is intended. Each item targets `spanId`, which is the span's Phoenix Relay node
+ID. Do not pass the OpenTelemetry hex `Span.spanId` value there, and never mix the two ID formats.
+Use stable lowercase snake_case names, consistent labels, and explanations for judgments.
+
+```graphql
+mutation BatchSpanAnnotate($input: [CreateSpanAnnotationInput!]!) {
+  createSpanAnnotations(input: $input) {
+    spanAnnotations { id spanId name label score explanation identifier }
+  }
+}
+```
+
+## Annotation config mutations
+
+Read the project's existing configs first and reuse a matching rubric instead of creating a
+near-duplicate. `AnnotationConfigInput` is a one-of input: provide exactly one of `categorical`,
+`continuous`, or `freeform`. `updateAnnotationConfig` is a full replacement, not a patch: keep the
+same name and type and include every existing value or bound that should remain.
+
+```graphql
+mutation CreateAnnotationConfig($input: CreateAnnotationConfigInput!) {
+  createAnnotationConfig(input: $input) {
+    annotationConfig {
+      ... on Node { id }
+      ... on AnnotationConfigBase { name annotationType }
+    }
+  }
+}
+```
+
+Associate a newly created config to the in-view project's Relay node ID in a separate
+`phoenix-gql` call using `addAnnotationConfigToProject`.
+
+```graphql
+mutation AddAnnotationConfigToProject($input: [AddAnnotationConfigToProjectInput!]!) {
+  addAnnotationConfigToProject(input: $input) { project { id name } }
+}
+```
+
+```graphql
+mutation UpdateAnnotationConfig($input: UpdateAnnotationConfigInput!) {
+  updateAnnotationConfig(input: $input) {
+    annotationConfig {
+      ... on Node { id }
+      ... on AnnotationConfigBase { name annotationType }
+    }
+  }
+}
+```
+
 Root spans for traces with a poor quality annotation:
 
 ```graphql

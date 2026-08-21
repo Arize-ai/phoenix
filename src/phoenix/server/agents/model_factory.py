@@ -46,7 +46,7 @@ class _EncryptedProviderRecord(Protocol):
 # Google). Per provider:
 #   - Anthropic: the API requires max_tokens and pydantic-ai defaults it to 4096, which
 #     Opus-class models exhaust mid-tool-call (adaptive thinking counts against it) when
-#     emitting bulk tool arguments, e.g. create_dataset examples. All Anthropic models
+#     emitting large tool arguments. All Anthropic models
 #     offered for the assistant support >=64k output, so set the cap well clear of
 #     realistic single-response payloads.
 #   - OpenAI and Google: max_tokens is deliberately left unset. pydantic-ai omits the

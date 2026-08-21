@@ -12,49 +12,17 @@
  * it in the appropriate array below.
  */
 import {
-  createAnnotationConfigAgentTool,
-  updateAnnotationConfigAgentTool,
-} from "@phoenix/agent/tools/annotationConfig";
-import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
-import {
   editCodeEvaluatorDraftAgentTool,
   openCodeEvaluatorFormAgentTool,
   readCodeEvaluatorDraftAgentTool,
   submitCodeEvaluatorDraftAgentTool,
   testCodeEvaluatorDraftAgentTool,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import { createDatasetAgentTool } from "@phoenix/agent/tools/createDataset";
-import {
-  deleteDatasetAgentTool,
-  patchDatasetAgentTool,
-} from "@phoenix/agent/tools/datasetEdit";
 import { readDatasetEvaluatorDefinitionAgentTool } from "@phoenix/agent/tools/datasetEvaluatorDefinition";
 import { openDatasetEvaluatorForEditAgentTool } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
 import { setDatasetEvaluatorSelectionAgentTool } from "@phoenix/agent/tools/datasetEvaluatorSelection";
-import {
-  addDatasetExamplesAgentTool,
-  deleteDatasetExamplesAgentTool,
-  listDatasetExamplesAgentTool,
-  patchDatasetExamplesAgentTool,
-} from "@phoenix/agent/tools/datasetExamples";
-import {
-  createDatasetLabelAgentTool,
-  deleteDatasetLabelsAgentTool,
-  listDatasetLabelsAgentTool,
-  listLabelsAgentTool,
-  setDatasetLabelsAgentTool,
-} from "@phoenix/agent/tools/datasetLabels";
-import {
-  createDatasetSplitAgentTool,
-  deleteDatasetSplitsAgentTool,
-  listDatasetSplitsAgentTool,
-  listSplitsAgentTool,
-  patchDatasetSplitAgentTool,
-  setDatasetExampleSplitsAgentTool,
-} from "@phoenix/agent/tools/datasetSplits";
 import { askUserAgentTool } from "@phoenix/agent/tools/elicit";
 import { getRouteInfoAgentTool } from "@phoenix/agent/tools/getRouteInfo";
-import { listDatasetsAgentTool } from "@phoenix/agent/tools/listDatasets";
 import {
   editLlmEvaluatorDraftAgentTool,
   openLlmEvaluatorFormAgentTool,
@@ -62,7 +30,6 @@ import {
   submitLlmEvaluatorDraftAgentTool,
   testLlmEvaluatorDraftAgentTool,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { patchExperimentAgentTool } from "@phoenix/agent/tools/patchExperiment";
 import { setAppendedMessagesPathAgentTool } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
 import { setPlaygroundExperimentRecordingAgentTool } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { loadDatasetAgentTool } from "@phoenix/agent/tools/playgroundLoadDataset";
@@ -92,7 +59,6 @@ import { setTemplateVariablesPathAgentTool } from "@phoenix/agent/tools/playgrou
 import { setVariableValuesAgentTool } from "@phoenix/agent/tools/playgroundVariableValues";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
 import { setSpansFilterAgentTool } from "@phoenix/agent/tools/spansFilter";
-import { addSpansToDatasetAgentTool } from "@phoenix/agent/tools/spansToDataset";
 import { setTimeRangeAgentTool } from "@phoenix/agent/tools/timeRange";
 
 import type { AgentToolDefinition } from "./registry/defineTool";
@@ -144,46 +110,16 @@ const clientActionTools: AgentToolDefinition[] = [
 ];
 
 /**
- * Dataset management tools (built with the lower-level `defineTool`). They are
- * not client-action tools: reads execute directly against the Relay
- * environment, and writes stage a pending-approval store entry (the inline
- * Accept/Reject card) — auto-applied in bypass edit mode. The dataset to act on
- * is resolved from the advertised UI context, never supplied by the model.
- */
-const datasetTools: AgentToolDefinition[] = [
-  listDatasetsAgentTool,
-  createDatasetAgentTool,
-  patchDatasetAgentTool,
-  deleteDatasetAgentTool,
-  listDatasetExamplesAgentTool,
-  addDatasetExamplesAgentTool,
-  patchDatasetExamplesAgentTool,
-  deleteDatasetExamplesAgentTool,
-  listDatasetSplitsAgentTool,
-  listSplitsAgentTool,
-  createDatasetSplitAgentTool,
-  setDatasetExampleSplitsAgentTool,
-  patchDatasetSplitAgentTool,
-  deleteDatasetSplitsAgentTool,
-  listDatasetLabelsAgentTool,
-  listLabelsAgentTool,
-  createDatasetLabelAgentTool,
-  setDatasetLabelsAgentTool,
-  deleteDatasetLabelsAgentTool,
-  addSpansToDatasetAgentTool,
-];
-
-/**
  * The remaining tools are not built on the client-action helper — they delegate
  * to no `registeredClientActions` entry and own what they do (built with the
  * lower-level `defineTool`):
  * - `get_route_info` resolves route info from the catalog and returns it directly;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
- * - `ask_user`, `batch_span_annotate`, and `patch_experiment` write a
- *   pending-approval store entry and defer their output to a later accept/reject.
+ * - `ask_user` writes a pending-approval store entry and defers its output to a
+ *   later response.
  *
  * Requiring an active session is orthogonal to this split: the session-gated
- * tools here (`ask_user`, `batch_span_annotate`, `patch_experiment`) compose the
+ * tool here (`ask_user`) composes the
  * same `requireToolSession` guard that `defineClientActionTool` uses for its
  * `requireSession` knob, so the guard lives in one place rather than per tool.
  */
@@ -191,16 +127,11 @@ const tools: AgentToolDefinition[] = [
   getRouteInfoAgentTool,
   renderGenerativeUIAgentTool,
   askUserAgentTool,
-  batchSpanAnnotateAgentTool,
-  patchExperimentAgentTool,
-  createAnnotationConfigAgentTool,
-  updateAnnotationConfigAgentTool,
 ];
 
 /** Ordered registry of all frontend-executable tools. */
 const agentToolDefinitions: AgentToolDefinition[] = [
   ...clientActionTools,
-  ...datasetTools,
   ...tools,
 ];
 

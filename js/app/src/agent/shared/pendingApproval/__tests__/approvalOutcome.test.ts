@@ -54,10 +54,8 @@ describe("approval marker coverage", () => {
         [
           "shared/pendingApproval/bindPendingApproval.ts",
           "tools/approval.ts",
-          "tools/batchSpanAnnotate/pendingBatchSpanAnnotate.ts",
           "tools/codeEvaluatorDraft/pendingCodeEvaluatorEdit.ts",
           "tools/llmEvaluatorDraft/pendingLlmEvaluatorEdit.ts",
-          "tools/patchExperiment/pendingPatchExperiment.ts",
           "tools/playgroundLoadDataset/pendingLoadDataset.ts",
           "tools/playgroundPrompt/pendingPromptEdit.ts",
           "tools/playgroundPrompt/pendingPromptInstanceRemoval.ts",

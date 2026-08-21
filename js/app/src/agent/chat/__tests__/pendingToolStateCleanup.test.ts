@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -52,7 +51,6 @@ describe("cleanupPendingToolState", () => {
   it.each([
     [EDIT_PROMPT_TOOL_NAME, "setPendingPromptEdit"],
     [REMOVE_PROMPT_INSTANCE_TOOL_NAME, "setPendingPromptInstanceRemoval"],
-    [BATCH_SPAN_ANNOTATE_TOOL_NAME, "setPendingBatchSpanAnnotate"],
     [WRITE_PROMPT_TOOLS_TOOL_NAME, "setPendingPromptToolWrite"],
     [SAVE_PROMPT_TOOL_NAME, "setPendingSavePrompt"],
     [EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME, "setPendingCodeEvaluatorEdit"],
@@ -209,7 +207,6 @@ describe("REWIND_CLEANUP_TOOL_NAMES", () => {
       [
         EDIT_PROMPT_TOOL_NAME,
         REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-        BATCH_SPAN_ANNOTATE_TOOL_NAME,
         WRITE_PROMPT_TOOLS_TOOL_NAME,
       ].sort()
     );

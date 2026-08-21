@@ -318,15 +318,15 @@ examples:
             "tool_call_args_match",
             "tool_call_count_within_limit",
         ]
-        # The preservation case must assert the scaffold keys survive a
-        # whole-metadata replace alongside the appended observations.
+        # The preservation case must assert that the phoenix-gql mutation keeps
+        # scaffold keys alongside the appended observations.
         preserve = next(
             e for e in dataset.examples if e["id"] == "preserve-scaffold-when-appending"
         )
-        has_keys = preserve["expected"]["tool_call_args"]["patch_experiment"]["metadata"][
-            "has_keys"
-        ]
-        assert set(has_keys) == {
+        contains = preserve["expected"]["bash_command"]["contains"]
+        assert set(contains) >= {
+            "phoenix-gql",
+            "patchExperiment",
             "observations",
             "hypothesis",
             "changed_variable",
