@@ -767,6 +767,62 @@ async def projects_with_and_without_dataset_evaluators(
         await session.flush()
 
 
+@pytest.fixture
+async def project_with_a_project_evaluator_trace_project(
+    db: DbSessionFactory,
+) -> None:
+    """Insert an evaluated project plus an evaluator whose trace project must stay hidden."""
+    async with db() as session:
+        evaluated_project = models.Project(name="evaluated-project-name")
+        # An arbitrary name: the listing exclusion keys off the FK, not a name pattern.
+        trace_project = models.Project(name="trace-sink-name")
+        session.add_all([evaluated_project, trace_project])
+        await session.flush()
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root="listing-test-evaluator"),
+            kind="BUILTIN",
+            key="listing-test-key",
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                project_id=evaluated_project.id,
+                evaluator_id=evaluator.id,
+                trace_project=trace_project,
+                name=Identifier(root="listing-test-project-evaluator"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+        )
+        await session.flush()
+
+
+async def test_projects_omits_project_evaluator_trace_projects(
+    gql_client: AsyncGraphQLClient,
+    project_with_a_project_evaluator_trace_project: Any,
+) -> None:
+    query = """
+      query {
+        projects {
+          edges {
+            project: node {
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data == {
+        "projects": {"edges": [{"project": {"name": "evaluated-project-name"}}]}
+    }
+
+
 async def test_experiment_run_metric_comparisons(
     gql_client: AsyncGraphQLClient,
     experiment_run_metric_comparison_experiments: tuple[

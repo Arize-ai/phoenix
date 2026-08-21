@@ -30,7 +30,6 @@ from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
 from phoenix.config import (
-    EVALUATORS_PROJECT_NAME,
     PLAYGROUND_PROJECT_NAME,
     get_env_database_schema,
 )
@@ -413,21 +412,6 @@ def exclude_experiment_projects(
     ).where(models.Experiment.project_name.is_(None))
 
 
-def exclude_criteria_targeting_evaluator_traces(
-    stmt: Select[_AnyTuple],
-) -> Select[_AnyTuple]:
-    """Drop criteria whose project is the one collecting evaluator traces.
-
-    Evaluating that project would feed evaluator output back into the
-    evaluators that produced it.
-    """
-    return stmt.where(
-        models.ProjectEvaluatorCriteria.project_id.not_in(
-            select(models.Project.id).where(models.Project.name == EVALUATORS_PROJECT_NAME)
-        )
-    )
-
-
 def exclude_dataset_evaluator_projects(
     stmt: Select[_AnyTuple],
 ) -> Select[_AnyTuple]:
@@ -435,6 +419,45 @@ def exclude_dataset_evaluator_projects(
         models.DatasetEvaluators,
         models.Project.id == models.DatasetEvaluators.project_id,
     ).where(models.DatasetEvaluators.project_id.is_(None))
+
+
+def exclude_project_evaluator_trace_projects(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    """Drop projects that hold some project evaluator's execution traces."""
+    return stmt.outerjoin(
+        models.ProjectEvaluator,
+        models.Project.id == models.ProjectEvaluator.trace_project_id,
+    ).where(models.ProjectEvaluator.trace_project_id.is_(None))
+
+
+async def delete_projects_and_evaluator_trace_projects(
+    session: AsyncSession,
+    project_ids: Iterable[int],
+) -> None:
+    """Delete projects together with their evaluators' trace projects.
+
+    Deleting a project cascades its project_evaluators rows away without
+    touching their RESTRICT-protected trace projects, so the trace-project ids
+    are collected first and deleted after the cascade releases the constraint.
+    Without this, the trace projects would outlive their evaluators and
+    reappear in project listings, whose exclusion requires a live evaluator row.
+    """
+    ids = set(project_ids)
+    if not ids:
+        return
+    trace_project_ids = (
+        await session.scalars(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.project_id.in_(ids)
+            )
+        )
+    ).all()
+    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
+    if trace_project_ids:
+        await session.execute(
+            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+        )
 
 
 def date_trunc(
