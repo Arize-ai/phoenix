@@ -28,10 +28,10 @@ jobs:
       ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
       proto: ${{ steps.filter.outputs.proto }}
       prompts: ${{ steps.filter.outputs.prompts }}
-      phoenix: ${{ steps.filter.outputs.phoenix }}
-      phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
-      phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
-      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
+      phoenix: ${{ steps.filter.outputs.phoenix == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_client: ${{ steps.filter.outputs.phoenix_client == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_evals: ${{ steps.filter.outputs.phoenix_evals == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel == 'true' && steps.bookkeeping.outputs.only != 'true' }}
       migrations: ${{ steps.filter.outputs.migrations }}
       ddl: ${{ steps.filter.outputs.ddl }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
@@ -80,6 +80,27 @@ jobs:
             uv_lock:
               - "**/pyproject.toml"
               - "uv.lock"
+            all:
+              - "**"
+      # Skipping the suites is safe only if *every* changed file is release
+      # bookkeeping. Decide that from the file list rather than a branch name
+      # or label: the required aggregators below pass when their jobs skip, so
+      # a signal the PR author picks would merge untested code.
+      - name: Detect a bookkeeping-only change
+        id: bookkeeping
+        env:
+          FILES: ${{ steps.filter.outputs.all_files }}
+        run: |
+          set -euo pipefail
+          allow='^(\.release-please-manifest\.json|CHANGELOG\.md|packages/[^/]+/CHANGELOG\.md|src/phoenix/version\.py)$'
+          # Unquoted on purpose: list-files: shell emits a space-separated list.
+          # shellcheck disable=SC2086
+          if [ -n "$FILES" ] && ! printf '%s\n' $FILES | grep -qvE "$allow"; then
+            echo "Release bookkeeping only; package suites will be skipped."
+            echo "only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not bookkeeping-only; running the suites."
+          fi
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}

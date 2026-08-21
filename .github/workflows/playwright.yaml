@@ -24,7 +24,7 @@ jobs:
     if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
-      e2e: ${{ steps.filter.outputs.e2e }}
+      e2e: ${{ steps.filter.outputs.e2e == 'true' && steps.bookkeeping.outputs.only != 'true' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -32,6 +32,7 @@ jobs:
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
+          list-files: shell
           filters: |
             e2e:
               - "src/**"
@@ -39,6 +40,28 @@ jobs:
               - "js/packages/**"
               - "js/pnpm-lock.yaml"
               - ".github/workflows/playwright.yaml"
+            all:
+              - "**"
+
+      # Skipping the suites is safe only if *every* changed file is release
+      # bookkeeping. Decide that from the file list rather than a branch name
+      # or label: the required aggregators below pass when their jobs skip, so
+      # a signal the PR author picks would merge untested code.
+      - name: Detect a bookkeeping-only change
+        id: bookkeeping
+        env:
+          FILES: ${{ steps.filter.outputs.all_files }}
+        run: |
+          set -euo pipefail
+          allow='^(\.release-please-manifest\.json|CHANGELOG\.md|packages/[^/]+/CHANGELOG\.md|src/phoenix/version\.py)$'
+          # Unquoted on purpose: list-files: shell emits a space-separated list.
+          # shellcheck disable=SC2086
+          if [ -n "$FILES" ] && ! printf '%s\n' $FILES | grep -qvE "$allow"; then
+            echo "Release bookkeeping only; package suites will be skipped."
+            echo "only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not bookkeeping-only; running the suites."
+          fi
 
 
   e2e-test:
