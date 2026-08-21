@@ -87,6 +87,6 @@ export async function projectEvaluatorDetailsLoader(
         )
       : null,
     evaluatorDisplayName: projectEvaluator?.name ?? null,
-    traceProjectId: projectEvaluator?.traceProject?.id ?? null,
+    traceProjectId: projectEvaluator?.traceProject.id ?? null,
   };
 }

@@ -335,9 +335,10 @@ _ProjectEvaluatorTraceScopeArg = Annotated[
     Optional[GlobalID],
     strawberry.argument(
         description=(
-            "Restrict to traces produced by this project evaluator. Every evaluator "
-            "traces into one shared project, so its own traces are only reachable "
-            "through this scope."
+            "Restrict to traces produced by this project evaluator. An evaluator's "
+            "trace project normally holds only its own traces, but legacy "
+            "shared-project data can mix evaluators; this scope filters out the "
+            "foreign traces."
         )
     ),
 ]

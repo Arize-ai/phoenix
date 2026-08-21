@@ -2103,11 +2103,11 @@ async def test_project_evaluator_trace_time_series_are_scoped_to_the_evaluator(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     """The trace metrics an evaluator's details page charts must count only its
-    own traces, even though every evaluator traces into one shared project."""
+    own traces, even when another evaluator's traces share the same project —
+    the shape legacy shared-project data (or any mixed project) can still take."""
     start = datetime(2024, 1, 1, 12, 30, tzinfo=timezone.utc)
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
-        evaluators_project = models.Project(name=EVALUATORS_PROJECT_NAME)
         evaluator = models.BuiltinEvaluator(
             name=Identifier(f"evaluator-{token_hex(4)}"),
             kind="BUILTIN",
@@ -2115,28 +2115,33 @@ async def test_project_evaluator_trace_time_series_are_scoped_to_the_evaluator(
             input_schema={},
             output_configs=[],
         )
-        session.add_all([project, evaluators_project, evaluator])
+        session.add_all([project, evaluator])
         await session.flush()
-        criteria = [
-            models.ProjectEvaluatorCriteria(
+        project_evaluator = [
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                 project_id=project.id,
                 evaluator_id=evaluator.id,
-                name=Identifier(f"criteria-{token_hex(4)}"),
+                name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
                 evaluation_target="SPAN",
                 filter_condition="",
                 sampling_rate=1.0,
             )
             for _ in range(2)
         ]
-        session.add_all(criteria)
+        session.add_all(project_evaluator)
         await session.flush()
-        criteria_ids = [c.id for c in criteria]
+        project_evaluator_ids = [c.id for c in project_evaluator]
         # One trace per evaluator, each with a distinct latency and cost, so a
-        # metric leaking across evaluators changes every assertion below.
-        for criteria_id, latency_seconds, cost in zip(criteria_ids, (10, 100), (1.0, 50.0)):
+        # metric leaking across evaluators changes every assertion below. Both
+        # traces land in the FIRST evaluator's trace project so the scope has a
+        # foreign trace to filter out.
+        for project_evaluator_id, latency_seconds, cost in zip(
+            project_evaluator_ids, (10, 100), (1.0, 50.0)
+        ):
             trace = models.Trace(
                 trace_id=token_hex(8),
-                project_rowid=evaluators_project.id,
+                project_rowid=project_evaluator[0].trace_project_id,
                 start_time=start,
                 end_time=start + timedelta(seconds=latency_seconds),
             )
@@ -2146,14 +2151,16 @@ async def test_project_evaluator_trace_time_series_are_scoped_to_the_evaluator(
                 trace_rowid=trace.id,
                 span_id=token_hex(8),
                 parent_id=None,
-                name=f"Evaluator: {criteria_id}",
+                name=f"Evaluator: {project_evaluator_id}",
                 span_kind="EVALUATOR",
                 start_time=start,
                 end_time=start + timedelta(seconds=latency_seconds),
                 attributes={
                     "phoenix": {
                         "evaluator_trace": True,
-                        "project_evaluator_id": str(GlobalID("ProjectEvaluator", str(criteria_id))),
+                        "project_evaluator_id": str(
+                            GlobalID("ProjectEvaluator", str(project_evaluator_id))
+                        ),
                     }
                 },
                 events=[],
@@ -2204,7 +2211,7 @@ async def test_project_evaluator_trace_time_series_are_scoped_to_the_evaluator(
             }
         }""",
         variables={
-            "id": str(GlobalID("ProjectEvaluator", str(criteria_ids[0]))),
+            "id": str(GlobalID("ProjectEvaluator", str(project_evaluator_ids[0]))),
             "timeRange": {
                 "start": start.isoformat(),
                 "end": (start + timedelta(hours=1)).isoformat(),
@@ -2247,7 +2254,7 @@ async def test_project_evaluator_trace_time_series_are_scoped_to_the_evaluator(
             }
         }""",
         variables={
-            "id": str(GlobalID("ProjectEvaluator", str(criteria_ids[0]))),
+            "id": str(GlobalID("ProjectEvaluator", str(project_evaluator_ids[0]))),
             "timeRange": {
                 "start": start.isoformat(),
                 "end": (start + timedelta(hours=1)).isoformat(),

@@ -165,7 +165,7 @@ function ProjectEvaluatorDetailsPageLoaded({
               <ProjectEvaluatorMetrics
                 projectEvaluatorId={projectEvaluator.id}
                 evaluatedProjectId={projectEvaluator.project.id}
-                traceProjectId={projectEvaluator.traceProject?.id ?? null}
+                traceProjectId={projectEvaluator.traceProject.id}
                 evaluatorName={projectEvaluator.name}
                 evaluationTarget={projectEvaluator.evaluationTarget}
                 projectEvaluatorRef={projectEvaluator}

@@ -3,12 +3,7 @@ import { memo } from "react";
 
 import { Flex, useTimeRange } from "@phoenix/components";
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
-import {
-  ChartEmptyStateOverlay,
-  ChartPanel,
-  type ChartTypeIconType,
-  DeferredChartPanel,
-} from "@phoenix/components/chart";
+import { ChartPanel, DeferredChartPanel } from "@phoenix/components/chart";
 import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
@@ -30,8 +25,8 @@ type ProjectEvaluatorMetricsProps = {
   projectEvaluatorId: string;
   /** The project whose spans or sessions this evaluator annotates. */
   evaluatedProjectId: string;
-  /** The shared evaluator-trace project, or null until the first trace creates it. */
-  traceProjectId: string | null;
+  /** The evaluator's own trace project, minted when the evaluator is created. */
+  traceProjectId: string;
   /** The evaluator's results are annotations carrying its name. */
   evaluatorName: string;
   evaluationTarget: EvaluationTarget;
@@ -41,26 +36,23 @@ type ProjectEvaluatorMetricsProps = {
 type EvaluatorTraceChart = {
   title: string;
   subtitle: string;
-  chartType: ChartTypeIconType;
   Component: ComponentType<EvaluatorScopedProjectMetricViewProps>;
 };
 
 /**
- * The charts drawn from the evaluator's own traces in the shared
- * evaluator-trace project, rendered in rows of two.
+ * The charts drawn from the evaluator's own trace project, rendered in rows
+ * of two.
  */
 const EVALUATOR_TRACE_CHART_ROWS: EvaluatorTraceChart[][] = [
   [
     {
       title: "Evaluations",
       subtitle: "Evaluation runs over time by status",
-      chartType: "bar",
       Component: TraceCountTimeSeries,
     },
     {
       title: "Evaluation latency",
       subtitle: "Latency percentiles of evaluation runs",
-      chartType: "line",
       Component: TraceLatencyPercentilesTimeSeries,
     },
   ],
@@ -68,7 +60,6 @@ const EVALUATOR_TRACE_CHART_ROWS: EvaluatorTraceChart[][] = [
     {
       title: "Evaluation cost",
       subtitle: "Estimated LLM cost of evaluation runs in USD",
-      chartType: "bar",
       Component: TraceTokenCostTimeSeries,
     },
   ],
@@ -97,8 +88,8 @@ function getAnnotationLevel(
 /**
  * The metrics tab of the project evaluator details page: how the evaluator's
  * results are trending on the evaluated project, and what its own runs cost
- * and how long they take, read from its traces in the shared evaluator-trace
- * project scoped to this evaluator.
+ * and how long they take, read from its own trace project scoped to this
+ * evaluator.
  */
 export function ProjectEvaluatorMetrics({
   projectEvaluatorRef,
@@ -171,42 +162,20 @@ const ProjectEvaluatorMetricPanels = memo(
 
 type EvaluatorTracePanelProps = {
   chart: EvaluatorTraceChart;
-  traceProjectId: string | null;
+  traceProjectId: string;
   projectEvaluatorId: string;
   timeRange: TimeRange;
   onTimeRangeSelected: (timeRange: TimeRange) => void;
 };
 
-/**
- * A deferred panel over one of the evaluator's own-trace charts. Until the
- * first evaluator trace creates the shared trace project there is nothing to
- * query, so the panel renders an empty plot explaining why instead of a chart.
- */
+/** A deferred panel over one of the evaluator's own-trace charts. */
 function DeferredEvaluatorTracePanel({
   chart,
-  traceProjectId,
   ...props
 }: EvaluatorTracePanelProps) {
-  if (traceProjectId == null) {
-    return (
-      <ChartPanel title={chart.title} subtitle={chart.subtitle}>
-        <ChartEmptyStateOverlay
-          isEmpty
-          chartType={chart.chartType}
-          message="This evaluator has not produced traces yet. Metrics appear once it runs."
-        >
-          <div />
-        </ChartEmptyStateOverlay>
-      </ChartPanel>
-    );
-  }
   return (
     <DeferredChartPanel title={chart.title} subtitle={chart.subtitle}>
-      <EvaluatorTracePanelWithFrozenTimeRange
-        {...props}
-        chart={chart}
-        traceProjectId={traceProjectId}
-      />
+      <EvaluatorTracePanelWithFrozenTimeRange {...props} chart={chart} />
     </DeferredChartPanel>
   );
 }
@@ -220,7 +189,7 @@ function EvaluatorTracePanelWithFrozenTimeRange({
   projectEvaluatorId,
   timeRange,
   onTimeRangeSelected,
-}: EvaluatorTracePanelProps & { traceProjectId: string }) {
+}: EvaluatorTracePanelProps) {
   const visibleTimeRange = useFrozenWhileHidden(timeRange);
   return (
     <ChartPanel title={chart.title} subtitle={chart.subtitle}>
