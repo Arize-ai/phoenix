@@ -5,6 +5,7 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
 from ...._helpers import _add_live_session_work_unit
@@ -517,7 +518,7 @@ async def test_delete_project_also_deletes_its_evaluators_trace_projects(
         session.add_all([evaluated_project, trace_project])
         await session.flush()
         evaluator = models.BuiltinEvaluator(
-            name=models.Identifier(root=f"evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"evaluator-{token_hex(4)}"),
             kind="BUILTIN",
             key=token_hex(8),
             input_schema={},
@@ -530,7 +531,7 @@ async def test_delete_project_also_deletes_its_evaluators_trace_projects(
                 project_id=evaluated_project.id,
                 evaluator_id=evaluator.id,
                 trace_project=trace_project,
-                name=models.Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
                 evaluation_target="SPAN",
                 filter_condition="",
                 sampling_rate=1.0,
@@ -569,7 +570,7 @@ async def test_delete_project_refuses_an_evaluator_trace_project(
         session.add_all([evaluated_project, trace_project])
         await session.flush()
         evaluator = models.BuiltinEvaluator(
-            name=models.Identifier(root=f"evaluator-{token_hex(4)}"),
+            name=Identifier(root=f"evaluator-{token_hex(4)}"),
             kind="BUILTIN",
             key=token_hex(8),
             input_schema={},
@@ -582,7 +583,7 @@ async def test_delete_project_refuses_an_evaluator_trace_project(
                 project_id=evaluated_project.id,
                 evaluator_id=evaluator.id,
                 trace_project=trace_project,
-                name=models.Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
                 evaluation_target="SPAN",
                 filter_condition="",
                 sampling_rate=1.0,

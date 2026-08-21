@@ -253,7 +253,7 @@ async def test_project_evaluator_defaults_and_relationships(
         )
         assert fetched is not None
         assert fetched.enabled is True
-        assert fetched.name.root.startswith("project_evaluator-")
+        assert fetched.name.root.startswith("project-evaluator-name-")
         assert fetched.filter_condition == ""
         assert fetched.evaluation_target == "SPAN"
         assert fetched.evaluation_delay_seconds == 300
