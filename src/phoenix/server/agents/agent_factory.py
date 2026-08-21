@@ -5,11 +5,10 @@ from collections.abc import Awaitable, Callable
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
-from pydantic_ai import Agent, DeferredToolRequests, RunContext
+from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.capabilities import (
     AbstractCapability,
-    CapabilityFunc,
     CombinedCapability,
     DynamicCapability,
 )
@@ -36,7 +35,7 @@ from phoenix.server.agents.capabilities.tools.internal import (
 from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
-from phoenix.server.agents.skills import get_skills_for_contexts
+from phoenix.server.agents.skills import get_all_skills
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
@@ -47,22 +46,20 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
 
-def get_skills_capability_function(
-    *,
-    prompts: AgentPrompts,
-) -> CapabilityFunc[AgentDependencies]:
-    def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
-        return SkillsCapability(
-            toolset=SkillsToolset[AgentDependencies](
-                skills=get_skills_for_contexts(ctx.deps.contexts),
-                load_skill_template=prompts.load_skill,
-                load_skill_tool_template=prompts.load_skill_tool,
-                read_skill_resource_tool_template=prompts.read_skill_resource_tool,
-            ),
-            instructions=prompts.skills,
-        )
+def build_skills_capability(*, prompts: AgentPrompts) -> SkillsCapability[AgentDependencies]:
+    """Build the skills capability.
 
-    return _build
+    Deliberately not a ``DynamicCapability``: the catalog is the same on every
+    run (see :func:`phoenix.server.agents.skills.get_all_skills`), and taking a
+    ``RunContext`` here is the whole mechanism by which it could stop being so.
+    """
+    return SkillsCapability(
+        toolset=SkillsToolset[AgentDependencies](
+            skills=get_all_skills(),
+            load_skill_template=prompts.load_skill,
+        ),
+        instructions=prompts.skills,
+    )
 
 
 def build_agent(
@@ -124,11 +121,7 @@ def build_agent(
         DynamicCapability(
             capability_func=get_context_capability_function(prompts=resolved_prompts),
         ),
-        DynamicCapability(
-            capability_func=get_skills_capability_function(
-                prompts=resolved_prompts,
-            ),
-        ),
+        build_skills_capability(prompts=resolved_prompts),
     ]
     if schema is not None and build_graphql_context is not None:
         capabilities.append(
@@ -180,7 +173,7 @@ def build_agent(
         name="PXIAgent",
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
-        instructions=resolved_prompts.base.render(),
+        instructions=resolved_prompts.base,
         capabilities=[traced_capability, NativeToolRetryCapability()],
     )
     return agent

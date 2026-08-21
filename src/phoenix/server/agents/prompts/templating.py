@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, Template
@@ -28,4 +28,17 @@ _env.filters["urlencode"] = urlencode
 
 
 def get_template(name: str) -> Template:
+    """Return the Jinja template at ``name``, relative to ``prompts/``.
+
+    Prompts under ``static/`` are deliberately unreachable from here: they are
+    literal text read by
+    :func:`phoenix.server.agents.prompts.static_prompts.read_static_prompt`, and
+    routing one through the engine would reintroduce the interpolation the split
+    exists to prevent.
+    """
+    if PurePosixPath(name).parts[:1] == ("static",):
+        raise ValueError(
+            f"{name!r} is a static prompt; read it with read_static_prompt() "
+            f"instead of rendering it"
+        )
     return _env.get_template(name)
