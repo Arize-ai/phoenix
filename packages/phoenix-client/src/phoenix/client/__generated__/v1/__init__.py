@@ -81,12 +81,6 @@ class AssistantMessageMetadataUsageTokens(TypedDict):
     total: int
 
 
-class BuiltInModelProvider(TypedDict):
-    provider_key: str
-    name: str
-    kind: NotRequired[Literal["builtin"]]
-
-
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -197,7 +191,6 @@ class CustomModelProvider(TypedDict):
     sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"]
     created_at: str
     updated_at: str
-    kind: NotRequired[Literal["custom"]]
     description: NotRequired[str]
 
 
@@ -326,6 +319,11 @@ class GetApiKeysResponseBody(TypedDict):
     data: Sequence[ApiKey]
 
 
+class GetCustomModelProvidersResponseBody(TypedDict):
+    data: Sequence[CustomModelProvider]
+    next_cursor: Optional[str]
+
+
 class GetDatasetLabelResponseBody(TypedDict):
     data: DatasetLabel
 
@@ -341,11 +339,6 @@ class GetDatasetResponseBody(TypedDict):
 
 class GetExperimentResponseBody(TypedDict):
     data: Experiment
-
-
-class GetModelProvidersResponseBody(TypedDict):
-    data: Sequence[Union[BuiltInModelProvider, CustomModelProvider]]
-    next_cursor: Optional[str]
 
 
 class GraphQLContext(TypedDict):
@@ -1341,6 +1334,26 @@ class AssistantMessageMetadataUsage(TypedDict):
     promptDetails: NotRequired[AssistantMessageMetadataUsageCacheTokenDetails]
 
 
+class BuiltInModelProvider(TypedDict):
+    provider: Literal[
+        "OPENAI",
+        "AZURE_OPENAI",
+        "ANTHROPIC",
+        "GOOGLE",
+        "DEEPSEEK",
+        "XAI",
+        "OLLAMA",
+        "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
+        "PERPLEXITY",
+        "TOGETHER",
+    ]
+    name: str
+
+
 class BuiltInProviderModelSelection(TypedDict):
     providerType: Literal["builtin"]
     provider: Literal[
@@ -1583,6 +1596,10 @@ class GetAnnotationConfigsResponseBody(TypedDict):
         Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
     ]
     next_cursor: Optional[str]
+
+
+class GetModelProvidersResponseBody(TypedDict):
+    data: Sequence[BuiltInModelProvider]
 
 
 class GetProjectAnnotationConfigsResponseBody(TypedDict):

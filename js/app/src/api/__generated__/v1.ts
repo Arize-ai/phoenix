@@ -1193,10 +1193,30 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all model providers
-         * @description Retrieve the built-in model provider families along with a paginated list of user-defined custom providers. Built-in families are a fixed set and are only returned on the first page, i.e. when no `cursor` is supplied; `cursor`, `next_cursor`, and `limit` apply exclusively to the custom-provider portion of the list. Encrypted custom-provider credentials are never returned.
+         * List built-in model provider families
+         * @description Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.
          */
         get: operations["getModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/custom_model_providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List custom model providers
+         * @description Retrieve a paginated list of user-defined custom model providers. Encrypted provider credentials are never returned. Built-in provider families are listed separately by `GET /v1/model_providers`.
+         */
+        get: operations["getCustomModelProviders"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2183,16 +2203,8 @@ export interface components {
         };
         /** BuiltInModelProvider */
         BuiltInModelProvider: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "builtin";
-            /**
-             * Provider Key
-             * @description The stable key identifying the built-in provider family (e.g. 'OPENAI').
-             */
-            provider_key: string;
+            /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
+            provider: components["schemas"]["ModelProvider"];
             /**
              * Name
              * @description The human-readable name of the provider family (e.g. 'OpenAI').
@@ -2847,11 +2859,6 @@ export interface components {
         /** CustomModelProvider */
         CustomModelProvider: {
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            kind: "custom";
-            /**
              * Id
              * @description The ID of the custom provider.
              */
@@ -2868,7 +2875,7 @@ export interface components {
             description?: string | null;
             /**
              * Provider
-             * @description The provider label of the custom provider.
+             * @description The free-form provider label recorded on the custom provider. Unlike the `provider` of a built-in family, this is not drawn from a fixed set.
              */
             provider: string;
             /**
@@ -3521,6 +3528,13 @@ export interface components {
             /** Data */
             data: components["schemas"]["ApiKey"][];
         };
+        /** GetCustomModelProvidersResponseBody */
+        GetCustomModelProvidersResponseBody: {
+            /** Data */
+            data: components["schemas"]["CustomModelProvider"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetDatasetLabelResponseBody */
         GetDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
@@ -3557,9 +3571,7 @@ export interface components {
         /** GetModelProvidersResponseBody */
         GetModelProvidersResponseBody: {
             /** Data */
-            data: (components["schemas"]["BuiltInModelProvider"] | components["schemas"]["CustomModelProvider"])[];
-            /** Next Cursor */
-            next_cursor: string | null;
+            data: components["schemas"]["BuiltInModelProvider"][];
         };
         /** GetProjectAnnotationConfigsResponseBody */
         GetProjectAnnotationConfigsResponseBody: {
@@ -11390,6 +11402,35 @@ export interface operations {
     };
     getModelProviders: {
         parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of built-in model provider families */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetModelProvidersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getCustomModelProviders: {
+        parameters: {
             query?: {
                 /** @description Cursor for pagination (custom provider ID) */
                 cursor?: string | null;
@@ -11402,13 +11443,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A list of model providers with pagination information */
+            /** @description A list of custom model providers with pagination information */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GetModelProvidersResponseBody"];
+                    "application/json": components["schemas"]["GetCustomModelProvidersResponseBody"];
                 };
             };
             /** @description Forbidden */
