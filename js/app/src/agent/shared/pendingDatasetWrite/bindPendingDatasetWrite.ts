@@ -5,7 +5,7 @@ import type {
   PendingDatasetWrite,
 } from "./types";
 
-const REJECTED_MESSAGE =
+export const DATASET_WRITE_REJECTED_MESSAGE =
   "The user rejected the proposed dataset change, so nothing was written.";
 
 /**
@@ -24,6 +24,6 @@ export function bindPendingDatasetWrite({
     apply,
     addToolOutput,
     setPending: setPendingDatasetWrite,
-    rejectedMessage: REJECTED_MESSAGE,
+    rejectedMessage: DATASET_WRITE_REJECTED_MESSAGE,
   });
 }

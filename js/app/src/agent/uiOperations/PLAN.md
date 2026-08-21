@@ -171,8 +171,12 @@ catalog architecture gives the missing piece an obvious shape: **one more
 
 ## Known follow-ups
 
-1. Bespoke diff cards for script-child approvals (prompt diff, evaluator
-   draft diff) — currently generic summaries.
+1. ~~Bespoke diff cards for script-child approvals~~ — SHIPPED: script-child
+   approvals now render through the shared `ApprovalCard` (`components/agent/
+ApprovalCard.tsx`), with unified diffs for snapshot changes and curated,
+   labeled payloads (plus danger notes) otherwise. The standalone dataset /
+   annotation-config cards are thin wrappers over it. This is the contract the
+   tool-subsumption plan below builds on.
 2. Streaming per-call progress into the `execute_ui` card while the script
    runs (today the card shows script + approvals + final result).
 3. PXI evals (`evals/pxi/`) and Playwright suites still assert old tool
@@ -181,3 +185,128 @@ catalog architecture gives the missing piece an obvious shape: **one more
    blocks `new Function` in the worker.
 5. Consider advertising the catalog TOC in the request body so simple
    one-action asks skip the `search_ui` round-trip.
+
+## Follow-up: subsume standalone write tools into `execute_ui` (Q1) + cleanup (Q2)
+
+Goal: shrink the model-facing external tool surface to ~2 meta-tools
+(`search_ui`, `execute_ui`) plus genuine server tools. The ~18 remaining
+standalone external tools are UI/client-action writes that should each become a
+`UiOperationDescriptor` under `operations/` and be dispatched by `execute_ui`.
+The shared `ApprovalCard` contract (follow-up 1) means each new write op gets a
+structured approval preview — with a danger note on the destructive ones — for
+free. None of these has a `ui.*` equivalent yet; each needs a new descriptor.
+
+### Subsume (frontend module → proposed op)
+
+| Standalone tool(s)                                                                                   | Frontend module           | Proposed op                                                            |
+| ---------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `create_dataset`                                                                                     | `tools/createDataset`     | `dataset.create`                                                       |
+| `patch_dataset`, `delete_dataset`                                                                    | `tools/datasetEdit`       | `dataset.patch` / `dataset.delete` (danger)                            |
+| `add_dataset_examples`, `patch_dataset_examples`, `delete_dataset_examples`                          | `tools/datasetExamples`   | `dataset.examples.add/patch/delete` (delete = danger)                  |
+| `create_dataset_split`, `patch_dataset_split`, `delete_dataset_splits`, `set_dataset_example_splits` | `tools/datasetSplits`     | `dataset.split.create/patch/delete/setExampleSplits` (delete = danger) |
+| `create_dataset_label`, `set_dataset_labels`, `delete_dataset_labels`                                | `tools/datasetLabels`     | `dataset.label.create/set/delete` (delete = danger)                    |
+| `add_spans_to_dataset`                                                                               | `tools/spansToDataset`    | `dataset.addSpans`                                                     |
+| `create_annotation_config`, `update_annotation_config`                                               | `tools/annotationConfig`  | `annotationConfig.create/update` (update = danger, full replace)       |
+| `patch_experiment`                                                                                   | `tools/patchExperiment`   | `experiment.patch`                                                     |
+| `batch_span_annotate`                                                                                | `tools/batchSpanAnnotate` | `spans.annotate`                                                       |
+
+### Keep standalone (NOT UI state)
+
+`bash`, docs MCP, `web_search`/`web_fetch`, `ask_user`, `call_subagent`,
+`get_current_datetime`, `write_span_note`, `load_skill`/`read_skill_resource`.
+The read-only `list_datasets` / `list_labels` / `list_splits` /
+`list_dataset_*` tools took this section's parenthetical option and were
+RETIRED in favor of `bash` GraphQL: they enabled nothing `phoenix-gql` can't
+do (same schema, same authenticated user, reads ungated), subagents already
+read through bash, and the client round-trip made each read slower than the
+in-process query. Their prompt ergonomics moved into
+`BASH_TOOL_INSTRUCTIONS.xml.j2` (curated dataset-read queries, small-page
+guidance); their name-resolution helpers (`fetchSplitsByNames`,
+`fetchLabelsByNames`, `commitListDatasets`) survive as internal plumbing for
+the write operations, and the `ToolPart` read cases stay for historical
+transcripts.
+
+### Borderline (decide during the work)
+
+`get_route_info` (reads the same catalog `search_ui` fronts) and
+`render_generative_ui` (a rendering side-channel) could fold into the
+meta-tools; lower priority.
+
+### Each subsumed op needs
+
+- a `UiOperationDescriptor` in `operations/` (name, zod input, `kind`,
+  `availability.routeHint`), added to `catalog.ts`;
+- a client-action handler registered on mount via `registerUiOperation`;
+- for writes: an `ApprovalPreview` built on `ApprovalCard` (danger note on the
+  destructive kinds — reuse the `describePreview`/`describeDraft` logic that
+  the dataset/annotation cards already carry);
+- deregistration of the Python `external/` tool def AND removal of the frontend
+  agent tool from `extensions/toolRegistry.ts`;
+- prompting/instruction updates where the op needs guidance.
+
+Land it one commit per operation family (dataset writes → splits → labels →
+annotation config → experiment → span annotate), so each layer is reviewable.
+
+Progress:
+
+- [x] dataset writes — `dataset.create/patch/delete`, `dataset.examples.add/
+patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
+      remaining families ride on: `stageApprovalOperation` (generic
+      emit-resolving staging in `shared/pendingApproval`),
+      `stageDatasetWriteOperation` (dataset specialization reusing the
+      `pendingDatasetWritesByToolCallId` map + shared card),
+      `RootUiOperationsRegistration` (app-root handler registration, mounted in
+      `AuthenticatedRoot`), the dataset-writes cleaner in
+      `EXECUTE_UI_PENDING_MAP_CLEANERS`, and the `datasetWriteApprovalPreview`
+      normalizer feeding `ExecuteUiToolDetails` child cards.
+- [x] dataset splits — `dataset.split.create/setExampleSplits/patch/delete`
+      (`operations/datasetSplits.ts` + `tools/datasetSplits/clientActions.ts`),
+      registered at the root alongside the dataset writes.
+- [x] dataset labels — `dataset.label.create/set/delete`
+      (`operations/datasetLabels.ts` + `tools/datasetLabels/clientActions.ts`).
+- [x] annotation config — `annotationConfig.create/update`
+      (`operations/annotationConfig.ts` +
+      `tools/annotationConfig/clientActions.ts`), with
+      `stageAnnotationConfigWriteOperation` mirroring the dataset staging and
+      the `annotationConfigWriteApprovalPreview` normalizer feeding script-child
+      cards. Note: the standalone tools were `rehydratable`; as operations,
+      unresolved calls now resolve through the execute_ui stale path instead
+      (the rehydration unit test moved to `ask_user`).
+- [x] experiment patch — `experiment.patch` (`operations/experiment.ts` +
+      `tools/patchExperiment/clientActions.ts`), with an emit-flavored binder
+      (`bindPendingPatchExperimentOperationActions`) alongside the tool binder
+      and a field-level unified diff in the script-child card.
+- [x] span annotate — `spans.annotate` (`operations/spans.ts` +
+      `tools/batchSpanAnnotate/clientActions.ts`); the retired instruction
+      template's naming/values/updates guidance folded into the descriptor
+      description, and the annotate-spans / span-coding skills rewritten to
+      reference the operation. The tool-name entries left
+      `PENDING_TOOL_STATE_CLEANUP`/`REWIND_CLEANUP_TOOL_NAMES`; its pending map
+      joined `EXECUTE_UI_PENDING_MAP_CLEANERS`.
+
+### Q2 cleanup (final commits on this branch) — DONE
+
+- [x] removed the dead `ToolPart.tsx` dispatcher `case` branches + retired
+      `*ToolDetails` cards (`SavePromptToolDetails`, `EditPromptToolDetails`,
+      `WritePromptToolsToolDetails`, `RemovePromptInstanceToolDetails`,
+      `LoadDatasetToolDetails`);
+- [x] removed all six `SavePrompt*` stories in `stories/ToolPart.stories.tsx`
+      (including `SavePromptAwaitingApproval`, whose comparison role ended with
+      the card);
+- [x] orphan reduction, adjusted from the "~20 orphaned modules" estimate: no
+      `tools/*` module is fully orphaned — each still hosts the live
+      clientActions/schemas/commit functions its operations import. What was
+      dead and removed: the retired `defineTool` definitions of every subsumed
+      write tool (`createDataset`/`datasetEdit`/`spansToDataset`/
+      `annotationConfig` `agentTools`, `patchExperimentAgentTool`,
+      `batchSpanAnnotateAgentTool`), with the mixed `agentTools.ts` files
+      (`datasetExamples`, `datasetSplits`, `datasetLabels`) trimmed to their
+      surviving list tools. A per-file scan found no remaining unreferenced
+      files under `agent/tools/`.
+- [x] read-tool retirement (follow-up to Q1/Q2): the six `list_*` dataset
+      read tools are deleted on both sides; reads go through `bash`
+      `phoenix-gql`. See the updated "Keep standalone" section above. The
+      external capability bundle is now all-static (the dynamic
+      `include_for_run` machinery in `tools/external/__init__.py` left with
+      its last members); the agents-router tests use `get_route_info` as
+      their canonical client tool.

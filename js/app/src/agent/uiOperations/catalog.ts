@@ -2,8 +2,13 @@ import { z } from "zod";
 
 import type { AgentClientAction, AgentStore } from "@phoenix/store/agentStore";
 
+import { annotationConfigOperations } from "./operations/annotationConfig";
 import { codeEvaluatorDraftOperations } from "./operations/codeEvaluatorDraft";
 import { datasetEvaluatorOperations } from "./operations/datasetEvaluators";
+import { datasetLabelOperations } from "./operations/datasetLabels";
+import { datasetSplitOperations } from "./operations/datasetSplits";
+import { datasetWriteOperations } from "./operations/datasetWrites";
+import { experimentOperations } from "./operations/experiment";
 import { llmEvaluatorDraftOperations } from "./operations/llmEvaluatorDraft";
 import { playgroundLoadDatasetOperations } from "./operations/playgroundLoadDataset";
 import { playgroundModelOperations } from "./operations/playgroundModel";
@@ -13,6 +18,7 @@ import { playgroundRunOperations } from "./operations/playgroundRun";
 import { playgroundSavePromptOperations } from "./operations/playgroundSavePrompt";
 import { playgroundSettingsOperations } from "./operations/playgroundSettings";
 import { setTimeRangeOperation } from "./operations/setTimeRange";
+import { spanOperations } from "./operations/spans";
 import { spansFilterOperations } from "./operations/spansFilter";
 import type {
   UiOperationCallContext,
@@ -38,6 +44,12 @@ const knownUiOperations: UiOperationDescriptor[] = [
   ...datasetEvaluatorOperations,
   ...codeEvaluatorDraftOperations,
   ...llmEvaluatorDraftOperations,
+  ...datasetWriteOperations,
+  ...datasetSplitOperations,
+  ...datasetLabelOperations,
+  ...annotationConfigOperations,
+  ...experimentOperations,
+  ...spanOperations,
 ];
 
 /**

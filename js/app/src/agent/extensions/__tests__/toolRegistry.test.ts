@@ -1,6 +1,5 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
-import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -77,66 +76,6 @@ describe("toolRegistry", () => {
         tool: "ask_user",
         toolCallId: "tool-call-2",
         errorText: expect.any(String),
-      })
-    );
-  });
-
-  it.each([
-    ["an empty object", {}],
-    ["an empty annotations array", { annotations: [] }],
-    ["a null annotations array", { annotations: null }],
-    ["an array of empty annotations", { annotations: [{}] }],
-    ["a bare empty array", []],
-    ["no input at all", undefined],
-  ])(
-    "tells the agent how to recover from a batch span annotation call with %s",
-    async (_description, input) => {
-      const store = createAgentStore();
-      const addToolOutput = vi.fn().mockResolvedValue(undefined);
-
-      await handleRegisteredAgentToolCall({
-        toolCall: {
-          toolCallId: "tool-call-empty-batch-annotation",
-          toolName: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-          input,
-        },
-        sessionId: "session-1",
-        addToolOutput,
-        agentStore: store,
-      });
-
-      expect(addToolOutput).toHaveBeenCalledWith(
-        expect.objectContaining({
-          state: "output-error",
-          tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-          toolCallId: "tool-call-empty-batch-annotation",
-          errorText: expect.stringContaining("needs an annotations array"),
-        })
-      );
-    }
-  );
-
-  it("restates the full schema when a batch span annotation call has real but invalid annotations", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-invalid-batch-annotation",
-        toolName: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-        input: { annotations: [{ name: "quality" }] },
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-error",
-        tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-        toolCallId: "tool-call-invalid-batch-annotation",
-        errorText: expect.stringContaining("Invalid"),
       })
     );
   });

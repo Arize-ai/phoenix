@@ -1,6 +1,5 @@
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
-import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import {
   abortActiveUiScriptRun,
@@ -50,6 +49,24 @@ const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
     getKeys: (state) => Object.keys(state.pendingLoadDatasetsByToolCallId),
     clear: (state, key) => state.setPendingLoadDataset(key, null),
   },
+  {
+    getKeys: (state) => Object.keys(state.pendingDatasetWritesByToolCallId),
+    clear: (state, key) => state.setPendingDatasetWrite(key, null),
+  },
+  {
+    getKeys: (state) =>
+      Object.keys(state.pendingAnnotationConfigWritesByToolCallId),
+    clear: (state, key) => state.setPendingAnnotationConfigWrite(key, null),
+  },
+  {
+    getKeys: (state) => Object.keys(state.pendingPatchExperimentsByToolCallId),
+    clear: (state, key) => state.setPendingPatchExperiment(key, null),
+  },
+  {
+    getKeys: (state) =>
+      Object.keys(state.pendingBatchSpanAnnotatesByToolCallId),
+    clear: (state, key) => state.setPendingBatchSpanAnnotate(key, null),
+  },
 ];
 
 /**
@@ -88,8 +105,6 @@ function cleanupExecuteUiToolState(
 const PENDING_TOOL_STATE_CLEANUP: Readonly<
   Record<string, PendingToolStateCleanup>
 > = {
-  [BATCH_SPAN_ANNOTATE_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingBatchSpanAnnotate(toolCallId, null),
   [ASK_USER_TOOL_NAME]: (state, toolCallId) => {
     for (const [sessionId, pending] of Object.entries(
       state.pendingElicitationBySessionId
@@ -107,7 +122,6 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
  * rewind or branch drops their tool calls from the transcript.
  */
 export const REWIND_CLEANUP_TOOL_NAMES: ReadonlySet<string> = new Set([
-  BATCH_SPAN_ANNOTATE_TOOL_NAME,
   EXECUTE_UI_TOOL_NAME,
 ]);
 

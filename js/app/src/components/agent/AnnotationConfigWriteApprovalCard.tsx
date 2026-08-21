@@ -3,7 +3,11 @@ import type {
   PendingAnnotationConfigWrite,
 } from "@phoenix/agent/tools/annotationConfig";
 
-import { ApprovalCard, payloadToApprovalSummaryRows } from "./ApprovalCard";
+import {
+  ApprovalCard,
+  type ApprovalPreview,
+  payloadToApprovalSummaryRows,
+} from "./ApprovalCard";
 
 /**
  * Reduce a config draft to the fields relevant to its type, dropping empties so
@@ -32,15 +36,14 @@ function describeDraft(draft: AnnotationConfigDraft): Record<string, unknown> {
 }
 
 /**
- * Inline Accept/Reject card for an annotation-config write awaiting approval in
- * manual edit mode. Mirrors {@link DatasetWriteApprovalCard} for the
- * annotation-config domain (create + optional project association, or full replace).
+ * Normalize a pending annotation-config write to the shared
+ * {@link ApprovalPreview}, for both the standalone-tool card below and the
+ * script-child approval cards `ExecuteUiToolDetails` renders for
+ * `ui.annotationConfig.*` operations.
  */
-export function AnnotationConfigWriteApprovalCard({
-  pending,
-}: {
-  pending: PendingAnnotationConfigWrite;
-}) {
+export function annotationConfigWriteApprovalPreview(
+  pending: PendingAnnotationConfigWrite
+): ApprovalPreview {
   const { preview } = pending;
   const label =
     preview.kind === "create"
@@ -57,13 +60,26 @@ export function AnnotationConfigWriteApprovalCard({
     preview.kind === "update"
       ? "Replaces the entire config. Any existing label not included here is removed."
       : null;
+  return {
+    title: label,
+    danger: note,
+    body: { kind: "summary", rows: payloadToApprovalSummaryRows(payload) },
+  };
+}
+
+/**
+ * Inline Accept/Reject card for an annotation-config write awaiting approval in
+ * manual edit mode. Mirrors {@link DatasetWriteApprovalCard} for the
+ * annotation-config domain (create + optional project association, or full replace).
+ */
+export function AnnotationConfigWriteApprovalCard({
+  pending,
+}: {
+  pending: PendingAnnotationConfigWrite;
+}) {
   return (
     <ApprovalCard
-      preview={{
-        title: label,
-        danger: note,
-        body: { kind: "summary", rows: payloadToApprovalSummaryRows(payload) },
-      }}
+      preview={annotationConfigWriteApprovalPreview(pending)}
       onAccept={() => void pending.accept?.()}
       onReject={() => void pending.reject?.()}
       isDisabled={!(pending.accept && pending.reject)}

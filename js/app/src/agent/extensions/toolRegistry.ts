@@ -8,47 +8,15 @@
  * UI-behavior surface to the chat layer.
  *
  * Browser UI-state operations (time range, spans filter, playground prompts,
- * evaluator drafts, …) are no longer individual tools: they live in the
- * UI-operation catalog (`@phoenix/agent/uiOperations`) and execute through
- * the `search_ui` / `execute_ui` meta-tools registered below.
+ * evaluator drafts, dataset/annotation writes, …) are no longer individual
+ * tools: they live in the UI-operation catalog
+ * (`@phoenix/agent/uiOperations`) and execute through the `search_ui` /
+ * `execute_ui` meta-tools registered below. The dataset read tools are
+ * retired too — reads go through the server-side `bash` tool's `phoenix-gql`.
  */
-import {
-  createAnnotationConfigAgentTool,
-  updateAnnotationConfigAgentTool,
-} from "@phoenix/agent/tools/annotationConfig";
-import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
-import { createDatasetAgentTool } from "@phoenix/agent/tools/createDataset";
-import {
-  deleteDatasetAgentTool,
-  patchDatasetAgentTool,
-} from "@phoenix/agent/tools/datasetEdit";
-import {
-  addDatasetExamplesAgentTool,
-  deleteDatasetExamplesAgentTool,
-  listDatasetExamplesAgentTool,
-  patchDatasetExamplesAgentTool,
-} from "@phoenix/agent/tools/datasetExamples";
-import {
-  createDatasetLabelAgentTool,
-  deleteDatasetLabelsAgentTool,
-  listDatasetLabelsAgentTool,
-  listLabelsAgentTool,
-  setDatasetLabelsAgentTool,
-} from "@phoenix/agent/tools/datasetLabels";
-import {
-  createDatasetSplitAgentTool,
-  deleteDatasetSplitsAgentTool,
-  listDatasetSplitsAgentTool,
-  listSplitsAgentTool,
-  patchDatasetSplitAgentTool,
-  setDatasetExampleSplitsAgentTool,
-} from "@phoenix/agent/tools/datasetSplits";
 import { askUserAgentTool } from "@phoenix/agent/tools/elicit";
 import { getRouteInfoAgentTool } from "@phoenix/agent/tools/getRouteInfo";
-import { listDatasetsAgentTool } from "@phoenix/agent/tools/listDatasets";
-import { patchExperimentAgentTool } from "@phoenix/agent/tools/patchExperiment";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
-import { addSpansToDatasetAgentTool } from "@phoenix/agent/tools/spansToDataset";
 import { executeUiAgentTool } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import { searchUiAgentTool } from "@phoenix/agent/uiOperations/searchUiAgentTool";
 
@@ -68,57 +36,22 @@ const uiOperationTools: AgentToolDefinition[] = [
 ];
 
 /**
- * Dataset management tools (built with the lower-level `defineTool`). They are
- * not UI operations: reads execute directly against the Relay environment, and
- * writes stage a pending-approval store entry (the inline Accept/Reject card)
- * — auto-applied in bypass edit mode. The dataset to act on is resolved from
- * the advertised UI context, never supplied by the model.
- */
-const datasetTools: AgentToolDefinition[] = [
-  listDatasetsAgentTool,
-  createDatasetAgentTool,
-  patchDatasetAgentTool,
-  deleteDatasetAgentTool,
-  listDatasetExamplesAgentTool,
-  addDatasetExamplesAgentTool,
-  patchDatasetExamplesAgentTool,
-  deleteDatasetExamplesAgentTool,
-  listDatasetSplitsAgentTool,
-  listSplitsAgentTool,
-  createDatasetSplitAgentTool,
-  setDatasetExampleSplitsAgentTool,
-  patchDatasetSplitAgentTool,
-  deleteDatasetSplitsAgentTool,
-  listDatasetLabelsAgentTool,
-  listLabelsAgentTool,
-  createDatasetLabelAgentTool,
-  setDatasetLabelsAgentTool,
-  deleteDatasetLabelsAgentTool,
-  addSpansToDatasetAgentTool,
-];
-
-/**
  * The remaining tools own what they do (built with the lower-level
  * `defineTool`):
  * - `get_route_info` resolves route info from the catalog and returns it directly;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
- * - `ask_user`, `batch_span_annotate`, and `patch_experiment` write a
- *   pending-approval store entry and defer their output to a later accept/reject.
+ * - `ask_user` writes a pending-approval store entry and defers its output to
+ *   a later accept/reject.
  */
 const tools: AgentToolDefinition[] = [
   getRouteInfoAgentTool,
   renderGenerativeUIAgentTool,
   askUserAgentTool,
-  batchSpanAnnotateAgentTool,
-  patchExperimentAgentTool,
-  createAnnotationConfigAgentTool,
-  updateAnnotationConfigAgentTool,
 ];
 
 /** Ordered registry of all frontend-executable tools. */
 const agentToolDefinitions: AgentToolDefinition[] = [
   ...uiOperationTools,
-  ...datasetTools,
   ...tools,
 ];
 

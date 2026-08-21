@@ -1,5 +1,8 @@
 import { useMemo } from "react";
 
+import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import type { PendingAnnotationConfigWrite } from "@phoenix/agent/tools/annotationConfig";
+import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import {
   codeEvaluatorDraftFileName,
   codeEvaluatorDraftSnapshotToText,
@@ -10,6 +13,10 @@ import {
   llmEvaluatorDraftSnapshotToText,
   type PendingLlmEvaluatorEdit,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import {
+  patchExperimentDiffToText,
+  type PendingPatchExperiment,
+} from "@phoenix/agent/tools/patchExperiment";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type {
   PendingPromptEdit,
@@ -24,11 +31,13 @@ import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePromp
 import { parseExecuteUiRunOutput } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
+import { annotationConfigWriteApprovalPreview } from "./AnnotationConfigWriteApprovalCard";
 import {
   ApprovalCard,
   type ApprovalPreview,
   payloadToApprovalSummaryRows,
 } from "./ApprovalCard";
+import { datasetWriteApprovalPreview } from "./DatasetWriteApprovalCard";
 import { LazyToolPartFileView } from "./LazyToolPartPierreViews";
 import {
   ToolPartCodeBlock,
@@ -141,6 +150,18 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
   );
   const loadDatasets = useAgentContext(
     (state) => state.pendingLoadDatasetsByToolCallId
+  );
+  const datasetWrites = useAgentContext(
+    (state) => state.pendingDatasetWritesByToolCallId
+  );
+  const annotationConfigWrites = useAgentContext(
+    (state) => state.pendingAnnotationConfigWritesByToolCallId
+  );
+  const patchExperiments = useAgentContext(
+    (state) => state.pendingPatchExperimentsByToolCallId
+  );
+  const batchSpanAnnotates = useAgentContext(
+    (state) => state.pendingBatchSpanAnnotatesByToolCallId
   );
 
   return useMemo(
@@ -282,6 +303,81 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
           reject: pending.reject,
         }),
       }),
+      ...collectChildApprovals<PendingDatasetWrite>({
+        record: datasetWrites,
+        childKeyPrefix,
+        toApproval: (pending, key) => ({
+          key,
+          preview: datasetWriteApprovalPreview(pending),
+          accept: pending.accept,
+          reject: pending.reject,
+        }),
+      }),
+      ...collectChildApprovals<PendingAnnotationConfigWrite>({
+        record: annotationConfigWrites,
+        childKeyPrefix,
+        toApproval: (pending, key) => ({
+          key,
+          preview: annotationConfigWriteApprovalPreview(pending),
+          accept: pending.accept,
+          reject: pending.reject,
+        }),
+      }),
+      ...collectChildApprovals<PendingPatchExperiment>({
+        record: patchExperiments,
+        childKeyPrefix,
+        toApproval: (pending, key) => ({
+          key,
+          preview: {
+            title: `Edit experiment "${pending.experimentName}"`,
+            body: {
+              kind: "diff",
+              fileName: `experiment-${pending.experimentName}.txt`,
+              before: patchExperimentDiffToText(pending.diff, "previous"),
+              after: patchExperimentDiffToText(pending.diff, "next"),
+            },
+          },
+          accept: pending.accept,
+          reject: pending.reject,
+        }),
+      }),
+      ...collectChildApprovals<PendingBatchSpanAnnotate>({
+        record: batchSpanAnnotates,
+        childKeyPrefix,
+        toApproval: (pending, key) => ({
+          key,
+          preview: {
+            title:
+              pending.annotations.length === 1
+                ? "Annotate span"
+                : `Annotate spans (${pending.annotations.length} annotations)`,
+            // One row per annotation: the annotation name labels a prose
+            // summary of what gets attached to which span.
+            body: {
+              kind: "summary",
+              rows: pending.annotations.map((annotation) => ({
+                label: annotation.name,
+                value: [
+                  annotation.spanId != null
+                    ? `span ${annotation.spanId}`
+                    : null,
+                  annotation.label != null
+                    ? `label: ${annotation.label}`
+                    : null,
+                  annotation.score != null
+                    ? `score: ${annotation.score}`
+                    : null,
+                  annotation.explanation ?? null,
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+              })),
+            },
+          },
+          accept: pending.accept,
+          reject: pending.reject,
+        }),
+      }),
     ],
     [
       childKeyPrefix,
@@ -292,6 +388,10 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
       codeEvaluatorEdits,
       llmEvaluatorEdits,
       loadDatasets,
+      datasetWrites,
+      annotationConfigWrites,
+      patchExperiments,
+      batchSpanAnnotates,
     ]
   );
 }

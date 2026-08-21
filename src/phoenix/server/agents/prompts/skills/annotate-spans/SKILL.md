@@ -1,7 +1,7 @@
 ---
 name: annotate-spans
 description: >
-  Write effective, consistent annotations on LLM/agent spans and traces, and coach the user on annotation practice. Load this whenever you are about to record structured feedback with the `batch_span_annotate` tool, or when the user asks how to annotate, label, score, or review spans/traces, build a failure taxonomy, or set up human/LLM review. Do NOT load for: pure analysis with no intent to save feedback (use debug-trace), latency or cost statistics, or prompt authoring (use playground).
+  Write effective, consistent annotations on LLM/agent spans and traces, and coach the user on annotation practice. Load this whenever you are about to record structured feedback with the `ui.spans.annotate` operation (via `execute_ui`), or when the user asks how to annotate, label, score, or review spans/traces, build a failure taxonomy, or set up human/LLM review. Do NOT load for: pure analysis with no intent to save feedback (use debug-trace), latency or cost statistics, or prompt authoring (use playground).
 summary: Create consistent span or trace annotations and help design useful feedback taxonomies.
 ---
 
@@ -16,7 +16,7 @@ A good annotation earns its place by being useful *later*:
 - **Auditable** — months later, the explanation still justifies the judgment without rerunning anything.
 - **Curatable** — failing spans can be pulled into a dataset to drive evals or fixes.
 
-This skill governs the *judgment* behind annotations. The `batch_span_annotate` tool description governs the *mechanics* (one array, ID requirements, update keying); follow both, and never contradict the tool's naming and identifier rules.
+This skill governs the *judgment* behind annotations. The `spans.annotate` operation description (from `search_ui`) governs the *mechanics* (one array, ID requirements, update keying); follow both, and never contradict the tool's naming and identifier rules.
 
 ## What Makes an Annotation Useful
 
@@ -93,7 +93,7 @@ When the user asks you to save annotations:
 3. **Pick the dimension(s) from the project's annotation configs.** Pull the configs first and reuse a matching config's `name` and label/score scheme; if a needed category has no config, create or extend one (see [Work From the Project's Annotation Configs](#work-from-the-projects-annotation-configs)) before writing. Then judge every span in the batch on that fixed vocabulary. If you're judging more than one dimension, settle each one's config up front.
 4. **Annotate the right span for each judgment** (principle 3) and the first failure (principle 4). Use only real IDs from context or prior tool results — never guess span IDs.
 5. **Write a grounded explanation per annotation** citing the specific evidence in that span.
-6. **Batch the related annotations into one `batch_span_annotate` call** and pick the `identifier` to match your intent (annotations are keyed by `(name, span, identifier)`):
+6. **Batch the related annotations into one `ui.spans.annotate` call** and pick the `identifier` to match your intent (annotations are keyed by `(name, span, identifier)`):
    - Use a **stable** identifier that names you as the author — e.g. `pxi` — when the judgment should be *updatable*: re-reviewing the same span and dimension overwrites the prior annotation instead of duplicating it.
    - Use a **descriptive, run-scoped** identifier — e.g. `pxi:tool-misuse-2026-05-29` — for a discrete review batch you may want to query or revert as a unit later. This mirrors the Phoenix CLI's `coding-run:<topic>-<date>` convention: a descriptive id carries meaning for whoever opens the data later, far better than an opaque constant.
    - Either way, the author prefix keeps your annotations distinguishable from human or other-evaluator annotations on the same span. Do not reuse one identifier for two unrelated runs you'd want to revert separately.
