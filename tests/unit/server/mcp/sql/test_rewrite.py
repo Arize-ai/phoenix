@@ -1571,9 +1571,9 @@ class TestTimestampLiterals:
 class TestOneSharedResolver:
     """Every reference a rewrite may edit resolves the same way.
 
-    Four passes previously carried four scope models and disagreed; C1, C2, C3,
-    C5 and C6 are those disagreements. Each is pinned here against the shape
-    that produced it.
+    A pass carrying its own scope model disagrees with the others about which
+    relation a reference belongs to, and the disagreement surfaces as a wrong
+    answer rather than an error. C1, C2, C3, C5 and C6 pin one shape each.
     """
 
     @staticmethod

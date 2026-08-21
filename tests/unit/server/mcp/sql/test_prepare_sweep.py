@@ -1,13 +1,11 @@
 """Every statement the corpus admits must be SQL the engine can compile.
 
-The admission corpus pins what is accepted. Acceptance is not the promise the
-surface makes: what reaches the engine is not the statement the caller wrote
-but the one the rewrite passes emit, and nothing was checking that the emission
-is valid SQL. Four defects reached the tree that way -- `DISTINCT ON (name)`
-emitted as `DISTINCT ON ROW(name)`, a JSON key holding an apostrophe emitted
-unescaped, a root-only path emitted as a function signature PostgreSQL does not
-define, and a USING merge naming a column its relation does not have. Each is a
-hard error, and each survived because no test handed the emission to a database.
+The admission corpus pins what is accepted, and acceptance is not the promise
+the surface makes: what reaches the engine is not the statement the caller
+wrote but the one the rewrite passes emit. A pass that renders a key list as a
+row constructor, drops the escaping from a JSON key, or names a column its
+relation does not expose produces a hard error that no amount of admission
+testing can see, because only a database judges the emission.
 
 Preparing rather than executing is what makes this cheap enough to run over the
 whole corpus: the engine resolves names, types and syntax without touching a

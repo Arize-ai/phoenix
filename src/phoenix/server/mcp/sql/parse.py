@@ -276,8 +276,8 @@ def _lambda_parameter_document(parameter: exp.Expression) -> Optional[exp.Expres
 def _json_path_from_string(text: str) -> exp.JSONPath:
     """A JSON path for a ``->`` key or a ``$.a.b`` path literal.
 
-    A lambda body is a bare string, so ``'$.a.b'`` used to become one key
-    named ``$.a.b``. SQLite then looks up that name and answers NULL.
+    A lambda body is a bare string, so treating ``'$.a.b'`` as a single key
+    yields one named ``$.a.b``, which SQLite looks up and answers NULL.
     Asking the parser how it reads the same literal as a bare accessor
     reuses the split it already gets right outside a call.
     """
@@ -340,14 +340,14 @@ def _repair_lambda_json_accessor(
 
     ``jsonb_typeof(attributes -> 'llm')`` is a JSON accessor the engines
     execute once parenthesised. The parser reads the arrow as ``x -> body``
-    instead, so admission used to refuse it and name ``->>`` / ``json_extract``,
-    neither of which is valid input to ``jsonb_typeof``. Reconstructing the
+    instead, and admission judging that lambda refuses it while naming ``->>``
+    or ``json_extract``, neither of which is valid input to ``jsonb_typeof``. Reconstructing the
     accessor is the same request the caller wrote.
 
     The reconstructed node is the operator on both backends, matching a bare
     ``->`` outside a call. SQLite's ``->`` returns JSON text; ``json_extract``
-    and ``->>`` return the SQL value. Rebuilding as the function used to
-    change that answer inside MIN/MAX.
+    and ``->>`` return the SQL value, so rebuilding as the function changes
+    what MIN/MAX compares.
     """
     # Innermost first: a three-hop chain nests JSONExtract inside JSONExtract.
     for node in reversed(list(root.find_all(exp.Lambda))):
@@ -854,9 +854,8 @@ def _tree_depth(root: exp.Expression) -> int:
 _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
     # OPERATOR(schema.op) invokes an operator by name, and exp.Operator is not an
     # exp.Func either -- so `name ~ 'x'` is refused as regexp_like while
-    # `name OPERATOR(pg_catalog.~) 'x'` was admitted and rendered verbatim. Same
-    # capability, two spellings, opposite verdicts, which means the function
-    # allowlist did not mean what it claimed.
+    # `name OPERATOR(pg_catalog.~) 'x'` bypasses the function allowlist entirely
+    # and renders verbatim. Same capability, two spellings, opposite verdicts.
     exp.Operator: (
         "OPERATOR(...) names an operator directly and bypasses the function "
         "allowlist. Use the operator's ordinary spelling."
@@ -1132,9 +1131,9 @@ def _check_lossy_shapes(
                 "many rows. Write an explicit row count instead.",
             )
     for select in root.find_all(exp.Select):
-        # PostgreSQL accepts an empty select list. SQLAlchemy will not stream
-        # a zero-column cursor, so execution used to fail with "does not
-        # return rows" after EXPLAIN had already succeeded.
+        # PostgreSQL accepts an empty select list. SQLAlchemy will not stream a
+        # zero-column cursor, so admitting one fails at execution with "does
+        # not return rows" -- after EXPLAIN has already succeeded.
         if not select.expressions:
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
@@ -1388,9 +1387,9 @@ def _check_collate(
 
 #: Structural classes a SELECT may contain. Everything the parser can build
 #: that is neither an `exp.Func` (its own allowlist) nor a table source (its
-#: own check) falls here, and until this existed the seam between those two
-#: policies was governed by a five-entry denylist -- so a class nobody had
-#: considered was admitted by default.
+#: own check) falls here. The seam between those two policies is closed-world
+#: for the same reason they are: a denylist admits by default, so any class
+#: nobody has considered is accepted.
 #:
 #: Two provenances, and they are not equally strong. Most entries were produced
 #: by parsing statements this surface ships, tests or teaches -- the admission
