@@ -1,7 +1,13 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInput,
+    EvaluatorScope,
+    PromptMessage,
+)
 
 HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="hallucination",
@@ -16,4 +22,16 @@ HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     choices={"hallucinated": 1.0, "grounded": 0.0},
     substitutions={"output": "output_with_tool_calls"},
     labels=["promoted_dataset_evaluator"],
+    scope=EvaluatorScope.SPAN,
+    recommended=True,
+    category=EvaluatorCategory.GROUNDING_AND_RETRIEVAL,
+    details="Determines whether an assistant's response contains claims unsupported by or contradictory to the conversation it had access to. Unlike Faithfulness, which grounds a response in one retrieved context block, Hallucination uses the broader conversation, including earlier turns, tool calls, tool results, and retrieved context.",
+    inputs={
+        "input": EvaluatorInput(
+            description="The entire conversational context, including all messages, tool calls, and tool results."
+        ),
+        "output": EvaluatorInput(
+            description="The LLM's output response (messages and tool calls) to be evaluated."
+        ),
+    },
 )

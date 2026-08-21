@@ -1,6 +1,20 @@
 name: faithfulness
 description: For determining if a response is faithful to the context.
+scope: span
+category: grounding_and_retrieval
 labels: []
+recommended: false
+details: >-
+  Determines whether an LLM's response is grounded in and faithful to the
+  provided context. It detects information that is unsupported by or contradicts
+  the reference context and is intended for grounded responses such as RAG outputs.
+inputs:
+  context:
+    description: "The content of the retrieved documents or context."
+  input:
+    description: "The input query or conversational context."
+  output:
+    description: "The LLM's output response to be evaluated."
 optimization_direction: maximize
 messages:
   - role: user
@@ -37,4 +51,3 @@ messages:
 choices:
   faithful: 1.0
   unfaithful: 0.0
-
