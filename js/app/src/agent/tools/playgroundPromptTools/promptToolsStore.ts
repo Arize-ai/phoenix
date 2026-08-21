@@ -88,10 +88,17 @@ export function planWritePromptTools({
   });
   if (!beforeSnapshot.ok) return beforeSnapshot;
   if (beforeSnapshot.output.revision !== input.expectedRevision) {
+    // A mismatch means the token is wrong, not necessarily that anyone
+    // edited the tools — say so, and carry the current revision so the
+    // script can retry without another read.
     return {
       ok: false,
       error:
-        "The prompt tool list has changed since it was last viewed by PXI.",
+        `expectedRevision "${input.expectedRevision}" does not match the ` +
+        `tool list's current revision "${beforeSnapshot.output.revision}". ` +
+        "Retry with the current revision (a successful write's returned " +
+        "`revision` is also valid); re-read the tools only if you need " +
+        "their latest content.",
     };
   }
 

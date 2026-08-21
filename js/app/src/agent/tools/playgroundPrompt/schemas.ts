@@ -1,13 +1,10 @@
 import { z } from "zod";
 
-import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import {
   chatMessageRolesSchema,
   chatMessageSchema,
 } from "@phoenix/pages/playground/schemas";
-
-export type PromptEditToolOutputSender = AddToolOutput;
 
 const promptToolCallsSchema = chatMessageSchema.shape.toolCalls.unwrap();
 
@@ -135,16 +132,6 @@ export const editPromptInputSchema = z
     })
   )
   .transform((input) => input);
-
-export const editPromptActionContextSchema = z
-  .object({
-    toolCallId: z.string(),
-    sessionId: z.string(),
-    addToolOutput: z.custom<PromptEditToolOutputSender>(
-      (value) => typeof value === "function"
-    ),
-  })
-  .transform((context) => context);
 
 /**
  * Copies aliased keys (e.g. snake_case) to their canonical names (camelCase)

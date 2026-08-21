@@ -170,8 +170,8 @@ class PlaygroundExperimentScaffoldContext(_ChatContextBase):
     *next* dataset-backed run, before that run has started.
 
     The playground UI lets the user pre-set how the next recorded run's experiment
-    will be named, described, and tagged (via the ``set_playground_experiment_recording``
-    tool or the recording form). That staged state is surfaced here so the agent can
+    will be named, described, and tagged (via the experiment-recording UI operation
+    or the recording form). That staged state is surfaced here so the agent can
     see what is already set and avoid re-staging it.
 
     Field semantics:

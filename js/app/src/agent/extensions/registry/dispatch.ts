@@ -138,14 +138,30 @@ export function createAgentToolDispatcher(
         return;
       }
 
-      await definition.dispatch({
-        toolCall,
-        sessionId,
-        addToolOutput,
-        appendMessagePart: appendMessagePart ?? (() => {}),
-        agentStore,
-        capabilities,
-      });
+      try {
+        await definition.dispatch({
+          toolCall,
+          sessionId,
+          addToolOutput,
+          appendMessagePart: appendMessagePart ?? (() => {}),
+          agentStore,
+          capabilities,
+        });
+      } catch (error) {
+        // A tool that throws instead of emitting output would otherwise leave
+        // its call stuck in `input-available` forever — the turn never
+        // completes and the UI shows a permanent "running" state. Convert the
+        // throw into a terminal error output so the model can react.
+        await addToolOutput({
+          state: "output-error",
+          tool: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            error instanceof Error
+              ? `Tool "${toolCall.toolName}" failed: ${error.message}`
+              : `Tool "${toolCall.toolName}" failed: ${String(error)}`,
+        });
+      }
     },
   };
 }

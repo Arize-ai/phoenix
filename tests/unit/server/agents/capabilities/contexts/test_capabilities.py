@@ -214,7 +214,7 @@ class TestDatasetContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
-        assert "open_code_evaluator_form" in content
+        assert "ui.evaluators.code.openForm" in content
         # The handoff builds a URL-encoded deep link to the create-evaluator
         # slideover for the in-view dataset.
         assert (
@@ -276,7 +276,7 @@ class TestDatasetContextCapabilityRender:
             model_provider_availability=ModelProviderAvailability(has_usable=True),
         )
         content = _render(capability, ctx)
-        assert "open_llm_evaluator_form" in content
+        assert "ui.evaluators.llm.openForm" in content
         assert "load_skill" in content
         assert "`evaluators`" in content
         assert (
@@ -341,7 +341,7 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "load_skill" in content
         assert "`evaluators`" in content
         assert "testPayload" in content
-        assert "test_code_evaluator_draft" in content
+        assert "ui.evaluators.code.test" in content
 
     def test_omits_hoisted_field_topology_methodology(self) -> None:
         capability = CodeEvaluatorContextCapability(
@@ -396,8 +396,8 @@ class TestCodeEvaluatorContextCapabilityRender:
         )
         bypass = _render(capability, _get_run_context(contexts, edit_permission="bypass"))
         manual = _render(capability, _get_run_context(contexts, edit_permission="manual"))
-        assert "submit_code_evaluator_draft" in bypass
-        assert "submit_code_evaluator_draft" not in manual
+        assert "ui.evaluators.code.submit" in bypass
+        assert "ui.evaluators.code.submit" not in manual
 
 
 class TestLlmEvaluatorContextCapabilityRender:
@@ -430,8 +430,8 @@ class TestLlmEvaluatorContextCapabilityRender:
         )
         bypass = _render(capability, _get_run_context(contexts, edit_permission="bypass"))
         manual = _render(capability, _get_run_context(contexts, edit_permission="manual"))
-        assert "submit_llm_evaluator_draft" in bypass
-        assert "submit_llm_evaluator_draft" not in manual
+        assert "ui.evaluators.llm.submit" in bypass
+        assert "ui.evaluators.llm.submit" not in manual
 
 
 class TestPlaygroundContextCapabilityRender:
@@ -453,7 +453,7 @@ class TestPlaygroundContextCapabilityRender:
         )
         content = _render(capability, ctx)
         assert "<dataset_evaluator_authoring>" in content
-        assert "open_code_evaluator_form" in content
+        assert "ui.evaluators.code.openForm" in content
         # A loaded dataset routes authoring through the form, not the create
         # link, and forbids GraphQL mutations.
         assert "[Create code evaluator]" not in content
@@ -472,8 +472,8 @@ class TestPlaygroundContextCapabilityRender:
         )
         bypass = _render(capability, _get_run_context(contexts, edit_permission="bypass"))
         manual = _render(capability, _get_run_context(contexts, edit_permission="manual"))
-        assert "submit_code_evaluator_draft" in bypass
-        assert "submit_code_evaluator_draft" not in manual
+        assert "ui.evaluators.code.submit" in bypass
+        assert "ui.evaluators.code.submit" not in manual
 
     def test_dataset_evaluator_authoring_without_dataset_asks_to_load_dataset(self) -> None:
         capability = PlaygroundContextCapability(
@@ -522,9 +522,9 @@ class TestPlaygroundContextCapabilityRender:
         )
         content = _render(capability, ctx)
         assert '<experiment_recording recordExperiments="false" mode="ephemeral"/>' in content
-        assert "set_playground_experiment_recording" in content
+        assert "ui.playground.experiment.setRecording" in content
         assert '<repetitions count="4"/>' in content
-        assert "set_playground_repetitions" in content
+        assert "ui.playground.repetitions.set" in content
 
     def test_renders_staged_experiment_scaffold(self) -> None:
         capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
@@ -646,9 +646,9 @@ class TestPlaygroundContextCapabilityRender:
         assert 'datasetEvaluatorId="RXY6MQ=="' in content
         assert 'kind="CODE"' in content
         assert 'applied="true"' in content
-        assert "set_dataset_evaluator_selection" in content
-        assert "open_dataset_evaluator_for_edit" in content
-        assert "read_dataset_evaluator_definition" in content
+        assert "ui.evaluators.select" in content
+        assert "ui.evaluators.openForEdit" in content
+        assert "ui.evaluators.readDefinition" in content
 
     def test_sanitizes_evaluator_name_in_roster(self) -> None:
         capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)

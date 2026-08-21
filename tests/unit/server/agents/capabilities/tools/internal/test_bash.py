@@ -174,6 +174,20 @@ async def test_query_from_file(run_bash: RunBash) -> None:
     assert result["stderr"] == ""
 
 
+async def test_long_inline_query_is_not_probed_as_a_file_path(run_bash: RunBash) -> None:
+    # Sandbox filesystems raise on over-long path components; an inline query
+    # longer than the path limit must execute as a query, not fail the probe.
+    padding = " ".join(["# pad"] * 80)
+    query = f"query {{ hello }} {padding}"
+    assert len(query) > 255
+
+    result = await run_bash(f"phoenix-gql '{query}'")
+
+    assert result["exitCode"] == 0
+    assert json.loads(result["stdout"]) == {"data": {"hello": "world"}}
+    assert result["stderr"] == ""
+
+
 async def test_mutation_rejected_when_disabled(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql 'mutation { deleteEverything }'")
 

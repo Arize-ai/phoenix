@@ -1,19 +1,21 @@
 import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
 
-import {
-  REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "./constants";
+import { REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR } from "./constants";
 import { removePromptInstance } from "./promptStore";
 import type {
   BindPendingPromptInstanceRemovalOptions,
   PendingPromptInstanceRemoval,
 } from "./types";
 
+/**
+ * Attaches accept/reject callbacks to a pending instance removal. Each
+ * callback resolves the awaiting `execute_ui` script call via `emitResult`;
+ * see `bindPendingPromptEditActions` for the result contract.
+ */
 export function bindPendingPromptInstanceRemovalActions({
   pendingRemoval,
   playgroundStore,
-  addToolOutput,
+  emitResult,
   setPendingPromptInstanceRemoval,
 }: BindPendingPromptInstanceRemovalOptions): PendingPromptInstanceRemoval {
   return {
@@ -25,18 +27,11 @@ export function bindPendingPromptInstanceRemovalActions({
         instanceId: pendingRemoval.instanceId,
       });
       if (!result.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-          toolCallId: pendingRemoval.toolCallId,
-          errorText: result.error,
-        });
+        emitResult({ ok: false, error: result.error });
         return;
       }
-      await addToolOutput({
-        state: "output-available",
-        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-        toolCallId: pendingRemoval.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           ...result.output,
           acceptedBy: approvalSource,
@@ -50,10 +45,8 @@ export function bindPendingPromptInstanceRemovalActions({
     },
     reject: async () => {
       setPendingPromptInstanceRemoval(pendingRemoval.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-        toolCallId: pendingRemoval.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "rejected",
           instanceId: pendingRemoval.instanceId,
@@ -65,12 +58,9 @@ export function bindPendingPromptInstanceRemovalActions({
     },
     cancel: async () => {
       setPendingPromptInstanceRemoval(pendingRemoval.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-        toolCallId: pendingRemoval.toolCallId,
-        errorText: REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
-        outcome: "interrupted",
+      emitResult({
+        ok: false,
+        error: REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
       });
     },
   };

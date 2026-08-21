@@ -1,6 +1,6 @@
 ---
 name: playground
-description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground tool call, including single-shot prompt rewrites.
+description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground `ui.*` operation call, including single-shot prompt rewrites.
 summary: Author, edit, run, compare, and improve prompts in the Phoenix playground.
 ---
 
@@ -11,6 +11,11 @@ ways of working: fast manual prompt iteration without a dataset, and dataset-bac
 experimentation with evaluators and experiments. Choose the workflow that matches the user's
 current goal and the UI context they have mounted.
 
+The playground actions named below are `ui.*` operations, called from `execute_ui` scripts as
+`await ui.<operation>(input)` (for example `await ui.playground.run({})`). Confirm exact input
+shapes with `search_ui` before first use, and prefer one small script that chains related steps
+over many single-call scripts.
+
 ## Workflow: Create And Iterate Without A Dataset
 
 Use this workflow when the user wants to draft, rewrite, or manually improve a prompt and no
@@ -18,30 +23,34 @@ dataset-backed evaluation loop is in scope.
 
 1. Clarify the task the prompt must perform: input variables, expected output shape, audience,
    constraints, and examples of good or bad behavior when available.
-2. If a playground prompt already exists, call `read_prompt_instance` before proposing changes so
-   you have the current messages, message IDs, labels, and revision.
+2. If a playground prompt already exists, call `ui.playground.prompt.read` before proposing
+   changes so you have the current messages, message IDs, labels, and revision.
 3. Draft or revise the prompt so it clearly states the task, required context, output contract, and
    success criteria. Keep the prompt directly tied to the user's stated goal.
-4. Use `edit_prompt_instance` for changes to the mounted prompt so the user can review the diff
-   before accepting it.
-5. Use `add_prompt_instance` when the user wants a fresh comparison instance that starts from the
-   default prompt messages. Use `clone_prompt_instance` when comparing alternatives should preserve
-   existing prompt content as the starting point. Discuss variants by their alphabetic labels, but
-   pass numeric instance IDs to tools. After adding, use the returned `addedInstance` snapshot for
-   follow-up edits.
-6. Use `set_variable_values` when the user provides manual values for prompt template variables.
-7. Use `set_playground_repetitions` before running when the user is concerned about flakes,
+4. Use `ui.playground.prompt.edit` for changes to the mounted prompt so the user can review the
+   diff before accepting it.
+5. Use `ui.playground.instance.add` when the user wants a fresh comparison instance that starts
+   from the default prompt messages. Use `ui.playground.instance.clone` when comparing alternatives
+   should preserve existing prompt content as the starting point. Discuss variants by their
+   alphabetic labels, but pass numeric instance IDs to operations. After adding, use the returned
+   `addedInstance` snapshot for follow-up edits.
+6. Use `ui.playground.variables.set` when the user provides manual values for prompt template
+   variables.
+7. Use `ui.playground.repetitions.set` before running when the user is concerned about flakes,
    structured output consistency, tool-call reliability, or whether the prompt is ready to save.
    LLM outputs are nondeterministic; repetitions build confidence by checking the same task across
    multiple runs instead of trusting one successful response.
-8. Call `run_playground` only when the user asks to run, try, test, or compare the current prompt.
-   Treat the output as qualitative feedback rather than dataset-backed evidence.
-9. After the run finishes, call `read_playground_output` to inspect raw output and get the traceId
-   for trace analysis when needed. If the run used multiple repetitions, inspect every repetition
-   before summarizing confidence or recommending that the user save.
-10. Call `save_prompt` only when the user explicitly asks to save or confirms that the current
-   prompt should be persisted. For a first-time save of an unsaved prompt, omit `name` unless the
-   user provided one; the tool will derive a valid Phoenix prompt name from the prompt content.
+8. Call `ui.playground.run` only when the user asks to run, try, test, or compare the current
+   prompt. Treat the output as qualitative feedback rather than dataset-backed evidence. One script
+   can run and read in sequence:
+   `const run = await ui.playground.run({}); if (!run.ok) return run; return await ui.playground.run.readOutput({});`
+9. After the run finishes, call `ui.playground.run.readOutput` to inspect raw output and get the
+   traceId for trace analysis when needed. If the run used multiple repetitions, inspect every
+   repetition before summarizing confidence or recommending that the user save.
+10. Call `ui.playground.prompt.save` only when the user explicitly asks to save or confirms that the
+   current prompt should be persisted. For a first-time save of an unsaved prompt, omit `name`
+   unless the user provided one; the operation will derive a valid Phoenix prompt name from the
+   prompt content.
    Always pass a save description; it should read like a clear, short git commit message. Treat
    tags like releases and do not promote tags unless the user asks.
 11. Inspect the output with the user, identify the next concrete improvement, and repeat the edit or
@@ -57,31 +66,33 @@ read and compare results, when an evaluator is warranted), and the `evaluators` 
 the evaluators that score them. This workflow covers only the playground mechanics of setting up and
 starting a recorded run.
 
-1. Load the dataset with `load_dataset` if it isn't already loaded. If the user named a dataset but
-   no split and the dataset has splits, name them and ask whether to scope to one or load the whole
-   dataset — then load once.
+1. Load the dataset with `ui.playground.dataset.load` if it isn't already loaded. If the user named
+   a dataset but no split and the dataset has splits, name them and ask whether to scope to one or
+   load the whole dataset — then load once.
 2. Make sure the starting prompt is well formed before running it: it should define the task,
    relevant variables, output format, and any constraints needed for consistent evaluation.
-3. Use `set_playground_experiment_recording` before running when the user wants the next
+3. Use `ui.playground.experiment.setRecording` before running when the user wants the next
    dataset-backed playground run recorded, persisted, or saved as an experiment, or wants to name,
    describe, or attach metadata (such as a hypothesis or the variable being changed) to the next
    experiment. Set `recordExperiments` to false only when the user explicitly asks for a temporary,
-   throwaway, unrecorded, or ephemeral run. Call this tool only when the requested recording mode or
-   scaffold fields differ from the advertised `recordExperiments` and `nextExperimentScaffold`
-   values; the staged scaffold applies to that one run and is consumed when it starts. This is
-   separate from `save_prompt`, which saves prompt versions rather than run results.
-4. Use `set_playground_repetitions` before running when the user needs confidence across repeated
+   throwaway, unrecorded, or ephemeral run. Call this operation only when the requested recording
+   mode or scaffold fields differ from the advertised `recordExperiments` and
+   `nextExperimentScaffold` values; the staged scaffold applies to that one run and is consumed when
+   it starts. This is separate from `ui.playground.prompt.save`, which saves prompt versions rather
+   than run results.
+4. Use `ui.playground.repetitions.set` before running when the user needs confidence across repeated
    attempts, especially for flaky behavior, structured outputs, or tool-call correctness.
 5. Run the playground over the dataset. When recording is enabled, each prompt instance run over a
    dataset is captured as an experiment, with outputs and evaluator annotations available for
    review.
 6. To read the experiment results and decide whether a change helped, follow the `experiments`
-   skill; to create the next candidate, use `edit_prompt_instance`, `add_prompt_instance`, or
-   `clone_prompt_instance` (`add_prompt_instance` starts from the default prompt messages,
-   `clone_prompt_instance` from existing prompt content), then rerun.
-7. Use `save_prompt` to save a prompt as a new version only after the evidence shows an improvement
-   or the user explicitly accepts the tradeoff. For unsaved prompts, the tool can create the Phoenix
-   prompt directly without asking for a name unless the user cares about the exact name.
+   skill; to create the next candidate, use `ui.playground.prompt.edit`, `ui.playground.instance.add`,
+   or `ui.playground.instance.clone` (`ui.playground.instance.add` starts from the default prompt
+   messages, `ui.playground.instance.clone` from existing prompt content), then rerun.
+7. Use `ui.playground.prompt.save` to save a prompt as a new version only after the evidence shows
+   an improvement or the user explicitly accepts the tradeoff. For unsaved prompts, the operation
+   can create the Phoenix prompt directly without asking for a name unless the user cares about the
+   exact name.
 
 ### Reading experiment results
 
@@ -105,13 +116,13 @@ when they want to refine the signature of an existing one, or when they want to 
 Function tools are JSON-Schema function definitions stored on the playground prompt instance
 (alongside messages and model config). They are the things the model can "call" during a run.
 
-1. Call `read_prompt_tools` before doing anything else. The result gives you the current tool list,
-   each tool's id and kind, and a `revision` token. Use the existing ids and names to decide
-   whether you should update an existing tool, create a new one, or delete one.
+1. Call `ui.playground.prompt.tools.read` before doing anything else. The result gives you the
+   current tool list, each tool's id and kind, and a `revision` token. Use the existing ids and
+   names to decide whether you should update an existing tool, create a new one, or delete one.
 2. If the user described a function in words, propose a concrete JSON Schema for it. Default to
    lowercase snake_case parameter names and a `{"type":"object","properties":{...},"required":[...]}`
    shape unless the user specifies otherwise.
-3. Call `write_prompt_tools` with the latest `revision`. Put every change in a single call: `tools`
+3. Call `ui.playground.prompt.tools.write` with the latest `revision`. Put every change in a single call: `tools`
    is an array of creates/updates (omit `id` to create, pass an existing `id` to patch — only the
    fields you include change), and `deleteToolIds` is a list of ids to remove. Deletes may target
    `raw` vendor tools too, even though writes can't. The batch is all-or-nothing: if any change is
@@ -121,13 +132,25 @@ Function tools are JSON-Schema function definitions stored on the playground pro
 4. After the write, briefly summarize what changed in plain English (which tools were created vs
    updated) so the user knows what to look for in the tool editor. If you created tools, tell them
    the new ids.
-5. If the user wants the model to use the new tool in a run, call `run_playground` and then
-   `read_playground_output` to see whether the model actually invoked it.
+5. If the user wants the model to use the new tool in a run, call `ui.playground.run` and then
+   `ui.playground.run.readOutput` to see whether the model actually invoked it.
 
 ### Few-shot examples
 
-These are concrete, runnable shapes — treat them as templates, not as fixed prompts. Always pass
-the latest `revision` returned by `read_prompt_tools`.
+These are concrete, runnable input shapes for `ui.playground.prompt.tools.write` — treat them as
+templates, not as fixed prompts. Always pass the latest `revision` returned by
+`ui.playground.prompt.tools.read`; the cleanest idiom is one `execute_ui` script that reads and then
+writes:
+
+```js
+const snapshot = await ui.playground.prompt.tools.read({ instanceId: 1 });
+if (!snapshot.ok) return snapshot;
+return await ui.playground.prompt.tools.write({
+  instanceId: 1,
+  expectedRevision: snapshot.output.revision,
+  tools: [/* creates and updates, as in the examples below */],
+});
+```
 
 **Create a brand-new tool.** One entry with no `id`.
 
@@ -285,8 +308,9 @@ by id; combine it with `tools` to delete and add atomically. Deletes may target 
 
 ### Things to avoid
 
-- Don't call `write_prompt_tools` without calling `read_prompt_tools` first this turn — the
-  `expectedRevision` will be stale and the write will be rejected.
+- Don't call `ui.playground.prompt.tools.write` without calling `ui.playground.prompt.tools.read`
+  first this turn — the `expectedRevision` will be stale and the write will be rejected. Reading and
+  writing in the same `execute_ui` script keeps the revision fresh.
 - Don't try to *write* a tool whose `kind` was `raw` in the read snapshot. Vendor passthrough tools
   (e.g. provider builtins like `web_search`) are not editable through PXI — tell the user to author
   those in the playground tool editor. A `raw` entry in `tools` rejects the whole batch. (You *can*
@@ -296,5 +320,6 @@ by id; combine it with `tools` to delete and add atomically. Deletes may target 
   `resetToolChoiceFrom`. Tell the user, since it changes how the model picks tools at run time.
 - Don't invent tool `id`s. An entry's `id` (and every `deleteToolIds` id) comes from a read
   snapshot, or is omitted for create. You cannot reference an id created earlier in the same batch.
-- Don't issue multiple `write_prompt_tools` calls in a row without re-reading the revision between
-  them. Each successful write or delete changes the revision. Batch the changes into one call.
+- Don't issue multiple `ui.playground.prompt.tools.write` calls in a row without re-reading the
+  revision between them. Each successful write or delete changes the revision. Batch the changes
+  into one call.

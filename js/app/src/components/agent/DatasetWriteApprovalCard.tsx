@@ -1,19 +1,13 @@
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
-import { Flex } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import {
-  ToolPartApprovalActions,
-  ToolPartCodeBlock,
-  ToolPartLabel,
-} from "./ToolPartPrimitives";
-import { stringifyToolValue } from "./toolPartTypes";
+import { ApprovalCard, payloadToApprovalSummaryRows } from "./ApprovalCard";
 
 type PreviewDescriptor = {
   /** Short action label shown at the top of the card. */
   label: string;
-  /** The JSON body rendered for review. */
-  payload: unknown;
+  /** The curated fields rendered for review as summary rows. */
+  payload: Record<string, unknown>;
   /**
    * A permanence/scope warning for destructive (`delete-*`) kinds, or `null`.
    * Surfaces that label/split deletes are instance-wide (not a per-dataset
@@ -93,7 +87,11 @@ function describePreview(pending: PendingDatasetWrite): PreviewDescriptor {
         note: null,
       };
     case "patch-dataset":
-      return { label: "Edit dataset", payload: preview.changes, note: null };
+      return {
+        label: "Edit dataset",
+        payload: { ...preview.changes },
+        note: null,
+      };
     case "delete-dataset":
       return {
         label: "Delete dataset",
@@ -159,21 +157,18 @@ export function DatasetWriteApprovalCard({
 }: {
   pending: PendingDatasetWrite;
 }) {
-  const canRespond = Boolean(pending.accept && pending.reject);
   const { label, payload, note } = describePreview(pending);
   return (
-    <Flex direction="column" gap="size-100" minHeight="0">
-      <ToolPartLabel variant={note ? "danger" : undefined}>
-        {label}
-      </ToolPartLabel>
-      <ToolPartCodeBlock>{stringifyToolValue(payload)}</ToolPartCodeBlock>
-      {note ? <ToolPartLabel variant="danger">{note}</ToolPartLabel> : null}
-      <ToolPartApprovalActions
-        onAccept={() => void pending.accept?.()}
-        onReject={() => void pending.reject?.()}
-        isDisabled={!canRespond}
-        staleMessage="This proposal was made in an earlier session and can't be applied here. Re-run your request to have the assistant propose it again."
-      />
-    </Flex>
+    <ApprovalCard
+      preview={{
+        title: label,
+        danger: note,
+        body: { kind: "summary", rows: payloadToApprovalSummaryRows(payload) },
+      }}
+      onAccept={() => void pending.accept?.()}
+      onReject={() => void pending.reject?.()}
+      isDisabled={!(pending.accept && pending.reject)}
+      staleMessage="This proposal was made in an earlier session and can't be applied here. Re-run your request to have the assistant propose it again."
+    />
   );
 }

@@ -8,10 +8,12 @@ import React, {
 } from "react";
 import { useSearchParams } from "react-router";
 
+import type { SetTimeRangeInput } from "@phoenix/agent/tools/timeRange";
 import {
-  SET_TIME_RANGE_TOOL_NAME,
-  type SetTimeRangeInput,
-} from "@phoenix/agent/tools/timeRange";
+  registerUiOperation,
+  unregisterUiOperation,
+} from "@phoenix/agent/uiOperations/catalog";
+import { setTimeRangeOperation } from "@phoenix/agent/uiOperations/operations/setTimeRange";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
@@ -248,7 +250,7 @@ function parseOptionalDateTime(value: string | undefined): Date | undefined {
 }
 
 /**
- * Register the browser-side implementation of PXI's `set_time_range` tool
+ * Register the browser-side implementation of PXI's `timeRange.set` operation
  * while a time range provider is mounted.
  */
 function useRegisterSetTimeRangeClientAction({
@@ -304,13 +306,13 @@ function useRegisterSetTimeRangeClientAction({
   );
 
   useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(SET_TIME_RANGE_TOOL_NAME, (input) =>
-      handleSetTimeRange(input as SetTimeRangeInput)
-    );
+    registerUiOperation({
+      agentStore,
+      descriptor: setTimeRangeOperation,
+      handler: handleSetTimeRange,
+    });
     return () => {
-      unregisterClientAction(SET_TIME_RANGE_TOOL_NAME);
+      unregisterUiOperation({ agentStore, name: setTimeRangeOperation.name });
     };
   }, [agentStore]);
 }

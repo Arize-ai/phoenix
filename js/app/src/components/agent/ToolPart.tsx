@@ -50,10 +50,13 @@ import {
   SET_SPANS_FILTER_TOOL_NAME,
 } from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
+import { EXECUTE_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
+import { SEARCH_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/searchUiAgentTool";
 import { Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
 import { MarkdownBlock } from "@phoenix/components/markdown";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -108,6 +111,11 @@ import {
   getEditPromptToolPreview,
 } from "./EditPromptToolDetails";
 import {
+  ExecuteUiToolDetails,
+  formatExecuteUiState,
+  getExecuteUiToolPreview,
+} from "./ExecuteUiToolDetails";
+import {
   formatLoadDatasetState,
   getLoadDatasetStatusVariant,
   getLoadDatasetToolPreview,
@@ -142,6 +150,10 @@ import {
   SavePromptToolDetails,
 } from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
+import {
+  getSearchUiToolPreview,
+  SearchUiToolDetails,
+} from "./SearchUiToolDetails";
 import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import { getToolIconKey } from "./toolIconConfig";
 import {
@@ -271,6 +283,39 @@ export const toolPartCSS = css`
   .tool-part__code {
     flex: 1;
     min-width: 0;
+  }
+
+  .tool-part__text {
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  }
+
+  /* Key–value rows for approval summaries: labels in the quiet color, values
+     as prose, structured values as scoped code blocks. */
+  .tool-part__kv {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: var(--global-dimension-size-200);
+    row-gap: var(--global-dimension-size-50);
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+
+    dt {
+      color: var(--tool-call-quiet-color);
+      white-space: nowrap;
+    }
+
+    dd {
+      margin: 0;
+      min-width: 0;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
   }
 
   .tool-part__summary {
@@ -586,7 +631,14 @@ function ToolInvocationPartDetails({
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
     getToolPresentation(toolName, part);
-  const shouldAutoOpen = shouldAutoOpenToolPart(part);
+  // Store-driven open request: set when this call stages a user-facing
+  // approval (see `requestToolPartOpen`), so Accept/Reject is never hidden
+  // behind a collapsed disclosure. It layers under the same manual-toggle
+  // override as the static heuristic — a card the user closed stays closed.
+  const isOpenRequested = useAgentContext((state) =>
+    Boolean(state.toolPartOpenRequests[part.toolCallId])
+  );
+  const shouldAutoOpen = isOpenRequested || shouldAutoOpenToolPart(part);
   const {
     ref: detailsRef,
     isOpen: isRenderedOpen,
@@ -1033,6 +1085,20 @@ function getToolPresentation(
 } {
   const statusVariant = getStatusVariant(part.state);
   switch (toolName) {
+    case EXECUTE_UI_TOOL_NAME:
+      return {
+        preview: getExecuteUiToolPreview(part),
+        stateLabel: formatExecuteUiState(part),
+        statusVariant,
+        details: <ExecuteUiToolDetails part={part} />,
+      };
+    case SEARCH_UI_TOOL_NAME:
+      return {
+        preview: getSearchUiToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <SearchUiToolDetails part={part} />,
+      };
     case "bash":
       return {
         preview: getBashToolPreview(part),

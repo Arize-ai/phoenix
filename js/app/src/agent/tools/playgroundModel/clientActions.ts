@@ -78,7 +78,7 @@ export function createSetPlaygroundModelClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseSetPlaygroundModelInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid set_playground_model input." };
+      return { ok: false, error: "Invalid playground.model.set input." };
     }
 
     const state = playgroundStore.getState();
@@ -152,18 +152,14 @@ export function createSetPlaygroundModelClientAction({
     );
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          instanceId: instance.id,
-          label: getInstanceLabel(instanceIndex),
-          provider,
-          modelName: selectedModelName,
-          ...(customProvider ? { customProvider } : {}),
-          message: "Playground model updated.",
-        },
-        null,
-        2
-      ),
+      output: {
+        instanceId: instance.id,
+        label: getInstanceLabel(instanceIndex),
+        provider,
+        modelName: selectedModelName,
+        ...(customProvider ? { customProvider } : {}),
+        message: "Playground model updated.",
+      },
     };
   };
 }
@@ -177,7 +173,7 @@ export function createListPlaygroundModelTargetsClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid list_playground_model_targets input.",
+        error: "Invalid playground.model.list input.",
       };
     }
     const builtinModels: ListPlaygroundBuiltinModelTarget[] =
@@ -201,16 +197,12 @@ export function createListPlaygroundModelTargetsClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          builtinModels,
-          customProviderModels,
-          message:
-            "Use the returned target payloads when calling set_playground_model.",
-        },
-        null,
-        2
-      ),
+      output: {
+        builtinModels,
+        customProviderModels,
+        message:
+          "Use the returned target payloads when calling ui.playground.model.set.",
+      },
     };
   };
 }

@@ -1,20 +1,11 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 
-import type {
-  loadDatasetActionContextSchema,
-  loadDatasetInputSchema,
-  LoadDatasetToolOutputSender,
-} from "./schemas";
-
-export type { LoadDatasetToolOutputSender } from "./schemas";
+import type { loadDatasetInputSchema } from "./schemas";
 
 export type LoadDatasetInput = z.output<typeof loadDatasetInputSchema>;
-
-export type LoadDatasetActionContext = z.output<
-  typeof loadDatasetActionContextSchema
->;
 
 // `splitIds` is an array to match the playground's repeated-`splitId` URL contract (v1: one split).
 export type DatasetSelectionSnapshot = {
@@ -45,7 +36,13 @@ export type ResolveDatasetTarget = (
 ) => Promise<DatasetTargetResolution>;
 
 export type PendingLoadDataset = {
+  /**
+   * Key of this pending entry. Under `execute_ui` this is the inner
+   * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
+   * the field keeps its historical name to limit churn across consumers.
+   */
   toolCallId: string;
+  /** Agent session that owns the unresolved playground.dataset.load call. */
   sessionId: string;
   input: LoadDatasetInput;
   snapshot: DatasetSelectionSnapshot;
@@ -65,7 +62,8 @@ export type BindPendingLoadDatasetOptions = {
   resolveDatasetTarget: ResolveDatasetTarget;
   readSelectionRevision: () => string;
   applyDatasetSelection: ApplyDatasetSelection;
-  addToolOutput: LoadDatasetToolOutputSender;
+  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  emitResult: UiOperationResultEmitter;
   setPendingLoadDataset: (
     toolCallId: string,
     pendingLoad: PendingLoadDataset | null
