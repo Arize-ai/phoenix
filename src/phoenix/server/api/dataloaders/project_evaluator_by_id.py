@@ -7,20 +7,16 @@ from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
 
-class ProjectEvaluatorCriteriaByIdDataLoader(
-    DataLoader[int, Optional[models.ProjectEvaluatorCriteria]]
-):
+class ProjectEvaluatorByIdDataLoader(DataLoader[int, Optional[models.ProjectEvaluator]]):
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: list[int]) -> list[Optional[models.ProjectEvaluatorCriteria]]:
-        records_by_id: dict[int, models.ProjectEvaluatorCriteria] = {}
+    async def _load_fn(self, keys: list[int]) -> list[Optional[models.ProjectEvaluator]]:
+        records_by_id: dict[int, models.ProjectEvaluator] = {}
         async with self._db.read() as session:
             records = await session.scalars(
-                select(models.ProjectEvaluatorCriteria).where(
-                    models.ProjectEvaluatorCriteria.id.in_(keys)
-                )
+                select(models.ProjectEvaluator).where(models.ProjectEvaluator.id.in_(keys))
             )
             for record in records:
                 records_by_id[record.id] = record

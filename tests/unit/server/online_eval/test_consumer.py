@@ -14,7 +14,6 @@ from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
-from phoenix.config import EVALUATORS_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.db.types.annotation_configs import (
@@ -60,10 +59,6 @@ from phoenix.server.online_eval.coordinator import (
     ClaimedWorkUnit,
     PublicationClaimLostError,
 )
-from phoenix.server.online_eval.criteria_resolution import (
-    resolve_criteria,
-    resolve_criteria_bulk,
-)
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
@@ -82,6 +77,10 @@ from phoenix.server.online_eval.executor import (
     span_eval_context,
 )
 from phoenix.server.online_eval.failure_policy import is_transient_error
+from phoenix.server.online_eval.project_evaluator_resolution import (
+    resolve_project_evaluator,
+    resolve_project_evaluators_bulk,
+)
 from phoenix.server.online_eval.session_policy import (
     MAX_SESSION_EVAL_TURNS,
     SessionTranscriptPolicy,
@@ -249,7 +248,7 @@ def _claimed_unit(target_rowid: int, *, work_unit_id: int = 1) -> ClaimedWorkUni
         evaluation_target="SPAN",
         target_rowid=target_rowid,
         evaluator_id=1,
-        criteria_id=1,
+        project_evaluator_id=1,
         config_fingerprint="fingerprint",
         identifier="online:fingerprint",
         attempts=0,
@@ -270,7 +269,7 @@ def _claimed_session_unit(
         evaluation_target="SESSION",
         target_rowid=project_session_rowid,
         evaluator_id=1,
-        criteria_id=1,
+        project_evaluator_id=1,
         config_fingerprint="fingerprint",
         identifier=identifier,
         attempts=0,
@@ -285,8 +284,8 @@ async def _claim_materialized_unit(
     project_id: int,
     span_rowid: int,
 ) -> ClaimedWorkUnit:
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project_id)
-    await _materialize_unit(db, span_rowid, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project_id)
+    await _materialize_unit(db, span_rowid, evaluator_id, project_evaluator_id)
     coordinator = DbEvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     return unit
@@ -301,8 +300,8 @@ async def _seed_llm_criteria(
     evaluation_target: models.EvaluationTarget = "SPAN",
     custom_provider: bool = False,
 ) -> tuple[int, int]:
-    """Create an LLM evaluator (prompt + version + tools) and an enabled criteria
-    row, returning (evaluator_id, criteria_id)."""
+    """Create an LLM evaluator (prompt + version + tools) and an enabled project_evaluator
+    row, returning (evaluator_id, project_evaluator_id)."""
     async with db() as session:
         custom_provider_id: Optional[int] = None
         if custom_provider:
@@ -385,18 +384,19 @@ async def _seed_llm_criteria(
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target=evaluation_target,
             input_mapping=criteria_input_mapping,
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        return evaluator.id, criteria.id
+        return evaluator.id, project_evaluator.id
 
 
 async def _seed_code_criteria(
@@ -461,18 +461,19 @@ async def _seed_code_criteria(
         )
         session.add(evaluator)
         await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target=evaluation_target,
             input_mapping=criteria_input_mapping,
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        return evaluator.id, criteria.id
+        return evaluator.id, project_evaluator.id
 
 
 async def _seed_builtin_criteria(
@@ -495,40 +496,41 @@ async def _seed_builtin_criteria(
             )
             session.add(evaluator)
             await session.flush()
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project_id,
             evaluator_id=evaluator.id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target=evaluation_target,
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        return evaluator.id, criteria.id
+        return evaluator.id, project_evaluator.id
 
 
 async def _materialize_unit(
-    db: DbSessionFactory, span_rowid: int, evaluator_id: int, criteria_id: int
+    db: DbSessionFactory, span_rowid: int, evaluator_id: int, project_evaluator_id: int
 ) -> tuple[int, str]:
     """Materialize one PENDING work unit exactly as the producer would, returning
     (work_unit_id, config_fingerprint)."""
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
         polymorphic = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
         )
         evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
         assert evaluator is not None
-        resolved = await resolve_criteria(session, criteria, evaluator)
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
         unit = models.EvalWorkUnit(
             span_rowid=span_rowid,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint=fingerprint,
         )
         session.add(unit)
@@ -540,11 +542,11 @@ async def _materialize_session_unit(
     db: DbSessionFactory,
     project_session_rowid: int,
     evaluator_id: int,
-    criteria_id: int,
+    project_evaluator_id: int,
 ) -> tuple[int, str]:
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
         polymorphic = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
@@ -553,7 +555,7 @@ async def _materialize_session_unit(
         assert evaluator is not None
         project_session = await session.get(models.ProjectSession, project_session_rowid)
         assert project_session is not None
-        resolved = await resolve_criteria(session, criteria, evaluator)
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
         evaluated_through = project_session.last_span_ingested_at
@@ -563,7 +565,7 @@ async def _materialize_session_unit(
         unit = models.EvalSessionWorkUnit(
             project_session_rowid=project_session_rowid,
             evaluator_id=evaluator_id,
-            criteria_id=criteria_id,
+            project_evaluator_id=project_evaluator_id,
             config_fingerprint=fingerprint,
             evaluated_through=evaluated_through,
         )
@@ -654,7 +656,7 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
         project_session.last_span_ingested_at = scheduled_at
         trace = await _add_trace(session, project, project_session, start_time=event_time)
         await _add_span(session, trace, start_time=event_time)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -663,15 +665,15 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        criteria.created_at = scheduled_at - timedelta(days=1)
-        annotation_name = criteria.name.root
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        project_evaluator.created_at = scheduled_at - timedelta(days=1)
+        annotation_name = project_evaluator.name.root
 
     executor = _executor(db, evaluation_target="SESSION")
     await executor.evaluate_and_annotate(
@@ -730,7 +732,7 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
         project_session.content_complete = False
         trace = await _add_trace(session, project, project_session)
         await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -739,7 +741,7 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     async with db() as session:
         last_span_ingested_at = await session.scalar(
@@ -856,8 +858,8 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
             trace,
             attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
         )
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
-    unit_id, fingerprint = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, fingerprint = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
@@ -869,9 +871,9 @@ async def test_happy_path_claims_evaluates_annotates_and_completes(
     assert len(annotations) == 1
     annotation = annotations[0]
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        assert annotation.name == criteria.name.root
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        assert annotation.name == project_evaluator.name.root
     assert annotation.span_rowid == span.id
     assert annotation.label == "good"
     assert annotation.score == 1.0
@@ -892,12 +894,12 @@ async def test_custom_provider_materializes_claims_executes_and_annotates(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         project.id,
         custom_provider=True,
     )
-    unit_id, fingerprint = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    unit_id, fingerprint = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
@@ -918,9 +920,10 @@ async def test_configuration_versions_are_resolved_once_per_claim_batch(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         spans = [await _add_span(session, trace) for _ in range(3)]
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     unit_ids = [
-        (await _materialize_unit(db, span.id, evaluator_id, criteria_id))[0] for span in spans
+        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0]
+        for span in spans
     ]
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
@@ -928,9 +931,9 @@ async def test_configuration_versions_are_resolved_once_per_claim_batch(
 
     async def _counting_resolver(*args: Any, **kwargs: Any) -> Any:
         call_sizes.append(len(args[1]))
-        return await resolve_criteria_bulk(*args, **kwargs)
+        return await resolve_project_evaluators_bulk(*args, **kwargs)
 
-    monkeypatch.setattr(executor_module, "resolve_criteria_bulk", _counting_resolver)
+    monkeypatch.setattr(executor_module, "resolve_project_evaluators_bulk", _counting_resolver)
 
     consumer = OnlineEvalConsumer(
         db,
@@ -957,9 +960,9 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
         trace = await _add_trace(session, project)
         bad_span = await _add_span(session, trace)
         good_span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
-    bad_unit_id, _ = await _materialize_unit(db, bad_span.id, evaluator_id, criteria_id)
-    good_unit_id, _ = await _materialize_unit(db, good_span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    bad_unit_id, _ = await _materialize_unit(db, bad_span.id, evaluator_id, project_evaluator_id)
+    good_unit_id, _ = await _materialize_unit(db, good_span.id, evaluator_id, project_evaluator_id)
     _patch_playground_client(monkeypatch, _StubLLMClient())
     original = OnlineEvalExecutor._hydrate_target_context
 
@@ -995,15 +998,16 @@ async def test_shared_hydration_failure_releases_claims_without_attempts(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         spans = [await _add_span(session, trace) for _ in range(2)]
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     unit_ids = [
-        (await _materialize_unit(db, span.id, evaluator_id, criteria_id))[0] for span in spans
+        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0]
+        for span in spans
     ]
 
     async def _fail_shared_query(session: Any, rows: Any) -> Any:
         await session.execute(text("SELECT 1 / 0"))
 
-    monkeypatch.setattr(executor_module, "resolve_criteria_bulk", _fail_shared_query)
+    monkeypatch.setattr(executor_module, "resolve_project_evaluators_bulk", _fail_shared_query)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
 
     await consumer._cycle()
@@ -1022,9 +1026,10 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         spans = [await _add_span(session, trace) for _ in range(2)]
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     unit_ids = [
-        (await _materialize_unit(db, span.id, evaluator_id, criteria_id))[0] for span in spans
+        (await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id))[0]
+        for span in spans
     ]
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
@@ -1037,8 +1042,8 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
     await consumer._cycle()
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(sampling_rate=0.5)
         )
     await consumer._cycle()
@@ -1150,7 +1155,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
             llm_token_count_prompt=3,
             llm_token_count_completion=4,
         )
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -1164,7 +1169,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
@@ -1208,9 +1213,9 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert events.empty()
 
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        annotation_name = criteria.name.root
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        annotation_name = project_evaluator.name.root
     duplicate = _claimed_session_unit(
         project_session.id,
         identifier=annotation_identifier(fingerprint),
@@ -1252,7 +1257,7 @@ async def test_session_publication_preserves_ingest_and_records_transcript_water
         trace = await _add_trace(session, project, project_session, start_time=start_time)
         await _add_span(session, trace, span_kind="CHAIN", start_time=start_time)
         await _add_span(session, trace, span_kind="CHAIN", start_time=duplicate_root_time)
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -1261,7 +1266,7 @@ async def test_session_publication_preserves_ingest_and_records_transcript_water
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
@@ -1296,7 +1301,7 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
         )
         await _add_span(session, trace, span_kind="CHAIN", start_time=first_event_time)
         project_session.last_span_ingested_at = first_ingest_time
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -1305,7 +1310,7 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     _patch_playground_client(monkeypatch, _StubLLMClient())
     coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
@@ -1380,7 +1385,7 @@ async def test_marker_only_session_transcript_is_terminal_without_counting_attem
                 "output": {"value": output_value},
             },
         )
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -1389,7 +1394,7 @@ async def test_marker_only_session_transcript_is_terminal_without_counting_attem
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
@@ -1422,7 +1427,7 @@ async def test_cross_project_session_unit_expires_before_evaluator_call(
         foreign_project_session = await _add_project_session(session, session_project)
         trace = await _add_trace(session, session_project, foreign_project_session)
         await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         criteria_project.id,
         evaluation_target="SESSION",
@@ -1431,7 +1436,7 @@ async def test_cross_project_session_unit_expires_before_evaluator_call(
         db,
         foreign_project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
@@ -1465,7 +1470,7 @@ async def test_session_hydration_excludes_transferred_trace_roots(
         trace = await _add_trace(session, criteria_project, project_session)
         await _add_span(session, trace)
         trace.project_rowid = destination_project.id
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         criteria_project.id,
         evaluation_target="SESSION",
@@ -1474,7 +1479,7 @@ async def test_session_hydration_excludes_transferred_trace_roots(
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
@@ -1520,15 +1525,15 @@ async def test_session_filtered_sampled_criteria_survives_hydration(
                 "metadata": {},
             },
         )
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
     )
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(
                 filter_condition="session_id == 'hydrated-session'",
                 sampling_rate=0.5,
@@ -1538,7 +1543,7 @@ async def test_session_filtered_sampled_criteria_survives_hydration(
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
@@ -1562,7 +1567,7 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
         project_session = await _add_project_session(session, project)
         trace = await _add_trace(session, project, project_session)
         await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_code_criteria(
+    evaluator_id, project_evaluator_id = await _seed_code_criteria(
         db,
         project.id,
         criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
@@ -1572,7 +1577,7 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
@@ -1610,12 +1615,12 @@ async def test_code_hydration_supplies_sandbox_runtime(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_code_criteria(
+    evaluator_id, project_evaluator_id = await _seed_code_criteria(
         db,
         project.id,
         criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
     )
-    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     coordinator = DbEvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     sandbox_runtime = cast(Any, object())
@@ -1646,12 +1651,12 @@ async def test_span_code_hydration_supplies_configured_payload_cap(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_code_criteria(
+    evaluator_id, project_evaluator_id = await _seed_code_criteria(
         db,
         project.id,
         criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
     )
-    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     coordinator = DbEvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     manager = _StubSandboxSessionManager()
@@ -1686,7 +1691,7 @@ async def test_llm_criteria_input_mapping_override_is_used_during_execution(
             trace,
             attributes={"remapped": {"question": "mapped question"}},
         )
-    evaluator_id, criteria_id = await _seed_llm_criteria(
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         project.id,
         template_content="Question: {{question}}\nAnswer: {{answer}}",
@@ -1695,7 +1700,7 @@ async def test_llm_criteria_input_mapping_override_is_used_during_execution(
             literal_mapping={"answer": "literal answer"},
         ),
     )
-    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     client = _StubLLMClient()
     _patch_playground_client(monkeypatch, client)
 
@@ -1724,10 +1729,11 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
             select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
         )
         assert evaluator_id is not None
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator_id,
-            name=Identifier(root=f"criteria-{token_hex(4)}"),
+            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
             filter_condition="",
             sampling_rate=1.0,
             evaluation_target="SPAN",
@@ -1736,10 +1742,10 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
                 literal_mapping={"words": "mapped value"},
             ),
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        criteria_id = criteria.id
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+        project_evaluator_id = project_evaluator.id
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     await consumer._cycle()
@@ -1763,7 +1769,8 @@ async def test_builtin_implementation_mismatch_expires_without_counting_attempt(
             select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
         )
         assert evaluator_id is not None
-        criteria = models.ProjectEvaluatorCriteria(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator_id,
             name=Identifier(root="contains-version-check"),
@@ -1771,10 +1778,10 @@ async def test_builtin_implementation_mismatch_expires_without_counting_attempt(
             sampling_rate=1.0,
             evaluation_target="SPAN",
         )
-        session.add(criteria)
+        session.add(project_evaluator)
         await session.flush()
-        criteria_id = criteria.id
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+        project_evaluator_id = project_evaluator.id
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     monkeypatch.setattr(ContainsEvaluator, "implementation_version", "mismatched")
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
@@ -1797,15 +1804,15 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
             trace,
             attributes={"remapped": {"value": "mapped context"}},
         )
-    evaluator_id, criteria_id = await _seed_code_criteria(
+    evaluator_id, project_evaluator_id = await _seed_code_criteria(
         db,
         project.id,
         criteria_input_mapping=InputMapping(
             path_mapping={"output": "metadata.attributes.remapped.value"},
-            literal_mapping={"metadata": "criteria literal"},
+            literal_mapping={"metadata": "project_evaluator literal"},
         ),
     )
-    await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     coordinator = DbEvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     manager = _StubSandboxSessionManager()
@@ -1822,7 +1829,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
 
     (executed_code,) = manager.session.executed_code
     assert "mapped context" in executed_code
-    assert "criteria literal" in executed_code
+    assert "project_evaluator literal" in executed_code
     assert "evaluator default" not in executed_code
     assert manager.session_keys == [f"online-eval:{evaluator_id}:test-replica"]
     annotation = (await _annotations(db))[0]
@@ -1841,12 +1848,12 @@ async def test_unavailable_sandbox_runtime_expires_without_counting_attempt(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_code_criteria(
+    evaluator_id, project_evaluator_id = await _seed_code_criteria(
         db,
         project.id,
         criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
     )
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     async with db() as session:
         evaluator = await session.get(models.CodeEvaluator, evaluator_id)
         assert evaluator is not None
@@ -1888,8 +1895,8 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
             trace,
             attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
         )
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     _patch_playground_client(monkeypatch, _StubLLMClient())
     coordinator = DbEvalWorkCoordinator(db)
 
@@ -1922,7 +1929,7 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
     assert events.empty()
 
 
-async def test_evaluation_is_traced_into_the_evaluators_project(db: DbSessionFactory) -> None:
+async def test_evaluation_is_traced_into_the_evaluator_own_project(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -1946,8 +1953,11 @@ async def test_evaluation_is_traced_into_the_evaluators_project(db: DbSessionFac
             await session.execute(
                 select(models.Span, models.Trace.trace_id)
                 .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                .join(models.Project, models.Trace.project_rowid == models.Project.id)
-                .where(models.Project.name == EVALUATORS_PROJECT_NAME)
+                .join(
+                    models.ProjectEvaluator,
+                    models.Trace.project_rowid == models.ProjectEvaluator.trace_project_id,
+                )
+                .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
             )
         ).all()
     assert {span.name for span, _ in traced} == {"Evaluator: criterion", "Parse Eval Result"}
@@ -1956,7 +1966,7 @@ async def test_evaluation_is_traced_into_the_evaluators_project(db: DbSessionFac
         attributes = evaluator_span.attributes
         assert get_attribute_value(attributes, EVALUATOR_TRACE_MARKER_ATTRIBUTE) is True
         assert get_attribute_value(attributes, PROJECT_EVALUATOR_ID_ATTRIBUTE) == str(
-            GlobalID("ProjectEvaluator", str(unit.criteria_id))
+            GlobalID("ProjectEvaluator", str(unit.project_evaluator_id))
         )
         assert get_attribute_value(attributes, PROJECT_EVALUATOR_NAME_ATTRIBUTE) == "criterion"
     (_, evaluator_trace_id) = traced[0]
@@ -1992,8 +2002,11 @@ async def test_llm_incomplete_result_set_writes_nothing(db: DbSessionFactory) ->
         traced_span_count = await session.scalar(
             select(func.count(models.Span.id))
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .join(models.Project, models.Trace.project_rowid == models.Project.id)
-            .where(models.Project.name == EVALUATORS_PROJECT_NAME)
+            .join(
+                models.ProjectEvaluator,
+                models.Trace.project_rowid == models.ProjectEvaluator.trace_project_id,
+            )
+            .where(models.ProjectEvaluator.id == unit.project_evaluator_id)
         )
     assert traced_span_count
 
@@ -2121,8 +2134,8 @@ async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) 
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     coordinator = DbEvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     hydrated = _hydrated_stub(
@@ -2132,9 +2145,9 @@ async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) 
     )
     executor = _executor(db)
     async with db() as session:
-        criteria = await session.get(models.ProjectEvaluatorCriteria, criteria_id)
-        assert criteria is not None
-        await session.delete(criteria)
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        await session.delete(project_evaluator)
 
     with pytest.raises(PublicationClaimLostError):
         await executor.evaluate_and_annotate(unit, hydrated)
@@ -2155,8 +2168,8 @@ async def test_evaluator_error_fails_unit_with_cooldown_and_no_annotation(
             trace,
             attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
         )
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     _patch_playground_client(monkeypatch, _StubLLMClient(error=RuntimeError("provider is down")))
 
     consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
@@ -2189,8 +2202,8 @@ async def test_transient_provider_error_retries_without_burning_attempts(
             trace,
             attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
         )
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     _patch_playground_client(
         monkeypatch, _StubLLMClient(error=httpx.ConnectError("provider unreachable"))
     )
@@ -2232,8 +2245,8 @@ async def test_provider_classifier_handles_provider_specific_error_shape(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     _patch_playground_client(
         monkeypatch,
         _StubLLMClient(error=_ProviderError("provider-specific throttle")),
@@ -2282,8 +2295,8 @@ async def test_execution_deadline_cancels_eval_and_counts_attempt(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(
         db,
         decrypt=lambda value: value,
@@ -2325,8 +2338,8 @@ async def test_llm_execution_deadline_retries_without_counting_attempt(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(
         db,
         decrypt=lambda value: value,
@@ -2362,8 +2375,8 @@ async def test_sandbox_payload_limit_is_terminal_without_counting_attempt(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     (unit,) = await consumer._coordinator.claim(
         claimed_by=consumer._consumer_id,
@@ -2402,8 +2415,8 @@ async def test_process_cancellation_releases_claim_without_counting_attempt(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     (unit,) = await consumer._coordinator.claim(
         claimed_by=consumer._consumer_id,
@@ -2441,8 +2454,8 @@ async def test_evaluator_queue_wait_renews_the_lease(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     monkeypatch.setattr(consumer_module, "HEARTBEAT_INTERVAL_SECONDS", 0.01)
     saturated = asyncio.Semaphore(1)
     await saturated.acquire()
@@ -2479,8 +2492,8 @@ async def test_heartbeat_proceeds_under_db_semaphore_saturation(db: DbSessionFac
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     db_semaphore = asyncio.Semaphore(1)
     consumer = OnlineEvalConsumer(
         db,
@@ -2506,10 +2519,10 @@ async def test_cycle_cancellation_during_batch_hydration_releases_claims(
         trace = await _add_trace(session, project)
         first_span = await _add_span(session, trace)
         second_span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
     unit_ids = [
-        (await _materialize_unit(db, first_span.id, evaluator_id, criteria_id))[0],
-        (await _materialize_unit(db, second_span.id, evaluator_id, criteria_id))[0],
+        (await _materialize_unit(db, first_span.id, evaluator_id, project_evaluator_id))[0],
+        (await _materialize_unit(db, second_span.id, evaluator_id, project_evaluator_id))[0],
     ]
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     hydrating = asyncio.Event()
@@ -2543,8 +2556,8 @@ async def test_storage_pause_prevents_claiming_new_work(db: DbSessionFactory) ->
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     db.should_not_insert_or_update = True
 
@@ -2565,8 +2578,8 @@ async def test_storage_pause_before_publication_returns_claim_to_pending(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     (unit,) = await consumer._coordinator.claim(
         claimed_by=consumer._consumer_id,
@@ -2647,8 +2660,8 @@ async def test_complete_retries_after_ambiguous_commit(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     (unit,) = await consumer._coordinator.claim(
         claimed_by=consumer._consumer_id,
@@ -2691,8 +2704,8 @@ async def test_failure_transition_retries_raised_exceptions(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     (unit,) = await consumer._coordinator.claim(
         claimed_by=consumer._consumer_id,
@@ -2745,8 +2758,8 @@ async def test_failure_transition_retries_after_ambiguous_commit(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
     (unit,) = await consumer._coordinator.claim(
         claimed_by=consumer._consumer_id,
@@ -2790,15 +2803,15 @@ async def test_staleness_guard_expires_unit_without_annotating(
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
 
-    # A criteria edit between materialization and consumption changes the
+    # A project_evaluator edit between materialization and consumption changes the
     # recomputed fingerprint, so the unit must be dropped, not executed.
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(sampling_rate=0.5)
         )
 
@@ -2864,13 +2877,13 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
 
     async with db() as session:
         await session.execute(
-            update(models.ProjectEvaluatorCriteria)
-            .where(models.ProjectEvaluatorCriteria.id == criteria_id)
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
             .values(enabled=False)
         )
 
@@ -2879,7 +2892,7 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
 
     unit = await _get_unit(db, unit_id)
     assert unit.status == "EXPIRED"
-    assert unit.error == "CRITERIA_DISABLED"
+    assert unit.error == "PROJECT_EVALUATOR_DISABLED"
     assert await _annotations(db) == []
 
 
@@ -2899,7 +2912,7 @@ async def test_session_stand_down_is_visible_on_the_expired_gauge(
         project_session = await _add_project_session(session, project)
         trace = await _add_trace(session, project, project_session)
         await _add_span(session, trace)
-    evaluator_id, criteria_id = await _seed_builtin_criteria(
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -2908,7 +2921,7 @@ async def test_session_stand_down_is_visible_on_the_expired_gauge(
         db,
         project_session.id,
         evaluator_id,
-        criteria_id,
+        project_evaluator_id,
     )
     async with db() as session:
         await session.execute(

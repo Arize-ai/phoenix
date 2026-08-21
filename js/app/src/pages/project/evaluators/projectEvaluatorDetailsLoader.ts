@@ -50,7 +50,7 @@ export async function projectEvaluatorDetailsLoader(
     typeof loadQuery<projectEvaluatorDetailsLoaderQuery>
   > | null;
   evaluatorDisplayName: string | null;
-  /** The shared evaluator-trace project, or null until the first trace creates it. */
+  /** The evaluator's own trace project, or null when the evaluator was not found. */
   traceProjectId: string | null;
 }> {
   const { projectEvaluatorId } = args.params;
