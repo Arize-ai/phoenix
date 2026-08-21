@@ -119,8 +119,10 @@ export const editPromptOperation = defineUiOperation({
   description:
     "Propose edits to one playground prompt instance. This tool does not change the " +
     "prompt immediately: the browser renders an inline diff and the user must accept " +
-    "or reject it. Always call `playground.prompt.read` first, then pass its `revision` as " +
-    "`expectedRevision`. Edits are rejected if the prompt changed since that read. " +
+    "or reject it. Call `playground.prompt.read` before your first edit and pass its " +
+    "`revision` as `expectedRevision`. Edits are rejected if the prompt changed since " +
+    "that read — but a successful edit returns the new `revision`, which is valid as " +
+    "the next `expectedRevision`, so chained edits need no re-read between them. " +
     "Use the alphabetic label from `playground.prompt.read` (A, B, C, D) when telling the user " +
     "which instance is being edited, but pass the numeric `instanceId` when calling " +
     "this tool. " +

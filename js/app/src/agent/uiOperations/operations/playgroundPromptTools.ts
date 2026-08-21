@@ -46,8 +46,10 @@ export const writePromptToolsOperation = defineUiOperation({
   description:
     "Create, update, and/or delete function/tool definitions on a playground prompt " +
     "instance in a single atomic batch. " +
-    "Always call `playground.prompt.tools.read` first and pass its `revision` as `expectedRevision`; " +
-    "the whole batch is rejected if the tool list changed since that read. " +
+    "Call `playground.prompt.tools.read` before your first write and pass its `revision` " +
+    "as `expectedRevision`; the whole batch is rejected if the tool list changed since " +
+    "that read. A successful write returns the new `revision`, valid as the next " +
+    "`expectedRevision` — chained writes need no re-read between them. " +
     "Within each entry of `tools`, pass `id` to update an existing function tool (patch — " +
     "only fields present in the entry change); omit `id` or pass null to create a new one " +
     "(the runtime assigns the id). Each entry's `name` is always required. `parameters` is " +

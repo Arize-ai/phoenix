@@ -187,9 +187,16 @@ export function createEditPromptClientAction({
     });
     if (!before.ok) return before;
     if (before.output.revision !== parsed.expectedRevision) {
+      // A mismatch means the token is wrong, not necessarily that anyone
+      // edited the prompt — say so, and carry the current revision so the
+      // script can retry without another read.
       return {
         ok: false,
-        error: "The prompt has changed since it was last viewed by PXI.",
+        error:
+          `expectedRevision "${parsed.expectedRevision}" does not match the ` +
+          `prompt's current revision "${before.output.revision}". Retry with ` +
+          "the current revision (a successful edit's returned `revision` is " +
+          "also valid); re-read the prompt only if you need its latest content.",
       };
     }
     const proposed = buildProposedPromptSnapshot({
