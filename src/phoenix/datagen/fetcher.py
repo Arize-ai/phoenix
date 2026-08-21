@@ -14,6 +14,10 @@ from typing import Any, Callable, Iterator, Mapping
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
+_DEFAULT_ASSET_BASE_URL = "https://storage.googleapis.com/arize-phoenix-assets/datagen"
+_ASSET_BASE_URL_ENV = "PHOENIX_DATAGEN_ASSETS_BASE_URL"
+_CACHE_CHECKSUMS_FILENAME = ".checksums.json"
+
 
 class AssetFetchError(ValueError):
     """Raised when a datagen asset cannot be resolved or safely cached."""
@@ -38,20 +42,30 @@ def fetch_scenario(
     cache_dir: Path | None = None,
     index_path: Path | None = None,
     downloader: Downloader | None = None,
+    index_downloader: Downloader | None = None,
 ) -> Path:
-    """Fetch a scenario from the release index and return its cached directory."""
-    entry = load_asset_index(index_path).get(scenario)
+    """Fetch a scenario from the published index and return its cached directory."""
+    cache_root = cache_dir or default_cache_dir()
+    index = load_asset_index(
+        index_path,
+        cache_dir=cache_root,
+        downloader=index_downloader,
+    )
+    if scenario == "default" and scenario not in index:
+        if not index:
+            raise AssetFetchError("The datagen asset index does not contain any scenarios")
+        scenario = min(index)
+    entry = index.get(scenario)
     if entry is None:
         raise AssetFetchError(f"Scenario {scenario!r} is not present in the datagen asset index")
 
-    cache_root = cache_dir or default_cache_dir()
     destination = cache_root / scenario / entry.sha256
-    if _is_scenario_directory(destination):
+    if _is_cached_scenario(destination, entry):
         return destination
 
-    cache_root.mkdir(parents=True, exist_ok=True)
+    _ensure_cache_dir(cache_root)
     with _scenario_lock(cache_root, scenario):
-        if _is_scenario_directory(destination):
+        if _is_cached_scenario(destination, entry):
             return destination
         return _download_and_publish(
             scenario,
@@ -62,8 +76,33 @@ def fetch_scenario(
         )
 
 
-def load_asset_index(index_path: Path | None = None) -> Mapping[str, AssetEntry]:
-    path = index_path or Path(__file__).with_name("assets") / "index.json"
+def load_asset_index(
+    index_path: Path | None = None,
+    *,
+    cache_dir: Path | None = None,
+    index_url: str | None = None,
+    downloader: Downloader | None = None,
+) -> Mapping[str, AssetEntry]:
+    """Load an explicit index or refresh the cached index from object storage."""
+    path = index_path
+    if path is None:
+        cache_root = cache_dir or default_cache_dir()
+        path = _acquire_index(
+            cache_root,
+            index_url or f"{asset_base_url()}/index.json",
+            downloader or _download_file,
+        )
+    return _read_asset_index(path)
+
+
+def asset_base_url() -> str:
+    value = os.environ.get(_ASSET_BASE_URL_ENV, _DEFAULT_ASSET_BASE_URL).rstrip("/")
+    if urlparse(value).scheme != "https":
+        raise AssetFetchError(f"{_ASSET_BASE_URL_ENV} must use HTTPS")
+    return value
+
+
+def _read_asset_index(path: Path) -> Mapping[str, AssetEntry]:
     try:
         value = json.loads(path.read_bytes())
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -79,9 +118,50 @@ def load_asset_index(index_path: Path | None = None) -> Mapping[str, AssetEntry]
     }
 
 
+def _acquire_index(cache_root: Path, url: str, downloader: Downloader) -> Path:
+    _ensure_cache_dir(cache_root)
+    destination = cache_root / "index.json"
+    with _scenario_lock(cache_root, "index"):
+        descriptor, temporary_name = tempfile.mkstemp(prefix=".index-", dir=cache_root)
+        os.close(descriptor)
+        temporary_path = Path(temporary_name)
+        try:
+            try:
+                downloader(url, temporary_path)
+                _read_asset_index(temporary_path)
+            except (AssetFetchError, OSError, ValueError) as error:
+                if destination.is_file():
+                    try:
+                        _read_asset_index(destination)
+                    except AssetFetchError:
+                        pass
+                    else:
+                        return destination
+                raise AssetFetchError(
+                    f"Unable to download the datagen asset index from {url}: {error}. "
+                    f"Set {_ASSET_BASE_URL_ENV} to a published HTTPS asset prefix, "
+                    "run 'phoenix datagen pull <scenario>' while online to prime the cache, "
+                    "or pass a local scenario directory."
+                ) from error
+            os.replace(temporary_path, destination)
+            return destination
+        finally:
+            temporary_path.unlink(missing_ok=True)
+
+
 def default_cache_dir() -> Path:
     root = os.environ.get("XDG_CACHE_HOME")
     return (Path(root).expanduser() if root else Path.home() / ".cache") / "phoenix" / "datagen"
+
+
+def _ensure_cache_dir(path: Path) -> None:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise AssetFetchError(
+            f"Unable to create the datagen asset cache at {path}: {error}. "
+            "Set XDG_CACHE_HOME to a writable directory."
+        ) from error
 
 
 def _parse_asset_entry(scenario: Any, value: Any, index_path: Path) -> AssetEntry:
@@ -120,10 +200,10 @@ def _parse_asset_entry(scenario: Any, value: Any, index_path: Path) -> AssetEntr
         raise AssetFetchError(
             f"Datagen asset index {index_path} scenario {scenario!r} field 'size_bytes' is invalid"
         )
-    if asset_schema_version != 2:
+    if asset_schema_version not in {1, 2}:
         raise AssetFetchError(
             f"Datagen asset index {index_path} scenario {scenario!r} field "
-            "'asset_schema_version' must be 2"
+            "'asset_schema_version' must be 1 or 2"
         )
     if type(fragment_count) is not int or fragment_count < 0:
         raise AssetFetchError(
@@ -178,8 +258,22 @@ def _download_and_publish(
                 f"Datagen scenario {scenario!r} checksum mismatch: expected {entry.sha256}, "
                 f"downloaded {actual_digest}"
             )
-        extracted = _extract_scenario_archive(archive_path, staging_path, scenario)
+        extracted = _extract_scenario_archive(
+            archive_path,
+            staging_path,
+            scenario,
+            entry.asset_schema_version,
+        )
+        try:
+            checksums = _verify_scenario_directory(extracted, scenario, entry.asset_schema_version)
+        except OSError as error:
+            raise AssetFetchError(
+                f"Unable to verify downloaded datagen scenario {scenario!r}: {error}"
+            ) from error
+        _write_cache_checksums(extracted, entry.sha256, checksums)
         destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists():
+            shutil.rmtree(destination)
         os.replace(extracted, destination)
         return destination
     finally:
@@ -187,9 +281,12 @@ def _download_and_publish(
         shutil.rmtree(staging_path, ignore_errors=True)
 
 
-def _download_archive(url: str, destination: Path) -> None:
+def _download_file(url: str, destination: Path) -> None:
     with urlopen(url, timeout=60) as response, destination.open("wb") as output:  # noqa: S310
         shutil.copyfileobj(response, output)
+
+
+_download_archive = _download_file
 
 
 def _file_sha256(path: Path) -> str:
@@ -200,9 +297,16 @@ def _file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _extract_scenario_archive(archive_path: Path, staging_path: Path, scenario: str) -> Path:
+def _extract_scenario_archive(
+    archive_path: Path,
+    staging_path: Path,
+    scenario: str,
+    asset_schema_version: int,
+) -> Path:
     seen: set[PurePosixPath] = set()
-    required = {"manifest.json", "fragments.jsonl", "traces.jsonl"}
+    required = {"manifest.json", "traces.jsonl"}
+    if asset_schema_version == 2:
+        required.add("fragments.jsonl")
     extracted_files: set[str] = set()
     try:
         with tarfile.open(archive_path, mode="r:gz") as archive:
@@ -240,6 +344,99 @@ def _extract_scenario_archive(archive_path: Path, staging_path: Path, scenario: 
             f"Datagen scenario {scenario!r} archive is missing required files {missing!r}"
         )
     return staging_path / scenario
+
+
+def _verify_scenario_directory(
+    path: Path,
+    scenario: str,
+    asset_schema_version: int,
+) -> Mapping[str, Mapping[str, int | str]]:
+    manifest_path = path / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise AssetFetchError(
+            f"Datagen scenario {scenario!r} has an unreadable manifest.json: {error}"
+        ) from error
+    if not isinstance(manifest, dict):
+        raise AssetFetchError(f"Datagen scenario {scenario!r} manifest.json must contain an object")
+    manifest_version = manifest.get("schema_version", 1)
+    if manifest_version != asset_schema_version:
+        raise AssetFetchError(
+            f"Datagen scenario {scenario!r} index declares asset schema "
+            f"{asset_schema_version}, but manifest.json declares {manifest_version!r}"
+        )
+
+    required = {"manifest.json", "traces.jsonl"}
+    if asset_schema_version == 2:
+        required.add("fragments.jsonl")
+        declared_files = manifest.get("files")
+        if not isinstance(declared_files, dict):
+            raise AssetFetchError(
+                f"Datagen scenario {scenario!r} manifest.json field 'files' must be an object"
+            )
+        for filename in required - {"manifest.json"}:
+            metadata = declared_files.get(filename)
+            if not isinstance(metadata, dict):
+                raise AssetFetchError(
+                    f"Datagen scenario {scenario!r} manifest.json is missing file metadata "
+                    f"for {filename!r}"
+                )
+            content = (path / filename).read_bytes()
+            actual_digest = sha256(content).hexdigest()
+            actual_size = len(content)
+            if metadata.get("sha256") != actual_digest or metadata.get("size_bytes") != actual_size:
+                raise AssetFetchError(
+                    f"Datagen scenario {scenario!r} manifest.json file metadata for "
+                    f"{filename!r} does not match the downloaded file"
+                )
+
+    checksums: dict[str, Mapping[str, int | str]] = {}
+    for filename in sorted(required):
+        content = (path / filename).read_bytes()
+        checksums[filename] = {
+            "sha256": sha256(content).hexdigest(),
+            "size_bytes": len(content),
+        }
+    return checksums
+
+
+def _write_cache_checksums(
+    path: Path,
+    archive_digest: str,
+    checksums: Mapping[str, Mapping[str, int | str]],
+) -> None:
+    (path / _CACHE_CHECKSUMS_FILENAME).write_text(
+        json.dumps(
+            {"archive_sha256": archive_digest, "files": checksums},
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _is_cached_scenario(path: Path, entry: AssetEntry) -> bool:
+    try:
+        metadata = json.loads((path / _CACHE_CHECKSUMS_FILENAME).read_bytes())
+        if not isinstance(metadata, dict) or metadata.get("archive_sha256") != entry.sha256:
+            return False
+        files = metadata.get("files")
+        if not isinstance(files, dict):
+            return False
+        for filename, expected in files.items():
+            if not isinstance(filename, str) or not isinstance(expected, dict):
+                return False
+            content = (path / filename).read_bytes()
+            if expected.get("size_bytes") != len(content):
+                return False
+            if expected.get("sha256") != sha256(content).hexdigest():
+                return False
+        _verify_scenario_directory(path, path.parent.name, entry.asset_schema_version)
+    except (AssetFetchError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    return True
 
 
 def _safe_member_path(member: tarfile.TarInfo, scenario: str) -> PurePosixPath:
@@ -303,10 +500,3 @@ def _lock_owner_has_exited(lock_path: Path) -> bool:
     except PermissionError:
         return False
     return False
-
-
-def _is_scenario_directory(path: Path) -> bool:
-    return all(
-        (path / filename).is_file()
-        for filename in ("manifest.json", "fragments.jsonl", "traces.jsonl")
-    )

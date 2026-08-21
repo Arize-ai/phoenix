@@ -51,7 +51,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     commands = parser.add_subparsers(dest="datagen_command")
     pull_parser = commands.add_parser("pull", help="Download and cache a scenario bank.")
     pull_parser.set_defaults(func=pull)
-    pull_parser.add_argument("scenario", help="Scenario name from the bundled asset index.")
+    pull_parser.add_argument("scenario", help="Scenario name from the published asset index.")
     parser.add_argument(
         "--endpoint",
         help="Phoenix collector base URL (env: PHOENIX_COLLECTOR_ENDPOINT).",
@@ -60,7 +60,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser.add_argument(
         "--scenario",
         help=(
-            "Bundled scenario name, local directory, or HTTP(S) directory "
+            "Published scenario name, local directory, or HTTP(S) directory "
             "(env: PHOENIX_DATAGEN_SCENARIO)."
         ),
     )
