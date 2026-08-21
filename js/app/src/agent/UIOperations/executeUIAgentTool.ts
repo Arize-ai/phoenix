@@ -81,12 +81,41 @@ const LOG_LINE_CHAR_BUDGET = 300;
  * second, structured output channel.
  */
 const RUN_STATUS_PREFIX = "Script completed after ";
+const CALLS_SECTION_HEADER = "Calls:\n";
 const LOGS_SECTION_HEADER = "Logs:\n";
 const RETURN_VALUE_SECTION_HEADER = "Return value:\n";
-const TRUNCATION_NOTE =
-  "Note: the return value was truncated. Constrain the return value in " +
-  "the script itself — slice arrays, project the fields you need, or " +
-  "return counts — and re-run if you are missing data.";
+const TRUNCATION_NOTE_PREFIX = "Note: the return value was truncated";
+const TRUNCATION_GUIDANCE =
+  "Constrain the return value in the script itself — slice arrays, project " +
+  "the fields you need, or return counts — and re-run if you are missing data.";
+const MAX_CALL_LINES = 30;
+
+/** One dispatched `ui.*` call, recorded main-thread-side for telemetry. */
+export type UICallRecord = {
+  operation: string;
+  ok: boolean;
+  durationMs: number;
+  /** Serialized size of the call's output (or error text) in characters. */
+  outputChars: number;
+};
+
+/**
+ * One line per call — `playground.prompt.read ok 12ms 842ch` — so the model
+ * can see which call failed, which was slow, and which produced the bulk of
+ * an oversized return value, without a debugging round trip.
+ */
+function renderCalls(calls: UICallRecord[]): string {
+  const lines = calls
+    .slice(0, MAX_CALL_LINES)
+    .map(
+      (call, index) =>
+        `${index + 1}. ${call.operation} ${call.ok ? "ok" : "FAILED"} ${call.durationMs}ms ${call.outputChars}ch`
+    );
+  if (calls.length > MAX_CALL_LINES) {
+    lines.push(`…[${calls.length - MAX_CALL_LINES} more calls]`);
+  }
+  return lines.join("\n");
+}
 
 /**
  * Cap `text` at `budget` characters, keeping the head and tail. The head
@@ -133,28 +162,173 @@ function renderLogs(logs: string[]): string {
   ].join("\n");
 }
 
-/** Render a completed run as the model-facing tool output. */
-function renderRunOutput({
+/** A path/description pair describing one pruned subtree. */
+type PruneOmission = { path: string; note: string };
+
+function serializedSize(value: unknown): number {
+  const serialized = JSON.stringify(value);
+  return serialized == null ? 4 : serialized.length;
+}
+
+/**
+ * Prune a parsed JSON value to roughly `budget` serialized characters while
+ * preserving its structure — the fix for structure-blind string truncation,
+ * where one oversized array in a batched result destroyed every sibling
+ * result around it:
+ * - objects keep **every key**; oversized values are pruned recursively with
+ *   a fair share of the remaining budget, so no sibling is obliterated;
+ * - arrays keep leading items whole and replace the rest with a counted
+ *   marker string;
+ * - long strings clamp with a `…[+N chars]` marker.
+ * Every omission is recorded with its path so the truncation note can say
+ * exactly what was dropped and where.
+ */
+function pruneToBudget(
+  value: unknown,
+  budget: number,
+  path: string,
+  omissions: PruneOmission[]
+): unknown {
+  if (serializedSize(value) <= budget) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const keep = Math.max(budget - 24, 40);
+    omissions.push({ path, note: `${value.length - keep} chars clamped` });
+    return `${value.slice(0, keep)}…[+${value.length - keep} chars]`;
+  }
+  if (Array.isArray(value)) {
+    const kept: unknown[] = [];
+    let remaining = budget - 2;
+    for (const item of value) {
+      const itemSize = serializedSize(item) + 1;
+      if (itemSize > remaining) {
+        break;
+      }
+      kept.push(item);
+      remaining -= itemSize;
+    }
+    // Always show at least one (pruned) item so the element shape survives.
+    if (kept.length === 0 && value.length > 0) {
+      kept.push(
+        pruneToBudget(
+          value[0],
+          Math.max(remaining, 120),
+          `${path}[0]`,
+          omissions
+        )
+      );
+    }
+    const omitted = value.length - kept.length;
+    if (omitted > 0) {
+      omissions.push({
+        path,
+        note: `${omitted} of ${value.length} items omitted`,
+      });
+      kept.push(`…[${omitted} more items omitted]`);
+    }
+    return kept;
+  }
+  if (typeof value === "object" && value !== null) {
+    const entries = Object.entries(value);
+    const pruned: Record<string, unknown> = {};
+    let remaining = budget - 2;
+    let entriesLeft = entries.length;
+    for (const [key, child] of entries) {
+      // Fair share of what's left, so one huge field can't starve the keys
+      // after it — every top-level key survives pruning.
+      const share = Math.max(Math.floor(remaining / entriesLeft), 200);
+      const childSize = serializedSize(child) + key.length + 4;
+      if (childSize <= share) {
+        pruned[key] = child;
+        remaining -= childSize;
+      } else {
+        const childPath = path === "$" ? `$.${key}` : `${path}.${key}`;
+        pruned[key] = pruneToBudget(child, share, childPath, omissions);
+        remaining -= Math.min(serializedSize(pruned[key]), share);
+      }
+      entriesLeft -= 1;
+    }
+    return pruned;
+  }
+  return value;
+}
+
+/**
+ * Cap the serialized return value at the budget. JSON values are pruned
+ * structure-aware (see {@link pruneToBudget}); non-JSON return values
+ * ("undefined", unserializable markers) fall back to blind middle
+ * truncation.
+ */
+function renderReturnValue(returnValue: string): {
+  text: string;
+  note: string | null;
+} {
+  if (returnValue.length <= RETURN_VALUE_CHAR_BUDGET) {
+    return { text: returnValue, note: null };
+  }
+  let omissionSummary = "";
+  let text: string;
+  try {
+    const omissions: PruneOmission[] = [];
+    const pruned = pruneToBudget(
+      JSON.parse(returnValue),
+      RETURN_VALUE_CHAR_BUDGET,
+      "$",
+      omissions
+    );
+    text = JSON.stringify(pruned, null, 2);
+    if (omissions.length > 0) {
+      const shown = omissions.slice(0, 8);
+      omissionSummary =
+        " — omitted: " +
+        shown.map(({ path, note }) => `${path} (${note})`).join("; ") +
+        (omissions.length > shown.length
+          ? `; …${omissions.length - shown.length} more`
+          : "");
+    }
+    // Pretty-printing pruned structures can still overshoot; hard-stop with
+    // the blind fallback rather than blowing the budget.
+    if (text.length > RETURN_VALUE_CHAR_BUDGET * 1.5) {
+      text = truncateMiddle(text, RETURN_VALUE_CHAR_BUDGET);
+    }
+  } catch {
+    text = truncateMiddle(returnValue, RETURN_VALUE_CHAR_BUDGET);
+  }
+  return {
+    text,
+    note: `${TRUNCATION_NOTE_PREFIX} (was ${returnValue.length} chars)${omissionSummary}. ${TRUNCATION_GUIDANCE}`,
+  };
+}
+
+/**
+ * Render a completed run as the model-facing tool output. Exported for
+ * tests — the format is a contract with {@link parseExecuteUIRunOutput}.
+ */
+export function renderRunOutput({
   returnValue,
   callCount,
+  calls,
   logs,
 }: {
   returnValue: string;
   callCount: number;
+  calls: UICallRecord[];
   logs: string[];
 }): string {
   const sections = [
     `${RUN_STATUS_PREFIX}${callCount} ui call${callCount === 1 ? "" : "s"}.`,
   ];
+  if (calls.length > 0) {
+    sections.push(`${CALLS_SECTION_HEADER}${renderCalls(calls)}`);
+  }
   if (logs.length > 0) {
     sections.push(`${LOGS_SECTION_HEADER}${renderLogs(logs)}`);
   }
-  const truncated = returnValue.length > RETURN_VALUE_CHAR_BUDGET;
-  sections.push(
-    `${RETURN_VALUE_SECTION_HEADER}${truncateMiddle(returnValue, RETURN_VALUE_CHAR_BUDGET)}`
-  );
-  if (truncated) {
-    sections.push(TRUNCATION_NOTE);
+  const rendered = renderReturnValue(returnValue);
+  sections.push(`${RETURN_VALUE_SECTION_HEADER}${rendered.text}`);
+  if (rendered.note != null) {
+    sections.push(rendered.note);
   }
   return sections.join("\n\n");
 }
@@ -163,6 +337,8 @@ function renderRunOutput({
 export type ExecuteUIRunOutputView = {
   /** "Script completed after N ui calls." — human-readable as-is. */
   status: string;
+  /** Per-call telemetry lines, or null (model-facing; hidden from users). */
+  calls: string | null;
   /** The log lines the script emitted, or null when it logged nothing. */
   logs: string | null;
   /** The JSON-serialized (possibly truncated) return value. */
@@ -189,24 +365,34 @@ export function parseExecuteUIRunOutput(
   if (returnValueIndex === -1) {
     return null;
   }
-  const head = output.slice(0, returnValueIndex);
+  let head = output.slice(0, returnValueIndex);
   let tail = output.slice(returnValueIndex + returnValueMarker.length);
 
-  const noteMarker = `\n\n${TRUNCATION_NOTE}`;
+  const noteMarker = `\n\n${TRUNCATION_NOTE_PREFIX}`;
   let note: string | null = null;
-  if (tail.endsWith(noteMarker)) {
-    note = TRUNCATION_NOTE;
-    tail = tail.slice(0, -noteMarker.length);
+  const noteIndex = tail.lastIndexOf(noteMarker);
+  if (noteIndex !== -1) {
+    note = tail.slice(noteIndex + 2);
+    tail = tail.slice(0, noteIndex);
   }
 
   const logsMarker = `\n\n${LOGS_SECTION_HEADER}`;
   const logsIndex = head.indexOf(logsMarker);
-  return {
-    status: logsIndex === -1 ? head : head.slice(0, logsIndex),
-    logs: logsIndex === -1 ? null : head.slice(logsIndex + logsMarker.length),
-    returnValue: tail,
-    note,
-  };
+  let logs: string | null = null;
+  if (logsIndex !== -1) {
+    logs = head.slice(logsIndex + logsMarker.length);
+    head = head.slice(0, logsIndex);
+  }
+
+  const callsMarker = `\n\n${CALLS_SECTION_HEADER}`;
+  const callsIndex = head.indexOf(callsMarker);
+  let calls: string | null = null;
+  if (callsIndex !== -1) {
+    calls = head.slice(callsIndex + callsMarker.length);
+    head = head.slice(0, callsIndex);
+  }
+
+  return { status: head, calls, logs, returnValue: tail, note };
 }
 
 /**
@@ -242,10 +428,19 @@ export const executeUIAgentTool = defineTool<ExecuteUIInput>({
     agentStore,
     capabilities,
   }) => {
+    // Telemetry is recorded here (main-thread side, around dispatch) so the
+    // worker protocol stays untouched. Approval calls include the user's
+    // decision time in durationMs — informative, not noise.
+    const callRecords: UICallRecord[] = [];
     const run = await runUIScript({
       script: input.script,
-      dispatchCall: ({ operationName, input: operationInput, callSequence }) =>
-        dispatchUIOperationCall({
+      dispatchCall: async ({
+        operationName,
+        input: operationInput,
+        callSequence,
+      }) => {
+        const startedAt = performance.now();
+        const result = await dispatchUIOperationCall({
           operationName,
           input: operationInput,
           // Approval handlers key pending entries by this id; interrupt
@@ -255,7 +450,17 @@ export const executeUIAgentTool = defineTool<ExecuteUIInput>({
           agentStore,
           sessionId,
           capabilities,
-        }),
+        });
+        callRecords.push({
+          operation: operationName,
+          ok: result.ok,
+          durationMs: Math.round(performance.now() - startedAt),
+          outputChars: result.ok
+            ? serializedSize(result.output ?? null)
+            : result.error.length,
+        });
+        return result;
+      },
       registerAbort: (abort) => {
         activeRunAborts.set(toolCall.toolCallId, abort);
       },
@@ -278,7 +483,7 @@ export const executeUIAgentTool = defineTool<ExecuteUIInput>({
       state: "output-available",
       tool: EXECUTE_BROWSER_ACTION_TOOL_NAME,
       toolCallId: toolCall.toolCallId,
-      output: renderRunOutput(run),
+      output: renderRunOutput({ ...run, calls: callRecords }),
     });
   },
 });
