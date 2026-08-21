@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Iterator
 
 import pytest
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
@@ -150,21 +151,59 @@ def test_replayer_rebases_events_and_preserves_dangling_parent() -> None:
     )
 
 
-def test_same_seed_emits_byte_identical_requests() -> None:
+def test_same_seed_emits_equal_numeric_draws_with_disjoint_trace_ids() -> None:
     corpus = _fixture_corpus()
     first = Replayer(corpus, epsilon=0.25, seed=7)
     second = Replayer(corpus, epsilon=0.25, seed=7)
 
     first_requests = tuple(
-        first.emit(now_ns=10_000_000_000).request.SerializeToString()
+        first.emit(now_ns=10_000_000_000).request
         for _ in range(corpus.manifest["trace_count"])
     )
     second_requests = tuple(
-        second.emit(now_ns=10_000_000_000).request.SerializeToString()
+        second.emit(now_ns=10_000_000_000).request
         for _ in range(corpus.manifest["trace_count"])
     )
 
-    assert first_requests == second_requests
+    first_trace_ids = {span.trace_id for request in first_requests for span in _iter_spans(request)}
+    second_trace_ids = {
+        span.trace_id for request in second_requests for span in _iter_spans(request)
+    }
+    assert first_trace_ids.isdisjoint(second_trace_ids)
+    assert [_numeric_draws(request) for request in first_requests] == [
+        _numeric_draws(request) for request in second_requests
+    ]
+
+
+def test_replayer_sets_project_resource_attribute() -> None:
+    corpus = _fixture_corpus()
+    for request in corpus.requests:
+        for resource_spans in request.resource_spans:
+            attribute = resource_spans.resource.attributes.add(
+                key=ResourceAttributes.PROJECT_NAME
+            )
+            attribute.value.string_value = "recorded-project"
+
+    emitted = Replayer(corpus, epsilon=0, seed=7, project_name="configured-project").emit(
+        now_ns=10_000_000_000
+    )
+
+    assert {
+        attribute.value.string_value
+        for resource_spans in emitted.request.resource_spans
+        for attribute in resource_spans.resource.attributes
+        if attribute.key == ResourceAttributes.PROJECT_NAME
+    } == {"configured-project"}
+
+    default_emitted = Replayer(_fixture_corpus(), epsilon=0, seed=7).emit(
+        now_ns=10_000_000_000
+    )
+    assert {
+        attribute.value.string_value
+        for resource_spans in default_emitted.request.resource_spans
+        for attribute in resource_spans.resource.attributes
+        if attribute.key == ResourceAttributes.PROJECT_NAME
+    } == {"datagen-synthetic-chat"}
 
 
 def test_contamination_labels_match_anomaly_manifest(tmp_path: Path) -> None:
@@ -181,6 +220,7 @@ def test_contamination_labels_match_anomaly_manifest(tmp_path: Path) -> None:
         if _attribute(span, "datagen.anomaly") is True
     }
     manifest_rows = [json.loads(line) for line in manifest_path.read_text().splitlines()]
+    assert {row["run_nonce"] for row in manifest_rows} == {replayer.run_nonce}
     manifest_ids = {(row["trace_id"], row["span_id"]) for row in manifest_rows}
     assert labeled_ids == manifest_ids
     assert len(labeled_ids) == len(spans)
@@ -228,3 +268,25 @@ def _assert_token_contract(span: Span) -> None:
         attributes[_PROMPT_TOKENS].int_value + attributes[_COMPLETION_TOKENS].int_value
         == attributes[_TOTAL_TOKENS].int_value
     )
+
+
+def _numeric_draws(
+    request: ExportTraceServiceRequest,
+) -> list[tuple[str, int, tuple[int | None, ...], bool]]:
+    draws: list[tuple[str, int, tuple[int | None, ...], bool]] = []
+    for span in _iter_spans(request):
+        attributes = {attribute.key: attribute.value for attribute in span.attributes}
+        draws.append(
+            (
+                span.name,
+                span.end_time_unix_nano - span.start_time_unix_nano,
+                tuple(
+                    attributes[key].int_value if key in attributes else None
+                    for key in (_PROMPT_TOKENS, _COMPLETION_TOKENS, _TOTAL_TOKENS)
+                ),
+                attributes["datagen.anomaly"].bool_value
+                if "datagen.anomaly" in attributes
+                else False,
+            )
+        )
+    return draws

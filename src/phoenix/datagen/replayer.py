@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import secrets
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -10,6 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence, cast
 
 import numpy as np
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
@@ -30,6 +33,7 @@ _PARENT_END_MARGIN_NS = 1
 class Anomaly:
     """Ground truth for one contaminated emitted span."""
 
+    run_nonce: str
     trace_id: str
     span_id: str
     inflated_fields: Mapping[str, int | float]
@@ -37,6 +41,7 @@ class Anomaly:
     def as_json(self) -> Mapping[str, Any]:
         """Return the stable JSONL representation of this anomaly."""
         return {
+            "run_nonce": self.run_nonce,
             "trace_id": self.trace_id,
             "span_id": self.span_id,
             "inflated_fields": dict(self.inflated_fields),
@@ -85,10 +90,18 @@ class Replayer:
         *,
         epsilon: float = 0.02,
         seed: int | None = None,
+        project_name: str | None = None,
     ) -> None:
         if not 0.0 <= epsilon <= 1.0:
             raise ValueError("epsilon must be between 0 and 1")
+        self.run_nonce = secrets.token_hex(16)
         self._random = np.random.default_rng(seed)
+        identity_seed = int.from_bytes(
+            hashlib.sha256(f"{seed}:".encode() + bytes.fromhex(self.run_nonce)).digest(),
+            "big",
+        )
+        self._identity_random = np.random.default_rng(identity_seed)
+        self._project_name = project_name or f"datagen-{_corpus_name(corpus)}"
         self._numerics = _NumericsEngine.from_requests(
             corpus.requests,
             epsilon=epsilon,
@@ -167,6 +180,7 @@ class Replayer:
     ) -> EmittedTrace:
         request = ExportTraceServiceRequest()
         request.CopyFrom(template.request)
+        _set_project_name(request, self._project_name)
         spans = tuple(_iter_spans(request))
         first_start = min(span.start_time_unix_nano for span in spans)
         time_offset = now_ns - first_start
@@ -203,16 +217,16 @@ class Replayer:
             if session_id is not None:
                 _set_string_attribute(span, _SESSION_ID, session_id)
 
-        anomalies = self._numerics.apply(spans)
+        anomalies = self._numerics.apply(spans, run_nonce=self.run_nonce)
         _extend_parent_end_times(spans)
         _clamp_event_times(spans)
         anomalies = _refresh_anomaly_latencies(anomalies, spans)
         return EmittedTrace(request=request, anomalies=anomalies)
 
     def _fresh_id(self, size: int) -> bytes:
-        identifier = bytes(self._random.bytes(size))
+        identifier = bytes(self._identity_random.bytes(size))
         while not any(identifier):
-            identifier = bytes(self._random.bytes(size))
+            identifier = bytes(self._identity_random.bytes(size))
         return identifier
 
 
@@ -267,7 +281,7 @@ class _NumericsEngine:
             random=random,
         )
 
-    def apply(self, spans: Sequence[Span]) -> tuple[Anomaly, ...]:
+    def apply(self, spans: Sequence[Span], *, run_nonce: str) -> tuple[Anomaly, ...]:
         anomalies = []
         for span in spans:
             _remove_attributes(span, lambda key: key.startswith(_COST_PREFIX) or key == _ANOMALY)
@@ -319,6 +333,7 @@ class _NumericsEngine:
                 _set_bool_attribute(span, _ANOMALY, True)
                 anomalies.append(
                     Anomaly(
+                        run_nonce=run_nonce,
                         trace_id=span.trace_id.hex(),
                         span_id=span.span_id.hex(),
                         inflated_fields={
@@ -384,12 +399,35 @@ def _refresh_anomaly_latencies(
         ) / 1_000_000
         refreshed.append(
             Anomaly(
+                run_nonce=anomaly.run_nonce,
                 trace_id=anomaly.trace_id,
                 span_id=anomaly.span_id,
                 inflated_fields=inflated_fields,
             )
         )
     return tuple(refreshed)
+
+
+def _corpus_name(corpus: Corpus) -> str:
+    for key in ("scenario_name", "scenario", "name"):
+        value = corpus.manifest.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return Path(corpus.source.rstrip("/")).name or "default"
+
+
+def _set_project_name(request: ExportTraceServiceRequest, project_name: str) -> None:
+    for resource_spans in request.resource_spans:
+        attributes = resource_spans.resource.attributes
+        retained = [
+            attribute
+            for attribute in attributes
+            if attribute.key != ResourceAttributes.PROJECT_NAME
+        ]
+        del attributes[:]
+        attributes.extend(retained)
+        attribute = attributes.add(key=ResourceAttributes.PROJECT_NAME)
+        attribute.value.string_value = project_name
 
 
 def _split_traces(

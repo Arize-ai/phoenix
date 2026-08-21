@@ -25,6 +25,7 @@ class _Config:
     api_key: str | None
     headers: Mapping[str, str]
     corpus: str
+    project: str | None
     rate: float
     burstiness: float
     epsilon: float
@@ -48,6 +49,13 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
         help=(
             "Bundled corpus name, local directory, or HTTP(S) directory "
             "(env: PHOENIX_DATAGEN_CORPUS)."
+        ),
+    )
+    parser.add_argument(
+        "--project",
+        help=(
+            "Destination project; defaults to datagen-<corpus_name> "
+            "(env: PHOENIX_PROJECT_NAME)."
         ),
     )
     parser.add_argument(
@@ -80,10 +88,12 @@ def run(args: Namespace) -> None:
     from phoenix.datagen import AnomalyManifest, OTLPHTTPExporter, Replayer, load_corpus
 
     config = _resolve_config(args, os.environ)
+    corpus = load_corpus(config.corpus)
     replayer = Replayer(
-        load_corpus(config.corpus),
+        corpus,
         epsilon=config.epsilon,
         seed=config.seed,
+        project_name=config.project,
     )
     anomaly_manifest = AnomalyManifest(config.anomaly_manifest) if config.anomaly_manifest else None
 
@@ -95,8 +105,8 @@ def run(args: Namespace) -> None:
         ) as exporter:
             while True:
                 emitted_trace = replayer.emit()
-                exporter.export(emitted_trace.request)
-                if anomaly_manifest is not None:
+                delivered = exporter.export(emitted_trace.request)
+                if delivered and anomaly_manifest is not None:
                     anomaly_manifest.write(emitted_trace.anomalies)
                 time.sleep(
                     replayer.interarrival_seconds(
@@ -128,6 +138,7 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
             _DEFAULT_CORPUS,
             str,
         ),
+        project=args.project or environ.get("PHOENIX_PROJECT_NAME"),
         rate=_setting(
             args.rate,
             environ,
