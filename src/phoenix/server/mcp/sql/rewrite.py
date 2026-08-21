@@ -161,9 +161,11 @@ def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> Non
     """
     note = _JSON_TEXT_ORDERING_NOTES[ctx.dialect]
     for node in root.find_all(*_ORDER_SENSITIVE, *_ORDER_SENSITIVE_COMPARISONS):
-        for target in _comparison_operands(node) if isinstance(
-            node, _ORDER_SENSITIVE_COMPARISONS
-        ) else (node.this,):
+        for target in (
+            _comparison_operands(node)
+            if isinstance(node, _ORDER_SENSITIVE_COMPARISONS)
+            else (node.this,)
+        ):
             # A cast says the caller knows. Parentheses say nothing: the lambda
             # repair adds them, so an accessor written inside a call arrives
             # wrapped.
@@ -1053,9 +1055,7 @@ def _using_keys_needing_coalesce(
     absent, and there the left copy is NULL while the key itself is not.
     """
     from_expr = node.args.get("from_") or node.args.get("from")
-    left_sources: list[exp.Expression] = (
-        [from_expr.this] if isinstance(from_expr, exp.From) else []
-    )
+    left_sources: list[exp.Expression] = [from_expr.this] if isinstance(from_expr, exp.From) else []
     needed: dict[str, list[exp.Identifier]] = {}
     for join in node.args.get("joins") or []:
         side = str(join.args.get("side") or "").upper()
@@ -1206,9 +1206,7 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             # copy of the key.
             using_keys = _using_join_keys(node, ctx.dialect) if not explicit else frozenset()
             coalesce_using = (
-                _using_keys_needing_coalesce(
-                    node, allowlist=ctx.allowlist, dialect=ctx.dialect
-                )
+                _using_keys_needing_coalesce(node, allowlist=ctx.allowlist, dialect=ctx.dialect)
                 if not explicit
                 else {}
             )
