@@ -81,12 +81,6 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
             stale_ids = [row[0] for row in stale_ids_result.fetchall()]
 
             if stale_ids:
-                # Deliberately NOT deleting the trace projects of project
-                # evaluators cascaded away here: a registry key disappearing is
-                # a deploy-time event, and destroying the user's evaluator
-                # traces at startup is worse than the orphaned project it would
-                # prevent. Startup-time project deletes also contend with any
-                # concurrent transaction touching those rows.
                 delete_stmt = delete(models.Evaluator).where(
                     models.Evaluator.kind == "BUILTIN",
                     models.Evaluator.id.in_(stale_ids),
