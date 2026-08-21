@@ -40,7 +40,7 @@ export type UIOperationResult = AgentClientActionResult;
  * domain failure needs to be branchable — and keep the human-readable
  * `error` string alongside; the code categorizes, the prose explains.
  */
-export type UiOperationErrorCode =
+export type UIOperationErrorCode =
   // -- stamped by dispatch --
   /** The operation name is not in the catalog. */
   | "UNKNOWN_OPERATION"
@@ -92,6 +92,16 @@ export type UIOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
   description: string;
   /** Zod schema for the operation input; the only schema definition anywhere. */
   inputSchema: TSchema;
+  /**
+   * Zod schema describing the success `output` shape, rendered into the
+   * operation's `search_ui` signature as `Promise<UIResult<T>>`. This is
+   * documentation, not a runtime gate — dispatch does not validate outputs
+   * against it, so a drifted schema misleads the model but never turns a
+   * working operation into a user-facing failure. Approximate shapes
+   * (`z.unknown()` leaves for deep subtrees) are better than nothing: the
+   * top-level field names are what scripts branch on.
+   */
+  outputSchema?: z.ZodType;
   kind: UIOperationKind;
   /**
    * Marks an operation whose handler legitimately awaits completion of work

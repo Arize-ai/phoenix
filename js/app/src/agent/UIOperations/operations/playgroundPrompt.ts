@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import {
   addPromptInstanceInputSchema,
   clonePromptInstanceInputSchema,
@@ -12,6 +14,36 @@ import { defineUIOperation } from "../types";
 /** Route hint shared by every playground operation. */
 const PLAYGROUND_ROUTE_HINT =
   "the Prompt Playground page (a /playground route)";
+
+/**
+ * Documentation-only mirror of {@link PromptSnapshot} — what
+ * `playground.prompt.read` resolves with. Kept approximate on purpose (see
+ * `outputSchema` on the descriptor type): the top-level field names are what
+ * scripts branch on.
+ */
+const promptSnapshotOutputSchema = z.object({
+  instanceId: z.number(),
+  index: z.number(),
+  label: z.string(),
+  revision: z.string(),
+  dirty: z.boolean(),
+  prompt: z
+    .object({
+      id: z.string().optional(),
+      version: z.string().optional(),
+      tag: z.string().nullable().optional(),
+    })
+    .nullable(),
+  messages: z.array(
+    z.object({
+      id: z.number(),
+      role: z.string(),
+      content: z.string().optional(),
+      toolCallId: z.string().optional(),
+      toolCalls: z.unknown().optional(),
+    })
+  ),
+});
 
 /**
  * The catalog entry replacing the `read_prompt_instance` client-action tool.
@@ -30,6 +62,7 @@ export const readPromptOperation = defineUIOperation({
     "If there is exactly one playground instance, `instanceId` may be omitted. If " +
     "there are multiple comparison instances, pass the specific `instanceId`.",
   inputSchema: readPromptInputSchema,
+  outputSchema: promptSnapshotOutputSchema,
   kind: "read",
   defaultSuccessOutput: "Prompt instance read.",
   availability: {
@@ -135,6 +168,24 @@ export const editPromptOperation = defineUIOperation({
     '{"type":"delete_message","messageId":1}; ' +
     '{"type":"reorder_messages","messageIds":[1,2,3]}.',
   inputSchema: editPromptInputSchema,
+  // The approval resolution: `status` says what the user decided; on accept,
+  // `revision` is the new token (valid as the next `expectedRevision`) and
+  // `summary` counts the applied diff.
+  outputSchema: z.object({
+    status: z.enum(["accepted", "rejected"]),
+    instanceId: z.number(),
+    message: z.string(),
+    acceptedBy: z.string().optional(),
+    revision: z.string().optional(),
+    summary: z
+      .object({
+        instanceIndex: z.number(),
+        instanceLabel: z.string(),
+        additions: z.number(),
+        deletions: z.number(),
+      })
+      .optional(),
+  }),
   kind: "approval",
   requireSession: true,
   UIBehavior: {

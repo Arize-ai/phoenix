@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import {
   readPromptToolsInputSchema,
   writePromptToolsInputSchema,
@@ -29,6 +31,14 @@ export const readPromptToolsOperation = defineUIOperation({
     'tools (e.g. provider builtins like `web_search`) are surfaced with `kind: "raw"` ' +
     "and an opaque `raw` blob; only function tools can be written via `playground.prompt.tools.write`.",
   inputSchema: readPromptToolsInputSchema,
+  // Documentation-only mirror of PromptToolsSnapshot.
+  outputSchema: z.object({
+    instanceId: z.number(),
+    index: z.number(),
+    label: z.string(),
+    revision: z.string(),
+    tools: z.array(z.unknown()),
+  }),
   kind: "read",
   defaultSuccessOutput: "Prompt tools read.",
   availability: {
@@ -83,6 +93,20 @@ export const writePromptToolsOperation = defineUIOperation({
     "This tool only writes function tools; it does not author vendor passthrough tools " +
     '(those appear in `playground.prompt.tools.read` with `kind: "raw"`), though it can delete them.',
   inputSchema: writePromptToolsInputSchema,
+  // The batch outcome: per-entry created/updated statuses, the removed ids,
+  // and the new `revision` (valid as the next `expectedRevision`).
+  outputSchema: z.object({
+    results: z.array(
+      z.object({
+        status: z.enum(["created", "updated"]),
+        toolId: z.number(),
+      })
+    ),
+    deletedToolIds: z.array(z.number()),
+    resetToolChoiceFrom: z.string().optional(),
+    renamedToolChoiceTo: z.string().optional(),
+    revision: z.string(),
+  }),
   kind: "approval",
   requireSession: true,
   UIBehavior: {

@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import {
   MAX_EVALUATOR_IDS,
   readDatasetEvaluatorDefinitionInputSchema,
@@ -82,6 +84,14 @@ export const readDatasetEvaluatorDefinitionOperation = defineUIOperation({
     "truncated with a marker; open the evaluator for edit to read the full " +
     "source. It does not edit, select, or create evaluators.",
   inputSchema: readDatasetEvaluatorDefinitionInputSchema,
+  // The definitions live under `datasetEvaluatorDefinitions` — a PXI field
+  // report guessed `evaluators`/`definitions` and had to probe.
+  outputSchema: z.object({
+    datasetEvaluatorDefinitions: z.array(z.unknown()),
+    errors: z
+      .array(z.object({ datasetEvaluatorId: z.string(), error: z.string() }))
+      .optional(),
+  }),
   kind: "read",
   defaultSuccessOutput: "Evaluator definitions read.",
   availability: {
