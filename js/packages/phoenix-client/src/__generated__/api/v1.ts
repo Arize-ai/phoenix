@@ -11219,6 +11219,8 @@ export interface operations {
                 include_experiment_projects?: boolean;
                 /** @description Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators. */
                 include_dataset_evaluator_projects?: boolean;
+                /** @description Include project evaluator trace projects in the response. These projects hold the execution traces of online evaluators and are created with each evaluator. */
+                include_project_evaluator_trace_projects?: boolean;
                 /** @description Return only projects whose name contains this substring (case-insensitive). */
                 name_contains?: string | null;
             };
