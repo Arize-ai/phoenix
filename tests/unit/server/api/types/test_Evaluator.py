@@ -241,7 +241,6 @@ class TestEvaluatorFields:
     async def test_projects_field(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        """Test Evaluator.projects returns projects associated via project evaluator project_evaluator."""
         # Untagged evaluator is attached to two projects as a project evaluator
         resp = await gql_client.execute(
             """query ($id: ID!) {
@@ -2042,10 +2041,7 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
         session.add_all(project_evaluator)
         await session.flush()
         project_evaluator_ids = [c.id for c in project_evaluator]
-        # Both spans land in the FIRST evaluator's trace project, each stamped
-        # with its own evaluator's id, so the projectEvaluatorId scope below has
-        # a foreign span to filter out — the shape legacy shared-project data
-        # (or any mixed project) can still take.
+        # Both spans land in the first evaluator's trace project, so the scope has a foreign span.
         trace = models.Trace(
             trace_id=token_hex(8),
             project_rowid=project_evaluator[0].trace_project_id,

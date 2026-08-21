@@ -280,7 +280,6 @@ def _get_trace_project_for_project_evaluator(
     project_name: str,
     project_evaluator_name: str,
 ) -> models.Project:
-    """Build the project that will hold this evaluator's execution traces."""
     name = IdentifierModel.model_validate(f"project-evaluator-{token_hex(12)}")
     return models.Project(
         name=name.root,
@@ -342,17 +341,6 @@ async def _validate_project_evaluator_project(
     project_id: int,
     project_global_id: GlobalID,
 ) -> models.Project:
-    """Reject a project that cannot be evaluated, returning it otherwise.
-
-    Evaluator-owned projects — a project evaluator's trace project or a
-    dataset evaluator's project — are internal plumbing, so aiming an
-    evaluator at one is refused as a mistake. This gate is the only guard
-    needed against evaluators evaluating their own output: trace projects are
-    always freshly minted rows a caller can never pick as a target, and no
-    update mutation accepts a project id, so the target binding set here is
-    final. That immutability is the load-bearing half — an update path that
-    starts accepting a project id must run this gate again.
-    """
     project = await session.get(models.Project, project_id)
     if project is None:
         raise NotFound(f"Project not found: {project_global_id}")
@@ -1493,8 +1481,6 @@ class EvaluatorMutationMixin:
                     if prompt_id is not None:
                         prompt_ids.add(prompt_id)
             if actual_project_evaluator_ids:
-                # The project evaluator rows go first: deleting them releases the RESTRICT
-                # FK on the trace projects so those can be deleted with them.
                 await session.execute(
                     delete(models.ProjectEvaluator).where(
                         models.ProjectEvaluator.id.in_(actual_project_evaluator_ids)
