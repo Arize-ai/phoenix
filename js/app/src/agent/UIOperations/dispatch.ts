@@ -59,6 +59,7 @@ export async function dispatchUIOperationCall({
     const suggestions = suggestUIOperationNames(operationName).join(", ");
     return {
       ok: false,
+      code: "UNKNOWN_OPERATION",
       error:
         `Unknown operation "${operationName}". Did you mean: ${suggestions}? ` +
         "Use search_browser_actions to discover operations and their signatures.",
@@ -71,6 +72,7 @@ export async function dispatchUIOperationCall({
   if (missingCapability != null) {
     return {
       ok: false,
+      code: "CAPABILITY_DISABLED",
       error: `Operation "${operationName}" requires the disabled capability "${missingCapability}".`,
     };
   }
@@ -78,6 +80,7 @@ export async function dispatchUIOperationCall({
   if (descriptor.requireSession && sessionId == null) {
     return {
       ok: false,
+      code: "NO_SESSION",
       error: `Operation "${operationName}" requires an active session.`,
     };
   }
@@ -87,6 +90,7 @@ export async function dispatchUIOperationCall({
     const routeHint = descriptor.availability?.routeHint;
     return {
       ok: false,
+      code: "NOT_AVAILABLE",
       error:
         `Operation "${operationName}" is not available on the current page` +
         (routeHint ? `; it requires ${routeHint}.` : ".") +
@@ -99,6 +103,7 @@ export async function dispatchUIOperationCall({
   if (!parsed.success) {
     return {
       ok: false,
+      code: "INVALID_INPUT",
       error: `Invalid input for "${operationName}": ${z.prettifyError(parsed.error)}`,
     };
   }
@@ -131,6 +136,7 @@ export async function dispatchUIOperationCall({
   } catch (error) {
     return {
       ok: false,
+      code: "HANDLER_ERROR",
       error: error instanceof Error ? error.message : String(error),
     };
   } finally {

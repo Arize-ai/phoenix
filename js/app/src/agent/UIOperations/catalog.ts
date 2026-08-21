@@ -350,7 +350,10 @@ export function renderUIOperationCatalog(
       "// Further search_browser_actions calls return these same operations re-ranked — reuse\n" +
       "// this catalog instead of searching again. Only per-operation availability\n" +
       '// ("available on the current page") changes, after navigation.',
-    "// UIResult = { ok: true; output?: unknown } | { ok: false; error: string }",
+    "// UIResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }\n" +
+      '// ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"\n' +
+      '//   | "NO_SESSION" | "HANDLER_ERROR" | "STALE_REVISION" | "NO_RUN_OUTPUT"\n' +
+      "// Branch on `code` (stable), not on the `error` prose (for humans).",
     signatures,
   ].join("\n\n");
 }

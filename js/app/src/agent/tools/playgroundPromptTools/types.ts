@@ -56,7 +56,9 @@ export type PromptToolsSnapshot = {
 
 export type PromptToolsActionResult<TOutput> =
   | { ok: true; output: TOutput }
-  | { ok: false; error: string };
+  // `code` mirrors AgentClientActionResult: a stable failure category
+  // (e.g. STALE_REVISION) the calling script can branch on.
+  | { ok: false; error: string; code?: string };
 
 /** Per-entry outcome within a `write_prompt_tools` batch. */
 export type WritePromptToolResult = {

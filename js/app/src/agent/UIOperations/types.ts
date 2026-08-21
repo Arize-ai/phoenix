@@ -33,6 +33,34 @@ export type UIOperationAvailability = {
 export type UIOperationResult = AgentClientActionResult;
 
 /**
+ * Stable machine-readable failure categories, so scripts branch on `code`
+ * instead of string-matching English error prose. Dispatch stamps the
+ * generic categories at its choke points; operation handlers supply the
+ * domain-specific ones on their own failures. Extend the union when a new
+ * domain failure needs to be branchable — and keep the human-readable
+ * `error` string alongside; the code categorizes, the prose explains.
+ */
+export type UiOperationErrorCode =
+  // -- stamped by dispatch --
+  /** The operation name is not in the catalog. */
+  | "UNKNOWN_OPERATION"
+  /** A capability required by the operation is disabled. */
+  | "CAPABILITY_DISABLED"
+  /** The operation requires an active agent session. */
+  | "NO_SESSION"
+  /** The operation's UI surface is not mounted on the current page. */
+  | "NOT_AVAILABLE"
+  /** The input failed the operation's schema validation. */
+  | "INVALID_INPUT"
+  /** The handler threw instead of returning a result. */
+  | "HANDLER_ERROR"
+  // -- supplied by operation handlers --
+  /** An `expectedRevision` token does not match the current revision. */
+  | "STALE_REVISION"
+  /** A read of run output before any run produced output. */
+  | "NO_RUN_OUTPUT";
+
+/**
  * Per-call context handed to an operation handler by dispatch.
  *
  * `callId` uniquely identifies this invocation — approval operations use it

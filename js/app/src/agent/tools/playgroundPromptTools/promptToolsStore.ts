@@ -93,6 +93,7 @@ export function planWritePromptTools({
     // script can retry without another read.
     return {
       ok: false,
+      code: "STALE_REVISION",
       error:
         `expectedRevision "${input.expectedRevision}" does not match the ` +
         `tool list's current revision "${beforeSnapshot.output.revision}". ` +
