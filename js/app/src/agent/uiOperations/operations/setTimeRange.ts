@@ -66,7 +66,7 @@ export type SetTimeRangeOperationInput = z.infer<
  * description below moves here verbatim from the Python `DESCRIPTION`; the
  * handler stays where it is today (registered by `TimeRangeContext` while a
  * time range provider is mounted) but is registered via
- * `registerUiOperation` against this descriptor instead of
+ * `registerUiOperations` against this descriptor instead of
  * `registerClientAction` — see PLAN.md for the before/after diff.
  */
 export const setTimeRangeOperation = defineUiOperation({

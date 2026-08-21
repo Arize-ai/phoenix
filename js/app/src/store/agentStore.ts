@@ -18,6 +18,7 @@ import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnn
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import type { PendingNavigation } from "@phoenix/agent/tools/navigation/types";
 import type { PendingPatchExperiment } from "@phoenix/agent/tools/patchExperiment";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type {
@@ -507,6 +508,11 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     pending: PendingDatasetWrite | null
   ) => void;
+  pendingNavigationsByToolCallId: Partial<Record<string, PendingNavigation>>;
+  setPendingNavigation: (
+    toolCallId: string,
+    pending: PendingNavigation | null
+  ) => void;
   pendingAnnotationConfigWritesByToolCallId: Partial<
     Record<string, PendingAnnotationConfigWrite>
   >;
@@ -699,6 +705,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingPromptInstanceRemovalsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
+    pendingNavigationsByToolCallId: {},
     pendingAnnotationConfigWritesByToolCallId: {},
     pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
@@ -1168,6 +1175,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingDatasetWrite" }
+      );
+    },
+    setPendingNavigation: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingNavigationsByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingNavigationsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingNavigation" }
       );
     },
     setPendingAnnotationConfigWrite: (toolCallId, pending) => {

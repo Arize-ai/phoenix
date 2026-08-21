@@ -43,10 +43,7 @@ import {
 import { createSavePromptClientAction } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { createSetTemplateVariablesPathClientAction } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { createSetVariableValuesClientAction } from "@phoenix/agent/tools/playgroundVariableValues";
-import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
+import { registerUiOperations } from "@phoenix/agent/uiOperations/catalog";
 import {
   editCodeEvaluatorDraftOperation,
   openCodeEvaluatorFormOperation,
@@ -381,180 +378,118 @@ function PlaygroundContent() {
       setPendingLoadDataset,
       setPendingPromptToolWrite,
     } = agentStore.getState();
-    registerUiOperation({
+    const unregister = registerUiOperations({
       agentStore,
-      descriptor: readPromptOperation,
-      handler: createReadPromptClientAction({ playgroundStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: clonePromptInstanceOperation,
-      handler: createClonePromptInstanceClientAction({ playgroundStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: addPromptInstanceOperation,
-      handler: createAddPromptInstanceClientAction({ playgroundStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: removePromptInstanceOperation,
-      handler: createRemovePromptInstanceClientAction({
-        playgroundStore,
-        setPendingPromptInstanceRemoval,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: editPromptOperation,
-      handler: createEditPromptClientAction({
-        playgroundStore,
-        setPendingPromptEdit,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: savePromptOperation,
-      handler: createSavePromptClientAction({
-        playgroundStore,
-        setPendingSavePrompt,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: runPlaygroundOperation,
-      handler: createRunPlaygroundClientAction({ playgroundStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: readPlaygroundOutputOperation,
-      handler: createReadPlaygroundOutputClientAction({ playgroundStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: readExperimentResultsOperation,
-      handler: createReadExperimentResultsClientAction(),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: setVariableValuesOperation,
-      handler: createSetVariableValuesClientAction({ playgroundStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: setPlaygroundExperimentRecordingOperation,
-      handler: createSetPlaygroundExperimentRecordingClientAction({
-        playgroundStore,
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: setPlaygroundRepetitionsOperation,
-      handler: createSetPlaygroundRepetitionsClientAction({ playgroundStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: setTemplateVariablesPathOperation,
-      handler: createSetTemplateVariablesPathClientAction({
-        playgroundStore,
-        getSearchParams: () => searchParamsRef.current,
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: loadDatasetOperation,
-      handler: createLoadDatasetClientAction({
-        playgroundStore,
-        setSearchParams,
-        getSearchParams: () => searchParamsRef.current,
-        setPendingLoadDataset,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: readPromptToolsOperation,
-      handler: createReadPromptToolsClientAction({ playgroundStore }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: writePromptToolsOperation,
-      handler: createWritePromptToolsClientAction({
-        playgroundStore,
-        setPendingPromptToolWrite,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: setAppendedMessagesPathOperation,
-      handler: createSetAppendedMessagesPathClientAction({
-        playgroundStore,
-        getSearchParams: () => searchParamsRef.current,
-      }),
+      operations: [
+        {
+          descriptor: readPromptOperation,
+          handler: createReadPromptClientAction({ playgroundStore }),
+        },
+        {
+          descriptor: clonePromptInstanceOperation,
+          handler: createClonePromptInstanceClientAction({ playgroundStore }),
+        },
+        {
+          descriptor: addPromptInstanceOperation,
+          handler: createAddPromptInstanceClientAction({ playgroundStore }),
+        },
+        {
+          descriptor: removePromptInstanceOperation,
+          handler: createRemovePromptInstanceClientAction({
+            playgroundStore,
+            setPendingPromptInstanceRemoval,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: editPromptOperation,
+          handler: createEditPromptClientAction({
+            playgroundStore,
+            setPendingPromptEdit,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: savePromptOperation,
+          handler: createSavePromptClientAction({
+            playgroundStore,
+            setPendingSavePrompt,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: runPlaygroundOperation,
+          handler: createRunPlaygroundClientAction({ playgroundStore }),
+        },
+        {
+          descriptor: readPlaygroundOutputOperation,
+          handler: createReadPlaygroundOutputClientAction({ playgroundStore }),
+        },
+        {
+          descriptor: readExperimentResultsOperation,
+          handler: createReadExperimentResultsClientAction(),
+        },
+        {
+          descriptor: setVariableValuesOperation,
+          handler: createSetVariableValuesClientAction({ playgroundStore }),
+        },
+        {
+          descriptor: setPlaygroundExperimentRecordingOperation,
+          handler: createSetPlaygroundExperimentRecordingClientAction({
+            playgroundStore,
+          }),
+        },
+        {
+          descriptor: setPlaygroundRepetitionsOperation,
+          handler: createSetPlaygroundRepetitionsClientAction({
+            playgroundStore,
+          }),
+        },
+        {
+          descriptor: setTemplateVariablesPathOperation,
+          handler: createSetTemplateVariablesPathClientAction({
+            playgroundStore,
+            getSearchParams: () => searchParamsRef.current,
+          }),
+        },
+        {
+          descriptor: loadDatasetOperation,
+          handler: createLoadDatasetClientAction({
+            playgroundStore,
+            setSearchParams,
+            getSearchParams: () => searchParamsRef.current,
+            setPendingLoadDataset,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: readPromptToolsOperation,
+          handler: createReadPromptToolsClientAction({ playgroundStore }),
+        },
+        {
+          descriptor: writePromptToolsOperation,
+          handler: createWritePromptToolsClientAction({
+            playgroundStore,
+            setPendingPromptToolWrite,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: setAppendedMessagesPathOperation,
+          handler: createSetAppendedMessagesPathClientAction({
+            playgroundStore,
+            getSearchParams: () => searchParamsRef.current,
+          }),
+        },
+      ],
     });
     return () => {
-      unregisterUiOperation({ agentStore, name: readPromptOperation.name });
-      unregisterUiOperation({
-        agentStore,
-        name: clonePromptInstanceOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: addPromptInstanceOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: removePromptInstanceOperation.name,
-      });
-      unregisterUiOperation({ agentStore, name: editPromptOperation.name });
-      unregisterUiOperation({ agentStore, name: savePromptOperation.name });
-      unregisterUiOperation({ agentStore, name: runPlaygroundOperation.name });
-      unregisterUiOperation({
-        agentStore,
-        name: readPlaygroundOutputOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: readExperimentResultsOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: setVariableValuesOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: setPlaygroundExperimentRecordingOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: setPlaygroundRepetitionsOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: setTemplateVariablesPathOperation.name,
-      });
-      unregisterUiOperation({ agentStore, name: loadDatasetOperation.name });
-      unregisterUiOperation({
-        agentStore,
-        name: readPromptToolsOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: writePromptToolsOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: setAppendedMessagesPathOperation.name,
-      });
+      unregister();
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {
@@ -593,144 +528,132 @@ function PlaygroundContent() {
     };
   }, [agentStore, playgroundStore, setSearchParams]);
 
-  useEffect(() => {
-    registerUiOperation({
-      agentStore,
-      descriptor: cancelPlaygroundRunOperation,
-      handler: createCancelPlaygroundRunClientAction({
-        playgroundStore,
-        cancelRun: cancelPlaygroundRun,
-      }),
-    });
-    return () => {
-      unregisterUiOperation({
+  useEffect(
+    () =>
+      registerUiOperations({
         agentStore,
-        name: cancelPlaygroundRunOperation.name,
-      });
-    };
-  }, [agentStore, cancelPlaygroundRun, playgroundStore]);
+        operations: [
+          {
+            descriptor: cancelPlaygroundRunOperation,
+            handler: createCancelPlaygroundRunClientAction({
+              playgroundStore,
+              cancelRun: cancelPlaygroundRun,
+            }),
+          },
+        ],
+      }),
+    [agentStore, cancelPlaygroundRun, playgroundStore]
+  );
 
-  useEffect(() => {
-    registerUiOperation({
-      agentStore,
-      descriptor: listPlaygroundModelTargetsOperation,
-      handler: createListPlaygroundModelTargetsClientAction({
-        availableBuiltinModels,
-        availableCustomModels,
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: setPlaygroundModelOperation,
-      handler: createSetPlaygroundModelClientAction({
-        playgroundStore,
-        modelCatalog,
-        modelConfigByProvider,
-        awsBedrockModelPrefix,
-      }),
-    });
-    return () => {
-      unregisterUiOperation({
+  useEffect(
+    () =>
+      registerUiOperations({
         agentStore,
-        name: listPlaygroundModelTargetsOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: setPlaygroundModelOperation.name,
-      });
-    };
-  }, [
-    agentStore,
-    availableBuiltinModels,
-    availableCustomModels,
-    awsBedrockModelPrefix,
-    modelCatalog,
-    modelConfigByProvider,
-    playgroundStore,
-  ]);
+        operations: [
+          {
+            descriptor: listPlaygroundModelTargetsOperation,
+            handler: createListPlaygroundModelTargetsClientAction({
+              availableBuiltinModels,
+              availableCustomModels,
+            }),
+          },
+          {
+            descriptor: setPlaygroundModelOperation,
+            handler: createSetPlaygroundModelClientAction({
+              playgroundStore,
+              modelCatalog,
+              modelConfigByProvider,
+              awsBedrockModelPrefix,
+            }),
+          },
+        ],
+      }),
+    [
+      agentStore,
+      availableBuiltinModels,
+      availableCustomModels,
+      awsBedrockModelPrefix,
+      modelCatalog,
+      modelConfigByProvider,
+      playgroundStore,
+    ]
+  );
 
   useEffect(() => {
     if (!datasetId) {
       return undefined;
     }
-    registerUiOperation({
+    return registerUiOperations({
       agentStore,
-      descriptor: openCodeEvaluatorFormOperation,
-      handler: async (): Promise<AgentClientActionResult> => {
-        if (isRunning) {
-          return {
-            ok: false,
-            error:
-              "The playground is running an experiment; wait for it to finish before opening the code-evaluator form.",
-          };
-        }
-        setCodeEvaluatorFormDatasetId(datasetId);
-        const isReady = await waitForRegisteredClientActions({
-          agentStore,
-          names: [
-            readCodeEvaluatorDraftOperation.name,
-            editCodeEvaluatorDraftOperation.name,
-            testCodeEvaluatorDraftOperation.name,
-          ],
-        });
-        if (!isReady) {
-          return {
-            ok: false,
-            error:
-              "The code-evaluator form opened, but its draft operations did not finish loading. Try opening the form again before reading the draft.",
-          };
-        }
-        return {
-          ok: true,
-          output:
-            "Code-evaluator form opened for the current playground dataset; draft operations are ready.",
-        };
-      },
+      operations: [
+        {
+          descriptor: openCodeEvaluatorFormOperation,
+          handler: async (): Promise<AgentClientActionResult> => {
+            if (isRunning) {
+              return {
+                ok: false,
+                error:
+                  "The playground is running an experiment; wait for it to finish before opening the code-evaluator form.",
+              };
+            }
+            setCodeEvaluatorFormDatasetId(datasetId);
+            const isReady = await waitForRegisteredClientActions({
+              agentStore,
+              names: [
+                readCodeEvaluatorDraftOperation.name,
+                editCodeEvaluatorDraftOperation.name,
+                testCodeEvaluatorDraftOperation.name,
+              ],
+            });
+            if (!isReady) {
+              return {
+                ok: false,
+                error:
+                  "The code-evaluator form opened, but its draft operations did not finish loading. Try opening the form again before reading the draft.",
+              };
+            }
+            return {
+              ok: true,
+              output:
+                "Code-evaluator form opened for the current playground dataset; draft operations are ready.",
+            };
+          },
+        },
+        {
+          descriptor: openLlmEvaluatorFormOperation,
+          handler: async (): Promise<AgentClientActionResult> => {
+            if (isRunning) {
+              return {
+                ok: false,
+                error:
+                  "The playground is running an experiment; wait for it to finish before opening the LLM-evaluator form.",
+              };
+            }
+            setLlmEvaluatorFormDatasetId(datasetId);
+            const isReady = await waitForRegisteredClientActions({
+              agentStore,
+              names: [
+                readLlmEvaluatorDraftOperation.name,
+                editLlmEvaluatorDraftOperation.name,
+                testLlmEvaluatorDraftOperation.name,
+              ],
+            });
+            if (!isReady) {
+              return {
+                ok: false,
+                error:
+                  "The LLM-evaluator form opened, but its draft operations did not finish loading. Try opening the form again before reading the draft.",
+              };
+            }
+            return {
+              ok: true,
+              output:
+                "LLM-evaluator form opened for the current playground dataset; draft operations are ready.",
+            };
+          },
+        },
+      ],
     });
-    registerUiOperation({
-      agentStore,
-      descriptor: openLlmEvaluatorFormOperation,
-      handler: async (): Promise<AgentClientActionResult> => {
-        if (isRunning) {
-          return {
-            ok: false,
-            error:
-              "The playground is running an experiment; wait for it to finish before opening the LLM-evaluator form.",
-          };
-        }
-        setLlmEvaluatorFormDatasetId(datasetId);
-        const isReady = await waitForRegisteredClientActions({
-          agentStore,
-          names: [
-            readLlmEvaluatorDraftOperation.name,
-            editLlmEvaluatorDraftOperation.name,
-            testLlmEvaluatorDraftOperation.name,
-          ],
-        });
-        if (!isReady) {
-          return {
-            ok: false,
-            error:
-              "The LLM-evaluator form opened, but its draft operations did not finish loading. Try opening the form again before reading the draft.",
-          };
-        }
-        return {
-          ok: true,
-          output:
-            "LLM-evaluator form opened for the current playground dataset; draft operations are ready.",
-        };
-      },
-    });
-    return () => {
-      unregisterUiOperation({
-        agentStore,
-        name: openCodeEvaluatorFormOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: openLlmEvaluatorFormOperation.name,
-      });
-    };
   }, [agentStore, datasetId, isRunning]);
 
   const playgroundDatasetStateByDatasetId = usePlaygroundContext(

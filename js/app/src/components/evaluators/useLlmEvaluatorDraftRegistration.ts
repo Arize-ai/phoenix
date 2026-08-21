@@ -16,10 +16,7 @@ import {
   type LlmEvaluatorDraftHost,
   reconcileJudgeOperations,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
+import { registerUiOperations } from "@phoenix/agent/uiOperations/catalog";
 import {
   editLlmEvaluatorDraftOperation,
   readLlmEvaluatorDraftOperation,
@@ -164,44 +161,35 @@ export const useLlmEvaluatorDraftRegistration = ({
 
     const { setPendingLlmEvaluatorEdit } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
-    registerUiOperation({
+    const unregister = registerUiOperations({
       agentStore,
-      descriptor: readLlmEvaluatorDraftOperation,
-      handler: createReadLlmEvaluatorDraftClientAction({ getDraftHost }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: editLlmEvaluatorDraftOperation,
-      handler: createEditLlmEvaluatorDraftClientAction({
-        getDraftHost,
-        setPendingLlmEvaluatorEdit,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
-    });
-    registerUiOperation({
-      agentStore,
-      descriptor: submitLlmEvaluatorDraftOperation,
-      handler: createSubmitLlmEvaluatorDraftClientAction({
-        getDraftHost,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      }),
+      operations: [
+        {
+          descriptor: readLlmEvaluatorDraftOperation,
+          handler: createReadLlmEvaluatorDraftClientAction({ getDraftHost }),
+        },
+        {
+          descriptor: editLlmEvaluatorDraftOperation,
+          handler: createEditLlmEvaluatorDraftClientAction({
+            getDraftHost,
+            setPendingLlmEvaluatorEdit,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: submitLlmEvaluatorDraftOperation,
+          handler: createSubmitLlmEvaluatorDraftClientAction({
+            getDraftHost,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+      ],
     });
     return () => {
       draftHostRef.current = null;
-      unregisterUiOperation({
-        agentStore,
-        name: readLlmEvaluatorDraftOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: editLlmEvaluatorDraftOperation.name,
-      });
-      unregisterUiOperation({
-        agentStore,
-        name: submitLlmEvaluatorDraftOperation.name,
-      });
+      unregister();
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingLlmEvaluatorEditsByToolCallId
       )) {
