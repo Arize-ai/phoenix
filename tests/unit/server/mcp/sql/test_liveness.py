@@ -666,6 +666,26 @@ async def test_negative_sqlite_limit_cannot_disable_the_work_cap(
     assert "LIMIT 3" in result.envelope.applied.executed
 
 
+#: Wall-clock seconds and the same span in milliseconds, per seeded span.
+#:
+#: Asserted by value rather than by being non-zero, because non-zero does not
+#: discriminate: truncating to whole seconds, resolving the column against the
+#: wrong relation, and comparing timestamps as text all return numbers that pass
+#: it. The sub-second spans carry the precision claim -- under whole-second
+#: arithmetic span-1 reads 1.0 and the other two read 0.0.
+ELAPSED_BY_SPAN = [
+    ("span-1", 1.5, 1500.0),
+    ("span-2", 0.65, 650.0),
+    ("span-3", 0.1, 100.0),
+]
+
+#: SQLite reaches elapsed time through julianday, whose result carries
+#: representation noise at the seventh significant figure. This bound clears
+#: that by two orders of magnitude while staying far tighter than the precision
+#: loss it exists to detect, which moves 1500 to 1000.
+ELAPSED_TOLERANCE = 1e-4
+
+
 async def test_sqlite_timestamp_subtraction_returns_elapsed_seconds(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
@@ -674,16 +694,34 @@ async def test_sqlite_timestamp_subtraction_returns_elapsed_seconds(
         db,
         ExecuteParams(
             sql=(
-                "SELECT end_time - start_time AS duration, latency_ms "
-                "FROM spans WHERE span_id = 'span-1'"
+                "SELECT span_id, end_time - start_time AS duration, latency_ms "
+                "FROM spans ORDER BY span_id"
             )
         ),
         sqlite_db_path=db_path,
     )
-    assert result.envelope.rows
-    duration, latency_ms = result.envelope.rows[0]
-    assert duration != 0
-    assert latency_ms != 0
+    assert [row[0] for row in result.envelope.rows] == [s for s, _, _ in ELAPSED_BY_SPAN]
+    for (span_id, seconds, millis), row in zip(ELAPSED_BY_SPAN, result.envelope.rows):
+        assert row[1] == pytest.approx(seconds, rel=ELAPSED_TOLERANCE), span_id
+        assert row[2] == pytest.approx(millis, rel=ELAPSED_TOLERANCE), span_id
+
+
+async def test_sqlite_latency_predicate_selects_by_elapsed_milliseconds(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """A threshold between the seeded durations must divide them where it falls.
+
+    The predicate form is what a truncating implementation gets wrong while the
+    projected form still looks right: span-1 truncated to 1000 fails `> 1000`
+    and disappears, leaving an empty result that no non-empty check would catch.
+    """
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT span_id FROM spans WHERE latency_ms > 1000 ORDER BY span_id"),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.rows == [["span-1"]]
 
 
 async def test_no_window_is_imposed_when_none_is_asked_for(
@@ -980,12 +1018,8 @@ POSTGRES_JSON_SURFACE = [
     ),
     # A key holding an apostrophe, and the root-only path. Both are emissions
     # the generator gets wrong on its own, so both have to reach the engine.
-    pytest.param(
-        "SELECT '{\"c''d\":7}'::jsonb -> 'c''d' AS v FROM spans", id="quoted_key"
-    ),
-    pytest.param(
-        "SELECT json_extract('{\"a\":1}'::jsonb, '$') AS v FROM spans", id="root_path"
-    ),
+    pytest.param("SELECT '{\"c''d\":7}'::jsonb -> 'c''d' AS v FROM spans", id="quoted_key"),
+    pytest.param("SELECT json_extract('{\"a\":1}'::jsonb, '$') AS v FROM spans", id="root_path"),
     # The array-constructor spelling of a `#>` path, which reaches the same
     # value as `#> '{a,b}'`.
     pytest.param(
@@ -1084,3 +1118,53 @@ async def test_distinct_on_executes(analytics_postgres_db: DbSessionFactory, sql
     """
     result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
     assert result.envelope.row_count > 0
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        pytest.param("status_code", [["span-3"], ["span-1"]], id="two-groups"),
+        pytest.param("trace_rowid", [["span-1"]], id="one-group"),
+    ],
+)
+async def test_distinct_on_collapses_duplicate_keys(
+    analytics_postgres_db: DbSessionFactory, key: str, expected: list[list[str]]
+) -> None:
+    """The key list must select one row per distinct key, not merely execute.
+
+    Keys are chosen where the seeded spans repeat a value, so the row count
+    drops. A key that is unique per row leaves the result indistinguishable
+    from no de-duplication at all.
+
+    Rows are compared in engine order, which the trailing `ORDER BY` fixes: the
+    surviving row of each group is the first under that ordering, so the
+    expectation covers which row wins as well as how many.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(sql=f"SELECT DISTINCT ON ({key}) span_id FROM spans ORDER BY {key}, span_id"),
+    )
+    assert result.envelope.rows == expected
+
+
+@pytest.mark.postgres_only
+async def test_interval_predicate_selects_by_elapsed_time(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    """A threshold between the seeded durations must divide them where it falls.
+
+    The counterpart to the SQLite predicate test: the same question asked in the
+    spelling PostgreSQL accepts, so a divergence in either engine's elapsed-time
+    arithmetic shows up as a different set of spans rather than as an error.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(
+            sql=(
+                "SELECT span_id FROM spans "
+                "WHERE end_time - start_time > INTERVAL '1 second' ORDER BY span_id"
+            )
+        ),
+    )
+    assert result.envelope.rows == [["span-1"]]
