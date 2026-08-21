@@ -36,6 +36,7 @@ jobs:
       ddl: ${{ steps.filter.outputs.ddl }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
+      filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -57,9 +58,6 @@ jobs:
               - "tutorials/**"
               - "pyproject.toml"
               - "tox.ini"
-              # the filter-DSL snippet compile tests read these TS sources
-              - "js/app/src/pages/project/traceFilterDSL.ts"
-              - "js/app/src/pages/project/sessionFilterDSL.ts"
             phoenix_client:
               - "packages/phoenix-client/**"
               - "tox.ini"
@@ -80,6 +78,11 @@ jobs:
             uv_lock:
               - "**/pyproject.toml"
               - "uv.lock"
+            filter_dsl:
+              - "js/app/src/pages/project/traceFilterDSL.ts"
+              - "js/app/src/pages/project/sessionFilterDSL.ts"
+              - "src/phoenix/trace/dsl/**"
+              - "scripts/ci/check_filter_dsl_snippets.py"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -93,6 +96,7 @@ jobs:
           DDL: ${{ steps.filter.outputs.ddl }}
           UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
           JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
+          FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -105,6 +109,7 @@ jobs:
           echo "ddl: $DDL"
           echo "uv_lock: $UV_LOCK"
           echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
+          echo "filter_dsl: $FILTER_DSL"
 
   phoenix-client:
     name: Phoenix Client
@@ -274,6 +279,38 @@ jobs:
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
+
+  check-filter-dsl-snippets:
+    name: Check Filter DSL Snippets
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.filter_dsl == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/ci/
+            requirements/
+            src/phoenix/
+            packages/
+            js/app/src/pages/project/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.12.1"
+      - name: Check UI filter DSL snippets against the Python filters
+        run: make check-filter-dsl-snippets
 
   doctests:
     name: Doctests
@@ -491,11 +528,9 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             requirements/
-            scripts/
             src/phoenix/
             evals/
             packages/phoenix-evals/
-            js/app/src/pages/project/
             tests/unit/
             tests/conftest.py
             tests/__generated__/
@@ -707,6 +742,7 @@ jobs:
       - phoenix-otel
       - clean-jupyter-notebooks
       - build-graphql-schema
+      - check-filter-dsl-snippets
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts

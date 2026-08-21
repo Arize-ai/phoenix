@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
+	codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets gen-otel-models \
 	gh-comment-watch \
 	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
 	clean clean-all
@@ -96,6 +96,7 @@ help: ## Show this help message
 	@echo -e "  lint-frontend          - Lint frontend only (js/app/)"
 	@echo -e "  lint-ts                - Lint all TypeScript (js/ workspace)"
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
+	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
@@ -429,6 +430,11 @@ endif
 check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have permission classes
 	@echo -e "$(CYAN)Checking GraphQL permissions...$(NC)"
 	@$(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py src/phoenix/server/api
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-filter-dsl-snippets: ## Ensure UI filter DSL snippets and examples compile under the Python filters
+	@echo -e "$(CYAN)Checking UI filter DSL snippets against the Python filters...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/check_filter_dsl_snippets.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
