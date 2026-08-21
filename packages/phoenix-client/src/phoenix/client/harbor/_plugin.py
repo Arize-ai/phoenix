@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import sys
@@ -8,12 +9,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 
+from phoenix.client.__generated__ import v1
 from phoenix.client.client import (
     _DEFAULT_CLIENT_TIMEOUT,  # pyright: ignore[reportPrivateUsage]
     AsyncClient,
     _update_headers,  # pyright: ignore[reportPrivateUsage]
 )
-from phoenix.client.harbor._adapter import build_job_plan
+from phoenix.client.harbor._adapter import build_job_plan, existing_trial_results
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import JobPlan
 from phoenix.client.harbor._recorder import (
@@ -21,6 +23,7 @@ from phoenix.client.harbor._recorder import (
     DatasetSnapshot,
     ExperimentHandle,
     PhoenixRecorder,
+    RunKey,
 )
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key, get_env_project_name
 
@@ -68,12 +71,15 @@ class PhoenixJobPlugin:
         self.plan: JobPlan | None = None
         self.snapshot: DatasetSnapshot | None = None
         self.experiments: dict[str, ExperimentHandle] = {}
-        self._recorded_run_keys: set[tuple[str, str, int]] = set()
+        self._runs: dict[RunKey, v1.ExperimentRun] = {}
         self._attempts: dict[str, int] = {}
         self._retry_config: Any = None
+        self._record_lock = asyncio.Lock()
+        self._terminal_failure: Exception | None = None
 
     async def on_job_start(self, job: Job) -> None:
         plan = build_job_plan(job, dataset_override=self.dataset)
+        resumed_trials = existing_trial_results(job)
         async with self._open_client() as client:
             recorder = PhoenixRecorder(
                 client,
@@ -81,12 +87,15 @@ class PhoenixJobPlugin:
             )
             snapshot = await recorder.sync_dataset(plan)
             experiments = await recorder.resolve_experiments(plan, snapshot)
-            recorded_run_keys = await recorder.existing_run_keys(experiments)
+            runs = await recorder.existing_runs(experiments)
 
-        self.plan = plan
-        self.snapshot = snapshot
-        self.experiments = experiments
-        self._recorded_run_keys = recorded_run_keys
+            self.plan = plan
+            self.snapshot = snapshot
+            self.experiments = experiments
+            self._runs = runs
+            for trial_result in resumed_trials:
+                await self._record_trial(trial_result, recorder=recorder)
+
         self._retry_config = job.config.retry
         try:
             job.on_trial_started(self._on_trial_started)
@@ -98,11 +107,9 @@ class PhoenixJobPlugin:
         self._report_started(plan, experiments)
 
     async def on_job_end(self, job_result: JobResult) -> None:
-        # Reconcile trials loaded by Harbor during resume; live trials are recorded by hooks.
+        del job_result
         if self.plan is None:
             return
-        for trial_result in getattr(job_result, "trial_results", ()) or ():
-            await self._record_trial(trial_result)
         logger.info(
             "Harbor job %s recorded in Phoenix dataset %r (%d experiment(s)).",
             self.plan.job_id,
@@ -115,9 +122,18 @@ class PhoenixJobPlugin:
         self._attempts[trial_name] = self._attempts.get(trial_name, 0) + 1
 
     async def _on_trial_ended(self, event: TrialHookEvent) -> None:
+        if self._terminal_failure is not None:
+            return
         if self._will_retry(event):
             return
-        await self._record_trial(event.result)
+        async with self._record_lock:
+            if self._terminal_failure is not None:
+                return
+            try:
+                await self._record_trial(event.result)
+            except Exception as error:
+                self._terminal_failure = error
+                raise
 
     def _will_retry(self, event: TrialHookEvent) -> bool:
         error = getattr(event.result, "exception_info", None)
@@ -135,7 +151,12 @@ class PhoenixJobPlugin:
         attempts = self._attempts.get(str(event.trial_name), 1)
         return attempts <= int(getattr(retry, "max_retries", 0) or 0)
 
-    async def _record_trial(self, trial_result: Any) -> None:
+    async def _record_trial(
+        self,
+        trial_result: Any,
+        *,
+        recorder: PhoenixRecorder | None = None,
+    ) -> None:
         if self.plan is None or self.snapshot is None:
             raise HarborPluginError("Phoenix trial recording started before job setup completed.")
         try:
@@ -149,20 +170,32 @@ class PhoenixJobPlugin:
             self.snapshot.example_ids[slot.task_id],
             slot.repetition,
         )
-        if key in self._recorded_run_keys:
+        existing = self._runs.get(key)
+        if existing is not None and PhoenixRecorder.can_reuse_run(
+            existing, trial_result=trial_result
+        ):
             return
-        async with self._open_client() as client:
-            recorder = PhoenixRecorder(
-                client,
-                experiment_name_template=self.experiment_name_template,
-            )
-            await recorder.record_trial(
+
+        if recorder is not None:
+            run = await recorder.record_trial(
                 plan=self.plan,
                 snapshot=self.snapshot,
                 experiments=self.experiments,
                 trial_result=trial_result,
             )
-        self._recorded_run_keys.add(key)
+        else:
+            async with self._open_client() as client:
+                live_recorder = PhoenixRecorder(
+                    client,
+                    experiment_name_template=self.experiment_name_template,
+                )
+                run = await live_recorder.record_trial(
+                    plan=self.plan,
+                    snapshot=self.snapshot,
+                    experiments=self.experiments,
+                    trial_result=trial_result,
+                )
+        self._runs[key] = run
 
     @contextlib.asynccontextmanager
     async def _open_client(self) -> AsyncIterator[AsyncClient]:

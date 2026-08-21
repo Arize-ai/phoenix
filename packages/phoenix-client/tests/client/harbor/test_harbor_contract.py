@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from phoenix.client.harbor._adapter import build_job_plan
+from phoenix.client.harbor._adapter import build_job_plan, existing_trial_results
 from phoenix.client.harbor._errors import HarborPluginError
 
 pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
@@ -74,7 +74,7 @@ class TestPluginRegistration:
         from harbor.cli.job_plugins import attach_job_plugin
 
         # The first adapter read proves Harbor loaded and called the plugin.
-        with pytest.raises(HarborPluginError, match="does not expose `config`"):
+        with pytest.raises(HarborPluginError, match="missing `config`"):
             await attach_job_plugin(object(), "phoenix", kwargs={"trace_mode": "none"})
 
     async def test_plugin_satisfies_harbors_protocol(self) -> None:
@@ -101,6 +101,7 @@ class TestResolvedPlan:
         assert [step.name for step in task.steps] == list(STEP_NAMES)
         assert all(step.instruction for step in task.steps)
         assert all(slot.trial_name for slot in plan.trials)
+        assert existing_trial_results(job) == ()
         environment = task.to_example()["metadata"]["task_config"]["environment"]
         assert environment["env"] == ["ANTHROPIC_API_KEY"]
 

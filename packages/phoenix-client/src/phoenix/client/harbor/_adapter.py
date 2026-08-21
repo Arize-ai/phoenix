@@ -8,6 +8,7 @@ Contract tests pin the private attributes read here to supported Harbor versions
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,7 +25,7 @@ from phoenix.client.harbor._model import (
     canonical_digest,
 )
 
-__all__ = ["MINIMUM_HARBOR_VERSION", "build_job_plan"]
+__all__ = ["MINIMUM_HARBOR_VERSION", "build_job_plan", "existing_trial_results"]
 
 MINIMUM_HARBOR_VERSION = (0, 18, 0)
 
@@ -88,30 +89,45 @@ def _require_supported_harbor() -> str | None:
     version = getattr(harbor, "__version__", None)
     if version is None:
         return None
-    if _parse_version(str(version)) < MINIMUM_HARBOR_VERSION:
-        minimum = ".".join(str(part) for part in MINIMUM_HARBOR_VERSION)
+    minimum = ".".join(str(part) for part in MINIMUM_HARBOR_VERSION)
+    release, is_prerelease = _parse_version(str(version))
+    if release < MINIMUM_HARBOR_VERSION or (release == MINIMUM_HARBOR_VERSION and is_prerelease):
         raise HarborPluginError(
             f"The Phoenix Harbor plugin requires harbor>={minimum}; found {version}."
         )
     return str(version)
 
 
-def _parse_version(version: str) -> tuple[int, ...]:
-    parts: list[int] = []
-    for chunk in version.split(".")[:3]:
-        digits = "".join(c for c in chunk if c.isdigit())
-        parts.append(int(digits) if digits else 0)
-    return tuple(parts)
+def _parse_version(version: str) -> tuple[tuple[int, int, int], bool]:
+    match = re.fullmatch(r"\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?(.*)", version)
+    if match is None:
+        raise HarborPluginError(f"Could not parse the installed Harbor version {version!r}.")
+    release = (
+        int(match.group(1)),
+        int(match.group(2) or 0),
+        int(match.group(3) or 0),
+    )
+    suffix = match.group(4).strip().lower()
+    is_prerelease = bool(suffix) and not suffix.startswith(("+", ".post"))
+    return release, is_prerelease
 
 
 def _require_attr(obj: Any, name: str) -> Any:
     try:
         return getattr(obj, name)
     except AttributeError as error:
+        minimum = ".".join(str(part) for part in MINIMUM_HARBOR_VERSION)
         raise HarborPluginError(
-            f"Harbor does not expose `{name}`. Install a supported Harbor version, "
-            "or omit `--plugin phoenix`."
+            f"The Harbor job is missing `{name}`, which the Phoenix plugin needs to map "
+            f"tasks and trials. Install a compatible release (harbor>={minimum}) or omit "
+            "`--plugin phoenix`."
         ) from error
+
+
+def existing_trial_results(job: Any) -> tuple[Any, ...]:
+    """Return terminal trials loaded by Harbor when resuming a job."""
+    results: Sequence[Any] = _require_attr(job, "_existing_trial_results")
+    return tuple(results)
 
 
 def _validate_job_shape(config: Any) -> None:
@@ -185,7 +201,9 @@ def _lookup_download(task_config: Any, downloads: Mapping[Any, Any]) -> Any:
 def _build_task_lock(task_config: Any, download: Any) -> Any:
     """Build a task lock once per task, not once per trial."""
     try:
-        from harbor.models.job.lock import _build_lock_trial_task
+        from harbor.models.job.lock import (
+            _build_lock_trial_task,  # pyright: ignore[reportPrivateUsage]
+        )
     except ImportError as error:
         raise HarborPluginError(
             "Harbor does not expose the task-lock builder needed for digests."

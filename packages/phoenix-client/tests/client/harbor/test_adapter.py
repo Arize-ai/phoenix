@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+import sys
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
@@ -13,6 +14,7 @@ from phoenix.client.harbor._adapter import (
     _build_task_records,  # pyright: ignore[reportPrivateUsage]
     _build_trial_slots,  # pyright: ignore[reportPrivateUsage]
     _redact_env,  # pyright: ignore[reportPrivateUsage]
+    _require_supported_harbor,  # pyright: ignore[reportPrivateUsage]
     _resolve_adhoc_dataset_identity,  # pyright: ignore[reportPrivateUsage]
     _resolve_dataset_identity,  # pyright: ignore[reportPrivateUsage]
     _TaskContent,  # pyright: ignore[reportPrivateUsage]
@@ -74,6 +76,25 @@ def trial(agent_config: Any, task_id: str, trial_name: str) -> Any:
     )
 
 
+class TestHarborVersion:
+    def test_accepts_major_versions_above_the_minimum(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        harbor = ModuleType("harbor")
+        setattr(harbor, "__version__", "1.0.0")
+        monkeypatch.setitem(sys.modules, "harbor", harbor)
+
+        assert _require_supported_harbor() == "1.0.0"
+
+    def test_rejects_versions_below_the_minimum(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        harbor = ModuleType("harbor")
+        setattr(harbor, "__version__", "0.18.0rc1")
+        monkeypatch.setitem(sys.modules, "harbor", harbor)
+
+        with pytest.raises(HarborPluginError, match=r"harbor>=0\.18\.0"):
+            _require_supported_harbor()
+
+
 class TestAgentIdentity:
     def test_behavioral_fields_separate_experiments(self) -> None:
         assert _agent_identity_digest(agent()) != _agent_identity_digest(
@@ -127,17 +148,30 @@ class TestTaskRecords:
             steps=(),
             config={},
         )
+
+        def _download(task_config: Any, downloads: Any) -> Any:
+            del task_config, downloads
+            return SimpleNamespace(path="/unused")
+
+        def _task_lock(task_config: Any, download: Any) -> Any:
+            del task_config, download
+            return task_lock
+
+        def _content(task_dir: Any) -> _TaskContent:
+            del task_dir
+            return content
+
         monkeypatch.setattr(
             "phoenix.client.harbor._adapter._lookup_download",
-            lambda task_config, downloads: SimpleNamespace(path="/unused"),
+            _download,
         )
         monkeypatch.setattr(
             "phoenix.client.harbor._adapter._build_task_lock",
-            lambda task_config, download: task_lock,
+            _task_lock,
         )
         monkeypatch.setattr(
             "phoenix.client.harbor._adapter._read_task_content",
-            lambda task_dir: content,
+            _content,
         )
 
         (record,) = _build_task_records([task_config], {})

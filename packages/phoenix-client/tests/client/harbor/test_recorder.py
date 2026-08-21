@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import builtins
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
 
 from phoenix.client.harbor._errors import HarborPluginError
@@ -86,9 +88,11 @@ class FakeExperiments:
         self,
         existing: list[dict[str, Any]] | None = None,
         runs: list[dict[str, Any]] | None = None,
+        log_error: Exception | None = None,
     ) -> None:
         self.existing = existing or []
         self.runs = runs or []
+        self.log_error = log_error
         self.created: list[dict[str, Any]] = []
         self.logged_runs: list[dict[str, Any]] = []
 
@@ -106,11 +110,15 @@ class FakeExperiments:
             "repetitions": kwargs.get("repetitions"),
         }
 
-    async def _get_all_experiment_runs(self, *, experiment_id: str) -> list[dict[str, Any]]:
+    async def _get_all_experiment_runs(
+        self, *, experiment_id: str
+    ) -> builtins.list[dict[str, Any]]:
         return [run for run in self.runs if run["experiment_id"] == experiment_id]
 
     async def log_run(self, **kwargs: Any) -> dict[str, Any]:
         self.logged_runs.append(kwargs)
+        if self.log_error is not None:
+            raise self.log_error
         return {"id": f"run-{len(self.logged_runs)}", **kwargs}
 
 
@@ -132,6 +140,20 @@ def example_row(task_id: str, node_id: str) -> dict[str, Any]:
         "output": {},
         "metadata": {"task_digest": "sha256:" + "a" * 64},
     }
+
+
+def trial_result(*, trial_name: str = "task-a__1", error: Any = None) -> Any:
+    now = datetime.now(timezone.utc)
+    return SimpleNamespace(
+        id="trial-id",
+        trial_name=trial_name,
+        trial_uri="file:///trial",
+        task_name="task-a",
+        started_at=now,
+        finished_at=now,
+        exception_info=error,
+        compute_token_cost_totals=lambda: (10, 2, 4, 0.01),
+    )
 
 
 SNAPSHOT = DatasetSnapshot(
@@ -364,17 +386,7 @@ class TestRecordTrial:
                 )
             )[job.slices[0].identity_digest]
         }
-        now = datetime.now(timezone.utc)
-        result = SimpleNamespace(
-            id="trial-id",
-            trial_name="task-a__2",
-            trial_uri="file:///trial",
-            task_name="task-a",
-            started_at=now,
-            finished_at=now,
-            exception_info=None,
-            compute_token_cost_totals=lambda: (10, 2, 4, 0.01),
-        )
+        result = trial_result(trial_name="task-a__2")
 
         await recorder(FakeClient(experiments=experiments)).record_trial(
             plan=job,
@@ -390,21 +402,47 @@ class TestRecordTrial:
         assert logged["output"]["harbor_trial_id"] == "trial-id"
         assert "reward" not in logged["output"]
 
-    async def test_existing_run_keys_include_agent_example_and_repetition(self) -> None:
-        experiment = FakeExperiments(
-            runs=[
-                {
-                    "id": "run-1",
-                    "experiment_id": "experiment-1",
-                    "dataset_example_id": "node-a",
-                    "repetition_number": 2,
-                }
-            ]
+    async def test_duplicate_conflict_reuses_the_matching_successful_run(self) -> None:
+        request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
+        conflict = httpx.HTTPStatusError(
+            "duplicate",
+            request=request,
+            response=httpx.Response(409, request=request),
         )
-        handles = await recorder(FakeClient(experiments=experiment)).resolve_experiments(
-            plan(), SNAPSHOT
+        result = trial_result()
+        existing_run = {
+            "id": "run-existing",
+            "experiment_id": "experiment-1",
+            "dataset_example_id": "node-a",
+            "repetition_number": 1,
+            "output": {
+                "harbor_trial_id": "trial-id",
+                "harbor_trial_name": "task-a__1",
+                "harbor_trial_uri": "file:///trial",
+                "task_name": "task-a",
+                "token_usage": {"input": 10, "cache": 2, "output": 4},
+                "cost_usd": 0.01,
+            },
+        }
+        experiments = FakeExperiments(runs=[existing_run], log_error=conflict)
+        job = plan(
+            trials=(
+                TrialSlot(
+                    trial_name="task-a__1",
+                    identity_digest=slice_().identity_digest,
+                    task_id="task-a",
+                    repetition=1,
+                ),
+            )
+        )
+        client = FakeClient(experiments=experiments)
+        handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
+
+        recorded = await recorder(client).record_trial(
+            plan=job,
+            snapshot=SNAPSHOT,
+            experiments=handles,
+            trial_result=result,
         )
 
-        assert await recorder(FakeClient(experiments=experiment)).existing_run_keys(handles) == {
-            (slice_().identity_digest, "node-a", 2)
-        }
+        assert recorded == existing_run

@@ -61,7 +61,7 @@ PLAN = JobPlan(
 
 
 class FakeJob:
-    def __init__(self, *, max_retries: int = 0) -> None:
+    def __init__(self, *, max_retries: int = 0, existing: tuple[Any, ...] = ()) -> None:
         self.config = SimpleNamespace(
             retry=SimpleNamespace(
                 max_retries=max_retries,
@@ -69,6 +69,7 @@ class FakeJob:
                 exclude_exceptions=[],
             )
         )
+        self._existing_trial_results = list(existing)
         self.started_hook: Any = None
         self.ended_hook: Any = None
 
@@ -93,6 +94,22 @@ def trial_result(*, error: Any = None) -> Any:
     )
 
 
+def successful_run(result: Any, **overrides: Any) -> dict[str, Any]:
+    defaults: dict[str, Any] = {
+        "id": "run-existing",
+        "experiment_id": "experiment-1",
+        "dataset_example_id": "node-a",
+        "repetition_number": 1,
+        "output": {
+            "harbor_trial_id": result.id,
+            "harbor_trial_name": result.trial_name,
+            "harbor_trial_uri": result.trial_uri,
+            "task_name": result.task_name,
+        },
+    }
+    return {**defaults, **overrides}
+
+
 @pytest.fixture
 def wired(monkeypatch: pytest.MonkeyPatch) -> FakeClient:
     client = FakeClient(
@@ -105,9 +122,13 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> FakeClient:
         del self
         yield client
 
+    def _build_plan(job: Any, *, dataset_override: str | None = None) -> JobPlan:
+        del job, dataset_override
+        return PLAN
+
     monkeypatch.setattr(
         "phoenix.client.harbor._plugin.build_job_plan",
-        lambda job, *, dataset_override=None: PLAN,
+        _build_plan,
     )
     monkeypatch.setattr(PhoenixJobPlugin, "_open_client", _open_client)
     return client
@@ -191,6 +212,60 @@ class TestJobStart:
         await job.ended_hook(SimpleNamespace(trial_name=result.trial_name, result=result))
 
         assert wired.experiments.logged_runs == []
+
+    async def test_resume_write_failure_stops_before_registering_hooks(
+        self, wired: FakeClient
+    ) -> None:
+        result = trial_result()
+        job = FakeJob(existing=(result,))
+        wired.experiments.log_error = RuntimeError("connection lost")
+
+        with pytest.raises(HarborPluginError, match="connection lost"):
+            await PhoenixJobPlugin().on_job_start(job)
+
+        assert len(wired.experiments.logged_runs) == 1
+        assert job.started_hook is None
+        assert job.ended_hook is None
+
+    async def test_resume_reuses_only_a_matching_successful_run(self, wired: FakeClient) -> None:
+        result = trial_result()
+        wired.experiments.runs = [successful_run(result)]
+
+        await PhoenixJobPlugin().on_job_start(FakeJob(existing=(result,)))
+
+        assert wired.experiments.logged_runs == []
+
+    async def test_resume_rejects_a_conflicting_successful_run(self, wired: FakeClient) -> None:
+        result = trial_result()
+        wired.experiments.runs = [
+            successful_run(result, output={"harbor_trial_id": "different-trial"})
+        ]
+
+        with pytest.raises(HarborPluginError, match="does not match"):
+            await PhoenixJobPlugin().on_job_start(FakeJob(existing=(result,)))
+
+    async def test_resume_replaces_a_failed_run(self, wired: FakeClient) -> None:
+        result = trial_result()
+        wired.experiments.runs = [successful_run(result, error="previous failure")]
+
+        await PhoenixJobPlugin().on_job_start(FakeJob(existing=(result,)))
+
+        assert len(wired.experiments.logged_runs) == 1
+
+    async def test_first_terminal_write_failure_disables_later_callbacks(
+        self, wired: FakeClient
+    ) -> None:
+        wired.experiments.log_error = RuntimeError("connection lost")
+        plugin = PhoenixJobPlugin()
+        job = FakeJob()
+        await plugin.on_job_start(job)
+        event = SimpleNamespace(trial_name="task-a__1", result=trial_result())
+
+        with pytest.raises(HarborPluginError, match="connection lost"):
+            await job.ended_hook(event)
+        await job.ended_hook(event)
+
+        assert len(wired.experiments.logged_runs) == 1
 
 
 class TestJobEnd:

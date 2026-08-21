@@ -7,6 +7,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
+import httpx
+
 from phoenix.client.__generated__ import v1
 from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
@@ -24,6 +26,8 @@ __all__ = [
 DEFAULT_EXPERIMENT_NAME_TEMPLATE = "{job_name} · {agent} · {model}"
 
 _INTEGRATION = "harbor"
+
+RunKey = tuple[str, str, int]
 
 
 @dataclass(frozen=True)
@@ -56,10 +60,10 @@ class PhoenixRecorder:
         self._experiment_name_template = experiment_name_template
 
     async def sync_dataset(self, plan: JobPlan) -> DatasetSnapshot:
-        """Upload the job's tasks as one dataset version."""
+        """Create the dataset or replace its contents with a new version."""
         examples = [task.to_example() for task in plan.tasks]
         try:
-            # Update mode treats the upload as a complete snapshot keyed by external ID.
+            # Update creates the dataset or a new version from this complete snapshot.
             dataset = await self._client.datasets._upload_json_dataset(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
                 dataset_name=plan.dataset.name,
                 dataset_description=f"Harbor dataset {plan.dataset.name!r} ({plan.dataset.kind}).",
@@ -126,30 +130,88 @@ class PhoenixRecorder:
             )
         return handles
 
-    async def existing_run_keys(
+    async def existing_runs(
         self,
         experiments: Mapping[str, ExperimentHandle],
-    ) -> set[tuple[str, str, int]]:
-        """Return recorded (agent identity, example, repetition) keys."""
-        keys: set[tuple[str, str, int]] = set()
+    ) -> dict[RunKey, v1.ExperimentRun]:
+        """Return runs keyed by agent identity, example, and repetition."""
+        indexed: dict[RunKey, v1.ExperimentRun] = {}
         for identity, experiment in experiments.items():
-            try:
-                runs = await self._client.experiments._get_all_experiment_runs(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
-                    experiment_id=experiment.experiment_id
-                )
-            except Exception as error:
-                raise HarborPluginError(
-                    f"Could not list runs for Phoenix experiment {experiment.name!r}: {error}"
-                ) from error
-            keys.update(
-                (
-                    identity,
-                    str(run["dataset_example_id"]),
-                    int(run["repetition_number"]),
-                )
-                for run in runs
+            for run in await self._list_runs(experiment):
+                key = _run_key(identity, run)
+                if key in indexed:
+                    raise HarborPluginError(
+                        f"Phoenix experiment {experiment.name!r} returned more than one run "
+                        f"for example {key[1]!r}, repetition {key[2]}."
+                    )
+                indexed[key] = run
+        return indexed
+
+    async def _list_runs(self, experiment: ExperimentHandle) -> list[v1.ExperimentRun]:
+        try:
+            return await self._client.experiments._get_all_experiment_runs(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+                experiment_id=experiment.experiment_id
             )
-        return keys
+        except Exception as error:
+            raise HarborPluginError(
+                f"Could not list runs for Phoenix experiment {experiment.name!r}: {error}"
+            ) from error
+
+    @staticmethod
+    def can_reuse_run(
+        run: v1.ExperimentRun,
+        *,
+        trial_result: Any,
+    ) -> bool:
+        """Validate an immutable successful run or allow a failed run to be replaced."""
+        if run.get("error"):
+            return False
+
+        expected_output = _trial_output(trial_result)
+        expected_error = _trial_error(trial_result)
+        mismatches: list[str] = []
+        if run.get("output") != expected_output:
+            mismatches.append("output")
+        if expected_error is not None:
+            mismatches.append("error")
+        if run.get("trace_id") is not None:
+            mismatches.append("trace")
+        if mismatches:
+            trial_name = str(trial_result.trial_name)
+            fields = ", ".join(mismatches)
+            raise HarborPluginError(
+                f"Phoenix run {run['id']} already records Harbor trial {trial_name!r}, but its "
+                f"{fields} does not match the terminal Harbor result. Use a new Harbor job name "
+                "or resolve the conflicting Phoenix run."
+            )
+        return True
+
+    async def _recover_conflicting_run(
+        self,
+        *,
+        experiment: ExperimentHandle,
+        dataset_example_id: str,
+        repetition: int,
+        trial_result: Any,
+    ) -> v1.ExperimentRun:
+        matches = [
+            run
+            for run in await self._list_runs(experiment)
+            if str(run["dataset_example_id"]) == dataset_example_id
+            and int(run["repetition_number"]) == repetition
+        ]
+        if len(matches) != 1:
+            raise HarborPluginError(
+                f"Phoenix rejected Harbor trial {trial_result.trial_name!r} as a duplicate, "
+                f"but returned {len(matches)} matching runs for validation."
+            )
+        run = matches[0]
+        if not self.can_reuse_run(run, trial_result=trial_result):
+            raise HarborPluginError(
+                f"Phoenix rejected Harbor trial {trial_result.trial_name!r} as a duplicate, "
+                "but the matching run is failed and should be writable."
+            )
+        return run
 
     async def record_trial(
         self,
@@ -186,6 +248,18 @@ class PhoenixRecorder:
                 repetition_number=slot.repetition,
                 error=_trial_error(trial_result),
             )
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code == 409:
+                return await self._recover_conflicting_run(
+                    experiment=experiment,
+                    dataset_example_id=example_id,
+                    repetition=slot.repetition,
+                    trial_result=trial_result,
+                )
+            raise HarborPluginError(
+                f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
+                f"{experiment.name!r}: {error}"
+            ) from error
         except Exception as error:
             raise HarborPluginError(
                 f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
@@ -299,14 +373,15 @@ def _require_consistent(
     name: str,
 ) -> None:
     """Reject a recovered experiment that no longer matches the plan."""
-    stored_version = experiment.get("dataset_version_id")
+    fields = cast(Mapping[str, Any], experiment)
+    stored_version = fields.get("dataset_version_id")
     if stored_version is not None and stored_version != snapshot.version_id:
         raise HarborPluginError(
             f"Phoenix experiment {name!r} ({experiment['id']}) is pinned to dataset "
             f"version {stored_version}, but this job resolved version "
             f"{snapshot.version_id}."
         )
-    stored_repetitions = experiment.get("repetitions")
+    stored_repetitions = fields.get("repetitions")
     if stored_repetitions is not None and int(stored_repetitions) != plan.repetitions:
         raise HarborPluginError(
             f"Phoenix experiment {name!r} ({experiment['id']}) has "
@@ -324,6 +399,14 @@ def _example_ids_by_task(examples: Sequence[v1.DatasetExample]) -> dict[str, str
     return {
         str(example["id"]): _example_global_id(example) for example in examples if example.get("id")
     }
+
+
+def _run_key(identity: str, run: v1.ExperimentRun) -> RunKey:
+    return (
+        identity,
+        str(run["dataset_example_id"]),
+        int(run["repetition_number"]),
+    )
 
 
 def _trial_output(trial_result: Any) -> dict[str, Any]:
