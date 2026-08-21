@@ -3579,14 +3579,14 @@ class AgentSessionSnapshot(HasId):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
-class ProjectEvaluatorCriteria(HasId):
+class ProjectEvaluator(HasId):
     """Attaches an evaluator to a project for online evaluation: which spans or
     sessions to match, how they are sampled, and the annotation name results are
     written under. evaluation_target picks which of the two this row governs, and
     the fields that apply differ with it — sampling and filter_condition shape span
     selection, evaluation_delay_seconds shapes session selection."""
 
-    __tablename__ = "project_evaluator_criteria"
+    __tablename__ = "project_evaluators"
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
@@ -3594,6 +3594,11 @@ class ProjectEvaluatorCriteria(HasId):
     )
     evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    trace_project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -3632,7 +3637,8 @@ class ProjectEvaluatorCriteria(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    project: Mapped["Project"] = relationship("Project")
+    project: Mapped["Project"] = relationship("Project", foreign_keys=[project_id])
+    trace_project: Mapped["Project"] = relationship("Project", foreign_keys=[trace_project_id])
     evaluator: Mapped["Evaluator"] = relationship("Evaluator")
 
     __table_args__ = (UniqueConstraint("project_id", "name"),)
@@ -3704,8 +3710,8 @@ class EvalWorkUnit(HasId):
         nullable=False,
         index=True,
     )
-    criteria_id: Mapped[int] = mapped_column(
-        ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -3734,7 +3740,7 @@ class EvalWorkUnit(HasId):
 
     span: Mapped["Span"] = relationship("Span")
     evaluator: Mapped["Evaluator"] = relationship("Evaluator")
-    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship("ProjectEvaluatorCriteria")
+    project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
         UniqueConstraint("span_rowid", "evaluator_id", "config_fingerprint"),
@@ -3771,8 +3777,8 @@ class EvalSessionWorkUnit(HasId):
         nullable=False,
         index=True,
     )
-    criteria_id: Mapped[int] = mapped_column(
-        ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -3800,7 +3806,7 @@ class EvalSessionWorkUnit(HasId):
 
     project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
     evaluator: Mapped["Evaluator"] = relationship("Evaluator")
-    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship("ProjectEvaluatorCriteria")
+    project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
         Index(
