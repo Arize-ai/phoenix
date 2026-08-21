@@ -57,6 +57,9 @@ jobs:
               - "tutorials/**"
               - "pyproject.toml"
               - "tox.ini"
+              # the filter-DSL snippet compile tests read these TS sources
+              - "js/app/src/pages/project/traceFilterDSL.ts"
+              - "js/app/src/pages/project/sessionFilterDSL.ts"
             phoenix_client:
               - "packages/phoenix-client/**"
               - "tox.ini"
@@ -492,6 +495,7 @@ jobs:
             src/phoenix/
             evals/
             packages/phoenix-evals/
+            js/app/src/pages/project/
             tests/unit/
             tests/conftest.py
             tests/__generated__/

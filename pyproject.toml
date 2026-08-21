@@ -48,7 +48,7 @@ dependencies = [
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "openinference-instrumentation-openai>=0.1.41",
-  "sqlglot==30.15.0",
+  "sqlglot==30.17.0",
   "sqlalchemy[asyncio]>=2.0.46, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite>=0.22.1",
@@ -67,7 +67,7 @@ dependencies = [
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
   "authlib>=1.7.0",
   "joserfc",
-  "arize-phoenix-client>=3.0.0",
+  "arize-phoenix-client>=3.2.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",

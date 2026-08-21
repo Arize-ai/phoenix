@@ -18,6 +18,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models.function import AgentInfo, DeltaToolCalls, FunctionModel
+from pydantic_ai.usage import RequestUsage
 from starlette.types import ASGIApp
 from strawberry.relay import GlobalID
 
@@ -102,6 +103,18 @@ def _validated_chunks(sse_text: str) -> list[dict[str, Any]]:
 
 
 class TestCreateChatCompletion:
+    def test_openai_usage_preserves_prompt_cache_hits(self) -> None:
+        usage = chat_completions_module._to_openai_usage(
+            RequestUsage(input_tokens=100, output_tokens=20, cache_read_tokens=60)
+        )
+
+        assert usage.model_dump(exclude_none=True) == {
+            "prompt_tokens": 100,
+            "completion_tokens": 20,
+            "total_tokens": 120,
+            "prompt_tokens_details": {"cached_tokens": 60},
+        }
+
     async def test_returns_openai_response_shape(
         self,
         openai_client: AsyncOpenAI,

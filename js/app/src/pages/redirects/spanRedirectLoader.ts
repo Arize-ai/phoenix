@@ -5,6 +5,7 @@ import { redirect } from "react-router";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { spanRedirectLoaderQuery } from "./__generated__/spanRedirectLoaderQuery.graphql";
+import { notFound } from "./notFound";
 
 export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
   const { span_otel_id } = params;
@@ -42,6 +43,10 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
       `/projects/${project.id}/spans/${encodeURIComponent(trace.traceId)}?selectedSpanNodeId=${encodeURIComponent(spanId)}`
     );
   } else {
-    throw new Error(`Span with id "${span_otel_id}" not found`);
+    throw notFound({
+      kind: "entity",
+      entityType: "span",
+      identifier: span_otel_id,
+    });
   }
 }

@@ -52,7 +52,7 @@ async function renderProfilePage(initialEntry: string) {
   const route = (
     path: string,
     label: string,
-    icon: "Person" | "Key" | "Link2" | "Options",
+    icon: "Person" | "Key" | "Link2" | "Options" | "Eye",
     requiresViewer = true
   ) => ({
     path,
@@ -76,6 +76,7 @@ async function renderProfilePage(initialEntry: string) {
         route("api-keys", "API Keys", "Key"),
         route("apps", "Apps", "Link2"),
         route("preferences", "Preferences", "Options", false),
+        route("accessibility", "Accessibility", "Eye", false),
         { path: "*", element: <CurrentProfileRoute /> },
       ],
     },
@@ -123,6 +124,9 @@ describe("ProfilePage", () => {
       "/profile/preferences"
     );
     const tabs = Array.from(container.querySelectorAll('[role="tab"]'));
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Preferences"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Preferences",
+      "Accessibility",
+    ]);
   });
 });

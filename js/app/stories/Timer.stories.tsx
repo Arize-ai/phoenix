@@ -49,6 +49,7 @@ export const Sizes: StoryFn = () => (
     {(["XS", "S", "M", "L", "XL", "XXL"] as const).map((size) => (
       <div key={size} style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ width: 32, fontFamily: "monospace" }}>{size}</span>
+        {/* eslint-disable-next-line react/purity */}
         <Timer size={size} startTime={new Date(Date.now() - 90 * 1000)} />
       </div>
     ))}

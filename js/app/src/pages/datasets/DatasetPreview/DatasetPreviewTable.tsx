@@ -382,7 +382,7 @@ export function DatasetPreviewTable({
     previewData,
   ]);
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     data: previewData,
     columns: tableColumns,

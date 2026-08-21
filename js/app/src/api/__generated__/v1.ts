@@ -2283,6 +2283,12 @@ export interface components {
             completion_tokens: number;
             /** Total Tokens */
             total_tokens: number;
+            prompt_tokens_details?: components["schemas"]["ChatCompletionUsagePromptTokensDetails"] | null;
+        };
+        /** ChatCompletionUsagePromptTokensDetails */
+        ChatCompletionUsagePromptTokensDetails: {
+            /** Cached Tokens */
+            cached_tokens: number;
         };
         /**
          * ChatContext

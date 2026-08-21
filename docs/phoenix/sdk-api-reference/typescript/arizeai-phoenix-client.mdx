@@ -39,6 +39,19 @@ node_modules/@arizeai/phoenix-client/src/
 
 That gives the agent version-matched prose plus the exact implementation and type definitions that shipped with your project.
 
+## Agent session capability checks
+
+The client exports a capability requirement for each PXI [agent session](/docs/phoenix/pxi#conversations) REST route, so a program can confirm a Phoenix server is new enough before calling one. There are eight — `AGENT_SESSION_CREATE`, `AGENT_SESSION_LIST`, `AGENT_SESSION_GET`, `AGENT_SESSION_PATCH`, `AGENT_SESSION_MESSAGES`, `AGENT_SESSION_TOOL_OUTPUTS`, `AGENT_SESSION_COMPACT`, and `AGENT_SESSION_CHAT` — and each requires Phoenix 20.0.0 or newer. Pass one to `ensureServerCapability`, which throws a clear upgrade error against an older server:
+
+```ts
+import { createClient, ensureServerCapability, AGENT_SESSION_CHAT } from "@arizeai/phoenix-client";
+
+const client = createClient(); // reads PHOENIX_ENDPOINT / PHOENIX_API_KEY
+await ensureServerCapability({ client, requirement: AGENT_SESSION_CHAT });
+```
+
+This is the same check the `pxi` terminal client runs at startup before it opens a session.
+
 ## API Reference
 
 Use the generated TypeDoc for full API details:

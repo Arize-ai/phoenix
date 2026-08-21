@@ -103,21 +103,12 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         "indexed. Predicates on them evaluate their expression and cannot use a direct index. "
         "Where listed, graphql_node_id is the ID shown in the Phoenix UI and REST API."
     )
-    # WORKAROUND sqlglot<=30.15.0 -- shorten when pin > 30.16.0
-    # Upstream: tobymao/sqlglot#8063 (closes #8035)
-    # https://github.com/tobymao/sqlglot/issues/8035
-    #
-    # Stated once here rather than paid for as a refusal per caller. Through
-    # 30.15.0 a suffix on the right operand of a JSON operator binds to the
-    # whole extraction instead of to the operand, so `a #>> b::text[]`,
-    # `a -> b[1]` and `a -> b.c -> d` all group differently from the way
-    # PostgreSQL reads them. Brackets settle every one of them, and cost the
-    # caller nothing when the operand is a bare literal, which is nearly always.
-    # After 30.16.0 the parser matches PostgreSQL; parenthesising a dotted or
-    # subscripted operand remains good advice, but the cast-path warning can go.
+    # Stated once here rather than paid for as a refusal per caller. Operands
+    # group as PostgreSQL groups them, so brackets change no meaning; they cost
+    # nothing and keep a subscripted or dotted operand readable.
     lines.append(
-        "-- JSON operators: parenthesise a cast, subscript, dotted name or arithmetic "
-        "operand; plain literals need no brackets."
+        "-- JSON operators: a subscript, dotted name or arithmetic operand reads more "
+        "clearly parenthesised; plain literals need no brackets."
     )
     # Stated here for the same reason as the JSON rules: the alternative is a
     # refusal, and a refusal costs a round trip to learn a rule that fits on one
@@ -127,12 +118,6 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         "-- Timestamps: time-of-day literals require a UTC offset, e.g. "
         "`start_time >= '2026-07-01T14:30:00Z'`; bare dates are read as UTC."
     )
-    if dialect == "postgresql":
-        # WORKAROUND sqlglot<=30.15.0 -- remove when pin > 30.16.0 (#8063 / #8035).
-        lines.append(
-            "-- PostgreSQL `#>`/`#>>`: parenthesise a cast path, e.g. `attributes #>> "
-            "('{a,b}'::text[])`; cast an extracted value as `(attributes #>> '{a,b}')::text[]`."
-        )
     return "\n".join(lines)
 
 
