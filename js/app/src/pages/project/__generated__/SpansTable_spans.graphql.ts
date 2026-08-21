@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<531dd1fd1e4539c6f622f6366fe8663d>>
+ * @generated SignedSource<<becf6fb94955a5e241785eac86b04d67>>
  * @lightSyntaxTransform
  */
 
@@ -41,17 +41,6 @@ export type SpansTable_spans$data = {
         readonly output: {
           readonly value: string;
         } | null;
-        readonly spanAnnotationSummaries: ReadonlyArray<{
-          readonly count: number;
-          readonly labelCount: number;
-          readonly labelFractions: ReadonlyArray<{
-            readonly fraction: number;
-            readonly label: string;
-          }>;
-          readonly meanScore: number | null;
-          readonly name: string;
-          readonly scoreCount: number;
-        }>;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
           readonly createdAt: string;
@@ -75,14 +64,7 @@ export type SpansTable_spans$data = {
           readonly id: string;
           readonly traceAnnotationSummaries: ReadonlyArray<{
             readonly count: number;
-            readonly labelCount: number;
-            readonly labelFractions: ReadonlyArray<{
-              readonly fraction: number;
-              readonly label: string;
-            }>;
-            readonly meanScore: number | null;
             readonly name: string;
-            readonly scoreCount: number;
           }>;
           readonly traceId: string;
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
@@ -149,64 +131,7 @@ v3 = {
   ],
   "storageKey": null
 },
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "label",
-  "storageKey": null
-},
-v5 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "LabelFraction",
-    "kind": "LinkedField",
-    "name": "labelFractions",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "fraction",
-        "storageKey": null
-      },
-      (v4/*:: as any*/)
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "count",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "scoreCount",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "labelCount",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "meanScore",
-    "storageKey": null
-  },
-  (v1/*:: as any*/)
-],
-v6 = [
+v4 = [
   {
     "alias": "value",
     "args": null,
@@ -462,7 +387,16 @@ return {
                       "kind": "LinkedField",
                       "name": "traceAnnotationSummaries",
                       "plural": true,
-                      "selections": (v5/*:: as any*/),
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "count",
+                          "storageKey": null
+                        },
+                        (v1/*:: as any*/)
+                      ],
                       "storageKey": null
                     },
                     {
@@ -480,7 +414,7 @@ return {
                   "kind": "LinkedField",
                   "name": "input",
                   "plural": false,
-                  "selections": (v6/*:: as any*/),
+                  "selections": (v4/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -490,7 +424,7 @@ return {
                   "kind": "LinkedField",
                   "name": "output",
                   "plural": false,
-                  "selections": (v6/*:: as any*/),
+                  "selections": (v4/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -503,7 +437,13 @@ return {
                   "selections": [
                     (v2/*:: as any*/),
                     (v1/*:: as any*/),
-                    (v4/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "label",
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -526,16 +466,6 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "AnnotationSummary",
-                  "kind": "LinkedField",
-                  "name": "spanAnnotationSummaries",
-                  "plural": true,
-                  "selections": (v5/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -648,6 +578,6 @@ return {
 };
 })();
 
-(node as any).hash = "a8d9779bc24b4055de9408848b099c70";
+(node as any).hash = "9f90f5fd3efce0a3ebabf382e7be53a1";
 
 export default node;

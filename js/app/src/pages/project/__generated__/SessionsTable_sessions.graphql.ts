@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<11a028f81d722f8709918e67f37b2c30>>
+ * @generated SignedSource<<48be34bad66248e624b81ace8e349596>>
  * @lightSyntaxTransform
  */
 
@@ -29,17 +29,6 @@ export type SessionsTable_sessions$data = {
           readonly value: string;
         } | null;
         readonly numTraces: number;
-        readonly sessionAnnotationSummaries: ReadonlyArray<{
-          readonly count: number;
-          readonly labelCount: number;
-          readonly labelFractions: ReadonlyArray<{
-            readonly fraction: number;
-            readonly label: string;
-          }>;
-          readonly meanScore: number | null;
-          readonly name: string;
-          readonly scoreCount: number;
-        }>;
         readonly sessionId: string;
         readonly startTime: string;
         readonly tokenUsage: {
@@ -73,14 +62,7 @@ v1 = {
   "name": "id",
   "storageKey": null
 },
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v3 = [
+v2 = [
   {
     "alias": "value",
     "args": null,
@@ -151,7 +133,13 @@ return {
   "name": "SessionsTable_sessions",
   "selections": [
     (v1/*:: as any*/),
-    (v2/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "name",
+      "storageKey": null
+    },
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -245,7 +233,7 @@ return {
                   "kind": "LinkedField",
                   "name": "firstInput",
                   "plural": false,
-                  "selections": (v3/*:: as any*/),
+                  "selections": (v2/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -255,7 +243,7 @@ return {
                   "kind": "LinkedField",
                   "name": "lastOutput",
                   "plural": false,
-                  "selections": (v3/*:: as any*/),
+                  "selections": (v2/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -332,71 +320,6 @@ return {
                   "storageKey": null
                 },
                 {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "AnnotationSummary",
-                  "kind": "LinkedField",
-                  "name": "sessionAnnotationSummaries",
-                  "plural": true,
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "LabelFraction",
-                      "kind": "LinkedField",
-                      "name": "labelFractions",
-                      "plural": true,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "fraction",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "label",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "count",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "scoreCount",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "labelCount",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "meanScore",
-                      "storageKey": null
-                    },
-                    (v2/*:: as any*/)
-                  ],
-                  "storageKey": null
-                },
-                {
                   "args": null,
                   "kind": "FragmentSpread",
                   "name": "SessionAnnotationSummaryGroup"
@@ -466,6 +389,6 @@ return {
 };
 })();
 
-(node as any).hash = "bf676232aa9f81086d9938ecc2702db3";
+(node as any).hash = "c30bc00b2f58d9c6b9d71ddc0541609d";
 
 export default node;

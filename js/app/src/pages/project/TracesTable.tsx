@@ -38,8 +38,14 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import {
+  AnnotationSummaryGroupToken,
+  AnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import {
+  TraceAnnotationSummaryGroupToken,
+  TraceAnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -75,7 +81,6 @@ import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -361,17 +366,6 @@ export function TracesTable(props: TracesTableProps) {
                       cost
                     }
                   }
-                  traceAnnotationSummaries {
-                    labelFractions {
-                      fraction
-                      label
-                    }
-                    count
-                    scoreCount
-                    labelCount
-                    meanScore
-                    name
-                  }
                   ...TraceAnnotationSummaryGroup
                 }
                 spanAnnotations {
@@ -381,17 +375,6 @@ export function TracesTable(props: TracesTableProps) {
                   score
                   annotatorKind
                   createdAt
-                }
-                spanAnnotationSummaries {
-                  labelFractions {
-                    fraction
-                    label
-                  }
-                  count
-                  scoreCount
-                  labelCount
-                  meanScore
-                  name
                 }
                 ...AnnotationSummaryGroup
                 documentRetrievalMetrics {
@@ -521,24 +504,20 @@ export function TracesTable(props: TracesTableProps) {
           header: name,
           accessorKey: makeAnnotationColumnId(name, "score"),
           cell: ({ row }) => {
-            const annotation = (
-              row.original
-                .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-            )?.find((annotation) => annotation.name === name);
-            if (!annotation) {
+            if (row.original.__additionalRow) {
               return null;
             }
             return (
-              <SummaryValue
-                name={name}
-                annotationConfig={annotationConfigsByName.get(name)}
-                count={annotation.count}
-                scoreCount={annotation.scoreCount}
-                labelCount={annotation.labelCount}
-                labelFractions={annotation.labelFractions}
-                meanScore={annotation.meanScore}
-                size="S"
-                disableAnimation
+              <AnnotationSummaryGroupToken
+                span={row.original}
+                annotationName={name}
+                annotationConfigsByName={annotationConfigsByName}
+                showFilterActions
+                renderFilterActions={(annotation) => (
+                  <TraceSpanAnnotationTooltipFilterActions
+                    annotation={annotation}
+                  />
+                )}
               />
             );
           },
@@ -558,26 +537,12 @@ export function TracesTable(props: TracesTableProps) {
             if (row.depth !== 0 || row.original.__additionalRow) {
               return null;
             }
-            const annotation = (
-              row.original
-                .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
-            )?.traceAnnotationSummaries?.find(
-              (annotation) => annotation.name === name
-            );
-            if (!annotation) {
-              return null;
-            }
             return (
-              <SummaryValue
-                name={name}
-                annotationConfig={annotationConfigsByName.get(name)}
-                count={annotation.count}
-                scoreCount={annotation.scoreCount}
-                labelCount={annotation.labelCount}
-                labelFractions={annotation.labelFractions}
-                meanScore={annotation.meanScore}
-                size="S"
-                disableAnimation
+              <TraceAnnotationSummaryGroupToken
+                trace={row.original.trace as RootSpanTrace}
+                annotationName={name}
+                annotationConfigsByName={annotationConfigsByName}
+                showFilterActions
               />
             );
           },

@@ -34,7 +34,10 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import {
+  SessionAnnotationSummaryGroupToken,
+  SessionAnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -48,7 +51,6 @@ import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -260,17 +262,6 @@ export function SessionsTable(props: SessionsTableProps) {
                     cost
                   }
                 }
-                sessionAnnotationSummaries {
-                  labelFractions {
-                    fraction
-                    label
-                  }
-                  count
-                  scoreCount
-                  labelCount
-                  meanScore
-                  name
-                }
                 ...SessionAnnotationSummaryGroup
               }
             }
@@ -319,23 +310,12 @@ export function SessionsTable(props: SessionsTableProps) {
         header: name,
         accessorKey: makeAnnotationColumnId(name, "score"),
         cell: ({ row }) => {
-          const annotation = row.original.sessionAnnotationSummaries.find(
-            (annotation) => annotation.name === name
-          );
-          if (!annotation) {
-            return null;
-          }
           return (
-            <SummaryValue
-              name={name}
-              annotationConfig={annotationConfigsByName.get(name)}
-              count={annotation.count}
-              scoreCount={annotation.scoreCount}
-              labelCount={annotation.labelCount}
-              labelFractions={annotation.labelFractions}
-              meanScore={annotation.meanScore}
-              size="S"
-              disableAnimation
+            <SessionAnnotationSummaryGroupToken
+              session={row.original}
+              annotationName={name}
+              annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
             />
           );
         },

@@ -28,8 +28,14 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import {
+  AnnotationSummaryGroupToken,
+  AnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import {
+  TraceAnnotationSummaryGroupToken,
+  TraceAnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -68,7 +74,7 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
+import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
@@ -343,14 +349,7 @@ export function SpansTable(props: SpansTableProps) {
                     }
                   }
                   traceAnnotationSummaries {
-                    labelFractions {
-                      fraction
-                      label
-                    }
                     count
-                    scoreCount
-                    labelCount
-                    meanScore
                     name
                   }
                   ...TraceAnnotationSummaryGroup
@@ -368,17 +367,6 @@ export function SpansTable(props: SpansTableProps) {
                   score
                   annotatorKind
                   createdAt
-                }
-                spanAnnotationSummaries {
-                  labelFractions {
-                    fraction
-                    label
-                  }
-                  count
-                  scoreCount
-                  labelCount
-                  meanScore
-                  name
                 }
                 documentRetrievalMetrics {
                   evaluationName
@@ -452,23 +440,12 @@ export function SpansTable(props: SpansTableProps) {
         header: name,
         accessorKey: makeAnnotationColumnId(name, "score"),
         cell: ({ row }) => {
-          const annotation = row.original.spanAnnotationSummaries.find(
-            (annotation) => annotation.name === name
-          );
-          if (!annotation) {
-            return null;
-          }
           return (
-            <SummaryValue
-              name={name}
-              annotationConfig={annotationConfigsByName.get(name)}
-              count={annotation.count}
-              scoreCount={annotation.scoreCount}
-              labelCount={annotation.labelCount}
-              labelFractions={annotation.labelFractions}
-              meanScore={annotation.meanScore}
-              size="S"
-              disableAnimation
+            <AnnotationSummaryGroupToken
+              span={row.original}
+              annotationName={name}
+              annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
             />
           );
         },
@@ -482,23 +459,17 @@ export function SpansTable(props: SpansTableProps) {
         accessorKey: makeAnnotationColumnId(name, "score", "trace"),
         enableSorting: false,
         cell: ({ row }) => {
-          const annotation = row.original.trace.traceAnnotationSummaries.find(
-            (annotation) => annotation.name === name
-          );
-          if (!annotation) {
-            return null;
-          }
           return (
-            <SummaryValue
-              name={name}
-              annotationConfig={annotationConfigsByName.get(name)}
-              count={annotation.count}
-              scoreCount={annotation.scoreCount}
-              labelCount={annotation.labelCount}
-              labelFractions={annotation.labelFractions}
-              meanScore={annotation.meanScore}
-              size="S"
-              disableAnimation
+            <TraceAnnotationSummaryGroupToken
+              trace={row.original.trace}
+              annotationName={name}
+              annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+              renderFilterActions={(annotation) => (
+                <SpanTraceAnnotationTooltipFilterActions
+                  annotation={annotation}
+                />
+              )}
             />
           );
         },
@@ -582,6 +553,12 @@ export function SpansTable(props: SpansTableProps) {
             <TraceAnnotationSummaryGroupTokens
               trace={row.original.trace}
               annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+              renderFilterActions={(annotation) => (
+                <SpanTraceAnnotationTooltipFilterActions
+                  annotation={annotation}
+                />
+              )}
             />
           </OverflowRow>
         );

@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
+import { Text } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
 import {
@@ -19,11 +20,88 @@ const annotationLabelCSS = css`
   display: flex;
 `;
 
-type AnnotationSummary = {
+const annotationValueCSS = css`
+  min-height: 20px;
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+  display: flex;
+  align-items: center;
+`;
+
+export type AnnotationSummary = {
   name: string;
   meanScore?: number | null;
   labelFractions: readonly { label: string; fraction: number }[];
 };
+
+type AnnotationSummaryTokenProps = {
+  summary: AnnotationSummary;
+  /** Every annotation behind the summary, newest first. */
+  annotations: readonly Annotation[];
+  annotationConfig?: AnnotationOptimizationConfig;
+  showFilterActions?: boolean;
+  /** Grain-specific filter actions rendered for each annotation. */
+  renderFilterActions?: (annotation: Annotation) => ReactNode;
+  /**
+   * The full token includes the annotation name for mixed-summary contexts.
+   * The value variant omits the repeated name for a named table column.
+   */
+  variant?: "token" | "value";
+};
+
+export function AnnotationSummaryToken({
+  summary,
+  annotations,
+  annotationConfig,
+  showFilterActions = false,
+  renderFilterActions,
+  variant = "token",
+}: AnnotationSummaryTokenProps) {
+  const latestValuedAnnotation = annotations.find(hasAnnotationValue);
+  const prototypicalAnnotation = latestValuedAnnotation ?? annotations[0];
+  if (!prototypicalAnnotation) {
+    return null;
+  }
+  const meanScore = summary.meanScore;
+  const value =
+    meanScore != null ? (
+      <SummaryValuePreview
+        name={prototypicalAnnotation.name}
+        meanScore={meanScore}
+        size="S"
+        disableAnimation
+        annotationConfig={annotationConfig}
+      />
+    ) : summary.labelFractions.length > 0 ? (
+      <SummaryValueLabelPreview
+        labelFractions={summary.labelFractions}
+        size="S"
+      />
+    ) : (
+      <Text size="L">--</Text>
+    );
+
+  return (
+    <AnnotationSummaryPopover
+      annotations={annotations}
+      annotationConfig={annotationConfig}
+      meanScore={meanScore}
+      showFilterActions={showFilterActions}
+      renderFilterActions={renderFilterActions}
+    >
+      {variant === "token" ? (
+        <AnnotationLabel
+          annotation={prototypicalAnnotation}
+          annotationDisplayPreference="none"
+          css={annotationLabelCSS}
+        >
+          {value}
+        </AnnotationLabel>
+      ) : (
+        <div css={annotationValueCSS}>{value}</div>
+      )}
+    </AnnotationSummaryPopover>
+  );
+}
 
 /**
  * A bare run of annotation tokens — the caller owns the layout (wrap, or
@@ -39,7 +117,7 @@ export function AnnotationSummaryTokens({
 }: {
   summaries: readonly AnnotationSummary[];
   /** Every annotation behind a summary, newest first, keyed by summary name */
-  annotationsByName: Record<string, readonly Annotation[] | undefined>;
+  annotationsByName: Partial<Record<string, readonly Annotation[]>>;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
   /** Grain-specific filter actions rendered for each annotation. */
@@ -49,42 +127,21 @@ export function AnnotationSummaryTokens({
     <>
       {summaries.map((summary) => {
         // Explanation-only entries belong in details but cannot represent a token.
-        const latestAnnotation =
-          annotationsByName[summary.name]?.find(hasAnnotationValue);
-        const meanScore = summary?.meanScore;
+        const annotations = annotationsByName[summary.name] ?? [];
+        const latestAnnotation = annotations.find(hasAnnotationValue);
         const annotationConfig = annotationConfigsByName.get(summary.name);
         if (!latestAnnotation) {
           return null;
         }
         return (
-          <AnnotationSummaryPopover
+          <AnnotationSummaryToken
             key={latestAnnotation.id}
-            annotations={annotationsByName[summary.name] ?? []}
+            summary={summary}
+            annotations={annotations}
             annotationConfig={annotationConfig}
-            meanScore={meanScore}
             showFilterActions={showFilterActions}
             renderFilterActions={renderFilterActions}
-          >
-            <AnnotationLabel
-              annotation={latestAnnotation}
-              annotationDisplayPreference="none"
-              css={annotationLabelCSS}
-            >
-              {meanScore != null ? (
-                <SummaryValuePreview
-                  name={latestAnnotation.name}
-                  meanScore={meanScore}
-                  size="S"
-                  disableAnimation
-                  annotationConfig={annotationConfig}
-                />
-              ) : (
-                <SummaryValueLabelPreview
-                  labelFractions={summary.labelFractions}
-                />
-              )}
-            </AnnotationLabel>
-          </AnnotationSummaryPopover>
+          />
         );
       })}
     </>

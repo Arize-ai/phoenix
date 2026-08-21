@@ -11,13 +11,22 @@ export type AnnotationFilterDefinition = {
   filterCondition: string;
 };
 
-export function getAnnotationTooltipFilters(
-  annotation: AnnotationFilterInput
-): AnnotationFilterDefinition[] {
+type AnnotationAccessor =
+  | "annotations"
+  | "trace_annotations"
+  | "session_annotations";
+
+function getAnnotationAccessorTooltipFilters({
+  annotation,
+  annotationAccessor,
+}: {
+  annotation: AnnotationFilterInput;
+  annotationAccessor: AnnotationAccessor;
+}): AnnotationFilterDefinition[] {
   const { name, label, score } = annotation;
   const nameLiteral = getDslStringLiteral({ value: name, quote: "'" });
-  const annotationLabel = `annotations[${nameLiteral}].label`;
-  const annotationScore = `annotations[${nameLiteral}].score`;
+  const annotationLabel = `${annotationAccessor}[${nameLiteral}].label`;
+  const annotationScore = `${annotationAccessor}[${nameLiteral}].score`;
 
   const filters: AnnotationFilterDefinition[] = [];
   if (typeof score === "number") {
@@ -45,6 +54,33 @@ export function getAnnotationTooltipFilters(
     });
   }
   return filters;
+}
+
+export function getAnnotationTooltipFilters(
+  annotation: AnnotationFilterInput
+): AnnotationFilterDefinition[] {
+  return getAnnotationAccessorTooltipFilters({
+    annotation,
+    annotationAccessor: "annotations",
+  });
+}
+
+export function getTraceAnnotationTooltipFilters(
+  annotation: AnnotationFilterInput
+): AnnotationFilterDefinition[] {
+  return getAnnotationAccessorTooltipFilters({
+    annotation,
+    annotationAccessor: "trace_annotations",
+  });
+}
+
+export function getSessionAnnotationTooltipFilters(
+  annotation: AnnotationFilterInput
+): AnnotationFilterDefinition[] {
+  return getAnnotationAccessorTooltipFilters({
+    annotation,
+    annotationAccessor: "session_annotations",
+  });
 }
 
 function getTraceSpanAnnotationCondition({

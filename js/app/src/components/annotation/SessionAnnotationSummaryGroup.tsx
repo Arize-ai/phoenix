@@ -3,7 +3,11 @@ import { graphql, useFragment } from "react-relay";
 
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import {
+  AnnotationSummaryToken,
+  AnnotationSummaryTokens,
+} from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import { getSessionAnnotationTooltipFilters } from "@phoenix/pages/project/annotationFilterUtils";
 import {
   Summary,
   SummaryValue,
@@ -71,6 +75,13 @@ type SessionAnnotationSummaryGroupProps = {
   renderEmptyState?: () => React.ReactNode;
 };
 
+type SessionAnnotationSummaryGroupTokenProps = Omit<
+  SessionAnnotationSummaryGroupProps,
+  "renderEmptyState"
+> & {
+  annotationName: string;
+};
+
 function SessionAnnotationTooltipFilterActions({
   annotation,
 }: {
@@ -84,6 +95,7 @@ function SessionAnnotationTooltipFilterActions({
   return (
     <AnnotationTooltipFilterActions
       annotation={annotation}
+      getFilters={getSessionAnnotationTooltipFilters}
       onAppendFilterCondition={appendFilterCondition}
     />
   );
@@ -116,6 +128,35 @@ export const SessionAnnotationSummaryGroupTokens = ({
       renderFilterActions={(annotation) => (
         <SessionAnnotationTooltipFilterActions annotation={annotation} />
       )}
+    />
+  );
+};
+
+export const SessionAnnotationSummaryGroupToken = ({
+  session,
+  annotationName,
+  annotationConfigsByName,
+  showFilterActions = false,
+}: SessionAnnotationSummaryGroupTokenProps) => {
+  const { sortedSummariesByName, annotationsByName } =
+    useSessionAnnotationSummaryGroup(session);
+  const summary = sortedSummariesByName.find(
+    (summary) => summary.name === annotationName
+  );
+  const annotations = annotationsByName[annotationName] ?? [];
+  if (!summary || annotations.length === 0) {
+    return null;
+  }
+  return (
+    <AnnotationSummaryToken
+      summary={summary}
+      annotations={annotations}
+      annotationConfig={annotationConfigsByName.get(annotationName)}
+      showFilterActions={showFilterActions}
+      renderFilterActions={(annotation) => (
+        <SessionAnnotationTooltipFilterActions annotation={annotation} />
+      )}
+      variant="value"
     />
   );
 };
