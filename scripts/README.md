@@ -84,8 +84,7 @@ TypeScript mock for OpenAI / Anthropic / Google GenAI APIs with a real-time dash
 - `compile_typescript_prompts.py` — compile YAML prompts into TypeScript.
 
 ### `rag/`
-- `llamaindex_retrieval_chunk_eval.ipynb` — RAG retrieval evaluation notebook.
-- `plotresults.py` — plot helper for the notebook above.
+- `plotresults.py` — plot helper for RAG retrieval evaluation.
 
 ### `testing/`
 Smoke tests intended to be run against a live Phoenix instance.
