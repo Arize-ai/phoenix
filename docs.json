@@ -2262,6 +2262,50 @@
       "destination": "/docs/phoenix/evaluation/pre-built-metrics/faithfulness"
     },
     {
+      "source": "/docs/phoenix/evaluation/pre-built-metrics/document-relevance",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/tool-selection"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/pre-built-metrics/summarization-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/tool-calling-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/tool-selection"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/summarization-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/running-pre-tested-evals/sql-generation-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/toxicity",
       "destination": "/docs/phoenix/evaluation/pre-built-metrics/toxicity"
     },
