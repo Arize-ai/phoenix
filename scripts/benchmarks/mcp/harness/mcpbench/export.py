@@ -16,7 +16,7 @@ from typing import Any, Optional
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import SpanAttributes
 
-from .analyze import rows_for_transcript, split_cell_id, tasks_as_run
+from .analyze import rows_for_transcript, split_cell_id, tasks_as_run, write_destination
 from .config import BenchConfig, ConfigError, Task
 from .invocation import safe_label
 from .otel import DEFAULT_MAX_CHARS, Span, build_spans, digest_id
@@ -344,6 +344,11 @@ def open_sink(
     provider.add_span_processor(BatchSpanProcessor(exporter))
     tracer = provider.get_tracer("mcpbench")
     return Sink(provider, tracer, provider.id_generator, exporter, max_chars)
+
+
+def record_destination(out_dir: Path, *, endpoint: str, project: str, max_chars: int) -> None:
+    """Note where this run's spans went, so the report can link to them."""
+    write_destination(out_dir, endpoint=endpoint, project=project, max_chars=max_chars)
 
 
 def send(

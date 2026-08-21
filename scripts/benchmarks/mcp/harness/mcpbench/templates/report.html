@@ -336,6 +336,7 @@ const fmtUsd = (n) => (n === null || n === undefined ? "–" : "$" + n.toFixed(3
 
 const COLS = [
   ["label", "label", 1], ["task", "task", 1], ["trial", "trial", 0],
+  ["trace_url", "trace", 1],
   ["peak_context_tokens", "tokens", 0, fmtK1],
   ["total_cost_usd", "usd", 0, fmtUsd],
   ["duration_api_ms", "api time", 0, fmtSec],
@@ -371,15 +372,32 @@ function detailRows() {
   return rows;
 }
 
+// Dropped rather than shown empty when the run was never exported: a column of
+// dashes reads as traces that failed to link, not as traces that do not exist.
+// Shared with the copy button so the clipboard has the columns the page has.
+function visibleCols() {
+  const linked = DATA.runs.some((r) => r.trace_url);
+  return COLS.filter(([k]) => k !== "trace_url" || linked);
+}
+
 function renderTable() {
   const t = $("table");
   const rows = detailRows();
+  const cols = visibleCols();
   t.innerHTML =
-    "<thead><tr>" + COLS.map(([k, l, txt]) =>
+    "<thead><tr>" + cols.map(([k, l, txt]) =>
       `<th class="${txt ? "txt" : ""}" data-k="${k}">${l}${sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr></thead><tbody>" +
-    rows.map((r) => "<tr>" + COLS.map(([k, , txt, format]) => {
+    rows.map((r) => "<tr>" + cols.map(([k, , txt, format]) => {
       const v = r[k];
       const cls = (txt ? "txt " : "") + (k === "status" && (v === "FAIL" || (r.invalid && v)) ? "fail" : "");
+      // The url is long and the same for every row but its id, so the cell
+      // carries the click and not the address. Checked rather than trusted:
+      // everything else here is a number or a name this page generated.
+      if (k === "trace_url") {
+        const safe = /^https?:\/\//.test(v || "") ? v : "";
+        const link = safe ? `<a href="${safe}" target="_blank" rel="noopener">open ↗</a>` : "–";
+        return `<td class="txt">${link}</td>`;
+      }
       return `<td class="${cls.trim()}">${typeof v === "number" ? (format || fmt)(v) : v ?? "–"}</td>`;
     }).join("") + "</tr>").join("") + "</tbody>";
   t.querySelectorAll("th").forEach((th) => th.addEventListener("click", () => {
@@ -403,8 +421,9 @@ const TSV_VALUE = {
 const TSV_HEADER = { duration_api_ms: "api time (s)", tool_time_ms: "tool time (s)" };
 
 function tableTSV() {
-  const head = COLS.map(([k, l]) => TSV_HEADER[k] || l).join("\t");
-  const body = detailRows().map((r) => COLS.map(([k]) => {
+  const cols = visibleCols();
+  const head = cols.map(([k, l]) => TSV_HEADER[k] || l).join("\t");
+  const body = detailRows().map((r) => cols.map(([k]) => {
     const v = r[k];
     if (v === null || v === undefined) return "";
     if (typeof v === "number") return (TSV_VALUE[k] || String)(v);

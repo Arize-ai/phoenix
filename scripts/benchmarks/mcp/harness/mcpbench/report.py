@@ -45,6 +45,7 @@ _RUN_KEYS = (
     "graded",
     "invalid",
     "invalid_reason",
+    "trace_url",
     "answer",
 )
 

@@ -492,6 +492,16 @@ def build_spans(
     return [root, *spans]
 
 
+def trace_hex(project: str, cell_key: str, max_chars: int) -> str:
+    """The trace id a cell would be given, as the hex a URL carries.
+
+    Computable without asking the backend anything, which is the whole use of
+    deriving ids rather than drawing them: a report built from transcripts can
+    link straight to the trace, offline, before or after it was ever sent.
+    """
+    return digest_id(f"{project}|{cell_key}|{max_chars}|trace", 16).to_bytes(16, "big").hex()
+
+
 def digest_id(seed: str, nbytes: int) -> int:
     """A span or trace id derived from what it identifies rather than at random.
 
