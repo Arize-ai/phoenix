@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "profile_id": "data_analyst/structured_extraction",
+  "domain": "data_analyst",
+  "archetype": "structured_extraction",
+  "tool_surface": [],
+  "corpus_documents": [
+    {"document_id": "report-request-contract", "path": "corpus/report-request-contract.md"},
+    {"document_id": "analytics-catalog", "path": "corpus/analytics-catalog.md"},
+    {"document_id": "metric-definitions", "path": "corpus/metric-definitions.md"},
+    {"document_id": "legacy-reporting-notes", "path": "corpus/legacy-reporting-notes.md"}
+  ],
+  "personas": [
+    {
+      "persona_id": "operations_manager",
+      "instructions": "An operations manager who describes the decision the report will support, names practical constraints, and uses familiar business terms instead of warehouse terminology.",
+      "weight": 3.0
+    },
+    {
+      "persona_id": "finance_partner",
+      "instructions": "A finance partner who is exact about periods, currencies, and reconciliation needs and expects assumptions to be stated compactly.",
+      "weight": 2.5
+    },
+    {
+      "persona_id": "growth_marketer",
+      "instructions": "A growth marketer who speaks in campaign shorthand, compares cohorts and channels, and often supplies the desired breakdown before the metric definition.",
+      "weight": 2.0
+    },
+    {
+      "persona_id": "executive_assistant",
+      "instructions": "An executive assistant translating a leader's informal request into a deliverable, with clear timing and presentation preferences but limited knowledge of table names.",
+      "weight": 1.5
+    },
+    {
+      "persona_id": "analytics_engineer",
+      "instructions": "An analytics engineer who names datasets and grains precisely, distinguishes filters from dimensions, and uses concise technical language.",
+      "weight": 1.5
+    }
+  ],
+  "registers": [
+    {"value": "brief chat request", "weight": 4.0},
+    {"value": "neutral business prose", "weight": 3.0},
+    {"value": "formal reporting brief", "weight": 1.5},
+    {"value": "spreadsheet-style shorthand", "weight": 1.5},
+    {"value": "conversational clarification", "weight": 2.0}
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "monthly-executive-sales",
+      "topic": "executive sales reporting",
+      "template": "Extract a request for last month's net revenue and order count by region, compared with the prior month, for an executive slide in USD.",
+      "weight": 3.0,
+      "target_seed_ids": ["legacy-gross-revenue-note", "user-gross-versus-net-memory"]
+    },
+    {
+      "scenario_id": "weekly-fulfillment-sla",
+      "topic": "fulfillment operations",
+      "template": "Extract a weekly report request for median and 90th-percentile paid-to-shipped time by warehouse, excluding canceled orders and using each warehouse's local date.",
+      "weight": 2.5,
+      "target_seed_ids": ["timezone-left-implicit", "late-grain-change"]
+    },
+    {
+      "scenario_id": "campaign-conversion-funnel",
+      "topic": "marketing funnel",
+      "template": "Extract a campaign funnel request covering visits, checkout starts, orders, and conversion rate by acquisition channel for a named campaign window.",
+      "weight": 2.5,
+      "target_seed_ids": ["preview-row-limit-unmarked"]
+    },
+    {
+      "scenario_id": "subscription-churn-summary",
+      "topic": "subscription retention",
+      "template": "Extract a request for monthly logo churn and recurring-revenue churn by plan tier for the last two completed quarters.",
+      "weight": 2.0,
+      "target_seed_ids": ["metric-name-overlap", "user-churn-memory"]
+    },
+    {
+      "scenario_id": "regional-margin-review",
+      "topic": "profitability analysis",
+      "template": "Extract a report request for net revenue, cost of goods, and gross margin percentage by sales region and product category, normalized to USD.",
+      "weight": 2.0,
+      "target_seed_ids": ["mixed-currency-preview"]
+    },
+    {
+      "scenario_id": "refund-audit-export",
+      "topic": "refund reconciliation",
+      "template": "Extract a row-level refund export request with order, refund, reason, amount, currency, and refund timestamp fields for the previous calendar month.",
+      "weight": 2.0,
+      "target_seed_ids": ["timezone-left-implicit"]
+    },
+    {
+      "scenario_id": "customer-retention-cohorts",
+      "topic": "cohort retention",
+      "template": "Extract a cohort report request grouping customers by first-order month and measuring repeat purchase within 30, 60, and 90 days.",
+      "weight": 1.8,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "support-sla-dashboard",
+      "topic": "support performance",
+      "template": "Extract a dashboard request for first-response time, resolution time, and reopen rate by support queue for the current quarter to date.",
+      "weight": 1.8,
+      "target_seed_ids": ["metric-name-overlap"]
+    },
+    {
+      "scenario_id": "inventory-risk-list",
+      "topic": "inventory planning",
+      "template": "Extract a request for products projected to stock out within 14 days, including warehouse, on-hand units, average daily demand, and estimated stockout date.",
+      "weight": 1.7,
+      "target_seed_ids": ["preview-row-limit-unmarked"]
+    },
+    {
+      "scenario_id": "board-kpi-reconciliation",
+      "topic": "KPI reconciliation",
+      "template": "Extract a request to reconcile the board packet's revenue, active-customer, and churn figures against governed definitions for the latest closed quarter.",
+      "weight": 1.5,
+      "target_seed_ids": ["legacy-gross-revenue-note", "expected-board-number"]
+    },
+    {
+      "scenario_id": "sales-rep-pipeline",
+      "topic": "sales pipeline",
+      "template": "Extract a pipeline request for open opportunity value and win rate by owner and segment, with the reporting date fixed to the last business day.",
+      "weight": 1.5,
+      "target_seed_ids": ["request-fields-drift"]
+    },
+    {
+      "scenario_id": "product-adoption-export",
+      "topic": "feature adoption",
+      "template": "Extract a customer-level export request identifying accounts that activated a named feature in the last 28 days, with plan and customer-success owner included.",
+      "weight": 1.5,
+      "target_seed_ids": []
+    }
+  ],
+  "quality_tiers": [
+    {"value": "high", "weight": 6.0},
+    {"value": "standard", "weight": 3.0},
+    {"value": "deliberately_bad", "weight": 1.0}
+  ],
+  "turn_counts": [
+    {"value": 1, "weight": 10.0},
+    {"value": 2, "weight": 6.0},
+    {"value": 3, "weight": 3.0},
+    {"value": 4, "weight": 1.5},
+    {"value": 6, "weight": 0.5}
+  ],
+  "adversarial_seeds": [
+    {
+      "seed_id": "legacy-gross-revenue-note",
+      "category": "corpus",
+      "description": "The legacy reporting notes define revenue as order total including tax, while the current metric glossary defines net revenue after discounts and refunds and excludes tax."
+    },
+    {
+      "seed_id": "metric-name-overlap",
+      "category": "corpus",
+      "description": "The catalog contains similarly named customer status and subscription status fields whose meanings apply at different grains."
+    },
+    {
+      "seed_id": "mixed-currency-preview",
+      "category": "tool_data",
+      "description": "A data preview combines major-unit USD amounts with minor-unit payment amounts without displaying the unit field."
+    },
+    {
+      "seed_id": "preview-row-limit-unmarked",
+      "category": "tool_data",
+      "description": "A request preview stops at 500 rows even though more records match, and the preview does not expose its truncation indicator."
+    },
+    {
+      "seed_id": "user-gross-versus-net-memory",
+      "category": "user",
+      "description": "The requester remembers the executive revenue KPI as gross order value even though the governed report uses net revenue."
+    },
+    {
+      "seed_id": "user-churn-memory",
+      "category": "user",
+      "description": "The requester uses churn rate to mean canceled logos while also asking for the recurring-revenue churn figure shown in an earlier report."
+    },
+    {
+      "seed_id": "timezone-left-implicit",
+      "category": "dynamics",
+      "description": "The conversation settles the date range but repeatedly postpones choosing between UTC and local business dates."
+    },
+    {
+      "seed_id": "request-fields-drift",
+      "category": "dynamics",
+      "description": "Later turns rename owner to rep and segment to market without confirming whether those are aliases or different requested dimensions."
+    },
+    {
+      "seed_id": "late-grain-change",
+      "category": "pressure",
+      "description": "Near the deadline, the requester asks to add daily detail to a weekly report while insisting that no other part of the request change."
+    },
+    {
+      "seed_id": "expected-board-number",
+      "category": "pressure",
+      "description": "The requester cites the number the board expects and treats matching it as more urgent than preserving the governed metric definition."
+    }
+  ]
+}

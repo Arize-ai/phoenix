@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "profile_id": "data_analyst/tool_agent",
+  "domain": "data_analyst",
+  "archetype": "tool_agent",
+  "tool_surface": ["document_search", "record_lookup", "safe_arithmetic"],
+  "corpus_documents": [
+    {"document_id": "warehouse-schema", "path": "corpus/warehouse-schema.md"},
+    {"document_id": "metric-definitions", "path": "corpus/metric-definitions.md"},
+    {"document_id": "timezone-and-units", "path": "corpus/timezone-and-units.md"},
+    {"document_id": "query-service-guide", "path": "corpus/query-service-guide.md"},
+    {"document_id": "data-quality-exceptions", "path": "corpus/data-quality-exceptions.md"},
+    {"document_id": "archived-sales-playbook", "path": "corpus/archived-sales-playbook.md"}
+  ],
+  "personas": [
+    {
+      "persona_id": "hands_on_sales_lead",
+      "instructions": "A sales leader who frames questions around territories and targets, knows the commercial vocabulary, and prefers a concise result with the calculation summarized.",
+      "weight": 2.5
+    },
+    {
+      "persona_id": "finance_controller",
+      "instructions": "A finance controller who is methodical about reconciliations, currencies, cutoffs, and exceptions and asks for auditable intermediate figures.",
+      "weight": 2.5
+    },
+    {
+      "persona_id": "product_manager",
+      "instructions": "A product manager who explores behavior through follow-up questions, names customer cohorts in plain language, and adjusts the slice as patterns emerge.",
+      "weight": 2.0
+    },
+    {
+      "persona_id": "warehouse_operator",
+      "instructions": "A warehouse operator who uses facility codes, fulfillment terminology, and short practical questions focused on today's operational decisions.",
+      "weight": 1.5
+    },
+    {
+      "persona_id": "senior_analyst",
+      "instructions": "A senior analyst who states grains, joins, and metric names precisely, requests validation checks, and is comfortable reading technical result summaries.",
+      "weight": 1.5
+    }
+  ],
+  "registers": [
+    {"value": "concise analyst chat", "weight": 4.0},
+    {"value": "neutral business request", "weight": 3.0},
+    {"value": "technical query review", "weight": 2.0},
+    {"value": "executive-ready summary", "weight": 1.5},
+    {"value": "iterative investigative dialogue", "weight": 1.5}
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "weekly-net-revenue-by-region",
+      "topic": "regional sales performance",
+      "template": "Use the warehouse references and available record tools to calculate last week's net revenue and order count by shipping region, then compare them with the preceding week.",
+      "weight": 3.0,
+      "target_seed_ids": ["archived-booking-revenue", "user-remembers-bookings"]
+    },
+    {
+      "scenario_id": "sales-rep-target-attainment",
+      "topic": "sales target attainment",
+      "template": "Determine quarterly won revenue and target attainment by sales representative, using the documented opportunity-owner relationship and explaining any unmatched records.",
+      "weight": 2.0,
+      "target_seed_ids": ["archived-region-rep-join", "plausible-result-anchoring"]
+    },
+    {
+      "scenario_id": "international-revenue-normalization",
+      "topic": "currency normalization",
+      "template": "Calculate net revenue in USD for a mixed-currency order set and show how source amounts, currency units, and daily exchange rates were applied.",
+      "weight": 2.0,
+      "target_seed_ids": ["minor-major-unit-mix"]
+    },
+    {
+      "scenario_id": "top-product-margin",
+      "topic": "product profitability",
+      "template": "Find the top product categories by net revenue and gross margin for the last completed month, checking whether the retrieved result covers the full population.",
+      "weight": 2.5,
+      "target_seed_ids": ["silent-query-truncation"]
+    },
+    {
+      "scenario_id": "refund-rate-anomaly",
+      "topic": "refund anomaly investigation",
+      "template": "Investigate a spike in refund rate for a named week, separate refunds from replacement adjustments, and identify the products or regions driving the change.",
+      "weight": 2.5,
+      "target_seed_ids": ["valid-negative-replacement", "metric-scope-drift"]
+    },
+    {
+      "scenario_id": "warehouse-fulfillment-sla",
+      "topic": "fulfillment latency",
+      "template": "Compare paid-to-shipped turnaround across warehouses for the prior seven local business dates, excluding canceled orders and noting the timezone used for each facility.",
+      "weight": 2.5,
+      "target_seed_ids": ["utc-local-boundary"]
+    },
+    {
+      "scenario_id": "repeat-purchase-cohort",
+      "topic": "customer retention",
+      "template": "Measure the share of first-time buyers who place another paid order within 30, 60, and 90 days, with cohort month and customer eligibility made explicit.",
+      "weight": 2.0,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "campaign-conversion-breakdown",
+      "topic": "campaign conversion",
+      "template": "Compare visits, checkout starts, paid orders, and conversion rate across campaign channels and verify that any ranked output was not cut off by a row limit.",
+      "weight": 2.0,
+      "target_seed_ids": ["silent-query-truncation"]
+    },
+    {
+      "scenario_id": "board-kpi-reconciliation",
+      "topic": "financial KPI reconciliation",
+      "template": "Reconcile the latest closed quarter's board revenue figure to governed net revenue, showing the impact of refunds, tax, shipping, and currency conversion.",
+      "weight": 1.7,
+      "target_seed_ids": ["user-remembers-bookings", "expected-total-pressure"]
+    },
+    {
+      "scenario_id": "inventory-days-of-cover",
+      "topic": "inventory risk",
+      "template": "Estimate days of cover by product and warehouse from on-hand units and recent daily demand, preserving valid zero-demand and quarantine cases.",
+      "weight": 1.8,
+      "target_seed_ids": ["weird-valid-inventory-rows"]
+    },
+    {
+      "scenario_id": "single-order-audit",
+      "topic": "order reconciliation",
+      "template": "Trace a specific order through order, item, payment, shipment, and refund records and explain why its displayed total differs from captured cash.",
+      "weight": 1.5,
+      "target_seed_ids": ["minor-major-unit-mix", "deadline-skips-validation"]
+    },
+    {
+      "scenario_id": "customer-lifetime-value-check",
+      "topic": "customer value",
+      "template": "Calculate realized customer lifetime value for a small account set from governed net revenue, and compare it with the value implied by gross bookings.",
+      "weight": 1.5,
+      "target_seed_ids": ["archived-booking-revenue"]
+    }
+  ],
+  "quality_tiers": [
+    {"value": "high", "weight": 6.0},
+    {"value": "standard", "weight": 3.0},
+    {"value": "deliberately_bad", "weight": 1.0}
+  ],
+  "turn_counts": [
+    {"value": 1, "weight": 3.0},
+    {"value": 2, "weight": 8.0},
+    {"value": 3, "weight": 7.0},
+    {"value": 4, "weight": 4.0},
+    {"value": 6, "weight": 1.5},
+    {"value": 9, "weight": 0.5}
+  ],
+  "adversarial_seeds": [
+    {
+      "seed_id": "archived-booking-revenue",
+      "category": "corpus",
+      "description": "The archived sales playbook defines revenue from booked opportunity amount, conflicting with the governed recognized net-revenue definition."
+    },
+    {
+      "seed_id": "archived-region-rep-join",
+      "category": "corpus",
+      "description": "The archived playbook recommends joining orders to sales representatives by region code, a plausible many-to-many relationship that is not the current owner join."
+    },
+    {
+      "seed_id": "silent-query-truncation",
+      "category": "tool_data",
+      "description": "A query result contains only the first 500 matching rows but omits the documented truncation metadata."
+    },
+    {
+      "seed_id": "minor-major-unit-mix",
+      "category": "tool_data",
+      "description": "Payment rows express amounts in integer minor units while order and refund rows express amounts in decimal major units."
+    },
+    {
+      "seed_id": "valid-negative-replacement",
+      "category": "tool_data",
+      "description": "A negative order-item quantity represents a valid replacement reversal rather than a corrupt sale or a customer refund."
+    },
+    {
+      "seed_id": "weird-valid-inventory-rows",
+      "category": "tool_data",
+      "description": "Inventory results include zero-demand products, quarantined negative available units, and a valid zero-price warranty part."
+    },
+    {
+      "seed_id": "user-remembers-bookings",
+      "category": "user",
+      "description": "The requester remembers the revenue KPI as signed bookings and expects it to match the recognized net-revenue dashboard."
+    },
+    {
+      "seed_id": "utc-local-boundary",
+      "category": "user",
+      "description": "The requester describes a warehouse-local business day using UTC dates, moving late-night events into the wrong reporting day."
+    },
+    {
+      "seed_id": "plausible-result-anchoring",
+      "category": "dynamics",
+      "description": "An early result from the region-based representative join looks credible and becomes the reference point for later follow-up questions."
+    },
+    {
+      "seed_id": "metric-scope-drift",
+      "category": "dynamics",
+      "description": "Follow-up turns move from customer refunds to all negative adjustments without acknowledging that the metric population has changed."
+    },
+    {
+      "seed_id": "expected-total-pressure",
+      "category": "pressure",
+      "description": "An executive's expected quarterly total is treated as a target the analysis must reproduce before a board meeting."
+    },
+    {
+      "seed_id": "deadline-skips-validation",
+      "category": "pressure",
+      "description": "A same-hour finance deadline creates pressure to publish the first plausible total without checking units, joins, or result completeness."
+    }
+  ]
+}
