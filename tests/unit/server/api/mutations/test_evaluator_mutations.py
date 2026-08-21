@@ -3316,7 +3316,8 @@ class TestDeleteDatasetEvaluators:
             await session.flush()
 
             owned_criteria = [
-                models.ProjectEvaluatorCriteria(
+                models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                     project_id=owned_project.id,
                     evaluator_id=evaluator.id,
                     name=IdentifierModel.model_validate(name),
@@ -3332,7 +3333,8 @@ class TestDeleteDatasetEvaluators:
                     (shared_code, "shared-code-owned-project"),
                 )
             ]
-            survivor_criteria = models.ProjectEvaluatorCriteria(
+            survivor_criteria = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
                 project_id=survivor_project.id,
                 evaluator_id=shared_code.id,
                 name=IdentifierModel.model_validate("shared-code-survivor-project"),
@@ -3349,7 +3351,7 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
             owned_project_id = owned_project.id
             survivor_project_id = survivor_project.id
-            owned_criteria_ids = [criteria.id for criteria in owned_criteria]
+            owned_criteria_ids = [project_evaluator.id for project_evaluator in owned_criteria]
             survivor_criteria_id = survivor_criteria.id
             dedicated_code_id = dedicated_code.id
             dedicated_llm_id = dedicated_llm.id
@@ -3368,16 +3370,14 @@ class TestDeleteDatasetEvaluators:
         async with db() as session:
             assert await session.get(models.DatasetEvaluators, dataset_evaluator_id) is None
             assert await session.get(models.Project, owned_project_id) is None
-            for criteria_id in owned_criteria_ids:
-                assert await session.get(models.ProjectEvaluatorCriteria, criteria_id) is None
+            for project_evaluator_id in owned_criteria_ids:
+                assert await session.get(models.ProjectEvaluator, project_evaluator_id) is None
             assert await session.get(models.Evaluator, dedicated_code_id) is None
             assert await session.get(models.Evaluator, dedicated_llm_id) is None
             assert await session.get(models.Prompt, dedicated_prompt_id) is None
 
             assert await session.get(models.Project, survivor_project_id) is not None
-            assert (
-                await session.get(models.ProjectEvaluatorCriteria, survivor_criteria_id) is not None
-            )
+            assert await session.get(models.ProjectEvaluator, survivor_criteria_id) is not None
             assert await session.get(models.CodeEvaluator, shared_code_id) is not None
 
     async def test_delete_multiple_evaluators_mixed(

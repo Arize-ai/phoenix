@@ -43,25 +43,27 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
         self._db = db
 
     async def _load_fn(self, keys: Iterable[Key]) -> list[ProjectEvaluatorRunCounts]:
-        criteria_ids = list(set(keys))
+        project_evaluator_ids = list(set(keys))
         result: dict[Key, ProjectEvaluatorRunCounts] = {}
         async with self._db.read() as session:
-            async for criteria_id, outcome, count, latest in await session.stream(
-                _outcome_stmt(criteria_ids)
+            async for project_evaluator_id, outcome, count, latest in await session.stream(
+                _outcome_stmt(project_evaluator_ids)
             ):
-                counts = result.setdefault(criteria_id, ProjectEvaluatorRunCounts())
+                counts = result.setdefault(project_evaluator_id, ProjectEvaluatorRunCounts())
                 if outcome == _EVALUATED:
                     counts = replace(counts, evaluated=count, last_evaluated_at=latest)
                 elif outcome == _FAILED:
                     counts = replace(counts, failed=count, last_failed_at=latest)
                 elif outcome == _QUEUED:
                     counts = replace(counts, queued=count)
-                result[criteria_id] = counts
-            async for criteria_id, error in await session.stream(_last_error_stmt(criteria_ids)):
-                counts = result.setdefault(criteria_id, ProjectEvaluatorRunCounts())
-                result[criteria_id] = replace(counts, last_error=error)
+                result[project_evaluator_id] = counts
+            async for project_evaluator_id, error in await session.stream(
+                _last_error_stmt(project_evaluator_ids)
+            ):
+                counts = result.setdefault(project_evaluator_id, ProjectEvaluatorRunCounts())
+                result[project_evaluator_id] = replace(counts, last_error=error)
         empty = ProjectEvaluatorRunCounts()
-        return [result.get(criteria_id, empty) for criteria_id in keys]
+        return [result.get(project_evaluator_id, empty) for project_evaluator_id in keys]
 
 
 def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
@@ -100,34 +102,34 @@ def _outcome(model: _WorkUnitModel) -> sa.Case[Optional[str]]:
     )
 
 
-def _outcome_stmt(criteria_ids: list[Key]) -> sa.Select[Any]:
+def _outcome_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
     def grain(model: _WorkUnitModel) -> sa.Select[Any]:
         outcome = _outcome(model)
         return (
             sa.select(
-                model.criteria_id.label("criteria_id"),
+                model.project_evaluator_id.label("project_evaluator_id"),
                 outcome.label("outcome"),
                 sa.func.count().label("count"),
                 sa.func.max(model.updated_at).label("latest"),
             )
-            .where(model.criteria_id.in_(criteria_ids))
-            .group_by(model.criteria_id, outcome)
+            .where(model.project_evaluator_id.in_(project_evaluator_ids))
+            .group_by(model.project_evaluator_id, outcome)
         )
 
     grains = sa.union_all(grain(models.EvalWorkUnit), grain(models.EvalSessionWorkUnit)).subquery()
     return (
         sa.select(
-            grains.c.criteria_id,
+            grains.c.project_evaluator_id,
             grains.c.outcome,
             sa.func.sum(grains.c.count),
             sa.func.max(grains.c.latest),
         )
         .where(grains.c.outcome.is_not(None))
-        .group_by(grains.c.criteria_id, grains.c.outcome)
+        .group_by(grains.c.project_evaluator_id, grains.c.outcome)
     )
 
 
-def _last_error_stmt(criteria_ids: list[Key]) -> sa.Select[Any]:
+def _last_error_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
     """The newest error among FAILED units only.
 
     A unit that errored transiently and later succeeded keeps its error string
@@ -139,21 +141,21 @@ def _last_error_stmt(criteria_ids: list[Key]) -> sa.Select[Any]:
 
     def grain(model: _WorkUnitModel) -> sa.Select[Any]:
         return sa.select(
-            model.criteria_id.label("criteria_id"),
+            model.project_evaluator_id.label("project_evaluator_id"),
             model.error.label("error"),
             model.updated_at.label("updated_at"),
         ).where(
-            model.criteria_id.in_(criteria_ids),
+            model.project_evaluator_id.in_(project_evaluator_ids),
             model.error.is_not(None),
             _failed(model),
         )
 
     grains = sa.union_all(grain(models.EvalWorkUnit), grain(models.EvalSessionWorkUnit)).subquery()
     ranked = sa.select(
-        grains.c.criteria_id,
+        grains.c.project_evaluator_id,
         grains.c.error,
         sa.func.row_number()
-        .over(partition_by=grains.c.criteria_id, order_by=grains.c.updated_at.desc())
+        .over(partition_by=grains.c.project_evaluator_id, order_by=grains.c.updated_at.desc())
         .label("row_num"),
     ).subquery()
-    return sa.select(ranked.c.criteria_id, ranked.c.error).where(ranked.c.row_num == 1)
+    return sa.select(ranked.c.project_evaluator_id, ranked.c.error).where(ranked.c.row_num == 1)
