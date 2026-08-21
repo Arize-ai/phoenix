@@ -26,6 +26,7 @@ from phoenix.server.api.types.pagination import (
     CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
+    parse_cursor,
 )
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
@@ -179,16 +180,14 @@ class ProjectSession(Node):
 
         stmt = select(models.Trace).filter_by(project_session_rowid=self.id)
         if after:
-            cursor = Cursor.from_string(after)
-            if cursor.sort_column:
-                stmt = stmt.where(
-                    operator.gt(
-                        tuple_(models.Trace.start_time, models.Trace.id),
-                        (cursor.sort_column.value, cursor.rowid),
-                    )
+            cursor = parse_cursor(after, sort_column_type=CursorSortColumnDataType.DATETIME)
+            assert cursor.sort_column is not None
+            stmt = stmt.where(
+                operator.gt(
+                    tuple_(models.Trace.start_time, models.Trace.id),
+                    (cursor.sort_column.value, cursor.rowid),
                 )
-            else:
-                stmt = stmt.where(models.Trace.id > cursor.rowid)
+            )
         stmt = stmt.order_by(
             models.Trace.start_time.asc(),
             models.Trace.id.asc(),

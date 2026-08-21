@@ -69,3 +69,42 @@ class TestCursorParse:
     def test_rejects_a_malformed_cursor(self, cursor: str) -> None:
         with pytest.raises(ValueError):
             Cursor.parse(cursor, sort_column_type=None)
+
+    def test_accepts_a_null_sort_value_when_the_column_is_nullable(self) -> None:
+        """`__post_init__` tags a null value NULL, not the column's own type."""
+        cursor = Cursor(
+            rowid=10,
+            sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=None),
+        )
+        parsed = Cursor.parse(
+            str(cursor), sort_column_type=CursorSortColumnDataType.FLOAT, nullable=True
+        )
+        assert parsed.sort_column is not None
+        assert parsed.sort_column.type is CursorSortColumnDataType.NULL
+
+    def test_rejects_a_null_sort_value_when_the_column_is_not_nullable(self) -> None:
+        """A query without a null predicate cannot place such a row."""
+        cursor = Cursor(
+            rowid=10,
+            sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=None),
+        )
+        with pytest.raises(ValueError):
+            Cursor.parse(str(cursor), sort_column_type=CursorSortColumnDataType.FLOAT)
+
+    def test_still_rejects_a_mismatched_type_when_nullable(self) -> None:
+        cursor = Cursor(
+            rowid=10,
+            sort_column=CursorSortColumn(
+                type=CursorSortColumnDataType.DATETIME,
+                value=datetime(2024, 5, 5, tzinfo=timezone.utc),
+            ),
+        )
+        with pytest.raises(ValueError):
+            Cursor.parse(
+                str(cursor), sort_column_type=CursorSortColumnDataType.FLOAT, nullable=True
+            )
+
+    def test_rejects_nullable_without_a_sort_column_type(self) -> None:
+        """A query that does not sort has no null sort value to admit."""
+        with pytest.raises(ValueError):
+            Cursor.parse(str(Cursor(rowid=10)), sort_column_type=None, nullable=True)

@@ -1052,9 +1052,7 @@ class TestTraceTokenCountTimeSeries:
                 "after": str(
                     Cursor(
                         rowid=4,  # row 4 is in between rows 1 and 5, which also have 296 cumulative prompt tokens
-                        sort_column=CursorSortColumn(
-                            type=CursorSortColumnDataType.FLOAT, value=296
-                        ),
+                        sort_column=CursorSortColumn(type=CursorSortColumnDataType.INT, value=296),
                     )
                 ),
             },
@@ -1083,9 +1081,7 @@ class TestTraceTokenCountTimeSeries:
                 "after": str(
                     Cursor(
                         rowid=4,  # row 4 is in between rows 1 and 5, which also have 296 cumulative prompt tokens
-                        sort_column=CursorSortColumn(
-                            type=CursorSortColumnDataType.FLOAT, value=296
-                        ),
+                        sort_column=CursorSortColumn(type=CursorSortColumnDataType.INT, value=296),
                     )
                 ),
             },
@@ -2979,6 +2975,42 @@ class TestProject:
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
+
+    async def test_rowid_only_cursor_is_refused_by_the_sorted_spans_connection(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """A sorted connection cannot place a row from a rowid alone.
+
+        `rootSpansOnly` with a `startTime` sort and no filter takes a keyset
+        path that reads the cursor's sort value, so a cursor without one has to
+        be refused rather than dereferenced.
+        """
+        async with db() as session:
+            project = await _add_project(session)
+            trace = await _add_trace(session, project)
+            await _add_span(session, trace)
+        field = (
+            "spans("
+            "rootSpansOnly:true,"
+            "sort:{col:startTime,dir:desc},"
+            "first:1,"
+            f'after:"{Cursor(rowid=1)}"'
+            "){edges{node{id}}}"
+        )
+        query = "query($id:ID!){node(id:$id){... on Project{" + field + "}}}"
+        response = await httpx_client.post(
+            "/graphql",
+            json={
+                "query": query,
+                "variables": {"id": str(GlobalID(Project.__name__, str(project.id)))},
+            },
+        )
+        assert response.status_code == 200
+        errors = response.json().get("errors")
+        assert errors, "a rowid-only cursor should be refused, not dereferenced"
+        assert "Invalid cursor" in errors[0]["message"]
 
     async def test_parent_is_none_matches_orphan_aware_root_spans_only(
         self,

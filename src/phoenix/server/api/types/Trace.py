@@ -29,6 +29,7 @@ from phoenix.server.api.types.pagination import (
     Cursor,
     CursorString,
     connection_from_cursors_and_nodes,
+    parse_cursor,
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, SpanKind
@@ -301,10 +302,7 @@ class Trace(Node):
         if after is not UNSET and after is not None:
             # Type narrowing: after is guaranteed to be str at this point
             assert after is not None  # Type narrowing for mypy
-            try:
-                cursor = Cursor.from_string(after)
-            except Exception as e:
-                raise ValueError(f"Invalid cursor format: {after}") from e
+            cursor = parse_cursor(after, sort_column_type=None)
             # For descending order, "after" means we want spans with smaller IDs
             # (going forward in descending order)
             base_query = base_query.where(models.Span.id < cursor.rowid)
