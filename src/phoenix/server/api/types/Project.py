@@ -63,6 +63,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_cursors_and_nodes,
     connection_from_list,
+    parse_cursor,
 )
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.SortDir import SortDir
@@ -669,9 +670,13 @@ class Project(Node):
             if sort_config.dir is SortDir.desc:
                 cursor_rowid_column = desc(cursor_rowid_column)
         if after:
-            cursor = Cursor.from_string(after)
-            if sort_config and cursor.sort_column:
-                sort_column = cursor.sort_column
+            cursor = parse_cursor(
+                after,
+                sort_column_type=sort_config.column_data_type if sort_config else None,
+                nullable=sort_config is not None,
+            )
+            if sort_config:
+                assert (sort_column := cursor.sort_column) is not None
                 compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
                 if sort_column.type is CursorSortColumnDataType.NULL:
                     stmt = stmt.where(sort_config.orm_expression.is_(None))
@@ -760,9 +765,13 @@ class Project(Node):
                 prejoined_aggregate=sort_config.prejoined_aggregate if sort_config else None,
             )
         if after:
-            cursor = Cursor.from_string(after)
-            if sort_config and cursor.sort_column:
-                sort_column = cursor.sort_column
+            cursor = parse_cursor(
+                after,
+                sort_column_type=sort_config.column_data_type if sort_config else None,
+                nullable=sort_config is not None,
+            )
+            if sort_config:
+                assert (sort_column := cursor.sort_column) is not None
                 compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
                 if sort_column.type is CursorSortColumnDataType.NULL:
                     stmt = stmt.where(sort_config.orm_expression.is_(None))
@@ -2944,8 +2953,8 @@ async def _paginate_span_by_trace_start_time(
 
     # Apply cursor pagination
     if after:
-        cursor = Cursor.from_string(after)
-        assert cursor.sort_column
+        cursor = parse_cursor(after, sort_column_type=CursorSortColumnDataType.DATETIME)
+        assert cursor.sort_column is not None
         compare = operator.lt if sort.dir is SortDir.desc else operator.gt
         traces = traces.where(
             compare(

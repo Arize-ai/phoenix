@@ -24,10 +24,11 @@ from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnot
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
-    Cursor,
+    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
     connection_from_list,
+    parse_cursor,
 )
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
@@ -253,7 +254,14 @@ class Experiment(Node):
         after_experiment_run_rowid = None
         after_sort_column_value = None
         if after:
-            cursor = Cursor.from_string(after)
+            # Both sortable columns are floats: an annotation score, which is
+            # null for an unscored run, or a latency, which is derived from
+            # non-null timestamps and so is always present.
+            cursor = parse_cursor(
+                after,
+                sort_column_type=CursorSortColumnDataType.FLOAT if sort else None,
+                nullable=bool(sort and sort.col.annotation_name),
+            )
             after_experiment_run_rowid = cursor.rowid
             if cursor.sort_column is not None:
                 after_sort_column_value = cursor.sort_column.value

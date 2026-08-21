@@ -112,6 +112,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_cursors_and_nodes,
     connection_from_list,
+    parse_cursor,
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
@@ -250,7 +251,7 @@ class Query:
         page_size = first or 50
 
         # Parse cursor for forward pagination
-        after_cursor = Cursor.from_string(after) if after else None
+        after_cursor = parse_cursor(after, sort_column_type=None) if after else None
 
         # Build query with ordering (descending by id)
         stmt = select(models.GenerativeModelCustomProvider).order_by(
@@ -601,7 +602,7 @@ class Query:
 
         experiment_rowids = [base_experiment_rowid, *compare_experiment_rowids]
 
-        cursor = Cursor.from_string(after) if after else None
+        cursor = parse_cursor(after, sort_column_type=None) if after else None
         page_size = first or 50
 
         async with info.context.db.read() as session:
@@ -1658,8 +1659,13 @@ class Query:
         owner_filter = get_agent_session_owner_filter(info.context, viewer_only=viewer_only)
         if owner_filter is not None:
             stmt = stmt.where(owner_filter)
-        after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
-        if after_cursor is not None and after_cursor.sort_column is not None:
+        after_cursor = (
+            parse_cursor(after, sort_column_type=CursorSortColumnDataType.DATETIME)
+            if isinstance(after, CursorString)
+            else None
+        )
+        if after_cursor is not None:
+            assert after_cursor.sort_column is not None
             stmt = stmt.where(
                 tuple_(models.AgentSession.updated_at, models.AgentSession.id)
                 < (after_cursor.sort_column.value, after_cursor.rowid)
