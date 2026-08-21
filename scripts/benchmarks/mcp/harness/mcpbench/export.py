@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -94,13 +95,32 @@ class Planner:
         self.config = config
         self.out_dir = out_dir
         self.max_chars = max_chars
+        self._tasks = tasks
+        self._lock = threading.Lock()
+        self._loaded = False
         self.manifest: dict[str, Any] = {}
-        if (path := out_dir / "manifest.json").is_file():
-            self.manifest = json.loads(path.read_text())
-        self.as_run = tasks_as_run(self.manifest, tasks)
+        self.as_run: dict[str, Task] = {}
         # Whether this run recorded the questions it asked; a run predating that
         # is graded against today's wording, which the row carries as a warning.
-        self.graded_as_run = any("expect" in e for e in (self.manifest.get("tasks") or []))
+        self.graded_as_run = False
+
+    def _load(self) -> None:
+        """Read the manifest, the first time a cell needs it.
+
+        Not in the constructor: a live run builds its planner before the matrix
+        starts, and the manifest is written by the matrix. Read too early it is
+        absent, and every span then claims the run predates the manifest and
+        carries a sanitised label -- while the table beside it, which re-reads
+        from disk, says otherwise about the same cell.
+        """
+        with self._lock:
+            if self._loaded:
+                return
+            if (path := self.out_dir / "manifest.json").is_file():
+                self.manifest = json.loads(path.read_text())
+            self.as_run = tasks_as_run(self.manifest, self._tasks)
+            self.graded_as_run = any("expect" in e for e in (self.manifest.get("tasks") or []))
+            self._loaded = True
 
     def cell(self, path: Path) -> Optional[tuple[str, list[Span]]]:
         """One transcript as a trace, or ``None`` if it is not a run of a task.
@@ -108,6 +128,7 @@ class Planner:
         Grading comes from the report's own row derivation, so a span and the
         table row beside it cannot disagree about what happened.
         """
+        self._load()
         if not (parsed := split_cell_id(path.stem)):
             return None
         file_label, task_name, trial = parsed
@@ -215,6 +236,12 @@ class Sink:
     """
 
     def __init__(self, provider: Any, tracer: Any, ids: Any, exporter: Any, max_chars: int):
+        # One trace at a time. The generator is a single mutable object seeded
+        # per cell and read by every `start_span` after it, and cells finish on
+        # several threads: two overlapping sends interleave their seeds, and the
+        # spans come out under each other's traces with ids nothing can
+        # reproduce -- which is silent, because they are still valid spans.
+        self._lock = threading.Lock()
         self._provider = provider
         self._tracer = tracer
         self._ids = ids
@@ -223,11 +250,16 @@ class Sink:
 
     def send(self, cell_id: str, spans: list[Span]) -> None:
         """Emit one trace. The root is opened first; children hang off it."""
-        from opentelemetry.context import Context
-        from opentelemetry.trace import Status, StatusCode, set_span_in_context
 
         if not spans:
             return
+        with self._lock:
+            self._emit(cell_id, spans)
+
+    def _emit(self, cell_id: str, spans: list[Span]) -> None:
+        from opentelemetry.context import Context
+        from opentelemetry.trace import Status, StatusCode, set_span_in_context
+
         # Every input that changes what a span says belongs in the seed. The
         # backend keeps the first span it sees for an id, so a setting left out
         # of the seed is a setting that silently does nothing on a re-export.
