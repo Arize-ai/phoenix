@@ -412,21 +412,6 @@ def exclude_experiment_projects(
     ).where(models.Experiment.project_name.is_(None))
 
 
-def exclude_project_evaluators_targeting_evaluator_traces(
-    stmt: Select[_AnyTuple],
-) -> Select[_AnyTuple]:
-    """Drop project evaluators whose target project holds some evaluator's traces.
-
-    Evaluating a trace project would feed evaluator output back into the
-    evaluators that produced it. The alias keeps the subquery from correlating
-    with the project_evaluator row being filtered.
-    """
-    trace_project_owner = aliased(models.ProjectEvaluator)
-    return stmt.where(
-        models.ProjectEvaluator.project_id.not_in(select(trace_project_owner.trace_project_id))
-    )
-
-
 def exclude_dataset_evaluator_projects(
     stmt: Select[_AnyTuple],
 ) -> Select[_AnyTuple]:

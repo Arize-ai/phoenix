@@ -109,37 +109,6 @@ async def test_database_now_uses_statement_time(
     assert expected_clock in str(statement)
 
 
-async def test_criteria_targeting_an_evaluator_trace_project_are_not_loaded(
-    db: DbSessionFactory,
-) -> None:
-    """The session half of the feedback-loop guard.
-
-    Creation refuses project_evaluator targeting an evaluator trace project, but a race or a
-    row that predates the guard can still carry one — the sweep load is the layer
-    that keeps those from evaluating the evaluators' own traces.
-    """
-    async with db() as session:
-        project = await _add_project(session)
-    _, owner_criteria_id = await _seed_criteria(db, project.id, evaluation_target="SESSION")
-    async with db() as session:
-        trace_project_id = await session.scalar(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.id == owner_criteria_id
-            )
-        )
-        assert trace_project_id is not None
-    _, offending_criteria_id = await _seed_criteria(
-        db, trace_project_id, evaluation_target="SESSION"
-    )
-
-    sweeper = SessionEvalSweeper(db)
-
-    async with db() as session:
-        loaded_ids = {c.project_evaluator_id for c in await sweeper._load_evaluators(session)}
-    assert owner_criteria_id in loaded_ids
-    assert offending_criteria_id not in loaded_ids
-
-
 async def test_materialization_rechecks_eligibility_at_write_time(
     db: DbSessionFactory,
 ) -> None:

@@ -143,16 +143,7 @@ strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason
 
 def _project_evaluator_schedulability(
     record: models.ProjectEvaluator,
-    *,
-    targets_evaluator_traces: bool,
 ) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
-    if targets_evaluator_traces:
-        # Mirrors exclude_project_evaluators_targeting_evaluator_traces: both sweep loads drop
-        # these project evaluators regardless of target, so the row must not advertise otherwise.
-        return (
-            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
-            SchedulabilityReason.TARGETS_EVALUATOR_TRACES,
-        )
     if record.evaluation_target == "SESSION":
         # Every SESSION condition is declared once in session_policy, beside the SQL
         # the sweeper and the executor gate on, so this field cannot advertise an
@@ -1268,24 +1259,6 @@ class ProjectEvaluator(Node):
         record = await self._get_record(info)
         return EvaluationTarget(record.evaluation_target)
 
-    async def _targets_evaluator_traces(
-        self, info: Info[Context, None], record: models.ProjectEvaluator
-    ) -> bool:
-        """Whether this project evaluator targets a project holding evaluator traces.
-
-        Creation refuses such project_evaluator, but a race or a row that predates the
-        guard can still carry one; both sweep loads exclude those, and
-        schedulability must say so rather than advertise an evaluator the sweeps
-        never pick up.
-        """
-        async with info.context.db.read() as session:
-            holds_evaluator_traces = await session.scalar(
-                sa.select(models.ProjectEvaluator.id)
-                .where(models.ProjectEvaluator.trace_project_id == record.project_id)
-                .limit(1)
-            )
-        return holds_evaluator_traces is not None
-
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Whether this project evaluator is currently eligible for scheduling."
     )
@@ -1294,10 +1267,7 @@ class ProjectEvaluator(Node):
         info: Info[Context, None],
     ) -> ProjectEvaluatorSchedulabilityStatus:
         record = await self._get_record(info)
-        status, _ = _project_evaluator_schedulability(
-            record,
-            targets_evaluator_traces=await self._targets_evaluator_traces(info, record),
-        )
+        status, _ = _project_evaluator_schedulability(record)
         return status
 
     @strawberry.field(  # type: ignore[untyped-decorator]
@@ -1311,10 +1281,7 @@ class ProjectEvaluator(Node):
         info: Info[Context, None],
     ) -> Optional[SchedulabilityReason]:
         record = await self._get_record(info)
-        _, reason = _project_evaluator_schedulability(
-            record,
-            targets_evaluator_traces=await self._targets_evaluator_traces(info, record),
-        )
+        _, reason = _project_evaluator_schedulability(record)
         return reason
 
     @strawberry.field

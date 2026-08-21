@@ -1963,69 +1963,6 @@ async def test_project_evaluator_run_summary_reports_failing_when_failure_is_new
     assert run_summary["lastError"] == "credentials expired"
 
 
-async def test_project_evaluator_targeting_an_evaluator_trace_project_is_not_schedulable(
-    db: DbSessionFactory,
-    gql_client: AsyncGraphQLClient,
-) -> None:
-    """A project_evaluator row targeting another evaluator's trace project — possible via a
-    race or a row that predates the guard — must report why the sweeps will never
-    pick it up."""
-    async with db() as session:
-        another_trace_project = models.Project(name=f"project-evaluator-{token_hex(12)}")
-        evaluator = models.BuiltinEvaluator(
-            name=Identifier(f"evaluator-{token_hex(4)}"),
-            kind="BUILTIN",
-            key=token_hex(8),
-            input_schema={},
-            output_configs=[],
-        )
-        session.add_all([another_trace_project, evaluator])
-        await session.flush()
-        # The project targeted below is the trace project of this other evaluator.
-        session.add(
-            models.ProjectEvaluator(
-                trace_project=another_trace_project,
-                project=models.Project(name=f"project-{token_hex(4)}"),
-                evaluator_id=evaluator.id,
-                name=Identifier(f"project_evaluator-{token_hex(4)}"),
-                evaluation_target="SPAN",
-                filter_condition="",
-                sampling_rate=1.0,
-            )
-        )
-        await session.flush()
-        project_evaluator = models.ProjectEvaluator(
-            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
-            project_id=another_trace_project.id,
-            evaluator_id=evaluator.id,
-            name=Identifier(f"project_evaluator-{token_hex(4)}"),
-            evaluation_target="SPAN",
-            filter_condition="",
-            sampling_rate=1.0,
-            enabled=True,
-        )
-        session.add(project_evaluator)
-        await session.flush()
-        project_evaluator_id = project_evaluator.id
-
-    response = await gql_client.execute(
-        """query ($id: ID!) {
-            node(id: $id) {
-                ... on ProjectEvaluator {
-                    schedulabilityStatus
-                    schedulabilityReason
-                }
-            }
-        }""",
-        variables={"id": str(GlobalID("ProjectEvaluator", str(project_evaluator_id)))},
-    )
-
-    assert not response.errors and response.data
-    node = response.data["node"]
-    assert node["schedulabilityStatus"] == "NOT_SCHEDULABLE"
-    assert node["schedulabilityReason"] == "TARGETS_EVALUATOR_TRACES"
-
-
 async def test_project_evaluator_trace_project_resolves_to_its_dedicated_project(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,

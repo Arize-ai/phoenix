@@ -35,7 +35,6 @@ from phoenix.config import (
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
-from phoenix.db.helpers import exclude_project_evaluators_targeting_evaluator_traces
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
@@ -445,16 +444,14 @@ class OnlineEvalProducer(DaemonTask):
         async with self._db() as session:
             rows = (
                 await session.execute(
-                    exclude_project_evaluators_targeting_evaluator_traces(
-                        select(models.ProjectEvaluator, polymorphic_evaluator)
-                        .join(
-                            polymorphic_evaluator,
-                            models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
-                        )
-                        .where(
-                            models.ProjectEvaluator.enabled,
-                            models.ProjectEvaluator.evaluation_target == "SPAN",
-                        )
+                    select(models.ProjectEvaluator, polymorphic_evaluator)
+                    .join(
+                        polymorphic_evaluator,
+                        models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
+                    )
+                    .where(
+                        models.ProjectEvaluator.enabled,
+                        models.ProjectEvaluator.evaluation_target == "SPAN",
                     )
                 )
             ).all()

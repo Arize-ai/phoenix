@@ -41,11 +41,6 @@ class SchedulabilityReason(Enum):
 
     DISABLED = "DISABLED"
     TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
-    # The row-side voice of exclude_project_evaluators_targeting_evaluator_traces (db/helpers.py):
-    # both sweep loads drop project evaluators targeting a trace project, so without this
-    # reason such a row — possible via a race or a row that predates the guard — would
-    # advertise as schedulable while never running.
-    TARGETS_EVALUATOR_TRACES = "TARGETS_EVALUATOR_TRACES"
 
 
 @dataclass(frozen=True)

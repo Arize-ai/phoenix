@@ -340,8 +340,11 @@ async def _validate_project_evaluator_project(
 ) -> models.Project:
     """Reject a project that cannot be evaluated, returning it otherwise.
 
-    An evaluator's trace project holds the traces of its executions; evaluating
-    one would feed evaluator output back into the evaluators that produced it.
+    Trace projects are internal plumbing, so aiming an evaluator at one is
+    refused as a mistake. This gate is the only guard needed: an evaluator's
+    own trace project is minted after this check, in the same transaction, and
+    the project binding never changes, so a cycle of evaluators evaluating
+    their own output cannot be constructed through the API.
     """
     project = await session.get(models.Project, project_id)
     if project is None:

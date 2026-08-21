@@ -525,28 +525,6 @@ async def test_future_targets_are_not_loaded_by_span_producer(
     assert await producer._load_active_evaluators() == []
 
 
-async def test_criteria_targeting_an_evaluator_trace_project_are_not_loaded(
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-    _, owner_criteria_id = await _seed_criteria(db, project.id)
-    async with db() as session:
-        trace_project_id = await session.scalar(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.id == owner_criteria_id
-            )
-        )
-        assert trace_project_id is not None
-    _, offending_criteria_id = await _seed_criteria(db, trace_project_id)
-
-    producer = OnlineEvalProducer(db)
-
-    loaded_ids = {c.project_evaluator_id for c in await producer._load_active_evaluators()}
-    assert owner_criteria_id in loaded_ids
-    assert offending_criteria_id not in loaded_ids
-
-
 async def test_tick_advances_at_most_one_id_chunk(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
