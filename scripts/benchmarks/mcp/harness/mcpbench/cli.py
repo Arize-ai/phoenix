@@ -31,6 +31,7 @@ from .export import (
     as_json,
     open_sink,
     plan_run,
+    record_destination,
     resolve_endpoint,
     resolve_headers,
     send,
@@ -140,6 +141,9 @@ def cmd_run(args: argparse.Namespace) -> int:
             print('install the extra: uv pip install -e "harness[otel]"', file=sys.stderr)
             return 1
         planner = Planner(config, tasks, out_dir)
+        record_destination(
+            out_dir, endpoint=args.endpoint, project=args.export, max_chars=DEFAULT_MAX_CHARS
+        )
 
     cells = plan_matrix(config, tasks)
     done = 0
@@ -305,6 +309,9 @@ def cmd_export(args: argparse.Namespace) -> int:
             print(f"error: {exc}", file=sys.stderr)
             print('install the extra: uv pip install -e "harness[otel]"', file=sys.stderr)
             return 1
+        record_destination(
+            out_dir, endpoint=args.endpoint, project=args.project, max_chars=args.max_chars
+        )
         where = f"{args.project} at {endpoint}"
         print(f"{out_dir.name}: {len(traces)} traces, {delivery.describe()} -> {where}")
         if not delivery.ok:

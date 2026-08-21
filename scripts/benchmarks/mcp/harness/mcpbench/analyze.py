@@ -17,6 +17,7 @@ from typing import Any, Optional
 from .config import BenchConfig, Task
 from .invocation import safe_label
 from .metrics import iteration_rows, parse_transcript, run_row, tool_call_rows
+from .otel import trace_hex
 from .report import build_report
 
 #: Tables keyed the way the store expects them.
@@ -43,6 +44,37 @@ def task_hash(task: Task) -> str:
 
 
 ANNOTATION_FILE = "annotation.json"
+
+#: Where this run's spans were last sent. Written by `export`, read by the
+#: report, and absent for a run nobody exported -- which is why the links are a
+#: property of the run directory rather than a flag on the report command.
+DESTINATION_FILE = "export.json"
+
+
+def read_destination(out_dir: Path) -> dict[str, Any]:
+    path = out_dir / DESTINATION_FILE
+    return json.loads(path.read_text()) if path.is_file() else {}
+
+
+def write_destination(out_dir: Path, **fields: Any) -> None:
+    """Record where the spans went, so the report can point at them."""
+    (out_dir / DESTINATION_FILE).write_text(json.dumps(fields, indent=2))
+
+
+def trace_url(destination: dict[str, Any], run_id: str, transcript: str) -> Optional[str]:
+    """A permalink to one cell's trace, or ``None`` if the run was never sent.
+
+    Addresses the trace by its OpenTelemetry id through the backend's redirect,
+    rather than by project and trace: the project in a direct link is an
+    internal id this side has no way to know, and asking for it would make a
+    report that builds offline depend on the server being up.
+    """
+    endpoint, project = destination.get("endpoint"), destination.get("project")
+    if not endpoint or not project:
+        return None
+    key = f"{run_id}/{transcript[:-6] if transcript.endswith('.jsonl') else transcript}"
+    hex_id = trace_hex(project, key, int(destination.get("max_chars") or 0))
+    return f"{str(endpoint).rstrip('/')}/redirects/traces/{hex_id}"
 
 
 def read_annotation(out_dir: Path) -> dict[str, Any]:
@@ -179,6 +211,7 @@ def rows_for_run(config: BenchConfig, tasks: list[Task], out_dir: Path) -> Rows:
     if (manifest := out_dir / "manifest.json").is_file():
         meta = json.loads(manifest.read_text())
     by_name = tasks_as_run(meta, tasks)
+    destination = read_destination(out_dir)
     # Whether this run recorded the questions it asked. Runs predating that are
     # graded against today's wording, which can mark a right answer wrong.
     as_run = any("expect" in e for e in (meta.get("tasks") or []))
@@ -206,6 +239,7 @@ def rows_for_run(config: BenchConfig, tasks: list[Task], out_dir: Path) -> Rows:
         )
         for row in part["runs"]:
             row["graded_as_run"] = as_run
+            row["trace_url"] = trace_url(destination, out_dir.name, path.name)
         for key, rows in part.items():
             tables[key].extend(rows)
     tables["runs"].sort(key=lambda r: (r["label"], r["task"], r["trial"]))

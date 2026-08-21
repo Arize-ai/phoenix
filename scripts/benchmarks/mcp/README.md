@@ -181,6 +181,13 @@ did not land. The SDK reports a failed batch by logging it, so counting what was
 would call a closed port a success. Acceptance is still not ingestion — Phoenix stores
 the batch after answering, so a count read immediately after an export reads low.
 
+Exporting records where the spans went, and the report grows a **trace** column
+linking each row to it. The link is computed, not looked up: ids are derived from
+`(project, run, cell, max-chars)`, so the page knows the trace id without asking the
+backend anything. It addresses the trace through `/redirects/traces/<id>`, because a
+direct link needs the project's internal id and a report that builds offline should not
+need the server to be up. A run nobody exported has no column rather than an empty one.
+
 `run --export` holds one connection open for the matrix and sends each cell the moment
 its transcript lands, so traces appear as the run goes rather than after it. Per cell,
 not per span: nothing exists to send until the cell ends, because the client's output is
