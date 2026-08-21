@@ -3,7 +3,7 @@ title: "Synthetic trace generation"
 description: Run phoenix datagen beside a development or demo Phoenix instance
 ---
 
-`phoenix datagen` continuously replays bundled OpenInference trace corpora into a Phoenix
+`phoenix datagen` continuously replays bundled OpenInference trace scenarios into a Phoenix
 collector over OTLP HTTP. It is useful for development, demonstrations, and testing ingestion or
 evaluation workflows without connecting a real application.
 
@@ -31,7 +31,7 @@ PHOENIX_DATAGEN_SEED=0 \
 phoenix datagen
 ```
 
-Stop the generator with `Ctrl+C`. Run `phoenix datagen --help` to see the corpus, burstiness,
+Stop the generator with `Ctrl+C`. Run `phoenix datagen --help` to see the scenario, burstiness,
 authentication, and anomaly-manifest options.
 
 ## Docker Compose

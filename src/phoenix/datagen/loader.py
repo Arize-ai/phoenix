@@ -1,4 +1,4 @@
-"""Load recorded OTLP trace corpora from disk or HTTP."""
+"""Load recorded OTLP trace scenarios from disk or HTTP."""
 
 from __future__ import annotations
 
@@ -16,69 +16,69 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, Span
 
 
-class CorpusError(ValueError):
-    """Raised when a corpus cannot be located or parsed."""
+class ScenarioError(ValueError):
+    """Raised when a scenario cannot be located or parsed."""
 
 
 @dataclass(frozen=True)
-class Corpus:
-    """A parsed corpus manifest and its OTLP export requests."""
+class Scenario:
+    """A parsed scenario manifest and its OTLP export requests."""
 
     manifest: Mapping[str, Any]
     requests: Sequence[ExportTraceServiceRequest]
     source: str
 
 
-def load_corpus(source: str | Path = "default") -> Corpus:
-    """Load a bundled corpus name, local corpus directory, or HTTP(S) directory."""
+def load_scenario(source: str | Path = "default") -> Scenario:
+    """Load a bundled scenario name, local directory, or HTTP(S) directory."""
     if isinstance(source, str) and urlparse(source).scheme in {"http", "https"}:
-        manifest_text, traces_text = _read_http_corpus(source)
+        manifest_text, traces_text = _read_http_scenario(source)
         display_source = source
     else:
-        corpus_path = _resolve_local_corpus(source)
-        manifest_text = _read_text(corpus_path / "manifest.json")
-        traces_text = _read_text(corpus_path / "traces.jsonl")
-        display_source = str(corpus_path)
+        scenario_path = _resolve_local_scenario(source)
+        manifest_text = _read_text(scenario_path / "manifest.json")
+        traces_text = _read_text(scenario_path / "traces.jsonl")
+        display_source = str(scenario_path)
 
     manifest = _parse_manifest(manifest_text, display_source)
     requests = _group_requests_by_trace_id(_parse_requests(traces_text, display_source))
     _validate_counts(manifest, requests, display_source)
-    return Corpus(manifest=manifest, requests=requests, source=display_source)
+    return Scenario(manifest=manifest, requests=requests, source=display_source)
 
 
-def _resolve_local_corpus(source: str | Path) -> Path:
+def _resolve_local_scenario(source: str | Path) -> Path:
     path = Path(source).expanduser()
     if path.is_dir():
         return path
 
     if isinstance(source, Path) or path.is_absolute() or len(path.parts) != 1:
-        raise CorpusError(f"Corpus directory does not exist: {path}")
+        raise ScenarioError(f"Scenario directory does not exist: {path}")
 
-    corpora_path = Path(__file__).with_name("corpora")
+    assets_path = Path(__file__).with_name("assets")
     if source == "default":
-        if _is_corpus_directory(corpora_path):
-            return corpora_path
-        default_path = corpora_path / "default"
-        if _is_corpus_directory(default_path):
+        if _is_scenario_directory(assets_path):
+            return assets_path
+        default_path = assets_path / "default"
+        if _is_scenario_directory(default_path):
             return default_path
         candidates = sorted(
-            candidate for candidate in corpora_path.glob("*") if _is_corpus_directory(candidate)
+            candidate for candidate in assets_path.glob("*") if _is_scenario_directory(candidate)
         )
         if not candidates:
-            raise CorpusError("No bundled corpora are installed")
+            raise ScenarioError("No bundled scenarios are installed")
         return candidates[0]
 
-    bundled_path = corpora_path / source
-    if _is_corpus_directory(bundled_path):
+    bundled_path = assets_path / source
+    if _is_scenario_directory(bundled_path):
         return bundled_path
-    raise CorpusError(f"Unknown bundled corpus or local directory: {source}")
+    raise ScenarioError(f"Unknown bundled scenario or local directory: {source}")
 
 
-def _is_corpus_directory(path: Path) -> bool:
+def _is_scenario_directory(path: Path) -> bool:
     return (path / "manifest.json").is_file() and (path / "traces.jsonl").is_file()
 
 
-def _read_http_corpus(source: str) -> tuple[str, str]:
+def _read_http_scenario(source: str) -> tuple[str, str]:
     base_url = source.rstrip("/") + "/"
     try:
         with httpx.Client(follow_redirects=True, timeout=30.0) as client:
@@ -87,7 +87,7 @@ def _read_http_corpus(source: str) -> tuple[str, str]:
             traces_response = client.get(urljoin(base_url, "traces.jsonl"))
             traces_response.raise_for_status()
     except httpx.HTTPError as error:
-        raise CorpusError(f"Unable to load corpus from {source}: {error}") from error
+        raise ScenarioError(f"Unable to load scenario from {source}: {error}") from error
     return manifest_response.text, traces_response.text
 
 
@@ -95,18 +95,18 @@ def _read_text(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except OSError as error:
-        raise CorpusError(f"Unable to read corpus file {path}: {error}") from error
+        raise ScenarioError(f"Unable to read scenario file {path}: {error}") from error
 
 
 def _parse_manifest(text: str, source: str) -> Mapping[str, Any]:
     try:
         manifest = json.loads(text)
     except json.JSONDecodeError as error:
-        raise CorpusError(f"Invalid manifest.json in {source}: {error}") from error
+        raise ScenarioError(f"Invalid manifest.json in {source}: {error}") from error
     if not isinstance(manifest, dict):
-        raise CorpusError(f"manifest.json in {source} must contain a JSON object")
+        raise ScenarioError(f"manifest.json in {source} must contain a JSON object")
     if not manifest:
-        raise CorpusError(f"manifest.json in {source} must not be empty")
+        raise ScenarioError(f"manifest.json in {source} must not be empty")
     return manifest
 
 
@@ -119,16 +119,16 @@ def _parse_requests(text: str, source: str) -> tuple[ExportTraceServiceRequest, 
         try:
             Parse(line, request)
         except ParseError as error:
-            raise CorpusError(
+            raise ScenarioError(
                 f"Invalid traces.jsonl entry in {source} at line {line_number}: {error}"
             ) from error
         if not any(_iter_spans(request)):
-            raise CorpusError(
+            raise ScenarioError(
                 f"traces.jsonl entry in {source} at line {line_number} contains no spans"
             )
         requests.append(request)
     if not requests:
-        raise CorpusError(f"traces.jsonl in {source} contains no requests")
+        raise ScenarioError(f"traces.jsonl in {source} contains no requests")
     return tuple(requests)
 
 
@@ -140,9 +140,9 @@ def _validate_counts(
     spans = tuple(span for request in requests for span in _iter_spans(request))
     for span in spans:
         if len(span.trace_id) != 16:
-            raise CorpusError(f"A span in {source} has a trace ID that is not 16 bytes")
+            raise ScenarioError(f"A span in {source} has a trace ID that is not 16 bytes")
         if len(span.span_id) != 8:
-            raise CorpusError(f"A span in {source} has a span ID that is not 8 bytes")
+            raise ScenarioError(f"A span in {source} has a span ID that is not 8 bytes")
 
     trace_count = len({span.trace_id for span in spans})
     expected_counts = {
@@ -152,7 +152,7 @@ def _validate_counts(
     for field, actual in expected_counts.items():
         expected = manifest.get(field)
         if expected is not None and (not isinstance(expected, int) or expected != actual):
-            raise CorpusError(
+            raise ScenarioError(
                 f"manifest.json in {source} declares {field}={expected!r}, but parsed {actual}"
             )
 

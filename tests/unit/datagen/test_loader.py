@@ -1,19 +1,19 @@
 from pathlib import Path
 
-from phoenix.datagen import load_corpus
+from phoenix.datagen import load_scenario
 
 
-def test_load_corpus_parses_local_fixture() -> None:
-    corpus_path = Path(__file__).parent / "fixtures" / "corpus"
+def test_load_scenario_parses_local_fixture() -> None:
+    scenario_path = Path(__file__).parent / "fixtures" / "scenario"
 
-    corpus = load_corpus(corpus_path)
+    scenario = load_scenario(scenario_path)
 
-    assert corpus.manifest["scenario"] == "synthetic-chat"
-    assert len(corpus.requests) == 3
+    assert scenario.manifest["scenario"] == "synthetic-chat"
+    assert len(scenario.requests) == 3
     assert (
         sum(
             len(scope_spans.spans)
-            for request in corpus.requests
+            for request in scenario.requests
             for resource_spans in request.resource_spans
             for scope_spans in resource_spans.scope_spans
         )
@@ -21,17 +21,17 @@ def test_load_corpus_parses_local_fixture() -> None:
     )
 
 
-def test_load_corpus_parses_bundled_corpora() -> None:
+def test_load_scenario_parses_bundled_scenarios() -> None:
     for source in ("langchain_agent_rag", "openai_chat_sessions"):
-        corpus = load_corpus(source)
+        scenario = load_scenario(source)
 
-        assert len(corpus.requests) == corpus.manifest["trace_count"]
+        assert len(scenario.requests) == scenario.manifest["trace_count"]
         assert (
             sum(
                 len(scope_spans.spans)
-                for request in corpus.requests
+                for request in scenario.requests
                 for resource_spans in request.resource_spans
                 for scope_spans in resource_spans.scope_spans
             )
-            == corpus.manifest["span_count"]
+            == scenario.manifest["span_count"]
         )

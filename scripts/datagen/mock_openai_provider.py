@@ -14,16 +14,12 @@ from typing import Any
 
 
 def _token_count(value: Any) -> int:
-    text = (
-        json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
-    )
+    text = json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
     return max(1, round(len(text.split()) * 1.35))
 
 
 def _latest_message(messages: list[dict[str, Any]], role: str) -> dict[str, Any] | None:
-    return next(
-        (message for message in reversed(messages) if message.get("role") == role), None
-    )
+    return next((message for message in reversed(messages) if message.get("role") == role), None)
 
 
 def _tool_response(messages: list[dict[str, Any]]) -> str | None:
@@ -161,15 +157,11 @@ def _tool_call(
     if not tools or _latest_message(messages, "tool") is not None:
         return None
     user = str((_latest_message(messages, "user") or {}).get("content", ""))
-    if not re.search(
-        r"\b(arrive|delivery|deliver|shipping|shipment|order)\b", user, re.I
-    ):
+    if not re.search(r"\b(arrive|delivery|deliver|shipping|shipment|order)\b", user, re.I):
         return None
     function = tools[0].get("function", {}) if tools else {}
     postal_code = (re.search(r"\b\d{5}\b", user) or ["10001"])[0]
-    service_level = (
-        "express" if re.search(r"\b(express|expedited)\b", user, re.I) else "standard"
-    )
+    service_level = "express" if re.search(r"\b(express|expedited)\b", user, re.I) else "standard"
     return {
         "id": f"call_{uuid.uuid4().hex[:18]}",
         "type": "function",
@@ -190,9 +182,7 @@ def create_chat_completion(request: dict[str, Any]) -> dict[str, Any]:
     content = None if call else _chat_response(messages)
     completion_payload = call or content or ""
     prompt_tokens = (
-        _token_count(messages) + _token_count(tools)
-        if tools
-        else _token_count(messages)
+        _token_count(messages) + _token_count(tools) if tools else _token_count(messages)
     )
     completion_tokens = _token_count(completion_payload)
     return {
@@ -200,7 +190,7 @@ def create_chat_completion(request: dict[str, Any]) -> dict[str, Any]:
         "object": "chat.completion",
         "created": int(time.time()),
         "model": request.get("model", "gpt-4.1-mini"),
-        "system_fingerprint": "fp_datagen_corpus",
+        "system_fingerprint": "fp_datagen_scenario",
         "choices": [
             {
                 "index": 0,

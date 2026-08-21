@@ -14,7 +14,7 @@ def test_datagen_cli_flags_override_environment() -> None:
             "https://collector.example",
             "--api-key",
             "cli-key",
-            "--corpus",
+            "--scenario",
             "chat",
             "--project",
             "cli-project",
@@ -38,6 +38,7 @@ def test_datagen_cli_flags_override_environment() -> None:
             "PHOENIX_API_KEY": "env-key",
             "PHOENIX_CLIENT_HEADERS": "x-tenant=tenant%20one,x-route=blue",
             "PHOENIX_PROJECT_NAME": "env-project",
+            "PHOENIX_DATAGEN_SCENARIO": "env-scenario",
             "PHOENIX_DATAGEN_RATE": "1",
         },
     )
@@ -45,7 +46,7 @@ def test_datagen_cli_flags_override_environment() -> None:
     assert config.endpoint == "https://collector.example"
     assert config.api_key == "cli-key"
     assert config.headers == {"x-tenant": "tenant one", "x-route": "blue"}
-    assert config.corpus == "chat"
+    assert config.scenario == "chat"
     assert config.project == "cli-project"
     assert config.rate == 30
     assert config.burstiness == 0.8
@@ -53,3 +54,16 @@ def test_datagen_cli_flags_override_environment() -> None:
     assert config.seed == 42
     assert config.anomaly_manifest == "anomalies.jsonl"
     assert args.func is datagen.run
+
+
+def test_datagen_scenario_environment_fallback() -> None:
+    parser = ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    datagen.register(subparsers)
+
+    config = datagen._resolve_config(
+        parser.parse_args(["datagen"]),
+        {"PHOENIX_DATAGEN_SCENARIO": "openai_chat_sessions"},
+    )
+
+    assert config.scenario == "openai_chat_sessions"

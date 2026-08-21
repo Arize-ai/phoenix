@@ -18,7 +18,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
-from phoenix.datagen.loader import Corpus
+from phoenix.datagen.loader import Scenario
 
 _SESSION_ID = "session.id"
 _PROMPT_TOKENS = "llm.token_count.prompt"
@@ -86,7 +86,7 @@ class Replayer:
 
     def __init__(
         self,
-        corpus: Corpus,
+        scenario: Scenario,
         *,
         epsilon: float = 0.02,
         seed: int | None = None,
@@ -101,15 +101,15 @@ class Replayer:
             "big",
         )
         self._identity_random = np.random.default_rng(identity_seed)
-        self._project_name = project_name or f"datagen-{_corpus_name(corpus)}"
+        self._project_name = project_name or f"datagen-{_scenario_name(scenario)}"
         self._numerics = _NumericsEngine.from_requests(
-            corpus.requests,
+            scenario.requests,
             epsilon=epsilon,
             random=self._random,
         )
         templates_by_session: dict[str, list[_TraceTemplate]] = defaultdict(list)
         trace_number = 0
-        for request in corpus.requests:
+        for request in scenario.requests:
             for trace_request in _split_traces(request):
                 session_ids = {
                     session_id
@@ -117,7 +117,7 @@ class Replayer:
                     if (session_id := _string_attribute(span, _SESSION_ID))
                 }
                 if len(session_ids) > 1:
-                    raise ValueError("A corpus trace contains multiple session.id values")
+                    raise ValueError("A scenario trace contains multiple session.id values")
                 has_session = bool(session_ids)
                 session_key = next(iter(session_ids), f"__trace_{trace_number}")
                 templates_by_session[session_key].append(
@@ -125,7 +125,7 @@ class Replayer:
                 )
                 trace_number += 1
         if not templates_by_session:
-            raise ValueError("corpus contains no traces")
+            raise ValueError("scenario contains no traces")
         self._sessions = {key: tuple(templates) for key, templates in templates_by_session.items()}
         self._queues: dict[str, deque[_TraceTemplate]] = {}
         self._session_ids: dict[str, str] = {}
@@ -408,12 +408,12 @@ def _refresh_anomaly_latencies(
     return tuple(refreshed)
 
 
-def _corpus_name(corpus: Corpus) -> str:
+def _scenario_name(scenario: Scenario) -> str:
     for key in ("scenario_name", "scenario", "name"):
-        value = corpus.manifest.get(key)
+        value = scenario.manifest.get(key)
         if isinstance(value, str) and value:
             return value
-    return Path(corpus.source.rstrip("/")).name or "default"
+    return Path(scenario.source.rstrip("/")).name or "default"
 
 
 def _set_project_name(request: ExportTraceServiceRequest, project_name: str) -> None:

@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from argparse import ArgumentParser, _SubParsersAction
 
 _DEFAULT_ENDPOINT = "http://localhost:6006"
-_DEFAULT_CORPUS = "default"
+_DEFAULT_SCENARIO = "default"
 _DEFAULT_RATE = 12.0
 _DEFAULT_BURSTINESS = 0.5
 _DEFAULT_EPSILON = 0.02
@@ -24,7 +24,7 @@ class _Config:
     endpoint: str
     api_key: str | None
     headers: Mapping[str, str]
-    corpus: str
+    scenario: str
     project: str | None
     rate: float
     burstiness: float
@@ -45,18 +45,15 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     )
     parser.add_argument("--api-key", help="Phoenix API key (env: PHOENIX_API_KEY).")
     parser.add_argument(
-        "--corpus",
+        "--scenario",
         help=(
-            "Bundled corpus name, local directory, or HTTP(S) directory "
-            "(env: PHOENIX_DATAGEN_CORPUS)."
+            "Bundled scenario name, local directory, or HTTP(S) directory "
+            "(env: PHOENIX_DATAGEN_SCENARIO)."
         ),
     )
     parser.add_argument(
         "--project",
-        help=(
-            "Destination project; defaults to datagen-<corpus_name> "
-            "(env: PHOENIX_PROJECT_NAME)."
-        ),
+        help=("Destination project; defaults to datagen-<scenario> (env: PHOENIX_PROJECT_NAME)."),
     )
     parser.add_argument(
         "--rate",
@@ -85,12 +82,12 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
 
 
 def run(args: Namespace) -> None:
-    from phoenix.datagen import AnomalyManifest, OTLPHTTPExporter, Replayer, load_corpus
+    from phoenix.datagen import AnomalyManifest, OTLPHTTPExporter, Replayer, load_scenario
 
     config = _resolve_config(args, os.environ)
-    corpus = load_corpus(config.corpus)
+    scenario = load_scenario(config.scenario)
     replayer = Replayer(
-        corpus,
+        scenario,
         epsilon=config.epsilon,
         seed=config.seed,
         project_name=config.project,
@@ -131,11 +128,11 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
         ),
         api_key=args.api_key or environ.get("PHOENIX_API_KEY"),
         headers=parse_env_headers(environ.get("PHOENIX_CLIENT_HEADERS")),
-        corpus=_setting(
-            args.corpus,
+        scenario=_setting(
+            args.scenario,
             environ,
-            "PHOENIX_DATAGEN_CORPUS",
-            _DEFAULT_CORPUS,
+            "PHOENIX_DATAGEN_SCENARIO",
+            _DEFAULT_SCENARIO,
             str,
         ),
         project=args.project or environ.get("PHOENIX_PROJECT_NAME"),

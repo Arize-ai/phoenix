@@ -76,7 +76,7 @@ phoenix datagen
 
 Use `--rate`, `--burstiness`, and `--epsilon` to vary traffic and anomaly frequency. The
 collector defaults to `http://localhost:6006`; set `PHOENIX_COLLECTOR_ENDPOINT` and
-`PHOENIX_API_KEY` for a remote Phoenix deployment. Run `phoenix datagen --help` for corpus,
+`PHOENIX_API_KEY` for a remote Phoenix deployment. Run `phoenix datagen --help` for scenario,
 seed, and anomaly-manifest options.
 
 On Railway, use the same Phoenix image for a second service whose start command is

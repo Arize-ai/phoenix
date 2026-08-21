@@ -1,4 +1,4 @@
-# Trace corpus recorder
+# Trace scenario recorder
 
 These scripts record deterministic scenario traffic through real OpenInference instrumenters. The
 result is checked-in OTLP protobuf JSON that can be replayed without installing the scenario
@@ -25,6 +25,6 @@ Each script replaces its scenario's `traces.jsonl` and `manifest.json`. Every JS
 protobuf-JSON `ExportTraceServiceRequest`; requests from a multi-span trace may occupy multiple
 lines. The mock provider never contacts an external service.
 
-Re-record and review the corpus whenever a pinned instrumenter version changes. This version-bump
-workflow is the freshness mechanism for keeping stored span shapes aligned with upstream
-instrumentation.
+Re-record and review the scenario assets whenever a pinned instrumenter version changes. This
+version-bump workflow is the freshness mechanism for keeping stored span shapes aligned with
+upstream instrumentation.

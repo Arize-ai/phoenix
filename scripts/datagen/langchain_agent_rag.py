@@ -123,15 +123,11 @@ class OpenInferenceContextSpanProcessor(SpanProcessor):
 class PolicyRetriever(BaseRetriever):
     documents: tuple[Document, ...]
 
-    def _get_relevant_documents(
-        self, query: str, *, run_manager: Any
-    ) -> list[Document]:
+    def _get_relevant_documents(self, query: str, *, run_manager: Any) -> list[Document]:
         query_words = set(query.lower().replace("-", " ").split())
         ranked = sorted(
             self.documents,
-            key=lambda document: len(
-                query_words & set(document.page_content.lower().split())
-            ),
+            key=lambda document: len(query_words & set(document.page_content.lower().split())),
             reverse=True,
         )
         return ranked[:2]
@@ -179,17 +175,11 @@ def write_manifest(output_dir: Path) -> None:
         "trace_count": len({span["traceId"] for span in spans}),
         "span_count": len(spans),
         "span_kinds": sorted(
-            {
-                kind
-                for span in spans
-                if (kind := _attribute(span, "openinference.span.kind"))
-            }
+            {kind for span in spans if (kind := _attribute(span, "openinference.span.kind"))}
         ),
         "session_structure": {
             "session_count": len(SESSIONS),
-            "turns_per_session": {
-                session_id: len(turns) for session_id, turns in SESSIONS.items()
-            },
+            "turns_per_session": {session_id: len(turns) for session_id, turns in SESSIONS.items()},
         },
         "encoding_notes": (
             "Each line is one protobuf-JSON ExportTraceServiceRequest. A "
@@ -204,16 +194,12 @@ def in_process_http_client() -> httpx.Client:
     from mock_openai_provider import create_chat_completion
 
     def handle(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200, json=create_chat_completion(json.loads(request.content))
-        )
+        return httpx.Response(200, json=create_chat_completion(json.loads(request.content)))
 
     return httpx.Client(transport=httpx.MockTransport(handle))
 
 
-def make_agent(
-    base_url: str, http_client: httpx.Client | None = None
-) -> RunnableLambda:
+def make_agent(base_url: str, http_client: httpx.Client | None = None) -> RunnableLambda:
     retriever = PolicyRetriever(documents=POLICY_DOCUMENTS)
     model = ChatOpenAI(
         model="gpt-4.1-mini",
@@ -248,9 +234,7 @@ def make_agent(
         for tool_call in draft.tool_calls:
             result = estimate_delivery_days.invoke(tool_call["args"])
             tool_messages.append(
-                ToolMessage(
-                    content=result, tool_call_id=tool_call["id"], name=tool_call["name"]
-                )
+                ToolMessage(content=result, tool_call_id=tool_call["id"], name=tool_call["name"])
             )
         final = model.invoke([*messages, draft, *tool_messages])
         return {"answer": final.content, "message": final}
@@ -261,17 +245,13 @@ def make_agent(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     default_output = (
-        Path(__file__).resolve().parents[2]
-        / "src/phoenix/datagen/corpora"
-        / SCENARIO_NAME
+        Path(__file__).resolve().parents[2] / "src/phoenix/datagen/assets" / SCENARIO_NAME
     )
     parser.add_argument("--output-dir", type=Path, default=default_output)
     parser.add_argument(
         "--base-url", default=os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8765/v1")
     )
-    parser.add_argument(
-        "--in-process-provider", action="store_true", help=argparse.SUPPRESS
-    )
+    parser.add_argument("--in-process-provider", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     provider = TracerProvider(

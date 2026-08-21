@@ -38,15 +38,13 @@ from opentelemetry.sdk.trace.export import (
 SCENARIO_NAME = "openai_chat_sessions"
 SESSIONS = {
     "product-onboarding": (
-        "Our new-team activation rate fell after we changed onboarding. "
-        "Where should I start?",
+        "Our new-team activation rate fell after we changed onboarding. Where should I start?",
         "Which assumption in that diagnosis is the riskiest?",
         "Design a small experiment to test it without rebuilding the entire flow.",
         "Summarize the recommendation as an owner, success bar, and review date.",
     ),
     "api-latency-incident": (
-        "API p95 latency doubled while the median stayed flat. "
-        "How should we investigate?",
+        "API p95 latency doubled while the median stayed flat. How should we investigate?",
         "Which metrics belong together on the incident dashboard?",
         "Give me the leading cause hypothesis and the evidence that would confirm it.",
         "Draft a concise stakeholder update while we test that hypothesis.",
@@ -108,17 +106,11 @@ def write_manifest(output_dir: Path) -> None:
         "trace_count": len({span["traceId"] for span in spans}),
         "span_count": len(spans),
         "span_kinds": sorted(
-            {
-                kind
-                for span in spans
-                if (kind := _attribute(span, "openinference.span.kind"))
-            }
+            {kind for span in spans if (kind := _attribute(span, "openinference.span.kind"))}
         ),
         "session_structure": {
             "session_count": len(SESSIONS),
-            "turns_per_session": {
-                session_id: len(turns) for session_id, turns in SESSIONS.items()
-            },
+            "turns_per_session": {session_id: len(turns) for session_id, turns in SESSIONS.items()},
         },
         "encoding_notes": (
             "Each line is one protobuf-JSON ExportTraceServiceRequest. A "
@@ -133,9 +125,7 @@ def in_process_http_client() -> httpx.Client:
     from mock_openai_provider import create_chat_completion
 
     def handle(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200, json=create_chat_completion(json.loads(request.content))
-        )
+        return httpx.Response(200, json=create_chat_completion(json.loads(request.content)))
 
     return httpx.Client(transport=httpx.MockTransport(handle))
 
@@ -143,17 +133,13 @@ def in_process_http_client() -> httpx.Client:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     default_output = (
-        Path(__file__).resolve().parents[2]
-        / "src/phoenix/datagen/corpora"
-        / SCENARIO_NAME
+        Path(__file__).resolve().parents[2] / "src/phoenix/datagen/assets" / SCENARIO_NAME
     )
     parser.add_argument("--output-dir", type=Path, default=default_output)
     parser.add_argument(
         "--base-url", default=os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8765/v1")
     )
-    parser.add_argument(
-        "--in-process-provider", action="store_true", help=argparse.SUPPRESS
-    )
+    parser.add_argument("--in-process-provider", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     provider = TracerProvider(
@@ -173,9 +159,7 @@ def main() -> None:
         with using_session(session_id):
             for turn in turns:
                 messages.append({"role": "user", "content": turn})
-                response = client.chat.completions.create(
-                    model="gpt-4.1-mini", messages=messages
-                )
+                response = client.chat.completions.create(model="gpt-4.1-mini", messages=messages)
                 messages.append(
                     {
                         "role": "assistant",
