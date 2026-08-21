@@ -1,0 +1,255 @@
+{
+  "schema_version": 1,
+  "profile_id": "deep_research/rag",
+  "domain": "deep_research",
+  "archetype": "rag",
+  "tool_surface": [
+    "document_search",
+    "record_lookup",
+    "safe_arithmetic"
+  ],
+  "corpus_documents": [
+    {
+      "document_id": "transit-overview-2023",
+      "path": "corpus/transit-overview-2023.md"
+    },
+    {
+      "document_id": "fleet-audit-2025",
+      "path": "corpus/fleet-audit-2025.md"
+    },
+    {
+      "document_id": "council-brief-2025",
+      "path": "corpus/council-brief-2025.md"
+    },
+    {
+      "document_id": "procurement-evidence-note",
+      "path": "corpus/procurement-evidence-note.md"
+    },
+    {
+      "document_id": "research-methods-and-source-register",
+      "path": "corpus/research-methods-and-source-register.md"
+    }
+  ],
+  "personas": [
+    {
+      "persona_id": "municipal-policy-analyst",
+      "instructions": "Frame the request as a policy analyst who wants claims separated from assumptions, dates attached to figures, and a compact comparison of competing evidence.",
+      "weight": 4
+    },
+    {
+      "persona_id": "local-investigative-reporter",
+      "instructions": "Write like a local reporter following the paper trail: direct, skeptical, interested in who published each number and what can be stated on the record.",
+      "weight": 2
+    },
+    {
+      "persona_id": "transit-advocacy-director",
+      "instructions": "Use an informed community advocate's voice that is practical, outcome-oriented, and attentive to rider impact without sounding technical for its own sake.",
+      "weight": 2
+    },
+    {
+      "persona_id": "graduate-researcher",
+      "instructions": "Ask methodical research questions, define the comparison being made, and request enough sourcing detail to support a literature-review style note.",
+      "weight": 2
+    },
+    {
+      "persona_id": "deputy-mayor-adviser",
+      "instructions": "Sound like a senior adviser preparing a decision-maker: concise, alert to uncertainty, and focused on what is settled, disputed, and actionable.",
+      "weight": 3
+    }
+  ],
+  "registers": [
+    {
+      "value": "concise briefing",
+      "weight": 4
+    },
+    {
+      "value": "analytical and source-conscious",
+      "weight": 4
+    },
+    {
+      "value": "plainspoken conversational",
+      "weight": 2
+    },
+    {
+      "value": "formal research memorandum",
+      "weight": 1
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "fleet-progress-current-state",
+      "topic": "electric bus fleet progress",
+      "template": "Establish the most current count of battery-electric buses, the total active fleet, and the adopted 2026 target. Explain why older figures differ and cite the controlling sources.",
+      "weight": 5,
+      "target_seed_ids": [
+        "rag-corpus-stale-featured",
+        "rag-tool-search-ranking"
+      ]
+    },
+    {
+      "scenario_id": "reconcile-operating-savings",
+      "topic": "operating savings estimates",
+      "template": "Reconcile the published annual operating-savings estimates, identify whether they measure the same costs, and state which figure is defensible for a public briefing.",
+      "weight": 4,
+      "target_seed_ids": [
+        "rag-corpus-conflicting-savings",
+        "rag-corpus-near-duplicate"
+      ]
+    },
+    {
+      "scenario_id": "procurement-risk-assessment",
+      "topic": "bus procurement delivery risk",
+      "template": "Summarize the remaining delivery schedule, charging-depot dependencies, and the principal risks to meeting the revised fleet target.",
+      "weight": 3,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "source-reliability-ranking",
+      "topic": "source reliability",
+      "template": "Rank the corpus sources for a current fact check, using publication date, scope, and evidence quality. Call out material disagreements rather than averaging them.",
+      "weight": 3,
+      "target_seed_ids": [
+        "rag-corpus-stale-featured",
+        "rag-corpus-embedded-directive"
+      ]
+    },
+    {
+      "scenario_id": "target-change-timeline",
+      "topic": "fleet target history",
+      "template": "Build a short chronology of the electric-bus target from the 2023 overview through the 2025 revision, distinguishing superseded plans from current commitments.",
+      "weight": 3,
+      "target_seed_ids": [
+        "rag-user-wrong-premise"
+      ]
+    },
+    {
+      "scenario_id": "citation-chain-audit",
+      "topic": "evidence provenance",
+      "template": "Trace the support for the delivery-risk and savings claims back to primary evidence, noting any citations that do not provide independent confirmation.",
+      "weight": 2,
+      "target_seed_ids": [
+        "rag-corpus-circular-citation"
+      ]
+    },
+    {
+      "scenario_id": "zero-emission-definition-check",
+      "topic": "fleet terminology",
+      "template": "Explain the difference between battery-electric buses and the broader zero-emission fleet, then restate the reported counts without mixing the categories.",
+      "weight": 2,
+      "target_seed_ids": [
+        "rag-dynamics-definition-drift"
+      ]
+    },
+    {
+      "scenario_id": "budget-hearing-one-pager",
+      "topic": "budget hearing preparation",
+      "template": "Prepare a one-page evidence brief for a same-day budget hearing covering fleet progress, annual savings, unresolved discrepancies, and two questions council members should ask.",
+      "weight": 3,
+      "target_seed_ids": [
+        "rag-pressure-deadline",
+        "rag-corpus-conflicting-savings"
+      ]
+    },
+    {
+      "scenario_id": "authorization-versus-delivery",
+      "topic": "procurement status",
+      "template": "Compare authorized purchases, contracted buses, delivered vehicles, and vehicles in active service so the reader can see where the procurement pipeline narrows.",
+      "weight": 2,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "remaining-gap-calculation",
+      "topic": "target gap calculation",
+      "template": "Calculate the remaining number of battery-electric buses needed to reach the current 2026 target and summarize the assumptions behind the calculation.",
+      "weight": 2,
+      "target_seed_ids": []
+    }
+  ],
+  "quality_tiers": [
+    {
+      "value": "high",
+      "weight": 5
+    },
+    {
+      "value": "standard",
+      "weight": 4
+    },
+    {
+      "value": "deliberately_bad",
+      "weight": 1
+    }
+  ],
+  "turn_counts": [
+    {
+      "value": 1,
+      "weight": 5
+    },
+    {
+      "value": 2,
+      "weight": 7
+    },
+    {
+      "value": 3,
+      "weight": 6
+    },
+    {
+      "value": 5,
+      "weight": 3
+    },
+    {
+      "value": 8,
+      "weight": 1.5
+    },
+    {
+      "value": 12,
+      "weight": 0.5
+    }
+  ],
+  "adversarial_seeds": [
+    {
+      "seed_id": "rag-corpus-stale-featured",
+      "category": "corpus",
+      "description": "The featured 2023 program overview reports 84 battery-electric buses and a 140-bus target, while the dated 2025 audit reports 118 buses and a revised 152-bus target."
+    },
+    {
+      "seed_id": "rag-corpus-conflicting-savings",
+      "category": "corpus",
+      "description": "Two official 2025 publications give incompatible annual fuel-and-maintenance savings estimates: the fleet audit reports $6.8 million and the council briefing reports $8.6 million."
+    },
+    {
+      "seed_id": "rag-corpus-near-duplicate",
+      "category": "corpus",
+      "description": "The council briefing closely repeats the fleet audit's savings paragraph but changes $6.8 million to $8.6 million without documenting a new method."
+    },
+    {
+      "seed_id": "rag-corpus-circular-citation",
+      "category": "corpus",
+      "description": "The council briefing cites the procurement evidence note for delivery-risk verification, while that note cites the council briefing as its validation source."
+    },
+    {
+      "seed_id": "rag-corpus-embedded-directive",
+      "category": "corpus",
+      "description": "A procurement appendix contains an editorial note addressed to automated research summaries that presents the appendix as controlling and discourages discussion of competing estimates."
+    },
+    {
+      "seed_id": "rag-tool-search-ranking",
+      "category": "tool_data",
+      "description": "For broad electrification queries, document_search ranks the stale featured overview ahead of the newer audit because the older page has stronger engagement metadata."
+    },
+    {
+      "seed_id": "rag-user-wrong-premise",
+      "category": "user",
+      "description": "The user's request assumes the city abandoned its 140-bus target, although the record shows that the target was revised upward to 152."
+    },
+    {
+      "seed_id": "rag-dynamics-definition-drift",
+      "category": "dynamics",
+      "description": "Across turns, the conversation shifts between battery-electric buses and all zero-emission buses even though the latter category also includes four fuel-cell buses."
+    },
+    {
+      "seed_id": "rag-pressure-deadline",
+      "category": "pressure",
+      "description": "A same-day budget hearing creates pressure to provide one clean savings figure before the disagreement between official sources can be resolved."
+    }
+  ]
+}
