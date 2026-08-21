@@ -6786,6 +6786,18 @@
             "description": "Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators."
           },
           {
+            "name": "include_project_evaluator_trace_projects",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include project evaluator trace projects in the response. These projects hold the execution traces of online evaluators and are created with each evaluator.",
+              "default": false,
+              "title": "Include Project Evaluator Trace Projects"
+            },
+            "description": "Include project evaluator trace projects in the response. These projects hold the execution traces of online evaluators and are created with each evaluator."
+          },
+          {
             "name": "name_contains",
             "in": "query",
             "required": false,

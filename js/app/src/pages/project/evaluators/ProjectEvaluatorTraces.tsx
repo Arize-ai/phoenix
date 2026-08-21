@@ -24,16 +24,18 @@ import {
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 
 type ProjectEvaluatorTracesProps = {
-  /** The shared project every evaluator traces into. */
+  /** The evaluator's own trace project. */
   projectId: string;
   projectEvaluatorId: string;
+  /** Whether any run is on record, choosing which empty state to show. */
+  hasEverRun: boolean;
 };
 
 /**
  * One evaluator's own traces: what it read, the model call it made, and the
- * judgment it parsed out. Every evaluator writes into the same project, so the
- * evaluator's id is passed to the server as a scope the filter field cannot
- * widen — the rows here are always this evaluator's.
+ * judgment it parsed out. Each evaluator writes into its own trace project,
+ * and the evaluator's id is still passed to the server as a scope, so the
+ * rows here are always this evaluator's.
  */
 export function ProjectEvaluatorTraces(props: ProjectEvaluatorTracesProps) {
   // Reset the mount-time filter and time-range seed when the tab is reused for
@@ -46,6 +48,7 @@ export function ProjectEvaluatorTraces(props: ProjectEvaluatorTracesProps) {
 function ProjectEvaluatorTracesContent({
   projectId,
   projectEvaluatorId,
+  hasEverRun,
 }: ProjectEvaluatorTracesProps) {
   // Read once at mount. The table writes each applied filter back to the URL,
   // and deriving the variables from the live param would re-execute the query
@@ -81,6 +84,7 @@ function ProjectEvaluatorTracesContent({
                 <ProjectEvaluatorTracesTable
                   projectId={projectId}
                   projectEvaluatorId={projectEvaluatorId}
+                  hasEverRun={hasEverRun}
                   seed={seed}
                 />
               ) : (
@@ -97,6 +101,7 @@ function ProjectEvaluatorTracesContent({
 function ProjectEvaluatorTracesTable({
   projectId,
   projectEvaluatorId,
+  hasEverRun,
   seed,
 }: ProjectEvaluatorTracesProps & { seed: SettledSpanFilterSeed }) {
   const { timeRangeISOStrings } = useTimeRange();
@@ -142,16 +147,27 @@ function ProjectEvaluatorTracesTable({
       project={data.project}
       seed={seed}
       projectEvaluatorId={projectEvaluatorId}
-      emptyState={<ProjectEvaluatorTracesEmpty />}
+      emptyState={<ProjectEvaluatorTracesEmpty hasEverRun={hasEverRun} />}
     />
   );
 }
 
 /**
- * The evaluator has run, but nothing is here to show. Distinct from the
- * never-run state the details page renders instead of this tab.
+ * An evaluator that has never run and one whose past runs left no trace here
+ * are different situations with different remedies, so they get different copy.
  */
-function ProjectEvaluatorTracesEmpty() {
+function ProjectEvaluatorTracesEmpty({ hasEverRun }: { hasEverRun: boolean }) {
+  if (!hasEverRun) {
+    return (
+      <TableEmptyWrap>
+        <EmptyState
+          graphic={<EmptyStateGraphic variant="trace" />}
+          title="This evaluator has not run yet"
+          description="Traces appear here once the evaluator runs. It runs on its own against the spans its scope selects — there is nothing to start."
+        />
+      </TableEmptyWrap>
+    );
+  }
   return (
     <TableEmptyWrap>
       <EmptyState
