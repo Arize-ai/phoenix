@@ -6,6 +6,11 @@ from strawberry.relay import GlobalID
 from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
 
@@ -115,6 +120,26 @@ class TestListAgentSessions:
 
     async def test_rejects_invalid_cursor(self, httpx_client: httpx.AsyncClient) -> None:
         response = await httpx_client.get("/v1/agent_sessions?cursor=invalid")
+        assert response.status_code == 422
+
+    async def test_rejects_a_cursor_carrying_the_wrong_sort_type(
+        self, httpx_client: httpx.AsyncClient
+    ) -> None:
+        """Sessions page by `updated_at`; a float belongs to a different column."""
+        cursor = str(
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(type=CursorSortColumnDataType.FLOAT, value=1.5),
+            )
+        )
+        response = await httpx_client.get("/v1/agent_sessions", params={"cursor": cursor})
+        assert response.status_code == 422
+
+    async def test_rejects_a_rowid_only_cursor(self, httpx_client: httpx.AsyncClient) -> None:
+        """A sorted page cannot be placed from a rowid alone."""
+        response = await httpx_client.get(
+            "/v1/agent_sessions", params={"cursor": str(Cursor(rowid=1))}
+        )
         assert response.status_code == 422
 
 
@@ -338,6 +363,31 @@ class TestListAgentSessionMessages:
             params={"cursor": "invalid"},
         )
 
+        assert response.status_code == 422
+
+    async def test_rejects_a_cursor_carrying_a_sort_value(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """The transcript orders by rowid alone, so a sort value is from elsewhere."""
+        agent_session = await _insert_agent_session(
+            db, title="Conversation", updated_at=datetime.now(timezone.utc)
+        )
+        session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+        cursor = str(
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.now(timezone.utc),
+                ),
+            )
+        )
+        response = await httpx_client.get(
+            f"/v1/agent_sessions/{session_id}/messages",
+            params={"cursor": cursor},
+        )
         assert response.status_code == 422
 
     async def test_returns_not_found_for_nonexistent_session(

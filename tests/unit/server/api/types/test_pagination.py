@@ -6,6 +6,7 @@ from phoenix.server.api.types.pagination import (
     Cursor,
     CursorSortColumn,
     CursorSortColumnDataType,
+    echo_cursor,
 )
 
 
@@ -108,3 +109,18 @@ class TestCursorParse:
         """A query that does not sort has no null sort value to admit."""
         with pytest.raises(ValueError):
             Cursor.parse(str(Cursor(rowid=10)), sort_column_type=None, nullable=True)
+
+
+class TestEchoCursor:
+    """A rejected cursor is quoted back bounded and printable."""
+
+    def test_passes_a_short_printable_cursor_through(self) -> None:
+        assert echo_cursor("MTA6SU5UOjU=") == "MTA6SU5UOjU="
+
+    def test_truncates_an_overlong_cursor(self) -> None:
+        echoed = echo_cursor("A" * 5000)
+        assert echoed == "A" * 200 + "..."
+
+    def test_replaces_control_characters(self) -> None:
+        """A newline in the echo would otherwise forge a second log line."""
+        assert echo_cursor("ab\nc\rd\x00e") == "ab?c?d?e"

@@ -10,7 +10,11 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import Cursor, CursorSortColumnDataType
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumnDataType,
+    echo_cursor,
+)
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 
 from .models import V1RoutesBaseModel
@@ -236,4 +240,6 @@ def parse_cursor(
     try:
         return Cursor.parse(cursor, sort_column_type=sort_column_type)
     except ValueError as error:
-        raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}") from error
+        raise HTTPException(
+            status_code=422, detail=f"Invalid cursor format: {echo_cursor(cursor)}"
+        ) from error
