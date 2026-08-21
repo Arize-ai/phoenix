@@ -120,7 +120,10 @@ def _to_trace_data(
 
 
 #: Cursor sort-column type per `sort` field, so a cursor minted under one sort
-#: field is rejected rather than compared against the other's column.
+#: field is rejected rather than compared against the other's column. The
+#: rejection rests on the two types differing: a `sort` field added with a type
+#: already listed here would be indistinguishable from the one it shares, and a
+#: cursor would cross between them silently.
 _CURSOR_SORT_TYPES: dict[str, CursorSortColumnDataType] = {
     "start_time": CursorSortColumnDataType.DATETIME,
     "latency_ms": CursorSortColumnDataType.FLOAT,
@@ -154,8 +157,8 @@ async def list_project_traces(
     cursor: Optional[str] = Query(
         default=None,
         description=(
-            "Pagination cursor from a previous response's next_cursor. Tied to the "
-            "sort field it was minted with."
+            "Pagination cursor from a previous response's next_cursor. Valid only "
+            "for a request that repeats the same query parameters."
         ),
     ),
     include_spans: bool = Query(

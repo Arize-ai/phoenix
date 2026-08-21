@@ -9811,7 +9811,7 @@ export interface operations {
                 order?: "asc" | "desc";
                 /** @description Maximum number of traces to return */
                 limit?: number;
-                /** @description Pagination cursor from a previous response's next_cursor. Tied to the sort field it was minted with. */
+                /** @description Pagination cursor from a previous response's next_cursor. Valid only for a request that repeats the same query parameters. */
                 cursor?: string | null;
                 /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
                 include_spans?: boolean;
