@@ -16,10 +16,15 @@ import {
 /**
  * react-aria reports every interaction outside the modal element, including
  * portalled popovers and menus that visually belong to the form; only the
- * dimmed underlay is a genuine backdrop click.
+ * dimmed underlay is a genuine backdrop click. Window modals render a
+ * `react-aria-ModalOverlay` backdrop; viewport modals render their own
+ * overlay element instead.
  */
 export function isModalUnderlay(element: Element): boolean {
-  return element.classList.contains("react-aria-ModalOverlay");
+  return (
+    element.classList.contains("react-aria-ModalOverlay") ||
+    element.getAttribute("data-testid") === "viewport-modal-overlay"
+  );
 }
 
 export function DiscardEvaluatorChangesDialog({
