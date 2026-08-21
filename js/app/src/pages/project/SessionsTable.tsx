@@ -84,6 +84,7 @@ import {
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
   makeAnnotationColumnId,
+  makeAnnotationColumnIdsByName,
   normalizeAnnotationColumnOrder,
 } from "./tableUtils";
 type SessionsTableProps = {
@@ -525,11 +526,9 @@ export function SessionsTable(props: SessionsTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
-  const annotationColumnIdsByName = new Map(
-    visibleAnnotationColumnNames.map(
-      (name) => [name, makeAnnotationColumnId(name, "score")] as const
-    )
-  );
+  const annotationColumnIdsByName = makeAnnotationColumnIdsByName({
+    annotationNames: visibleAnnotationColumnNames,
+  });
   const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
     columnOrder: storedColumnOrder,
     annotationColumnIdsByName,

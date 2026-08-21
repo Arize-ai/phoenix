@@ -4,8 +4,8 @@ import { graphql, useFragment } from "react-relay";
 import { Flex } from "@phoenix/components";
 import type { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
 import {
-  AnnotationSummaryToken,
   AnnotationSummaryTokens,
+  AnnotationSummaryValueToken,
 } from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import type { Annotation } from "@phoenix/components/annotation/types";
 import { Divider } from "@phoenix/components/core/layout";
@@ -119,7 +119,7 @@ export const AnnotationSummaryGroupTokens = ({
   return (
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
-      annotationScope="span"
+      annotationTargetType="span"
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
@@ -137,22 +137,15 @@ export const AnnotationSummaryGroupToken = ({
 }: AnnotationSummaryGroupTokenProps) => {
   const { sortedSummariesByName, annotationsByName } =
     useAnnotationSummaryGroup(span);
-  const summary = sortedSummariesByName.find(
-    (summary) => summary.name === annotationName
-  );
-  const annotations = annotationsByName[annotationName] ?? [];
-  if (!summary || annotations.length === 0) {
-    return null;
-  }
   return (
-    <AnnotationSummaryToken
-      summary={summary}
-      annotationScope="span"
-      annotations={annotations}
-      annotationConfig={annotationConfigsByName.get(annotationName)}
+    <AnnotationSummaryValueToken
+      annotationName={annotationName}
+      annotationTargetType="span"
+      sortedSummariesByName={sortedSummariesByName}
+      annotationsByName={annotationsByName}
+      annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
       renderFilterActions={renderFilterActions}
-      variant="value"
     />
   );
 };

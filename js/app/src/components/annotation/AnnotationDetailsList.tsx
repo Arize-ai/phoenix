@@ -15,7 +15,7 @@ import {
   getPositiveOptimizationFromConfig,
   type AnnotationOptimizationConfig,
 } from "./optimizationUtils";
-import type { Annotation, AnnotationScope } from "./types";
+import type { Annotation, AnnotationTargetType } from "./types";
 
 const annotationListCSS = css`
   list-style: none;
@@ -45,13 +45,13 @@ const annotationValueCSS = css`
 
 export function AnnotationDetailsList({
   annotations,
-  annotationScope,
+  annotationTargetType,
   annotationConfig,
   meanScore,
   renderFilterActions,
 }: {
   annotations: readonly Annotation[];
-  annotationScope: AnnotationScope;
+  annotationTargetType: AnnotationTargetType;
   annotationConfig?: AnnotationOptimizationConfig;
   meanScore?: number | null;
   renderFilterActions?: (annotation: Annotation) => ReactNode;
@@ -103,7 +103,7 @@ export function AnnotationDetailsList({
               </Truncate>
             </View>
             <View flex="none">
-              <Badge variant="info">{`${annotationScope} annotation`}</Badge>
+              <Badge variant="info">{`${annotationTargetType} annotation`}</Badge>
             </View>
           </Flex>
           {meanScore != null ? (

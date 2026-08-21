@@ -60,7 +60,7 @@ const meta = {
     layout: "centered",
   },
   args: {
-    annotationScope: "span",
+    annotationTargetType: "span",
     summaries: [
       { name: "quality", meanScore: 0.6, labelFractions: [] },
       { name: "rationale-only", meanScore: null, labelFractions: [] },

@@ -4,6 +4,7 @@ import { graphql, useFragment } from "react-relay";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SessionColumnSelector_annotations$key } from "./__generated__/SessionColumnSelector_annotations.graphql";
+import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import { makeAnnotationColumnId } from "./tableUtils";
 import { TracingColumnSelector } from "./TracingColumnSelector";
 
@@ -45,7 +46,9 @@ export function SessionColumnSelector({
       unHidableColumnIds={UN_HIDABLE_COLUMN_IDS}
       annotationKinds={[
         {
-          names: [...data.sessionAnnotationNames],
+          // The summary fragment behind the cells excludes "note" annotations,
+          // so a note column would render permanently blank.
+          names: getNonNoteAnnotationNames(data.sessionAnnotationNames),
           visibility: annotationColumnVisibility,
           onVisibilityChange: setAnnotationColumnVisibility,
           getColumnId: (name) => makeAnnotationColumnId(name, "score"),

@@ -107,6 +107,31 @@ export function makeAnnotationColumnId(
 }
 
 /**
+ * Builds the raw-name → flat-column-id map used to migrate legacy grouped
+ * column ids via {@link normalizeAnnotationColumnOrder}. Trace entries are
+ * inserted first so a name existing as both a span and a trace annotation
+ * resolves to the span column id (Map last-entry-wins). This precedence must
+ * agree with TracingColumnSelector, which lists the span kind first and keeps
+ * the first column id per name.
+ */
+export function makeAnnotationColumnIdsByName({
+  annotationNames,
+  traceAnnotationNames = [],
+}: {
+  annotationNames: readonly string[];
+  traceAnnotationNames?: readonly string[];
+}): Map<string, string> {
+  return new Map([
+    ...traceAnnotationNames.map(
+      (name) => [name, makeAnnotationColumnId(name, "score", "trace")] as const
+    ),
+    ...annotationNames.map(
+      (name) => [name, makeAnnotationColumnId(name, "score")] as const
+    ),
+  ]);
+}
+
+/**
  * Converts annotation-name ids from the former grouped columns to the flat
  * columns' sortable ids while leaving ordinary and already-flat ids unchanged.
  */

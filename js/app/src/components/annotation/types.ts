@@ -23,7 +23,7 @@ export interface Annotation {
   } | null;
 }
 
-export type AnnotationScope = "span" | "trace" | "session";
+export type AnnotationTargetType = "span" | "trace" | "session";
 
 export type AnnotationInputPropsBase<T extends AnnotationConfig> = {
   annotation?: Annotation;

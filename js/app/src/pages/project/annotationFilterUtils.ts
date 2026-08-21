@@ -1,32 +1,50 @@
+import type { AnnotationTargetType } from "@phoenix/components/annotation/types";
 import { getDslStringLiteral } from "@phoenix/utils/filterConditionUtils";
 
+/** The subset of an annotation a tooltip filter can be built from. */
 export type AnnotationFilterInput = {
   name: string;
   label?: string | null;
   score?: number | null;
 };
 
+/**
+ * A one-click filter offered in an annotation tooltip/popover: a short action
+ * name shown on the token (e.g. "greater than") and the filter DSL condition
+ * appended to the page's filter bar when it is pressed.
+ */
 export type AnnotationFilterDefinition = {
   filterName: string;
   filterCondition: string;
 };
 
-type AnnotationAccessor =
-  | "annotations"
-  | "trace_annotations"
-  | "session_annotations";
+/**
+ * The filter DSL field that indexes annotations of a given target type, as in
+ * `annotations['correctness'].score > 0.5`.
+ */
+const ANNOTATIONS_DSL_FIELD_BY_TARGET_TYPE: Record<
+  AnnotationTargetType,
+  string
+> = {
+  span: "annotations",
+  trace: "trace_annotations",
+  session: "session_annotations",
+};
 
-function getAnnotationAccessorTooltipFilters({
+function getAnnotationTargetTooltipFilters({
   annotation,
-  annotationAccessor,
+  annotationTargetType,
 }: {
+  /** The annotation value the filters are anchored on. */
   annotation: AnnotationFilterInput;
-  annotationAccessor: AnnotationAccessor;
+  /** What the annotation annotates, which picks the filter DSL field. */
+  annotationTargetType: AnnotationTargetType;
 }): AnnotationFilterDefinition[] {
   const { name, label, score } = annotation;
+  const dslField = ANNOTATIONS_DSL_FIELD_BY_TARGET_TYPE[annotationTargetType];
   const nameLiteral = getDslStringLiteral({ value: name, quote: "'" });
-  const annotationLabel = `${annotationAccessor}[${nameLiteral}].label`;
-  const annotationScore = `${annotationAccessor}[${nameLiteral}].score`;
+  const annotationLabel = `${dslField}[${nameLiteral}].label`;
+  const annotationScore = `${dslField}[${nameLiteral}].score`;
 
   const filters: AnnotationFilterDefinition[] = [];
   if (typeof score === "number") {
@@ -56,30 +74,33 @@ function getAnnotationAccessorTooltipFilters({
   return filters;
 }
 
+/** Tooltip filters for span annotations, filtering a table of spans. */
 export function getAnnotationTooltipFilters(
   annotation: AnnotationFilterInput
 ): AnnotationFilterDefinition[] {
-  return getAnnotationAccessorTooltipFilters({
+  return getAnnotationTargetTooltipFilters({
     annotation,
-    annotationAccessor: "annotations",
+    annotationTargetType: "span",
   });
 }
 
+/** Tooltip filters for trace annotations, filtering a table of traces. */
 export function getTraceAnnotationTooltipFilters(
   annotation: AnnotationFilterInput
 ): AnnotationFilterDefinition[] {
-  return getAnnotationAccessorTooltipFilters({
+  return getAnnotationTargetTooltipFilters({
     annotation,
-    annotationAccessor: "trace_annotations",
+    annotationTargetType: "trace",
   });
 }
 
+/** Tooltip filters for session annotations, filtering a table of sessions. */
 export function getSessionAnnotationTooltipFilters(
   annotation: AnnotationFilterInput
 ): AnnotationFilterDefinition[] {
-  return getAnnotationAccessorTooltipFilters({
+  return getAnnotationTargetTooltipFilters({
     annotation,
-    annotationAccessor: "session_annotations",
+    annotationTargetType: "session",
   });
 }
 
@@ -93,6 +114,12 @@ function getTraceSpanAnnotationCondition({
   return `any(any(annotation.name == ${nameLiteral} and ${valueCondition} for annotation in span.annotations) for span in spans)`;
 }
 
+/**
+ * Tooltip filters for span annotations when the table being filtered holds
+ * traces: the plain `annotations[...]` field only reads the root span, so
+ * these conditions instead match a trace when any of its spans carries the
+ * annotation value.
+ */
 export function getTraceSpanAnnotationTooltipFilters(
   annotation: AnnotationFilterInput
 ): AnnotationFilterDefinition[] {

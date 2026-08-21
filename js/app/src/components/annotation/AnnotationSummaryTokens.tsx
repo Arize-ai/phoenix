@@ -11,7 +11,7 @@ import {
 
 import { hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
-import type { Annotation, AnnotationScope } from "./types";
+import type { Annotation, AnnotationTargetType } from "./types";
 
 const annotationLabelCSS = css`
   min-height: 20px;
@@ -35,7 +35,7 @@ export type AnnotationSummary = {
 
 type AnnotationSummaryTokenProps = {
   summary: AnnotationSummary;
-  annotationScope: AnnotationScope;
+  annotationTargetType: AnnotationTargetType;
   /** Every annotation behind the summary, newest first. */
   annotations: readonly Annotation[];
   annotationConfig?: AnnotationOptimizationConfig;
@@ -51,7 +51,7 @@ type AnnotationSummaryTokenProps = {
 
 export function AnnotationSummaryToken({
   summary,
-  annotationScope,
+  annotationTargetType,
   annotations,
   annotationConfig,
   showFilterActions = false,
@@ -85,7 +85,7 @@ export function AnnotationSummaryToken({
   return (
     <AnnotationSummaryPopover
       annotations={annotations}
-      annotationScope={annotationScope}
+      annotationTargetType={annotationTargetType}
       annotationConfig={annotationConfig}
       meanScore={meanScore}
       showFilterActions={showFilterActions}
@@ -107,20 +107,65 @@ export function AnnotationSummaryToken({
 }
 
 /**
+ * The flat table-column cell for one named annotation: finds the named
+ * summary within a grain's summary group and renders it as a value-variant
+ * token. Spans, traces and sessions read their annotations from different
+ * Relay fragments but render the cell identically, so they share this.
+ */
+export function AnnotationSummaryValueToken({
+  annotationName,
+  annotationTargetType,
+  sortedSummariesByName,
+  annotationsByName,
+  annotationConfigsByName,
+  showFilterActions = false,
+  renderFilterActions,
+}: {
+  annotationName: string;
+  annotationTargetType: AnnotationTargetType;
+  sortedSummariesByName: readonly AnnotationSummary[];
+  /** Every annotation behind a summary, newest first, keyed by summary name */
+  annotationsByName: Partial<Record<string, readonly Annotation[]>>;
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
+  showFilterActions?: boolean;
+  /** Grain-specific filter actions rendered for each annotation. */
+  renderFilterActions?: (annotation: Annotation) => ReactNode;
+}) {
+  const summary = sortedSummariesByName.find(
+    (summary) => summary.name === annotationName
+  );
+  const annotations = annotationsByName[annotationName] ?? [];
+  if (!summary || annotations.length === 0) {
+    return null;
+  }
+  return (
+    <AnnotationSummaryToken
+      summary={summary}
+      annotationTargetType={annotationTargetType}
+      annotations={annotations}
+      annotationConfig={annotationConfigsByName.get(annotationName)}
+      showFilterActions={showFilterActions}
+      renderFilterActions={renderFilterActions}
+      variant="value"
+    />
+  );
+}
+
+/**
  * A bare run of annotation tokens — the caller owns the layout (wrap, or
  * `OverflowRow`). Spans, traces and sessions read their annotations from
  * different Relay fragments but render them identically, so they share this.
  */
 export function AnnotationSummaryTokens({
   summaries,
-  annotationScope,
+  annotationTargetType,
   annotationsByName,
   annotationConfigsByName,
   showFilterActions = false,
   renderFilterActions,
 }: {
   summaries: readonly AnnotationSummary[];
-  annotationScope: AnnotationScope;
+  annotationTargetType: AnnotationTargetType;
   /** Every annotation behind a summary, newest first, keyed by summary name */
   annotationsByName: Partial<Record<string, readonly Annotation[]>>;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
@@ -142,7 +187,7 @@ export function AnnotationSummaryTokens({
           <AnnotationSummaryToken
             key={latestAnnotation.id}
             summary={summary}
-            annotationScope={annotationScope}
+            annotationTargetType={annotationTargetType}
             annotations={annotations}
             annotationConfig={annotationConfig}
             showFilterActions={showFilterActions}

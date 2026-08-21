@@ -4,8 +4,8 @@ import { graphql, useFragment } from "react-relay";
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import {
-  AnnotationSummaryToken,
   AnnotationSummaryTokens,
+  AnnotationSummaryValueToken,
 } from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import { getSessionAnnotationTooltipFilters } from "@phoenix/pages/project/annotationFilterUtils";
 import {
@@ -17,6 +17,7 @@ import { useSessionFilters } from "@phoenix/pages/project/SessionFiltersContext"
 
 import { groupAnnotationsByName, hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
+import type { Annotation } from "./types";
 
 const useSessionAnnotationSummaryGroup = (
   session: SessionAnnotationSummaryGroup$key
@@ -101,6 +102,10 @@ function SessionAnnotationTooltipFilterActions({
   );
 }
 
+const defaultRenderFilterActions = (annotation: Annotation) => (
+  <SessionAnnotationTooltipFilterActions annotation={annotation} />
+);
+
 export const SessionAnnotationSummaryGroupTokens = ({
   session,
   annotationConfigsByName,
@@ -122,13 +127,11 @@ export const SessionAnnotationSummaryGroupTokens = ({
   return (
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
-      annotationScope="session"
+      annotationTargetType="session"
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={(annotation) => (
-        <SessionAnnotationTooltipFilterActions annotation={annotation} />
-      )}
+      renderFilterActions={defaultRenderFilterActions}
     />
   );
 };
@@ -141,24 +144,15 @@ export const SessionAnnotationSummaryGroupToken = ({
 }: SessionAnnotationSummaryGroupTokenProps) => {
   const { sortedSummariesByName, annotationsByName } =
     useSessionAnnotationSummaryGroup(session);
-  const summary = sortedSummariesByName.find(
-    (summary) => summary.name === annotationName
-  );
-  const annotations = annotationsByName[annotationName] ?? [];
-  if (!summary || annotations.length === 0) {
-    return null;
-  }
   return (
-    <AnnotationSummaryToken
-      summary={summary}
-      annotationScope="session"
-      annotations={annotations}
-      annotationConfig={annotationConfigsByName.get(annotationName)}
+    <AnnotationSummaryValueToken
+      annotationName={annotationName}
+      annotationTargetType="session"
+      sortedSummariesByName={sortedSummariesByName}
+      annotationsByName={annotationsByName}
+      annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={(annotation) => (
-        <SessionAnnotationTooltipFilterActions annotation={annotation} />
-      )}
-      variant="value"
+      renderFilterActions={defaultRenderFilterActions}
     />
   );
 };

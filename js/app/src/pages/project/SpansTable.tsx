@@ -110,6 +110,7 @@ import {
   DEFAULT_SORT,
   getGqlSort,
   makeAnnotationColumnId,
+  makeAnnotationColumnIdsByName,
   normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
@@ -856,14 +857,10 @@ export function SpansTable(props: SpansTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
-  const annotationColumnIdsByName = new Map([
-    ...visibleTraceAnnotationColumnNames.map(
-      (name) => [name, makeAnnotationColumnId(name, "score", "trace")] as const
-    ),
-    ...visibleAnnotationColumnNames.map(
-      (name) => [name, makeAnnotationColumnId(name, "score")] as const
-    ),
-  ]);
+  const annotationColumnIdsByName = makeAnnotationColumnIdsByName({
+    annotationNames: visibleAnnotationColumnNames,
+    traceAnnotationNames: visibleTraceAnnotationColumnNames,
+  });
   const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
     columnOrder: storedColumnOrder,
     annotationColumnIdsByName,

@@ -4,8 +4,8 @@ import { graphql, useFragment } from "react-relay";
 import type { TraceAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/TraceAnnotationSummaryGroup.graphql";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import {
-  AnnotationSummaryToken,
   AnnotationSummaryTokens,
+  AnnotationSummaryValueToken,
 } from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import { getTraceAnnotationTooltipFilters } from "@phoenix/pages/project/annotationFilterUtils";
 import {
@@ -105,6 +105,10 @@ function TraceAnnotationTooltipFilterActions({
   );
 }
 
+const defaultRenderFilterActions = (annotation: Annotation) => (
+  <TraceAnnotationTooltipFilterActions annotation={annotation} />
+);
+
 export const TraceAnnotationSummaryGroupTokens = ({
   trace,
   annotationConfigsByName,
@@ -127,16 +131,11 @@ export const TraceAnnotationSummaryGroupTokens = ({
   return (
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
-      annotationScope="trace"
+      annotationTargetType="trace"
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={
-        renderFilterActions ??
-        ((annotation) => (
-          <TraceAnnotationTooltipFilterActions annotation={annotation} />
-        ))
-      }
+      renderFilterActions={renderFilterActions ?? defaultRenderFilterActions}
     />
   );
 };
@@ -150,27 +149,15 @@ export const TraceAnnotationSummaryGroupToken = ({
 }: TraceAnnotationSummaryGroupTokenProps) => {
   const { sortedSummariesByName, annotationsByName } =
     useTraceAnnotationSummaryGroup(trace);
-  const summary = sortedSummariesByName.find(
-    (summary) => summary.name === annotationName
-  );
-  const annotations = annotationsByName[annotationName] ?? [];
-  if (!summary || annotations.length === 0) {
-    return null;
-  }
   return (
-    <AnnotationSummaryToken
-      summary={summary}
-      annotationScope="trace"
-      annotations={annotations}
-      annotationConfig={annotationConfigsByName.get(annotationName)}
+    <AnnotationSummaryValueToken
+      annotationName={annotationName}
+      annotationTargetType="trace"
+      sortedSummariesByName={sortedSummariesByName}
+      annotationsByName={annotationsByName}
+      annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={
-        renderFilterActions ??
-        ((annotation) => (
-          <TraceAnnotationTooltipFilterActions annotation={annotation} />
-        ))
-      }
-      variant="value"
+      renderFilterActions={renderFilterActions ?? defaultRenderFilterActions}
     />
   );
 };
