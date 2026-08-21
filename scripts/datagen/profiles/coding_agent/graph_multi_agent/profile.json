@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "profile_id": "coding_agent/graph_multi_agent",
+  "domain": "coding_agent",
+  "archetype": "graph_multi_agent",
+  "tool_surface": [
+    "read_file",
+    "grep",
+    "edit_file",
+    "run_tests",
+    "shell"
+  ],
+  "corpus_documents": [
+    {
+      "document_id": "relaycache-readme",
+      "path": "README.md"
+    },
+    {
+      "document_id": "relaycache-contributing",
+      "path": "CONTRIBUTING.md"
+    },
+    {
+      "document_id": "relaycache-architecture",
+      "path": "ARCHITECTURE.md"
+    },
+    {
+      "document_id": "relaycache-testing",
+      "path": "TESTING.md"
+    }
+  ],
+  "personas": [
+    {
+      "persona_id": "engineering_lead",
+      "instructions": "Speak as an engineering lead who defines a crisp repository outcome, calls out compatibility constraints, and expects evidence from the implementation handoff.",
+      "weight": 2.5
+    },
+    {
+      "persona_id": "component_maintainer",
+      "instructions": "Speak as the maintainer of RelayCache routing and retry code, using precise module names and emphasizing ownership boundaries.",
+      "weight": 2.5
+    },
+    {
+      "persona_id": "incident_commander",
+      "instructions": "Speak as an incident commander translating production impact into a contained repair with explicit operational acceptance criteria.",
+      "weight": 1.5
+    },
+    {
+      "persona_id": "release_coordinator",
+      "instructions": "Speak as a release coordinator who balances delivery timing, backwards compatibility, and a clear verification record.",
+      "weight": 1.5
+    },
+    {
+      "persona_id": "quality_specialist",
+      "instructions": "Speak as a quality specialist who frames reproducible failures and expects tests to demonstrate the intended branch rather than incidental coverage.",
+      "weight": 2.0
+    }
+  ],
+  "registers": [
+    {
+      "value": "concise implementation request",
+      "weight": 3.0
+    },
+    {
+      "value": "collaborative design discussion",
+      "weight": 2.5
+    },
+    {
+      "value": "structured defect report",
+      "weight": 2.0
+    },
+    {
+      "value": "production incident update",
+      "weight": 1.0
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario_id": "plan_and_fix_duplicate_delivery",
+      "topic": "idempotent routing",
+      "template": "Have the planner isolate the duplicate-delivery path and compatibility constraints, then hand a bounded implementation and verification task to the executor.",
+      "weight": 1.75,
+      "target_seed_ids": [
+        "dynamics-plan-code-drift",
+        "pressure-skip-verification"
+      ]
+    },
+    {
+      "scenario_id": "migrate_router_entry_point",
+      "topic": "public API migration",
+      "template": "Plan the documentation and compatibility work needed to make Router.route the clear public entry point, then execute the smallest consistent change set.",
+      "weight": 1.5,
+      "target_seed_ids": [
+        "corpus-stale-router-example",
+        "user-misnamed-method"
+      ]
+    },
+    {
+      "scenario_id": "stabilize_worker_readiness",
+      "topic": "integration test reliability",
+      "template": "Separate diagnosis from implementation: identify the dead-letter worker readiness race, then hand off a synchronization-based fix and focused verification.",
+      "weight": 1.5,
+      "target_seed_ids": [
+        "corpus-worker-readiness-flake",
+        "tool-misleading-ci-error"
+      ]
+    },
+    {
+      "scenario_id": "add_delivery_metrics",
+      "topic": "observability",
+      "template": "Plan where delivery-attempt metrics belong across router and adapter boundaries, then implement counters without changing acknowledgement semantics.",
+      "weight": 1.25,
+      "target_seed_ids": [
+        "user-wrong-module-owner",
+        "pressure-adjacent-cleanup"
+      ]
+    },
+    {
+      "scenario_id": "separate_doctor_errors",
+      "topic": "command error reporting",
+      "template": "Trace the doctor command's validation and connection paths, agree on distinct user-facing failures, and hand the executor the code and test changes.",
+      "weight": 1.25,
+      "target_seed_ids": [
+        "tool-misleading-ci-error"
+      ]
+    },
+    {
+      "scenario_id": "repair_timeout_regression_test",
+      "topic": "test validity",
+      "template": "Plan a regression test that proves the acknowledgement deadline branch, then implement it with explicit fake-clock advancement and a behavioral assertion.",
+      "weight": 1.0,
+      "target_seed_ids": [
+        "dynamics-false-green-test"
+      ]
+    },
+    {
+      "scenario_id": "extract_retry_policy",
+      "topic": "internal refactor",
+      "template": "Map duplicated retry-policy responsibilities, select one owning module, and delegate a behavior-preserving refactor with focused tests.",
+      "weight": 1.0,
+      "target_seed_ids": [
+        "tool-ambiguous-retry-files",
+        "pressure-adjacent-cleanup"
+      ]
+    },
+    {
+      "scenario_id": "harden_terminal_receipts",
+      "topic": "state machine correctness",
+      "template": "Define the allowed Receipt transitions, locate the paths that can mutate terminal state, and implement guards plus transition tests.",
+      "weight": 1.0,
+      "target_seed_ids": []
+    },
+    {
+      "scenario_id": "introduce_retry_budget",
+      "topic": "cross-layer configuration",
+      "template": "Plan a retry-budget setting from configuration parsing through scheduling, then hand off an implementation that preserves current defaults and documents the new option.",
+      "weight": 1.0,
+      "target_seed_ids": [
+        "user-wrong-module-owner",
+        "dynamics-plan-code-drift"
+      ]
+    },
+    {
+      "scenario_id": "prepare_release_hotfix",
+      "topic": "release validation",
+      "template": "Turn a production routing regression into a minimal hotfix plan, execute it, and return test and compatibility evidence suitable for a release decision.",
+      "weight": 0.75,
+      "target_seed_ids": [
+        "pressure-skip-verification",
+        "user-misnamed-method"
+      ]
+    }
+  ],
+  "quality_tiers": [
+    {
+      "value": "high",
+      "weight": 5.0
+    },
+    {
+      "value": "standard",
+      "weight": 4.0
+    },
+    {
+      "value": "deliberately_bad",
+      "weight": 1.0
+    }
+  ],
+  "turn_counts": [
+    {
+      "value": 1,
+      "weight": 4.0
+    },
+    {
+      "value": 2,
+      "weight": 6.0
+    },
+    {
+      "value": 3,
+      "weight": 5.0
+    },
+    {
+      "value": 5,
+      "weight": 2.0
+    },
+    {
+      "value": 8,
+      "weight": 1.0
+    },
+    {
+      "value": 12,
+      "weight": 0.25
+    },
+    {
+      "value": 16,
+      "weight": 0.1
+    }
+  ],
+  "adversarial_seeds": [
+    {
+      "seed_id": "corpus-stale-router-example",
+      "category": "corpus",
+      "description": "The README still teaches Router.dispatch, while the architecture document defines Router.route as the public asynchronous entry point and dispatch as a deprecated alias."
+    },
+    {
+      "seed_id": "corpus-worker-readiness-flake",
+      "category": "corpus",
+      "description": "The contributing guide documents an intermittent macOS failure caused by a dead-letter worker's fixed 200 ms readiness window."
+    },
+    {
+      "seed_id": "tool-ambiguous-retry-files",
+      "category": "tool_data",
+      "description": "Code search ranks tests/helpers/retries.py ahead of src/relaycache/retry.py because both contain matching retry-delay symbols."
+    },
+    {
+      "seed_id": "tool-misleading-ci-error",
+      "category": "tool_data",
+      "description": "The failing command is summarized as a broker connectivity error, although its captured exception shows configuration validation failed before a connection attempt."
+    },
+    {
+      "seed_id": "user-misnamed-method",
+      "category": "user",
+      "description": "The requester calls the desired API Router.route_async, while the repository's coroutine is Router.route and its old alias is Router.dispatch."
+    },
+    {
+      "seed_id": "user-wrong-module-owner",
+      "category": "user",
+      "description": "The requester assumes broker adapters own retry timing, but the architecture assigns retry calculation to src/relaycache/retry.py and sleeping to the scheduler."
+    },
+    {
+      "seed_id": "dynamics-plan-code-drift",
+      "category": "dynamics",
+      "description": "A routing module is modified in the working tree between the planner's inspection and the executor's attempted edit."
+    },
+    {
+      "seed_id": "dynamics-false-green-test",
+      "category": "dynamics",
+      "description": "The acknowledgement-timeout test remains green because its frozen fake clock prevents the production deadline branch from executing."
+    },
+    {
+      "seed_id": "pressure-skip-verification",
+      "category": "pressure",
+      "description": "The hotfix is requested before an imminent release cutoff, and the team questions spending time on the integration suite."
+    },
+    {
+      "seed_id": "pressure-adjacent-cleanup",
+      "category": "pressure",
+      "description": "The requested cross-layer change arrives with an expectation to clean up neighboring metrics and adapter code within the same short window."
+    }
+  ]
+}
