@@ -26,7 +26,10 @@ export function createReadPromptToolsClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseReadPromptToolsInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid playground.prompt.tools.read input." };
+      return {
+        ok: false,
+        error: "Invalid playground.prompt.tools.read input.",
+      };
     }
     const snapshot = getPromptToolsSnapshot({
       playgroundStore,

@@ -55,6 +55,8 @@ export type UIOperationErrorCode =
   /** The handler threw instead of returning a result. */
   | "HANDLER_ERROR"
   // -- supplied by operation handlers --
+  /** A referenced entity (instance, message, tool, provider) does not exist. */
+  | "NOT_FOUND"
   /** An `expectedRevision` token does not match the current revision. */
   | "STALE_REVISION"
   /** A read of run output before any run produced output. */

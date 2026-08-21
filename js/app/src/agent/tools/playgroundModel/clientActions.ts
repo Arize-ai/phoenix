@@ -19,7 +19,7 @@ import type {
 
 type ResolveInstanceIdResult =
   | { ok: true; instanceId: number }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: string };
 
 function resolveInstanceId({
   input,
@@ -34,6 +34,7 @@ function resolveInstanceId({
       : {
           ok: false,
           error: `Playground instance ${input.instanceId} was not found.`,
+          code: "NOT_FOUND",
         };
   }
   if (instanceIds.length === 0) {
@@ -94,6 +95,7 @@ export function createSetPlaygroundModelClientAction({
       return {
         ok: false,
         error: `Playground instance ${resolvedInstance.instanceId} was not found.`,
+        code: "NOT_FOUND",
       };
     }
 
@@ -119,6 +121,7 @@ export function createSetPlaygroundModelClientAction({
         return {
           ok: false,
           error: `Custom provider ${target.customProviderId} was not found.`,
+          code: "NOT_FOUND",
         };
       }
       provider = getProviderKeyForGenerativeModelSDK(providerConfig.sdk);
