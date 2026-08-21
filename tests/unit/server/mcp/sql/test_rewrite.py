@@ -2256,12 +2256,18 @@ def test_star_over_a_right_join_using_merges_the_key() -> None:
     rendered = _rendered_dialect("SELECT * FROM traces RIGHT JOIN spans USING (id)", "sqlite")
     assert "COALESCE(traces.id, spans.id) AS id" in rendered
     # The merged key is what the engine's own USING produces.
-    assert [row[0] for row in _run_join_on_sqlite(
-        "SELECT COALESCE(traces.id, spans.id) AS id "
-        "FROM traces RIGHT JOIN spans USING (id) ORDER BY id"
-    )] == [row[0] for row in _run_join_on_sqlite(
-        "SELECT * FROM traces RIGHT JOIN spans USING (id) ORDER BY id"
-    )]
+    assert [
+        row[0]
+        for row in _run_join_on_sqlite(
+            "SELECT COALESCE(traces.id, spans.id) AS id "
+            "FROM traces RIGHT JOIN spans USING (id) ORDER BY id"
+        )
+    ] == [
+        row[0]
+        for row in _run_join_on_sqlite(
+            "SELECT * FROM traces RIGHT JOIN spans USING (id) ORDER BY id"
+        )
+    ]
 
 
 def test_star_over_an_inner_join_using_keeps_one_plain_copy() -> None:
@@ -2284,7 +2290,9 @@ def test_a_computed_json_key_is_noted_on_postgres() -> None:
     """
     al = load_allowlist("postgresql")
     root = admit(
-        parse_sql("SELECT json_extract(attributes, '$.' || 'llm') AS v FROM spans", dialect="postgresql"),
+        parse_sql(
+            "SELECT json_extract(attributes, '$.' || 'llm') AS v FROM spans", dialect="postgresql"
+        ),
         allowlist=al,
         dialect="postgresql",
     )

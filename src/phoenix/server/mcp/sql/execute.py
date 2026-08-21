@@ -626,6 +626,7 @@ async def execute_analytics_sql(
         if dialect == "postgresql":
             schema = await resolve_pg_schema(db)
             allowlist = replace(allowlist, pg_schema=schema)
+
         # Parsing, admission and rewriting are CPU-bound and scale with the
         # size of the statement, and the input cap allows a megabyte of it.
         # Run on the event loop they starve the whole process -- every other
@@ -671,6 +672,7 @@ async def execute_analytics_sql(
         )
         if params.row_limit is not None and requested != row_limit:
             ctx.notes.append(f"row_limit clamped to {row_limit}")
+
         def _rendered() -> tuple[Any, str]:
             rewritten = rewrite(root, ctx)
             return rewritten, render(rewritten, dialect=dialect)
