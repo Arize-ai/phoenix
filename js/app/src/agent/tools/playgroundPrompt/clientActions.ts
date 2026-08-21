@@ -192,6 +192,7 @@ export function createEditPromptClientAction({
       // script can retry without another read.
       return {
         ok: false,
+        code: "STALE_REVISION",
         error:
           `expectedRevision "${parsed.expectedRevision}" does not match the ` +
           `prompt's current revision "${before.output.revision}". Retry with ` +

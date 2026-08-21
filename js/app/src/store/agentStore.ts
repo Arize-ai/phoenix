@@ -642,7 +642,10 @@ function mergeAgentPersistedState(
 export type AgentClientActionResult =
   // `output` is JSON-serializable: UI-operation results cross a worker
   // postMessage boundary and are embedded in `execute_ui` tool output.
-  { ok: true; output?: unknown } | { ok: false; error: string };
+  // `code` is a stable machine-readable failure category (see
+  // `UiOperationErrorCode` in uiOperations/types.ts for the canonical set)
+  // so scripts can branch on failures without string-matching English.
+  { ok: true; output?: unknown } | { ok: false; error: string; code?: string };
 
 export type AgentClientAction = (
   input: unknown,

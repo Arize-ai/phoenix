@@ -127,6 +127,7 @@ export function createReadPlaygroundOutputClientAction({
       return {
         ok: false,
         error: `Playground instance ${parsed.instanceId} was not found.`,
+        code: "NOT_FOUND",
       };
     }
 
@@ -147,6 +148,7 @@ export function createReadPlaygroundOutputClientAction({
         ok: false,
         error:
           "No playground run output is available. Call ui.playground.run first, then read the output after the run starts or finishes.",
+        code: "NO_RUN_OUTPUT",
       };
     }
 

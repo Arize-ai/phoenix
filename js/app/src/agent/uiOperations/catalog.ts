@@ -109,6 +109,15 @@ export function registerUiOperations<TSchemas extends readonly z.ZodType[]>({
   };
 }
 
+/**
+ * Every catalog operation name, in catalog order. Shipped to the script
+ * worker so the `ui` proxy's `in`/`Object.keys` introspection answers from
+ * the real catalog.
+ */
+export function listUiOperationNames(): string[] {
+  return knownUiOperations.map((operation) => operation.name);
+}
+
 export function getUiOperationDescriptor(
   name: string
 ): UiOperationDescriptor | undefined {
@@ -261,10 +270,13 @@ type JsonSchemaNode = {
  * throwing, and falls back to `undefined` (rendered `unknown`) if the
  * conversion still fails — `search_ui` must never crash on a schema.
  */
-function toJsonSchemaNode(schema: z.ZodType): JsonSchemaNode | undefined {
+function toJsonSchemaNode(
+  schema: z.ZodType,
+  io: "input" | "output" = "input"
+): JsonSchemaNode | undefined {
   try {
     return z.toJSONSchema(schema, {
-      io: "input",
+      io,
       unrepresentable: "any",
     }) as JsonSchemaNode;
   } catch {
@@ -323,12 +335,20 @@ export function renderUiOperationSignature({
       ? " Stages a change the user must accept; the returned promise resolves with the decision."
       : "";
   const inputType = renderInlineType(toJsonSchemaNode(descriptor.inputSchema));
+  // Declared output shapes render as `UiResult<T>`; operations without one
+  // stay `UiResult` (output: unknown).
+  const outputType =
+    descriptor.outputSchema != null
+      ? renderInlineType(toJsonSchemaNode(descriptor.outputSchema, "output"))
+      : null;
+  const resultType =
+    outputType != null ? `UiResult<${outputType}>` : "UiResult";
   return [
     "/**",
     ` * ${descriptor.description}`,
     ` * kind: ${descriptor.kind}; ${availability}.${approvalNote}`,
     " */",
-    `ui.${descriptor.name}(input: ${inputType}): Promise<UiResult>;`,
+    `ui.${descriptor.name}(input: ${inputType}): Promise<${resultType}>;`,
   ].join("\n");
 }
 
@@ -350,7 +370,10 @@ export function renderUiOperationCatalog(
       "// Further search_ui calls return these same operations re-ranked — reuse\n" +
       "// this catalog instead of searching again. Only per-operation availability\n" +
       '// ("available on the current page") changes, after navigation.',
-    "// UiResult = { ok: true; output?: unknown } | { ok: false; error: string }",
+    "// UiResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }\n" +
+      '// ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"\n' +
+      '//   | "NO_SESSION" | "HANDLER_ERROR" | "NOT_FOUND" | "STALE_REVISION" | "NO_RUN_OUTPUT"\n' +
+      "// Branch on `code` (stable), not on the `error` prose (for humans).",
     signatures,
   ].join("\n\n");
 }

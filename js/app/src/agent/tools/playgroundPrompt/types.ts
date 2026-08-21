@@ -163,4 +163,4 @@ export type BindPendingPromptInstanceRemovalOptions = {
 
 export type PromptActionResult<TOutput> =
   | { ok: true; output: TOutput }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: string };

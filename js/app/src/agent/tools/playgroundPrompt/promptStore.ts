@@ -48,6 +48,7 @@ export function getPromptSnapshot({
     return {
       ok: false,
       error: `Playground instance ${resolvedInstanceId} was not found.`,
+      code: "NOT_FOUND",
     };
   }
   if (instance.template.__type !== "chat") {
@@ -326,6 +327,7 @@ export function resolveRemovablePromptInstance({
     return {
       ok: false,
       error: `Playground instance ${instanceId} was not found.`,
+      code: "NOT_FOUND",
     };
   }
   return {
@@ -364,6 +366,7 @@ export function buildProposedPromptSnapshot({
           return {
             ok: false,
             error: `Message ${operation.messageId} was not found.`,
+            code: "NOT_FOUND",
           };
         }
         messages = messages.map((message) =>
@@ -392,6 +395,7 @@ export function buildProposedPromptSnapshot({
           return {
             ok: false,
             error: `Insertion anchor ${operation.afterMessageId} was not found.`,
+            code: "NOT_FOUND",
           };
         }
         const messageId = generateMessageId();
@@ -416,6 +420,7 @@ export function buildProposedPromptSnapshot({
           return {
             ok: false,
             error: `Message ${operation.messageId} was not found.`,
+            code: "NOT_FOUND",
           };
         }
         messages = messages.filter(

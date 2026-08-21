@@ -126,6 +126,7 @@ export function createUiScriptWorker(): UiScriptWorkerLike {
 export function runUiScript({
   script,
   dispatchCall,
+  operationNames = [],
   createWorker = createUiScriptWorker,
   timeoutMs = DEFAULT_UI_SCRIPT_TIMEOUT_MS,
   maxCalls = DEFAULT_MAX_UI_CALLS_PER_SCRIPT,
@@ -134,6 +135,8 @@ export function runUiScript({
 }: {
   script: string;
   dispatchCall: UiScriptDispatchCall;
+  /** Catalog operation names, for the worker proxy's truthful introspection. */
+  operationNames?: string[];
   createWorker?: () => UiScriptWorkerLike;
   timeoutMs?: number;
   maxCalls?: number;
@@ -327,6 +330,6 @@ export function runUiScript({
     });
 
     armTimer(remainingActiveMs);
-    worker.postMessage({ type: "run", script });
+    worker.postMessage({ type: "run", script, operationNames });
   });
 }

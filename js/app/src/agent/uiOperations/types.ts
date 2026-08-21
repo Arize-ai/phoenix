@@ -33,6 +33,36 @@ export type UiOperationAvailability = {
 export type UiOperationResult = AgentClientActionResult;
 
 /**
+ * Stable machine-readable failure categories, so scripts branch on `code`
+ * instead of string-matching English error prose. Dispatch stamps the
+ * generic categories at its choke points; operation handlers supply the
+ * domain-specific ones on their own failures. Extend the union when a new
+ * domain failure needs to be branchable — and keep the human-readable
+ * `error` string alongside; the code categorizes, the prose explains.
+ */
+export type UiOperationErrorCode =
+  // -- stamped by dispatch --
+  /** The operation name is not in the catalog. */
+  | "UNKNOWN_OPERATION"
+  /** A capability required by the operation is disabled. */
+  | "CAPABILITY_DISABLED"
+  /** The operation requires an active agent session. */
+  | "NO_SESSION"
+  /** The operation's UI surface is not mounted on the current page. */
+  | "NOT_AVAILABLE"
+  /** The input failed the operation's schema validation. */
+  | "INVALID_INPUT"
+  /** The handler threw instead of returning a result. */
+  | "HANDLER_ERROR"
+  // -- supplied by operation handlers --
+  /** A referenced entity (instance, message, tool, provider) does not exist. */
+  | "NOT_FOUND"
+  /** An `expectedRevision` token does not match the current revision. */
+  | "STALE_REVISION"
+  /** A read of run output before any run produced output. */
+  | "NO_RUN_OUTPUT";
+
+/**
  * Per-call context handed to an operation handler by dispatch.
  *
  * `callId` uniquely identifies this invocation — approval operations use it
@@ -64,6 +94,16 @@ export type UiOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
   description: string;
   /** Zod schema for the operation input; the only schema definition anywhere. */
   inputSchema: TSchema;
+  /**
+   * Zod schema describing the success `output` shape, rendered into the
+   * operation's `search_ui` signature as `Promise<UiResult<T>>`. This is
+   * documentation, not a runtime gate — dispatch does not validate outputs
+   * against it, so a drifted schema misleads the model but never turns a
+   * working operation into a user-facing failure. Approximate shapes
+   * (`z.unknown()` leaves for deep subtrees) are better than nothing: the
+   * top-level field names are what scripts branch on.
+   */
+  outputSchema?: z.ZodType;
   kind: UiOperationKind;
   /**
    * Marks an operation whose handler legitimately awaits completion of work
