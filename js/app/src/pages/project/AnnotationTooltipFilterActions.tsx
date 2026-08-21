@@ -104,3 +104,24 @@ export function TraceSpanAnnotationTooltipFilterActions(
     />
   );
 }
+
+export function SpanTraceAnnotationTooltipFilterActions(
+  props: Omit<
+    AnnotationTooltipFilterActionsProps,
+    "getFilters" | "onAppendFilterCondition"
+  >
+) {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <AnnotationTooltipFilterActions
+      {...props}
+      getFilters={(annotation) =>
+        getAnnotationTooltipFilters({
+          ...annotation,
+          accessor: "trace_annotations",
+        })
+      }
+      onAppendFilterCondition={appendFilterCondition}
+    />
+  );
+}
