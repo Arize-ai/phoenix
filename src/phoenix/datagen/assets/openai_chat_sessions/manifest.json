@@ -17,5 +17,5 @@
       "community-garden": 4
     }
   },
-  "encoding_notes": "Each line is one protobuf-JSON ExportTraceServiceRequest. A SimpleSpanProcessor exports one completed span per request, so spans from the same trace can occupy separate lines."
+  "encoding_notes": "Each line is one protobuf-JSON ExportTraceServiceRequest. Spans from the same trace may occupy separate lines."
 }

@@ -4,30 +4,82 @@ These scripts record deterministic scenario traffic through real OpenInference i
 result is checked-in OTLP protobuf JSON that can be replayed without installing the scenario
 frameworks at runtime.
 
-From the repository root, start the keyless mock provider:
+Each recorder pins its own instrumenter stack in a PEP 723 header, so it must be run with
+`uv run --script` — a plain `uv run` would use the repository environment instead. `pyproject.toml`
+sets `[tool.uv] exclude-newer = "3 days"`, so a pin must be at least three days old to resolve at
+all; keep that in mind when bumping versions.
+
+## The keyless mock provider
+
+Every recorder that speaks to an LLM speaks to the in-repo mock provider, never to an external
+service. Start it in its own shell and leave it running:
 
 ```console
-python scripts/datagen/mock_openai_provider.py
+uv run --script scripts/datagen/mock_openai_provider.py --port 8765
 ```
 
-In another shell, record both scenarios with their isolated PEP 723 environments:
+It serves both buffered and streaming (SSE) chat completions and fills each caller's own declared
+tool schema, so the same provider backs every recorder below.
+
+## Recorders with a command-line entry point
+
+`openai_chat_sessions` and `langchain_agent_rag` write the bundled starter assets. Both default
+`--output-dir` to their directory under `src/phoenix/datagen/assets/`, replacing that scenario's
+`traces.jsonl` and regenerating `manifest.json` from the spans actually recorded.
 
 ```console
-OPENAI_API_KEY=datagen-dummy-key \
-  OPENAI_BASE_URL=http://127.0.0.1:8765/v1 \
-  uv run scripts/datagen/openai_chat_sessions.py
-OPENAI_API_KEY=datagen-dummy-key \
-  OPENAI_BASE_URL=http://127.0.0.1:8765/v1 \
-  uv run scripts/datagen/langchain_agent_rag.py
+OPENAI_API_KEY=datagen-dummy-key OPENAI_BASE_URL=http://127.0.0.1:8765/v1 \
+  uv run --script scripts/datagen/openai_chat_sessions.py
+
+uv run --script scripts/datagen/langchain_agent_rag.py
+
+OPENAI_API_KEY=datagen-dummy-key OPENAI_BASE_URL=http://127.0.0.1:8765/v1 \
+  uv run --script scripts/datagen/tool_agent.py \
+    --prompt "When should my standard-delivery order 10001 arrive?" \
+    --output-dir <dir> --cell-id <64-hex>
 ```
 
-Each script replaces its scenario's `traces.jsonl` and `manifest.json`. Every JSONL line is one
-protobuf-JSON `ExportTraceServiceRequest`; requests from a multi-span trace may occupy multiple
-lines. The mock provider never contacts an external service.
+`langchain_agent_rag` records LlamaIndex despite its name, and needs no provider — its LLM,
+embedding, and rerank transports are faked in `rag.py`. `tool_agent` requires `--output-dir` and a
+64-character lowercase hexadecimal `--cell-id`; it writes `traces.jsonl`, `messages.json`, and
+`tool-invocations.jsonl` and is a generation lane, not a starter asset.
+
+## Recorders driven as libraries
+
+`graph_multi_agent`, `guardrailed_app`, and `structured_extraction` expose `record()` but no
+`main()`. Export the script's pinned environment, then drive it from a short script run in that
+environment:
+
+```console
+uv export --script scripts/datagen/graph_multi_agent.py -o /tmp/recorder-reqs.txt
+uv run --no-project --python 3.11 --with-requirements /tmp/recorder-reqs.txt python drive.py
+```
+
+`drive.py` puts `scripts/datagen` on `sys.path`, installs the archetype's instrumentor on a
+`TracerProvider`, and calls `record()`:
+
+- `graph_multi_agent` — add `OpenInferenceContextSpanProcessor()` alongside the span exporter (it
+  is what puts `session.id` on callback-created spans), instrument with `LangChainInstrumentor`,
+  then `GraphMultiAgentRecorder(exporter).record(session_id, prompt, traces_path)`. Needs no
+  provider.
+- `structured_extraction` — instrument with `OpenAIInstrumentor` and pass an `OpenAI` client
+  pointed at the mock provider, then
+  `StructuredExtractionRecorder(client, exporter).record(ExtractionRequest(...))`.
+- `guardrailed_app` — call `record(output_dir)`; it installs `GuardrailsInstrumentor` itself and
+  needs no provider. It is pinned to `guardrails-ai==0.5.0` because that is the newest release the
+  published OpenInference Guardrails instrumenter supports; bumping it silently disables
+  instrumentation. Its first run downloads the NLTK `punkt` tokenizer to `~/nltk_data`, so pre-seed
+  `NLTK_DATA` for an offline environment. Subsequent runs are offline.
+
+## Freshness
 
 Re-record and review the scenario assets whenever a pinned instrumenter version changes. This
 version-bump workflow is the freshness mechanism for keeping stored span shapes aligned with
 upstream instrumentation.
+
+Every JSONL line is one protobuf-JSON `ExportTraceServiceRequest`; requests from a multi-span trace
+may occupy multiple lines. Bundled starter assets must stay under the 512 KiB ceiling enforced on
+the wheel by the publish workflow.
 
 ## Publishing a full scenario bank
 

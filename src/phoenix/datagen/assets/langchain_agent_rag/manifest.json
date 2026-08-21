@@ -1,23 +1,24 @@
 {
   "scenario_name": "langchain_agent_rag",
   "instrumenter_package_versions": {
-    "openinference-instrumentation-langchain": "0.1.11",
+    "openinference-instrumentation-llama-index": "4.4.5",
     "openinference-semantic-conventions": "0.1.32"
   },
-  "trace_count": 10,
-  "span_count": 38,
+  "trace_count": 12,
+  "span_count": 117,
   "span_kinds": [
-    "AGENT",
+    "CHAIN",
+    "EMBEDDING",
     "LLM",
-    "RETRIEVER",
-    "TOOL"
+    "RERANKER",
+    "RETRIEVER"
   ],
   "session_structure": {
     "session_count": 3,
     "turns_per_session": {
-      "shipping-help": 4,
-      "returns-help": 3,
-      "account-safety": 3
+      "shipping-help": 2,
+      "returns-help": 2,
+      "account-safety": 2
     }
   },
   "encoding_notes": "Each line is one protobuf-JSON ExportTraceServiceRequest. A SimpleSpanProcessor exports one completed span per request, so spans from the same trace can occupy separate lines."
