@@ -1,10 +1,4 @@
-"""Evaluator tracing for online evaluations.
-
-Every online evaluation is traced into the evaluator's own trace project so a
-user can see what an evaluation actually did. Spans are marked as
-evaluator-produced on the way out, and evaluator creation refuses trace projects
-as targets, so evaluator traces cannot feed the evaluations that produced them.
-"""
+"""Evaluator tracing for online evaluations."""
 
 from __future__ import annotations
 
@@ -86,12 +80,7 @@ async def persist_evaluator_traces(
     project_evaluator_id: int,
     event_queue: Optional[CanPutItem[DmlEvent]] = None,
 ) -> None:
-    """Write the tracer's spans into the evaluator's own trace project.
-
-    The trace project is resolved at write time so an evaluator deleted while
-    its evaluation was in flight drops the trace instead of resurrecting the
-    deleted project's rows.
-    """
+    """Write the tracer's spans into the evaluator's own trace project."""
     if db.should_not_insert_or_update:
         return
     async with db() as session:
