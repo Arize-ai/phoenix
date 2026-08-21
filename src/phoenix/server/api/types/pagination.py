@@ -67,6 +67,14 @@ class CursorSortColumn:
         return cls(type=type, value=value)
 
 
+#: The widest integer any SQL engine binds: postgres `BIGINT` and sqlite's rowid
+#: are both 64-bit. A cursor integer beyond it identifies no row in any table and
+#: cannot be bound as a parameter at all, so it is refused here rather than left
+#: to raise in the driver. Unlike a column's own width this needs no knowledge of
+#: the schema, because no wider integer type exists to widen it.
+_BINDABLE_INTEGERS = range(-(2**63), 2**63)
+
+
 @dataclass
 class Cursor:
     """
@@ -191,6 +199,11 @@ class Cursor:
                 accepted.add(CursorSortColumnDataType.NULL)
             if sort_column is None or sort_column.type not in accepted:
                 raise ValueError(f"Cursor was not minted for this sort column: {cursor}")
+        if parsed.rowid not in _BINDABLE_INTEGERS:
+            raise ValueError(f"Cursor rowid is too wide to bind: {cursor}")
+        value = parsed.sort_column.value if parsed.sort_column else None
+        if isinstance(value, int) and value not in _BINDABLE_INTEGERS:
+            raise ValueError(f"Cursor sort value is too wide to bind: {cursor}")
         return parsed
 
 
