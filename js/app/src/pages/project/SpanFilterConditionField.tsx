@@ -197,8 +197,10 @@ export function SpanFilterConditionFieldCore(
   // handlers below must keep stable identities even when a caller passes a
   // fresh closure per render.
   const onValidConditionRef = useRef(onValidCondition);
+  // eslint-disable-next-line react/refs
   onValidConditionRef.current = onValidCondition;
   const onValidityChangeRef = useRef(onValidityChange);
+  // eslint-disable-next-line react/refs
   onValidityChangeRef.current = onValidityChange;
 
   // Stable identities: the field caches completions per loader, and its
