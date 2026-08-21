@@ -26,9 +26,17 @@ if TYPE_CHECKING or __package__:
         MatrixCell,
         PriceCatalog,
     )
+    from scripts.datagen.model_backend import ModelBackend, ModelRequest
 else:
     from fake_tools import DEFAULT_REGISTRY, InvocationLedger, ToolContext, ToolRegistry
-    from generation import Attempt, GenerationError, GenerationRun, MatrixCell, PriceCatalog
+    from generation import (
+        Attempt,
+        GenerationError,
+        GenerationRun,
+        MatrixCell,
+        PriceCatalog,
+    )
+    from model_backend import ModelBackend, ModelRequest
 
 AssistantMessage = Mapping[str, Any]
 ToolInvoker = Callable[[str, Mapping[str, Any]], Mapping[str, Any]]
@@ -165,6 +173,33 @@ class SelfPlayPlan:
         }
 
 
+def self_play_plan_from_cell(
+    cell: MatrixCell,
+    *,
+    simulator: ModelRole,
+    assistant_provider: str,
+    failure_mode: str = "none",
+    tool_failure_mode: str = "none",
+) -> SelfPlayPlan:
+    if cell.lane != "self_play":
+        raise SelfPlayError(f"cell {cell.cell_id} belongs to {cell.lane}, not self_play")
+    draw = cell.profile
+    return SelfPlayPlan(
+        archetype=draw.archetype,
+        domain=draw.domain,
+        topic=draw.topic,
+        scenario_template=draw.scenario_template,
+        persona=Persona(draw.persona_id, draw.persona_instructions),
+        register=draw.register,
+        quality_tier=draw.quality_tier,
+        failure_mode=failure_mode,
+        turn_count=draw.turn_count,
+        simulator=simulator,
+        assistant_provider=assistant_provider,
+        tool_failure_mode=tool_failure_mode,
+    )
+
+
 @dataclass(frozen=True)
 class UserSimulationRequest:
     cell_id: str
@@ -189,6 +224,48 @@ class SimulatedUserMessage:
 
 class UserSimulator(Protocol):
     def simulate(self, request: UserSimulationRequest) -> SimulatedUserMessage: ...
+
+
+class BackendUserSimulator:
+    def __init__(self, backend: ModelBackend) -> None:
+        self._backend = backend
+
+    def simulate(self, request: UserSimulationRequest) -> SimulatedUserMessage:
+        prompt = (
+            f"Scenario: {request.scenario_template}\n"
+            f"Persona: {request.persona.instructions}\n"
+            f"Register: {request.register}\n"
+            f"Turn: {request.turn_index + 1}/{request.turn_count}\n"
+            f"Conversation: {json.dumps(request.messages, sort_keys=True)}\n"
+            "Return the next user message."
+        )
+        result = self._backend.generate(
+            ModelRequest(
+                request_id=f"{request.cell_id}:user_simulator:{request.turn_index}",
+                purpose="user_simulator",
+                model=request.model,
+                prompt=prompt,
+                output_schema={
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["content"],
+                    "properties": {"content": {"type": "string", "minLength": 1}},
+                },
+                max_output_tokens=512,
+            )
+        )
+        content = result.output.get("content")
+        if not isinstance(content, str):
+            raise SelfPlayError("user simulator result has no content string")
+        usage = result.usage
+        return SimulatedUserMessage(
+            content,
+            TokenUsage(
+                input_tokens=usage.input_tokens if usage else 0,
+                cached_input_tokens=usage.cached_input_tokens if usage else 0,
+                output_tokens=usage.output_tokens if usage else 0,
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -246,7 +323,7 @@ def record_self_play_cell(
     *,
     simulator: UserSimulator,
     recorder: AssistantRecorder,
-    prices: PriceCatalog,
+    prices: PriceCatalog | None,
     fixture_set: Mapping[str, Any],
     pass_seed: int,
     assistant_max_input_tokens: int,
@@ -291,7 +368,7 @@ def _admit_attempts(
     cell: MatrixCell,
     plan: SelfPlayPlan,
     *,
-    prices: PriceCatalog,
+    prices: PriceCatalog | None,
     assistant_max_input_tokens: int,
     assistant_max_output_tokens: int,
     simulator_max_input_tokens: int,
@@ -305,6 +382,7 @@ def _admit_attempts(
         max_input_tokens=assistant_max_input_tokens,
         max_output_tokens=assistant_max_output_tokens,
         prices=prices,
+        provider=plan.assistant_provider,
     )
     try:
         simulator = run.admitted_attempt(
@@ -315,6 +393,7 @@ def _admit_attempts(
             max_input_tokens=simulator_max_input_tokens,
             max_output_tokens=simulator_max_output_tokens,
             prices=prices,
+            provider=plan.simulator.provider,
         )
     except Exception:
         run.fail_attempt(assistant.attempt_id, "user simulator admission failed")
@@ -330,7 +409,7 @@ def _record_attempt(
     *,
     simulator: UserSimulator,
     recorder: AssistantRecorder,
-    prices: PriceCatalog,
+    prices: PriceCatalog | None,
     fixture_set: Mapping[str, Any],
     pass_seed: int,
     registry: ToolRegistry,
@@ -464,12 +543,16 @@ def _record_attempt(
     run.complete_attempt(
         attempts.simulator.attempt_id,
         prices=prices,
-        **simulator_usage.to_dict(),
+        input_tokens=simulator_usage.input_tokens,
+        cached_input_tokens=simulator_usage.cached_input_tokens,
+        output_tokens=simulator_usage.output_tokens,
     )
     run.complete_attempt(
         attempts.assistant.attempt_id,
         prices=prices,
-        **assistant_usage.to_dict(),
+        input_tokens=assistant_usage.input_tokens,
+        cached_input_tokens=assistant_usage.cached_input_tokens,
+        output_tokens=assistant_usage.output_tokens,
     )
     return candidate
 
@@ -477,7 +560,7 @@ def _record_attempt(
 def _fail_incomplete_attempts(
     run: GenerationRun,
     attempts: SelfPlayAttempts,
-    prices: PriceCatalog,
+    prices: PriceCatalog | None,
     *,
     reason: str,
     assistant_usage: TokenUsage,
@@ -487,13 +570,17 @@ def _fail_incomplete_attempts(
         attempts.simulator.attempt_id,
         reason,
         prices=prices,
-        **simulator_usage.to_dict(),
+        input_tokens=simulator_usage.input_tokens,
+        cached_input_tokens=simulator_usage.cached_input_tokens,
+        output_tokens=simulator_usage.output_tokens,
     )
     run.fail_attempt(
         attempts.assistant.attempt_id,
         reason,
         prices=prices,
-        **assistant_usage.to_dict(),
+        input_tokens=assistant_usage.input_tokens,
+        cached_input_tokens=assistant_usage.cached_input_tokens,
+        output_tokens=assistant_usage.output_tokens,
     )
 
 

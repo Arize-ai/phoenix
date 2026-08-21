@@ -9,10 +9,18 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from scripts.datagen.generation import MatrixCell
-from scripts.datagen.mock_openai_provider import PlaybackProvider, create_chat_completion
+from scripts.datagen.generation import MatrixCell, ProfileDraw
+from scripts.datagen.mock_openai_provider import (
+    PlaybackProvider,
+    create_chat_completion,
+)
+from scripts.datagen.model_backend import BackendCapabilities, ModelResult
 from scripts.datagen.openai_batch import BatchResult
-from scripts.datagen.scripted import build_script_request, scripts_from_batch_results
+from scripts.datagen.scripted import (
+    build_script_request,
+    generate_script,
+    scripts_from_batch_results,
+)
 
 
 def test_scripted_batch_result_replays_through_instrumented_openai_client() -> None:
@@ -118,12 +126,46 @@ def test_compatibility_provider_is_request_deterministic() -> None:
     assert create_chat_completion(request) == create_chat_completion(request)
 
 
+def test_structured_backend_generates_script_without_batch() -> None:
+    class Backend:
+        provider = "codex_exec"
+        capabilities = BackendCapabilities()
+
+        def generate(self, request: object) -> ModelResult:
+            return ModelResult(
+                provider=self.provider,
+                model="model-exact",
+                output={"turns": [{"user": "Question", "assistant": "Answer"}]},
+                usage=None,
+            )
+
+    script, result = generate_script(Backend(), _cell())
+
+    assert script.turns[0].assistant == "Answer"
+    assert result.provider == "codex_exec"
+
+
 def _cell() -> MatrixCell:
     return MatrixCell(
         cell_id="a" * 64,
         lane="scripted",
         ordinal=0,
-        factors={"archetype": "plain_chat", "failure_mode": "none"},
+        profile=ProfileDraw(
+            profile_id="customer_support/plain_chat",
+            domain="customer_support",
+            archetype="plain_chat",
+            scenario_id="return",
+            topic="returns",
+            scenario_template="Ask about a return.",
+            persona_id="buyer",
+            persona_instructions="Ask concise questions.",
+            register="neutral",
+            quality_tier="high",
+            turn_count=1,
+            target_mode="ambient",
+            targeted_seed_id=None,
+            seed_intensities={},
+        ),
         assistant_model="model-exact",
     )
 

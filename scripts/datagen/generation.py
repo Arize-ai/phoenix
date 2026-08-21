@@ -2,18 +2,32 @@
 
 from __future__ import annotations
 
-import itertools
 import json
 import os
+import random
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable, Literal, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Mapping, Sequence, cast
+
+if TYPE_CHECKING or __package__:
+    from scripts.datagen.profile import (
+        ApplicationProfileV1,
+        ProfileSetV1,
+        load_profile_snapshot,
+    )
+else:
+    from profile import (  # type: ignore[import-not-found,no-redef]
+        ApplicationProfileV1,
+        ProfileSetV1,
+        load_profile_snapshot,
+    )
 
 Lane = Literal["self_play", "scripted"]
 ProcessingMode = Literal["direct", "batch"]
+MeteringMode = Literal["priced", "subscription"]
 BudgetPool = Literal["generation", "judge", "retry"]
 
 DEFAULT_LANE_TARGETS: Mapping[Lane, int] = {"self_play": 3_000, "scripted": 2_000}
@@ -27,6 +41,8 @@ DEFAULT_BUDGET_SHARES: Mapping[BudgetPool, Decimal] = {
 }
 BUDGET_POOLS: tuple[BudgetPool, BudgetPool, BudgetPool] = ("generation", "judge", "retry")
 FRONTIER_FRACTION = Decimal("0.05")
+RUN_SCHEMA_VERSION = 2
+MATRIX_SCHEMA_VERSION = 2
 
 _JOURNALS = ("attempts.jsonl", "jobs.jsonl", "costs.jsonl", "accepted.jsonl", "rejects.jsonl")
 _TERMINAL_ATTEMPT_EVENTS = frozenset({"completed", "failed"})
@@ -71,11 +87,35 @@ class BudgetExceeded(GenerationError):
 
 
 @dataclass(frozen=True)
+class ProfileDraw:
+    profile_id: str
+    domain: str
+    archetype: str
+    scenario_id: str
+    topic: str
+    scenario_template: str
+    persona_id: str
+    persona_instructions: str
+    register: str
+    quality_tier: str
+    turn_count: int
+    target_mode: Literal["ambient", "targeted"]
+    targeted_seed_id: str | None
+    seed_intensities: Mapping[str, float]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            **asdict(self),
+            "seed_intensities": dict(sorted(self.seed_intensities.items())),
+        }
+
+
+@dataclass(frozen=True)
 class MatrixCell:
     cell_id: str
     lane: Lane
     ordinal: int
-    factors: Mapping[str, Any]
+    profile: ProfileDraw
     assistant_model: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -83,7 +123,7 @@ class MatrixCell:
             "cell_id": self.cell_id,
             "lane": self.lane,
             "ordinal": self.ordinal,
-            "factors": dict(self.factors),
+            "profile": self.profile.to_dict(),
             "assistant_model": self.assistant_model,
         }
 
@@ -97,6 +137,11 @@ class RunConfig:
     frontier_model: str
     pricing_version: str
     pricing_sha256: str
+    profile_set_sha256: str
+    luna_provider: str = "openai_api"
+    frontier_provider: str = "openai_api"
+    run_schema_version: int = RUN_SCHEMA_VERSION
+    matrix_schema_version: int = MATRIX_SCHEMA_VERSION
     budget_usd: str = "100"
     self_play_target: int = 3_000
     scripted_target: int = 2_000
@@ -109,9 +154,13 @@ class RunConfig:
             raise GenerationError("run_id must be non-empty and must not contain ':'")
         if not self.luna_model or not self.frontier_model:
             raise GenerationError("luna_model and frontier_model must be configured explicitly")
+        for provider in (self.luna_provider, self.frontier_provider):
+            if provider not in {"openai_api", "codex_exec"}:
+                raise GenerationError(f"unsupported model provider {provider!r}")
         for field, digest in (
             ("matrix_sha256", self.matrix_sha256),
             ("pricing_sha256", self.pricing_sha256),
+            ("profile_set_sha256", self.profile_set_sha256),
         ):
             if len(digest) != 64 or any(
                 character not in "0123456789abcdef" for character in digest
@@ -119,6 +168,8 @@ class RunConfig:
                 raise GenerationError(f"{field} must be a SHA-256 hex digest")
         if self.self_play_target < 1 or self.scripted_target < 1:
             raise GenerationError("lane targets must be positive")
+        if self.run_schema_version != RUN_SCHEMA_VERSION or self.matrix_schema_version != MATRIX_SCHEMA_VERSION:
+            raise GenerationError("schema-v1 flat runs cannot resume; create a profile set and initialize a new run")
         shares = sum(
             (
                 Decimal(value)
@@ -152,6 +203,21 @@ class RunConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    def provider_for_model(self, model: str) -> tuple[str, MeteringMode]:
+        matches = []
+        if model == self.luna_model:
+            matches.append(self.luna_provider)
+        if model == self.frontier_model:
+            matches.append(self.frontier_provider)
+        if not matches:
+            raise ConfigurationMismatch(f"model {model!r} is not configured for this run")
+        if len(set(matches)) != 1:
+            raise ConfigurationMismatch(
+                f"model {model!r} has conflicting immutable provider bindings"
+            )
+        provider = matches[0]
+        return provider, "priced" if provider == "openai_api" else "subscription"
 
 
 @dataclass(frozen=True)
@@ -282,7 +348,9 @@ class Attempt:
     lane: Lane
     purpose: str
     attempt_number: int
-    reservation_id: str
+    reservation_id: str | None
+    provider: str
+    metering: MeteringMode
     model: str
     mode: ProcessingMode
 
@@ -296,37 +364,32 @@ class CostSummary:
 
 
 def expand_seed_matrix(
-    factors: Mapping[str, Sequence[Any]],
+    profile_set: ProfileSetV1,
     *,
     seed: int,
     luna_model: str,
     frontier_model: str,
     lane_targets: Mapping[Lane, int] = DEFAULT_LANE_TARGETS,
 ) -> tuple[MatrixCell, ...]:
-    """Expand factored values into stable lane cells, cycling when targets exceed the product."""
-    if not factors:
-        raise GenerationError("matrix factors must not be empty")
-    names = sorted(factors)
-    values = []
-    for name in names:
-        choices = factors[name]
-        if not isinstance(name, str) or not name or not choices:
-            raise GenerationError("matrix factor names and value lists must be non-empty")
-        values.append(tuple(choices))
-    combinations = tuple(dict(zip(names, items)) for items in itertools.product(*values))
+    """Draw stable, profile-scoped matrix cells."""
+    profiles = tuple(sorted(profile_set.profiles, key=lambda profile: profile.profile_id))
+    if not profiles:
+        raise GenerationError("profile set must not be empty")
     cells = []
     for lane in LANES:
         target = lane_targets[lane]
         if target < 1:
             raise GenerationError(f"{lane} target must be positive")
         for ordinal in range(target):
-            selected = combinations[ordinal % len(combinations)]
+            profile = profiles[ordinal % len(profiles)]
+            draw = _profile_draw(profile_set, profile, seed=seed, lane=lane, ordinal=ordinal)
             identity = {
-                "schema_version": 1,
+                "schema_version": MATRIX_SCHEMA_VERSION,
                 "matrix_seed": seed,
+                "profile_set_sha256": profile_set.profile_set_sha256,
                 "lane": lane,
                 "ordinal": ordinal,
-                "factors": selected,
+                "profile": draw.to_dict(),
             }
             cell_id = sha256(_canonical_bytes(identity)).hexdigest()
             use_frontier = lane == "self_play" and ordinal % int(1 / FRONTIER_FRACTION) == 0
@@ -335,19 +398,92 @@ def expand_seed_matrix(
                     cell_id=cell_id,
                     lane=lane,
                     ordinal=ordinal,
-                    factors=selected,
+                    profile=draw,
                     assistant_model=frontier_model if use_frontier else luna_model,
                 )
             )
     return tuple(cells)
 
 
-def matrix_document(cells: Sequence[MatrixCell], seed: int) -> dict[str, Any]:
-    return {"schema_version": 1, "matrix_seed": seed, "cells": [cell.to_dict() for cell in cells]}
+def matrix_document(
+    cells: Sequence[MatrixCell], seed: int, profile_set_sha256: str
+) -> dict[str, Any]:
+    return {
+        "schema_version": MATRIX_SCHEMA_VERSION,
+        "matrix_seed": seed,
+        "profile_set_sha256": profile_set_sha256,
+        "cells": [cell.to_dict() for cell in cells],
+    }
 
 
-def matrix_sha256(cells: Sequence[MatrixCell], seed: int) -> str:
-    return sha256(_canonical_bytes(matrix_document(cells, seed))).hexdigest()
+def matrix_sha256(cells: Sequence[MatrixCell], seed: int, profile_set_sha256: str) -> str:
+    return sha256(_canonical_bytes(matrix_document(cells, seed, profile_set_sha256))).hexdigest()
+
+
+def _profile_draw(
+    profile_set: ProfileSetV1,
+    profile: ApplicationProfileV1,
+    *,
+    seed: int,
+    lane: Lane,
+    ordinal: int,
+) -> ProfileDraw:
+    def rng(field: str) -> random.Random:
+        identity = (
+            f"{MATRIX_SCHEMA_VERSION}:{seed}:{lane}:{ordinal}:{profile.profile_id}:{field}"
+        )
+        return random.Random(int.from_bytes(sha256(identity.encode()).digest(), "big"))
+
+    fraction = cast(float, profile_set.sampling["targeted_cell_fraction"])
+    compatible = tuple(scenario for scenario in profile.scenarios if scenario.target_seed_ids)
+    targeted = bool(compatible) and rng("target_mode").random() < fraction
+    scenario_pool = compatible if targeted else profile.scenarios
+    scenario = _weighted_choice(scenario_pool, rng("scenario"))
+    persona = _weighted_choice(profile.personas, rng("persona"))
+    register = _weighted_choice(profile.registers, rng("register"))
+    quality = _weighted_choice(profile.quality_tiers, rng("quality_tier"))
+    turn_count = _weighted_choice(profile.turn_counts, rng("turn_count"))
+    targeted_seed_id = (
+        scenario.target_seed_ids[
+            rng("targeted_seed_id").randrange(len(scenario.target_seed_ids))
+        ]
+        if targeted
+        else None
+    )
+    distribution = cast(Mapping[str, float], profile_set.sampling["intensity_distribution"])
+    intensities = {
+        adversarial_seed.seed_id: rng(f"seed_intensity:{adversarial_seed.seed_id}").betavariate(
+            distribution["alpha"], distribution["beta"]
+        )
+        for adversarial_seed in profile.adversarial_seeds
+    }
+    return ProfileDraw(
+        profile_id=profile.profile_id,
+        domain=profile.domain,
+        archetype=profile.archetype,
+        scenario_id=scenario.scenario_id,
+        topic=scenario.topic,
+        scenario_template=scenario.template,
+        persona_id=persona.persona_id,
+        persona_instructions=persona.instructions,
+        register=register.value,
+        quality_tier=quality.value,
+        turn_count=turn_count.value,
+        target_mode="targeted" if targeted else "ambient",
+        targeted_seed_id=targeted_seed_id,
+        seed_intensities=intensities,
+    )
+
+
+def _weighted_choice(values: Sequence[Any], generator: random.Random) -> Any:
+    total = sum(cast(float, value.weight) for value in values)
+    threshold = generator.random() * total
+    cumulative = 0.0
+    for value in values:
+        cumulative += cast(float, value.weight)
+        if threshold < cumulative:
+            return value
+    return values[-1]
 
 
 class GenerationRun:
@@ -359,9 +495,16 @@ class GenerationRun:
 
     @classmethod
     def create_or_resume(
-        cls, directory: Path, *, config: RunConfig, cells: Sequence[MatrixCell]
+        cls,
+        directory: Path,
+        *,
+        config: RunConfig,
+        cells: Sequence[MatrixCell],
+        profiles: ProfileSetV1,
     ) -> GenerationRun:
-        document = matrix_document(cells, config.matrix_seed)
+        if profiles.profile_set_sha256 != config.profile_set_sha256:
+            raise ConfigurationMismatch("profile snapshot differs from run config")
+        document = matrix_document(cells, config.matrix_seed, config.profile_set_sha256)
         digest = sha256(_canonical_bytes(document)).hexdigest()
         if digest != config.matrix_sha256:
             raise ConfigurationMismatch(
@@ -372,6 +515,7 @@ class GenerationRun:
         directory.mkdir(parents=True, exist_ok=True)
         _write_immutable_json(directory / "matrix.json", document)
         _write_immutable_json(directory / "run.json", config.to_dict())
+        _write_immutable_bytes(directory / "profiles.json", profiles.canonical_bytes)
         (directory / "staging").mkdir(exist_ok=True)
         for journal in _JOURNALS:
             (directory / journal).touch(exist_ok=True)
@@ -380,8 +524,22 @@ class GenerationRun:
     @classmethod
     def resume(cls, directory: Path) -> GenerationRun:
         config_value = _load_json(directory / "run.json")
+        if config_value.get("run_schema_version") != RUN_SCHEMA_VERSION:
+            raise ConfigurationMismatch(
+                "schema-v1 flat runs cannot resume; create a profile set and initialize a new run"
+            )
         document = _load_json(directory / "matrix.json")
         config = RunConfig(**config_value)
+        if document.get("schema_version") != MATRIX_SCHEMA_VERSION:
+            raise ConfigurationMismatch(
+                "schema-v1 flat runs cannot resume; create a profile set and initialize a new run"
+            )
+        try:
+            profiles = load_profile_snapshot((directory / "profiles.json").read_bytes())
+        except (OSError, ValueError) as error:
+            raise ConfigurationMismatch(f"persisted profile snapshot is invalid: {error}") from error
+        if profiles.profile_set_sha256 != config.profile_set_sha256:
+            raise ConfigurationMismatch("persisted profile snapshot does not match run.json")
         if sha256(_canonical_bytes(document)).hexdigest() != config.matrix_sha256:
             raise ConfigurationMismatch("persisted matrix does not match run.json")
         raw_cells = document.get("cells")
@@ -392,7 +550,7 @@ class GenerationRun:
                 cell_id=row["cell_id"],
                 lane=row["lane"],
                 ordinal=row["ordinal"],
-                factors=row["factors"],
+                profile=ProfileDraw(**row["profile"]),
                 assistant_model=row["assistant_model"],
             )
             for row in raw_cells
@@ -408,13 +566,22 @@ class GenerationRun:
         mode: ProcessingMode,
         max_input_tokens: int,
         max_output_tokens: int,
-        prices: PriceCatalog,
+        prices: PriceCatalog | None = None,
+        provider: str | None = None,
     ) -> Attempt:
         cell = self._require_cell(cell_id)
-        self._require_prices(prices)
         self._require_no_cost_violation()
-        if model not in {self.config.luna_model, self.config.frontier_model}:
-            raise ConfigurationMismatch(f"model {model!r} is not configured for this run")
+        bound_provider, metering = self.config.provider_for_model(model)
+        if provider is not None and provider != bound_provider:
+            raise ConfigurationMismatch(
+                f"provider {provider!r} differs from immutable binding {bound_provider!r}"
+            )
+        if metering == "priced":
+            if prices is None:
+                raise GenerationError("priced attempts require a pricing table")
+            self._require_prices(prices)
+        elif mode != "direct":
+            raise GenerationError("subscription backends support direct processing only")
         if cell_id in self.accepted_cell_ids:
             raise AlreadyAccepted(f"cell {cell_id} is already accepted")
         if open_attempt := self._open_attempt(cell_id, purpose):
@@ -424,6 +591,7 @@ class GenerationRun:
                 mode=mode,
                 max_input_tokens=max_input_tokens,
                 max_output_tokens=max_output_tokens,
+                provider=bound_provider,
             )
             return open_attempt
 
@@ -433,27 +601,29 @@ class GenerationRun:
             raise AttemptCapExceeded(cell.lane, attempts, cap)
         attempt_number = self._next_attempt_number(cell_id, purpose)
         attempt_id = f"{cell_id}:{purpose}:{attempt_number}"
-        reservation_id = f"{attempt_id}:cost"
+        reservation_id = f"{attempt_id}:cost" if metering == "priced" else None
         pool: BudgetPool = (
             "retry" if attempt_number > 1 else ("judge" if purpose == "judge" else "generation")
         )
-        reserved = prices.reserve_cost(
-            model,
-            max_input_tokens=max_input_tokens,
-            max_output_tokens=max_output_tokens,
-            mode=mode,
-        )
-        self._reserve(
-            reservation_id,
-            attempt_id=attempt_id,
-            cell_id=cell_id,
-            pool=pool,
-            model=model,
-            mode=mode,
-            amount_usd=reserved,
-            max_input_tokens=max_input_tokens,
-            max_output_tokens=max_output_tokens,
-        )
+        if metering == "priced":
+            assert prices is not None and reservation_id is not None
+            reserved = prices.reserve_cost(
+                model,
+                max_input_tokens=max_input_tokens,
+                max_output_tokens=max_output_tokens,
+                mode=mode,
+            )
+            self._reserve(
+                reservation_id,
+                attempt_id=attempt_id,
+                cell_id=cell_id,
+                pool=pool,
+                model=model,
+                mode=mode,
+                amount_usd=reserved,
+                max_input_tokens=max_input_tokens,
+                max_output_tokens=max_output_tokens,
+            )
         event = {
             "event": "started",
             "at": _now(),
@@ -463,8 +633,12 @@ class GenerationRun:
             "purpose": purpose,
             "attempt_number": attempt_number,
             "reservation_id": reservation_id,
+            "provider": bound_provider,
+            "metering": metering,
             "model": model,
             "mode": mode,
+            "max_input_tokens": max_input_tokens,
+            "max_output_tokens": max_output_tokens,
         }
         _append_json(self.directory / "attempts.jsonl", event)
         (self.directory / "staging" / cell_id / f"attempt-{attempt_number}").mkdir(
@@ -483,16 +657,48 @@ class GenerationRun:
         self,
         attempt_id: str,
         *,
-        prices: PriceCatalog,
-        input_tokens: int,
-        cached_input_tokens: int,
-        output_tokens: int,
+        prices: PriceCatalog | None = None,
+        input_tokens: int | None = None,
+        cached_input_tokens: int | None = None,
+        output_tokens: int | None = None,
+        reasoning_output_tokens: int | None = None,
+        provider_run_id: str | None = None,
+        exit_status: str = "completed",
     ) -> Decimal:
         attempt = self._require_open_attempt(attempt_id)
+        counts = (input_tokens, cached_input_tokens, output_tokens)
+        if any(value is None for value in counts) and not all(value is None for value in counts):
+            raise GenerationError("provider usage must be fully populated or null")
+        usage = (
+            None
+            if input_tokens is None
+            else {
+                "input_tokens": input_tokens,
+                "cached_input_tokens": cast(int, cached_input_tokens),
+                "output_tokens": cast(int, output_tokens),
+                "reasoning_output_tokens": reasoning_output_tokens or 0,
+            }
+        )
+        if attempt.metering == "subscription":
+            _append_json(
+                self.directory / "attempts.jsonl",
+                {
+                    "event": "completed",
+                    "at": _now(),
+                    "attempt_id": attempt_id,
+                    "provider_run_id": provider_run_id,
+                    "exit_status": exit_status,
+                    "usage": usage,
+                },
+            )
+            return Decimal()
+        if prices is None or usage is None or attempt.reservation_id is None:
+            raise GenerationError("priced attempt completion requires prices and token usage")
         self._require_prices(prices)
         reservation = self._reservation(attempt.reservation_id)
         max_input_tokens = cast(int, reservation["max_input_tokens"])
         max_output_tokens = cast(int, reservation["max_output_tokens"])
+        assert input_tokens is not None and output_tokens is not None and cached_input_tokens is not None
         if input_tokens > max_input_tokens or output_tokens > max_output_tokens:
             self._record_cost_invariant_violation(
                 attempt.reservation_id,
@@ -522,7 +728,14 @@ class GenerationRun:
         )
         _append_json(
             self.directory / "attempts.jsonl",
-            {"event": "completed", "at": _now(), "attempt_id": attempt_id},
+            {
+                "event": "completed",
+                "at": _now(),
+                "attempt_id": attempt_id,
+                "provider_run_id": provider_run_id,
+                "exit_status": exit_status,
+                "usage": usage,
+            },
         )
         return actual
 
@@ -535,17 +748,35 @@ class GenerationRun:
         input_tokens: int | None = None,
         cached_input_tokens: int | None = None,
         output_tokens: int | None = None,
+        reasoning_output_tokens: int | None = None,
+        provider_run_id: str | None = None,
+        exit_status: str = "failed",
     ) -> None:
         attempt = self._require_open_attempt(attempt_id)
         usage = (input_tokens, cached_input_tokens, output_tokens)
-        if prices is None and all(value is None for value in usage):
+        usage_record = (
+            None
+            if all(value is None for value in usage)
+            else {
+                "input_tokens": input_tokens,
+                "cached_input_tokens": cached_input_tokens,
+                "output_tokens": output_tokens,
+                "reasoning_output_tokens": reasoning_output_tokens or 0,
+            }
+        )
+        if attempt.metering == "subscription":
+            if not (all(value is None for value in usage) or all(value is not None for value in usage)):
+                raise GenerationError("provider usage must be fully populated or null")
+        elif prices is None and all(value is None for value in usage):
+            assert attempt.reservation_id is not None
             self._reconcile(attempt.reservation_id, actual_usd=Decimal(), error=reason)
-        elif prices is None or any(value is None for value in usage):
+        elif attempt.metering == "priced" and (prices is None or any(value is None for value in usage)):
             raise GenerationError(
                 "failed attempt usage requires prices, input_tokens, "
                 "cached_input_tokens, and output_tokens"
             )
-        else:
+        elif attempt.metering == "priced":
+            assert prices is not None and attempt.reservation_id is not None
             self._require_prices(prices)
             reservation = self._reservation(attempt.reservation_id)
             max_input_tokens = cast(int, reservation["max_input_tokens"])
@@ -583,7 +814,15 @@ class GenerationRun:
             )
         _append_json(
             self.directory / "attempts.jsonl",
-            {"event": "failed", "at": _now(), "attempt_id": attempt_id, "reason": reason},
+            {
+                "event": "failed",
+                "at": _now(),
+                "attempt_id": attempt_id,
+                "reason": reason,
+                "provider_run_id": provider_run_id,
+                "exit_status": exit_status,
+                "usage": usage_record,
+            },
         )
         _append_json(
             self.directory / "rejects.jsonl",
@@ -797,6 +1036,26 @@ class GenerationRun:
         if violations:
             exhausted.append({"kind": "cost_invariant", **violations[-1]})
         costs = self.cost_summary()
+        usage_by_provider: dict[str, dict[str, int]] = {}
+        states = self._attempt_states()
+        for state in states.values():
+            usage = state["latest"].get("usage")
+            if not isinstance(usage, Mapping):
+                continue
+            provider = state["attempt"].provider
+            totals = usage_by_provider.setdefault(
+                provider,
+                {
+                    "input_tokens": 0,
+                    "cached_input_tokens": 0,
+                    "output_tokens": 0,
+                    "reasoning_output_tokens": 0,
+                },
+            )
+            for key in totals:
+                value = usage.get(key, 0)
+                if isinstance(value, int):
+                    totals[key] += value
         complete = all(accepted_by_lane[lane] >= self.config.lane_targets[lane] for lane in LANES)
         return {
             "run_id": self.config.run_id,
@@ -814,6 +1073,7 @@ class GenerationRun:
                     for pool, values in costs.pools.items()
                 },
             },
+            "provider_usage": usage_by_provider,
             "exhausted": exhausted,
         }
 
@@ -985,15 +1245,21 @@ class GenerationRun:
         mode: ProcessingMode,
         max_input_tokens: int,
         max_output_tokens: int,
+        provider: str,
     ) -> None:
-        reservation = self._reservation(attempt.reservation_id)
+        started = next(
+            event
+            for event in _read_jsonl(self.directory / "attempts.jsonl")
+            if event.get("event") == "started" and event.get("attempt_id") == attempt.attempt_id
+        )
         requested = {
             "model": model,
             "mode": mode,
             "max_input_tokens": max_input_tokens,
             "max_output_tokens": max_output_tokens,
+            "provider": provider,
         }
-        if any(reservation.get(key) != value for key, value in requested.items()):
+        if any(started.get(key) != value for key, value in requested.items()):
             raise ConfigurationMismatch(
                 f"open attempt {attempt.attempt_id} admission inputs changed on resume"
             )
@@ -1084,6 +1350,10 @@ class GenerationRun:
 
 def _write_immutable_json(path: Path, value: Mapping[str, Any]) -> None:
     content = _canonical_bytes(value) + b"\n"
+    _write_immutable_bytes(path, content)
+
+
+def _write_immutable_bytes(path: Path, content: bytes) -> None:
     if path.exists():
         if path.read_bytes() != content:
             raise ConfigurationMismatch(f"immutable run file differs: {path}")
@@ -1155,7 +1425,9 @@ def _attempt_from_event(event: Mapping[str, Any]) -> Attempt:
         lane=cast(Lane, event["lane"]),
         purpose=cast(str, event["purpose"]),
         attempt_number=cast(int, event["attempt_number"]),
-        reservation_id=cast(str, event["reservation_id"]),
+        reservation_id=cast(str | None, event.get("reservation_id")),
+        provider=cast(str, event["provider"]),
+        metering=cast(MeteringMode, event["metering"]),
         model=cast(str, event["model"]),
         mode=cast(ProcessingMode, event["mode"]),
     )

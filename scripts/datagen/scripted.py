@@ -15,9 +15,11 @@ from typing import Any, Literal, Mapping, Sequence, cast
 
 if __package__:
     from scripts.datagen.generation import GenerationError, MatrixCell
+    from scripts.datagen.model_backend import ModelBackend, ModelRequest, ModelResult
     from scripts.datagen.openai_batch import BatchRequest, BatchResult, custom_id
 else:
     from generation import GenerationError, MatrixCell
+    from model_backend import ModelBackend, ModelRequest, ModelResult
     from openai_batch import (
         BatchRequest,
         BatchResult,
@@ -128,28 +130,45 @@ class ConversationScript:
         )
 
 
-def build_script_request(run_id: str, cell: MatrixCell) -> BatchRequest:
-    """Build one Responses Batch row for a scripted matrix cell."""
+def build_model_request(cell: MatrixCell) -> ModelRequest:
     if cell.lane != "scripted":
         raise GenerationError(f"Cell {cell.cell_id} belongs to {cell.lane}, not scripted")
-    factors = json.dumps(cell.factors, sort_keys=True, separators=(",", ":"))
+    profile = json.dumps(cell.profile.to_dict(), sort_keys=True, separators=(",", ":"))
     prompt = (
         "Write one coherent whole conversation for an offline telemetry fixture. "
         "Return only the requested JSON object. Each turn must contain a realistic user "
         "message and the assistant response that should be replayed verbatim. Use these "
-        f"scenario factors: {factors}"
+        f"application profile draw: {profile}"
     )
+    return ModelRequest(
+        request_id=cell.cell_id,
+        purpose="generation",
+        model=cell.assistant_model,
+        prompt=prompt,
+        output_schema=_SCRIPT_OUTPUT_SCHEMA,
+        max_output_tokens=max(512, cell.profile.turn_count * 512),
+    )
+
+
+def generate_script(backend: ModelBackend, cell: MatrixCell) -> tuple[ConversationScript, ModelResult]:
+    result = backend.generate(build_model_request(cell))
+    return _script_from_output(cell, result.output), result
+
+
+def build_script_request(run_id: str, cell: MatrixCell) -> BatchRequest:
+    """Build one Responses Batch row for a scripted matrix cell."""
+    request = build_model_request(cell)
     return BatchRequest(
         custom_id=custom_id(run_id, cell.cell_id, "script"),
         body={
-            "model": cell.assistant_model,
-            "input": prompt,
+            "model": request.model,
+            "input": request.prompt,
             "text": {
                 "format": {
                     "type": "json_schema",
                     "name": "conversation_script",
                     "strict": True,
-                    "schema": _SCRIPT_OUTPUT_SCHEMA,
+                    "schema": request.output_schema,
                 }
             },
         },
@@ -191,19 +210,19 @@ def _script_from_result(cell: MatrixCell, result: BatchResult) -> ConversationSc
         raise GenerationError(
             f"Script Batch request {result.custom_id!r} returned a non-object script"
         )
+    return _script_from_output(cell, value)
+
+
+def _script_from_output(cell: MatrixCell, value: Mapping[str, Any]) -> ConversationScript:
     raw_turns = value.get("turns")
     if not isinstance(raw_turns, list):
-        raise GenerationError(f"Script Batch request {result.custom_id!r} has no turns array")
+        raise GenerationError(f"Structured result for cell {cell.cell_id!r} has no turns array")
     turns = tuple(_parse_turn(turn, index) for index, turn in enumerate(raw_turns))
-    failure_mode = _failure_mode(cell.factors.get("failure_mode", "none"))
-    raw_failure_turn = cell.factors.get("failure_turn", 0 if failure_mode != "none" else None)
-    if raw_failure_turn is not None and not isinstance(raw_failure_turn, int):
-        raise GenerationError(f"Cell {cell.cell_id} failure_turn must be an integer")
     return ConversationScript(
         cell_id=cell.cell_id,
         model=cell.assistant_model,
-        failure_mode=failure_mode,
-        failure_turn=raw_failure_turn,
+        failure_mode="none",
+        failure_turn=None,
         turns=turns,
     )
 

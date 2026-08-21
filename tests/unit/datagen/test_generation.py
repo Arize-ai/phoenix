@@ -23,16 +23,17 @@ from scripts.datagen.openai_batch import (
     custom_id,
     usage_from_body,
 )
+from scripts.datagen.profile import load_profile_set
 
 
 def test_generation_command_resumes_without_duplicate_accepts(tmp_path: Path) -> None:
-    factors, pricing = _inputs(tmp_path)
+    profiles, pricing = _inputs(tmp_path)
     run_dir = tmp_path / "run"
     init_args = [
         "init",
         str(run_dir),
-        "--matrix-factors",
-        str(factors),
+        "--profile-set",
+        str(profiles),
         "--run-id",
         "pass-1",
         "--seed",
@@ -117,15 +118,15 @@ def test_generation_command_resumes_without_duplicate_accepts(tmp_path: Path) ->
 
 
 def test_generation_command_reports_exact_budget_denial(tmp_path: Path) -> None:
-    factors, pricing = _inputs(tmp_path)
+    profiles, pricing = _inputs(tmp_path)
     run_dir = tmp_path / "run"
     assert (
         command(
             [
                 "init",
                 str(run_dir),
-                "--matrix-factors",
-                str(factors),
+                "--profile-set",
+                str(profiles),
                 "--run-id",
                 "small-budget",
                 "--seed",
@@ -253,28 +254,95 @@ def test_failed_auxiliary_attempt_counts_cost_without_consuming_lane_cap(tmp_pat
     assert run.cost_summary().spent_usd > 0
 
 
-def test_matrix_ids_and_frontier_selection_are_stable() -> None:
+def test_subscription_attempt_records_usage_without_price_reservation(tmp_path: Path) -> None:
+    profiles_path, pricing_path = _inputs(tmp_path)
+    profiles = load_profile_set(profiles_path)
+    prices = PriceCatalog.load(pricing_path)
+    cells = expand_seed_matrix(
+        profiles,
+        seed=5,
+        luna_model="gpt-5.6-luna",
+        frontier_model="frontier-exact",
+        lane_targets={"self_play": 1, "scripted": 1},
+    )
+    run = GenerationRun.create_or_resume(
+        tmp_path / "subscription-run",
+        config=RunConfig(
+            run_id="subscription-pass",
+            matrix_seed=5,
+            matrix_sha256=matrix_sha256(cells, 5, profiles.profile_set_sha256),
+            luna_model="gpt-5.6-luna",
+            frontier_model="frontier-exact",
+            pricing_version=prices.version,
+            pricing_sha256=prices.sha256,
+            profile_set_sha256=profiles.profile_set_sha256,
+            luna_provider="codex_exec",
+            frontier_provider="codex_exec",
+            self_play_target=1,
+            scripted_target=1,
+        ),
+        cells=cells,
+        profiles=profiles,
+    )
+    cell = run.cells[0]
+
+    attempt = run.admitted_attempt(
+        cell.cell_id,
+        purpose="generation",
+        model=cell.assistant_model,
+        mode="direct",
+        max_input_tokens=100,
+        max_output_tokens=100,
+    )
+    run.complete_attempt(
+        attempt.attempt_id,
+        input_tokens=12,
+        cached_input_tokens=2,
+        output_tokens=4,
+        provider_run_id="thread-1",
+    )
+
+    assert attempt.provider == "codex_exec"
+    assert attempt.reservation_id is None
+    assert run.cost_summary().reserved_usd == 0
+    assert run.status()["provider_usage"]["codex_exec"]["input_tokens"] == 12
+
+
+def test_matrix_ids_and_frontier_selection_are_stable(tmp_path: Path) -> None:
     kwargs = {
         "seed": 42,
         "luna_model": "gpt-5.6-luna",
         "frontier_model": "frontier-exact",
         "lane_targets": {"self_play": 40, "scripted": 2},
     }
-    first = expand_seed_matrix({"domain": ["retail", "travel"], "tone": ["formal"]}, **kwargs)
-    second = expand_seed_matrix({"tone": ["formal"], "domain": ["retail", "travel"]}, **kwargs)
+    profiles_path, _ = _inputs(tmp_path)
+    profiles = load_profile_set(profiles_path)
+    first = expand_seed_matrix(profiles, **kwargs)
+    second = expand_seed_matrix(profiles, **kwargs)
 
     assert first == second
+    assert json.dumps(
+        [cell.to_dict() for cell in first], sort_keys=True, separators=(",", ":")
+    ).encode() == json.dumps(
+        [cell.to_dict() for cell in second], sort_keys=True, separators=(",", ":")
+    ).encode()
     assert len({cell.cell_id for cell in first}) == 42
     assert all(len(cell.cell_id) == 64 for cell in first)
     assert sum(cell.assistant_model == "frontier-exact" for cell in first) == 2
+    profile = profiles.profiles[0]
+    scenario_ids = {item.scenario_id for item in profile.scenarios}
+    persona_ids = {item.persona_id for item in profile.personas}
+    seed_ids = {item.seed_id for item in profile.adversarial_seeds}
+    assert all(cell.profile.scenario_id in scenario_ids for cell in first)
+    assert all(cell.profile.persona_id in persona_ids for cell in first)
+    assert all(set(cell.profile.seed_intensities) == seed_ids for cell in first)
 
 
 def test_bundled_pricing_preserves_models_and_requires_frontier_price(tmp_path: Path) -> None:
-    factors = tmp_path / "factors.json"
-    factors.write_text(json.dumps({"domain": ["retail"]}))
+    profiles, _ = _inputs(tmp_path)
     common = [
-        "--matrix-factors",
-        str(factors),
+        "--profile-set",
+        str(profiles),
         "--seed",
         "1",
         "--self-play-target",
@@ -354,8 +422,24 @@ def test_batch_adapter_persists_ids_and_correlates_fake_results(tmp_path: Path) 
 
 
 def _inputs(tmp_path: Path) -> tuple[Path, Path]:
-    factors = tmp_path / "factors.json"
-    factors.write_text(json.dumps({"domain": ["retail"], "archetype": ["plain_chat"]}))
+    profile_dir = tmp_path / "customer_support" / "plain_chat"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    (profile_dir / "profile.json").write_text(json.dumps({
+        "schema_version": 1,
+        "profile_id": "customer_support/plain_chat",
+        "domain": "customer_support",
+        "archetype": "plain_chat",
+        "tool_surface": ["lookup_order"],
+        "corpus_documents": [],
+        "personas": [{"persona_id": "buyer", "instructions": "Ask for help.", "weight": 1}],
+        "registers": [{"value": "neutral", "weight": 1}],
+        "scenarios": [{"scenario_id": "return", "topic": "returns", "template": "Ask about returns.", "weight": 1, "target_seed_ids": ["pressure"]}],
+        "quality_tiers": [{"value": "high", "weight": 1}],
+        "turn_counts": [{"value": 2, "weight": 1}],
+        "adversarial_seeds": [{"seed_id": "pressure", "category": "pressure", "description": "Urgency."}],
+    }))
+    profiles = tmp_path / "profile-set.json"
+    profiles.write_text(json.dumps({"schema_version": 1, "profiles": ["customer_support/plain_chat/profile.json"], "sampling": {}}))
     pricing = tmp_path / "pricing.json"
     pricing.write_text(
         json.dumps(
@@ -374,15 +458,17 @@ def _inputs(tmp_path: Path) -> tuple[Path, Path]:
             }
         )
     )
-    return factors, pricing
+    return profiles, pricing
 
 
 def _run(tmp_path: Path, pricing_path: Path | None = None) -> GenerationRun:
     if pricing_path is None:
         _, pricing_path = _inputs(tmp_path)
     prices = PriceCatalog.load(pricing_path)
+    profiles_path, _ = _inputs(tmp_path)
+    profiles = load_profile_set(profiles_path)
     cells = expand_seed_matrix(
-        {"domain": ["retail"]},
+        profiles,
         seed=3,
         luna_model="gpt-5.6-luna",
         frontier_model="frontier-exact",
@@ -391,15 +477,18 @@ def _run(tmp_path: Path, pricing_path: Path | None = None) -> GenerationRun:
     config = RunConfig(
         run_id="batch-pass",
         matrix_seed=3,
-        matrix_sha256=matrix_sha256(cells, 3),
+        matrix_sha256=matrix_sha256(cells, 3, profiles.profile_set_sha256),
         luna_model="gpt-5.6-luna",
         frontier_model="frontier-exact",
         pricing_version="test",
         pricing_sha256=prices.sha256,
+        profile_set_sha256=profiles.profile_set_sha256,
         self_play_target=1,
         scripted_target=1,
     )
-    return GenerationRun.create_or_resume(tmp_path / "run", config=config, cells=cells)
+    return GenerationRun.create_or_resume(
+        tmp_path / "run", config=config, cells=cells, profiles=profiles
+    )
 
 
 class _FakeFiles:

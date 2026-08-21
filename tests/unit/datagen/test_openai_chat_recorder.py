@@ -9,7 +9,7 @@ from openinference.instrumentation.openai import OpenAIInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-from scripts.datagen.generation import MatrixCell
+from scripts.datagen.generation import MatrixCell, ProfileDraw
 from scripts.datagen.openai_chat_sessions import (
     OpenAIPlainChatRecorder,
     SpanCaptureExporter,
@@ -55,7 +55,22 @@ def test_plain_chat_recorder_consumes_both_lane_contracts_with_streaming_usage(
             cell_id="b" * 64,
             lane="scripted",
             ordinal=0,
-            factors={"archetype": "plain_chat", "length_band": "long"},
+            profile=ProfileDraw(
+                profile_id="customer_support/plain_chat",
+                domain="customer_support",
+                archetype="plain_chat",
+                scenario_id="return",
+                topic="returns",
+                scenario_template="Ask about a return.",
+                persona_id="buyer",
+                persona_instructions="Ask concise questions.",
+                register="neutral",
+                quality_tier="high",
+                turn_count=8,
+                target_mode="ambient",
+                targeted_seed_id=None,
+                seed_intensities={},
+            ),
             assistant_model="model-exact",
         )
         script = ConversationScript(

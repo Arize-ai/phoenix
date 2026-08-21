@@ -9,6 +9,26 @@ Each recorder pins its own instrumenter stack in a PEP 723 header, so it must be
 sets `[tool.uv] exclude-newer = "3 days"`, so a pin must be at least three days old to resolve at
 all; keep that in mind when bumping versions.
 
+## Choose a generation backend
+
+Initialize a generation run with `generate.py init --profile-set <profile-set.json>`. The profile
+set fixes which application profiles may be sampled and is copied into the run as canonical
+`profiles.json`; resumed runs never read mutable source profiles.
+
+Use `--luna-provider openai_api` or `--frontier-provider openai_api` for priced Responses and Batch
+execution. These attempts require entries in `pricing.json`, reserve their worst-case token cost,
+and reconcile actual usage against the run budget. Use `codex_exec` for subscription-authenticated
+non-interactive Codex execution. Codex runs are direct-only, use structured JSON results in a
+read-only isolated directory, and record provider usage without reserving or reporting USD spend.
+The two model bindings are independent, so one run may mix priced OpenAI and subscription Codex
+attempts.
+
+Both paths implement the structured request/result contract in `model_backend.py`. Scripted
+conversations can use a direct backend or the OpenAI Batch adapter. Self-play uses a structured
+backend for user simulation while the assistant recorder continues through the real framework
+client and OpenInference instrumenter, preserving authentic trace capture. The shared request
+purpose also admits `judge` for later evaluation without running that pipeline here.
+
 ## The keyless mock provider
 
 Every recorder that speaks to an LLM speaks to the in-repo mock provider, never to an external

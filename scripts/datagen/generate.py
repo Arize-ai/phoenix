@@ -14,9 +14,9 @@ import json
 import sys
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Mapping, Sequence, TextIO
+from typing import TYPE_CHECKING, Any, Mapping, Sequence, TextIO
 
-if __package__:
+if TYPE_CHECKING or __package__:
     from scripts.datagen.generation import (
         DEFAULT_BUDGET_USD,
         DEFAULT_LANE_TARGETS,
@@ -28,7 +28,13 @@ if __package__:
         expand_seed_matrix,
         matrix_sha256,
     )
+    from scripts.datagen.profile import ProfileValidationError, load_profile_set
 else:
+    from profile import (  # type: ignore[import-not-found,no-redef]
+        ProfileValidationError,
+        load_profile_set,
+    )
+
     from generation import (  # type: ignore[import-not-found,no-redef]
         DEFAULT_BUDGET_USD,
         DEFAULT_LANE_TARGETS,
@@ -50,11 +56,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     initialize = subparsers.add_parser("init", help="create or verify an immutable run directory")
     initialize.add_argument("run_dir", type=Path)
-    initialize.add_argument("--matrix-factors", type=Path, required=True)
+    initialize.add_argument("--profile-set", type=Path)
+    initialize.add_argument("--matrix-factors", type=Path, help=argparse.SUPPRESS)
     initialize.add_argument("--run-id", required=True)
     initialize.add_argument("--seed", type=int, required=True)
     initialize.add_argument("--luna-model", default="gpt-5.6-luna")
     initialize.add_argument("--frontier-model", required=True)
+    initialize.add_argument(
+        "--luna-provider", choices=("openai_api", "codex_exec"), default="openai_api"
+    )
+    initialize.add_argument(
+        "--frontier-provider", choices=("openai_api", "codex_exec"), default="openai_api"
+    )
     initialize.add_argument("--pricing", type=Path, default=DEFAULT_PRICING_PATH)
     initialize.add_argument("--budget-usd", type=Decimal, default=DEFAULT_BUDGET_USD)
     initialize.add_argument(
@@ -114,7 +127,7 @@ def command(
     args = build_parser().parse_args(argv)
     try:
         result = _dispatch(args)
-    except GenerationError as error:
+    except (GenerationError, ProfileValidationError) as error:
         print(json.dumps({"error": type(error).__name__, "message": str(error)}), file=stderr)
         return 2
     print(json.dumps(result, sort_keys=True), file=stdout)
@@ -164,19 +177,24 @@ def _dispatch(args: argparse.Namespace) -> Any:
 
 
 def _initialize(args: argparse.Namespace) -> Mapping[str, Any]:
+    if args.matrix_factors is not None:
+        raise GenerationError(
+            "--matrix-factors is no longer supported; create a profile set and initialize a new run"
+        )
+    if args.profile_set is None:
+        raise GenerationError("init requires --profile-set")
     prices = PriceCatalog.load(args.pricing)
-    prices.require(args.luna_model)
-    prices.require(args.frontier_model)
-    raw = _read_object(args.matrix_factors)
-    factors = raw.get("factors", raw)
-    if not isinstance(factors, dict):
-        raise GenerationError("matrix factors file must contain an object")
+    if args.luna_provider == "openai_api":
+        prices.require(args.luna_model)
+    if args.frontier_provider == "openai_api":
+        prices.require(args.frontier_model)
+    profiles = load_profile_set(args.profile_set)
     targets: dict[Lane, int] = {
         "self_play": args.self_play_target,
         "scripted": args.scripted_target,
     }
     cells = expand_seed_matrix(
-        factors,
+        profiles,
         seed=args.seed,
         luna_model=args.luna_model,
         frontier_model=args.frontier_model,
@@ -185,16 +203,21 @@ def _initialize(args: argparse.Namespace) -> Mapping[str, Any]:
     config = RunConfig(
         run_id=args.run_id,
         matrix_seed=args.seed,
-        matrix_sha256=matrix_sha256(cells, args.seed),
+        matrix_sha256=matrix_sha256(cells, args.seed, profiles.profile_set_sha256),
         luna_model=args.luna_model,
         frontier_model=args.frontier_model,
         pricing_version=prices.version,
         pricing_sha256=prices.sha256,
+        profile_set_sha256=profiles.profile_set_sha256,
+        luna_provider=args.luna_provider,
+        frontier_provider=args.frontier_provider,
         budget_usd=str(args.budget_usd),
         self_play_target=args.self_play_target,
         scripted_target=args.scripted_target,
     )
-    run = GenerationRun.create_or_resume(args.run_dir, config=config, cells=cells)
+    run = GenerationRun.create_or_resume(
+        args.run_dir, config=config, cells=cells, profiles=profiles
+    )
     return {
         "run_id": config.run_id,
         "matrix_sha256": config.matrix_sha256,

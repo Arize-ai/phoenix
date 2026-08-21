@@ -12,8 +12,8 @@ from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-
 from phoenix.datagen.schema import validate_fragment_v2
+
 from scripts.datagen.fake_tools import load_default_fixture_sets
 from scripts.datagen.generation import (
     GenerationRun,
@@ -24,8 +24,11 @@ from scripts.datagen.generation import (
     matrix_sha256,
 )
 from scripts.datagen.mock_openai_provider import PlaybackProvider
+from scripts.datagen.model_backend import BackendCapabilities, ModelResult
+from scripts.datagen.profile import load_profile_set
 from scripts.datagen.self_play import (
     AssistantRequest,
+    BackendUserSimulator,
     ModelRole,
     Persona,
     RecordedAssistantTurn,
@@ -34,7 +37,44 @@ from scripts.datagen.self_play import (
     TokenUsage,
     UserSimulationRequest,
     record_self_play_cell,
+    self_play_plan_from_cell,
 )
+
+
+def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) -> None:
+    _, cell, _ = _run(tmp_path, self_play_target=1)
+
+    class Backend:
+        provider = "codex_exec"
+        capabilities = BackendCapabilities()
+
+        def generate(self, request: object) -> ModelResult:
+            return ModelResult(
+                provider=self.provider,
+                model="gpt-5.6-luna",
+                output={"content": "Can you explain the return window?"},
+                usage=None,
+            )
+
+    role = ModelRole("user_simulator", "openai_api", "gpt-5.6-luna")
+    plan = self_play_plan_from_cell(
+        cell, simulator=role, assistant_provider="openai_api"
+    )
+    message = BackendUserSimulator(Backend()).simulate(
+        UserSimulationRequest(
+            cell_id=cell.cell_id,
+            turn_index=0,
+            turn_count=plan.turn_count,
+            scenario_template=plan.scenario_template,
+            persona=plan.persona,
+            register=plan.register,
+            model=role.model,
+            messages=(),
+        )
+    )
+
+    assert plan.domain == cell.profile.domain
+    assert message.content == "Can you explain the return window?"
 
 
 def test_self_play_resumes_complete_turns_and_records_only_assistant_calls(
@@ -280,8 +320,8 @@ def _record_kwargs(
             quality_tier="high",
             failure_mode="none",
             turn_count=turn_count,
-            simulator=ModelRole("user_simulator", "openai", "gpt-5.6-luna"),
-            assistant_provider="openai",
+            simulator=ModelRole("user_simulator", "openai_api", "gpt-5.6-luna"),
+            assistant_provider="openai_api",
         ),
         "simulator": simulator,
         "recorder": recorder,
@@ -318,8 +358,24 @@ def _run(
         )
     )
     prices = PriceCatalog.load(pricing_path)
+    profile_dir = tmp_path / "customer_support" / "plain_chat"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    (profile_dir / "profile.json").write_text(json.dumps({
+        "schema_version": 1, "profile_id": "customer_support/plain_chat",
+        "domain": "customer_support", "archetype": "plain_chat",
+        "tool_surface": ["lookup_order"], "corpus_documents": [],
+        "personas": [{"persona_id": "buyer", "instructions": "Ask for help.", "weight": 1}],
+        "registers": [{"value": "neutral", "weight": 1}],
+        "scenarios": [{"scenario_id": "return", "topic": "returns", "template": "Ask about returns.", "weight": 1, "target_seed_ids": []}],
+        "quality_tiers": [{"value": "high", "weight": 1}],
+        "turn_counts": [{"value": 2, "weight": 1}],
+        "adversarial_seeds": [],
+    }))
+    manifest = tmp_path / "profile-set.json"
+    manifest.write_text(json.dumps({"schema_version": 1, "profiles": ["customer_support/plain_chat/profile.json"], "sampling": {}}))
+    profiles = load_profile_set(manifest)
     cells = expand_seed_matrix(
-        {"domain": ["retail"]},
+        profiles,
         seed=3,
         luna_model="gpt-5.6-luna",
         frontier_model="gpt-5.6-luna",
@@ -328,14 +384,17 @@ def _run(
     config = RunConfig(
         run_id="self-play-pass",
         matrix_seed=3,
-        matrix_sha256=matrix_sha256(cells, 3),
+        matrix_sha256=matrix_sha256(cells, 3, profiles.profile_set_sha256),
         luna_model="gpt-5.6-luna",
         frontier_model="gpt-5.6-luna",
         pricing_version="test",
         pricing_sha256=prices.sha256,
+        profile_set_sha256=profiles.profile_set_sha256,
         self_play_target=self_play_target,
         scripted_target=1,
     )
-    run = GenerationRun.create_or_resume(tmp_path / "run", config=config, cells=cells)
+    run = GenerationRun.create_or_resume(
+        tmp_path / "run", config=config, cells=cells, profiles=profiles
+    )
     cell = next(cell for cell in cells if cell.lane == "self_play")
     return run, cell, prices

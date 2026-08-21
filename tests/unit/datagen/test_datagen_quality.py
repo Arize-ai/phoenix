@@ -15,6 +15,7 @@ from scripts.datagen.generation import (
     expand_seed_matrix,
     matrix_sha256,
 )
+from scripts.datagen.profile import load_profile_set
 from scripts.datagen.quality import NORMALIZER_VERSION, QualityGate
 
 
@@ -144,14 +145,29 @@ def test_short_fragment_jaccard_threshold_is_inclusive(tmp_path: Path) -> None:
 
 
 def _generation_run(tmp_path: Path) -> tuple[GenerationRun, PriceCatalog]:
+    profile_dir = tmp_path / "customer_support" / "plain_chat"
+    profile_dir.mkdir(parents=True)
+    (profile_dir / "profile.json").write_text(json.dumps({
+        "schema_version": 1, "profile_id": "customer_support/plain_chat",
+        "domain": "customer_support", "archetype": "plain_chat",
+        "tool_surface": ["lookup_order"], "corpus_documents": [],
+        "personas": [{"persona_id": "buyer", "instructions": "Ask for help.", "weight": 1}],
+        "registers": [{"value": "neutral", "weight": 1}],
+        "scenarios": [{"scenario_id": "setup", "topic": "account setup", "template": "Ask for help.", "weight": 1, "target_seed_ids": []}],
+        "quality_tiers": [{"value": "high", "weight": 1}],
+        "turn_counts": [{"value": 2, "weight": 1}], "adversarial_seeds": [],
+    }))
+    manifest = tmp_path / "profile-set.json"
+    manifest.write_text(json.dumps({"schema_version": 1, "profiles": ["customer_support/plain_chat/profile.json"], "sampling": {}}))
+    profiles = load_profile_set(manifest)
     cells = expand_seed_matrix(
-        {"domain": ["support"]},
+        profiles,
         seed=7,
         luna_model="fake-model",
         frontier_model="fake-model",
         lane_targets={"self_play": 1, "scripted": 1},
     )
-    digest = matrix_sha256(cells, 7)
+    digest = matrix_sha256(cells, 7, profiles.profile_set_sha256)
     run = GenerationRun.create_or_resume(
         tmp_path / "run",
         config=RunConfig(
@@ -162,10 +178,12 @@ def _generation_run(tmp_path: Path) -> tuple[GenerationRun, PriceCatalog]:
             frontier_model="fake-model",
             pricing_version="fake-v1",
             pricing_sha256="0" * 64,
+            profile_set_sha256=profiles.profile_set_sha256,
             self_play_target=1,
             scripted_target=1,
         ),
         cells=cells,
+        profiles=profiles,
     )
     price = ModelPrice(
         input_per_million_usd=Decimal("0.1"),
