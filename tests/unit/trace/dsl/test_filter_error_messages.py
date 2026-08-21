@@ -35,7 +35,7 @@ VALID_CONDITIONS = [
     "llm.token_count.total > 5",
     "0.5 < latency_ms < 1000",
     "total_cost > 0.1",
-    "total_cost_per_token > 0.0001 and total_tokens > 100",
+    "total_cost / total_tokens > 0.0001 and total_tokens > 100",
     "any(d.cost > 1 for d in cost_details)",
     "sum(d.tokens for d in cost_details if d.token_type == 'input') > 1000",
 ]

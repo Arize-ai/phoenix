@@ -170,25 +170,36 @@ async def test_absent_cost_row_coalesces_to_zero(
 @pytest.mark.parametrize(
     "condition,expected",
     [
-        pytest.param("total_cost_per_token > 0.005", ["priced"], id="ratio-threshold"),
-        # NULL for both reasons a ratio can be undefined: no cost row, and a cost row whose
-        # token count is zero. Coalescing these to 0 would assert a rate nobody recorded.
+        pytest.param("total_cost / total_tokens > 0.005", ["priced"], id="ratio-threshold"),
+        # NULL for both reasons a rate can be undefined: no cost row, and a cost row whose
+        # token count is zero. The divisor passes through the DSL's `nullif` guard, so
+        # neither divides by zero and neither reads as a rate of 0.
         pytest.param(
-            "total_cost_per_token is None", ["uncosted", "untokenized"], id="ratio-is-null"
+            "total_cost / total_tokens is None",
+            ["uncosted", "untokenized"],
+            id="ratio-is-null",
         ),
-        # And a NULL ratio fails the comparison in both directions, which is the family's
+        # And a NULL rate fails the comparison in both directions, which is the family's
         # legislated rule for a missing value.
         pytest.param(
-            "not (total_cost_per_token > 0.005)", ["cheap"], id="ratio-negation-drops-null"
+            "not (total_cost / total_tokens > 0.005)", ["cheap"], id="ratio-negation-drops-null"
         ),
     ],
 )
-async def test_cost_per_token_ratios_stay_null(
+async def test_cost_per_token_is_expressible_as_division(
     db: DbSessionFactory,
     cost_project: None,
     condition: str,
     expected: list[str],
 ) -> None:
+    """The rate has no member of its own, because the language already expresses it.
+
+    `total_cost_per_token` and its two siblings were members until it turned out these
+    three assertions -- the only reason they needed one -- hold for plain division. The
+    hybrids still exist on `models.SpanCost` for other callers; what was dropped is the
+    filter vocabulary entry, and with it three names claimed out of the attribute namespace
+    to sugar `a / b`.
+    """
     assert await _matching(db, condition) == expected
 
 
@@ -577,7 +588,7 @@ def test_a_cost_typo_falls_back_to_an_attribute_path(condition: str) -> None:
 
 @pytest.mark.parametrize(
     "name",
-    ["total_cost", "prompt_cost", "total_tokens", "total_cost_per_token", "cost_details"],
+    ["total_cost", "prompt_cost", "completion_cost", "total_tokens", "cost_details"],
 )
 def test_cost_names_no_longer_read_the_attribute_of_the_same_name(name: str) -> None:
     """The break this rename spends, pinned so it is visible in review.
