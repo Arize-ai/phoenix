@@ -20,9 +20,9 @@ class GraphQLMutationsCapability(AbstractDynamicCapability[AgentDependencies]):
         instructions = self.instructions
 
         def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            graphql = ctx.deps.contexts.graphql
-            enabled = graphql is not None and graphql.mutations_enabled
-            return instructions.render(enabled=enabled)
+            enabled = ctx.deps.contexts.graphql_mutations_enabled
+            approval_required = enabled and ctx.deps.edit_permission == "manual"
+            return instructions.render(enabled=enabled, approval_required=approval_required)
 
         return _instructions
 

@@ -9462,6 +9462,119 @@
         }
       }
     },
+    "/v1/agent_sessions/{session_id}/tool_approvals": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Submit Agent Session Tool Approvals",
+        "description": "Persist answered tool approvals for the session's open turn.",
+        "operationId": "submitAgentSessionToolApprovals",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAgentSessionToolApprovalsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitAgentSessionToolApprovalsResponseBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/agent_sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -9661,6 +9774,7 @@
               "agent_session_model_stale",
               "agent_session_messages_stale",
               "agent_session_tool_outputs_conflict",
+              "agent_session_tool_approvals_conflict",
               "agent_session_already_compact",
               "agent_session_compaction_conflict"
             ],
@@ -9685,7 +9799,7 @@
           "code"
         ],
         "title": "AgentSessionConflictError",
-        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_already_compact``: there are no complete turns to\n  compact \u2014 either nothing new has finished since the transcript's latest\n  checkpoint, or a concurrent request's checkpoint already covers them.\n  Not retryable; the conversation is as compact as it can get.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
+        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_tool_approvals_conflict``: the submitted ``toolApprovals``\n  do not match the transcript's trailing assistant message (no trailing\n  assistant message to answer, an unknown ``toolCallId``, a call that is\n  not awaiting approval, or a reversal of an already-persisted answer).\n  Like the tool-output conflict this is an inconsistent request rather than\n  a concurrent-writer race; fix the client rather than retrying.\n- ``agent_session_already_compact``: there are no complete turns to\n  compact \u2014 either nothing new has finished since the transcript's latest\n  checkpoint, or a concurrent request's checkpoint already covers them.\n  Not retryable; the conversation is as compact as it can get.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
       },
       "AgentSessionData": {
         "properties": {
@@ -10775,6 +10889,14 @@
             "type": "array",
             "title": "Tooloutputs",
             "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs."
+          },
+          "toolApprovals": {
+            "items": {
+              "$ref": "#/components/schemas/ToolApproval"
+            },
+            "type": "array",
+            "title": "Toolapprovals",
+            "description": "Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``."
           },
           "lastMessageId": {
             "anyOf": [
@@ -13833,7 +13955,8 @@
           "mutationsEnabled"
         ],
         "title": "GraphQLContext",
-        "description": "GraphQL runtime state."
+        "description": "Deprecated GraphQL mutations opt-in.",
+        "deprecated": true
       },
       "HTTPValidationError": {
         "properties": {
@@ -19193,6 +19316,44 @@
         "title": "SubagentsContext",
         "description": "User's per-turn request to expose the subagent-spawning tool."
       },
+      "SubmitAgentSessionToolApprovalsRequestBody": {
+        "properties": {
+          "toolApprovals": {
+            "items": {
+              "$ref": "#/components/schemas/ToolApproval"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Toolapprovals",
+            "description": "Answers to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Resending a persisted answer is a no-op; an answer that reverses one, or that matches no call awaiting approval, is rejected with HTTP 409 and code ``agent_session_tool_approvals_conflict``."
+          },
+          "lastMessageId": {
+            "type": "string",
+            "title": "Lastmessageid",
+            "description": "The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolApprovals",
+          "lastMessageId"
+        ],
+        "title": "SubmitAgentSessionToolApprovalsRequestBody",
+        "description": "Persist answered tool approvals without continuing the turn."
+      },
+      "SubmitAgentSessionToolApprovalsResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PhoenixUIMessage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SubmitAgentSessionToolApprovalsResponseBody",
+        "description": "The trailing assistant message with the submitted approvals applied."
+      },
       "SubmitAgentSessionToolOutputsRequestBody": {
         "properties": {
           "toolOutputs": {
@@ -19314,6 +19475,26 @@
         ],
         "title": "TextUIPart",
         "description": "A text part of a message."
+      },
+      "ToolApproval": {
+        "properties": {
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "description": "Whether the user approved the tool call."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolCallId",
+          "approved"
+        ],
+        "title": "ToolApproval",
+        "description": "A user's response to a tool call awaiting approval."
       },
       "ToolApprovalRequested": {
         "properties": {

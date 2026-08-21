@@ -11,12 +11,14 @@ import {
   createClientToolTimingRecorder,
   type ClientToolTimingRecorder,
 } from "@phoenix/agent/chat/clientToolTimings";
+import { createFlushQueue } from "@phoenix/agent/chat/flushQueue";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import {
   partitionPendingClientToolCalls,
   resolveStalePendingToolCallParts,
 } from "@phoenix/agent/chat/rehydratePendingToolCalls";
 import { shouldSendAutomaticallyAfterToolOutput } from "@phoenix/agent/chat/shouldSendAutomatically";
+import { flushToolApprovals } from "@phoenix/agent/chat/toolApprovalFlush";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
 import { createTranscriptPersistenceCoordinator } from "@phoenix/agent/chat/transcriptPersistence";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
@@ -48,6 +50,7 @@ import {
   SESSION_MESSAGES_STALE_ERROR_CODE,
   SESSION_MODEL_STALE_ERROR_CODE,
   buildAgentChatApiUrl,
+  buildAgentToolApprovalsApiUrl,
   buildAgentToolOutputsApiUrl,
   parseAgentSessionConflictCode,
 } from "./agentChatApi";
@@ -56,6 +59,8 @@ import { getRemovedUserMessageText } from "./removedUserMessageText";
 export type TurnClientState = {
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
   recoverPendingToolCalls: () => void;
+  /** Whether an eager flush of this turn's answers is still in flight. */
+  hasPendingFlush: () => boolean;
 };
 
 const turnClientStateByChat = new WeakMap<
@@ -105,7 +110,9 @@ export function createAgentSessionChat({
 }): Chat<AgentUIMessage> {
   const chatApiUrl = buildAgentChatApiUrl(sessionId);
   const toolOutputsApiUrl = buildAgentToolOutputsApiUrl(sessionId);
+  const toolApprovalsApiUrl = buildAgentToolApprovalsApiUrl(sessionId);
   const toolTimings = createClientToolTimingRecorder();
+  const flushQueue = createFlushQueue();
   // The selection the most recent send asserted, kept so a model-stale
   // rejection can distinguish another client's change from this client
   // racing its own in-flight change.
@@ -246,14 +253,25 @@ export function createAgentSessionChat({
       if (!shouldSendAutomatically) {
         const trailingMessage = messages.at(-1);
         if (trailingMessage) {
-          flushToolOutputs({
-            message: trailingMessage,
-            flushUrl: toolOutputsApiUrl,
-            fetch: authFetch,
-            toolTimings,
-            locallyInterruptedToolCallIds:
-              store.getState().locallyInterruptedToolCallIds,
-          });
+          const locallyInterruptedToolCallIds =
+            store.getState().locallyInterruptedToolCallIds;
+          flushQueue.enqueue(() =>
+            flushToolOutputs({
+              message: trailingMessage,
+              flushUrl: toolOutputsApiUrl,
+              fetch: authFetch,
+              toolTimings,
+              locallyInterruptedToolCallIds,
+            })
+          );
+          flushQueue.enqueue(() =>
+            flushToolApprovals({
+              message: trailingMessage,
+              flushUrl: toolApprovalsApiUrl,
+              fetch: authFetch,
+              locallyInterruptedToolCallIds,
+            })
+          );
         }
         return false;
       }
@@ -363,7 +381,11 @@ export function createAgentSessionChat({
     });
   };
   recoverPendingToolCalls();
-  turnClientStateByChat.set(chat, { toolTimings, recoverPendingToolCalls });
+  turnClientStateByChat.set(chat, {
+    toolTimings,
+    recoverPendingToolCalls,
+    hasPendingFlush: flushQueue.hasPending,
+  });
   return chat;
 }
 
