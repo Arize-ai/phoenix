@@ -2051,7 +2051,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/integrations-tracing/openai-node-sdk",
-      "destination": "/docs/phoenix/integrations/llm-providers/openai/openai-node.js-sdk"
+      "destination": "/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk"
     },
     {
       "source": "/docs/phoenix/tracing/integrations-tracing/flowise",
@@ -2315,39 +2315,39 @@
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/code-metrics"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/code-generation-eval",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/code-generation-eval"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/ai-vs-human-groundtruth",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/ai-vs-human-groundtruth"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/reference-link-evals",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/reference-link-evals"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/user-frustration",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/user-frustration"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/user-friction"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/agent-path-convergence",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/agent-path-convergence"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/agent-planning",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/agent-planning"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/agent-reflection",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/agent-reflection"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/audio-emotion-detection",
-      "destination": "/docs/phoenix/evaluation/legacy/archived-evals/audio-emotion-detection"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
     },
     {
       "source": "/docs/phoenix/evaluation/llm-evals/executors",
