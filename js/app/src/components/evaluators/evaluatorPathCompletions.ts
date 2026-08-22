@@ -142,7 +142,7 @@ export function getEvaluatorPathCursor(
  * on the sampled record, or what kind of thing it is when the member is a
  * branch to drill into rather than a value to read.
  */
-function toMemberPreview(value: unknown): string {
+export function toMemberPreview(value: unknown): string {
   if (value == null) {
     // A field with no value has nothing to preview; the name alone reads
     // cleaner than a column of "null" — which matters most when the record

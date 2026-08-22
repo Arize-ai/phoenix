@@ -105,6 +105,13 @@ export function getEvaluatorSlotDefault(
   return SLOT_DEFAULTS[grain][slotName];
 }
 
+/** All slot defaults for one project-evaluator record kind. */
+export function getEvaluatorSlotDefaults(
+  grain: ProjectEvaluatorMappingSourceGrain
+): Readonly<Record<EvaluatorSlotName, EvaluatorSlotDefault>> {
+  return SLOT_DEFAULTS[grain];
+}
+
 export function getEvaluatorSlotSuggestedPaths(
   grain: ProjectEvaluatorMappingSourceGrain,
   slotName: EvaluatorSlotName

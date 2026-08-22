@@ -1,6 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
-import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
  * The popover surface shared by every floating element the filter field
@@ -19,7 +19,7 @@ export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
-    z-index: ${APP_PORTALED_OVERLAY_Z_INDEX};
+    z-index: ${APP_FLOATING_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than
@@ -33,11 +33,7 @@ export const typeaheadMenuCSS = css`
       font-family: var(--global-font-family-sans);
       font-size: var(--global-font-size-s);
       line-height: var(--global-line-height-s);
-      /* Keep the menu short enough to fit on either side of a field in a
-         centered dialog. CodeMirror chooses above/below from the measured
-         height, so a viewport-relative cap prevents an unnecessary flip into
-         the viewport edge on compact screens. */
-      max-height: min(400px, 40vh);
+      max-height: 400px;
       min-width: 280px;
       /* Wide enough that the longest shipped suggestion snippet (~77 mono
          chars) fits its own stacked line — see li.dsl-filter-suggestion */
@@ -123,17 +119,6 @@ export const typeaheadMenuCSS = css`
     padding: var(--global-dimension-size-100);
     color: var(--global-text-color-700);
     max-width: 300px;
-  }
-`;
-
-/**
- * CodeMirror tooltips normally inherit the field's scoped Emotion styles.
- * Inside a modal they are reparented to the overlay container to escape the
- * dialog's transformed overflow clip, so repeat that scope at the portal root.
- */
-export const portaledTypeaheadMenuCSS = css`
-  .dsl-filter-tooltip-root {
-    ${typeaheadMenuCSS}
   }
 `;
 
@@ -223,12 +208,6 @@ export const dslFilterFieldCSS = css`
   background-color: var(--global-input-field-background-color);
   transition: all 0.2s ease-in-out;
   overflow-x: hidden;
-  /* Carry the focus ring's geometry at rest and reveal it with color alone,
-     the way the text inputs do. Leaving the outline unset means focus has to
-     transition off the initial medium-width outline, which animates a thicker
-     ring inward from outside the border. */
-  outline: var(--focus-ring-thickness) solid transparent;
-  outline-offset: calc(-1 * var(--focus-ring-thickness));
   &:hover {
     border-color: var(--global-input-field-border-color-active);
   }
@@ -236,7 +215,8 @@ export const dslFilterFieldCSS = css`
     border-color: var(--global-input-field-border-color-active);
   }
   &:has(.cm-content:focus-visible) {
-    outline-color: var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
   /* Flag invalidity only once the user has left the field — a red border
      while they're still typing/fixing the expression is too alarming */
