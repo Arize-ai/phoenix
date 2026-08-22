@@ -11434,7 +11434,7 @@ export interface operations {
             query?: {
                 /** @description Cursor for pagination (custom provider ID) */
                 cursor?: string | null;
-                /** @description The max number of custom providers to return at a time. */
+                /** @description The max number of custom providers to return at a time (at most 1000). */
                 limit?: number;
             };
             header?: never;

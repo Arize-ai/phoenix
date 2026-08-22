@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field
 from sqlalchemy import select
+from sqlalchemy.orm import load_only
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
@@ -59,6 +60,9 @@ class GetCustomModelProvidersResponseBody(PaginatedResponseBody[CustomModelProvi
             422,
         ]
     ),
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
 )
 async def get_custom_model_providers(
     request: Request,
@@ -68,8 +72,9 @@ async def get_custom_model_providers(
     ),
     limit: int = Query(
         default=100,
-        description="The max number of custom providers to return at a time.",
+        description="The max number of custom providers to return at a time (at most 1000).",
         gt=0,
+        le=1000,
     ),
 ) -> GetCustomModelProvidersResponseBody:
     """
@@ -80,8 +85,20 @@ async def get_custom_model_providers(
     Raises:
         HTTPException: If the cursor format is invalid.
     """
-    stmt = select(models.GenerativeModelCustomProvider).order_by(
-        models.GenerativeModelCustomProvider.id.desc()
+    stmt = (
+        select(models.GenerativeModelCustomProvider)
+        # Skip the encrypted `config` credential blob; it is never returned.
+        .options(
+            load_only(
+                models.GenerativeModelCustomProvider.name,
+                models.GenerativeModelCustomProvider.description,
+                models.GenerativeModelCustomProvider.provider,
+                models.GenerativeModelCustomProvider.sdk,
+                models.GenerativeModelCustomProvider.created_at,
+                models.GenerativeModelCustomProvider.updated_at,
+            )
+        )
+        .order_by(models.GenerativeModelCustomProvider.id.desc())
     )
     if cursor:
         try:
@@ -97,7 +114,7 @@ async def get_custom_model_providers(
         stmt = stmt.filter(models.GenerativeModelCustomProvider.id <= cursor_id)
 
     stmt = stmt.limit(limit + 1)  # overfetch by 1 to check whether there are more results
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         custom_providers = (await session.scalars(stmt)).all()
 
     next_cursor = None

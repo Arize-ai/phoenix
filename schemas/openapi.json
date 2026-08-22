@@ -7074,12 +7074,13 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 1000,
               "exclusiveMinimum": 0,
-              "description": "The max number of custom providers to return at a time.",
+              "description": "The max number of custom providers to return at a time (at most 1000).",
               "default": 100,
               "title": "Limit"
             },
-            "description": "The max number of custom providers to return at a time."
+            "description": "The max number of custom providers to return at a time (at most 1000)."
           }
         ],
         "responses": {
