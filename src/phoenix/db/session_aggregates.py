@@ -180,6 +180,7 @@ def root_span_attribute_case_insensitive_contains_by_session(
 ) -> ColumnElement[bool]:
     """Whether any root span in a session contains ``substring``, ignoring case, at
     ``attribute_path``."""
+    value = _root_span_io_value(attribute_path)
     stmt = (
         select(models.Span.id)
         .join_from(models.Span, models.Trace)
@@ -187,7 +188,7 @@ def root_span_attribute_case_insensitive_contains_by_session(
         .where(models.Span.parent_id.is_(None))
         .where(
             models.CaseInsensitiveContains(
-                models.Span.attributes[list(attribute_path)].as_string(),
+                value,
                 substring,
             )
         )
@@ -288,7 +289,7 @@ def root_span_io_value_by_session(
         raise ValueError(f"Unknown root span IO kind: {kind}")
 
     subquery = _ranked_root_span_values_by_session(
-        models.Span.attributes[attribute_path].as_string().label(VALUE),
+        _root_span_io_value(attribute_path).label(VALUE),
         order_by=order_by,
         keys=keys,
         project_rowids=project_rowids,
@@ -298,6 +299,12 @@ def root_span_io_value_by_session(
     return select(subquery.c[SESSION_ROWID], subquery.c[VALUE]).where(
         subquery.c[_ROOT_SPAN_RANK] == 1
     )
+
+
+def _root_span_io_value(attribute_path: Sequence[str]) -> Any:
+    nested = models.Span.attributes[list(attribute_path)].as_string()
+    flat = models.Span.attributes[[".".join(attribute_path)]].as_string()
+    return func.coalesce(nested, flat)
 
 
 def _ranked_root_span_values_by_session(
