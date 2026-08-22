@@ -201,24 +201,28 @@ class OpenAIPlainChatRecorder:
         usage = TokenUsage()
         for turn_index, turn in enumerate(script.turns):
             messages.append({"role": "user", "content": turn.user})
-            recorded = self.record(
-                AssistantRequest(
-                    cell_id=cell.cell_id,
-                    attempt_id=f"{cell.cell_id}:scripted:1",
-                    turn_index=turn_index,
-                    model=cell.assistant_model,
-                    messages=tuple(messages),
-                    tools=(),
-                    traces_path=traces_path,
-                ),
-                _reject_tool_call,
+            turn_checkpoint = self._exporter.checkpoint()
+            request = AssistantRequest(
+                cell_id=cell.cell_id,
+                attempt_id=f"{cell.cell_id}:scripted:1",
+                turn_index=turn_index,
+                model=cell.assistant_model,
+                messages=tuple(messages),
+                tools=(),
+                traces_path=traces_path,
             )
+            try:
+                recorded = self.record(request, _reject_tool_call)
+            except GenerationError:
+                if script.failure_mode != "malformed_response" or script.failure_turn != turn_index:
+                    raise
+                recorded = self.record(request, _reject_tool_call)
             if recorded.messages[-1].get("content") != turn.assistant:
                 raise GenerationError(
                     f"Scripted plain-chat turn {turn_index} differed from the generated script"
                 )
             messages.extend(recorded.messages)
-            trace_ids.extend(recorded.trace_ids)
+            trace_ids.extend(_trace_ids(self._exporter.spans_since(turn_checkpoint)))
             usage += recorded.usage
         return RecordedPlainChatFragment(tuple(messages), tuple(trace_ids), usage)
 

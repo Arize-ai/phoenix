@@ -45,6 +45,7 @@ if TYPE_CHECKING or __package__:
     from scripts.datagen.fake_tools import (
         DEFAULT_REGISTRY,
         MAX_TOOL_LOOP_STEPS,
+        InjectedToolFailure,
         InvocationLedger,
         ToolContext,
         load_default_fixture_sets,
@@ -60,6 +61,7 @@ else:
     from fake_tools import (
         DEFAULT_REGISTRY,
         MAX_TOOL_LOOP_STEPS,
+        InjectedToolFailure,
         InvocationLedger,
         ToolContext,
         load_default_fixture_sets,
@@ -143,13 +145,24 @@ class ToolAgentRecorder:
                 messages.append(reply)
                 for call in reply.tool_calls:
                     tool = _tool_by_name(tools, call["name"])
-                    result = tool.invoke(call["args"])
+                    try:
+                        result = tool.invoke(call["args"])
+                    except InjectedToolFailure as error:
+                        message = ToolMessage(
+                            content=_canonical_json(
+                                {"error": type(error).__name__, "message": str(error)}
+                            ),
+                            tool_call_id=call["id"],
+                            name=call["name"],
+                            status="error",
+                        )
+                    else:
+                        message = ToolMessage(
+                            content=_canonical_json(result),
+                            tool_call_id=call["id"],
+                            name=call["name"],
+                        )
                     tool_calls += 1
-                    message = ToolMessage(
-                        content=_canonical_json(result),
-                        tool_call_id=call["id"],
-                        name=call["name"],
-                    )
                     messages.append(message)
                     turn_messages.append(message)
 
@@ -245,12 +258,15 @@ def _message_dict(message: BaseMessage) -> Mapping[str, Any]:
             ]
         return value
     if isinstance(message, ToolMessage):
-        return {
+        value = {
             "role": "tool",
             "content": message.content,
             "tool_call_id": message.tool_call_id,
             "name": message.name,
         }
+        if message.status == "error":
+            value["status"] = "error"
+        return value
     raise ToolAgentError(f"unexpected agent message type {type(message).__name__}")
 
 

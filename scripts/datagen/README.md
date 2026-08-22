@@ -29,6 +29,84 @@ backend for user simulation while the assistant recorder continues through the r
 client and OpenInference instrumenter, preserving authentic trace capture. The shared request
 purpose also admits `judge` for the accepted-fragment outcome pass.
 
+## Run a supplemental fault pass
+
+Use a supplemental run when an existing schema-v2 bank needs new recorder behavior without
+regenerating its accepted fragments. Verify the base archive before initialization, then bind its
+scenario and digest into the immutable run configuration. This example allocates ten fault cells
+across all provider and tool modes while leaving enough eligible cells in both lanes:
+
+```console
+BASE_ARCHIVE=/path/to/<base-scenario>.tar.gz
+BASE_SCENARIO=<base-scenario>
+BASE_SHA256=<verified-base-sha256>
+RUN_DIR=dist/datagen-runs/<supplement-run>
+
+test "$(shasum -a 256 "$BASE_ARCHIVE" | awk '{print $1}')" = "$BASE_SHA256"
+
+uv run python scripts/datagen/generate.py init "$RUN_DIR" \
+  --profile-set scripts/datagen/profiles/profile-set.json \
+  --run-id <supplement-run> --seed <matrix-seed> \
+  --luna-model <subscription-generation-model> \
+  --frontier-model <subscription-judge-model> \
+  --luna-provider codex_exec --frontier-provider codex_exec \
+  --self-play-target 9 --scripted-target 9 \
+  --fault-fraction 0.5555555555555556 \
+  --fault-modes \
+    provider_429=100,provider_timeout=100,malformed_response=100,tool_delay=1,tool_exception=1 \
+  --base-scenario-name "$BASE_SCENARIO" \
+  --base-archive-sha256 "$BASE_SHA256"
+```
+
+Initialize a second directory with the same options before recording and compare `matrix.json`.
+Cell IDs, fault modes, provider-fault turns, and base lineage must match exactly. Run only the
+non-`none` cells through `scripted.generate_script` or `self_play.record_self_play_cell`, using
+`CodexExecBackend` for generated text and the real recorder with the mock provider for trace
+capture. Do not construct fragment or span JSON by hand. A selected provider fault must show its
+one-shot retry, and a selected tool fault must show its delay or exception in the invocation
+ledger before the candidate can be accepted.
+
+Record one judging input per accepted fragment, then judge the run through its immutable
+`codex_exec` frontier binding:
+
+```console
+for input_json in "$RUN_DIR"/judging-inputs-pending/*.json; do
+  uv run python scripts/datagen/generate.py record-judging-input \
+    "$RUN_DIR" "$input_json"
+done
+uv run python scripts/datagen/generate.py judge "$RUN_DIR"
+```
+
+Package the supplement with every instrumenter version represented by its recorded traces. Merge
+it only with the digest-verified base declared at initialization:
+
+```console
+SUPPLEMENT_ARCHIVE="$RUN_DIR/<supplement-scenario>.tar.gz"
+MERGED_ARCHIVE="$RUN_DIR/$BASE_SCENARIO.tar.gz"
+
+uv run python scripts/datagen/bank.py package "$RUN_DIR" \
+  --archive "$SUPPLEMENT_ARCHIVE" \
+  --scenario-name <supplement-scenario> \
+  --generated-at <ISO-8601-UTC-timestamp> \
+  --generation-revision <git-revision> \
+  --instrumenter-package <distribution>=<version>
+
+uv run python scripts/datagen/bank.py merge \
+  --base "$BASE_ARCHIVE" \
+  --supplement "$SUPPLEMENT_ARCHIVE" \
+  --archive "$MERGED_ARCHIVE"
+
+uv run python scripts/datagen/publish.py validate \
+  --archive "$MERGED_ARCHIVE" --asset-schema-version 2
+```
+
+The merged manifest retains the base's top-level instrumenter map for schema-v2 compatibility.
+`quality_gate_summary.merge_lineage` records the exact base and supplement maps separately, along
+with each input archive digest and matrix identity. Before publication, confirm that every
+requested fault mode has a non-zero fragment count, every fault has a terminal `survived`,
+`degraded`, or `failed` judgment, and at least two fault traces contain the expected retry or
+exception topology.
+
 ## Judge accepted outcomes
 
 Outcome labels describe what the conversation delivered; they do not decide whether a valid
@@ -165,6 +243,19 @@ already packaged schema-v1 or schema-v2 archive, use `prepare-archive --archive 
 --asset-schema-version <1-or-2>` instead. Both commands validate the canonical archive through the
 runtime fetch and load path, fetch the current public index, stage the archive under its SHA-256,
 write the next `index.json`, and print the exact upload commands.
+
+For a merged supplemental bank, stop after staging and preserve the command output for the asset
+owner:
+
+```console
+uv run python scripts/datagen/publish.py prepare-archive \
+  --archive "$MERGED_ARCHIVE" \
+  --asset-schema-version 2 \
+  --output-dir dist/datagen-publication
+```
+
+An HTTP 404 for an unpublished index is treated as an empty schema-v2 index. Preparation still
+stages the digest-namespaced archive and replacement index. It does not upload either file.
 
 Review the staged index, then run the printed commands in order. They have this form:
 

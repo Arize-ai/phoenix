@@ -1,22 +1,26 @@
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
-from openai import OpenAI, RateLimitError
+from openai import OpenAI
 from openinference.instrumentation.openai import OpenAIInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from scripts.datagen.generation import GenerationError, MatrixCell, ProfileDraw
+from scripts.datagen.generation import FailureMode, GenerationError, MatrixCell, ProfileDraw
 from scripts.datagen.mock_openai_provider import (
     PlaybackProvider,
     create_chat_completion,
 )
 from scripts.datagen.model_backend import BackendCapabilities, ModelResult
 from scripts.datagen.openai_batch import BatchResult
+from scripts.datagen.openai_chat_sessions import OpenAIPlainChatRecorder, SpanCaptureExporter
 from scripts.datagen.scripted import (
+    ConversationScript,
+    ConversationTurn,
     build_script_request,
     generate_script,
     scripts_from_batch_results,
@@ -83,14 +87,15 @@ def test_scripted_batch_result_replays_through_instrumented_openai_client() -> N
     assert span.status.status_code is StatusCode.OK
 
 
-def test_scripted_rate_limit_uses_real_sdk_and_instrumenter_error_path() -> None:
+@pytest.mark.parametrize("failure_mode", ["provider_429", "provider_timeout"])
+def test_scripted_provider_fault_uses_native_sdk_retry(failure_mode: FailureMode) -> None:
     script = {
         "schema_version": 1,
         "cell_id": "b" * 64,
         "model": "model-exact",
-        "failure_mode": "provider_429",
+        "failure_mode": failure_mode,
         "failure_turn": 0,
-        "turns": [{"user": "Trigger the declared failure.", "assistant": "unused"}],
+        "turns": [{"user": "Trigger the declared failure.", "assistant": "Recovered response."}],
     }
     provider = PlaybackProvider(script)
     exporter = InMemorySpanExporter()
@@ -103,21 +108,63 @@ def test_scripted_rate_limit_uses_real_sdk_and_instrumenter_error_path() -> None
             api_key="test",
             base_url="http://datagen.test/v1",
             http_client=provider.http_client(),
-            max_retries=0,
+            max_retries=1,
         )
-        with pytest.raises(RateLimitError, match="scripted rate limit"):
-            client.chat.completions.create(
-                model="model-exact",
-                messages=[{"role": "user", "content": "Trigger the declared failure."}],
-            )
+        response = client.chat.completions.create(
+            model="model-exact",
+            messages=[{"role": "user", "content": "Trigger the declared failure."}],
+        )
     finally:
         instrumentor.uninstrument()
         tracer_provider.shutdown()
 
-    assert provider.turn_index == 0
+    assert response.choices[0].message.content == "Recovered response."
+    assert provider.request_count == 2
+    assert [(event.mode, event.turn_index) for event in provider.failure_events] == [
+        (failure_mode, 0)
+    ]
+    assert provider.turn_index == 1
     (span,) = exporter.get_finished_spans()
-    assert span.status.status_code is StatusCode.ERROR
-    assert any(event.name == "exception" for event in span.events)
+    assert span.status.status_code is StatusCode.OK
+
+
+def test_scripted_malformed_response_retries_once_in_the_recorder(tmp_path: Path) -> None:
+    cell = _cell(failure_mode="malformed_response", failure_turn=0)
+    script = ConversationScript(
+        cell_id=cell.cell_id,
+        model=cell.assistant_model,
+        failure_mode="malformed_response",
+        failure_turn=0,
+        turns=(ConversationTurn("Question", "Recovered response."),),
+    )
+    provider = PlaybackProvider(script.to_dict())
+    exporter = SpanCaptureExporter()
+    tracer_provider = TracerProvider()
+    tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
+    instrumentor = OpenAIInstrumentor()
+    instrumentor.instrument(tracer_provider=tracer_provider)
+    recorder = OpenAIPlainChatRecorder(
+        OpenAI(
+            api_key="test",
+            base_url="http://datagen.test/v1",
+            http_client=provider.http_client(),
+            max_retries=0,
+        ),
+        exporter,
+    )
+    try:
+        recorded = recorder.record_script(cell, script, tmp_path / "traces.jsonl")
+    finally:
+        instrumentor.uninstrument()
+        tracer_provider.shutdown()
+
+    assert recorded.messages[-1]["content"] == "Recovered response."
+    assert provider.request_count == 2
+    assert [(event.mode, event.turn_index) for event in provider.failure_events] == [
+        ("malformed_response", 0)
+    ]
+    assert len(recorded.trace_ids) == 2
+    assert len((tmp_path / "traces.jsonl").read_text().splitlines()) == 2
 
 
 def test_compatibility_provider_is_request_deterministic() -> None:
@@ -148,9 +195,15 @@ def test_structured_backend_generates_script_without_batch() -> None:
                 usage=None,
             )
 
-    script, result = generate_script(Backend(), _cell(), _environment())
+    script, result = generate_script(
+        Backend(),
+        _cell(failure_mode="malformed_response", failure_turn=0),
+        _environment(),
+    )
 
     assert script.turns[0].assistant == "Answer"
+    assert script.failure_mode == "malformed_response"
+    assert script.failure_turn == 0
     assert result.provider == "codex_exec"
 
 
@@ -190,7 +243,12 @@ def test_scripted_results_require_exact_role_alternation() -> None:
         generate_script(Backend(), _cell(), _environment())
 
 
-def _cell(seed_intensities: dict[str, float] | None = None) -> MatrixCell:
+def _cell(
+    seed_intensities: dict[str, float] | None = None,
+    *,
+    failure_mode: FailureMode = "none",
+    failure_turn: int | None = None,
+) -> MatrixCell:
     return MatrixCell(
         cell_id="a" * 64,
         lane="scripted",
@@ -210,6 +268,8 @@ def _cell(seed_intensities: dict[str, float] | None = None) -> MatrixCell:
             target_mode="ambient",
             targeted_seed_id=None,
             seed_intensities=seed_intensities or {},
+            failure_mode=failure_mode,
+            failure_turn=failure_turn,
         ),
         assistant_model="model-exact",
     )

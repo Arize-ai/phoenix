@@ -1,13 +1,25 @@
+import base64
+import io
 import json
 import tarfile
 from decimal import Decimal
+from hashlib import sha256
 from pathlib import Path
 from typing import Any, Mapping
 
 import pytest
 
+from phoenix.datagen import load_scenario
 from phoenix.datagen.schema import validate_fragment_v2
-from scripts.datagen.bank import BankError, package_generation_run, read_v2_bank
+from scripts.datagen.bank import (
+    BankError,
+    merge_v2_banks,
+    package_generation_run,
+    read_v2_bank,
+)
+from scripts.datagen.bank import (
+    command as bank_command,
+)
 from scripts.datagen.generation import (
     GenerationRun,
     ModelPrice,
@@ -23,6 +35,7 @@ from scripts.datagen.model_backend import (
     ProviderUsage,
 )
 from scripts.datagen.profile import load_profile_set
+from scripts.datagen.publish import validate_archive
 from scripts.datagen.quality import (
     NORMALIZER_VERSION,
     VALIDITY_VERSION,
@@ -34,7 +47,11 @@ from scripts.datagen.quality import (
 def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
     tmp_path: Path,
 ) -> None:
-    run, prices = _generation_run(tmp_path)
+    run, prices = _generation_run(
+        tmp_path,
+        base_scenario_name="datagen-e2e-20260822-r5",
+        base_archive_sha256=("b5a0114413903245ea6bb2d7ab43f7f4fa1ad0e6273432a19192d31bad77f2ce"),
+    )
     fixture = Path(__file__).parent / "fixtures" / "fragment_bank" / "traces.jsonl"
     trace_lines = fixture.read_bytes().splitlines(keepends=True)
     staged_traces = (trace_lines[0] + trace_lines[2], trace_lines[1])
@@ -72,9 +89,10 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
             cached_input_tokens=0,
             output_tokens=1,
         )
-        outcome = gate.evaluate(
-            _candidate(cell.cell_id, archetype, cell.lane, trace_ids[index]), messages
-        )
+        candidate = _candidate(cell.cell_id, archetype, cell.lane, trace_ids[index])
+        if index == 1:
+            candidate["failure_mode"] = "provider_timeout"
+        outcome = gate.evaluate(candidate, messages)
         assert outcome.accepted
         assert outcome.fragment is not None
         assert outcome.fragment["quality_results"]["validity"] == {
@@ -87,22 +105,48 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
     assert accepted[0]["content_sha256"] == accepted[1]["content_sha256"]
     _judge(run, prices, accepted, messages)
     archive = tmp_path / "quality-bank.tar.gz"
-    package = package_generation_run(
-        run.directory,
-        archive,
-        scenario_name="quality-bank",
-        generated_at="2026-08-21T00:00:00Z",
-        generation_revision="test-revision",
-        instrumenter_package_versions={"fake-instrumenter": "1.0.0"},
+    output = io.StringIO()
+    assert (
+        bank_command(
+            [
+                "package",
+                str(run.directory),
+                "--archive",
+                str(archive),
+                "--scenario-name",
+                "quality-bank",
+                "--generated-at",
+                "2026-08-21T00:00:00Z",
+                "--generation-revision",
+                "test-revision",
+                "--instrumenter-package",
+                "fake-instrumenter=1.0.0",
+            ],
+            stdout=output,
+        )
+        == 0
     )
+    assert json.loads(output.getvalue())["fragment_count"] == 2
     bank = read_v2_bank(archive)
 
     assert bank.traces_bytes == b"".join(staged_traces)
-    summary = package.manifest["quality_gate_summary"]["judged_outcome"]
-    assert summary["judged"] == 1
-    assert summary["unjudged"] == 1
-    assert summary["outcomes"]["survived"] == 1
+    quality_summary = bank.manifest["quality_gate_summary"]
+    assert quality_summary["supplemental_lineage"] == {
+        "base_scenario_name": "datagen-e2e-20260822-r5",
+        "base_archive_sha256": ("b5a0114413903245ea6bb2d7ab43f7f4fa1ad0e6273432a19192d31bad77f2ce"),
+    }
+    summary = quality_summary["judged_outcome"]
+    assert summary["routes"]["fault"] == 1
+    assert summary["judged"] == 2
+    assert summary["unjudged"] == 0
+    assert summary["outcomes"]["survived"] == 2
     assert all("judged_outcome" in fragment.quality_results for fragment in bank.fragments)
+    fault_fragment = next(
+        fragment for fragment in bank.fragments if fragment.failure_mode != "none"
+    )
+    assert fault_fragment.quality_results["judged_outcome"]["failure_mode"] == "provider_timeout"
+    assert fault_fragment.quality_results["judged_outcome"]["route_reason"] == "fault"
+    assert fault_fragment.quality_results["judged_outcome"]["outcome"] == "survived"
     with tarfile.open(archive, "r:gz") as contents:
         assert sorted(member.name for member in contents.getmembers()) == [
             "quality-bank/fragments.jsonl",
@@ -133,6 +177,151 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
             instrumenter_package_versions={"fake-instrumenter": "1.0.0"},
         )
     assert archive.read_bytes() == published
+
+
+def test_merge_v2_banks_rebuilds_and_loads_the_combined_archive(tmp_path: Path) -> None:
+    base = _fixture_bank_archive(tmp_path, "base-source", scenario_name="base-bank")
+    base_digest = sha256(base.read_bytes()).hexdigest()
+    supplement = _fixture_bank_archive(
+        tmp_path,
+        "supplement-source",
+        scenario_name="supplement-bank",
+        trace_byte_offset=0x10,
+        fragment_ids=("d" * 64, "f" * 64),
+        matrix_sha256_value="f" * 64,
+        rejected_by_gate={"generation": 2, "validity": 1},
+        fault_count=1,
+        instrumenter_version="2.0.0",
+        additional_instrumenter_versions={"supplement-recorder": "2.0.0"},
+        supplemental_lineage={
+            "base_scenario_name": "base-bank",
+            "base_archive_sha256": base_digest,
+        },
+    )
+    merged = tmp_path / "base-bank.tar.gz"
+    output = io.StringIO()
+
+    assert (
+        bank_command(
+            [
+                "merge",
+                "--base",
+                str(base),
+                "--supplement",
+                str(supplement),
+                "--archive",
+                str(merged),
+            ],
+            stdout=output,
+        )
+        == 0
+    )
+
+    package_document = json.loads(output.getvalue())
+    assert package_document["fragment_count"] == 4
+    assert package_document["trace_count"] == 6
+    bank = read_v2_bank(merged)
+    summary = bank.manifest["quality_gate_summary"]
+    assert bank.manifest["scenario_name"] == "base-bank"
+    assert bank.manifest["matrix_seed"] == 7
+    assert bank.manifest["matrix_sha256"] != "e" * 64
+    assert bank.manifest["fragment_count"] == 4
+    assert bank.manifest["trace_count"] == 6
+    assert bank.manifest["span_count"] == 8
+    assert bank.manifest["instrumenter_package_versions"] == {"synthetic": "1.0.0"}
+    assert summary["accepted"] == 4
+    assert summary["rejected"] == 4
+    assert summary["rejected_by_gate"] == {"generation": 3, "validity": 1}
+    assert summary["judged_outcome"]["routes"]["fault"] == 1
+    assert summary["judged_outcome"]["outcomes"]["survived"] == 2
+    assert summary["merge_lineage"]["base"]["archive_sha256"] == base_digest
+    assert summary["merge_lineage"]["base"]["instrumenter_package_versions"] == {
+        "synthetic": "1.0.0"
+    }
+    assert summary["merge_lineage"]["supplement"]["instrumenter_package_versions"] == {
+        "supplement-recorder": "2.0.0",
+        "synthetic": "2.0.0",
+    }
+    assert (
+        summary["merge_lineage"]["supplement"]["archive_sha256"]
+        == sha256(supplement.read_bytes()).hexdigest()
+    )
+    assert sum(fragment.failure_mode != "none" for fragment in bank.fragments) == 1
+    assert validate_archive(merged, asset_schema_version=2).fragment_count == 4
+
+    extracted = tmp_path / "loaded" / "base-bank"
+    extracted.mkdir(parents=True)
+    with tarfile.open(merged, "r:gz") as contents:
+        for filename in ("manifest.json", "fragments.jsonl", "traces.jsonl"):
+            member = contents.extractfile(f"base-bank/{filename}")
+            assert member is not None
+            (extracted / filename).write_bytes(member.read())
+    scenario = load_scenario(extracted)
+    assert len(scenario.fragments) == 4
+    assert len(scenario.requests_by_trace_id) == 6
+    with tarfile.open(merged, "r:gz") as contents:
+        assert sorted(member.name for member in contents.getmembers()) == [
+            "base-bank/fragments.jsonl",
+            "base-bank/manifest.json",
+            "base-bank/traces.jsonl",
+        ]
+
+
+@pytest.mark.parametrize(
+    ("trace_byte_offset", "fragment_ids", "instrumenter_version", "sample_fraction", "match"),
+    [
+        (0x10, ("a" * 64, "b" * 64), "1.0.0", 0.05, "duplicate fragment IDs"),
+        (0, ("d" * 64, "f" * 64), "1.0.0", 0.05, "duplicate trace IDs"),
+        (0x10, ("d" * 64, "f" * 64), "1.0.0", 0.10, "judge_sample_fraction"),
+    ],
+    ids=("fragment-id", "trace-id", "quality-settings"),
+)
+def test_merge_v2_banks_rejects_cross_bank_identity_or_configuration(
+    tmp_path: Path,
+    trace_byte_offset: int,
+    fragment_ids: tuple[str, str],
+    instrumenter_version: str,
+    sample_fraction: float,
+    match: str,
+) -> None:
+    base = _fixture_bank_archive(tmp_path, "base-source", scenario_name="base-bank")
+    base_digest = sha256(base.read_bytes()).hexdigest()
+    supplement = _fixture_bank_archive(
+        tmp_path,
+        "supplement-source",
+        scenario_name="supplement-bank",
+        trace_byte_offset=trace_byte_offset,
+        fragment_ids=fragment_ids,
+        matrix_sha256_value="f" * 64,
+        instrumenter_version=instrumenter_version,
+        judge_sample_fraction=sample_fraction,
+        supplemental_lineage={
+            "base_scenario_name": "base-bank",
+            "base_archive_sha256": base_digest,
+        },
+    )
+
+    with pytest.raises(BankError, match=match):
+        merge_v2_banks(base, supplement, tmp_path / "base-bank.tar.gz")
+
+
+def test_merge_v2_banks_requires_the_exact_declared_base(tmp_path: Path) -> None:
+    base = _fixture_bank_archive(tmp_path, "base-source", scenario_name="base-bank")
+    supplement = _fixture_bank_archive(
+        tmp_path,
+        "supplement-source",
+        scenario_name="supplement-bank",
+        trace_byte_offset=0x10,
+        fragment_ids=("d" * 64, "f" * 64),
+        matrix_sha256_value="f" * 64,
+        supplemental_lineage={
+            "base_scenario_name": "base-bank",
+            "base_archive_sha256": "0" * 64,
+        },
+    )
+
+    with pytest.raises(BankError, match="base archive SHA-256"):
+        merge_v2_banks(base, supplement, tmp_path / "base-bank.tar.gz")
 
 
 def test_short_fragment_jaccard_threshold_is_inclusive(tmp_path: Path) -> None:
@@ -242,6 +431,14 @@ def test_judge_routes_sample_only_the_non_proximate_remainder() -> None:
     assert routes["fragment-1"] == "trap_proximity"
     assert sum(reason == "baseline" for reason in routes.values()) == 2
 
+    fragments[2]["failure_mode"] = "tool_exception"
+    fault_routes = select_judge_routes(
+        fragments,
+        proximate_fragment_ids={"fragment-0", "fragment-1", "fragment-2"},
+        seed=11,
+    )
+    assert fault_routes["fragment-2"] == "fault"
+
 
 def test_legacy_bad_tier_remains_readable_in_schema_v2() -> None:
     fragment = _candidate("a" * 64, "plain_chat", "scripted", ["b" * 32])
@@ -254,7 +451,110 @@ def test_legacy_bad_tier_remains_readable_in_schema_v2() -> None:
     assert validate_fragment_v2(fragment).quality_tier == "deliberately_bad"
 
 
-def _generation_run(tmp_path: Path) -> tuple[GenerationRun, PriceCatalog]:
+def _fixture_bank_archive(
+    tmp_path: Path,
+    archive_id: str,
+    *,
+    scenario_name: str,
+    trace_byte_offset: int = 0,
+    fragment_ids: tuple[str, str] = ("a" * 64, "b" * 64),
+    matrix_sha256_value: str = "e" * 64,
+    instrumenter_version: str = "1.0.0",
+    additional_instrumenter_versions: Mapping[str, str] | None = None,
+    judge_sample_fraction: float = 0.05,
+    rejected_by_gate: Mapping[str, int] | None = None,
+    fault_count: int = 0,
+    supplemental_lineage: Mapping[str, str] | None = None,
+) -> Path:
+    rejected_by_gate = rejected_by_gate or {"generation": 1}
+    fixture = Path(__file__).parent / "fixtures" / "fragment_bank"
+    fragments = [
+        json.loads(line) for line in (fixture / "fragments.jsonl").read_text().splitlines()
+    ]
+    traces = (fixture / "traces.jsonl").read_bytes()
+    for index, fragment in enumerate(fragments, start=1):
+        fragment["fragment_id"] = fragment_ids[index - 1]
+        remapped_trace_ids = []
+        for trace_id in fragment["trace_ids"]:
+            old_bytes = bytes.fromhex(trace_id)
+            new_bytes = bytes([old_bytes[0] + trace_byte_offset]) * len(old_bytes)
+            traces = traces.replace(base64.b64encode(old_bytes), base64.b64encode(new_bytes))
+            remapped_trace_ids.append(new_bytes.hex())
+        fragment["trace_ids"] = remapped_trace_ids
+    if fault_count:
+        fragments[0]["failure_mode"] = "provider_timeout"
+        fragments[0]["quality_results"]["judged_outcome"] = {
+            "failure_mode": "provider_timeout",
+            "route_reason": "fault",
+            "outcome": "survived",
+        }
+    fragments_bytes = b"".join(
+        json.dumps(fragment, sort_keys=True, separators=(",", ":")).encode() + b"\n"
+        for fragment in fragments
+    )
+    quality_summary: dict[str, Any] = {
+        "accepted": len(fragments),
+        "rejected": sum(rejected_by_gate.values()),
+        "rejected_by_gate": dict(rejected_by_gate),
+        "normalizer_version": NORMALIZER_VERSION,
+        "dedup_thresholds": {"short": 0.9, "long": 0.82},
+        "judge_sample_fraction": judge_sample_fraction,
+        "judged_outcome": {
+            "routes": {
+                "fault": fault_count,
+                "trap_proximity": 0,
+                "baseline": 1 - fault_count,
+                "not_selected": 1,
+            },
+            "judged": 1,
+            "unjudged": 1,
+            "outcomes": {"survived": 1, "degraded": 0, "failed": 0},
+            "judge_failures": 0,
+        },
+    }
+    if supplemental_lineage is not None:
+        quality_summary["supplemental_lineage"] = dict(supplemental_lineage)
+    manifest = json.loads((fixture / "manifest.json").read_text())
+    manifest.update(
+        scenario_name=scenario_name,
+        matrix_sha256=matrix_sha256_value,
+        instrumenter_package_versions={
+            "synthetic": instrumenter_version,
+            **(additional_instrumenter_versions or {}),
+        },
+        quality_gate_summary=quality_summary,
+        files={
+            "fragments.jsonl": {
+                "sha256": sha256(fragments_bytes).hexdigest(),
+                "size_bytes": len(fragments_bytes),
+            },
+            "traces.jsonl": {
+                "sha256": sha256(traces).hexdigest(),
+                "size_bytes": len(traces),
+            },
+        },
+    )
+    files = {
+        "manifest.json": json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+        + b"\n",
+        "fragments.jsonl": fragments_bytes,
+        "traces.jsonl": traces,
+    }
+    archive = tmp_path / f"{archive_id}.tar.gz"
+    with tarfile.open(archive, "w:gz") as contents:
+        for filename, content in files.items():
+            member = tarfile.TarInfo(f"{scenario_name}/{filename}")
+            member.size = len(content)
+            contents.addfile(member, io.BytesIO(content))
+    return archive
+
+
+def _generation_run(
+    tmp_path: Path,
+    *,
+    base_scenario_name: str | None = None,
+    base_archive_sha256: str | None = None,
+) -> tuple[GenerationRun, PriceCatalog]:
     profile_dir = tmp_path / "customer_support" / "plain_chat"
     profile_dir.mkdir(parents=True)
     (profile_dir / "profile.json").write_text(
@@ -321,6 +621,8 @@ def _generation_run(tmp_path: Path) -> tuple[GenerationRun, PriceCatalog]:
             profile_set_sha256=profiles.profile_set_sha256,
             self_play_target=1,
             scripted_target=1,
+            base_scenario_name=base_scenario_name,
+            base_archive_sha256=base_archive_sha256,
         ),
         cells=cells,
         profiles=profiles,
@@ -382,6 +684,7 @@ def _judge(
                 "seed_descriptions": {},
                 "task": cell.profile.topic,
                 "scenario": cell.profile.scenario_template,
+                "failure_mode": fragment["failure_mode"],
             }
         )
 

@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import argparse
 import gzip
 import json
 import os
+import sys
 import tarfile
 import tempfile
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterable, Iterator, Mapping, Sequence
+from typing import Any, Iterable, Iterator, Mapping, Sequence, TextIO
 
 from google.protobuf.json_format import Parse, ParseError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
@@ -35,6 +37,11 @@ from scripts.datagen.quality import (
 )
 
 _BANK_FILES = ("manifest.json", "fragments.jsonl", "traces.jsonl")
+_STATIC_QUALITY_FIELDS = (
+    "normalizer_version",
+    "dedup_thresholds",
+    "judge_sample_fraction",
+)
 
 
 @dataclass(frozen=True)
@@ -87,7 +94,9 @@ def package_generation_run(
             **raw_fragment,
             "quality_results": {
                 **(dict(quality_results) if isinstance(quality_results, Mapping) else {}),
-                "judged_outcome": _judged_outcome_projection(cell.cell_id, judgment),
+                "judged_outcome": _judged_outcome_projection(
+                    cell.cell_id, raw_fragment.get("failure_mode"), judgment
+                ),
             },
         }
         try:
@@ -131,6 +140,23 @@ def package_generation_run(
     defaults = composer_defaults or _default_composer(rows)
     rejects = _read_jsonl(run_dir / "rejects.jsonl")
     judgment_summary = _judgment_summary(judgments.values(), judge_failures=run.judge_failure_count)
+    quality_gate_summary: dict[str, Any] = {
+        "accepted": len(rows),
+        "rejected": len(rejects),
+        "rejected_by_gate": _rejection_counts(rejects),
+        "normalizer_version": NORMALIZER_VERSION,
+        "dedup_thresholds": {
+            "short": SHORT_FRAGMENT_RULE.threshold,
+            "long": LONG_FRAGMENT_RULE.threshold,
+        },
+        "judge_sample_fraction": JUDGE_SAMPLE_FRACTION,
+        "judged_outcome": judgment_summary,
+    }
+    if run.config.base_scenario_name is not None:
+        quality_gate_summary["supplemental_lineage"] = {
+            "base_scenario_name": run.config.base_scenario_name,
+            "base_archive_sha256": run.config.base_archive_sha256,
+        }
     manifest_value = {
         "schema_version": 2,
         "scenario_name": scenario_name,
@@ -147,18 +173,7 @@ def package_generation_run(
             "fragments.jsonl": _file_metadata(fragments_bytes),
             "traces.jsonl": _file_metadata(traces_bytes),
         },
-        "quality_gate_summary": {
-            "accepted": len(rows),
-            "rejected": len(rejects),
-            "rejected_by_gate": _rejection_counts(rejects),
-            "normalizer_version": NORMALIZER_VERSION,
-            "dedup_thresholds": {
-                "short": SHORT_FRAGMENT_RULE.threshold,
-                "long": LONG_FRAGMENT_RULE.threshold,
-            },
-            "judge_sample_fraction": JUDGE_SAMPLE_FRACTION,
-            "judged_outcome": judgment_summary,
-        },
+        "quality_gate_summary": quality_gate_summary,
         "composer_defaults": defaults,
     }
     try:
@@ -178,6 +193,224 @@ def package_generation_run(
         size_bytes=len(archive_bytes),
         manifest=manifest,
     )
+
+
+def merge_v2_banks(base_source: Path, supplement_source: Path, destination: Path) -> BankPackage:
+    """Merge a supplemental archive into the schema-v2 bank it declares as its base."""
+    base_digest = _archive_sha256(base_source)
+    supplement_digest = _archive_sha256(supplement_source)
+    base = read_v2_bank(base_source)
+    supplement = read_v2_bank(supplement_source)
+    _validate_supplemental_lineage(base, base_digest, supplement)
+    _validate_merge_compatibility(base.manifest, supplement.manifest)
+
+    base_fragment_ids = {fragment.fragment_id for fragment in base.fragments}
+    duplicate_fragment_ids = sorted(
+        base_fragment_ids.intersection(fragment.fragment_id for fragment in supplement.fragments)
+    )
+    if duplicate_fragment_ids:
+        raise BankError(f"duplicate fragment IDs across merge inputs: {duplicate_fragment_ids}")
+    base_trace_ids = {trace_id for fragment in base.fragments for trace_id in fragment.trace_ids}
+    duplicate_trace_ids = sorted(
+        base_trace_ids.intersection(
+            trace_id for fragment in supplement.fragments for trace_id in fragment.trace_ids
+        )
+    )
+    if duplicate_trace_ids:
+        raise BankError(f"duplicate trace IDs across merge inputs: {duplicate_trace_ids}")
+
+    fragments = (*base.fragments, *supplement.fragments)
+    rows = [_fragment_document(fragment) for fragment in fragments]
+    fragments_bytes = b"".join(_canonical_json(row) + b"\n" for row in rows)
+    traces_bytes = _concatenate_jsonl(base.traces_bytes, supplement.traces_bytes)
+    trace_ids, span_count, span_kinds = _trace_stats(traces_bytes)
+    _validate_membership(rows, trace_ids)
+    quality_gate_summary = _merge_quality_summaries(
+        base.manifest,
+        supplement.manifest,
+        base_digest=base_digest,
+        supplement_digest=supplement_digest,
+        fragment_count=len(rows),
+    )
+    scenario_name = base.manifest["scenario_name"]
+    manifest_value = {
+        "schema_version": 2,
+        "scenario_name": scenario_name,
+        "generated_at": supplement.manifest["generated_at"],
+        "generation_revision": supplement.manifest["generation_revision"],
+        "matrix_sha256": _merged_matrix_sha256(base.manifest, supplement.manifest),
+        "matrix_seed": base.manifest["matrix_seed"],
+        "fragment_count": len(rows),
+        "trace_count": len(trace_ids),
+        "span_count": span_count,
+        "span_kinds": sorted(span_kinds),
+        "instrumenter_package_versions": dict(
+            sorted(base.manifest["instrumenter_package_versions"].items())
+        ),
+        "files": {
+            "fragments.jsonl": _file_metadata(fragments_bytes),
+            "traces.jsonl": _file_metadata(traces_bytes),
+        },
+        "quality_gate_summary": quality_gate_summary,
+        "composer_defaults": _default_composer(rows),
+    }
+    try:
+        manifest = validate_manifest_v2(manifest_value)
+    except SchemaValidationError as error:
+        raise BankError(f"manifest field {error.field!r} {error}") from error
+    files = {
+        "manifest.json": _canonical_json(manifest) + b"\n",
+        "fragments.jsonl": fragments_bytes,
+        "traces.jsonl": traces_bytes,
+    }
+    _write_archive_atomic(destination, scenario_name, files)
+    archive_bytes = destination.read_bytes()
+    return BankPackage(
+        path=destination,
+        sha256=sha256(archive_bytes).hexdigest(),
+        size_bytes=len(archive_bytes),
+        manifest=manifest,
+    )
+
+
+def _archive_sha256(source: Path) -> str:
+    try:
+        return sha256(source.read_bytes()).hexdigest()
+    except OSError as error:
+        raise BankError(f"unable to read bank archive {source}: {error}") from error
+
+
+def _validate_supplemental_lineage(base: V2Bank, base_digest: str, supplement: V2Bank) -> None:
+    lineage = supplement.manifest["quality_gate_summary"].get("supplemental_lineage")
+    if not isinstance(lineage, Mapping):
+        raise BankError("supplement quality_gate_summary.supplemental_lineage is required")
+    expected_scenario = base.manifest["scenario_name"]
+    if lineage.get("base_scenario_name") != expected_scenario:
+        raise BankError(
+            "supplement base scenario does not match the base archive: "
+            f"{lineage.get('base_scenario_name')!r} != {expected_scenario!r}"
+        )
+    if lineage.get("base_archive_sha256") != base_digest:
+        raise BankError("supplement base archive SHA-256 does not match the base archive")
+
+
+def _validate_merge_compatibility(base: ScenarioManifestV2, supplement: ScenarioManifestV2) -> None:
+    base_summary = base["quality_gate_summary"]
+    supplement_summary = supplement["quality_gate_summary"]
+    for field in _STATIC_QUALITY_FIELDS:
+        if field not in base_summary or field not in supplement_summary:
+            raise BankError(f"merge inputs must declare quality_gate_summary.{field}")
+        if base_summary[field] != supplement_summary[field]:
+            raise BankError(f"merge inputs have incompatible quality_gate_summary.{field}")
+
+
+def _merge_quality_summaries(
+    base: ScenarioManifestV2,
+    supplement: ScenarioManifestV2,
+    *,
+    base_digest: str,
+    supplement_digest: str,
+    fragment_count: int,
+) -> dict[str, Any]:
+    base_summary = base["quality_gate_summary"]
+    supplement_summary = supplement["quality_gate_summary"]
+    summary = {
+        "accepted": fragment_count,
+        "rejected": _quality_count(base_summary, "rejected", "base")
+        + _quality_count(supplement_summary, "rejected", "supplement"),
+        "rejected_by_gate": _merge_count_maps(
+            base_summary.get("rejected_by_gate"),
+            supplement_summary.get("rejected_by_gate"),
+            field="rejected_by_gate",
+        ),
+        "judged_outcome": _merge_judgment_summaries(
+            base_summary.get("judged_outcome"), supplement_summary.get("judged_outcome")
+        ),
+        "merge_lineage": {
+            "base": _archive_lineage(base, base_digest),
+            "supplement": _archive_lineage(supplement, supplement_digest),
+        },
+    }
+    for field in _STATIC_QUALITY_FIELDS:
+        summary[field] = base_summary[field]
+    return summary
+
+
+def _archive_lineage(manifest: ScenarioManifestV2, archive_digest: str) -> dict[str, Any]:
+    return {
+        "archive_sha256": archive_digest,
+        "scenario_name": manifest["scenario_name"],
+        "matrix_sha256": manifest["matrix_sha256"],
+        "matrix_seed": manifest["matrix_seed"],
+        "generation_revision": manifest["generation_revision"],
+        "fragment_count": manifest["fragment_count"],
+        "trace_count": manifest["trace_count"],
+        "instrumenter_package_versions": dict(
+            sorted(manifest["instrumenter_package_versions"].items())
+        ),
+    }
+
+
+def _quality_count(summary: Mapping[str, Any], field: str, source: str) -> int:
+    value = summary.get(field)
+    if type(value) is not int or value < 0:
+        raise BankError(f"{source} quality_gate_summary.{field} must be a non-negative integer")
+    return value
+
+
+def _merge_count_maps(
+    base: Any, supplement: Any, *, field: str, required_keys: Sequence[str] = ()
+) -> dict[str, int]:
+    counts = {key: 0 for key in required_keys}
+    for source, value in (("base", base), ("supplement", supplement)):
+        if not isinstance(value, Mapping):
+            raise BankError(f"{source} quality_gate_summary.{field} must be an object")
+        for key, count in value.items():
+            if not isinstance(key, str) or not key or type(count) is not int or count < 0:
+                raise BankError(
+                    f"{source} quality_gate_summary.{field} must map names to non-negative integers"
+                )
+            counts[key] = counts.get(key, 0) + count
+    return dict(sorted(counts.items()))
+
+
+def _merge_judgment_summaries(base: Any, supplement: Any) -> dict[str, Any]:
+    for source, value in (("base", base), ("supplement", supplement)):
+        if not isinstance(value, Mapping):
+            raise BankError(f"{source} quality_gate_summary.judged_outcome must be an object")
+    assert isinstance(base, Mapping) and isinstance(supplement, Mapping)
+    return {
+        "routes": _merge_count_maps(
+            base.get("routes"),
+            supplement.get("routes"),
+            field="judged_outcome.routes",
+            required_keys=("fault", "trap_proximity", "baseline", "not_selected"),
+        ),
+        "judged": _quality_count(base, "judged", "base judged_outcome")
+        + _quality_count(supplement, "judged", "supplement judged_outcome"),
+        "unjudged": _quality_count(base, "unjudged", "base judged_outcome")
+        + _quality_count(supplement, "unjudged", "supplement judged_outcome"),
+        "outcomes": _merge_count_maps(
+            base.get("outcomes"),
+            supplement.get("outcomes"),
+            field="judged_outcome.outcomes",
+            required_keys=("survived", "degraded", "failed"),
+        ),
+        "judge_failures": _quality_count(base, "judge_failures", "base judged_outcome")
+        + _quality_count(supplement, "judge_failures", "supplement judged_outcome"),
+    }
+
+
+def _merged_matrix_sha256(base: ScenarioManifestV2, supplement: ScenarioManifestV2) -> str:
+    document = {
+        "base_matrix_sha256": base["matrix_sha256"],
+        "supplement_matrix_sha256": supplement["matrix_sha256"],
+    }
+    return sha256(_canonical_json(document)).hexdigest()
+
+
+def _concatenate_jsonl(*parts: bytes) -> bytes:
+    return b"".join(part if part.endswith(b"\n") else part + b"\n" for part in parts)
 
 
 def _rejection_counts(rejects: Sequence[Mapping[str, Any]]) -> Mapping[str, int]:
@@ -379,14 +612,20 @@ def _fragment_document(fragment: Fragment) -> dict[str, Any]:
     }
 
 
-def _judged_outcome_projection(cell_id: str, judgment: Mapping[str, Any]) -> dict[str, Any]:
+def _judged_outcome_projection(
+    cell_id: str, failure_mode: Any, judgment: Mapping[str, Any]
+) -> dict[str, Any]:
     if judgment.get("fragment_id") != cell_id or judgment.get("cell_id") != cell_id:
         raise BankError(f"judgment identity does not match accepted cell {cell_id}")
+    if not isinstance(failure_mode, str) or judgment.get("failure_mode", "none") != failure_mode:
+        raise BankError(f"judgment failure mode does not match accepted cell {cell_id}")
     route_reason = judgment.get("route_reason")
     outcome = judgment.get("outcome")
     rationale = judgment.get("rationale")
-    if route_reason not in {"trap_proximity", "baseline", "not_selected"}:
+    if route_reason not in {"fault", "trap_proximity", "baseline", "not_selected"}:
         raise BankError(f"accepted cell {cell_id} has an invalid judgment route")
+    if (failure_mode != "none") != (route_reason == "fault"):
+        raise BankError(f"accepted cell {cell_id} has an invalid fault judgment route")
     if route_reason == "not_selected":
         if outcome is not None or rationale is not None:
             raise BankError(f"unselected cell {cell_id} may not carry an outcome")
@@ -399,6 +638,7 @@ def _judged_outcome_projection(cell_id: str, judgment: Mapping[str, Any]) -> dic
         "proximity_source",
         "targeted_seed_id",
         "seed_intensities",
+        "failure_mode",
         "route_reason",
         "outcome",
         "rationale",
@@ -410,7 +650,9 @@ def _judged_outcome_projection(cell_id: str, judgment: Mapping[str, Any]) -> dic
         "provider",
         "model",
     )
-    return {field: judgment.get(field) for field in projected_fields}
+    projection = {field: judgment.get(field) for field in projected_fields}
+    projection["failure_mode"] = judgment.get("failure_mode", "none")
+    return projection
 
 
 def _judgment_summary(
@@ -419,7 +661,7 @@ def _judgment_summary(
     judge_failures: int,
 ) -> dict[str, Any]:
     records = tuple(judgments)
-    routes = {reason: 0 for reason in ("trap_proximity", "baseline", "not_selected")}
+    routes = {reason: 0 for reason in ("fault", "trap_proximity", "baseline", "not_selected")}
     outcomes = {outcome: 0 for outcome in ("survived", "degraded", "failed")}
     for record in records:
         route = record.get("route_reason")
@@ -533,3 +775,85 @@ class _BytesReader:
         start = self._position
         self._position = min(len(self._content), self._position + size)
         return self._content[start : self._position]
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    package = subparsers.add_parser("package", help="package one completed generation run")
+    package.add_argument("run_dir", type=Path)
+    package.add_argument("--archive", type=Path, required=True)
+    package.add_argument("--scenario-name", required=True)
+    package.add_argument("--generated-at", required=True)
+    package.add_argument("--generation-revision", required=True)
+    package.add_argument(
+        "--instrumenter-package",
+        action="append",
+        required=True,
+        metavar="NAME=VERSION",
+        help="record an instrumenter distribution version; repeat for every recorder dependency",
+    )
+
+    merge = subparsers.add_parser("merge", help="merge a supplemental bank into its base")
+    merge.add_argument("--base", type=Path, required=True)
+    merge.add_argument("--supplement", type=Path, required=True)
+    merge.add_argument("--archive", type=Path, required=True)
+    return parser
+
+
+def command(
+    argv: Sequence[str] | None = None,
+    *,
+    stdout: TextIO = sys.stdout,
+    stderr: TextIO = sys.stderr,
+) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        if args.command == "package":
+            package = package_generation_run(
+                args.run_dir,
+                args.archive,
+                scenario_name=args.scenario_name,
+                generated_at=args.generated_at,
+                generation_revision=args.generation_revision,
+                instrumenter_package_versions=_parse_instrumenter_versions(
+                    args.instrumenter_package
+                ),
+            )
+        elif args.command == "merge":
+            package = merge_v2_banks(args.base, args.supplement, args.archive)
+        else:
+            raise AssertionError(args.command)
+    except (BankError, GenerationError, OSError, ValueError) as error:
+        print(json.dumps({"error": type(error).__name__, "message": str(error)}), file=stderr)
+        return 2
+    print(json.dumps(_package_document(package), indent=2, sort_keys=True), file=stdout)
+    return 0
+
+
+def _parse_instrumenter_versions(values: Sequence[str]) -> Mapping[str, str]:
+    versions: dict[str, str] = {}
+    for value in values:
+        name, separator, version = value.partition("=")
+        if not separator or not name or not version:
+            raise ValueError("--instrumenter-package must use NAME=VERSION")
+        if name in versions:
+            raise ValueError(f"duplicate instrumenter package {name!r}")
+        versions[name] = version
+    return versions
+
+
+def _package_document(package: BankPackage) -> dict[str, Any]:
+    return {
+        "archive": str(package.path),
+        "sha256": package.sha256,
+        "size_bytes": package.size_bytes,
+        "scenario_name": package.manifest["scenario_name"],
+        "fragment_count": package.manifest["fragment_count"],
+        "trace_count": package.manifest["trace_count"],
+    }
+
+
+if __name__ == "__main__":
+    raise SystemExit(command())

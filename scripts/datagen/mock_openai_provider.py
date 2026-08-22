@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from dataclasses import dataclass
 from hashlib import sha256
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,12 +25,20 @@ class ScriptedToolError(RuntimeError):
     """Raised when playback reaches a declared tool failure."""
 
 
+@dataclass(frozen=True)
+class PlaybackFailureEvent:
+    mode: str
+    turn_index: int
+
+
 class PlaybackProvider:
     """Serve a conversation script through an in-process OpenAI-compatible transport."""
 
     def __init__(self, script: Mapping[str, Any]) -> None:
         self._script = script
         self._turn_index = 0
+        self._request_count = 0
+        self._failure_events: list[PlaybackFailureEvent] = []
         turns = script.get("turns")
         if not isinstance(turns, list) or not turns:
             raise ValueError("playback script must contain a non-empty turns array")
@@ -37,6 +46,14 @@ class PlaybackProvider:
     @property
     def turn_index(self) -> int:
         return self._turn_index
+
+    @property
+    def request_count(self) -> int:
+        return self._request_count
+
+    @property
+    def failure_events(self) -> tuple[PlaybackFailureEvent, ...]:
+        return tuple(self._failure_events)
 
     def http_client(self) -> Any:
         import httpx
@@ -46,6 +63,7 @@ class PlaybackProvider:
     def _handle_http_request(self, request: Any) -> Any:
         import httpx
 
+        self._request_count += 1
         if request.url.path != "/v1/chat/completions":
             return httpx.Response(
                 HTTPStatus.NOT_FOUND,
@@ -77,7 +95,8 @@ class PlaybackProvider:
 
         failure_mode = self._script.get("failure_mode", "none")
         failure_turn = self._script.get("failure_turn")
-        if failure_turn == self._turn_index:
+        if failure_turn == self._turn_index and not self._failure_events:
+            self._failure_events.append(PlaybackFailureEvent(failure_mode, self._turn_index))
             if failure_mode == "provider_429":
                 return httpx.Response(
                     HTTPStatus.TOO_MANY_REQUESTS,
@@ -103,12 +122,29 @@ class PlaybackProvider:
             if failure_mode == "tool_exception":
                 response = self._tool_exception_completion(body)
                 self._turn_index += 1
-                return httpx.Response(HTTPStatus.OK, json=response, request=request)
+                return self._completion_response(request, body, response)
             if failure_mode != "none":
                 raise ValueError(f"unsupported playback failure mode {failure_mode!r}")
 
         response = self._success_completion(body, str(turn.get("assistant", "")))
         self._turn_index += 1
+        return self._completion_response(request, body, response)
+
+    def _completion_response(
+        self,
+        request: Any,
+        body: Mapping[str, Any],
+        response: Mapping[str, Any],
+    ) -> Any:
+        import httpx
+
+        if body.get("stream"):
+            return httpx.Response(
+                HTTPStatus.OK,
+                headers={"content-type": "text/event-stream"},
+                content=stream_chat_completion(response),
+                request=request,
+            )
         return httpx.Response(HTTPStatus.OK, json=response, request=request)
 
     def _current_turn(self) -> Mapping[str, Any]:

@@ -274,8 +274,8 @@ def _script_from_output(cell: MatrixCell, value: Mapping[str, Any]) -> Conversat
     return ConversationScript(
         cell_id=cell.cell_id,
         model=cell.assistant_model,
-        failure_mode="none",
-        failure_turn=None,
+        failure_mode=_failure_mode(cell.profile.failure_mode),
+        failure_turn=cell.profile.failure_turn,
         turns=turns,
     )
 

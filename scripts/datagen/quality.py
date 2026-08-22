@@ -353,22 +353,31 @@ def select_judge_routes(
     proximate_fragment_ids: Iterable[str],
     seed: int,
     fraction: float = JUDGE_SAMPLE_FRACTION,
-) -> Mapping[str, Literal["trap_proximity", "baseline", "not_selected"]]:
-    """Route all proximate fragments and sample only from the remainder."""
+) -> Mapping[str, Literal["fault", "trap_proximity", "baseline", "not_selected"]]:
+    """Route all fault and proximate fragments, then sample from the remainder."""
     fragment_ids = {_value(fragment, "fragment_id") for fragment in fragments}
     if any(not isinstance(fragment_id, str) for fragment_id in fragment_ids):
         raise QualityError("judge routing requires string fragment IDs")
+    fault_ids = {
+        _value(fragment, "fragment_id")
+        for fragment in fragments
+        if _fragment_failure_mode(fragment) != "none"
+    }
     proximate = set(proximate_fragment_ids)
     unknown = proximate - fragment_ids
     if unknown:
         raise QualityError(f"proximate fragment IDs are not accepted: {sorted(unknown)!r}")
     remainder = [
-        fragment for fragment in fragments if _value(fragment, "fragment_id") not in proximate
+        fragment
+        for fragment in fragments
+        if _value(fragment, "fragment_id") not in proximate | fault_ids
     ]
     baseline = set(select_judge_sample(remainder, seed=seed, fraction=fraction))
     return {
         cast_id: (
-            "trap_proximity"
+            "fault"
+            if cast_id in fault_ids
+            else "trap_proximity"
             if cast_id in proximate
             else "baseline"
             if cast_id in baseline
@@ -513,3 +522,14 @@ def _jaccard(left: frozenset[str], right: frozenset[str]) -> float:
 
 def _value(fragment: Fragment | Mapping[str, Any], field: str) -> Any:
     return fragment.get(field) if isinstance(fragment, Mapping) else getattr(fragment, field)
+
+
+def _fragment_failure_mode(fragment: Fragment | Mapping[str, Any]) -> str:
+    value = (
+        fragment.get("failure_mode", "none")
+        if isinstance(fragment, Mapping)
+        else fragment.failure_mode
+    )
+    if not isinstance(value, str) or not value:
+        raise QualityError("judge routing requires string failure modes")
+    return value

@@ -10,6 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
+from time import sleep
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 if TYPE_CHECKING or __package__:
@@ -48,6 +49,7 @@ _RESERVED_TRANSCRIPT_PHRASES = (
     "targeted seed",
     "make a mistake",
 )
+_TOOL_FAILURE_MODES = frozenset({"tool_delay", "tool_exception"})
 
 
 class SelfPlayError(GenerationError):
@@ -189,12 +191,14 @@ def self_play_plan_from_cell(
     *,
     simulator: ModelRole,
     assistant_provider: str,
-    failure_mode: str = "none",
-    tool_failure_mode: str = "none",
 ) -> SelfPlayPlan:
     if cell.lane != "self_play":
         raise SelfPlayError(f"cell {cell.cell_id} belongs to {cell.lane}, not self_play")
     draw = cell.profile
+    if draw.failure_mode != "none" and draw.failure_mode not in _TOOL_FAILURE_MODES:
+        raise SelfPlayError(
+            f"self-play cell {cell.cell_id} has unsupported fault {draw.failure_mode!r}"
+        )
     return SelfPlayPlan(
         archetype=draw.archetype,
         domain=draw.domain,
@@ -203,12 +207,12 @@ def self_play_plan_from_cell(
         persona=Persona(draw.persona_id, draw.persona_instructions),
         register=draw.register,
         quality_tier=draw.quality_tier,
-        failure_mode=failure_mode,
+        failure_mode=draw.failure_mode,
         turn_count=draw.turn_count,
         simulator=simulator,
         assistant_provider=assistant_provider,
         environment=environment,
-        tool_failure_mode=tool_failure_mode,
+        tool_failure_mode=draw.failure_mode,
     )
 
 
@@ -450,7 +454,7 @@ def _record_attempt(
         {"schema_version": 1, "cell_id": cell.cell_id, "events": base_engagement_events},
     )
     ledger = InvocationLedger(attempt_dir / "tool-invocations.jsonl")
-
+    tool_call_count = max(tool_call_count, len(ledger.records))
     for turn_index in range(completed_turns, plan.turn_count):
         user = simulator.simulate(
             UserSimulationRequest(
@@ -474,15 +478,19 @@ def _record_attempt(
         def invoke_tool(name: str, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
             nonlocal tool_call_count
             tool_call_count += 1
+            failure_mode = plan.tool_failure_mode if tool_call_count == 1 else "none"
             context = ToolContext(
                 pass_seed=pass_seed,
                 cell_id=cell.cell_id,
                 fixture_set=fixture_set,
                 result_overlays=plan.environment.tool_result_overlays,
-                failure_mode=plan.tool_failure_mode,
+                failure_mode=failure_mode,
                 call_ordinal=tool_call_count,
             )
-            return registry.invoke(name, arguments, context, ledger)
+            result = registry.invoke(name, arguments, context, ledger)
+            if failure_mode == "tool_delay":
+                sleep(ledger.records[-1].declared_delay_ms / 1000)
+            return result
 
         recorded = recorder.record(
             AssistantRequest(
@@ -559,6 +567,17 @@ def _record_attempt(
             f"self-play capture incomplete for {cell.cell_id}: {reason}; "
             "the cell will restart under a new attempt"
         )
+    fault_error = _fault_observation_error(plan.tool_failure_mode, ledger)
+    if fault_error:
+        _fail_incomplete_attempts(
+            run,
+            attempts,
+            prices,
+            reason=fault_error,
+            assistant_usage=assistant_usage,
+            simulator_usage=simulator_usage,
+        )
+        raise SelfPlayError(f"self-play fault not observed for {cell.cell_id}: {fault_error}")
     candidate = _stage_candidate(
         attempt_dir,
         cell,
@@ -591,6 +610,19 @@ def _record_attempt(
         output_tokens=assistant_usage.output_tokens,
     )
     return candidate
+
+
+def _fault_observation_error(failure_mode: str, ledger: InvocationLedger) -> str:
+    if failure_mode == "none":
+        return ""
+    first = ledger.records[0] if ledger.records else None
+    if first is None:
+        return f"{failure_mode} requires at least one tool invocation"
+    if failure_mode == "tool_delay" and first.declared_delay_ms <= 0:
+        return "tool_delay did not produce a delayed tool invocation"
+    if failure_mode == "tool_exception" and first.outcome != "error":
+        return "tool_exception did not produce an error tool invocation"
+    return ""
 
 
 def _fail_incomplete_attempts(

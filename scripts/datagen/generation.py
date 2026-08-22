@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import os
 import random
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Mapping, Sequence, cast
@@ -29,6 +29,14 @@ Lane = Literal["self_play", "scripted"]
 ProcessingMode = Literal["direct", "batch"]
 MeteringMode = Literal["priced", "subscription"]
 BudgetPool = Literal["generation", "judge", "retry"]
+FailureMode = Literal[
+    "none",
+    "provider_429",
+    "provider_timeout",
+    "malformed_response",
+    "tool_delay",
+    "tool_exception",
+]
 
 DEFAULT_LANE_TARGETS: Mapping[Lane, int] = {"self_play": 3_000, "scripted": 2_000}
 LANES: tuple[Lane, Lane] = ("self_play", "scripted")
@@ -45,6 +53,9 @@ BUDGET_POOLS: tuple[BudgetPool, BudgetPool, BudgetPool] = (
     "retry",
 )
 FRONTIER_FRACTION = Decimal("0.05")
+PROVIDER_FAILURE_MODES = frozenset({"provider_429", "provider_timeout", "malformed_response"})
+TOOL_FAILURE_MODES = frozenset({"tool_delay", "tool_exception"})
+FAILURE_MODES = PROVIDER_FAILURE_MODES | TOOL_FAILURE_MODES
 RUN_SCHEMA_VERSION = 2
 MATRIX_SCHEMA_VERSION = 2
 
@@ -114,6 +125,21 @@ class ProfileDraw:
     target_mode: Literal["ambient", "targeted"]
     targeted_seed_id: str | None
     seed_intensities: Mapping[str, float]
+    failure_mode: FailureMode = "none"
+    failure_turn: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.failure_mode != "none" and self.failure_mode not in FAILURE_MODES:
+            raise GenerationError(f"unknown profile fault mode {self.failure_mode!r}")
+        if self.failure_mode in PROVIDER_FAILURE_MODES:
+            if (
+                isinstance(self.failure_turn, bool)
+                or not isinstance(self.failure_turn, int)
+                or not 0 <= self.failure_turn < self.turn_count
+            ):
+                raise GenerationError("provider fault turn must identify an existing turn")
+        elif self.failure_turn is not None:
+            raise GenerationError("none and tool fault modes cannot name a failure turn")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -160,6 +186,10 @@ class RunConfig:
     generation_share: str = "0.75"
     judge_share: str = "0.10"
     retry_share: str = "0.15"
+    fault_fraction: str = "0"
+    fault_mode_weights: Mapping[str, str] = field(default_factory=dict)
+    base_scenario_name: str | None = None
+    base_archive_sha256: str | None = None
 
     def __post_init__(self) -> None:
         if not self.run_id or ":" in self.run_id:
@@ -169,7 +199,7 @@ class RunConfig:
         for provider in (self.luna_provider, self.frontier_provider):
             if provider not in {"openai_api", "codex_exec"}:
                 raise GenerationError(f"unsupported model provider {provider!r}")
-        for field, digest in (
+        for field_name, digest in (
             ("matrix_sha256", self.matrix_sha256),
             ("pricing_sha256", self.pricing_sha256),
             ("profile_set_sha256", self.profile_set_sha256),
@@ -177,7 +207,7 @@ class RunConfig:
             if len(digest) != 64 or any(
                 character not in "0123456789abcdef" for character in digest
             ):
-                raise GenerationError(f"{field} must be a SHA-256 hex digest")
+                raise GenerationError(f"{field_name} must be a SHA-256 hex digest")
         if self.self_play_target < 1 or self.scripted_target < 1:
             raise GenerationError("lane targets must be positive")
         if (
@@ -198,6 +228,21 @@ class RunConfig:
             raise GenerationError("budget shares must sum to 1")
         if Decimal(self.budget_usd) <= 0:
             raise GenerationError("budget_usd must be positive")
+        fraction = _decimal(self.fault_fraction, "fault_fraction")
+        if not Decimal() <= fraction <= Decimal(1):
+            raise GenerationError("fault_fraction must be between 0 and 1")
+        weights = _normalize_fault_mode_weights(self.fault_mode_weights)
+        if bool(weights) != bool(fraction):
+            raise GenerationError("fault_fraction and fault_mode_weights must be set together")
+        object.__setattr__(self, "fault_fraction", _decimal_string(fraction))
+        object.__setattr__(self, "fault_mode_weights", weights)
+        if (self.base_scenario_name is None) != (self.base_archive_sha256 is None):
+            raise GenerationError("base_scenario_name and base_archive_sha256 must be set together")
+        if self.base_scenario_name is not None:
+            if not self.base_scenario_name.strip():
+                raise GenerationError("base_scenario_name must be non-empty")
+            assert self.base_archive_sha256 is not None
+            _validate_sha256("base_archive_sha256", self.base_archive_sha256)
 
     @property
     def lane_targets(self) -> Mapping[Lane, int]:
@@ -387,6 +432,8 @@ def expand_seed_matrix(
     luna_model: str,
     frontier_model: str,
     lane_targets: Mapping[Lane, int] = DEFAULT_LANE_TARGETS,
+    fault_fraction: Decimal = Decimal(),
+    fault_mode_weights: Mapping[str, Decimal | str | float] | None = None,
 ) -> tuple[MatrixCell, ...]:
     """Draw stable, profile-scoped matrix cells."""
     profiles = tuple(sorted(profile_set.profiles, key=lambda profile: profile.profile_id))
@@ -419,7 +466,163 @@ def expand_seed_matrix(
                     assistant_model=frontier_model if use_frontier else luna_model,
                 )
             )
-    return tuple(cells)
+    return _allocate_faults(
+        tuple(cells),
+        profile_set,
+        seed=seed,
+        fault_fraction=fault_fraction,
+        fault_mode_weights=fault_mode_weights,
+    )
+
+
+def _allocate_faults(
+    cells: tuple[MatrixCell, ...],
+    profile_set: ProfileSetV1,
+    *,
+    seed: int,
+    fault_fraction: Decimal,
+    fault_mode_weights: Mapping[str, Decimal | str | float] | None,
+) -> tuple[MatrixCell, ...]:
+    fraction = _decimal(fault_fraction, "fault_fraction")
+    if not Decimal() <= fraction <= Decimal(1):
+        raise GenerationError("fault_fraction must be between 0 and 1")
+    weights = _normalize_fault_mode_weights(fault_mode_weights or {})
+    if not weights:
+        if fraction:
+            raise GenerationError("fault_fraction requires at least one fault mode")
+        return cells
+    if not fraction:
+        raise GenerationError("fault modes require a positive fault_fraction")
+
+    fault_count = int((Decimal(len(cells)) * fraction).to_integral_value(rounding=ROUND_HALF_UP))
+    if fault_count < len(weights):
+        raise GenerationError(
+            f"fault allocation has {fault_count} cells for {len(weights)} requested modes"
+        )
+    profiles = {profile.profile_id: profile for profile in profile_set.profiles}
+
+    def eligible(cell: MatrixCell, mode: str) -> bool:
+        if mode in PROVIDER_FAILURE_MODES:
+            return cell.lane == "scripted"
+        profile = profiles[cell.profile.profile_id]
+        return cell.lane == "self_play" and bool(profile.tool_surface)
+
+    eligible_cells = {
+        mode: tuple(cell for cell in cells if eligible(cell, mode)) for mode in weights
+    }
+    unavailable = sorted(mode for mode, candidates in eligible_cells.items() if not candidates)
+    if unavailable:
+        raise GenerationError(f"fault modes have no eligible cells: {unavailable!r}")
+    union = {cell.cell_id for candidates in eligible_cells.values() for cell in candidates}
+    if fault_count > len(union):
+        raise GenerationError(
+            f"fault allocation requests {fault_count} cells but only {len(union)} are eligible"
+        )
+
+    assignments: dict[str, str] = {}
+    for mode in sorted(weights):
+        candidates = sorted(
+            eligible_cells[mode],
+            key=lambda cell: _fault_rank(seed, f"coverage:{mode}", cell),
+        )
+        selected = next((cell for cell in candidates if cell.cell_id not in assignments), None)
+        if selected is None:
+            raise GenerationError("requested fault modes cannot cover distinct eligible cells")
+        assignments[selected.cell_id] = mode
+
+    for ordinal in range(fault_count - len(assignments)):
+        available_weights = {
+            mode: weight
+            for mode, weight in weights.items()
+            if any(cell.cell_id not in assignments for cell in eligible_cells[mode])
+        }
+        mode = _weighted_fault_mode(seed, ordinal, available_weights)
+        candidates = sorted(
+            (cell for cell in eligible_cells[mode] if cell.cell_id not in assignments),
+            key=lambda cell: _fault_rank(seed, f"weighted:{ordinal}:{mode}", cell),
+        )
+        assignments[candidates[0].cell_id] = mode
+
+    allocated = []
+    for cell in cells:
+        mode = assignments.get(cell.cell_id, "none")
+        failure_turn = _fault_turn(seed, cell) if mode in PROVIDER_FAILURE_MODES else None
+        draw = replace(
+            cell.profile, failure_mode=cast(FailureMode, mode), failure_turn=failure_turn
+        )
+        identity = {
+            "schema_version": MATRIX_SCHEMA_VERSION,
+            "matrix_seed": seed,
+            "profile_set_sha256": profile_set.profile_set_sha256,
+            "lane": cell.lane,
+            "ordinal": cell.ordinal,
+            "profile": draw.to_dict(),
+        }
+        allocated.append(
+            replace(
+                cell,
+                cell_id=sha256(_canonical_bytes(identity)).hexdigest(),
+                profile=draw,
+            )
+        )
+    return tuple(allocated)
+
+
+def _fault_rank(seed: int, purpose: str, cell: MatrixCell) -> bytes:
+    value = f"{MATRIX_SCHEMA_VERSION}:{seed}:fault:{purpose}:{cell.lane}:{cell.ordinal}"
+    return sha256(value.encode()).digest()
+
+
+def _weighted_fault_mode(seed: int, ordinal: int, weights: Mapping[str, str]) -> str:
+    identity = f"{MATRIX_SCHEMA_VERSION}:{seed}:fault:mode:{ordinal}"
+    generator = random.Random(int.from_bytes(sha256(identity.encode()).digest(), "big"))
+    total = sum((Decimal(weight) for weight in weights.values()), Decimal())
+    threshold = Decimal(str(generator.random())) * total
+    cumulative = Decimal()
+    for mode, weight in sorted(weights.items()):
+        cumulative += Decimal(weight)
+        if threshold < cumulative:
+            return mode
+    return sorted(weights)[-1]
+
+
+def _fault_turn(seed: int, cell: MatrixCell) -> int:
+    generator = random.Random(int.from_bytes(_fault_rank(seed, "turn", cell), "big"))
+    return generator.randrange(cell.profile.turn_count)
+
+
+def _normalize_fault_mode_weights(
+    values: Mapping[str, Decimal | str | float],
+) -> dict[str, str]:
+    unknown = sorted(set(values) - FAILURE_MODES)
+    if unknown:
+        raise GenerationError(f"unknown fault modes: {unknown!r}")
+    normalized = {}
+    for mode, value in sorted(values.items()):
+        weight = _decimal(value, f"fault mode {mode!r} weight")
+        if weight <= 0:
+            raise GenerationError(f"fault mode {mode!r} weight must be positive")
+        normalized[mode] = _decimal_string(weight)
+    return normalized
+
+
+def _decimal(value: Decimal | str | float, field_name: str) -> Decimal:
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError) as error:
+        raise GenerationError(f"{field_name} must be a finite decimal") from error
+    if not result.is_finite():
+        raise GenerationError(f"{field_name} must be a finite decimal")
+    return result
+
+
+def _decimal_string(value: Decimal) -> str:
+    return format(value.normalize(), "f")
+
+
+def _validate_sha256(field_name: str, digest: str) -> None:
+    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+        raise GenerationError(f"{field_name} must be a SHA-256 hex digest")
 
 
 def matrix_document(

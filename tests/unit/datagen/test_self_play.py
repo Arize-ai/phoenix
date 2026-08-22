@@ -1,5 +1,6 @@
 import json
 from base64 import b64encode
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -14,7 +15,8 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from phoenix.datagen.schema import validate_fragment_v2
-from scripts.datagen.fake_tools import load_default_fixture_sets
+from scripts.datagen import self_play as self_play_module
+from scripts.datagen.fake_tools import InjectedToolFailure, load_default_fixture_sets
 from scripts.datagen.generation import (
     GenerationRun,
     MatrixCell,
@@ -49,6 +51,10 @@ from scripts.datagen.self_play import (
 
 def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) -> None:
     _, cell, _ = _run(tmp_path, self_play_target=1)
+    cell = replace(
+        cell,
+        profile=replace(cell.profile, failure_mode="tool_delay", failure_turn=None),
+    )
 
     class Backend:
         provider = "codex_exec"
@@ -91,6 +97,8 @@ def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) 
     )
 
     assert plan.domain == cell.profile.domain
+    assert plan.failure_mode == "tool_delay"
+    assert plan.tool_failure_mode == "tool_delay"
     assert plan.checkpoint_identity()["environment_digest"] == "e" * 64
     assert "The buyer is preparing for travel." in backend.request.prompt
     assert "complete the return before departure" in backend.request.prompt
@@ -251,6 +259,76 @@ def test_self_play_tools_receive_materialized_overlays(tmp_path: Path) -> None:
     assert recorder.result["documents"][0]["text"] == "Returns require a manual review."
 
 
+def test_self_play_applies_tool_exception_only_to_the_first_invocation(tmp_path: Path) -> None:
+    run, cell, prices = _run(tmp_path, self_play_target=1)
+    recorder = _RecoveringToolCallingRecorder()
+
+    candidate = record_self_play_cell(
+        **_record_kwargs(
+            run,
+            cell,
+            prices,
+            _StaticSimulator(("What does the return guidance say?",)),
+            recorder,
+            turn_count=1,
+            failure_mode="tool_exception",
+        )
+    )
+
+    records = [
+        json.loads(line)
+        for line in candidate.path.with_name("tool-invocations.jsonl").read_text().splitlines()
+    ]
+    assert [record["outcome"] for record in records] == ["error", "success"]
+    assert recorder.error_type is InjectedToolFailure
+    assert candidate.fragment["failure_mode"] == "tool_exception"
+
+
+def test_self_play_delays_only_the_first_tool_invocation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run, cell, prices = _run(tmp_path, self_play_target=1)
+    recorder = _RecoveringToolCallingRecorder()
+    delays: list[float] = []
+    monkeypatch.setattr(self_play_module, "sleep", delays.append)
+
+    candidate = record_self_play_cell(
+        **_record_kwargs(
+            run,
+            cell,
+            prices,
+            _StaticSimulator(("What does the return guidance say?",)),
+            recorder,
+            turn_count=1,
+            failure_mode="tool_delay",
+        )
+    )
+
+    records = [
+        json.loads(line)
+        for line in candidate.path.with_name("tool-invocations.jsonl").read_text().splitlines()
+    ]
+    assert [record["declared_delay_ms"] > 0 for record in records] == [True, False]
+    assert delays == [records[0]["declared_delay_ms"] / 1000]
+
+
+def test_self_play_rejects_an_unobserved_tool_fault(tmp_path: Path) -> None:
+    run, cell, prices = _run(tmp_path, self_play_target=1)
+
+    with pytest.raises(SelfPlayError, match="tool_delay requires at least one tool invocation"):
+        record_self_play_cell(
+            **_record_kwargs(
+                run,
+                cell,
+                prices,
+                _StaticSimulator(("Please summarize the return window.",)),
+                _CollisionOnceRecorder(),
+                turn_count=1,
+                failure_mode="tool_delay",
+            )
+        )
+
+
 class _SimulatedInterruption(RuntimeError):
     pass
 
@@ -396,6 +474,20 @@ class _ToolCallingRecorder:
         )
 
 
+class _RecoveringToolCallingRecorder(_ToolCallingRecorder):
+    def __init__(self) -> None:
+        super().__init__()
+        self.error_type: type[Exception] | None = None
+
+    def record(self, request: AssistantRequest, invoke_tool: Any) -> RecordedAssistantTurn:
+        try:
+            invoke_tool("document_search", {"query": "return policy"})
+        except InjectedToolFailure as error:
+            self.error_type = type(error)
+        self.result = invoke_tool("document_search", {"query": "return policy"})
+        return super().record(request, lambda name, arguments: self.result)
+
+
 def _record_kwargs(
     run: GenerationRun,
     cell: MatrixCell,
@@ -404,6 +496,7 @@ def _record_kwargs(
     recorder: Any,
     *,
     turn_count: int = 2,
+    failure_mode: str = "none",
 ) -> dict[str, Any]:
     return {
         "run": run,
@@ -416,11 +509,12 @@ def _record_kwargs(
             persona=Persona("careful shopper", "Ask concise follow-up questions."),
             register="friendly",
             quality_tier="high",
-            failure_mode="none",
+            failure_mode=failure_mode,
             turn_count=turn_count,
             simulator=ModelRole("user_simulator", "openai_api", "gpt-5.6-luna"),
             assistant_provider="openai_api",
             environment=_environment(load_default_fixture_sets()["retail"]),
+            tool_failure_mode=failure_mode,
         ),
         "simulator": simulator,
         "recorder": recorder,

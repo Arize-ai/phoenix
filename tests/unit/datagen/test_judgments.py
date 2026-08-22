@@ -12,14 +12,22 @@ from scripts.datagen.judgments import (
 )
 
 
-def test_contract_routes_proximity_and_remainder_deterministically() -> None:
-    fragments = [_fragment(f"fragment-{index}", quality_tier="high" if index % 2 else "standard") for index in range(40)]
+def test_contract_routes_faults_proximity_and_remainder_deterministically() -> None:
+    fragments = [
+        _fragment(
+            f"fragment-{index}",
+            quality_tier="high" if index % 2 else "standard",
+            failure_mode="tool_exception" if index == 2 else "none",
+        )
+        for index in range(40)
+    ]
     inputs = [
         _input(
             fragment["fragment_id"],
             target_mode="targeted" if index == 0 else "ambient",
             targeted_seed_id="seed-a" if index == 0 else None,
             engaged_seed_ids=("seed-a",) if index == 1 else (),
+            failure_mode=fragment["failure_mode"],
         )
         for index, fragment in enumerate(fragments)
     ]
@@ -31,20 +39,24 @@ def test_contract_routes_proximity_and_remainder_deterministically() -> None:
     reasons = {route.input.fragment_id: route.route_reason for route in first}
     assert reasons["fragment-0"] == "trap_proximity"
     assert reasons["fragment-1"] == "trap_proximity"
+    assert reasons["fragment-2"] == "fault"
     assert sum(reason == "baseline" for reason in reasons.values()) == 2
 
-    request = JudgmentContractV1.build_request(first[0], model="frontier-exact")
+    fault_route = next(route for route in first if route.route_reason == "fault")
+    request = JudgmentContractV1.build_request(fault_route, model="frontier-exact")
     assert request.purpose == "judge"
     assert "<judging_input>" in request.prompt
+    assert '"failure_mode":"tool_exception"' in request.prompt
     assert all(label in request.prompt for label in ("survived", "degraded", "failed"))
     assert request.output_schema["additionalProperties"] is False
-    assert JudgmentContractV1.parse(
-        {"outcome": "degraded", "rationale": "The answer needed a bounded correction."}
-    ).outcome == "degraded"
-    with pytest.raises(JudgmentError, match="exactly"):
+    assert (
         JudgmentContractV1.parse(
-            {"outcome": "survived", "rationale": "Usable.", "confidence": 0.9}
-        )
+            {"outcome": "degraded", "rationale": "The answer needed a bounded correction."}
+        ).outcome
+        == "degraded"
+    )
+    with pytest.raises(JudgmentError, match="exactly"):
+        JudgmentContractV1.parse({"outcome": "survived", "rationale": "Usable.", "confidence": 0.9})
 
 
 def test_ambient_proximity_requires_a_complete_resolvable_signal() -> None:
@@ -53,6 +65,9 @@ def test_ambient_proximity_requires_a_complete_resolvable_signal() -> None:
 
     assert complete_empty.seed_proximity is False
     assert complete_empty.proximity_source == "complete_empty"
+    legacy = complete_empty.to_dict()
+    del legacy["failure_mode"]
+    assert JudgingInputV1.from_mapping(legacy).failure_mode == "none"
     with pytest.raises(JudgmentError, match="missing engagement signal"):
         _ = missing.seed_proximity
     with pytest.raises(JudgmentError, match="unknown seed IDs"):
@@ -80,6 +95,7 @@ def _input(
     target_mode: str = "ambient",
     targeted_seed_id: str | None = None,
     engaged_seed_ids: tuple[str, ...] | None = (),
+    failure_mode: str = "none",
 ) -> JudgingInputV1:
     conversation = (
         {"role": "user", "content": f"Question for {fragment_id}"},
@@ -101,13 +117,15 @@ def _input(
         seed_descriptions={"seed-a": "A test condition."},
         task="Help the user.",
         scenario="A support conversation.",
+        failure_mode=failure_mode,
     )
 
 
-def _fragment(fragment_id: str, *, quality_tier: str) -> dict[str, Any]:
+def _fragment(fragment_id: str, *, quality_tier: str, failure_mode: str = "none") -> dict[str, Any]:
     return {
         "fragment_id": fragment_id,
         "archetype": "plain_chat",
         "lane": "self_play",
         "quality_tier": quality_tier,
+        "failure_mode": failure_mode,
     }

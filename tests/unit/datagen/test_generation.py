@@ -441,16 +441,22 @@ def test_subscription_attempt_records_usage_without_price_reservation(tmp_path: 
 
 
 def test_matrix_ids_and_frontier_selection_are_stable(tmp_path: Path) -> None:
-    kwargs = {
-        "seed": 42,
-        "luna_model": "gpt-5.6-luna",
-        "frontier_model": "frontier-exact",
-        "lane_targets": {"self_play": 40, "scripted": 2},
-    }
     profiles_path, _ = _inputs(tmp_path)
     profiles = load_profile_set(profiles_path)
-    first = expand_seed_matrix(profiles, **kwargs)
-    second = expand_seed_matrix(profiles, **kwargs)
+    first = expand_seed_matrix(
+        profiles,
+        seed=42,
+        luna_model="gpt-5.6-luna",
+        frontier_model="frontier-exact",
+        lane_targets={"self_play": 40, "scripted": 2},
+    )
+    second = expand_seed_matrix(
+        profiles,
+        seed=42,
+        luna_model="gpt-5.6-luna",
+        frontier_model="frontier-exact",
+        lane_targets={"self_play": 40, "scripted": 2},
+    )
 
     assert first == second
     assert (
@@ -471,6 +477,182 @@ def test_matrix_ids_and_frontier_selection_are_stable(tmp_path: Path) -> None:
     assert all(cell.profile.scenario_id in scenario_ids for cell in first)
     assert all(cell.profile.persona_id in persona_ids for cell in first)
     assert all(set(cell.profile.seed_intensities) == seed_ids for cell in first)
+
+
+def test_fault_matrix_is_seed_stable_and_preserves_supplemental_lineage(
+    tmp_path: Path,
+) -> None:
+    profiles_path, pricing_path = _inputs(tmp_path)
+    modes = "provider_429=2,provider_timeout,malformed_response,tool_delay,tool_exception"
+
+    def initialize(run_dir: Path, run_id: str) -> GenerationRun:
+        assert (
+            command(
+                [
+                    "init",
+                    str(run_dir),
+                    "--profile-set",
+                    str(profiles_path),
+                    "--run-id",
+                    run_id,
+                    "--seed",
+                    "42",
+                    "--frontier-model",
+                    "frontier-exact",
+                    "--pricing",
+                    str(pricing_path),
+                    "--self-play-target",
+                    "4",
+                    "--scripted-target",
+                    "4",
+                    "--fault-fraction",
+                    "0.625",
+                    "--fault-modes",
+                    modes,
+                    "--base-scenario-name",
+                    "datagen-e2e-20260822-r5",
+                    "--base-archive-sha256",
+                    "b5a0114413903245ea6bb2d7ab43f7f4fa1ad0e6273432a19192d31bad77f2ce",
+                ],
+                stdout=io.StringIO(),
+            )
+            == 0
+        )
+        return GenerationRun.resume(run_dir)
+
+    first = initialize(tmp_path / "first", "fault-pass-1")
+    second = initialize(tmp_path / "second", "fault-pass-2")
+    first_draws = [
+        (cell.cell_id, cell.profile.failure_mode, cell.profile.failure_turn) for cell in first.cells
+    ]
+    second_draws = [
+        (cell.cell_id, cell.profile.failure_mode, cell.profile.failure_turn)
+        for cell in second.cells
+    ]
+
+    assert first_draws == second_draws
+    assert {cell.profile.failure_mode for cell in first.cells} >= {
+        "provider_429",
+        "provider_timeout",
+        "malformed_response",
+        "tool_delay",
+        "tool_exception",
+    }
+    assert sum(cell.profile.failure_mode != "none" for cell in first.cells) == 5
+    assert all(
+        cell.profile.failure_turn is not None
+        and 0 <= cell.profile.failure_turn < cell.profile.turn_count
+        for cell in first.cells
+        if cell.profile.failure_mode.startswith("provider_")
+        or cell.profile.failure_mode == "malformed_response"
+    )
+    assert all(
+        cell.profile.failure_turn is None
+        for cell in first.cells
+        if cell.profile.failure_mode.startswith("tool_")
+    )
+    assert first.config.fault_fraction == "0.625"
+    assert first.config.fault_mode_weights["provider_429"] == "2"
+    assert first.config.base_scenario_name == "datagen-e2e-20260822-r5"
+    assert first.config.base_archive_sha256 == (
+        "b5a0114413903245ea6bb2d7ab43f7f4fa1ad0e6273432a19192d31bad77f2ce"
+    )
+    profiles = load_profile_set(profiles_path)
+    assert (first.directory / "profiles.json").read_bytes() == profiles.canonical_bytes
+    normal_cells = expand_seed_matrix(
+        profiles,
+        seed=42,
+        luna_model="gpt-5.6-luna",
+        frontier_model="frontier-exact",
+        lane_targets={"self_play": 4, "scripted": 4},
+    )
+    assert all(
+        fault_cell.cell_id != normal_cell.cell_id
+        for fault_cell, normal_cell in zip(first.cells, normal_cells)
+        if fault_cell.profile.failure_mode != "none"
+    )
+
+
+def test_schema_v2_matrix_without_fault_fields_resumes_as_no_faults(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    matrix_path = run.directory / "matrix.json"
+    run_path = run.directory / "run.json"
+    matrix = json.loads(matrix_path.read_text())
+    for cell in matrix["cells"]:
+        cell["profile"].pop("failure_mode")
+        cell["profile"].pop("failure_turn")
+    matrix_bytes = json.dumps(matrix, sort_keys=True, separators=(",", ":")).encode()
+    matrix_path.write_bytes(matrix_bytes)
+    config = json.loads(run_path.read_text())
+    config["matrix_sha256"] = sha256(matrix_bytes).hexdigest()
+    run_path.write_text(json.dumps(config, sort_keys=True, separators=(",", ":")))
+
+    resumed = GenerationRun.resume(run.directory)
+
+    assert all(cell.profile.failure_mode == "none" for cell in resumed.cells)
+    assert all(cell.profile.failure_turn is None for cell in resumed.cells)
+
+
+@pytest.mark.parametrize(
+    ("extra_args", "without_tools", "message"),
+    [
+        (["--fault-fraction", "0.5", "--fault-modes", "unknown"], False, "unknown"),
+        (
+            [
+                "--fault-fraction",
+                "1",
+                "--fault-modes",
+                "provider_429,provider_timeout,malformed_response,tool_delay,tool_exception",
+            ],
+            False,
+            "5 requested modes",
+        ),
+        (["--base-scenario-name", "base"], False, "must be set together"),
+        (["--fault-fraction", "0.5", "--fault-modes", "tool_delay"], True, "no eligible"),
+    ],
+)
+def test_fault_init_refuses_invalid_contracts_before_creating_the_run(
+    tmp_path: Path,
+    extra_args: list[str],
+    without_tools: bool,
+    message: str,
+) -> None:
+    profiles_path, pricing_path = _inputs(tmp_path)
+    if without_tools:
+        profile_path = tmp_path / "customer_support" / "plain_chat" / "profile.json"
+        profile = json.loads(profile_path.read_text())
+        profile["tool_surface"] = []
+        profile_path.write_text(json.dumps(profile))
+    run_dir = tmp_path / "invalid-run"
+    stderr = io.StringIO()
+    assert (
+        command(
+            [
+                "init",
+                str(run_dir),
+                "--profile-set",
+                str(profiles_path),
+                "--run-id",
+                "invalid",
+                "--seed",
+                "1",
+                "--frontier-model",
+                "frontier-exact",
+                "--pricing",
+                str(pricing_path),
+                "--self-play-target",
+                "1",
+                "--scripted-target",
+                "1",
+                *extra_args,
+            ],
+            stdout=io.StringIO(),
+            stderr=stderr,
+        )
+        == 2
+    )
+    assert message in json.loads(stderr.getvalue())["message"]
+    assert not run_dir.exists()
 
 
 def test_bundled_pricing_preserves_models_and_requires_frontier_price(tmp_path: Path) -> None:

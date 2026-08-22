@@ -57,6 +57,24 @@ def test_load_scenario_parses_v2_fragment_bank() -> None:
     }
 
 
+def test_load_scenario_preserves_additive_merge_lineage(tmp_path: Path) -> None:
+    scenario_path = _copy_fragment_bank(tmp_path)
+    manifest_path = scenario_path / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["quality_gate_summary"]["merge_lineage"] = {
+        "base": {"archive_sha256": "a" * 64, "matrix_sha256": "b" * 64},
+        "supplement": {"archive_sha256": "c" * 64, "matrix_sha256": "d" * 64},
+    }
+    manifest_path.write_text(json.dumps(manifest))
+
+    scenario = load_scenario(scenario_path)
+
+    assert scenario.manifest["quality_gate_summary"]["merge_lineage"] == {
+        "base": {"archive_sha256": "a" * 64, "matrix_sha256": "b" * 64},
+        "supplement": {"archive_sha256": "c" * 64, "matrix_sha256": "d" * 64},
+    }
+
+
 @pytest.mark.parametrize(
     "mutate",
     [

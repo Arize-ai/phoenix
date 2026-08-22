@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from scripts.datagen.generation import GenerationRun, PriceCatalog
 
 JudgedOutcome = Literal["survived", "degraded", "failed"]
-RouteReason = Literal["trap_proximity", "baseline", "not_selected"]
+RouteReason = Literal["fault", "trap_proximity", "baseline", "not_selected"]
 ProximitySource = Literal["targeted", "recorded_engagement", "complete_empty"]
 
 JUDGING_INPUT_SCHEMA_VERSION = 1
@@ -62,6 +62,7 @@ class JudgingInputV1:
     seed_descriptions: Mapping[str, str]
     task: str
     scenario: str
+    failure_mode: str = "none"
     schema_version: int = JUDGING_INPUT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -106,6 +107,8 @@ class JudgingInputV1:
                 )
         if not self.task or not self.scenario:
             raise JudgmentError("task and scenario must be non-empty")
+        if not self.failure_mode:
+            raise JudgmentError("failure_mode must be non-empty")
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> JudgingInputV1:
@@ -141,6 +144,7 @@ class JudgingInputV1:
             seed_descriptions=_seed_descriptions(descriptions),
             task=_string(value, "task"),
             scenario=_string(value, "scenario"),
+            failure_mode=_string_or_default(value, "failure_mode", "none"),
         )
 
     @property
@@ -174,6 +178,7 @@ class JudgingInputV1:
             "seed_descriptions": dict(sorted(self.seed_descriptions.items())),
             "task": self.task,
             "scenario": self.scenario,
+            "failure_mode": self.failure_mode,
         }
 
 
@@ -205,6 +210,7 @@ class JudgmentRecordV1:
     proximity_source: ProximitySource
     targeted_seed_id: str | None
     seed_intensities: Mapping[str, float]
+    failure_mode: str
     route_reason: RouteReason
     outcome: JudgedOutcome | None
     rationale: str | None
@@ -227,6 +233,7 @@ class JudgmentRecordV1:
             "proximity_source": self.proximity_source,
             "targeted_seed_id": self.targeted_seed_id,
             "seed_intensities": dict(sorted(self.seed_intensities.items())),
+            "failure_mode": self.failure_mode,
             "route_reason": self.route_reason,
             "outcome": self.outcome,
             "rationale": self.rationale,
@@ -271,6 +278,7 @@ class JudgmentContractV1:
             "targeted_seed_id": item.targeted_seed_id,
             "seed_intensities": dict(sorted(item.seed_intensities.items())),
             "engaged_seed_ids": list(item.engaged_seed_ids or ()),
+            "failure_mode": item.failure_mode,
             "seed_proximity": route.seed_proximity,
             "proximity_source": route.proximity_source,
         }
@@ -287,7 +295,8 @@ class JudgmentContractV1:
             "EXAMPLES AND EDGE CASES\n"
             "Appropriate abstention or escalation can survive. A recovered tool error can survive; "
             "an unrecovered but bounded detour is degraded. Partial recovery can be degraded. "
-            "A failure unrelated to a seed is still failed when the delivered result is unusable.\n\n"
+            "A failure unrelated to a seed is still failed when the delivered result is "
+            "unusable.\n\n"
             "Return exactly one JSON object with outcome and a concise non-empty rationale."
         )
 
@@ -316,6 +325,14 @@ def route_judging_inputs(
     fragment_ids = [_string(fragment, "fragment_id") for fragment in fragments]
     if len(by_id) != len(inputs) or set(by_id) != set(fragment_ids):
         raise JudgmentError("accepted fragments and judging inputs must have identical identities")
+    fragment_modes = {
+        _string(fragment, "fragment_id"): _string_or_default(fragment, "failure_mode", "none")
+        for fragment in fragments
+    }
+    if any(by_id[fragment_id].failure_mode != mode for fragment_id, mode in fragment_modes.items()):
+        raise JudgmentError(
+            "accepted fragments and judging inputs must have identical failure modes"
+        )
     proximate = {item.fragment_id for item in inputs if item.seed_proximity}
     route_reasons = select_judge_routes(
         fragments,
@@ -352,6 +369,7 @@ def judgment_record(
         proximity_source=route.proximity_source,
         targeted_seed_id=route.input.targeted_seed_id,
         seed_intensities=route.input.seed_intensities,
+        failure_mode=route.input.failure_mode,
         route_reason=route.route_reason,
         outcome=parsed.outcome if parsed else None,
         rationale=parsed.rationale if parsed else None,
@@ -462,7 +480,7 @@ def _record_from_mapping(value: Mapping[str, Any]) -> JudgmentRecordV1:
     route_reason = _choice(
         value,
         "route_reason",
-        {"trap_proximity", "baseline", "not_selected"},
+        {"fault", "trap_proximity", "baseline", "not_selected"},
     )
     rationale = value.get("rationale")
     if outcome is None:
@@ -483,6 +501,7 @@ def _record_from_mapping(value: Mapping[str, Any]) -> JudgmentRecordV1:
         proximity_source=cast(ProximitySource, proximity_source),
         targeted_seed_id=_optional_string(value, "targeted_seed_id"),
         seed_intensities=_seed_intensities(seed_intensities),
+        failure_mode=_string_or_default(value, "failure_mode", "none"),
         route_reason=cast(RouteReason, route_reason),
         outcome=cast(JudgedOutcome | None, outcome),
         rationale=cast(str | None, rationale),
@@ -511,6 +530,7 @@ def _validate_resumed_record(
         "proximity_source": route.proximity_source,
         "targeted_seed_id": item.targeted_seed_id,
         "seed_intensities": dict(item.seed_intensities),
+        "failure_mode": item.failure_mode,
         "route_reason": route.route_reason,
         "content_sha256": item.content_sha256,
         "output_schema_sha256": sha256(_canonical_bytes(_OUTPUT_SCHEMA)).hexdigest(),
@@ -588,6 +608,13 @@ def _canonical_bytes(value: Any) -> bytes:
 
 def _string(value: Mapping[str, Any], field: str) -> str:
     item = value.get(field)
+    if not isinstance(item, str) or not item:
+        raise JudgmentError(f"{field} must be a non-empty string")
+    return item
+
+
+def _string_or_default(value: Mapping[str, Any], field: str, default: str) -> str:
+    item = value.get(field, default)
     if not isinstance(item, str) or not item:
         raise JudgmentError(f"{field} must be a non-empty string")
     return item

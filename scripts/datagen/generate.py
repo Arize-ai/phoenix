@@ -76,6 +76,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--self-play-target", type=int, default=DEFAULT_LANE_TARGETS["self_play"]
     )
     initialize.add_argument("--scripted-target", type=int, default=DEFAULT_LANE_TARGETS["scripted"])
+    initialize.add_argument("--fault-fraction", type=Decimal, default=Decimal())
+    initialize.add_argument(
+        "--fault-modes",
+        action="append",
+        default=[],
+        metavar="MODE[=WEIGHT][,...]",
+    )
+    initialize.add_argument("--base-scenario-name")
+    initialize.add_argument("--base-archive-sha256")
 
     status = subparsers.add_parser("status", help="report accepted targets, spend, and exhaustion")
     status.add_argument("run_dir", type=Path)
@@ -195,7 +204,7 @@ def _dispatch(args: argparse.Namespace, *, backend: ModelBackend | None = None) 
         from scripts.datagen.judgments import execute_judging
 
         selected_backend = backend or _frontier_backend(run.config.frontier_provider)
-        prices = (
+        judge_prices = (
             PriceCatalog.load(args.pricing)
             if run.config.frontier_provider == "openai_api"
             else None
@@ -203,7 +212,7 @@ def _dispatch(args: argparse.Namespace, *, backend: ModelBackend | None = None) 
         records = execute_judging(
             run,
             selected_backend,
-            prices=prices,
+            prices=judge_prices,
             max_input_tokens=args.max_input_tokens,
         )
         return {
@@ -244,6 +253,7 @@ def _initialize(args: argparse.Namespace) -> Mapping[str, Any]:
     if args.frontier_provider == "openai_api":
         prices.require(args.frontier_model)
     profiles = load_profile_set(args.profile_set)
+    fault_mode_weights = _parse_fault_modes(args.fault_modes)
     targets: dict[Lane, int] = {
         "self_play": args.self_play_target,
         "scripted": args.scripted_target,
@@ -254,6 +264,8 @@ def _initialize(args: argparse.Namespace) -> Mapping[str, Any]:
         luna_model=args.luna_model,
         frontier_model=args.frontier_model,
         lane_targets=targets,
+        fault_fraction=args.fault_fraction,
+        fault_mode_weights=fault_mode_weights,
     )
     config = RunConfig(
         run_id=args.run_id,
@@ -269,6 +281,10 @@ def _initialize(args: argparse.Namespace) -> Mapping[str, Any]:
         budget_usd=str(args.budget_usd),
         self_play_target=args.self_play_target,
         scripted_target=args.scripted_target,
+        fault_fraction=str(args.fault_fraction),
+        fault_mode_weights=fault_mode_weights,
+        base_scenario_name=args.base_scenario_name,
+        base_archive_sha256=args.base_archive_sha256,
     )
     run = GenerationRun.create_or_resume(
         args.run_dir, config=config, cells=cells, profiles=profiles
@@ -279,6 +295,19 @@ def _initialize(args: argparse.Namespace) -> Mapping[str, Any]:
         "cell_count": len(cells),
         "status": run.status(),
     }
+
+
+def _parse_fault_modes(values: Sequence[str]) -> dict[str, str]:
+    weights: dict[str, str] = {}
+    for value in values:
+        for item in value.split(","):
+            mode, separator, weight = item.strip().partition("=")
+            if not mode:
+                raise GenerationError("fault modes must be non-empty")
+            if mode in weights:
+                raise GenerationError(f"duplicate fault mode {mode!r}")
+            weights[mode] = weight if separator else "1"
+    return weights
 
 
 def _read_object(path: Path) -> dict[str, Any]:
