@@ -49,19 +49,19 @@ _RESERVED_TRANSCRIPT_PHRASES = (
 _SCRIPT_OUTPUT_SCHEMA: Mapping[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["turns"],
+    "required": ["messages"],
     "properties": {
-        "turns": {
+        "messages": {
             "type": "array",
-            "minItems": 1,
-            "maxItems": 16,
+            "minItems": 2,
+            "maxItems": 32,
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["user", "assistant"],
+                "required": ["role", "content"],
                 "properties": {
-                    "user": {"type": "string", "minLength": 1},
-                    "assistant": {"type": "string", "minLength": 1},
+                    "role": {"type": "string", "enum": ["user", "assistant"]},
+                    "content": {"type": "string", "pattern": "\\S"},
                 },
             },
         }
@@ -146,13 +146,30 @@ def build_model_request(cell: MatrixCell, environment: MaterializedSeedEnvironme
         "topic": cell.profile.topic,
         "persona": cell.profile.persona_instructions,
         "register": cell.profile.register,
+        "turn_count": cell.profile.turn_count,
         "application": environment.visible_dict(),
     }
     visible_context = json.dumps(context, sort_keys=True, separators=(",", ":"))
+    message_count = cell.profile.turn_count * 2
+    messages_schema = cast(Mapping[str, Any], _SCRIPT_OUTPUT_SCHEMA["properties"])["messages"]
+    output_schema = {
+        **_SCRIPT_OUTPUT_SCHEMA,
+        "properties": {
+            "messages": {
+                **cast(Mapping[str, Any], messages_schema),
+                "minItems": message_count,
+                "maxItems": message_count,
+            }
+        },
+    }
     prompt = (
         "Write one coherent whole conversation for an offline telemetry fixture. "
-        "Return only the requested JSON object. Each turn must contain a realistic user "
-        "message and the assistant response that should be replayed verbatim. Use this "
+        "Return only the requested JSON object with messages in chronological order. "
+        f"Write exactly {cell.profile.turn_count} user/assistant exchanges. The first message "
+        "must have role 'user' and contain the user's request or follow-up in the persona's "
+        "voice. Each immediately following message must have role 'assistant' and directly "
+        "answer that user message. Alternate user and assistant exactly. Never put a role name "
+        "such as 'user' or 'assistant' in the content field as a placeholder. Use this "
         f"ordinary application context: {visible_context}"
     )
     return ModelRequest(
@@ -160,7 +177,7 @@ def build_model_request(cell: MatrixCell, environment: MaterializedSeedEnvironme
         purpose="generation",
         model=cell.assistant_model,
         prompt=prompt,
-        output_schema=_SCRIPT_OUTPUT_SCHEMA,
+        output_schema=output_schema,
         max_output_tokens=max(512, cell.profile.turn_count * 512),
     )
 
@@ -235,10 +252,22 @@ def _script_from_result(cell: MatrixCell, result: BatchResult) -> ConversationSc
 
 
 def _script_from_output(cell: MatrixCell, value: Mapping[str, Any]) -> ConversationScript:
-    raw_turns = value.get("turns")
-    if not isinstance(raw_turns, list):
-        raise GenerationError(f"Structured result for cell {cell.cell_id!r} has no turns array")
-    turns = tuple(_parse_turn(turn, index) for index, turn in enumerate(raw_turns))
+    raw_messages = value.get("messages")
+    if not isinstance(raw_messages, list):
+        raise GenerationError(f"Structured result for cell {cell.cell_id!r} has no messages array")
+    expected_messages = cell.profile.turn_count * 2
+    if len(raw_messages) != expected_messages:
+        raise GenerationError(
+            f"Structured result for cell {cell.cell_id!r} must contain exactly "
+            f"{expected_messages} alternating messages"
+        )
+    parsed_messages = tuple(
+        _parse_generated_message(message, index) for index, message in enumerate(raw_messages)
+    )
+    turns = tuple(
+        ConversationTurn(user=user, assistant=assistant)
+        for user, assistant in zip(parsed_messages[::2], parsed_messages[1::2])
+    )
     for turn in turns:
         _validate_transcript_text(cell, turn.user)
         _validate_transcript_text(cell, turn.assistant)
@@ -249,6 +278,25 @@ def _script_from_output(cell: MatrixCell, value: Mapping[str, Any]) -> Conversat
         failure_turn=None,
         turns=turns,
     )
+
+
+def _parse_generated_message(value: Any, index: int) -> str:
+    if not isinstance(value, Mapping):
+        raise GenerationError(f"Conversation script message {index} must be an object")
+    expected_role = "user" if index % 2 == 0 else "assistant"
+    role = value.get("role")
+    if role != expected_role:
+        raise GenerationError(
+            f"Conversation script message {index} must have role {expected_role!r}, got {role!r}"
+        )
+    content = value.get("content")
+    if not isinstance(content, str) or not content.strip():
+        raise GenerationError(f"Conversation script message {index} must contain visible text")
+    if content.strip().casefold() in {"user", "assistant"}:
+        raise GenerationError(
+            f"Conversation script message {index} contains a bare role-name placeholder"
+        )
+    return content
 
 
 def _parse_turn(value: Any, index: int) -> ConversationTurn:

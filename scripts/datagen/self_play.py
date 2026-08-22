@@ -234,6 +234,8 @@ class SimulatedUserMessage:
     def __post_init__(self) -> None:
         if not self.content.strip():
             raise SelfPlayError("user simulator returned an empty message")
+        if self.content.strip().casefold() in {"user", "assistant"}:
+            raise SelfPlayError("user simulator returned a bare role-name placeholder")
 
 
 class UserSimulator(Protocol):
@@ -253,7 +255,9 @@ class BackendUserSimulator:
             f"Conversation goal: {request.route_context or 'Follow the scenario naturally.'}\n"
             f"Turn: {request.turn_index + 1}/{request.turn_count}\n"
             f"Conversation: {json.dumps(request.messages, sort_keys=True)}\n"
-            "Return the next user message."
+            "Write only the next message that this user would send. Do not answer the request "
+            "as the assistant, and never use a bare role name such as 'user' or 'assistant' as "
+            "message content."
         )
         result = self._backend.generate(
             ModelRequest(
@@ -265,7 +269,7 @@ class BackendUserSimulator:
                     "type": "object",
                     "additionalProperties": False,
                     "required": ["content"],
-                    "properties": {"content": {"type": "string", "minLength": 1}},
+                    "properties": {"content": {"type": "string", "pattern": "\\S"}},
                 },
                 max_output_tokens=512,
             )
@@ -567,15 +571,8 @@ def _record_attempt(
         simulator_usage=simulator_usage,
         engaged_seed_ids=tuple(
             sorted(
-                {
-                    str(event["seed_id"])
-                    for event in base_engagement_events
-                }
-                | {
-                    seed_id
-                    for record in ledger.records
-                    for seed_id in record.engaged_seed_ids
-                }
+                {str(event["seed_id"]) for event in base_engagement_events}
+                | {seed_id for record in ledger.records for seed_id in record.engaged_seed_ids}
             )
         ),
     )
@@ -718,6 +715,8 @@ def _validate_recorded_turn(recorded: RecordedAssistantTurn) -> None:
     content = recorded.messages[-1].get("content")
     if not isinstance(content, str) or not content.strip():
         raise SelfPlayError("a complete assistant turn must end with non-empty content")
+    if content.strip().casefold() in {"user", "assistant"}:
+        raise SelfPlayError("assistant recorder returned a bare role-name placeholder")
     _validate_trace_ids(recorded.trace_ids)
     if not recorded.trace_ids:
         raise SelfPlayError("a complete assistant turn must contain a recorded trace")
@@ -745,7 +744,12 @@ def _fixture_set_for_environment(
         else:
             documents.append({"id": document_id, "text": content})
     events = [
-        {"kind": "document_served", "cell_id": cell_id, "document_id": document_id, "seed_id": seed_id}
+        {
+            "kind": "document_served",
+            "cell_id": cell_id,
+            "document_id": document_id,
+            "seed_id": seed_id,
+        }
         for document_id, seed_ids in sorted(environment.document_seed_ids.items())
         for seed_id in seed_ids
     ]

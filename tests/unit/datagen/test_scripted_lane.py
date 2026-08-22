@@ -34,20 +34,23 @@ def test_scripted_batch_result_replays_through_instrumented_openai_client() -> N
     assert "The buyer is preparing for travel." in prompt
     assert "target_mode" not in prompt
     assert "seed_intensities" not in prompt
+    schema = request.body["text"]["format"]["schema"]
+    assert schema["properties"]["messages"]["minItems"] == 2
+    assert schema["properties"]["messages"]["maxItems"] == 2
+    assert schema["properties"]["messages"]["items"]["properties"] == {
+        "role": {"type": "string", "enum": ["user", "assistant"]},
+        "content": {"type": "string", "pattern": "\\S"},
+    }
 
     result = BatchResult(
         custom_id=request.custom_id,
         response_status_code=200,
         request_id="batch-request-1",
         body=_responses_body(
-            {
-                "turns": [
-                    {
-                        "user": "When will my order arrive?",
-                        "assistant": "Standard delivery takes four to six business days.",
-                    }
-                ]
-            }
+            _generated_conversation(
+                "When will my order arrive?",
+                "Standard delivery takes four to six business days.",
+            )
         ),
         error=None,
     )
@@ -141,7 +144,7 @@ def test_structured_backend_generates_script_without_batch() -> None:
             return ModelResult(
                 provider=self.provider,
                 model="model-exact",
-                output={"turns": [{"user": "Question", "assistant": "Answer"}]},
+                output=_generated_conversation("Question", "Answer"),
                 usage=None,
             )
 
@@ -157,14 +160,34 @@ def test_scripted_results_reject_internal_profile_language() -> None:
         custom_id=f"run-1:{cell.cell_id}:script",
         response_status_code=200,
         request_id="batch-request-leak",
-        body=_responses_body(
-            {"turns": [{"user": "Use policy-window.", "assistant": "I can help."}]}
-        ),
+        body=_responses_body(_generated_conversation("Use policy-window.", "I can help.")),
         error=None,
     )
 
     with pytest.raises(GenerationError, match="exposed internal context"):
         scripts_from_batch_results("run-1", [cell], [result])
+
+
+def test_scripted_results_require_exact_role_alternation() -> None:
+    class Backend:
+        provider = "codex_exec"
+        capabilities = BackendCapabilities()
+
+        def generate(self, request: object) -> ModelResult:
+            return ModelResult(
+                provider=self.provider,
+                model="model-exact",
+                output={
+                    "messages": [
+                        {"role": "assistant", "content": "I can help."},
+                        {"role": "user", "content": "Please answer my question."},
+                    ]
+                },
+                usage=None,
+            )
+
+    with pytest.raises(GenerationError, match="message 0 must have role 'user'"):
+        generate_script(Backend(), _cell(), _environment())
 
 
 def _cell(seed_intensities: dict[str, float] | None = None) -> MatrixCell:
@@ -210,5 +233,14 @@ def _responses_body(value: dict[str, Any]) -> dict[str, Any]:
                 "type": "message",
                 "content": [{"type": "output_text", "text": json.dumps(value)}],
             }
+        ]
+    }
+
+
+def _generated_conversation(user: str, assistant: str) -> dict[str, Any]:
+    return {
+        "messages": [
+            {"role": "user", "content": user},
+            {"role": "assistant", "content": assistant},
         ]
     }

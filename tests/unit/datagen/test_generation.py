@@ -262,6 +262,26 @@ def test_failed_auxiliary_attempt_counts_cost_without_consuming_lane_cap(tmp_pat
     assert run.cost_summary().spent_usd > 0
 
 
+def test_generation_rejections_are_counted_by_gate(tmp_path: Path) -> None:
+    _, pricing = _inputs(tmp_path)
+    run = _run(tmp_path, pricing)
+    cell = run.cells[0]
+    prices = PriceCatalog.load(pricing)
+    attempt = run.admitted_attempt(
+        cell.cell_id,
+        purpose="generation",
+        model=cell.assistant_model,
+        mode="direct",
+        max_input_tokens=100,
+        max_output_tokens=100,
+        prices=prices,
+    )
+
+    run.fail_attempt(attempt.attempt_id, "invalid generated conversation")
+
+    assert run.status()["rejections"] == {"total": 1, "by_gate": {"generation": 1}}
+
+
 def test_judge_pass_resumes_and_failures_do_not_reject_fragments(tmp_path: Path) -> None:
     _, pricing_path = _inputs(tmp_path)
     run = _run(tmp_path, pricing_path)

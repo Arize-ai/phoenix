@@ -17,6 +17,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
+
 from phoenix.datagen.schema import (
     ComposerDefaults,
     Fragment,
@@ -25,7 +26,6 @@ from phoenix.datagen.schema import (
     validate_fragment_v2,
     validate_manifest_v2,
 )
-
 from scripts.datagen.generation import GenerationError, GenerationRun
 from scripts.datagen.quality import (
     JUDGE_SAMPLE_FRACTION,
@@ -150,6 +150,7 @@ def package_generation_run(
         "quality_gate_summary": {
             "accepted": len(rows),
             "rejected": len(rejects),
+            "rejected_by_gate": _rejection_counts(rejects),
             "normalizer_version": NORMALIZER_VERSION,
             "dedup_thresholds": {
                 "short": SHORT_FRAGMENT_RULE.threshold,
@@ -177,6 +178,15 @@ def package_generation_run(
         size_bytes=len(archive_bytes),
         manifest=manifest,
     )
+
+
+def _rejection_counts(rejects: Sequence[Mapping[str, Any]]) -> Mapping[str, int]:
+    counts: dict[str, int] = {}
+    for reject in rejects:
+        gate = reject.get("gate", "generation")
+        name = gate if isinstance(gate, str) and gate else "generation"
+        counts[name] = counts.get(name, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def read_v2_bank(source: Path) -> V2Bank:

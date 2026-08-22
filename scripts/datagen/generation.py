@@ -861,6 +861,7 @@ class GenerationRun:
                     "at": _now(),
                     "cell_id": attempt.cell_id,
                     "attempt_id": attempt_id,
+                    "gate": "generation",
                     "reason": reason,
                 },
             )
@@ -1130,6 +1131,12 @@ class GenerationRun:
             for lane in LANES
         }
         attempts_by_lane = {lane: self._generation_attempts(lane) for lane in LANES}
+        rejects = _read_jsonl(self.directory / "rejects.jsonl")
+        rejections_by_gate: dict[str, int] = {}
+        for reject in rejects:
+            gate = reject.get("gate", "generation")
+            gate_name = gate if isinstance(gate, str) and gate else "generation"
+            rejections_by_gate[gate_name] = rejections_by_gate.get(gate_name, 0) + 1
         exhausted = []
         for lane in LANES:
             if (
@@ -1187,6 +1194,10 @@ class GenerationRun:
             "targets": dict(self.config.lane_targets),
             "attempts": attempts_by_lane,
             "attempt_caps": dict(self.config.lane_attempt_caps),
+            "rejections": {
+                "total": len(rejects),
+                "by_gate": dict(sorted(rejections_by_gate.items())),
+            },
             "costs": {
                 "spent_usd": str(costs.spent_usd),
                 "reserved_usd": str(costs.reserved_usd),

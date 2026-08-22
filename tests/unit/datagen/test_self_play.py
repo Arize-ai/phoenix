@@ -12,8 +12,8 @@ from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.datagen.schema import validate_fragment_v2
 
+from phoenix.datagen.schema import validate_fragment_v2
 from scripts.datagen.fake_tools import load_default_fixture_sets
 from scripts.datagen.generation import (
     GenerationRun,
@@ -94,6 +94,11 @@ def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) 
     assert plan.checkpoint_identity()["environment_digest"] == "e" * 64
     assert "The buyer is preparing for travel." in backend.request.prompt
     assert "complete the return before departure" in backend.request.prompt
+    assert "Do not answer the request as the assistant" in backend.request.prompt
+    assert backend.request.output_schema["properties"]["content"] == {
+        "type": "string",
+        "pattern": "\\S",
+    }
     assert message.content == "Can you explain the return window?"
 
 

@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import pytest
-from phoenix.datagen.schema import validate_fragment_v2
 
+from phoenix.datagen.schema import validate_fragment_v2
 from scripts.datagen.bank import BankError, package_generation_run, read_v2_bank
 from scripts.datagen.generation import (
     GenerationRun,
@@ -23,7 +23,12 @@ from scripts.datagen.model_backend import (
     ProviderUsage,
 )
 from scripts.datagen.profile import load_profile_set
-from scripts.datagen.quality import NORMALIZER_VERSION, QualityGate, select_judge_routes
+from scripts.datagen.quality import (
+    NORMALIZER_VERSION,
+    VALIDITY_VERSION,
+    QualityGate,
+    select_judge_routes,
+)
 
 
 def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
@@ -72,6 +77,10 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
         )
         assert outcome.accepted
         assert outcome.fragment is not None
+        assert outcome.fragment["quality_results"]["validity"] == {
+            "accepted": True,
+            "version": VALIDITY_VERSION,
+        }
         run.accept_cell(cell.cell_id, attempt.attempt_id, outcome.fragment)
         accepted.append(outcome.fragment)
 
@@ -160,6 +169,62 @@ def test_short_fragment_jaccard_threshold_is_inclusive(tmp_path: Path) -> None:
     persisted = json.loads((tmp_path / "rejects.jsonl").read_text())
     assert persisted == rejected.reject.to_dict()
     assert persisted["normalizer_version"] == NORMALIZER_VERSION
+
+
+@pytest.mark.parametrize(
+    ("messages", "reason"),
+    [
+        (
+            [
+                {"role": "user", "content": "Can you help with this order?"},
+                {"role": "assistant", "content": "assistant"},
+            ],
+            "bare role name",
+        ),
+        (
+            [
+                {"role": "user", "content": "Can you help with this order?"},
+                {"role": "assistant", "content": " \n\t"},
+            ],
+            "whitespace-only",
+        ),
+        (
+            [
+                {"role": "user", "content": "First request."},
+                {"role": "user", "content": "Second request."},
+                {"role": "assistant", "content": "One response."},
+            ],
+            "cannot follow",
+        ),
+        (
+            [
+                {
+                    "role": "user",
+                    "content": "I'll reconcile the requested totals and return a clean bridge.",
+                },
+                {
+                    "role": "assistant",
+                    "content": "Please reconcile Q2 revenue and explain the differences.",
+                },
+            ],
+            "assistant voice",
+        ),
+    ],
+    ids=("bare-role-name", "whitespace-only", "broken-alternation", "role-inversion"),
+)
+def test_validity_gate_rejects_structural_corruption(
+    tmp_path: Path, messages: list[Mapping[str, Any]], reason: str
+) -> None:
+    run, _ = _generation_run(tmp_path)
+    gate = QualityGate(rejects_path=run.directory / "rejects.jsonl")
+
+    outcome = gate.evaluate(_candidate("a" * 64, "plain_chat", "self_play", ["a" * 32]), messages)
+
+    assert not outcome.accepted
+    assert outcome.reject is not None
+    assert outcome.reject.gate == "validity"
+    assert reason in outcome.reject.reason
+    assert run.status()["rejections"] == {"total": 1, "by_gate": {"validity": 1}}
 
 
 def test_judge_routes_sample_only_the_non_proximate_remainder() -> None:

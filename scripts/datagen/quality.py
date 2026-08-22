@@ -19,6 +19,7 @@ from phoenix.datagen.schema import (
 )
 
 NORMALIZER_VERSION = "visible-messages-nfkc-lower-ws-v1"
+VALIDITY_VERSION = "conversation-structure-v1"
 MINHASH_VALUES = 128
 MINHASH_BANDS = 32
 MINHASH_ROWS_PER_BAND = 4
@@ -26,6 +27,14 @@ LONG_FRAGMENT_MIN_TOKENS = 40
 JUDGE_SAMPLE_FRACTION = 0.05
 
 _WHITESPACE = re.compile(r"\s+")
+_ASSISTANT_VOICE_FIRST_TURN = re.compile(
+    r"^(?:certainly\b|sure[,.!]|i(?:'d be happy to| can help)\b|"
+    r"i(?:'ll| will)\s+(?:analyze|assemble|calculate|check|compare|draft|explain|help|"
+    r"investigate|keep|look|outline|prepare|provide|reconcile|review|start|summarize|"
+    r"use|verify|walk)\b|here(?:'s| is| are)\b)",
+    re.IGNORECASE,
+)
+_BARE_ROLE_NAMES = frozenset({"assistant", "system", "tool", "user"})
 _MINHASH_PRIME = (1 << 61) - 1
 
 
@@ -51,6 +60,7 @@ class QualityReject:
     matched_fragment_id: str | None
     score: float | None
     threshold: float | None
+    gate: Literal["validity", "schema", "dedup"]
     normalizer_version: str = NORMALIZER_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -61,6 +71,7 @@ class QualityReject:
             "matched_fragment_id": self.matched_fragment_id,
             "score": self.score,
             "threshold": self.threshold,
+            "gate": self.gate,
             "normalizer_version": self.normalizer_version,
         }
 
@@ -114,6 +125,19 @@ class QualityGate:
         family = archetype if isinstance(archetype, str) else ""
         try:
             normalized, turn_count = normalize_visible_messages(messages)
+        except QualityError as error:
+            reject = QualityReject(
+                fragment_id=identity,
+                archetype=family,
+                reason=f"validity: {error}",
+                matched_fragment_id=None,
+                score=None,
+                threshold=None,
+                gate="validity",
+            )
+            self._persist_reject(reject)
+            return QualityOutcome(accepted=False, fragment=None, reject=reject)
+        try:
             if candidate.get("turn_count") != turn_count:
                 raise QualityError(
                     f"turn_count must equal the {turn_count} visible user message(s)"
@@ -123,6 +147,7 @@ class QualityGate:
             merged_results = dict(quality_results) if isinstance(quality_results, Mapping) else {}
             merged_results.update(
                 {
+                    "validity": {"accepted": True, "version": VALIDITY_VERSION},
                     "schema": {"accepted": True},
                     "dedup": _accepted_dedup_result(fingerprint),
                 }
@@ -141,6 +166,7 @@ class QualityGate:
                 matched_fragment_id=None,
                 score=None,
                 threshold=None,
+                gate="schema",
             )
             self._persist_reject(reject)
             return QualityOutcome(accepted=False, fragment=None, reject=reject)
@@ -155,6 +181,7 @@ class QualityGate:
                 matched_fragment_id=matched_fragment_id,
                 score=score,
                 threshold=threshold,
+                gate="dedup",
             )
             self._persist_reject(reject)
             return QualityOutcome(accepted=False, fragment=enriched, reject=reject)
@@ -239,6 +266,13 @@ def normalize_visible_messages(
         if role not in {"user", "assistant", "tool"}:
             raise QualityError(f"messages[{index}].role is not visible or supported")
         content = _visible_content(message.get("content"))
+        if _is_whitespace_only(message.get("content")):
+            raise QualityError(f"messages[{index}].content is whitespace-only; regenerate it")
+        if content.strip().casefold() in _BARE_ROLE_NAMES:
+            raise QualityError(
+                f"messages[{index}].content is the bare role name {content.strip()!r}; "
+                "regenerate it"
+            )
         if not content and role != "assistant":
             raise QualityError(f"messages[{index}].content must contain visible text")
         _validate_role_transition(roles[-1] if roles else None, role, index)
@@ -251,6 +285,14 @@ def normalize_visible_messages(
         raise QualityError("conversation must begin with a visible user message")
     if roles[-1] not in {"assistant", "tool"}:
         raise QualityError("conversation must end with an assistant or tool message")
+    first_content = _visible_content(
+        next(message.get("content") for message in messages if message.get("role") != "system")
+    ).strip()
+    if _ASSISTANT_VOICE_FIRST_TURN.match(first_content):
+        raise QualityError(
+            "messages[0].content begins in assistant voice; likely role inversion, regenerate "
+            "with the user's request first"
+        )
     normalized = _WHITESPACE.sub(
         " ", unicodedata.normalize("NFKC", " ".join(visible)).lower()
     ).strip()
@@ -348,6 +390,20 @@ def _visible_content(value: Any) -> str:
         elif isinstance(part, Mapping) and isinstance(part.get("text"), str):
             parts.append(part["text"])
     return " ".join(parts)
+
+
+def _is_whitespace_only(value: Any) -> bool:
+    if isinstance(value, str):
+        return bool(value) and not value.strip()
+    if not isinstance(value, list):
+        return False
+    text_parts = [
+        part if isinstance(part, str) else part.get("text")
+        for part in value
+        if isinstance(part, str) or isinstance(part, Mapping)
+    ]
+    strings = [part for part in text_parts if isinstance(part, str)]
+    return bool(strings) and not "".join(strings).strip()
 
 
 def _validate_role_transition(previous: str | None, role: str, index: int) -> None:
