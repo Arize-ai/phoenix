@@ -7,7 +7,11 @@ import { autocompletion } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@uiw/react-codemirror";
 
+import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
+import { toEvaluatorCompletionClass } from "@phoenix/components/evaluators/evaluatorContextCompletions";
+
 import { TemplateFormats } from "./constants";
+import { getEvaluatorTemplateCompletions } from "./evaluatorTemplateCompletions";
 import type { TemplateFormat } from "./types";
 
 /**
@@ -164,23 +168,95 @@ function escapeRegex(str: string): string {
 }
 
 /**
+ * The template variable the cursor sits inside, and where its content starts.
+ *
+ * @internal Exported for testing
+ */
+export type OpenTemplateVariable = { from: number; text: string };
+
+/**
+ * Finds the unclosed `{{`/`{` the cursor is writing inside.
+ *
+ * @param beforeCursor - the document text up to the cursor
+ * @param templateFormat - the template format the editor is in
+ *
+ * @internal Exported for testing
+ */
+export function findOpenTemplateVariable(
+  beforeCursor: string,
+  templateFormat: TemplateFormat
+): OpenTemplateVariable | null {
+  if (templateFormat === TemplateFormats.Mustache) {
+    // For Mustache, find the last {{ that's not closed
+    const lastOpenIndex = beforeCursor.lastIndexOf("{{");
+    if (lastOpenIndex === -1) {
+      return null;
+    }
+    const afterOpen = beforeCursor.slice(lastOpenIndex + 2);
+    // Check if there's a closing }} after the {{
+    if (afterOpen.includes("}}")) {
+      return null;
+    }
+    // Extract the variable content so far (may include #, ^, / for sections)
+    return {
+      from:
+        lastOpenIndex + 2 + (afterOpen.length - afterOpen.trimStart().length),
+      text: afterOpen.trimStart(),
+    };
+  }
+
+  // For FString, find the last { that's not doubled and not closed
+  for (let i = beforeCursor.length - 1; i >= 0; i--) {
+    if (beforeCursor[i] !== "{") {
+      continue;
+    }
+    // Check if it's a doubled brace (escape)
+    const isEscaped =
+      (i > 0 && beforeCursor[i - 1] === "{") ||
+      (i < beforeCursor.length - 1 && beforeCursor[i + 1] === "{");
+    if (isEscaped) {
+      continue;
+    }
+    const afterOpen = beforeCursor.slice(i + 1);
+    // Check if there's a closing } after the {
+    return afterOpen.includes("}") ? null : { from: i + 1, text: afterOpen };
+  }
+  return null;
+}
+
+/**
  * Creates an autocomplete extension for template variables.
  *
  * @param availablePaths - Array of available paths for autocomplete (e.g., ["input", "input.query", "reference.label"])
  * @param templateFormat - The template format (Mustache or FString)
+ * @param evaluationContext - The evaluator's materialized inputs, when the
+ *   editor is authoring a project evaluator; the flat path list otherwise
  * @returns A CodeMirror extension for autocomplete
  */
 export function createTemplateAutocomplete(
   availablePaths: string[],
-  templateFormat: TemplateFormat
+  templateFormat: TemplateFormat,
+  evaluationContext: MaterializedEvaluatorContext | null = null
 ): Extension {
   const completionFn = (context: CompletionContext): CompletionResult | null =>
-    templateVariableCompletions(context, availablePaths, templateFormat);
+    templateVariableCompletions(
+      context,
+      availablePaths,
+      templateFormat,
+      evaluationContext
+    );
 
   return autocompletion({
     override: [completionFn],
     defaultKeymap: true,
     activateOnTyping: true,
+    ...(evaluationContext === null
+      ? {}
+      : {
+          icons: false,
+          tooltipClass: () => "dsl-filter-typeahead",
+          optionClass: toEvaluatorCompletionClass,
+        }),
   });
 }
 
@@ -193,72 +269,38 @@ export function createTemplateAutocomplete(
 function templateVariableCompletions(
   context: CompletionContext,
   availablePaths: string[],
-  templateFormat: TemplateFormat
+  templateFormat: TemplateFormat,
+  evaluationContext: MaterializedEvaluatorContext | null
 ): CompletionResult | null {
-  if (availablePaths.length === 0) {
-    return null;
-  }
-
   // No autocomplete when templating is disabled
   if (templateFormat === TemplateFormats.NONE) {
     return null;
   }
 
-  // Determine the template syntax based on format
-  const isMustache = templateFormat === TemplateFormats.Mustache;
-
-  // Match the content before the cursor
-  // For Mustache: match after {{ and any content
-  // For FString: match after { and any content (but not {{)
   const beforeCursor = context.state.doc.sliceString(0, context.pos);
-
-  let match: { from: number; text: string } | null = null;
-
-  if (isMustache) {
-    // For Mustache, find the last {{ that's not closed
-    const lastOpenIndex = beforeCursor.lastIndexOf("{{");
-    if (lastOpenIndex !== -1) {
-      const afterOpen = beforeCursor.slice(lastOpenIndex + 2);
-      // Check if there's a closing }} after the {{
-      if (!afterOpen.includes("}}")) {
-        // Extract the variable content so far (may include #, ^, / for sections)
-        const varContent = afterOpen.trimStart();
-        match = {
-          from:
-            lastOpenIndex +
-            2 +
-            (afterOpen.length - afterOpen.trimStart().length),
-          text: varContent,
-        };
-      }
-    }
-  } else {
-    // For FString, find the last { that's not doubled and not closed
-    // We need to find a single { not preceded by another { and not followed by {
-    for (let i = beforeCursor.length - 1; i >= 0; i--) {
-      if (beforeCursor[i] === "{") {
-        // Check if it's a doubled brace (escape)
-        const isEscaped =
-          (i > 0 && beforeCursor[i - 1] === "{") ||
-          (i < beforeCursor.length - 1 && beforeCursor[i + 1] === "{");
-        if (!isEscaped) {
-          const afterOpen = beforeCursor.slice(i + 1);
-          // Check if there's a closing } after the {
-          if (!afterOpen.includes("}")) {
-            match = {
-              from: i + 1,
-              text: afterOpen,
-            };
-          }
-          break;
-        }
-      }
-    }
-  }
-
+  const match = findOpenTemplateVariable(beforeCursor, templateFormat);
   if (!match) {
     return null;
   }
+
+  if (evaluationContext !== null) {
+    return getEvaluatorTemplateCompletions({
+      evaluationContext,
+      templateFormat,
+      variable: match,
+      sectionStack:
+        templateFormat === TemplateFormats.Mustache
+          ? detectMustacheSectionContext(beforeCursor)
+          : [],
+    });
+  }
+
+  if (availablePaths.length === 0) {
+    return null;
+  }
+
+  // Determine the template syntax based on format
+  const isMustache = templateFormat === TemplateFormats.Mustache;
 
   // Filter available paths based on what's already typed
   const typedText = match.text.toLowerCase();

@@ -8,6 +8,7 @@ import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
+import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
 import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -15,6 +16,7 @@ import { createTemplateAutocomplete } from "./autocomplete";
 import { TemplateFormats } from "./constants";
 import { FStringTemplating } from "./language/fString";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
+import { useTemplateEvaluatorContext } from "./TemplateEvaluatorContext";
 import type { TemplateFormat } from "./types";
 
 type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
@@ -66,6 +68,7 @@ export const TemplateEditor = ({
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
   const { theme } = useTheme();
+  const evaluationContext = useTemplateEvaluatorContext();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const extensions = useMemo(() => {
     const ext: TemplateEditorProps["extensions"] = [
@@ -85,17 +88,22 @@ export const TemplateEditor = ({
       default:
         assertUnreachable(templateFormat);
     }
-    // Add autocomplete extension if available paths are provided and templating is enabled
+    // Add autocomplete when something can be suggested and templating is enabled
     if (
-      availablePaths &&
-      availablePaths.length > 0 &&
+      (evaluationContext !== null || (availablePaths?.length ?? 0) > 0) &&
       !readOnly &&
       templateFormat !== TemplateFormats.NONE
     ) {
-      ext.push(createTemplateAutocomplete(availablePaths, templateFormat));
+      ext.push(
+        createTemplateAutocomplete(
+          availablePaths ?? [],
+          templateFormat,
+          evaluationContext
+        )
+      );
     }
     return ext;
-  }, [templateFormat, availablePaths, readOnly, ariaLabel]);
+  }, [templateFormat, availablePaths, readOnly, ariaLabel, evaluationContext]);
 
   useEffect(() => {
     if (readOnly) {
@@ -152,6 +160,7 @@ export const TemplateEditorWrap = ({
         & .cm-tooltip-autocomplete {
           z-index: 100;
         }
+        ${typeaheadMenuCSS}
       `}
     >
       {children}
