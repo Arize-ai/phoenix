@@ -127,7 +127,7 @@ The job lock does not exist at `on_job_start`. The compatibility adapter builds 
 
 ## 4. Plugin design
 
-The plugin lives in `arize-phoenix-client` as `phoenix.client.harbor` and registers `phoenix` in Harbor's `harbor.plugins` entry-point group. Harbor is imported only when the plugin is selected.
+The plugin lives in `arize-phoenix-client` as `phoenix.client.harbor` and registers `arize-phoenix` in Harbor's `harbor.plugins` entry-point group. Harbor is imported only when the plugin is selected.
 
 The package has three main components:
 
@@ -135,7 +135,7 @@ The package has three main components:
 2. **Mapping core.** Converts the internal Harbor model into Phoenix datasets, experiments, runs, evaluations, and trace links.
 3. **Phoenix job plugin.** Connects Harbor lifecycle hooks to the mapping core and stops the job when required Phoenix recording fails.
 
-The package supports normal jobs on Harbor `>=0.18.0`. It checks required capabilities at runtime. Regrade and source-job plans are not supported.
+The package supports normal jobs on Harbor `>=0.21.0`. It checks required capabilities at runtime. Regrade and source-job plans are not supported.
 
 Phoenix version requirements depend on the feature:
 
@@ -419,10 +419,11 @@ Pass settings through Harbor's `--plugin-kwarg` option.
 | `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix endpoint |
 | `api_key` | `PHOENIX_API_KEY` | Phoenix authentication |
 | `trace_mode` | `atif` | `atif`, `otlp`, or `none` |
-| `experiment_name_template` | `{job_name} · {agent} · {model}` | Experiment naming |
+| `experiment_name` | unset | Exact name for a job with one agent configuration |
+| `experiment_name_template` | `{job.name} · {agent.name} · {agent.model}` | Experiment naming |
 | `project` | experiment's project | Optional trace-project override |
 
-Experiment names must distinguish agent/model configurations in Phoenix's compare view. `{job_name}` defaults to a Harbor timestamp. If two configurations still have the same name, append a short configuration digest. This can happen when they differ only in skills, environment, or keyword arguments.
+Experiment names must distinguish agent/model configurations in Phoenix's compare view. `{job.name}` defaults to a Harbor timestamp. If two configurations still have the same name, append a short configuration digest. This can happen when they differ only in skills, environment, or keyword arguments.
 
 In OTLP mode the plugin does not inject exporter configuration. The user supplies endpoint, credentials, and `openinference.project.name` through Harbor's per-agent environment, and the plugin validates them at job start (§5.1).
 

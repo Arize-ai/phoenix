@@ -1,7 +1,4 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
-# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
-# pyright: reportAttributeAccessIssue=false
 """Convert Harbor's private job plan into records used by the Phoenix plugin.
 
 Contract tests pin the private attributes read here to supported Harbor versions.
@@ -241,26 +238,24 @@ def _resolve_dataset_identity(
     tasks: Sequence[TaskRecord],
     override: str | None,
 ) -> DatasetIdentity:
-    """Resolve the Phoenix dataset name from the tasks' shared Harbor source."""
+    """Resolve the Phoenix dataset name from Harbor's configured source."""
     kind = _dataset_kind(dataset_config)
     sources = {task.source for task in tasks}
-    inferred: str | None = None
-    if len(sources) == 1:
-        only = next(iter(sources))
-        inferred = str(only) if only else None
-    elif len(sources) > 1:
+    if len(sources) > 1:
         listed = ", ".join(sorted(repr(source) for source in sources))
         raise HarborPluginError(
             f"Tasks came from multiple dataset sources ({listed}). Use one dataset per job."
         )
 
+    task_source = next(iter(sources), None)
+    inferred = _dataset_name(dataset_config, task_source)
     name = override or inferred
     if not name:
         raise HarborPluginError(
             "Harbor did not report a dataset name for this job. Set one explicitly with "
             "`--plugin-kwarg dataset=<name>`."
         )
-    return DatasetIdentity(name=name, kind=kind, inferred_name=inferred)
+    return DatasetIdentity(name=name, kind=kind)
 
 
 def _resolve_adhoc_dataset_identity(
@@ -280,7 +275,21 @@ def _resolve_adhoc_dataset_identity(
             "`--plugin-kwarg dataset=<name>` to record their exact task set as a "
             "synthetic Phoenix dataset."
         )
-    return DatasetIdentity(name=name, kind="adhoc", inferred_name=inferred)
+    return DatasetIdentity(name=name, kind="adhoc")
+
+
+def _dataset_name(dataset_config: DatasetConfig, task_source: str | None) -> str | None:
+    """Infer a dataset name from the public Harbor configuration."""
+    if dataset_config.is_repo():
+        # Harbor resolves implicit repository datasets through registry metadata.
+        # The resolved metadata name is retained on each task as its source.
+        return task_source
+    if dataset_config.is_local():
+        path = dataset_config.path
+        return path.expanduser().resolve().name if path is not None else None
+    if dataset_config.is_package() or dataset_config.is_registry():
+        return dataset_config.name
+    return None
 
 
 def _dataset_kind(dataset_config: DatasetConfig) -> str:

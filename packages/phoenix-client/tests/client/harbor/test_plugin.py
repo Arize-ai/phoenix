@@ -1,7 +1,4 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
-# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
-# pyright: reportUntypedBaseClass=false, reportAttributeAccessIssue=false
 """Tests for the Harbor plugin."""
 
 from __future__ import annotations
@@ -36,7 +33,6 @@ from phoenix.client.harbor._model import (
     TaskRecord,
     TrialSlot,
 )
-from phoenix.client.harbor._plugin import TraceMode
 
 from .test_recorder import FakeClient, FakeDataset, FakeDatasets, FakeExperiments, example_row
 
@@ -50,7 +46,7 @@ PLAN = JobPlan(
         tasks=[PLAN_TASK],
         agents=[PLAN_AGENT],
     ),
-    dataset=DatasetIdentity(name="phoenix-evals", kind="local", inferred_name="phoenix-evals"),
+    dataset=DatasetIdentity(name="phoenix-evals", kind="local"),
     tasks=(
         TaskRecord(
             lock=TaskLock(
@@ -180,7 +176,6 @@ class TestConfiguration:
     def test_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://phoenix.example")
         plugin = PhoenixJobPlugin()
-        assert plugin.trace_mode == "atif"
         assert plugin.dataset is None
         assert plugin.experiment_name is None
         assert plugin.experiment_name_template == DEFAULT_EXPERIMENT_NAME_TEMPLATE
@@ -205,9 +200,10 @@ class TestConfiguration:
         with pytest.raises(ValueError, match="'agent'"):
             PhoenixJobPlugin(experiment_name_template="{agent}")
 
-    def test_unsupported_trace_mode_is_rejected_at_construction(self) -> None:
-        with pytest.raises(ValueError, match="unsupported trace_mode"):
-            PhoenixJobPlugin(trace_mode=cast(TraceMode, "otel"))
+    @pytest.mark.parametrize("trace_mode", ["atif", "otlp", "otel"])
+    def test_unsupported_trace_mode_is_rejected_at_construction(self, trace_mode: str) -> None:
+        with pytest.raises(ValueError, match="Only trace_mode='none' is available"):
+            PhoenixJobPlugin(trace_mode=cast(Any, trace_mode))
 
     def test_explicit_endpoint_overrides_the_environment(
         self, monkeypatch: pytest.MonkeyPatch

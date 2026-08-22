@@ -1,7 +1,4 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
-# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
-# pyright: reportAttributeAccessIssue=false, reportCallIssue=false
 """Write a resolved Harbor job to Phoenix."""
 
 from __future__ import annotations
@@ -18,18 +15,11 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
-from phoenix.client.harbor._naming import (
-    DEFAULT_EXPERIMENT_NAME_TEMPLATE,
-    EXPERIMENT_NAME_TEMPLATE_FIELDS,
-    experiment_names,
-    validate_experiment_naming,
-)
+from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "DEFAULT_EXPERIMENT_NAME_TEMPLATE",
-    "EXPERIMENT_NAME_TEMPLATE_FIELDS",
     "DatasetSnapshot",
     "ExperimentHandle",
     "PhoenixRecorder",
@@ -52,8 +42,6 @@ class DatasetSnapshot:
 class ExperimentHandle:
     experiment_id: str
     name: str
-    project_name: str | None
-    identity_digest: str
     created: bool
 
 
@@ -78,14 +66,10 @@ class PhoenixRecorder:
         examples = [task.to_example() for task in plan.tasks]
         try:
             # Update creates the dataset or a new version from this complete snapshot.
-            dataset = await self._client.datasets._upload_json_dataset(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
-                dataset_name=plan.dataset.name,
+            dataset = await self._client.datasets.create_dataset(
+                name=plan.dataset.name,
                 dataset_description=f"Harbor dataset {plan.dataset.name!r} ({plan.dataset.kind}).",
-                inputs=[example["input"] for example in examples],
-                outputs=[example["output"] for example in examples],
-                metadata=[example["metadata"] for example in examples],
-                example_ids=[example["id"] for example in examples],
-                action="update",
+                examples=examples,
             )
         except Exception as error:
             raise HarborPluginError(
@@ -329,8 +313,6 @@ class PhoenixRecorder:
         return ExperimentHandle(
             experiment_id=str(experiment["id"]),
             name=str(experiment.get("name") or name),
-            project_name=experiment.get("project_name"),
-            identity_digest=identity,
             created=created,
         )
 
@@ -410,12 +392,8 @@ def _require_consistent(
 
 def _example_ids_by_task(examples: Sequence[v1.DatasetExample]) -> dict[str, str]:
     """Map Harbor task IDs to Phoenix example GlobalIDs."""
-    from phoenix.client.resources.experiments import (
-        _example_global_id,  # pyright: ignore[reportPrivateUsage]
-    )
-
     return {
-        str(example["id"]): _example_global_id(example) for example in examples if example.get("id")
+        str(example["id"]): str(example["node_id"]) for example in examples if example.get("id")
     }
 
 

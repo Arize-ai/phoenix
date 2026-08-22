@@ -1,7 +1,4 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
-# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
-# pyright: reportUntypedBaseClass=false, reportAttributeAccessIssue=false
 """Unit tests for Harbor plan conversion."""
 
 from __future__ import annotations
@@ -181,21 +178,35 @@ class TestJobShape:
 
 
 class TestDatasetIdentity:
-    def test_name_is_inferred_from_the_resolved_task_source(self) -> None:
-        identity = _resolve_dataset_identity(
-            dataset_config(registry=True), [task_record("a"), task_record("b")], None
-        )
-        assert (identity.name, identity.kind, identity.inferred_name) == (
-            "phoenix-evals",
-            "registry",
-            "phoenix-evals",
-        )
+    @pytest.mark.parametrize(
+        ("config", "source", "expected_name", "expected_kind"),
+        [
+            (dataset_config(local=True), "task-source", "phoenix-evals", "local"),
+            (dataset_config(registry=True), "task-source", "phoenix-evals", "registry"),
+            (
+                dataset_config(package=True),
+                "task-source",
+                "arize/phoenix-evals",
+                "package",
+            ),
+            (dataset_config(repo=True), "repo-dataset", "repo-dataset", "repo"),
+        ],
+    )
+    def test_name_follows_the_configured_dataset_source(
+        self,
+        config: DatasetConfig,
+        source: str,
+        expected_name: str,
+        expected_kind: str,
+    ) -> None:
+        identity = _resolve_dataset_identity(config, [task_record("a", source)], None)
+        assert (identity.name, identity.kind) == (expected_name, expected_kind)
 
-    def test_override_wins_and_the_inferred_name_is_kept(self) -> None:
+    def test_override_wins(self) -> None:
         identity = _resolve_dataset_identity(
             dataset_config(local=True), [task_record("a")], "my-dataset"
         )
-        assert (identity.name, identity.inferred_name) == ("my-dataset", "phoenix-evals")
+        assert identity.name == "my-dataset"
 
     def test_mixed_sources_are_rejected(self) -> None:
         with pytest.raises(HarborPluginError, match="multiple dataset sources"):
@@ -215,11 +226,7 @@ class TestDatasetIdentity:
 
     def test_single_ad_hoc_task_uses_a_namespaced_declared_name(self) -> None:
         identity = _resolve_adhoc_dataset_identity([task_record("task-id")], None)
-        assert (identity.name, identity.kind, identity.inferred_name) == (
-            "harbor-task/task-id",
-            "adhoc",
-            "harbor-task/task-id",
-        )
+        assert (identity.name, identity.kind) == ("harbor-task/task-id", "adhoc")
 
     def test_multiple_ad_hoc_tasks_require_an_override(self) -> None:
         with pytest.raises(HarborPluginError, match="plugin-kwarg dataset"):
@@ -230,7 +237,7 @@ class TestDatasetIdentity:
             [task_record("one"), task_record("two")],
             "pxi-regression",
         )
-        assert (identity.name, identity.inferred_name) == ("pxi-regression", None)
+        assert identity.name == "pxi-regression"
 
 
 class TestRepetitions:

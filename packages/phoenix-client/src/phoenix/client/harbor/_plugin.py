@@ -1,8 +1,4 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
-# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
-# pyright: reportUntypedBaseClass=false, reportGeneralTypeIssues=false
-# pyright: reportAttributeAccessIssue=false
 from __future__ import annotations
 
 import asyncio
@@ -39,13 +35,9 @@ from phoenix.client.harbor._recorder import (
     PhoenixRecorder,
     RunKey,
 )
-from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key, get_env_project_name
+from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 logger = logging.getLogger(__name__)
-
-TraceMode = Literal["atif", "otlp", "none"]
-
-_TRACE_MODES: tuple[str, ...] = ("atif", "otlp", "none")
 
 
 class PhoenixJobPlugin(BaseJobPlugin):
@@ -57,14 +49,18 @@ class PhoenixJobPlugin(BaseJobPlugin):
         dataset: str | None = None,
         endpoint: str | None = None,
         api_key: str | None = None,
-        project: str | None = None,
-        trace_mode: TraceMode = "atif",
+        trace_mode: Literal["none"] = "none",
         experiment_name: str | None = None,
         experiment_name_template: str | None = None,
     ) -> None:
         """Configure Phoenix recording for a Harbor job.
 
         Args:
+            dataset: Phoenix dataset name override. By default, the plugin derives the name from
+                Harbor's dataset configuration or direct task.
+            endpoint: Phoenix HTTP endpoint. Defaults to ``PHOENIX_COLLECTOR_ENDPOINT``.
+            api_key: Phoenix API key. Defaults to ``PHOENIX_API_KEY``.
+            trace_mode: Trace recording mode. This version supports only ``"none"``.
             experiment_name: Exact Phoenix experiment name. This is only valid when the Harbor
                 job resolves one experiment slice.
             experiment_name_template: Format string used to name one Phoenix experiment per
@@ -72,15 +68,14 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 ``EXPERIMENT_NAME_TEMPLATE_FIELDS``.
         """
         super().__init__()
-        if trace_mode not in _TRACE_MODES:
-            raise ValueError(f"unsupported trace_mode: {trace_mode!r}")
+        if trace_mode != "none":
+            raise ValueError(
+                f"Unsupported trace_mode {trace_mode!r}. Only trace_mode='none' is available."
+            )
 
         self.dataset = dataset
         self.endpoint = endpoint or str(get_base_url())
         self._api_key = api_key or get_env_phoenix_api_key()
-        self.project = project or get_env_project_name()
-        # TODO: Implement trace export for the selected mode.
-        self.trace_mode: TraceMode = trace_mode
         self.experiment_name, self.experiment_name_template = validate_experiment_naming(
             experiment_name=experiment_name,
             experiment_name_template=experiment_name_template,
@@ -245,7 +240,4 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 experiment_slice.agent_name,
                 experiment_slice.model_name or "default",
             )
-        missing = ["scores"]
-        if self.trace_mode != "none":
-            missing.append(f"{self.trace_mode} traces")
-        logger.warning("Not recorded yet: %s.", ", ".join(missing))
+        logger.warning("Not recorded yet: scores.")

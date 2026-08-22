@@ -1,6 +1,4 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
-# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Tests for Harbor dataset and experiment recording."""
 
 from __future__ import annotations
@@ -77,9 +75,7 @@ def plan(*slices: ExperimentSlice, tasks: tuple[TaskRecord, ...] = (), **overrid
             tasks=[TaskConfig(path=Path("task-a"))],
             agents=[experiment_slice.agent for experiment_slice in slices] or [slice_().agent],
         ),
-        "dataset": DatasetIdentity(
-            name="phoenix-evals", kind="local", inferred_name="phoenix-evals"
-        ),
+        "dataset": DatasetIdentity(name="phoenix-evals", kind="local"),
         "tasks": tasks or (task("task-a"),),
         "slices": slices or (slice_(),),
         "trials": (),
@@ -99,7 +95,7 @@ class FakeDatasets:
         self._dataset = dataset
         self.calls: list[dict[str, Any]] = []
 
-    async def _upload_json_dataset(self, **kwargs: Any) -> FakeDataset:
+    async def create_dataset(self, **kwargs: Any) -> FakeDataset:
         self.calls.append(kwargs)
         if isinstance(self._dataset, Exception):
             raise self._dataset
@@ -221,13 +217,8 @@ class TestSyncDataset:
         snapshot = await recorder(FakeClient(datasets)).sync_dataset(plan())
 
         (call,) = datasets.calls
-        assert call["dataset_name"] == "phoenix-evals"
-        assert call["action"] == "update", "a full snapshot, not an append"
-        assert call["example_ids"] == ["task-a"]
-        assert call["inputs"] == [
-            {"task_id": "task-a", "task_name": "task-a", "instruction": "do the thing"}
-        ]
-        assert call["outputs"] == [{}]
+        assert call["name"] == "phoenix-evals"
+        assert call["examples"] == [task("task-a").to_example()]
         assert snapshot == DatasetSnapshot("dataset-1", "version-1", {"task-a": "node-a"})
 
     async def test_missing_example_stops_the_job(self) -> None:
@@ -302,7 +293,6 @@ class TestResolveExperiments:
         assert experiments.created == []
         handle = handles[job.slices[0].identity_digest]
         assert (handle.experiment_id, handle.created) == ("experiment-existing", False)
-        assert handle.project_name == "Experiment-abc"
 
     async def test_unrelated_experiments_on_the_dataset_are_ignored(self) -> None:
         experiments = FakeExperiments(
