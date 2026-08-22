@@ -1,16 +1,12 @@
-name: Publish datagen assets
+name: Validate datagen asset
 
-run-name: Publish datagen assets ${{ inputs.pass_id }}
+run-name: Validate datagen asset ${{ inputs.archive_name }}
 
 on:
   workflow_dispatch:
     inputs:
-      pass_id:
-        description: Unique lowercase identifier for this publication pass
-        required: true
-        type: string
       source_run_id:
-        description: Workflow run containing the validated scenario archive
+        description: Workflow run containing the scenario archive
         required: true
         type: string
       archive_artifact:
@@ -33,21 +29,12 @@ on:
 permissions:
   actions: read
   contents: read
-  id-token: write
-
-concurrency:
-  group: datagen-assets-publish
-  cancel-in-progress: false
-
-env:
-  GCS_BUCKET: ${{ vars.DATAGEN_ASSETS_GCS_BUCKET || 'arize-phoenix-assets' }}
-  GCS_PREFIX: ${{ vars.DATAGEN_ASSETS_GCS_PREFIX || 'datagen' }}
 
 jobs:
-  publish:
+  validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the publication revision
+      - name: Check out the validation revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -55,7 +42,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
 
-      - name: Download the canonical scenario archive
+      - name: Download the scenario archive
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ inputs.archive_artifact }}
@@ -64,226 +51,21 @@ jobs:
           run-id: ${{ inputs.source_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch the published asset index
-        env:
-          INDEX_URL: https://storage.googleapis.com/${{ env.GCS_BUCKET }}/${{ env.GCS_PREFIX }}/index.json
-        run: |
-          set -euo pipefail
-          [[ "$GCS_BUCKET" =~ ^[a-z0-9][a-z0-9._-]+$ ]]
-          [[ "$GCS_PREFIX" =~ ^[a-z0-9][a-z0-9/_-]*$ ]]
-
-          set +e
-          http_status=$(curl --silent --show-error --location \
-            --output incoming/index.json \
-            --write-out '%{http_code}' \
-            "$INDEX_URL")
-          curl_status=$?
-          set -e
-          if [[ "$curl_status" -ne 0 ]]; then
-            echo "Unable to fetch the published datagen asset index" >&2
-            exit "$curl_status"
-          fi
-          case "$http_status" in
-            200)
-              ;;
-            404)
-              printf '{"schema_version":2,"scenarios":{}}\n' > incoming/index.json
-              ;;
-            *)
-              echo "Datagen asset index request returned HTTP $http_status" >&2
-              cat incoming/index.json >&2
-              exit 1
-              ;;
-          esac
-
-      - name: Validate the archive and stage the next index
-        id: validate
+      - name: Validate the archive
         env:
           ARCHIVE_NAME: ${{ inputs.archive_name }}
           ASSET_SCHEMA_VERSION: ${{ inputs.asset_schema_version }}
-          PASS_ID: ${{ inputs.pass_id }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -euo pipefail
-          [[ "$PASS_ID" =~ ^[a-z0-9][a-z0-9-]{0,63}$ ]]
           [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
           [[ "$ARCHIVE_NAME" =~ ^[a-z0-9][a-z0-9_-]*\.tar\.gz$ ]]
           [[ "$ASSET_SCHEMA_VERSION" =~ ^[12]$ ]]
 
-          mapfile -t downloaded_files < <(find incoming -type f ! -name index.json -print)
+          mapfile -t downloaded_files < <(find incoming -type f -print)
           [[ "${#downloaded_files[@]}" -eq 1 ]]
           [[ "${downloaded_files[0]}" == "incoming/$ARCHIVE_NAME" ]]
 
-          uv run --frozen python - <<'PY'
-          from __future__ import annotations
-
-          import json
-          import os
-          import shutil
-          from hashlib import sha256
-          from pathlib import Path
-
-          from scripts.datagen.bank import read_v2_bank
-          from phoenix.datagen.fetcher import fetch_scenario, load_asset_index
-          from phoenix.datagen.loader import load_scenario
-
-          archive_name = os.environ["ARCHIVE_NAME"]
-          asset_schema_version = int(os.environ["ASSET_SCHEMA_VERSION"])
-          pass_id = os.environ["PASS_ID"]
-          source_run_id = os.environ["SOURCE_RUN_ID"]
-          scenario = archive_name.removesuffix(".tar.gz")
-          archive = Path("incoming") / archive_name
-          archive_bytes = archive.read_bytes()
-          archive_digest = sha256(archive_bytes).hexdigest()
-          archive_size = len(archive_bytes)
-
-          if asset_schema_version == 2:
-              bank = read_v2_bank(archive)
-              manifest = bank.manifest
-              fragment_count = manifest["fragment_count"]
-              archetypes = sorted({fragment.archetype for fragment in bank.fragments})
-          else:
-              bank = None
-              fragment_count = 0
-              archetypes = []
-
-          validation_index = Path("publication/validation-index.json")
-          validation_index.parent.mkdir(parents=True, exist_ok=True)
-          validation_index.write_text(
-              json.dumps(
-                  {
-                      "schema_version": 2,
-                      "scenarios": {
-                          scenario: {
-                              "url": f"https://assets.invalid/{archive_name}",
-                              "sha256": archive_digest,
-                              "size_bytes": archive_size,
-                              "asset_schema_version": asset_schema_version,
-                              "fragment_count": fragment_count,
-                              "archetypes": archetypes,
-                          }
-                      },
-                  }
-              ),
-              encoding="utf-8",
-          )
-          extracted = fetch_scenario(
-              scenario,
-              cache_dir=Path("publication/validation-cache"),
-              index_path=validation_index,
-              downloader=lambda _url, destination: shutil.copyfile(archive, destination),
-          )
-          loaded = load_scenario(extracted)
-          if loaded.schema_version != asset_schema_version:
-              raise SystemExit("loaded scenario schema version differs from the workflow input")
-          manifest_name = loaded.manifest.get("scenario_name") or loaded.manifest.get("scenario")
-          if manifest_name != scenario:
-              raise SystemExit(
-                  f"archive name {archive_name!r} does not match manifest scenario {manifest_name!r}"
-              )
-
-          object_name = (
-              f"{os.environ['GCS_PREFIX']}/scenarios/{scenario}/{archive_digest}/{archive_name}"
-          )
-          public_url = (
-              f"https://storage.googleapis.com/{os.environ['GCS_BUCKET']}/{object_name}"
-          )
-          index_path = Path("incoming/index.json")
-          index = json.loads(index_path.read_text(encoding="utf-8"))
-          if index.get("schema_version") != 2 or not isinstance(index.get("scenarios"), dict):
-              raise SystemExit(f"invalid datagen asset index: {index_path}")
-          index["scenarios"][scenario] = {
-              "url": public_url,
-              "sha256": archive_digest,
-              "size_bytes": archive_size,
-              "asset_schema_version": asset_schema_version,
-              "fragment_count": fragment_count,
-              "archetypes": archetypes,
-          }
-
-          staged_index = Path("publication/index.json")
-          staged_index.write_text(json.dumps(index, indent=2, sort_keys=True) + "\n")
-          entry = load_asset_index(staged_index)[scenario]
-          if (
-              entry.sha256 != archive_digest
-              or entry.size_bytes != archive_size
-              or entry.asset_schema_version != asset_schema_version
-              or entry.fragment_count != fragment_count
-              or entry.archetypes != tuple(archetypes)
-          ):
-              raise SystemExit("staged asset index does not describe the validated archive")
-
-          summary_lines = [
-              f"# Datagen asset publication: {scenario}",
-              "",
-              f"- Publication pass: {pass_id}",
-              f"- Source workflow run: {source_run_id}",
-              f"- Asset schema version: {asset_schema_version}",
-              f"- Archive SHA-256: {archive_digest}",
-              f"- Archive bytes: {archive_size}",
-              f"- GCS object: gs://{os.environ['GCS_BUCKET']}/{object_name}",
-          ]
-          if bank is not None:
-              quality = bank.manifest["quality_gate_summary"]
-              summary_lines.extend(
-                  [
-                      f"- Accepted fragments: {quality['accepted']}",
-                      f"- Rejected fragments: {quality['rejected']}",
-                      f"- Traces: {bank.manifest['trace_count']}",
-                      f"- Spans: {bank.manifest['span_count']}",
-                      f"- Archetypes: {', '.join(archetypes)}",
-                  ]
-              )
-          summary_path = Path("publication/generation-summary.md")
-          summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
-
-          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
-              output.write(f"archive_digest={archive_digest}\n")
-              output.write(f"archive_path={archive}\n")
-              output.write(f"object_name={object_name}\n")
-              output.write(f"scenario={scenario}\n")
-              output.write(f"summary_path={summary_path}\n")
-          PY
-
-          cat publication/generation-summary.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload the reviewable publication metadata
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: datagen-assets-${{ inputs.pass_id }}-publication
-          path: |
-            publication/generation-summary.md
-            publication/index.json
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Validate Google Cloud identity configuration
-        env:
-          SERVICE_ACCOUNT: ${{ vars.GCP_DATAGEN_ASSETS_SERVICE_ACCOUNT }}
-          WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-        run: |
-          set -euo pipefail
-          [[ -n "$WORKLOAD_IDENTITY_PROVIDER" ]]
-          [[ -n "$SERVICE_ACCOUNT" ]]
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@b7593ed2efd1c1617e1b0254da33b86225adb2a5 # v2.1.12
-        with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_DATAGEN_ASSETS_SERVICE_ACCOUNT }}
-
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@cb1e50a9932213ecece00a606661ae9ca44f3397 # v2.2.0
-
-      - name: Publish the archive and index to GCS
-        env:
-          ARCHIVE_PATH: ${{ steps.validate.outputs.archive_path }}
-          OBJECT_NAME: ${{ steps.validate.outputs.object_name }}
-        run: |
-          set -euo pipefail
-          gcloud storage cp --no-clobber \
-            --cache-control="public,max-age=31536000,immutable" \
-            "$ARCHIVE_PATH" "gs://$GCS_BUCKET/$OBJECT_NAME"
-          gcloud storage cp \
-            --cache-control="no-cache,max-age=0" \
-            publication/index.json "gs://$GCS_BUCKET/$GCS_PREFIX/index.json"
+          uv run --frozen python -m scripts.datagen.publish validate \
+            --archive "incoming/$ARCHIVE_NAME" \
+            --asset-schema-version "$ASSET_SCHEMA_VERSION"

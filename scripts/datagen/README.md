@@ -65,7 +65,7 @@ tool schema, so the same provider backs every recorder below.
 `openai_chat_sessions` and `langchain_agent_rag` write the starter assets. Both default
 `--output-dir` to their directory under `dist/datagen-assets/`, replacing that scenario's
 `traces.jsonl` and regenerating `manifest.json` from the spans actually recorded. The `dist/`
-output is intentionally untracked; package it and publish it through the asset workflow.
+output is intentionally untracked; package, validate, and publish it manually.
 
 ```console
 OPENAI_API_KEY=datagen-dummy-key OPENAI_BASE_URL=http://127.0.0.1:8765/v1 \
@@ -136,34 +136,35 @@ HTTPS archive URLs. `XDG_CACHE_HOME` controls the cache root; otherwise Phoenix 
 
 ## Publishing a scenario archive
 
-Package an accepted generation run with `package_generation_run` from `scripts.datagen.bank`, then
-upload the resulting `<scenario-name>.tar.gz` file as the only file in a workflow artifact. Keep
-the source workflow run ID and artifact name; the publication workflow downloads that immutable
-input rather than running generation again. Legacy schema-v1 starter archives may contain the
-unchanged `manifest.json` and `traces.jsonl` under a single `<scenario-name>/` directory.
+Publication is an owner-run operation. Prepare a schema-v2 generation run locally with:
 
-Run the **Publish datagen assets** workflow with a unique lowercase `pass_id`, the source workflow
-run ID, the artifact name, the exact archive filename, and its schema version. The workflow uploads
-the archive to a digest-addressed object under `gs://<bucket>/<prefix>/scenarios/` and then replaces
-the public index. Its fixed concurrency group prevents simultaneous publications from losing an
-index update.
-
-Before any object is published, the workflow requires exactly one downloaded file and validates it
-through the runtime fetch and load path. Schema-v2 banks also pass `read_v2_bank`, which checks the
-canonical archive layout, manifest schema, per-file digests and sizes, trace membership, and
-manifest counts. The archive filename must match the manifest scenario name, and the staged index
-entry must pass Phoenix's runtime parser. Any mismatch stops the pass before GCS mutation.
-
-The workflow writes the archive digest, object path, and validated bank counts to the GitHub Actions
-step summary. It also uploads a `datagen-assets-<pass_id>-publication` artifact containing:
-
-```text
-generation-summary.md
-index.json
+```console
+uv run python -m scripts.datagen.publish prepare-run <run-dir> \
+  --scenario-name <scenario-name> \
+  --generated-at <ISO-8601-UTC-timestamp> \
+  --generation-revision <git-revision> \
+  --instrumenter-package <distribution>=<version> \
+  --output-dir dist/datagen-publication
 ```
 
-The GCS upload uses Workload Identity Federation. Configure repository variables
-`GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_DATAGEN_ASSETS_SERVICE_ACCOUNT`. The bucket defaults to
-the existing public `arize-phoenix-assets` bucket and the `datagen` prefix; override them with
-`DATAGEN_ASSETS_GCS_BUCKET` and `DATAGEN_ASSETS_GCS_PREFIX`. The publishing identity needs object
-create permission under the scenario prefix and object update permission for `index.json`.
+Repeat `--instrumenter-package` for every recorder dependency represented in the run. For an
+already packaged schema-v1 or schema-v2 archive, use `prepare-archive --archive <archive>
+--asset-schema-version <1-or-2>` instead. Both commands validate the canonical archive through the
+runtime fetch and load path, fetch the current public index, stage the archive under its SHA-256,
+write the next `index.json`, and print the exact upload commands.
+
+Review the staged index, then run the printed commands in order. They have this form:
+
+```console
+gcloud storage cp --no-clobber \
+  --cache-control="public,max-age=31536000,immutable" \
+  "dist/datagen-publication/scenarios/<scenario>/<sha256>/<scenario>.tar.gz" \
+  "gs://arize-phoenix-assets/datagen/scenarios/<scenario>/<sha256>/<scenario>.tar.gz"
+gcloud storage cp \
+  --cache-control="no-cache,max-age=0" \
+  "dist/datagen-publication/index.json" \
+  "gs://arize-phoenix-assets/datagen/index.json"
+```
+
+Upload the immutable archive first and the index last. Re-run the preparation command immediately
+before publishing so the staged index is based on the current remote index.
