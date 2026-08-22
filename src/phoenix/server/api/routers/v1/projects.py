@@ -1,8 +1,9 @@
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
@@ -20,7 +21,13 @@ from phoenix.server.api.routers.v1.utils import (
     get_project_by_identifier,
 )
 from phoenix.server.api.types.Project import Project as ProjectNodeType
-from phoenix.server.authorization import is_not_locked, require_admin
+from phoenix.server.authorization import (
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    require_admin,
+    restrict_access_by_viewers,
+)
+from phoenix.server.dml_event import SpanDeleteEvent
 
 router = APIRouter(tags=["projects"])
 
@@ -320,6 +327,67 @@ async def delete_project(
             )
 
         await session.delete(project)
+    return None
+
+
+class ClearProjectRequestBody(V1RoutesBaseModel):
+    end_time: Optional[datetime] = Field(
+        default=None,
+        description=(
+            "Right-open cutoff: only traces that started strictly before this time are "
+            "deleted. Omit to clear every trace in the project."
+        ),
+    )
+
+
+@router.post(
+    "/projects/{project_identifier}/clear",
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
+    operation_id="clearProject",
+    summary="Clear a project's traces",
+    description=(
+        "Delete all traces in a project without deleting the project itself, so ingestion "
+        "can continue against the same project. Supply `end_time` to clear only traces that "
+        "started before that time. Unlike DELETE /projects/{project_identifier}, the project "
+        "and its configuration are preserved."
+    ),
+    response_description="No content returned on successful clear",
+    status_code=204,
+    responses=add_errors_to_responses([404, 422]),
+)
+async def clear_project(
+    request: Request,
+    project_identifier: str = Path(
+        description="The project identifier: either project ID or project name.",
+    ),
+    request_body: Optional[ClearProjectRequestBody] = None,
+) -> None:
+    end_time = request_body.end_time if request_body is not None else None
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        delete_statement = (
+            delete(models.Trace)
+            .where(models.Trace.project_rowid == project.id)
+            .returning(models.Trace.project_session_rowid)
+        )
+        if end_time:
+            delete_statement = delete_statement.where(models.Trace.start_time < end_time)
+        deleted_trace_project_session_ids = await session.scalars(delete_statement)
+        session_ids_to_delete = [
+            id_ for id_ in set(deleted_trace_project_session_ids) if id_ is not None
+        ]
+        # Chunked to stay under PostgreSQL's bind-parameter limit, mirroring clearProject.
+        chunk_size = 10000
+        stmt = delete(models.ProjectSession)
+        for i in range(0, len(session_ids_to_delete), chunk_size):
+            chunk = session_ids_to_delete[i : i + chunk_size]
+            await session.execute(stmt.where(models.ProjectSession.id.in_(chunk)))
+        project_rowid = project.id
+    request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
     return None
 
 

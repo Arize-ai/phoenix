@@ -7009,6 +7009,81 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/clear": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Clear a project's traces",
+        "description": "Delete all traces in a project without deleting the project itself, so ingestion can continue against the same project. Supply `end_time` to clear only traces that started before that time. Unlike DELETE /projects/{project_identifier}, the project and its configuration are preserved.",
+        "operationId": "clearProject",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ClearProjectRequestBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No content returned on successful clear"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/sessions/{session_identifier}": {
       "get": {
         "tags": [
@@ -10935,6 +11010,25 @@
         ],
         "title": "ChatRequestBody",
         "description": "Assistant chat submit request payload."
+      },
+      "ClearProjectRequestBody": {
+        "properties": {
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time",
+            "description": "Right-open cutoff: only traces that started strictly before this time are deleted. Omit to clear every trace in the project."
+          }
+        },
+        "type": "object",
+        "title": "ClearProjectRequestBody"
       },
       "CodeEvaluatorContext": {
         "properties": {

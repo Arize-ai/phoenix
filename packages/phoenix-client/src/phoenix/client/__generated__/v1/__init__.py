@@ -115,6 +115,10 @@ class ChatCompletionUsagePromptTokensDetails(TypedDict):
     cached_tokens: int
 
 
+class ClearProjectRequestBody(TypedDict):
+    end_time: NotRequired[str]
+
+
 class CodeEvaluatorContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]

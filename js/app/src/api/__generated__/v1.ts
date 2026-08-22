@@ -1185,6 +1185,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear a project's traces
+         * @description Delete all traces in a project without deleting the project itself, so ingestion can continue against the same project. Supply `end_time` to clear only traces that started before that time. Unlike DELETE /projects/{project_identifier}, the project and its configuration are preserved.
+         */
+        post: operations["clearProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_identifier}": {
         parameters: {
             query?: never;
@@ -2387,6 +2407,14 @@ export interface components {
              * @default false
              */
             instrumentUserId?: boolean;
+        };
+        /** ClearProjectRequestBody */
+        ClearProjectRequestBody: {
+            /**
+             * End Time
+             * @description Right-open cutoff: only traces that started strictly before this time are deleted. Omit to clear every trace in the project.
+             */
+            end_time?: string | null;
         };
         /**
          * CodeEvaluatorContext
@@ -11262,6 +11290,58 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description No content returned on successful deletion */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    clearProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ClearProjectRequestBody"] | null;
+            };
+        };
+        responses: {
+            /** @description No content returned on successful clear */
             204: {
                 headers: {
                     [name: string]: unknown;

@@ -2263,6 +2263,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
     (422, "POST", "v1/experiments/fake-id-{}/tags"),
     (422, "POST", "v1/projects"),
+    (404, "POST", "v1/projects/fake-id-{}/clear"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import string
+from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any
 from urllib.parse import quote
@@ -1022,3 +1023,164 @@ class TestProjects:
         for i, p in enumerate(projects):
             print(f"Created test project {i + 1}: id={p.id}, name='{p.name}'")
         return projects
+
+
+class TestClearProject:
+    """POST /projects/{project_identifier}/clear"""
+
+    @staticmethod
+    async def _project_with_traces(
+        db: DbSessionFactory,
+        num_traces: int = 3,
+    ) -> tuple[models.Project, list[models.Trace]]:
+        """Create a project whose traces start on consecutive days from 2024-01-01."""
+        async with db() as session:
+            project = models.Project(name=token_hex(16), description=token_hex(16))
+            session.add(project)
+            await session.flush()
+            traces = []
+            for i in range(num_traces):
+                trace = models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project.id,
+                    start_time=datetime(2024, 1, 1 + i, tzinfo=timezone.utc),
+                    end_time=datetime(2024, 1, 1 + i, 0, 1, tzinfo=timezone.utc),
+                )
+                session.add(trace)
+                traces.append(trace)
+            await session.flush()
+        return project, traces
+
+    @staticmethod
+    async def _trace_count(db: DbSessionFactory, project_rowid: int) -> int:
+        async with db() as session:
+            return len(
+                (
+                    await session.scalars(
+                        select(models.Trace.id).where(models.Trace.project_rowid == project_rowid)
+                    )
+                ).all()
+            )
+
+    async def test_clear_removes_all_traces_but_keeps_project(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 3)
+        response = await httpx_client.post(f"v1/projects/{project.name}/clear")
+        assert response.status_code == 204
+        assert await self._trace_count(db, project.id) == 0
+        # The project itself survives so ingestion can continue against it.
+        async with db() as session:
+            assert await session.get(models.Project, project.id) is not None
+
+    async def test_clear_accepts_project_global_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 2)
+        gid = str(GlobalID(Project.__name__, str(project.id)))
+        response = await httpx_client.post(f"v1/projects/{gid}/clear")
+        assert response.status_code == 204
+        assert await self._trace_count(db, project.id) == 0
+
+    async def test_clear_respects_end_time_cutoff(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """end_time is right-open: only traces starting strictly before it are deleted."""
+        project, _ = await self._project_with_traces(db, 3)  # Jan 1, 2, 3
+        response = await httpx_client.post(
+            f"v1/projects/{project.name}/clear",
+            json={"end_time": "2024-01-03T00:00:00Z"},
+        )
+        assert response.status_code == 204
+        # Jan 1 and Jan 2 deleted; Jan 3 survives because the bound is non-inclusive.
+        async with db() as session:
+            remaining = (
+                await session.scalars(
+                    select(models.Trace.start_time).where(models.Trace.project_rowid == project.id)
+                )
+            ).all()
+        assert len(remaining) == 1
+
+    async def test_clear_leaves_other_projects_untouched(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        target, _ = await self._project_with_traces(db, 2)
+        bystander, _ = await self._project_with_traces(db, 2)
+        response = await httpx_client.post(f"v1/projects/{target.name}/clear")
+        assert response.status_code == 204
+        assert await self._trace_count(db, target.id) == 0
+        assert await self._trace_count(db, bystander.id) == 2
+
+    async def test_clear_deletes_orphaned_project_sessions(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(16))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                session_id=token_hex(16),
+                project_id=project.id,
+                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2024, 1, 1, 0, 5, tzinfo=timezone.utc),
+            )
+            session.add(project_session)
+            await session.flush()
+            session.add(
+                models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project.id,
+                    project_session_rowid=project_session.id,
+                    start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                    end_time=datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
+                )
+            )
+            await session.flush()
+            session_rowid = project_session.id
+
+        response = await httpx_client.post(f"v1/projects/{project.name}/clear")
+        assert response.status_code == 204
+        async with db() as session:
+            assert await session.get(models.ProjectSession, session_rowid) is None
+
+    async def test_clear_empty_project_is_a_noop(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(16))
+            session.add(project)
+            await session.flush()
+        response = await httpx_client.post(f"v1/projects/{project.name}/clear")
+        assert response.status_code == 204
+
+    async def test_clear_unknown_project_returns_404(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        response = await httpx_client.post(f"v1/projects/{token_hex(16)}/clear")
+        assert response.status_code == 404
+
+    async def test_clear_rejects_malformed_end_time(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 1)
+        response = await httpx_client.post(
+            f"v1/projects/{project.name}/clear",
+            json={"end_time": "not-a-timestamp"},
+        )
+        assert response.status_code == 422
+        assert await self._trace_count(db, project.id) == 1
