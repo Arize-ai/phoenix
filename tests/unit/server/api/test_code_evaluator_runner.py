@@ -152,6 +152,14 @@ class TestHarnessGeneration:
         harness = runner._build_python_harness({"city": "Paris"})
         assert "Paris" in harness
 
+    def test_python_harness_executes_with_non_finite_float_inputs(self) -> None:
+        """Regression test for NameError on nan/inf inputs, see _build_python_harness."""
+        runner, _ = _make_runner()
+        harness = runner._build_python_harness(
+            {"nan": float("nan"), "pos_inf": float("inf"), "neg_inf": float("-inf")}
+        )
+        exec(compile(harness, "<harness>", "exec"), {})
+
     def test_typescript_harness_contains_source_code(self) -> None:
         runner, _ = _make_runner(
             source_code="function evaluate(x) { return 1; }", language="TYPESCRIPT"
