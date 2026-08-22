@@ -418,7 +418,8 @@ export type DSLFilterConditionFieldProps<
  * warnings, and composed error states (e.g. an AI conversion failure) so
  * they read identically. `children` is the tooltip's detail below the
  * title. `severity` defaults to danger; warnings render the same shell in
- * the warning palette.
+ * the warning palette. Omit `badgeMessage` for an icon-only indicator so
+ * the truncated copy cannot cover the editor.
  */
 export function DSLFilterErrorBadge({
   ariaLabel,
@@ -428,7 +429,7 @@ export function DSLFilterErrorBadge({
   children,
 }: {
   ariaLabel: string;
-  badgeMessage: string;
+  badgeMessage?: string;
   title: string;
   severity?: "danger" | "warning";
   children?: ReactNode;
@@ -444,7 +445,9 @@ export function DSLFilterErrorBadge({
           aria-label={ariaLabel}
         >
           <Icon svg={<Icons.AlertCircle />} color={severity} />
-          <span className="error-badge__message">{badgeMessage}</span>
+          {badgeMessage ? (
+            <span className="error-badge__message">{badgeMessage}</span>
+          ) : null}
         </div>
       </Pressable>
       <Tooltip placement="bottom end" css={dslFilterErrorTooltipCSS}>
@@ -470,12 +473,12 @@ export function DSLFilterErrorBadge({
  * `snippets`, `loadCompletions`, and `validateCondition`.
  *
  * The typeahead is the only floating surface the field opens on its own.
- * Validation errors surface passively — an in-field danger badge previewing
- * the (truncated) error once the typed text has settled and been confirmed
- * invalid (intermediate keystrokes are not flagged), whose tooltip shows the
- * full error on hover or focus, plus a red border once the user leaves the
- * field — so an error can never fight the suggestions dropdown for the same
- * space.
+ * Validation errors surface passively - a compact in-field danger icon once
+ * the typed text has settled and been confirmed invalid (intermediate
+ * keystrokes are not flagged), whose tooltip shows the full error on hover
+ * or focus, plus a red border once the user leaves the field - so an error
+ * can never fight the suggestions dropdown for the same space or cover the
+ * end of the expression.
  *
  * The field knows nothing beyond the DSL. Richer behaviors compose in from
  * outside through `extensions` (keymaps), `variant` (prose input in the same
@@ -853,7 +856,6 @@ export function DSLFilterConditionField<
           value={value}
           onChange={onChange}
           height="36px"
-          width="100%"
           theme={codeMirrorTheme}
           placeholder={placeholder}
           extensions={extensions}
@@ -863,13 +865,13 @@ export function DSLFilterConditionField<
             <DSLFilterErrorBadge
               severity={hasError ? "danger" : "warning"}
               ariaLabel={
-                hasError ? "Filter condition error" : "Filter condition warning"
-              }
-              badgeMessage={
                 hasError
-                  ? errorMessage || "Invalid filter condition"
-                  : warnings[0]
+                  ? errorMessage
+                    ? `Filter condition error: ${errorMessage}`
+                    : "Filter condition error"
+                  : "Filter condition warning"
               }
+              badgeMessage={hasError ? undefined : warnings[0]}
               title={
                 hasError
                   ? "Invalid filter condition"
