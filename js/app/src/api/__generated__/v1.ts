@@ -857,7 +857,7 @@ export interface paths {
         };
         /**
          * Search spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
+         * @description Return whole span records in OTLP form within a project, filtered by time range, with cursor-based pagination. Each span includes its full attributes, so a page is large; to count, group, average or rank spans, use executeSql instead of paging and reducing them.
          */
         get: operations["spanSearch"];
         put?: never;
@@ -877,7 +877,7 @@ export interface paths {
         };
         /**
          * List spans with simple filters (no DSL)
-         * @description Return spans within a project filtered by time range. Supports cursor-based pagination.
+         * @description Return whole span records within a project, filtered by time range, with cursor-based pagination. Each span includes its full attributes, so a page is large; to count, group, average or rank spans, use executeSql instead of paging and reducing them.
          */
         get: operations["getSpans"];
         put?: never;
