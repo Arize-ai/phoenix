@@ -9,6 +9,7 @@ from __future__ import annotations
 import contextlib
 import logging
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,7 +27,7 @@ from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
 from harbor.models.trial.result import TrialResult
 from harbor.trial.hooks import HookCallback, TrialHookEvent
 
-from phoenix.client.harbor import PhoenixJobPlugin
+from phoenix.client.harbor import DEFAULT_EXPERIMENT_NAME_TEMPLATE, PhoenixJobPlugin
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import (
     DatasetIdentity,
@@ -181,7 +182,28 @@ class TestConfiguration:
         plugin = PhoenixJobPlugin()
         assert plugin.trace_mode == "atif"
         assert plugin.dataset is None
-        assert "{agent}" in plugin.experiment_name_template
+        assert plugin.experiment_name is None
+        assert plugin.experiment_name_template == DEFAULT_EXPERIMENT_NAME_TEMPLATE
+
+    def test_exact_name_and_template_are_mutually_exclusive(self) -> None:
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            PhoenixJobPlugin(
+                experiment_name="baseline",
+                experiment_name_template="{job.name}",
+            )
+
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_empty_exact_name_is_rejected(self, value: str) -> None:
+        with pytest.raises(ValueError, match="must not be empty"):
+            PhoenixJobPlugin(experiment_name=value)
+
+    def test_unknown_template_field_is_rejected_at_construction(self) -> None:
+        with pytest.raises(ValueError, match=r"agent\.model_name.*agent\.model"):
+            PhoenixJobPlugin(experiment_name_template="{agent.model_name}")
+
+    def test_flat_template_fields_are_not_supported(self) -> None:
+        with pytest.raises(ValueError, match="'agent'"):
+            PhoenixJobPlugin(experiment_name_template="{agent}")
 
     def test_unsupported_trace_mode_is_rejected_at_construction(self) -> None:
         with pytest.raises(ValueError, match="unsupported trace_mode"):
@@ -208,6 +230,35 @@ class TestJobStart:
         assert wired.experiments.created[0]["dataset_version_id"] == "version-1"
         assert job.started_hook is not None
         assert job.ended_hook is not None
+
+    async def test_exact_name_is_used_for_one_experiment_slice(self, wired: FakeClient) -> None:
+        await PhoenixJobPlugin(experiment_name="{literal baseline}").on_job_start(FakeJob())
+
+        assert wired.experiments.created[0]["experiment_name"] == "{literal baseline}"
+
+    async def test_exact_name_rejects_multiple_experiment_slices_before_upload(
+        self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient
+    ) -> None:
+        second_agent = AgentConfig(name="claude-code", model_name="opus")
+        second_slice = ExperimentSlice(
+            identity_digest="sha256:" + "2" * 64,
+            agent=second_agent,
+        )
+        multi_slice_plan = replace(PLAN, slices=(*PLAN.slices, second_slice))
+
+        def _build(job: object, *, dataset_override: str | None = None) -> JobPlan:
+            del job, dataset_override
+            return multi_slice_plan
+
+        monkeypatch.setattr(
+            "phoenix.client.harbor._plugin.build_job_plan",
+            _build,
+        )
+
+        with pytest.raises(HarborPluginError, match="one experiment slice"):
+            await PhoenixJobPlugin(experiment_name="baseline").on_job_start(FakeJob())
+
+        assert wired.datasets.calls == []
 
     async def test_dataset_override_is_passed_to_the_adapter(
         self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient

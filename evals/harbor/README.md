@@ -46,6 +46,41 @@ A single direct task uses `harbor-task/<declared task name>` as its Phoenix data
 For several direct tasks, pass `--plugin-kwarg dataset=<name>` to name the synthetic
 dataset explicitly.
 
+## Experiment names
+
+When a Harbor job has one agent configuration, give its Phoenix experiment an exact name with:
+
+```bash
+--plugin-kwarg experiment_name=my-baseline
+```
+
+An exact name is literal, so braces have no formatting behavior. Jobs with several agent
+configurations create one Phoenix experiment per configuration and must use a template instead:
+
+```bash
+--plugin-kwarg 'experiment_name_template={job.name} · {agent.name} · {agent.model}'
+```
+
+The available template fields are:
+
+| Field | Value |
+| --- | --- |
+| `{job.name}` | Harbor job name, falling back to the job ID |
+| `{job.id}` | Unique Harbor job ID |
+| `{dataset.name}` | Phoenix dataset name |
+| `{agent.name}` | Harbor agent name |
+| `{agent.model}` | Configured model name, or `default` |
+| `{agent.short_digest}` | First twelve characters of the agent configuration digest |
+
+Python callers can inspect the same field catalog through
+`phoenix.client.harbor.EXPERIMENT_NAME_TEMPLATE_FIELDS`. Standard format specifications work for
+the string-valued fields.
+
+The plugin identifies an experiment by its Harbor job ID, Phoenix dataset version, and agent
+configuration digest, not by its display name. Two jobs may use the same exact name without being
+treated as the same experiment. Include `{job.name}` or `{job.id}` when those jobs should also be
+easy to distinguish by name in Phoenix.
+
 Both trial targets accept overrides, e.g.:
 
 ```bash

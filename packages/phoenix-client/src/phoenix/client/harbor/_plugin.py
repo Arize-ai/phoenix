@@ -29,8 +29,11 @@ from phoenix.client.client import (
 from phoenix.client.harbor._adapter import build_job_plan, existing_trial_results
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import JobPlan
+from phoenix.client.harbor._naming import (
+    validate_experiment_name_for_plan,
+    validate_experiment_naming,
+)
 from phoenix.client.harbor._recorder import (
-    DEFAULT_EXPERIMENT_NAME_TEMPLATE,
     DatasetSnapshot,
     ExperimentHandle,
     PhoenixRecorder,
@@ -56,8 +59,18 @@ class PhoenixJobPlugin(BaseJobPlugin):
         api_key: str | None = None,
         project: str | None = None,
         trace_mode: TraceMode = "atif",
-        experiment_name_template: str = DEFAULT_EXPERIMENT_NAME_TEMPLATE,
+        experiment_name: str | None = None,
+        experiment_name_template: str | None = None,
     ) -> None:
+        """Configure Phoenix recording for a Harbor job.
+
+        Args:
+            experiment_name: Exact Phoenix experiment name. This is only valid when the Harbor
+                job resolves one experiment slice.
+            experiment_name_template: Format string used to name one Phoenix experiment per
+                resolved agent configuration. Supported fields are published in
+                ``EXPERIMENT_NAME_TEMPLATE_FIELDS``.
+        """
         super().__init__()
         if trace_mode not in _TRACE_MODES:
             raise ValueError(f"unsupported trace_mode: {trace_mode!r}")
@@ -68,7 +81,10 @@ class PhoenixJobPlugin(BaseJobPlugin):
         self.project = project or get_env_project_name()
         # TODO: Implement trace export for the selected mode.
         self.trace_mode: TraceMode = trace_mode
-        self.experiment_name_template = experiment_name_template
+        self.experiment_name, self.experiment_name_template = validate_experiment_naming(
+            experiment_name=experiment_name,
+            experiment_name_template=experiment_name_template,
+        )
 
         self.plan: JobPlan | None = None
         self.snapshot: DatasetSnapshot | None = None
@@ -82,10 +98,12 @@ class PhoenixJobPlugin(BaseJobPlugin):
     @override
     async def on_job_start(self, job: Job) -> None:
         plan = build_job_plan(job, dataset_override=self.dataset)
+        validate_experiment_name_for_plan(plan, experiment_name=self.experiment_name)
         resumed_trials = existing_trial_results(job)
         async with self._open_client() as client:
             recorder = PhoenixRecorder(
                 client,
+                experiment_name=self.experiment_name,
                 experiment_name_template=self.experiment_name_template,
             )
             snapshot = await recorder.sync_dataset(plan)
@@ -191,6 +209,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
             async with self._open_client() as client:
                 live_recorder = PhoenixRecorder(
                     client,
+                    experiment_name=self.experiment_name,
                     experiment_name_template=self.experiment_name_template,
                 )
                 run = await live_recorder.record_trial(

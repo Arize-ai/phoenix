@@ -18,17 +18,22 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
+from phoenix.client.harbor._naming import (
+    DEFAULT_EXPERIMENT_NAME_TEMPLATE,
+    EXPERIMENT_NAME_TEMPLATE_FIELDS,
+    experiment_names,
+    validate_experiment_naming,
+)
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "DEFAULT_EXPERIMENT_NAME_TEMPLATE",
+    "EXPERIMENT_NAME_TEMPLATE_FIELDS",
     "DatasetSnapshot",
     "ExperimentHandle",
     "PhoenixRecorder",
 ]
-
-DEFAULT_EXPERIMENT_NAME_TEMPLATE = "{job_name} · {agent} · {model}"
 
 _INTEGRATION = "harbor"
 
@@ -59,10 +64,14 @@ class PhoenixRecorder:
         self,
         client: AsyncClient,
         *,
-        experiment_name_template: str = DEFAULT_EXPERIMENT_NAME_TEMPLATE,
+        experiment_name: str | None = None,
+        experiment_name_template: str | None = None,
     ) -> None:
         self._client = client
-        self._experiment_name_template = experiment_name_template
+        self._experiment_name, self._experiment_name_template = validate_experiment_naming(
+            experiment_name=experiment_name,
+            experiment_name_template=experiment_name_template,
+        )
 
     async def sync_dataset(self, plan: JobPlan) -> DatasetSnapshot:
         """Create the dataset or replace its contents with a new version."""
@@ -114,6 +123,11 @@ class PhoenixRecorder:
         snapshot: DatasetSnapshot,
     ) -> dict[str, ExperimentHandle]:
         """Resolve one experiment per agent configuration."""
+        names = experiment_names(
+            plan,
+            experiment_name=self._experiment_name,
+            experiment_name_template=self._experiment_name_template,
+        )
         try:
             existing = await self._client.experiments.list(dataset_id=snapshot.dataset_id)
         except Exception as error:
@@ -121,7 +135,6 @@ class PhoenixRecorder:
                 f"Could not list Phoenix experiments for dataset {plan.dataset.name!r}: {error}"
             ) from error
 
-        names = _experiment_names(plan, self._experiment_name_template)
         handles: dict[str, ExperimentHandle] = {}
         for experiment_slice in plan.slices:
             identity = experiment_identity(plan, snapshot, experiment_slice)
@@ -439,40 +452,3 @@ def _trial_error(trial_result: TrialResult) -> str | None:
     if error is None:
         return None
     return f"{error.exception_type}: {error.exception_message}"
-
-
-def _experiment_names(plan: JobPlan, template: str) -> dict[str, str]:
-    """Render experiment names and add a digest to collisions."""
-    rendered: dict[str, str] = {}
-    for experiment_slice in plan.slices:
-        rendered[experiment_slice.identity_digest] = _render_name(template, plan, experiment_slice)
-    counts: dict[str, int] = {}
-    for name in rendered.values():
-        counts[name] = counts.get(name, 0) + 1
-    return {
-        digest: (f"{name} · {plan.slice_for(digest).short_identity}" if counts[name] > 1 else name)
-        for digest, name in rendered.items()
-    }
-
-
-def _render_name(template: str, plan: JobPlan, experiment_slice: ExperimentSlice) -> str:
-    fields = {
-        "job_name": plan.job_name or plan.job_id,
-        "job_id": plan.job_id,
-        "dataset": plan.dataset.name,
-        "agent": experiment_slice.agent_name,
-        "model": experiment_slice.model_name or "default",
-    }
-    try:
-        name = template.format(**fields)
-    except (KeyError, IndexError, ValueError) as error:
-        raise HarborPluginError(
-            f"Invalid experiment_name_template {template!r}: {error}. Available fields: "
-            f"{', '.join(sorted(fields))}."
-        ) from error
-    name = name.strip()
-    if not name:
-        raise HarborPluginError(
-            f"experiment_name_template {template!r} rendered an empty experiment name."
-        )
-    return name

@@ -21,6 +21,7 @@ from harbor.models.job.lock import TaskLock
 from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
 from harbor.models.trial.result import TrialResult
 
+from phoenix.client.harbor import EXPERIMENT_NAME_TEMPLATE_FIELDS
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import (
     DatasetIdentity,
@@ -354,6 +355,27 @@ class TestExperimentIdentity:
             job, other, job.slices[0]
         )
 
+    async def test_two_jobs_can_use_the_same_exact_display_name(self) -> None:
+        first_experiments = FakeExperiments()
+        second_experiments = FakeExperiments()
+        first = plan(job_id="job-1")
+        second = plan(job_id="job-2")
+
+        await recorder(
+            FakeClient(experiments=first_experiments), experiment_name="baseline"
+        ).resolve_experiments(first, SNAPSHOT)
+        await recorder(
+            FakeClient(experiments=second_experiments), experiment_name="baseline"
+        ).resolve_experiments(second, SNAPSHOT)
+
+        first_created = first_experiments.created[0]
+        second_created = second_experiments.created[0]
+        assert first_created["experiment_name"] == second_created["experiment_name"] == "baseline"
+        assert (
+            first_created["experiment_metadata"]["harbor_identity_digest"]
+            != second_created["experiment_metadata"]["harbor_identity_digest"]
+        )
+
 
 class TestExperimentNames:
     async def test_colliding_names_get_digest_suffix(self) -> None:
@@ -371,16 +393,60 @@ class TestExperimentNames:
         experiments = FakeExperiments()
         await recorder(
             FakeClient(experiments=experiments),
-            experiment_name_template="{dataset}/{agent}",
+            experiment_name_template="{dataset.name}/{agent.name}",
         ).resolve_experiments(plan(), SNAPSHOT)
         assert experiments.created[0]["experiment_name"] == "phoenix-evals/claude-code"
 
-    async def test_bad_template_lists_fields(self) -> None:
-        with pytest.raises(HarborPluginError, match="Available fields"):
-            await recorder(
+    async def test_all_template_namespaces_are_available(self) -> None:
+        experiments = FakeExperiments()
+        await recorder(
+            FakeClient(experiments=experiments),
+            experiment_name_template=(
+                "{job.id}/{job.name}/{dataset.name}/{agent.name}/{agent.model}/{agent.short_digest}"
+            ),
+        ).resolve_experiments(plan(), SNAPSHOT)
+
+        assert experiments.created[0]["experiment_name"] == (
+            "job-1/2026-08-18__12-00-00/phoenix-evals/claude-code/sonnet/111111111111"
+        )
+
+    def test_bad_template_lists_fields_at_construction(self) -> None:
+        with pytest.raises(ValueError, match="Available fields"):
+            recorder(
                 FakeClient(experiments=FakeExperiments()),
                 experiment_name_template="{nope}",
-            ).resolve_experiments(plan(), SNAPSHOT)
+            )
+
+    async def test_exact_name_is_used_for_one_slice(self) -> None:
+        experiments = FakeExperiments()
+        await recorder(
+            FakeClient(experiments=experiments),
+            experiment_name="{literal baseline}",
+        ).resolve_experiments(plan(), SNAPSHOT)
+
+        assert experiments.created[0]["experiment_name"] == "{literal baseline}"
+
+    async def test_exact_name_rejects_multiple_slices(self) -> None:
+        experiments = FakeExperiments()
+        job = plan(slice_(model="sonnet", seed="1"), slice_(model="opus", seed="2"))
+
+        with pytest.raises(HarborPluginError, match="one experiment slice"):
+            await recorder(
+                FakeClient(experiments=experiments),
+                experiment_name="baseline",
+            ).resolve_experiments(job, SNAPSHOT)
+
+        assert experiments.created == []
+
+    def test_public_field_catalog_describes_the_supported_fields(self) -> None:
+        assert tuple(EXPERIMENT_NAME_TEMPLATE_FIELDS) == (
+            "job.name",
+            "job.id",
+            "dataset.name",
+            "agent.name",
+            "agent.model",
+            "agent.short_digest",
+        )
 
     async def test_missing_model_uses_default_in_name(self) -> None:
         experiments = FakeExperiments()
