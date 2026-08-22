@@ -436,7 +436,22 @@ def _inputs(tmp_path: Path) -> tuple[Path, Path]:
         "scenarios": [{"scenario_id": "return", "topic": "returns", "template": "Ask about returns.", "weight": 1, "target_seed_ids": ["pressure"]}],
         "quality_tiers": [{"value": "high", "weight": 1}],
         "turn_counts": [{"value": 2, "weight": 1}],
-        "adversarial_seeds": [{"seed_id": "pressure", "category": "pressure", "description": "Urgency."}],
+        "adversarial_seeds": [
+            {
+                "seed_id": "pressure",
+                "category": "pressure",
+                "description": "Urgency.",
+                "mechanics": {
+                    strength: [
+                        {
+                            "route": "Ask for urgent help.",
+                            "simulator_traits": ["The buyer is under time pressure."],
+                        }
+                    ]
+                    for strength in ("subtle", "moderate", "strong")
+                },
+            }
+        ],
     }))
     profiles = tmp_path / "profile-set.json"
     profiles.write_text(json.dumps({"schema_version": 1, "profiles": ["customer_support/plain_chat/profile.json"], "sampling": {}}))
