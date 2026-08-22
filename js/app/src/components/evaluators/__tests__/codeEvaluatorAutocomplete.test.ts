@@ -1,6 +1,14 @@
+import { CompletionContext } from "@codemirror/autocomplete";
+import { python } from "@codemirror/lang-python";
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { createCompletionOptions } from "../codeEvaluatorAutocomplete";
+import {
+  createCompletionOptions,
+  createEvaluatorCompletions,
+} from "../codeEvaluatorAutocomplete";
+import { materializeEvaluatorContext } from "../evaluatorContext";
+import { getEvaluatorSlotDefaults } from "../evaluatorSlotDefaults";
 
 describe("createCompletionOptions", () => {
   const mappingSource = {
@@ -79,5 +87,47 @@ describe("createCompletionOptions", () => {
     );
     expect(typescriptOptions.map((option) => option.label)).toContain("?.");
     expect(typescriptOptions.map((option) => option.label)).toContain("typeof");
+  });
+});
+
+describe("code evaluator body drill", () => {
+  const evaluationContext = materializeEvaluatorContext({
+    grain: "span",
+    evaluatorMappingSource: {
+      grain: "span",
+      source: {
+        input: { attributes: { llm: { model_name: "gpt-4o-mini" } } },
+        output: "Because.",
+        span: {
+          attributes: { llm: { model_name: "gpt-4o-mini" } },
+          output_value: "Because.",
+        },
+      },
+    },
+    inputMapping: { pathMapping: { input: "span" }, literalMapping: {} },
+    slotDefaults: getEvaluatorSlotDefaults("span"),
+    recordVariableValues: { latency_ms: 842.5 },
+  });
+
+  it("offers the container's members and commits them in the editor's language", () => {
+    const source = `def evaluate(input, output):\n    convo = input[`;
+    const state = EditorState.create({
+      doc: source,
+      extensions: [python()],
+    });
+    const result = createEvaluatorCompletions({
+      mappingSource: { input: {}, output: {}, span: {} },
+      language: "PYTHON",
+      evaluationContext,
+    })(new CompletionContext(state, source.length, false));
+
+    expect(result?.options.map((option) => option.label)).toEqual([
+      "attributes",
+      "output_value",
+    ]);
+    expect(result?.options[0]).toMatchObject({
+      info: 'inserts input["attributes"]',
+      section: { name: "input" },
+    });
   });
 });

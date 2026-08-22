@@ -2,39 +2,38 @@ import type {
   Completion,
   CompletionContext,
   CompletionResult,
-  CompletionSection,
 } from "@codemirror/autocomplete";
 import { autocompletion } from "@codemirror/autocomplete";
+import type { EditorState } from "@codemirror/state";
+import type { EditorView } from "@uiw/react-codemirror";
 
+import {
+  getCodeEvaluatorMemberCursor,
+  toCodeEvaluatorAccessor,
+} from "@phoenix/components/evaluators/codeEvaluatorMemberPath";
 import {
   extractCodeEvaluatorVariablesFromState,
   getCodeEvaluatorCompletionPosition,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import type {
-  MaterializedEvaluatorContext,
-  MaterializedEvaluatorContextEntry,
-} from "@phoenix/components/evaluators/evaluatorContext";
-import { toMemberPreview } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
+import {
+  EVALUATOR_INPUT_SECTION,
+  getEvaluatorContextMembers,
+  toEvaluatorCompletionClass,
+  toEvaluatorInputCompletion,
+  toMemberDetail,
+  toMemberSection,
+  toRecordVariableCompletion,
+} from "@phoenix/components/evaluators/evaluatorContextCompletions";
+import {
+  MAX_BROWSE_MEMBERS,
+  toMemberPreview,
+} from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorMappingSource,
 } from "@phoenix/types";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
-
-const EVALUATOR_INPUT_SECTION: CompletionSection = {
-  name: "Evaluator input",
-  rank: 1,
-};
-
-const RECORD_SECTION_BY_GRAIN: Record<
-  MaterializedEvaluatorContext["grain"],
-  CompletionSection
-> = {
-  span: { name: "From the span", rank: 2 },
-  session: { name: "From the session", rank: 2 },
-};
-
-const UNSET_COMPLETION_TYPE = "code-evaluator-unset";
 
 /** Generates a human-readable type description for a value. */
 function getTypeDescription(value: unknown): string {
@@ -156,8 +155,12 @@ export function createCompletionOptions({
   return options;
 }
 
-/** Creates a completion function for the code evaluator editor. */
-function createEvaluatorCompletions({
+/**
+ * Creates a completion function for the code evaluator editor.
+ *
+ * @internal Exported for testing
+ */
+export function createEvaluatorCompletions({
   mappingSource,
   language,
   evaluationContext,
@@ -176,14 +179,27 @@ function createEvaluatorCompletions({
       return null;
     }
 
-    const word = context.matchBefore(/[\w.?]*/);
-    if (!word) {
-      return null;
-    }
     const declaredNames = extractCodeEvaluatorVariablesFromState({
       language,
       state: context.state,
     });
+
+    if (position === "body" && evaluationContext !== null) {
+      const drill = createMemberDrillResult({
+        context,
+        language,
+        evaluationContext,
+        declaredNames,
+      });
+      if (drill !== null) {
+        return drill;
+      }
+    }
+
+    const word = context.matchBefore(/[\w.?]*/);
+    if (!word) {
+      return null;
+    }
     let options: Completion[];
 
     if (position === "signature") {
@@ -319,118 +335,122 @@ function createMemberOptions({
   );
 }
 
-function toEvaluatorInputCompletion({
-  entry,
+/**
+ * The members of the container the cursor is drilling into, written back in
+ * the editor's own language.
+ *
+ * Returns null when the cursor is not inside a member access on a declared
+ * parameter — the body's other positions complete names, not members.
+ */
+function createMemberDrillResult({
+  context,
+  language,
   evaluationContext,
-  index,
+  declaredNames,
 }: {
-  entry: MaterializedEvaluatorContextEntry;
+  context: CompletionContext;
+  language: CodeEvaluatorLanguage;
   evaluationContext: MaterializedEvaluatorContext;
-  index: number;
-}): Completion {
-  return {
-    label: entry.name,
-    type: entry.status === "unset" ? UNSET_COMPLETION_TYPE : "variable",
-    detail: getEvaluatorInputDetail({ entry, evaluationContext }),
-    info: getEvaluatorInputInfo({ entry, evaluationContext }),
-    section: EVALUATOR_INPUT_SECTION,
-    boost: 100 - index,
-  };
-}
-
-function toRecordVariableCompletion({
-  entry,
-  evaluationContext,
-  index,
-}: {
-  entry: MaterializedEvaluatorContextEntry;
-  evaluationContext: MaterializedEvaluatorContext;
-  index: number;
-}): Completion {
-  const preview =
-    entry.status === "resolved" && evaluationContext.hasSampledRecord
-      ? toMemberPreview(entry.value)
-      : "";
-  return {
-    label: entry.name,
-    type: "variable",
-    ...(preview ? { detail: preview } : {}),
-    info: getRecordVariableInfo(entry),
-    section: RECORD_SECTION_BY_GRAIN[evaluationContext.grain],
-    boost: 100 - index,
-  };
-}
-
-function getEvaluatorInputDetail({
-  entry,
-  evaluationContext,
-}: {
-  entry: MaterializedEvaluatorContextEntry;
-  evaluationContext: MaterializedEvaluatorContext;
-}): string {
-  if (entry.status === "unset") {
-    return "not set";
-  }
-  const provenance = entry.provenance;
-  const origin =
-    provenance.kind === "path"
-      ? `← ${provenance.path}`
-      : provenance.kind === "derived"
-        ? `← ${provenance.description}`
-        : provenance.kind === "literal"
-          ? "literal"
-          : "";
-  // An evaluator input's origin is what its row has to teach, so it owns the
-  // detail column; a value preview beside it only crowds out the path.
-  return (
-    origin ||
-    (entry.status === "resolved" && evaluationContext.hasSampledRecord
-      ? toMemberPreview(entry.value)
-      : "")
+  declaredNames: string[];
+}): CompletionResult | null {
+  const line = context.state.doc.lineAt(context.pos);
+  const lineStart = line.from;
+  const cursor = getCodeEvaluatorMemberCursor(
+    context.state.doc.sliceString(lineStart, context.pos)
   );
+  if (cursor === null) {
+    return null;
+  }
+  const rootName = cursor.containerPath.split(/[.[]/, 1)[0];
+  if (rootName === undefined || !declaredNames.includes(rootName)) {
+    return null;
+  }
+  const members = getEvaluatorContextMembers({
+    evaluationContext,
+    containerPath: cursor.containerPath,
+  });
+  if (members.length === 0) {
+    return null;
+  }
+
+  const section = toMemberSection(cursor.containerPath);
+  const accessorFrom = lineStart + cursor.accessorFrom;
+  // The container as the author wrote it, so the info card shows the whole
+  // expression the row commits to rather than the accessor alone.
+  const writtenContainer = context.state.doc.sliceString(
+    lineStart + cursor.expressionFrom,
+    accessorFrom
+  );
+  const browsed =
+    cursor.partial === "" ? members.slice(0, MAX_BROWSE_MEMBERS) : members;
+  const options: Completion[] = browsed.map((member, index) => {
+    const detail = toMemberDetail({ member, evaluationContext });
+    const accessor = toCodeEvaluatorAccessor({
+      language,
+      key: member.key,
+      isIndex: member.isIndex,
+      isAbsent: member.value == null,
+    });
+    return {
+      label: member.key,
+      type: member.isIndex ? "property" : "variable",
+      ...(detail ? { detail } : {}),
+      info: `inserts ${writtenContainer}${accessor}`,
+      section,
+      boost: 100 - index,
+      apply: (
+        view: EditorView,
+        _completion: Completion,
+        _from: number,
+        to: number
+      ) => {
+        const accessorTo = getAccessorEnd({
+          state: view.state,
+          accessorFrom,
+          to,
+        });
+        view.dispatch({
+          changes: { from: accessorFrom, to: accessorTo, insert: accessor },
+          selection: { anchor: accessorFrom + accessor.length },
+        });
+      },
+    };
+  });
+
+  return {
+    from: lineStart + cursor.from,
+    options,
+    validFor: /^\w*$/,
+  };
 }
 
-function getEvaluatorInputInfo({
-  entry,
-  evaluationContext,
+/**
+ * Where the accessor being replaced ends.
+ *
+ * Opening a subscript auto-closes its bracket and quote, so the row has to
+ * take those back with it or the rewritten access is left with a stray tail.
+ */
+function getAccessorEnd({
+  state,
+  accessorFrom,
+  to,
 }: {
-  entry: MaterializedEvaluatorContextEntry;
-  evaluationContext: MaterializedEvaluatorContext;
-}): string {
-  if (entry.status === "unset") {
-    return "Not set. Set in Evaluator input.";
+  state: EditorState;
+  accessorFrom: number;
+  to: number;
+}): number {
+  if (state.doc.sliceString(accessorFrom, accessorFrom + 1) !== "[") {
+    return to;
   }
+  const quote = state.doc.sliceString(accessorFrom + 1, accessorFrom + 2);
+  let end = to;
   if (
-    entry.name === "input" &&
-    entry.provenance.kind === "path" &&
-    entry.provenance.path === evaluationContext.grain
+    (quote === '"' || quote === "'") &&
+    state.doc.sliceString(end, end + 1) === quote
   ) {
-    return `Whole ${evaluationContext.grain}. Set in Evaluator input.`;
+    end += 1;
   }
-  if (entry.name === "output") {
-    const noun = capitalize(evaluationContext.grain);
-    return `${noun} output. Set in Evaluator input.`;
-  }
-  if (entry.name === "metadata") {
-    return "Metadata. Set in Evaluator input.";
-  }
-  return "Set in Evaluator input.";
-}
-
-function getRecordVariableInfo(
-  entry: MaterializedEvaluatorContextEntry
-): string {
-  if (entry.name === "latency_ms") {
-    return "Span duration, ms. No setup needed.";
-  }
-  if (entry.name === "duration_ms") {
-    return "Session duration, ms. No setup needed.";
-  }
-  return entry.description ?? "No setup needed.";
-}
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  return state.doc.sliceString(end, end + 1) === "]" ? end + 1 : end;
 }
 
 /** Creates the autocompletion extension for the code evaluator editor. */
@@ -455,9 +475,6 @@ export function createEvaluatorAutocompletion({
     maxRenderedOptions: 50,
     icons: false,
     tooltipClass: () => "dsl-filter-typeahead",
-    optionClass: (completion) =>
-      completion.type === UNSET_COMPLETION_TYPE
-        ? "code-evaluator-completion--unset"
-        : "",
+    optionClass: toEvaluatorCompletionClass,
   });
 }
