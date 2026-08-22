@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from typing import Literal
 
 import httpx
@@ -221,7 +221,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
         self._runs[key] = run
 
     @contextlib.asynccontextmanager
-    async def _open_client(self) -> AsyncIterator[AsyncClient]:
+    async def _open_client(self) -> AsyncGenerator[AsyncClient, None]:
         """Open a Phoenix client and close its HTTP connection pool on exit."""
         async with httpx.AsyncClient(
             base_url=self.endpoint,
