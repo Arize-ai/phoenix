@@ -88,6 +88,39 @@ def test_composer_uses_equal_available_archetypes_when_mix_is_absent() -> None:
     assert 70 < archetypes.count("rag") < 130
 
 
+def test_composer_keeps_same_archetype_sessions_within_one_application() -> None:
+    scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
+    scenario = Scenario(
+        manifest=scenario.manifest,
+        requests=scenario.requests,
+        source=scenario.source,
+        fragments=(
+            scenario.fragments[0],
+            replace(scenario.fragments[1], archetype="plain_chat", domain="analytics"),
+        ),
+    )
+    composer = SessionComposer(
+        scenario,
+        config=ComposerConfig(
+            session_fragments_median=4,
+            session_fragments_sigma=0,
+            session_fragments_max=4,
+            archetype_mix={"plain_chat": 1},
+            fragment_gap_median_seconds=0,
+            fragment_gap_sigma=0,
+            fragment_gap_max_seconds=0,
+        ),
+        random=np.random.default_rng(23),
+    )
+
+    sessions = [composer.compose(now_ns=100_000_000_000) for _ in range(20)]
+
+    assert all(
+        len({fragment.domain for fragment in session.fragments}) == 1 for session in sessions
+    )
+    assert {session.fragments[0].domain for session in sessions} == {"support", "analytics"}
+
+
 def _scenario_with_two_plain_chat_fragments() -> Scenario:
     scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
     return Scenario(

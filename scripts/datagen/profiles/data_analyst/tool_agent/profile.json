@@ -134,8 +134,7 @@
   ],
   "quality_tiers": [
     {"value": "high", "weight": 6.0},
-    {"value": "standard", "weight": 3.0},
-    {"value": "deliberately_bad", "weight": 1.0}
+    {"value": "standard", "weight": 3.0}
   ],
   "turn_counts": [
     {"value": 1, "weight": 3.0},

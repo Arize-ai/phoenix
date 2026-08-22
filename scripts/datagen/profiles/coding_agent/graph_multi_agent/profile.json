@@ -178,10 +178,6 @@
     {
       "value": "standard",
       "weight": 4.0
-    },
-    {
-      "value": "deliberately_bad",
-      "weight": 1.0
     }
   ],
   "turn_counts": [

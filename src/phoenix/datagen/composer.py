@@ -135,16 +135,21 @@ class SessionComposer:
         self._config = config
         self._random = random
         self._requests_by_trace_id = scenario.requests_by_trace_id
-        fragments_by_archetype: dict[Archetype, list[Fragment]] = {}
+        fragments_by_application: dict[Archetype, dict[str, list[Fragment]]] = {}
         for fragment in scenario.fragments:
-            fragments_by_archetype.setdefault(fragment.archetype, []).append(fragment)
-        self._fragments_by_archetype = {
-            archetype: tuple(fragments) for archetype, fragments in fragments_by_archetype.items()
+            fragments_by_application.setdefault(fragment.archetype, {}).setdefault(
+                fragment.domain, []
+            ).append(fragment)
+        self._fragments_by_application = {
+            archetype: {
+                domain: tuple(fragments) for domain, fragments in sorted(applications.items())
+            }
+            for archetype, applications in fragments_by_application.items()
         }
         configured_mix = config.archetype_mix or {
-            archetype: 1.0 for archetype in self._fragments_by_archetype
+            archetype: 1.0 for archetype in self._fragments_by_application
         }
-        unavailable = set(configured_mix).difference(self._fragments_by_archetype)
+        unavailable = set(configured_mix).difference(self._fragments_by_application)
         if unavailable:
             raise ValueError(
                 f"archetype mix references unavailable archetypes: {sorted(unavailable)!r}"
@@ -161,7 +166,9 @@ class SessionComposer:
             Archetype,
             self._random.choice(self._archetypes, p=self._archetype_probabilities),
         )
-        fragments = self._sample_fragments(archetype, self._draw_fragment_count())
+        applications = tuple(self._fragments_by_application[archetype])
+        domain = str(self._random.choice(applications))
+        fragments = self._sample_fragments(archetype, domain, self._draw_fragment_count())
         traces: list[ComposedTrace] = []
         cursor_ns = 0
         for fragment_index, fragment in enumerate(fragments):
@@ -221,8 +228,10 @@ class SessionComposer:
         seconds = min(self._config.fragment_gap_max_seconds, max(0.0, float(seconds)))
         return round(seconds * 1_000_000_000)
 
-    def _sample_fragments(self, archetype: Archetype, count: int) -> tuple[Fragment, ...]:
-        available = self._fragments_by_archetype[archetype]
+    def _sample_fragments(
+        self, archetype: Archetype, domain: str, count: int
+    ) -> tuple[Fragment, ...]:
+        available = self._fragments_by_application[archetype][domain]
         selected: list[Fragment] = []
         while len(selected) < count:
             batch_size = min(len(available), count - len(selected))
