@@ -173,10 +173,26 @@ html.dark {
   text-underline-offset: 3px;
 }
 
+/* Drawn as an outline rather than a box-shadow. An outline follows the
+   element's own border-radius, leaves any real shadow intact, and — because
+   Tailwind's `outline-hidden!` utility carries `!important` from inside a
+   cascade layer — lets a widget that suppresses its own ring keep it
+   suppressed. Mintlify's assistant textarea does exactly that: the box-shadow
+   could not be opted out of, so it drew a hard-cornered accent rectangle inside
+   the input's rounded border, on top of the brand border Mintlify already
+   draws there. The box-shadow version also set `border-radius`, squaring off
+   the ring on every focused link, button and card it touched.
+
+   `html.dark` repeats the color only to outrank Mintlify's own
+   `html.dark :focus-visible`, which would otherwise supply the outline color
+   in dark mode. */
 :focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--px-accent-line);
-  border-radius: var(--px-radius-sm);
+  outline: 2px solid var(--px-accent-line);
+  outline-offset: 2px;
+}
+
+html.dark :focus-visible {
+  outline-color: var(--px-accent-line);
 }
 
 ::selection {
@@ -350,6 +366,24 @@ html.dark .code-block-background {
 #content :not(pre) > code {
   background: var(--px-chip);
   border-radius: var(--px-radius-sm);
+}
+
+/* A code block without a `<CodeGroup>` puts its copy and Ask AI buttons over the
+   code itself, and Mintlify backs them with a right-edge fade whose colors are
+   written inline from the Shiki theme (`#FFFFFF` / `#0D1117`). Those cannot
+   track `--px-code-bg`, so the fade reads as a smear across the code field
+   rather than a fade into it. Grouped blocks keep their fade — their buttons
+   live in the tab strip, so nothing overlaps the code. */
+.code-block:has([data-floating-buttons]) [data-fade-overlay] {
+  background-image: none;
+}
+
+/* Mintlify pairs that fade with bare button icons, and gives the icons their own
+   chip when a block has no fade — a state its markup never reaches here, since
+   the overlay element stays in the DOM. Applied by hand so a long line scrolling
+   past passes behind an opaque chip rather than colliding with the glyphs. */
+[data-floating-buttons] button {
+  background: var(--px-chip);
 }
 
 /* Code inside a callout sits on the page background, not the code surface — the
