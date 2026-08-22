@@ -3,13 +3,11 @@
 # Copyright (c) Pydantic Services Inc. 2024 to present
 # SPDX-License-Identifier: MIT
 #
-# The tag records where this copy was taken, not how current it is:
-# tests/unit/db/types/test_data_stream_protocol_compatibility.py compares this file against
-# the *installed* pydantic-ai on every run, so drift fails CI rather than going unnoticed.
-#
-# That test also allowlists the one divergence Phoenix still carries: `result_provider_metadata`
-# on the four tool output parts, which AI SDK v7 defines but pydantic-ai does not. Drop the
-# entry there once upstream catches up.
+# Kept byte-identical to upstream except for the `result_provider_metadata` field on the four
+# tool output parts, which AI SDK v7 defines but pydantic-ai does not yet carry. The
+# divergence is allowlisted in
+# tests/unit/db/types/test_data_stream_protocol_compatibility.py; drop it there once upstream
+# catches up.
 
 """Vercel AI request types (UI messages).
 

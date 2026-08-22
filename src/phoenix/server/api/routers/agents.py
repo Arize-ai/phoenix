@@ -723,8 +723,8 @@ _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAd
 )
 
 
-def _dump_for_pydantic_ai(messages: Sequence[PhoenixUIMessage]) -> list[dict[str, Any]]:
-    """Dump persisted messages into the shape pydantic-ai's UI models accept.
+def _adapt_messages_for_pydantic_ai(messages: Sequence[PhoenixUIMessage]) -> list[dict[str, Any]]:
+    """Adapt persisted messages into the shape pydantic-ai's UI models accept.
 
     ``result_provider_metadata`` is defined by AI SDK v7 but not modelled by pydantic-ai, so
     Phoenix carries it on its own copies of the four tool output parts to keep what the client
@@ -749,12 +749,16 @@ def _to_pydantic_ai_request_data(
     """Validate wire types into pydantic-ai's runtime request classes."""
     return PydanticAISubmitMessage(
         id=request_data.id,
-        messages=_PydanticAIUIMessageListAdapter.validate_python(_dump_for_pydantic_ai(messages)),
+        messages=_PydanticAIUIMessageListAdapter.validate_python(
+            _adapt_messages_for_pydantic_ai(messages)
+        ),
     )
 
 
 def _to_pydantic_ai_messages(messages: Sequence[PhoenixUIMessage]) -> list[ModelMessage]:
-    ui_messages = _PydanticAIUIMessageListAdapter.validate_python(_dump_for_pydantic_ai(messages))
+    ui_messages = _PydanticAIUIMessageListAdapter.validate_python(
+        _adapt_messages_for_pydantic_ai(messages)
+    )
     return VercelAIAdapter.load_messages(ui_messages)
 
 

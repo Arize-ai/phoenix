@@ -249,8 +249,6 @@ def _get_single_text_content(parts: Sequence[ModelRequestPart | ModelResponsePar
         ),
     ):
         return _get_text_content_from_model_request_part(part)
-    # ``SpeechPart`` exposes a ``content`` transcript, but it is ``""`` whenever transcription
-    # was unavailable, so it is dumped as JSON to keep the retained audio visible.
     if isinstance(
         part,
         (
