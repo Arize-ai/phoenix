@@ -9,6 +9,8 @@ import pytest
 
 from phoenix.evals.rate_limiters import (
     AdaptiveTokenBucket,
+    RateLimiter,
+    RateLimitError,
     UnavailableTokensError,
 )
 
@@ -362,3 +364,80 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period():
     with warp_time(start + 6):
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 6.25)
+
+
+class _StubRateLimitError(Exception):
+    pass
+
+
+async def test_async_rate_limit_cooldown_does_not_block_the_event_loop():
+    """A blocking sleep here freezes every in-flight request, not just this one."""
+    bucket = AdaptiveTokenBucket(
+        initial_per_second_request_rate=100,
+        maximum_per_second_request_rate=200,
+        enforcement_window_minutes=1,
+        cooldown_seconds=5,
+    )
+
+    with mock.patch("time.sleep") as blocking_sleep:
+        with mock.patch("asyncio.sleep", new_callable=mock.AsyncMock) as non_blocking_sleep:
+            await bucket.async_on_rate_limit_error(request_start_time=time.time())
+
+    blocking_sleep.assert_not_called()
+    non_blocking_sleep.assert_awaited_once_with(bucket.cooldown)
+    assert isclose(bucket.rate, 50), "the rate is still reduced"
+    assert bucket.tokens == 0
+
+
+async def test_async_rate_limit_cooldown_matches_the_sync_state_changes():
+    """Only the kind of sleep should differ between the two paths."""
+    kwargs = dict(
+        initial_per_second_request_rate=100,
+        maximum_per_second_request_rate=200,
+        enforcement_window_minutes=1,
+        rate_reduction_factor=0.25,
+        cooldown_seconds=5,
+    )
+    sync_bucket = AdaptiveTokenBucket(**kwargs)
+    async_bucket = AdaptiveTokenBucket(**kwargs)
+
+    start = time.time()
+    with freeze_time(start):
+        with mock.patch("time.sleep"):
+            sync_bucket.on_rate_limit_error(request_start_time=start)
+        with mock.patch("asyncio.sleep", new_callable=mock.AsyncMock):
+            await async_bucket.async_on_rate_limit_error(request_start_time=start)
+
+    assert isclose(async_bucket.rate, sync_bucket.rate)
+    assert async_bucket.tokens == sync_bucket.tokens
+    assert async_bucket.last_error == sync_bucket.last_error
+
+    # requests that started before the cooldown are ignored, as in the sync path
+    with freeze_time(start + 1):
+        with mock.patch("asyncio.sleep", new_callable=mock.AsyncMock) as skipped_sleep:
+            await async_bucket.async_on_rate_limit_error(request_start_time=start + 1)
+        skipped_sleep.assert_not_awaited()
+    assert isclose(async_bucket.rate, sync_bucket.rate), "still inside the cooldown"
+
+
+async def test_alimit_never_blocks_the_event_loop_on_rate_limit_errors():
+    """End to end through the decorator."""
+    limiter = RateLimiter(
+        rate_limit_error=_StubRateLimitError,
+        max_rate_limit_retries=1,
+        initial_per_second_request_rate=100,
+        maximum_per_second_request_rate=200,
+        enforcement_window_minutes=1,
+        cooldown_seconds=5,
+    )
+
+    @limiter.alimit
+    async def always_rate_limited() -> None:
+        raise _StubRateLimitError
+
+    with mock.patch("time.sleep") as blocking_sleep:
+        with mock.patch("asyncio.sleep", new_callable=mock.AsyncMock):
+            with pytest.raises(RateLimitError):
+                await always_rate_limited()
+
+    blocking_sleep.assert_not_called()
