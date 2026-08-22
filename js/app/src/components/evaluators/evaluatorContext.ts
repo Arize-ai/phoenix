@@ -41,7 +41,11 @@ export type MaterializedEvaluatorContext = {
   grain: ProjectEvaluatorMappingSourceGrain;
   /** False while the store contains only its generic source skeleton. */
   hasSampledRecord: boolean;
-  /** Every value the selected record can supply by evaluator parameter name. */
+  /**
+   * Every value the selected record can supply by evaluator parameter name.
+   * Present as soon as a path resolves, sampled record or not, so the shape
+   * stays browsable; `hasSampledRecord` says whether any of it may be shown.
+   */
   values: Record<string, unknown>;
   evaluatorInputs: MaterializedEvaluatorContextEntry[];
   recordVariables: MaterializedEvaluatorContextEntry[];
@@ -97,7 +101,7 @@ export function materializeEvaluatorContext({
   );
   const values: Record<string, unknown> = {};
   for (const entry of [...evaluatorInputs, ...recordVariables]) {
-    if (entry.status === "resolved") {
+    if ("value" in entry) {
       values[entry.name] = entry.value;
     }
   }
@@ -191,10 +195,13 @@ function materializePath({
   hasSampledRecord: boolean;
 }): MaterializedEvaluatorContextEntry {
   const resolution = resolveEvaluatorPath({ source, path });
-  return hasSampledRecord && resolution.status === "resolved"
+  // The value comes along even before a record has been sampled: the generic
+  // skeleton still has the shape authoring tools drill through, and status
+  // alone decides whether anything of it may be shown as a preview.
+  return resolution.status === "resolved"
     ? {
         name,
-        status: "resolved",
+        status: hasSampledRecord ? "resolved" : "unverifiable",
         value: resolution.value,
         provenance: { kind: "path", path },
       }

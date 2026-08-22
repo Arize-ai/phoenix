@@ -93,6 +93,18 @@ export const typeaheadMenuCSS = css`
       margin-left: 0;
       max-width: 100%;
     }
+    /* A row for something the record does not supply — kept in the menu so
+       its absence is visible, dimmed so the absence reads. */
+    li.typeahead-completion--unset {
+      color: var(--global-text-color-300);
+    }
+    /* Details that read as prose rather than as a value */
+    li.typeahead-completion--unset .cm-completionDetail,
+    li.typeahead-completion--hint .cm-completionDetail {
+      font-family: var(--global-font-family-sans);
+      font-style: italic;
+      color: var(--global-text-color-300);
+    }
     .cm-completionMatchedText {
       text-decoration: none;
       font-weight: var(--font-weight-heavy);

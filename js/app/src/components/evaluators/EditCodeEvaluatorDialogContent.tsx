@@ -978,11 +978,7 @@ export const CodeEvaluatorSourceEditor = ({
           {/* Editable code editor panel */}
           <Panel defaultSize="75%" minSize="30%" style={editorPanelStyle}>
             <div
-              css={[
-                editorWrapCSS,
-                cmLineNumberGutterCSS,
-                codeEvaluatorTypeaheadCSS,
-              ]}
+              css={[editorWrapCSS, cmLineNumberGutterCSS, typeaheadMenuCSS]}
               onKeyDown={(e) => {
                 if (e.key === "Escape" || e.key === "Tab") {
                   e.stopPropagation();
@@ -1426,21 +1422,6 @@ const editorWrapCSS = css`
 
   & .cm-scroller {
     overflow: auto !important;
-  }
-`;
-
-const codeEvaluatorTypeaheadCSS = css`
-  ${typeaheadMenuCSS}
-  .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead
-    li.code-evaluator-completion--unset {
-    color: var(--global-text-color-300);
-  }
-  .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead
-    li.code-evaluator-completion--unset
-    .cm-completionDetail {
-    font-family: var(--global-font-family-sans);
-    font-style: italic;
-    color: var(--global-text-color-300);
   }
 `;
 
