@@ -1,4 +1,6 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Harbor job records used by the Phoenix plugin."""
 
 from __future__ import annotations

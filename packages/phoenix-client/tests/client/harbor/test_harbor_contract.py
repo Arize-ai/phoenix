@@ -1,4 +1,6 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false
 """Contract tests against a real Harbor installation."""
 
 from __future__ import annotations

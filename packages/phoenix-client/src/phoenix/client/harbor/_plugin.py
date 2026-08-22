@@ -1,4 +1,7 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportUntypedBaseClass=false, reportGeneralTypeIssues=false
 from __future__ import annotations
 
 import asyncio

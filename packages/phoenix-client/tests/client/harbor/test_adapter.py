@@ -1,4 +1,6 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Unit tests for Harbor plan conversion."""
 
 from __future__ import annotations

@@ -1,4 +1,6 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Tests for Harbor dataset and experiment recording."""
 
 from __future__ import annotations

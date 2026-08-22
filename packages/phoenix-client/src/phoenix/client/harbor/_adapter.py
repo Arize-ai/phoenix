@@ -1,4 +1,7 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportAttributeAccessIssue=false
 """Convert Harbor's private job plan into records used by the Phoenix plugin.
 
 Contract tests pin the private attributes read here to supported Harbor versions.

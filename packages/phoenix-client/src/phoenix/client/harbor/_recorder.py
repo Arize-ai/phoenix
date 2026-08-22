@@ -1,4 +1,6 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Write a resolved Harbor job to Phoenix."""
 
 from __future__ import annotations

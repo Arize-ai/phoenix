@@ -1,4 +1,7 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportUntypedBaseClass=false
 """Tests for the Harbor plugin."""
 
 from __future__ import annotations
