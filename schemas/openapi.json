@@ -7009,6 +7009,81 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/retention": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Set a project's trace retention policy",
+        "description": "Assign an existing trace retention policy to a project, or reset the project to the default policy with a null `policy_id`. Retention policies are standalone, reusable entities: this endpoint only changes which policy the project points at, and never creates, edits, or deletes a policy.",
+        "operationId": "setProjectRetentionPolicy",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectRetentionPolicyRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project's retention policy assignment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetProjectRetentionPolicyResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/sessions/{session_identifier}": {
       "get": {
         "tags": [
@@ -16107,6 +16182,32 @@
         "title": "ProjectContext",
         "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all. It\ndescribes the view in full, root-span scoping included (which is expressed\nwithin the filter DSL as ``parent_id is None``)."
       },
+      "ProjectRetentionPolicyData": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id",
+            "description": "The retention policy the project now uses, or null when the project falls back to the default policy."
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "policy_id"
+        ],
+        "title": "ProjectRetentionPolicyData"
+      },
       "Prompt": {
         "properties": {
           "name": {
@@ -18696,6 +18797,39 @@
           "next_cursor"
         ],
         "title": "SetProjectAnnotationConfigsResponseBody"
+      },
+      "SetProjectRetentionPolicyRequestBody": {
+        "properties": {
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id",
+            "description": "The ID (GlobalID) of an existing trace retention policy to assign, or null to reset the project to the default policy."
+          }
+        },
+        "type": "object",
+        "required": [
+          "policy_id"
+        ],
+        "title": "SetProjectRetentionPolicyRequestBody"
+      },
+      "SetProjectRetentionPolicyResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectRetentionPolicyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetProjectRetentionPolicyResponseBody"
       },
       "SourceDocumentUIPart": {
         "properties": {
