@@ -71,7 +71,13 @@ export default defineConfig(() => {
         deps: {
           // codemirror-json-schema ships ESM with extensionless relative
           // imports that Node's resolver rejects when externalized
-          inline: ["codemirror-json-schema"],
+          //
+          // The @codemirror/* packages are inlined so the `@codemirror/state`
+          // alias above applies to their imports too. Externalized, they load
+          // the ESM build while the app loads the CJS one, and the resulting
+          // second copy of @codemirror/state breaks every instanceof check.
+          // The pattern matches resolved file paths, so it cannot be anchored.
+          inline: ["codemirror-json-schema", /@codemirror\//],
         },
       },
     },
