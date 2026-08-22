@@ -1,0 +1,373 @@
+import type {
+  Completion,
+  CompletionResult,
+  CompletionSection,
+} from "@codemirror/autocomplete";
+import type { EditorView } from "@uiw/react-codemirror";
+
+import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
+import {
+  getEvaluatorContextMembers,
+  HINT_COMPLETION_TYPE,
+  toEvaluatorInputCompletion,
+  toMemberDetail,
+  toMemberSection,
+  toRecordVariableCompletion,
+} from "@phoenix/components/evaluators/evaluatorContextCompletions";
+import type { EvaluatorPathMember } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import {
+  getEvaluatorPathCursor,
+  getEvaluatorPathMembers,
+  MAX_BROWSE_MEMBERS,
+  resolveEvaluatorPath,
+} from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
+
+import { TemplateFormats } from "./constants";
+import type { TemplateFormat } from "./types";
+
+/** The repeat and empty-case wrappers a Mustache template can open. */
+const BLOCK_SECTION: CompletionSection = { name: "Blocks", rank: 3 };
+
+/** A name Mustache can reach with a dot. */
+const BARE_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** What the typeahead keeps matching against as the member name grows. */
+const MEMBER_NAME_PATTERN = /^\w*$/;
+
+/**
+ * The menu shown inside a template variable while a project evaluator is being
+ * authored: what the evaluator receives, what the record supplies, and the
+ * level below whichever of them the cursor has drilled into.
+ *
+ * @param params - completion inputs
+ * @param params.evaluationContext - the evaluator's materialized inputs
+ * @param params.templateFormat - the format the template is written in
+ * @param params.variable - the open template variable the cursor sits in
+ * @param params.sectionStack - Mustache sections the cursor is nested inside
+ */
+export function getEvaluatorTemplateCompletions({
+  evaluationContext,
+  templateFormat,
+  variable,
+  sectionStack,
+}: {
+  evaluationContext: MaterializedEvaluatorContext;
+  templateFormat: TemplateFormat;
+  variable: { from: number; text: string };
+  sectionStack: string[];
+}): CompletionResult | null {
+  const closingBrackets =
+    templateFormat === TemplateFormats.Mustache ? "}}" : "}";
+
+  // An f-string keeps `{input.attributes.x}` as one literal schema property
+  // rather than reducing it to `input`, so a dotted insert would declare a
+  // variable nothing supplies. Root names are the only honest offer there.
+  if (templateFormat !== TemplateFormats.Mustache) {
+    return variable.text.includes(".") || variable.text.includes("[")
+      ? null
+      : toResult({
+          from: variable.from,
+          options: getRootOptions({ evaluationContext, closingBrackets }),
+        });
+  }
+
+  if (variable.text.startsWith("#") || variable.text.startsWith("^")) {
+    return getBlockCompletions({ evaluationContext, variable });
+  }
+
+  const cursor = getEvaluatorPathCursor(variable.text);
+  if (cursor === null) {
+    return null;
+  }
+  const from = variable.from + cursor.from;
+  const section = getSectionItem({ evaluationContext, sectionStack });
+
+  if (cursor.containerPath === "") {
+    // Inside a section the names are the item's own — `messages[0].role`
+    // reads as `role` while the block repeats it.
+    return section === null
+      ? toResult({
+          from,
+          options: getRootOptions({ evaluationContext, closingBrackets }),
+        })
+      : toResult({
+          from,
+          options: toMemberOptions({
+            members: getEvaluatorPathMembers(section.item, ""),
+            evaluationContext,
+            section: toMemberSection(section.path),
+            closingBrackets,
+            isBrowsing: cursor.partial === "",
+          }),
+        });
+  }
+
+  const members =
+    section === null
+      ? getEvaluatorContextMembers({
+          evaluationContext,
+          containerPath: cursor.containerPath,
+        })
+      : getMembersWithin({
+          value: section.item,
+          path: cursor.containerPath,
+        });
+  return toResult({
+    from,
+    options: toMemberOptions({
+      members,
+      evaluationContext,
+      section: toMemberSection(cursor.containerPath),
+      closingBrackets,
+      isBrowsing: cursor.partial === "",
+    }),
+  });
+}
+
+function toResult({
+  from,
+  options,
+}: {
+  from: number;
+  options: Completion[];
+}): CompletionResult | null {
+  return options.length === 0
+    ? null
+    : { from, options, validFor: MEMBER_NAME_PATTERN };
+}
+
+function getRootOptions({
+  evaluationContext,
+  closingBrackets,
+}: {
+  evaluationContext: MaterializedEvaluatorContext;
+  closingBrackets: string;
+}): Completion[] {
+  return [
+    ...evaluationContext.evaluatorInputs.map((entry, index) => ({
+      ...toEvaluatorInputCompletion({ entry, evaluationContext, index }),
+      apply: applyTemplateInsertion(entry.name, closingBrackets),
+    })),
+    ...evaluationContext.recordVariables.map((entry, index) => ({
+      ...toRecordVariableCompletion({ entry, evaluationContext, index }),
+      apply: applyTemplateInsertion(entry.name, closingBrackets),
+    })),
+  ];
+}
+
+function toMemberOptions({
+  members,
+  evaluationContext,
+  section,
+  closingBrackets,
+  isBrowsing,
+}: {
+  members: EvaluatorPathMember[];
+  evaluationContext: MaterializedEvaluatorContext;
+  section: CompletionSection;
+  closingBrackets: string;
+  isBrowsing: boolean;
+}): Completion[] {
+  // Mustache reads nested properties with a dot and has no subscript syntax,
+  // so a member it cannot name is left out rather than offered as a path that
+  // would render nothing.
+  const addressable = members.filter(
+    (member) => !member.isIndex && BARE_IDENTIFIER_PATTERN.test(member.key)
+  );
+  const shown = isBrowsing
+    ? addressable.slice(0, MAX_BROWSE_MEMBERS)
+    : addressable;
+  return shown.map((member, index) => {
+    const detail = toMemberDetail({ member, evaluationContext });
+    return {
+      label: member.key,
+      type: "variable",
+      ...(detail ? { detail } : {}),
+      section,
+      boost: 100 - index,
+      apply: applyTemplateInsertion(member.key, closingBrackets),
+    };
+  });
+}
+
+function getBlockCompletions({
+  evaluationContext,
+  variable,
+}: {
+  evaluationContext: MaterializedEvaluatorContext;
+  variable: { from: number; text: string };
+}): CompletionResult | null {
+  const blockPrefix = variable.text[0];
+  const cursor = getEvaluatorPathCursor(variable.text.slice(1));
+  if (cursor === null) {
+    return null;
+  }
+
+  const options: Completion[] = [];
+  if (cursor.containerPath === "") {
+    for (const entry of evaluationContext.evaluatorInputs) {
+      // A slot with nothing behind it is exactly what an inverted block is for.
+      if (entry.status === "unset" && blockPrefix === "^") {
+        options.push(
+          toBlockCompletion({
+            path: entry.name,
+            blockPrefix,
+            detail: "if empty",
+          })
+        );
+      }
+    }
+    for (const [name, value] of Object.entries(evaluationContext.values)) {
+      if (Array.isArray(value)) {
+        options.push(
+          toBlockCompletion({
+            path: name,
+            blockPrefix,
+            detail: toBlockDetail({ blockPrefix, value }),
+          })
+        );
+      }
+    }
+  } else {
+    for (const member of getEvaluatorContextMembers({
+      evaluationContext,
+      containerPath: cursor.containerPath,
+    })) {
+      // Mustache names a block with a dotted path or not at all.
+      if (
+        Array.isArray(member.value) &&
+        !member.isIndex &&
+        !member.path.includes("[")
+      ) {
+        options.push(
+          toBlockCompletion({
+            path: member.path,
+            blockPrefix,
+            detail: toBlockDetail({ blockPrefix, value: member.value }),
+          })
+        );
+      }
+    }
+  }
+
+  // The typed `#`/`^` is part of what the row replaces, so the menu matches
+  // from the brace rather than from the name.
+  return options.length === 0
+    ? null
+    : { from: variable.from, options, validFor: /^[#^][\w.]*$/ };
+}
+
+function toBlockCompletion({
+  path,
+  blockPrefix,
+  detail,
+}: {
+  path: string;
+  blockPrefix: string;
+  detail: string;
+}): Completion {
+  return {
+    label: `${blockPrefix}${path}`,
+    type: HINT_COMPLETION_TYPE,
+    detail,
+    section: BLOCK_SECTION,
+    info:
+      blockPrefix === "#"
+        ? `Repeats for each item in ${path}.`
+        : `Renders when ${path} is empty.`,
+    apply: applyBlockInsertion(path, blockPrefix),
+  };
+}
+
+function toBlockDetail({
+  blockPrefix,
+  value,
+}: {
+  blockPrefix: string;
+  value: unknown[];
+}): string {
+  return blockPrefix === "#" ? `${value.length} items` : "if empty";
+}
+
+/** The item a section repeats over, when the cursor is inside one. */
+function getSectionItem({
+  evaluationContext,
+  sectionStack,
+}: {
+  evaluationContext: MaterializedEvaluatorContext;
+  sectionStack: string[];
+}): { path: string; item: Record<string, unknown> } | null {
+  const sectionPath = sectionStack[sectionStack.length - 1];
+  if (sectionPath === undefined) {
+    return null;
+  }
+  const resolution = resolveEvaluatorPath({
+    source: evaluationContext.values,
+    path: sectionPath,
+  });
+  if (resolution.status !== "resolved") {
+    return null;
+  }
+  const item = Array.isArray(resolution.value)
+    ? resolution.value[0]
+    : resolution.value;
+  return isStringKeyedObject(item) ? { path: sectionPath, item } : null;
+}
+
+function getMembersWithin({
+  value,
+  path,
+}: {
+  value: Record<string, unknown>;
+  path: string;
+}): EvaluatorPathMember[] {
+  const resolution = resolveEvaluatorPath({ source: value, path });
+  return resolution.status === "resolved"
+    ? getEvaluatorPathMembers(resolution.value, path)
+    : [];
+}
+
+/** Writes a name into the variable, closing it if the braces are not there. */
+function applyTemplateInsertion(insertText: string, closingBrackets: string) {
+  return (
+    view: EditorView,
+    _completion: Completion,
+    from: number,
+    to: number
+  ) => {
+    const afterCursor = view.state.doc.sliceString(
+      to,
+      Math.min(to + closingBrackets.length, view.state.doc.length)
+    );
+    const actualTo =
+      afterCursor === closingBrackets ? to + closingBrackets.length : to;
+    const insertion = `${insertText}${closingBrackets}`;
+    view.dispatch({
+      changes: { from, to: actualTo, insert: insertion },
+      selection: { anchor: from + insertion.length },
+    });
+  };
+}
+
+/** Writes the whole block, leaving the cursor between its tags. */
+function applyBlockInsertion(path: string, blockPrefix: string) {
+  return (
+    view: EditorView,
+    _completion: Completion,
+    from: number,
+    to: number
+  ) => {
+    const afterCursor = view.state.doc.sliceString(
+      to,
+      Math.min(to + 2, view.state.doc.length)
+    );
+    const actualTo = afterCursor === "}}" ? to + 2 : to;
+    const openTag = `${blockPrefix}${path}`;
+    const insertion = `${openTag}}}{{/${path}}}`;
+    view.dispatch({
+      changes: { from, to: actualTo, insert: insertion },
+      selection: { anchor: from + openTag.length + 2 },
+    });
+  };
+}
