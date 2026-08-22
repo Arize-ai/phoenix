@@ -62,7 +62,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
 from opentelemetry.util.types import AttributeValue
-from psutil import STATUS_ZOMBIE, Popen
+from psutil import STATUS_ZOMBIE, NoSuchProcess, Popen
 from sqlalchemy import URL, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -796,7 +796,10 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
 def _is_alive(
     process: Popen,
 ) -> bool:
-    return process.is_running() and process.status() != STATUS_ZOMBIE
+    try:
+        return process.is_running() and process.status() != STATUS_ZOMBIE
+    except NoSuchProcess:
+        return False
 
 
 def _capture_stdout(
@@ -1383,7 +1386,10 @@ class _OIDCServer:
         self._name: str = f"oidc_server_{token_hex(8)}"
         self._client_id: str = f"client_id_{token_hex(8)}"
         self._client_secret: str = f"client_secret_{token_hex(8)}"
-        self._secret_key: str = f"secret_key_{token_hex(16)}"
+        self._secret_key: str = f"secret_key_{token_hex(24)}"
+        self._jwks_secret_key: str = self._secret_key
+        self._token_algorithm: str = "HS256"
+        self._id_token_claim_overrides: dict[str, Any] = {}
         self._host: str = "127.0.0.1"
         self._port: int = port
         self._use_pkce: bool = use_pkce
@@ -1668,6 +1674,7 @@ class _OIDCServer:
                 "picture": session["user_picture"],
                 "nonce": session["nonce"],
             }
+            id_token_claims.update(self._id_token_claim_overrides)
 
             # Add role if configured
             if session["session_role"]:
@@ -1680,7 +1687,7 @@ class _OIDCServer:
             id_token = jwt.encode(
                 payload=id_token_claims,
                 key=self._secret_key.encode(),
-                algorithm="HS256",
+                algorithm=self._token_algorithm,
             )
 
             # Return token response with all required fields
@@ -1794,7 +1801,7 @@ class _OIDCServer:
             this would typically use asymmetric keys (RS256).
             """
             # Base64url encode the secret key
-            encoded_key = urlsafe_b64encode(self._secret_key.encode()).decode().rstrip("=")
+            encoded_key = urlsafe_b64encode(self._jwks_secret_key.encode()).decode().rstrip("=")
             return JSONResponse(
                 {
                     "keys": [
@@ -1808,6 +1815,25 @@ class _OIDCServer:
                     ]
                 }
             )
+
+    def set_id_token_claim_overrides(self, **claims: Any) -> None:
+        """Apply deterministic claim overrides to subsequently issued test ID tokens."""
+        self._id_token_claim_overrides = claims
+
+    def set_token_signing_key(
+        self,
+        key: str,
+        *,
+        publish_in_jwks: bool = False,
+    ) -> None:
+        """Change the local token signer, optionally rotating the published JWKS key too."""
+        self._secret_key = key
+        if publish_in_jwks:
+            self._jwks_secret_key = key
+
+    def set_token_signing_algorithm(self, algorithm: str) -> None:
+        """Change the local token JWT algorithm without changing discovery or JWKS metadata."""
+        self._token_algorithm = algorithm
 
     def __enter__(self) -> Self:
         self._server = ThreadServer(
