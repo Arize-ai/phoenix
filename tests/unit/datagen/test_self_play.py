@@ -1,7 +1,7 @@
 import json
 from base64 import b64encode
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from google.protobuf.json_format import MessageToJson
@@ -12,8 +12,8 @@ from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.datagen.schema import validate_fragment_v2
 
+from phoenix.datagen.schema import validate_fragment_v2
 from scripts.datagen.fake_tools import load_default_fixture_sets
 from scripts.datagen.generation import (
     GenerationRun,
@@ -25,13 +25,15 @@ from scripts.datagen.generation import (
 )
 from scripts.datagen.mock_openai_provider import PlaybackProvider
 from scripts.datagen.model_backend import BackendCapabilities, ModelResult
-from scripts.datagen.profile import load_profile_set
+from scripts.datagen.profile import ToolPatchOperation, ToolResultOverlay, load_profile_set
+from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
 from scripts.datagen.self_play import (
     AssistantRequest,
     BackendUserSimulator,
     ModelRole,
     Persona,
     RecordedAssistantTurn,
+    SelfPlayError,
     SelfPlayPlan,
     SimulatedUserMessage,
     TokenUsage,
@@ -48,7 +50,11 @@ def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) 
         provider = "codex_exec"
         capabilities = BackendCapabilities()
 
+        def __init__(self) -> None:
+            self.request: Any = None
+
         def generate(self, request: object) -> ModelResult:
+            self.request = request
             return ModelResult(
                 provider=self.provider,
                 model="gpt-5.6-luna",
@@ -57,10 +63,15 @@ def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) 
             )
 
     role = ModelRole("user_simulator", "openai_api", "gpt-5.6-luna")
+    environment = _environment(load_default_fixture_sets()["retail"])
     plan = self_play_plan_from_cell(
-        cell, simulator=role, assistant_provider="openai_api"
+        cell,
+        environment,
+        simulator=role,
+        assistant_provider="openai_api",
     )
-    message = BackendUserSimulator(Backend()).simulate(
+    backend = Backend()
+    message = BackendUserSimulator(backend).simulate(
         UserSimulationRequest(
             cell_id=cell.cell_id,
             turn_index=0,
@@ -68,12 +79,17 @@ def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) 
             scenario_template=plan.scenario_template,
             persona=plan.persona,
             register=plan.register,
+            simulator_traits=plan.environment.simulator_traits,
+            route_context=plan.environment.route_context,
             model=role.model,
             messages=(),
         )
     )
 
     assert plan.domain == cell.profile.domain
+    assert plan.checkpoint_identity()["environment_digest"] == "e" * 64
+    assert "The buyer is preparing for travel." in backend.request.prompt
+    assert "complete the return before departure" in backend.request.prompt
     assert message.content == "Can you explain the return window?"
 
 
@@ -186,6 +202,41 @@ def test_repeated_trace_capture_restarts_both_paid_roles_under_a_new_attempt(
     assert len(failures) == 2
 
 
+def test_self_play_rejects_internal_language_from_the_simulator(tmp_path: Path) -> None:
+    run, cell, prices = _run(tmp_path, self_play_target=1)
+
+    with pytest.raises(SelfPlayError, match="exposed internal context"):
+        record_self_play_cell(
+            **_record_kwargs(
+                run,
+                cell,
+                prices,
+                _StaticSimulator(("Discuss the targeted seed.",)),
+                _CollisionOnceRecorder(),
+                turn_count=1,
+            )
+        )
+
+
+def test_self_play_tools_receive_materialized_overlays(tmp_path: Path) -> None:
+    run, cell, prices = _run(tmp_path, self_play_target=1)
+    recorder = _ToolCallingRecorder()
+
+    record_self_play_cell(
+        **_record_kwargs(
+            run,
+            cell,
+            prices,
+            _StaticSimulator(("What does the return guidance say?",)),
+            recorder,
+            turn_count=1,
+        )
+    )
+
+    assert recorder.result is not None
+    assert recorder.result["documents"][0]["text"] == "Returns require a manual review."
+
+
 class _SimulatedInterruption(RuntimeError):
     pass
 
@@ -237,8 +288,8 @@ class _OpenAIRecorder:
         with using_session(request.cell_id):
             response = self.client.chat.completions.create(
                 model=request.model,
-                messages=list(request.messages),
-                tools=list(request.tools),
+                messages=cast(Any, list(request.messages)),
+                tools=cast(Any, list(request.tools)),
             )
         spans = self.exporter.get_finished_spans()[before:]
         request.traces_path.parent.mkdir(parents=True, exist_ok=True)
@@ -298,6 +349,39 @@ class _CollisionOnceRecorder:
         )
 
 
+class _ToolCallingRecorder:
+    def __init__(self) -> None:
+        self.result: Any = None
+
+    def record(self, request: AssistantRequest, invoke_tool: Any) -> RecordedAssistantTurn:
+        self.result = invoke_tool("document_search", {"query": "return policy"})
+        trace_id = "4" * 32
+        request.traces_path.parent.mkdir(parents=True, exist_ok=True)
+        with request.traces_path.open("a", encoding="utf-8") as output:
+            output.write(
+                json.dumps(
+                    {
+                        "resourceSpans": [
+                            {
+                                "scopeSpans": [
+                                    {
+                                        "spans": [
+                                            {"traceId": b64encode(bytes.fromhex(trace_id)).decode()}
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                )
+                + "\n"
+            )
+        return RecordedAssistantTurn(
+            messages=({"role": "assistant", "content": "I found the return guidance."},),
+            trace_ids=(trace_id,),
+        )
+
+
 def _record_kwargs(
     run: GenerationRun,
     cell: MatrixCell,
@@ -322,17 +406,38 @@ def _record_kwargs(
             turn_count=turn_count,
             simulator=ModelRole("user_simulator", "openai_api", "gpt-5.6-luna"),
             assistant_provider="openai_api",
+            environment=_environment(load_default_fixture_sets()["retail"]),
         ),
         "simulator": simulator,
         "recorder": recorder,
         "prices": prices,
-        "fixture_set": load_default_fixture_sets()["retail"],
         "pass_seed": 17,
         "assistant_max_input_tokens": 2_000,
         "assistant_max_output_tokens": 2_000,
         "simulator_max_input_tokens": 2_000,
         "simulator_max_output_tokens": 2_000,
     }
+
+
+def _environment(fixture_set: Any) -> MaterializedSeedEnvironment:
+    return MaterializedSeedEnvironment(
+        documents={"doc-returns": "Unused items can be returned within 21 days."},
+        tool_fixture_data=fixture_set,
+        tool_result_overlays=(
+            ToolResultOverlay(
+                "document_search",
+                {"query": "return policy"},
+                (
+                    ToolPatchOperation(
+                        "replace", "/documents/0/text", "Returns require a manual review."
+                    ),
+                ),
+            ),
+        ),
+        simulator_traits=("The buyer is preparing for travel.",),
+        route_context="Ask whether the store can complete the return before departure.",
+        digest="e" * 64,
+    )
 
 
 def _run(
@@ -360,19 +465,42 @@ def _run(
     prices = PriceCatalog.load(pricing_path)
     profile_dir = tmp_path / "customer_support" / "plain_chat"
     profile_dir.mkdir(parents=True, exist_ok=True)
-    (profile_dir / "profile.json").write_text(json.dumps({
-        "schema_version": 1, "profile_id": "customer_support/plain_chat",
-        "domain": "customer_support", "archetype": "plain_chat",
-        "tool_surface": ["lookup_order"], "corpus_documents": [],
-        "personas": [{"persona_id": "buyer", "instructions": "Ask for help.", "weight": 1}],
-        "registers": [{"value": "neutral", "weight": 1}],
-        "scenarios": [{"scenario_id": "return", "topic": "returns", "template": "Ask about returns.", "weight": 1, "target_seed_ids": []}],
-        "quality_tiers": [{"value": "high", "weight": 1}],
-        "turn_counts": [{"value": 2, "weight": 1}],
-        "adversarial_seeds": [],
-    }))
+    (profile_dir / "profile.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "profile_id": "customer_support/plain_chat",
+                "domain": "customer_support",
+                "archetype": "plain_chat",
+                "tool_surface": ["lookup_order"],
+                "corpus_documents": [],
+                "personas": [{"persona_id": "buyer", "instructions": "Ask for help.", "weight": 1}],
+                "registers": [{"value": "neutral", "weight": 1}],
+                "scenarios": [
+                    {
+                        "scenario_id": "return",
+                        "topic": "returns",
+                        "template": "Ask about returns.",
+                        "weight": 1,
+                        "target_seed_ids": [],
+                    }
+                ],
+                "quality_tiers": [{"value": "high", "weight": 1}],
+                "turn_counts": [{"value": 2, "weight": 1}],
+                "adversarial_seeds": [],
+            }
+        )
+    )
     manifest = tmp_path / "profile-set.json"
-    manifest.write_text(json.dumps({"schema_version": 1, "profiles": ["customer_support/plain_chat/profile.json"], "sampling": {}}))
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "profiles": ["customer_support/plain_chat/profile.json"],
+                "sampling": {},
+            }
+        )
+    )
     profiles = load_profile_set(manifest)
     cells = expand_seed_matrix(
         profiles,

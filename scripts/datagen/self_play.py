@@ -27,6 +27,7 @@ if TYPE_CHECKING or __package__:
         PriceCatalog,
     )
     from scripts.datagen.model_backend import ModelBackend, ModelRequest
+    from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
 else:
     from fake_tools import DEFAULT_REGISTRY, InvocationLedger, ToolContext, ToolRegistry
     from generation import (
@@ -37,9 +38,16 @@ else:
         PriceCatalog,
     )
     from model_backend import ModelBackend, ModelRequest
+    from seed_mechanics import MaterializedSeedEnvironment
 
 AssistantMessage = Mapping[str, Any]
 ToolInvoker = Callable[[str, Mapping[str, Any]], Mapping[str, Any]]
+_RESERVED_TRANSCRIPT_PHRASES = (
+    "adversarial seed",
+    "seed intensity",
+    "targeted seed",
+    "make a mistake",
+)
 
 
 class SelfPlayError(GenerationError):
@@ -124,6 +132,7 @@ class SelfPlayPlan:
     turn_count: int
     simulator: ModelRole
     assistant_provider: str
+    environment: MaterializedSeedEnvironment
     tool_failure_mode: str = "none"
 
     def __post_init__(self) -> None:
@@ -170,11 +179,13 @@ class SelfPlayPlan:
             "simulator": self.simulator.to_dict(),
             "assistant_provider": self.assistant_provider,
             "tool_failure_mode": self.tool_failure_mode,
+            "environment_digest": self.environment.digest,
         }
 
 
 def self_play_plan_from_cell(
     cell: MatrixCell,
+    environment: MaterializedSeedEnvironment,
     *,
     simulator: ModelRole,
     assistant_provider: str,
@@ -196,6 +207,7 @@ def self_play_plan_from_cell(
         turn_count=draw.turn_count,
         simulator=simulator,
         assistant_provider=assistant_provider,
+        environment=environment,
         tool_failure_mode=tool_failure_mode,
     )
 
@@ -208,6 +220,8 @@ class UserSimulationRequest:
     scenario_template: str
     persona: Persona
     register: str
+    simulator_traits: tuple[str, ...]
+    route_context: str | None
     model: str
     messages: tuple[AssistantMessage, ...]
 
@@ -235,6 +249,8 @@ class BackendUserSimulator:
             f"Scenario: {request.scenario_template}\n"
             f"Persona: {request.persona.instructions}\n"
             f"Register: {request.register}\n"
+            f"Character traits: {json.dumps(request.simulator_traits)}\n"
+            f"Conversation goal: {request.route_context or 'Follow the scenario naturally.'}\n"
             f"Turn: {request.turn_index + 1}/{request.turn_count}\n"
             f"Conversation: {json.dumps(request.messages, sort_keys=True)}\n"
             "Return the next user message."
@@ -324,7 +340,6 @@ def record_self_play_cell(
     simulator: UserSimulator,
     recorder: AssistantRecorder,
     prices: PriceCatalog | None,
-    fixture_set: Mapping[str, Any],
     pass_seed: int,
     assistant_max_input_tokens: int,
     assistant_max_output_tokens: int,
@@ -355,7 +370,6 @@ def record_self_play_cell(
                 simulator=simulator,
                 recorder=recorder,
                 prices=prices,
-                fixture_set=fixture_set,
                 pass_seed=pass_seed,
                 registry=registry,
             )
@@ -410,7 +424,6 @@ def _record_attempt(
     simulator: UserSimulator,
     recorder: AssistantRecorder,
     prices: PriceCatalog | None,
-    fixture_set: Mapping[str, Any],
     pass_seed: int,
     registry: ToolRegistry,
 ) -> StagedSelfPlayFragment:
@@ -421,6 +434,7 @@ def _record_attempt(
     simulator_usage = cast(TokenUsage, state["simulator_usage"])
     tool_call_count = cast(int, state["tool_call_count"])
     completed_turns = cast(int, state["completed_turns"])
+    fixture_set = _fixture_set_for_environment(plan.environment)
     attempt_dir = (
         run.directory / "staging" / cell.cell_id / f"attempt-{attempts.assistant.attempt_number}"
     )
@@ -435,10 +449,13 @@ def _record_attempt(
                 scenario_template=plan.scenario_template,
                 persona=plan.persona,
                 register=plan.register,
+                simulator_traits=plan.environment.simulator_traits,
+                route_context=plan.environment.route_context,
                 model=plan.simulator.model,
                 messages=tuple(messages),
             )
         )
+        _validate_generated_content(cell, user.content)
         simulator_usage += user.usage
         pending_messages = [*messages, {"role": "user", "content": user.content}]
         before_calls = tool_call_count
@@ -450,6 +467,7 @@ def _record_attempt(
                 pass_seed=pass_seed,
                 cell_id=cell.cell_id,
                 fixture_set=fixture_set,
+                result_overlays=plan.environment.tool_result_overlays,
                 failure_mode=plan.tool_failure_mode,
                 call_ordinal=tool_call_count,
             )
@@ -471,6 +489,7 @@ def _record_attempt(
         repeated_trace_ids = set(trace_ids).intersection(recorded.trace_ids)
         try:
             _validate_recorded_turn(recorded)
+            _validate_generated_content(cell, recorded.messages)
         except SelfPlayError as error:
             turn_error = str(error)
         else:
@@ -682,6 +701,48 @@ def _validate_recorded_turn(recorded: RecordedAssistantTurn) -> None:
     _validate_trace_ids(recorded.trace_ids)
     if not recorded.trace_ids:
         raise SelfPlayError("a complete assistant turn must contain a recorded trace")
+
+
+def _fixture_set_for_environment(
+    environment: MaterializedSeedEnvironment,
+) -> Mapping[str, Any]:
+    fixture_set = _json_copy(dict(environment.tool_fixture_data))
+    if not isinstance(fixture_set, dict) or not isinstance(fixture_set.get("name"), str):
+        raise SelfPlayError("materialized tool fixture data must contain a string name")
+    documents = fixture_set.get("documents")
+    if not isinstance(documents, list):
+        raise SelfPlayError("materialized tool fixture data must contain a documents list")
+    by_id = {
+        document.get("id"): document
+        for document in documents
+        if isinstance(document, dict) and isinstance(document.get("id"), str)
+    }
+    for document_id, content in environment.documents.items():
+        if document_id in by_id:
+            by_id[document_id]["text"] = content
+        else:
+            documents.append({"id": document_id, "text": content})
+    return fixture_set
+
+
+def _validate_generated_content(cell: MatrixCell, value: Any) -> None:
+    forbidden = (*_RESERVED_TRANSCRIPT_PHRASES, *cell.profile.seed_intensities)
+    for content in _text_values(value):
+        lowered = content.casefold()
+        if any(term.casefold() in lowered for term in forbidden):
+            raise SelfPlayError(
+                f"generated transcript for cell {cell.cell_id!r} exposed internal context"
+            )
+
+
+def _text_values(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, Mapping):
+        return tuple(content for item in value.values() for content in _text_values(item))
+    if isinstance(value, (list, tuple)):
+        return tuple(content for item in value for content in _text_values(item))
+    return ()
 
 
 def _validate_trace_ids(trace_ids: Sequence[Any]) -> None:

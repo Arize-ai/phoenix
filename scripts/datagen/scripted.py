@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Literal, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Literal, Mapping, Sequence, cast
 
-if __package__:
+if TYPE_CHECKING or __package__:
     from scripts.datagen.generation import GenerationError, MatrixCell
     from scripts.datagen.model_backend import ModelBackend, ModelRequest, ModelResult
     from scripts.datagen.openai_batch import BatchRequest, BatchResult, custom_id
+    from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
 else:
     from generation import GenerationError, MatrixCell
     from model_backend import ModelBackend, ModelRequest, ModelResult
@@ -25,6 +26,7 @@ else:
         BatchResult,
         custom_id,
     )
+    from seed_mechanics import MaterializedSeedEnvironment
 
 SCRIPT_SCHEMA_VERSION = 1
 FailureMode = Literal[
@@ -36,6 +38,12 @@ FailureMode = Literal[
 ]
 FAILURE_MODES: frozenset[str] = frozenset(
     {"none", "provider_429", "provider_timeout", "malformed_response", "tool_exception"}
+)
+_RESERVED_TRANSCRIPT_PHRASES = (
+    "adversarial seed",
+    "seed intensity",
+    "targeted seed",
+    "make a mistake",
 )
 
 _SCRIPT_OUTPUT_SCHEMA: Mapping[str, Any] = {
@@ -130,15 +138,22 @@ class ConversationScript:
         )
 
 
-def build_model_request(cell: MatrixCell) -> ModelRequest:
+def build_model_request(cell: MatrixCell, environment: MaterializedSeedEnvironment) -> ModelRequest:
     if cell.lane != "scripted":
         raise GenerationError(f"Cell {cell.cell_id} belongs to {cell.lane}, not scripted")
-    profile = json.dumps(cell.profile.to_dict(), sort_keys=True, separators=(",", ":"))
+    context = {
+        "scenario": cell.profile.scenario_template,
+        "topic": cell.profile.topic,
+        "persona": cell.profile.persona_instructions,
+        "register": cell.profile.register,
+        "application": environment.visible_dict(),
+    }
+    visible_context = json.dumps(context, sort_keys=True, separators=(",", ":"))
     prompt = (
         "Write one coherent whole conversation for an offline telemetry fixture. "
         "Return only the requested JSON object. Each turn must contain a realistic user "
-        "message and the assistant response that should be replayed verbatim. Use these "
-        f"application profile draw: {profile}"
+        "message and the assistant response that should be replayed verbatim. Use this "
+        f"ordinary application context: {visible_context}"
     )
     return ModelRequest(
         request_id=cell.cell_id,
@@ -150,14 +165,20 @@ def build_model_request(cell: MatrixCell) -> ModelRequest:
     )
 
 
-def generate_script(backend: ModelBackend, cell: MatrixCell) -> tuple[ConversationScript, ModelResult]:
-    result = backend.generate(build_model_request(cell))
+def generate_script(
+    backend: ModelBackend,
+    cell: MatrixCell,
+    environment: MaterializedSeedEnvironment,
+) -> tuple[ConversationScript, ModelResult]:
+    result = backend.generate(build_model_request(cell, environment))
     return _script_from_output(cell, result.output), result
 
 
-def build_script_request(run_id: str, cell: MatrixCell) -> BatchRequest:
+def build_script_request(
+    run_id: str, cell: MatrixCell, environment: MaterializedSeedEnvironment
+) -> BatchRequest:
     """Build one Responses Batch row for a scripted matrix cell."""
-    request = build_model_request(cell)
+    request = build_model_request(cell, environment)
     return BatchRequest(
         custom_id=custom_id(run_id, cell.cell_id, "script"),
         body={
@@ -218,6 +239,9 @@ def _script_from_output(cell: MatrixCell, value: Mapping[str, Any]) -> Conversat
     if not isinstance(raw_turns, list):
         raise GenerationError(f"Structured result for cell {cell.cell_id!r} has no turns array")
     turns = tuple(_parse_turn(turn, index) for index, turn in enumerate(raw_turns))
+    for turn in turns:
+        _validate_transcript_text(cell, turn.user)
+        _validate_transcript_text(cell, turn.assistant)
     return ConversationScript(
         cell_id=cell.cell_id,
         model=cell.assistant_model,
@@ -241,6 +265,15 @@ def _failure_mode(value: Any) -> FailureMode:
     if not isinstance(value, str) or value not in FAILURE_MODES:
         raise GenerationError(f"Unsupported scripted failure mode {value!r}")
     return cast(FailureMode, value)
+
+
+def _validate_transcript_text(cell: MatrixCell, content: str) -> None:
+    lowered = content.casefold()
+    forbidden = (*_RESERVED_TRANSCRIPT_PHRASES, *cell.profile.seed_intensities)
+    if any(term.casefold() in lowered for term in forbidden):
+        raise GenerationError(
+            f"Generated transcript for cell {cell.cell_id!r} exposed internal context"
+        )
 
 
 def _response_output_text(body: Mapping[str, Any]) -> str:

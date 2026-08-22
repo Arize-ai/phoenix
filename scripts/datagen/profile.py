@@ -13,6 +13,9 @@ from phoenix.datagen.schema import ARCHETYPES, QUALITY_TIERS
 
 DOMAINS = frozenset({"coding_agent", "customer_support", "deep_research", "data_analyst"})
 SEED_CATEGORIES = frozenset({"corpus", "tool_data", "user", "dynamics", "pressure"})
+SEED_STRENGTHS = ("subtle", "moderate", "strong")
+CORPUS_EDIT_OPERATIONS = frozenset({"replace_once", "append"})
+TOOL_PATCH_OPERATIONS = frozenset({"add", "replace", "remove"})
 DEFAULT_SAMPLING: Mapping[str, Any] = {
     "targeted_cell_fraction": 0.10,
     "intensity_distribution": {"kind": "beta", "alpha": 2.0, "beta": 8.0},
@@ -52,10 +55,54 @@ class TurnCountProfile:
 
 
 @dataclass(frozen=True)
+class CorpusEdit:
+    document_id: str
+    operation: str
+    source: str | None = None
+    replacement: str | None = None
+    text: str | None = None
+
+
+@dataclass(frozen=True)
+class ToolPatchOperation:
+    operation: str
+    path: str
+    value: Any = None
+
+
+@dataclass(frozen=True)
+class ToolResultOverlay:
+    tool_name: str
+    match_arguments: Mapping[str, Any]
+    operations: tuple[ToolPatchOperation, ...]
+
+
+@dataclass(frozen=True)
+class SeedVariant:
+    route: str
+    corpus_edits: tuple[CorpusEdit, ...]
+    tool_overlays: tuple[ToolResultOverlay, ...]
+    simulator_traits: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SeedMechanics:
+    subtle: tuple[SeedVariant, ...]
+    moderate: tuple[SeedVariant, ...]
+    strong: tuple[SeedVariant, ...]
+
+    def variants_for(self, strength: str) -> tuple[SeedVariant, ...]:
+        if strength not in SEED_STRENGTHS:
+            raise ValueError(f"unknown seed strength {strength!r}")
+        return cast(tuple[SeedVariant, ...], getattr(self, strength))
+
+
+@dataclass(frozen=True)
 class AdversarialSeed:
     seed_id: str
     category: str
     description: str
+    mechanics: SeedMechanics
 
 
 @dataclass(frozen=True)
@@ -140,7 +187,9 @@ def _load_profile(root: Path, relative: str) -> ApplicationProfileV1:
     profile = _parse_profile(value, source_path=relative)
     expected = PurePosixPath(relative)
     if expected.name != "profile.json" or len(expected.parts) < 3:
-        raise ProfileValidationError(f"profile path {relative!r} must end in <domain>/<archetype>/profile.json")
+        raise ProfileValidationError(
+            f"profile path {relative!r} must end in <domain>/<archetype>/profile.json"
+        )
     if expected.parts[-3:-1] != (profile.domain, profile.archetype):
         raise ProfileValidationError(
             f"profile path {relative!r} does not match identity {profile.profile_id!r}"
@@ -149,7 +198,9 @@ def _load_profile(root: Path, relative: str) -> ApplicationProfileV1:
     for document in profile.corpus_documents:
         resolved = profile_dir.joinpath(*PurePosixPath(document.path).parts).resolve()
         if not resolved.is_relative_to(profile_dir):
-            raise ProfileValidationError(f"corpus document {document.path!r} escapes its profile directory")
+            raise ProfileValidationError(
+                f"corpus document {document.path!r} escapes its profile directory"
+            )
     return profile
 
 
@@ -196,13 +247,13 @@ def _parse_profile(value: Mapping[str, Any], *, source_path: str) -> Application
         for field in (f"turn_counts[{index}]",)
     )
     seeds = tuple(
-        AdversarialSeed(
-            _string_object(item, "seed_id", field),
-            _choice_object(item, "category", SEED_CATEGORIES, field),
-            _string_object(item, "description", field),
+        _adversarial_seed(
+            item,
+            f"adversarial_seeds[{index}]",
+            document_ids={document.document_id for document in documents},
+            tool_names=set(tools),
         )
         for index, item in enumerate(_array(value, "adversarial_seeds"))
-        for field in (f"adversarial_seeds[{index}]",)
     )
     seed_ids = {seed.seed_id for seed in seeds}
     _unique([seed.seed_id for seed in seeds], "adversarial_seeds.seed_id")
@@ -212,7 +263,9 @@ def _parse_profile(value: Mapping[str, Any], *, source_path: str) -> Application
     for index, item in enumerate(_array(value, "scenarios")):
         field = f"scenarios[{index}]"
         raw = _object(item, field)
-        target_ids = tuple(_nonempty_strings(_array(raw, "target_seed_ids"), f"{field}.target_seed_ids"))
+        target_ids = tuple(
+            _nonempty_strings(_array(raw, "target_seed_ids"), f"{field}.target_seed_ids")
+        )
         unknown = set(target_ids) - seed_ids
         if unknown:
             raise ProfileValidationError(
@@ -259,16 +312,24 @@ def _sampling(value: Any) -> Mapping[str, Any]:
     fraction = value.get("targeted_cell_fraction", DEFAULT_SAMPLING["targeted_cell_fraction"])
     if not _number(fraction) or not 0 <= cast(float, fraction) <= 1:
         raise ProfileValidationError("sampling.targeted_cell_fraction must be between 0 and 1")
-    raw_distribution = value.get("intensity_distribution", DEFAULT_SAMPLING["intensity_distribution"])
+    raw_distribution = value.get(
+        "intensity_distribution", DEFAULT_SAMPLING["intensity_distribution"]
+    )
     if not isinstance(raw_distribution, Mapping) or raw_distribution.get("kind") != "beta":
         raise ProfileValidationError("sampling.intensity_distribution.kind must be 'beta'")
     alpha = raw_distribution.get("alpha", 2.0)
     beta = raw_distribution.get("beta", 8.0)
     if not _number(alpha) or cast(float, alpha) <= 0 or not _number(beta) or cast(float, beta) <= 0:
-        raise ProfileValidationError("sampling beta parameters must be finite and greater than zero")
+        raise ProfileValidationError(
+            "sampling beta parameters must be finite and greater than zero"
+        )
     return {
         "targeted_cell_fraction": float(cast(float, fraction)),
-        "intensity_distribution": {"kind": "beta", "alpha": float(cast(float, alpha)), "beta": float(cast(float, beta))},
+        "intensity_distribution": {
+            "kind": "beta",
+            "alpha": float(cast(float, alpha)),
+            "beta": float(cast(float, beta)),
+        },
     }
 
 
@@ -289,11 +350,222 @@ def _profile_dict(profile: ApplicationProfileV1) -> dict[str, Any]:
         ],
         "quality_tiers": [item.__dict__ for item in profile.quality_tiers],
         "turn_counts": [item.__dict__ for item in profile.turn_counts],
-        "adversarial_seeds": [seed.__dict__ for seed in profile.adversarial_seeds],
+        "adversarial_seeds": [_seed_dict(seed) for seed in profile.adversarial_seeds],
     }
 
 
-def _weighted_values(value: Mapping[str, Any], field: str, *, choices: frozenset[str] | None = None) -> tuple[WeightedValue, ...]:
+def _adversarial_seed(
+    value: Any,
+    field: str,
+    *,
+    document_ids: set[str],
+    tool_names: set[str],
+) -> AdversarialSeed:
+    raw = _object(value, field)
+    category = _choice_object(raw, "category", SEED_CATEGORIES, field)
+    mechanics = _seed_mechanics(
+        raw.get("mechanics"),
+        f"{field}.mechanics",
+        category=category,
+        document_ids=document_ids,
+        tool_names=tool_names,
+    )
+    return AdversarialSeed(
+        _string(raw, "seed_id", prefix=field),
+        category,
+        _string(raw, "description", prefix=field),
+        mechanics,
+    )
+
+
+def _seed_mechanics(
+    value: Any,
+    field: str,
+    *,
+    category: str,
+    document_ids: set[str],
+    tool_names: set[str],
+) -> SeedMechanics:
+    raw = _object(value, field)
+    unexpected = set(raw) - set(SEED_STRENGTHS)
+    if unexpected:
+        raise ProfileValidationError(f"{field} has unknown strengths {sorted(unexpected)!r}")
+    levels: dict[str, tuple[SeedVariant, ...]] = {}
+    for strength in SEED_STRENGTHS:
+        variants = tuple(
+            _seed_variant(
+                item,
+                f"{field}.{strength}[{index}]",
+                category=category,
+                document_ids=document_ids,
+                tool_names=tool_names,
+            )
+            for index, item in enumerate(_array(raw, strength))
+        )
+        if not variants:
+            raise ProfileValidationError(f"{field}.{strength} must not be empty")
+        levels[strength] = variants
+    return SeedMechanics(levels["subtle"], levels["moderate"], levels["strong"])
+
+
+def _seed_variant(
+    value: Any,
+    field: str,
+    *,
+    category: str,
+    document_ids: set[str],
+    tool_names: set[str],
+) -> SeedVariant:
+    raw = _object(value, field)
+    corpus_edits = tuple(
+        _corpus_edit(item, f"{field}.corpus_edits[{index}]", document_ids)
+        for index, item in enumerate(_optional_array(raw, "corpus_edits"))
+    )
+    tool_overlays = tuple(
+        _tool_overlay(item, f"{field}.tool_overlays[{index}]", tool_names)
+        for index, item in enumerate(_optional_array(raw, "tool_overlays"))
+    )
+    simulator_traits = tuple(
+        _nonempty_strings(_optional_array(raw, "simulator_traits"), f"{field}.simulator_traits")
+    )
+    channels = {
+        "corpus": bool(corpus_edits),
+        "tool_data": bool(tool_overlays),
+        "simulator": bool(simulator_traits),
+    }
+    allowed = {
+        "corpus": {"corpus"},
+        "tool_data": {"tool_data"},
+        "user": {"simulator"},
+        "dynamics": {"simulator"},
+        "pressure": {"corpus", "tool_data", "simulator"},
+    }[category]
+    used = {name for name, present in channels.items() if present}
+    if category == "pressure" and not simulator_traits:
+        raise ProfileValidationError(
+            f"{field}.simulator_traits must not be empty for pressure seeds"
+        )
+    if not used or not used <= allowed:
+        permitted = sorted(allowed)
+        raise ProfileValidationError(
+            f"{field} uses channels {sorted(used)!r}; category {category!r} permits {permitted!r}"
+        )
+    return SeedVariant(
+        route=_string(raw, "route", prefix=field),
+        corpus_edits=corpus_edits,
+        tool_overlays=tool_overlays,
+        simulator_traits=simulator_traits,
+    )
+
+
+def _corpus_edit(value: Any, field: str, document_ids: set[str]) -> CorpusEdit:
+    raw = _object(value, field)
+    document_id = _string(raw, "document_id", prefix=field)
+    if document_id not in document_ids:
+        raise ProfileValidationError(
+            f"{field}.document_id references unknown corpus document {document_id!r}"
+        )
+    operation = _choice_object(raw, "operation", CORPUS_EDIT_OPERATIONS, field)
+    if operation == "replace_once":
+        source = _string(raw, "source", prefix=field)
+        replacement = _string(raw, "replacement", prefix=field)
+        if "text" in raw:
+            raise ProfileValidationError(f"{field}.text is only valid for append")
+        return CorpusEdit(document_id, operation, source=source, replacement=replacement)
+    if "source" in raw or "replacement" in raw:
+        raise ProfileValidationError(
+            f"{field}.source and replacement are only valid for replace_once"
+        )
+    return CorpusEdit(document_id, operation, text=_string(raw, "text", prefix=field))
+
+
+def _tool_overlay(value: Any, field: str, tool_names: set[str]) -> ToolResultOverlay:
+    raw = _object(value, field)
+    tool_name = _string(raw, "tool_name", prefix=field)
+    if tool_name not in tool_names:
+        raise ProfileValidationError(f"{field}.tool_name references unknown tool {tool_name!r}")
+    match_arguments = raw.get("match_arguments", {})
+    if not isinstance(match_arguments, Mapping):
+        raise ProfileValidationError(f"{field}.match_arguments must be an object")
+    operations = tuple(
+        _tool_patch(item, f"{field}.operations[{index}]")
+        for index, item in enumerate(_array(raw, "operations"))
+    )
+    if not operations:
+        raise ProfileValidationError(f"{field}.operations must not be empty")
+    return ToolResultOverlay(tool_name, dict(match_arguments), operations)
+
+
+def _tool_patch(value: Any, field: str) -> ToolPatchOperation:
+    raw = _object(value, field)
+    operation = _choice_object(raw, "operation", TOOL_PATCH_OPERATIONS, field)
+    path = _string(raw, "path", prefix=field)
+    if not path.startswith("/") or path == "/" or "//" in path:
+        raise ProfileValidationError(f"{field}.path must be a non-root JSON Pointer")
+    first_token = path.split("/", 2)[1].replace("~1", "/").replace("~0", "~")
+    if first_token == "invocation_id":
+        raise ProfileValidationError(f"{field}.path may not alter invocation_id")
+    if operation == "remove":
+        if "value" in raw:
+            raise ProfileValidationError(f"{field}.value is not valid for remove")
+        return ToolPatchOperation(operation, path)
+    if "value" not in raw:
+        raise ProfileValidationError(f"{field}.value is required for {operation}")
+    return ToolPatchOperation(operation, path, raw["value"])
+
+
+def _seed_dict(seed: AdversarialSeed) -> dict[str, Any]:
+    return {
+        "seed_id": seed.seed_id,
+        "category": seed.category,
+        "description": seed.description,
+        "mechanics": {
+            strength: [_variant_dict(variant) for variant in seed.mechanics.variants_for(strength)]
+            for strength in SEED_STRENGTHS
+        },
+    }
+
+
+def _variant_dict(variant: SeedVariant) -> dict[str, Any]:
+    value: dict[str, Any] = {"route": variant.route}
+    if variant.corpus_edits:
+        value["corpus_edits"] = [_corpus_edit_dict(edit) for edit in variant.corpus_edits]
+    if variant.tool_overlays:
+        value["tool_overlays"] = [_tool_overlay_dict(overlay) for overlay in variant.tool_overlays]
+    if variant.simulator_traits:
+        value["simulator_traits"] = list(variant.simulator_traits)
+    return value
+
+
+def _corpus_edit_dict(edit: CorpusEdit) -> dict[str, Any]:
+    if edit.operation == "replace_once":
+        return {
+            "document_id": edit.document_id,
+            "operation": edit.operation,
+            "source": edit.source,
+            "replacement": edit.replacement,
+        }
+    return {"document_id": edit.document_id, "operation": edit.operation, "text": edit.text}
+
+
+def _tool_overlay_dict(overlay: ToolResultOverlay) -> dict[str, Any]:
+    return {
+        "tool_name": overlay.tool_name,
+        "match_arguments": dict(overlay.match_arguments),
+        "operations": [
+            {
+                "operation": operation.operation,
+                "path": operation.path,
+                **({} if operation.operation == "remove" else {"value": operation.value}),
+            }
+            for operation in overlay.operations
+        ],
+    }
+
+
+def _weighted_values(
+    value: Mapping[str, Any], field: str, *, choices: frozenset[str] | None = None
+) -> tuple[WeightedValue, ...]:
     result = []
     for index, item in enumerate(_array(value, field)):
         prefix = f"{field}[{index}]"
@@ -337,6 +609,13 @@ def _array(value: Mapping[str, Any], field: str) -> Sequence[Any]:
     return item
 
 
+def _optional_array(value: Mapping[str, Any], field: str) -> Sequence[Any]:
+    item = value.get(field, [])
+    if not isinstance(item, list):
+        raise ProfileValidationError(f"{field} must be an array")
+    return item
+
+
 def _string(value: Mapping[str, Any], field: str, *, prefix: str = "") -> str:
     item = value.get(field)
     if not isinstance(item, str) or not item:
@@ -375,9 +654,9 @@ def _weight(value: Any, field: str) -> float:
 
 
 def _turn_count(value: Any, field: str) -> int:
-    if type(value) is not int or not 1 <= cast(int, value) <= 16:
+    if type(value) is not int or not 1 <= value <= 16:
         raise ProfileValidationError(f"{field} must be an integer between 1 and 16")
-    return cast(int, value)
+    return value
 
 
 def _number(value: Any) -> bool:

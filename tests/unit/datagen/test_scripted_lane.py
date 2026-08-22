@@ -9,7 +9,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from scripts.datagen.generation import MatrixCell, ProfileDraw
+from scripts.datagen.generation import GenerationError, MatrixCell, ProfileDraw
 from scripts.datagen.mock_openai_provider import (
     PlaybackProvider,
     create_chat_completion,
@@ -21,13 +21,19 @@ from scripts.datagen.scripted import (
     generate_script,
     scripts_from_batch_results,
 )
+from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
 
 
 def test_scripted_batch_result_replays_through_instrumented_openai_client() -> None:
     cell = _cell()
-    request = build_script_request("run-1", cell)
+    request = build_script_request("run-1", cell, _environment())
     assert request.custom_id == f"run-1:{cell.cell_id}:script"
     assert request.body["model"] == "model-exact"
+    prompt = request.body["input"]
+    assert "Returns are accepted within 21 days." in prompt
+    assert "The buyer is preparing for travel." in prompt
+    assert "target_mode" not in prompt
+    assert "seed_intensities" not in prompt
 
     result = BatchResult(
         custom_id=request.custom_id,
@@ -139,13 +145,29 @@ def test_structured_backend_generates_script_without_batch() -> None:
                 usage=None,
             )
 
-    script, result = generate_script(Backend(), _cell())
+    script, result = generate_script(Backend(), _cell(), _environment())
 
     assert script.turns[0].assistant == "Answer"
     assert result.provider == "codex_exec"
 
 
-def _cell() -> MatrixCell:
+def test_scripted_results_reject_internal_profile_language() -> None:
+    cell = _cell(seed_intensities={"policy-window": 0.2})
+    result = BatchResult(
+        custom_id=f"run-1:{cell.cell_id}:script",
+        response_status_code=200,
+        request_id="batch-request-leak",
+        body=_responses_body(
+            {"turns": [{"user": "Use policy-window.", "assistant": "I can help."}]}
+        ),
+        error=None,
+    )
+
+    with pytest.raises(GenerationError, match="exposed internal context"):
+        scripts_from_batch_results("run-1", [cell], [result])
+
+
+def _cell(seed_intensities: dict[str, float] | None = None) -> MatrixCell:
     return MatrixCell(
         cell_id="a" * 64,
         lane="scripted",
@@ -164,9 +186,20 @@ def _cell() -> MatrixCell:
             turn_count=1,
             target_mode="ambient",
             targeted_seed_id=None,
-            seed_intensities={},
+            seed_intensities=seed_intensities or {},
         ),
         assistant_model="model-exact",
+    )
+
+
+def _environment() -> MaterializedSeedEnvironment:
+    return MaterializedSeedEnvironment(
+        documents={"returns": "Returns are accepted within 21 days."},
+        tool_fixture_data={"name": "support", "documents": [], "records": [], "statuses": []},
+        tool_result_overlays=(),
+        simulator_traits=("The buyer is preparing for travel.",),
+        route_context="Ask whether the return can be completed before departure.",
+        digest="e" * 64,
     )
 
 

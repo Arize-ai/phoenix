@@ -12,7 +12,12 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final, cast
+
+if TYPE_CHECKING or __package__:
+    from scripts.datagen.profile import ToolPatchOperation, ToolResultOverlay
+else:
+    from profile import ToolPatchOperation, ToolResultOverlay
 
 MAX_TOOL_LOOP_STEPS: Final = 6
 FAILURE_NONE: Final = "none"
@@ -47,6 +52,7 @@ class ToolContext:
     pass_seed: int
     cell_id: str
     fixture_set: Mapping[str, Any]
+    result_overlays: tuple[ToolResultOverlay, ...] = ()
     failure_mode: str = FAILURE_NONE
     call_ordinal: int = 1
 
@@ -202,6 +208,13 @@ class ToolRegistry:
             )
             raise InjectedToolFailure(message)
         result = spec.handler(validated, context, invocation_id)
+        result = _apply_result_overlays(
+            name,
+            validated,
+            result,
+            context.result_overlays,
+            invocation_id,
+        )
         ledger.append(
             InvocationRecord(
                 invocation_id=invocation_id,
@@ -444,6 +457,96 @@ def _declared_delay_ms(invocation_id: str, failure_mode: str) -> int:
     if failure_mode != FAILURE_DELAY:
         return 0
     return 50 + int(invocation_id[:8], 16) % 451
+
+
+def _apply_result_overlays(
+    tool_name: str,
+    arguments: Mapping[str, Any],
+    result: ToolResult,
+    overlays: Sequence[ToolResultOverlay],
+    invocation_id: str,
+) -> ToolResult:
+    patched = cast(ToolResult, _json_copy(result))
+    for overlay in overlays:
+        if overlay.tool_name != tool_name or not all(
+            arguments.get(name) == value for name, value in overlay.match_arguments.items()
+        ):
+            continue
+        for operation in overlay.operations:
+            _apply_json_pointer_operation(patched, operation)
+            if patched.get("invocation_id") != invocation_id:
+                raise ToolError("result overlays may not alter invocation_id")
+    return patched
+
+
+def _apply_json_pointer_operation(result: ToolResult, operation: ToolPatchOperation) -> None:
+    tokens = _json_pointer_tokens(operation.path)
+    parent: Any = result
+    for token in tokens[:-1]:
+        if isinstance(parent, dict) and token in parent:
+            parent = parent[token]
+        elif isinstance(parent, list):
+            parent = parent[_list_index(token, len(parent), allow_end=False)]
+        else:
+            raise ToolError(f"tool overlay path {operation.path!r} does not exist")
+    token = tokens[-1]
+    if isinstance(parent, dict):
+        _patch_mapping(parent, token, operation)
+    elif isinstance(parent, list):
+        _patch_sequence(parent, token, operation)
+    else:
+        raise ToolError(f"tool overlay path {operation.path!r} has a scalar parent")
+
+
+def _patch_mapping(parent: dict[str, JSON], token: str, operation: ToolPatchOperation) -> None:
+    if operation.operation == "add":
+        parent[token] = _json_copy(operation.value)
+        return
+    if token not in parent:
+        raise ToolError(f"tool overlay path component {token!r} does not exist")
+    if operation.operation == "remove":
+        del parent[token]
+    else:
+        parent[token] = _json_copy(operation.value)
+
+
+def _patch_sequence(parent: list[JSON], token: str, operation: ToolPatchOperation) -> None:
+    if operation.operation == "add":
+        if token == "-":
+            parent.append(_json_copy(operation.value))
+        else:
+            parent.insert(
+                _list_index(token, len(parent), allow_end=True), _json_copy(operation.value)
+            )
+        return
+    index = _list_index(token, len(parent), allow_end=False)
+    if operation.operation == "remove":
+        del parent[index]
+    else:
+        parent[index] = _json_copy(operation.value)
+
+
+def _json_pointer_tokens(path: str) -> list[str]:
+    if not path.startswith("/") or path == "/":
+        raise ToolError("tool overlay paths must be non-root JSON Pointers")
+    tokens = []
+    for raw in path[1:].split("/"):
+        if re.search(r"~(?![01])", raw):
+            raise ToolError(f"tool overlay path {path!r} has an invalid escape")
+        tokens.append(raw.replace("~1", "/").replace("~0", "~"))
+    if tokens[0] == "invocation_id":
+        raise ToolError("result overlays may not alter invocation_id")
+    return tokens
+
+
+def _list_index(token: str, length: int, *, allow_end: bool) -> int:
+    if not token.isdigit() or (len(token) > 1 and token.startswith("0")):
+        raise ToolError(f"tool overlay list index {token!r} is invalid")
+    index = int(token)
+    limit = length if allow_end else length - 1
+    if index > limit:
+        raise ToolError(f"tool overlay list index {index} is out of range")
+    return index
 
 
 def _canonical_json(value: Any) -> str:
