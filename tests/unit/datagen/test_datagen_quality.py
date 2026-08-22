@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import pytest
+from phoenix.datagen.schema import validate_fragment_v2
 
 from scripts.datagen.bank import BankError, package_generation_run, read_v2_bank
 from scripts.datagen.generation import (
@@ -15,8 +16,14 @@ from scripts.datagen.generation import (
     expand_seed_matrix,
     matrix_sha256,
 )
+from scripts.datagen.judgments import conversation_sha256, execute_judging
+from scripts.datagen.model_backend import (
+    BackendCapabilities,
+    ModelResult,
+    ProviderUsage,
+)
 from scripts.datagen.profile import load_profile_set
-from scripts.datagen.quality import NORMALIZER_VERSION, QualityGate
+from scripts.datagen.quality import NORMALIZER_VERSION, QualityGate, select_judge_routes
 
 
 def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
@@ -69,6 +76,7 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
         accepted.append(outcome.fragment)
 
     assert accepted[0]["content_sha256"] == accepted[1]["content_sha256"]
+    _judge(run, prices, accepted, messages)
     archive = tmp_path / "quality-bank.tar.gz"
     package = package_generation_run(
         run.directory,
@@ -81,7 +89,11 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
     bank = read_v2_bank(archive)
 
     assert bank.traces_bytes == b"".join(staged_traces)
-    assert package.manifest["quality_gate_summary"]["judge_sample_fragment_ids"]
+    summary = package.manifest["quality_gate_summary"]["judged_outcome"]
+    assert summary["judged"] == 1
+    assert summary["unjudged"] == 1
+    assert summary["outcomes"]["survived"] == 1
+    assert all("judged_outcome" in fragment.quality_results for fragment in bank.fragments)
     with tarfile.open(archive, "r:gz") as contents:
         assert sorted(member.name for member in contents.getmembers()) == [
             "quality-bank/fragments.jsonl",
@@ -119,11 +131,17 @@ def test_short_fragment_jaccard_threshold_is_inclusive(tmp_path: Path) -> None:
     user = " ".join(f"token{index}" for index in range(32))
     base = gate.evaluate(
         _candidate("a" * 64, "plain_chat", "self_play", ["a" * 32]),
-        [{"role": "user", "content": user}, {"role": "assistant", "content": "answer one"}],
+        [
+            {"role": "user", "content": user},
+            {"role": "assistant", "content": "answer one"},
+        ],
     )
     rejected = gate.evaluate(
         _candidate("b" * 64, "plain_chat", "self_play", ["b" * 32]),
-        [{"role": "user", "content": user}, {"role": "assistant", "content": "answer two"}],
+        [
+            {"role": "user", "content": user},
+            {"role": "assistant", "content": "answer two"},
+        ],
     )
     accepted = gate.evaluate(
         _candidate("c" * 64, "plain_chat", "self_play", ["c" * 32]),
@@ -144,21 +162,78 @@ def test_short_fragment_jaccard_threshold_is_inclusive(tmp_path: Path) -> None:
     assert persisted["normalizer_version"] == NORMALIZER_VERSION
 
 
+def test_judge_routes_sample_only_the_non_proximate_remainder() -> None:
+    fragments = [
+        _candidate(f"fragment-{index}", "plain_chat", "self_play", [f"{index:032x}"])
+        for index in range(40)
+    ]
+    routes = select_judge_routes(
+        fragments,
+        proximate_fragment_ids={"fragment-0", "fragment-1"},
+        seed=11,
+    )
+
+    assert routes["fragment-0"] == "trap_proximity"
+    assert routes["fragment-1"] == "trap_proximity"
+    assert sum(reason == "baseline" for reason in routes.values()) == 2
+
+
+def test_legacy_bad_tier_remains_readable_in_schema_v2() -> None:
+    fragment = _candidate("a" * 64, "plain_chat", "scripted", ["b" * 32])
+    fragment.update(
+        quality_tier="deliberately_bad",
+        content_sha256="c" * 64,
+        quality_results={},
+    )
+
+    assert validate_fragment_v2(fragment).quality_tier == "deliberately_bad"
+
+
 def _generation_run(tmp_path: Path) -> tuple[GenerationRun, PriceCatalog]:
     profile_dir = tmp_path / "customer_support" / "plain_chat"
     profile_dir.mkdir(parents=True)
-    (profile_dir / "profile.json").write_text(json.dumps({
-        "schema_version": 1, "profile_id": "customer_support/plain_chat",
-        "domain": "customer_support", "archetype": "plain_chat",
-        "tool_surface": ["lookup_order"], "corpus_documents": [],
-        "personas": [{"persona_id": "buyer", "instructions": "Ask for help.", "weight": 1}],
-        "registers": [{"value": "neutral", "weight": 1}],
-        "scenarios": [{"scenario_id": "setup", "topic": "account setup", "template": "Ask for help.", "weight": 1, "target_seed_ids": []}],
-        "quality_tiers": [{"value": "high", "weight": 1}],
-        "turn_counts": [{"value": 2, "weight": 1}], "adversarial_seeds": [],
-    }))
+    (profile_dir / "profile.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "profile_id": "customer_support/plain_chat",
+                "domain": "customer_support",
+                "archetype": "plain_chat",
+                "tool_surface": ["lookup_order"],
+                "corpus_documents": [],
+                "personas": [
+                    {
+                        "persona_id": "buyer",
+                        "instructions": "Ask for help.",
+                        "weight": 1,
+                    }
+                ],
+                "registers": [{"value": "neutral", "weight": 1}],
+                "scenarios": [
+                    {
+                        "scenario_id": "setup",
+                        "topic": "account setup",
+                        "template": "Ask for help.",
+                        "weight": 1,
+                        "target_seed_ids": [],
+                    }
+                ],
+                "quality_tiers": [{"value": "high", "weight": 1}],
+                "turn_counts": [{"value": 2, "weight": 1}],
+                "adversarial_seeds": [],
+            }
+        )
+    )
     manifest = tmp_path / "profile-set.json"
-    manifest.write_text(json.dumps({"schema_version": 1, "profiles": ["customer_support/plain_chat/profile.json"], "sampling": {}}))
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "profiles": ["customer_support/plain_chat/profile.json"],
+                "sampling": {},
+            }
+        )
+    )
     profiles = load_profile_set(manifest)
     cells = expand_seed_matrix(
         profiles,
@@ -216,3 +291,48 @@ def _candidate(
         "turn_count": 1,
         "trace_ids": trace_ids,
     }
+
+
+def _judge(
+    run: GenerationRun,
+    prices: PriceCatalog,
+    accepted: list[Mapping[str, Any]],
+    messages: list[Mapping[str, Any]],
+) -> None:
+    visible = [message for message in messages if message.get("role") != "system"]
+    visible_sha256 = conversation_sha256(visible)
+    for cell, fragment in zip(run.cells, accepted):
+        run.record_judging_input(
+            {
+                "schema_version": 1,
+                "cell_id": cell.cell_id,
+                "fragment_id": cell.cell_id,
+                "content_sha256": fragment["content_sha256"],
+                "conversation_sha256": visible_sha256,
+                "conversation": visible,
+                "engaged_seed_ids": [],
+                "target_mode": "ambient",
+                "targeted_seed_id": None,
+                "seed_intensities": {},
+                "seed_descriptions": {},
+                "task": cell.profile.topic,
+                "scenario": cell.profile.scenario_template,
+            }
+        )
+
+    class Backend:
+        provider = "openai_api"
+        capabilities = BackendCapabilities(priced_tokens=True)
+
+        def generate(self, request: Any) -> ModelResult:
+            return ModelResult(
+                provider=self.provider,
+                model=request.model,
+                output={
+                    "outcome": "survived",
+                    "rationale": "The response remained useful.",
+                },
+                usage=ProviderUsage(10, 0, 4),
+            )
+
+    execute_judging(run, Backend(), prices=prices)

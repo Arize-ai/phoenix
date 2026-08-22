@@ -13,7 +13,10 @@ from scripts.datagen.profile import (
     ToolPatchOperation,
     ToolResultOverlay,
 )
-from scripts.datagen.seed_mechanics import SeedMechanicsError, materialize_seed_environment
+from scripts.datagen.seed_mechanics import (
+    SeedMechanicsError,
+    materialize_seed_environment,
+)
 
 
 @pytest.mark.parametrize(
@@ -44,6 +47,12 @@ def test_materialization_uses_stable_strength_boundaries(intensity: float, expec
     assert first == second
     assert first.documents["returns"] == f"Returns are accepted within {expected} days."
     assert first.route_context is None
+    assert first.document_seed_ids == {"returns": ("policy-window",)}
+    assert first.trait_seed_ids == ("deadline",)
+    visible = json.dumps(first.visible_dict(), sort_keys=True)
+    assert "source_seed_id" not in visible
+    assert "policy-window" not in visible
+    assert '"deadline"' not in visible
 
 
 def test_targeting_exposes_only_the_selected_route() -> None:

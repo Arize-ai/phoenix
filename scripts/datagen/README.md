@@ -27,7 +27,26 @@ Both paths implement the structured request/result contract in `model_backend.py
 conversations can use a direct backend or the OpenAI Batch adapter. Self-play uses a structured
 backend for user simulation while the assistant recorder continues through the real framework
 client and OpenInference instrumenter, preserving authentic trace capture. The shared request
-purpose also admits `judge` for later evaluation without running that pipeline here.
+purpose also admits `judge` for the accepted-fragment outcome pass.
+
+## Judge accepted outcomes
+
+Outcome labels describe what the conversation delivered; they do not decide whether a valid
+fragment belongs in the bank. `survived` means the result remained correct and appropriately
+cautious, `degraded` means a material but bounded loss left it usable or recoverable, and `failed`
+means the result was materially wrong, unsafe, or unusable. All three remain product data.
+
+Record one complete `JudgingInputV1` for every accepted fragment with
+`generate.py record-judging-input`, then run `generate.py judge`. The pass uses the run's immutable
+frontier model and provider binding. It judges every fragment with recorded seed proximity and a
+deterministic stratified five-percent sample of the remainder. Exact completed rows resume without
+another model call; transport failures remain retryable provider attempts and do not become
+fragment rejects.
+
+The run keeps `judging-inputs.jsonl` and `judgments.jsonl` as generation sidecars. Packaging
+projects their seed, route, label, and rationale metadata into each fragment's existing
+`quality_results["judged_outcome"]` mapping and matching manifest aggregates. The published
+schema-v2 archive still contains only `manifest.json`, `fragments.jsonl`, and `traces.jsonl`.
 
 ## The keyless mock provider
 

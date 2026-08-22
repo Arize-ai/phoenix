@@ -21,13 +21,24 @@ def test_profile_set_loads_canonical_snapshot(tmp_path: Path) -> None:
         loaded.profile_set_sha256
         == load_profile_snapshot(loaded.canonical_bytes).profile_set_sha256
     )
-    assert json.loads(loaded.canonical_bytes)["profiles"][0]["scenarios"][0]["target_seed_ids"] == [
-        "pressure-1"
-    ]
+    assert json.loads(loaded.canonical_bytes)["profiles"][0]["scenarios"][0][
+        "target_seed_ids"
+    ] == ["pressure-1"]
     assert (
         loaded.profiles[0].adversarial_seeds[0].mechanics.subtle[0].route
         == "Ask about the deadline."
     )
+
+
+def test_new_profiles_reject_legacy_deliberately_bad_tier(tmp_path: Path) -> None:
+    manifest = _write_profile_set(tmp_path)
+    profile_path = tmp_path / "customer_support" / "plain_chat" / "profile.json"
+    profile = json.loads(profile_path.read_text())
+    profile["quality_tiers"] = [{"value": "deliberately_bad", "weight": 1}]
+    profile_path.write_text(json.dumps(profile))
+
+    with pytest.raises(ProfileValidationError, match="quality_tiers"):
+        load_profile_set(manifest)
 
 
 @pytest.mark.parametrize(

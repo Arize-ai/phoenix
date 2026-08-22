@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 from math import isfinite
 from typing import TYPE_CHECKING, Any, Mapping
@@ -43,6 +43,8 @@ class MaterializedSeedEnvironment:
     simulator_traits: tuple[str, ...]
     route_context: str | None
     digest: str
+    document_seed_ids: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    trait_seed_ids: tuple[str, ...] = ()
 
     def visible_dict(self) -> dict[str, Any]:
         return {
@@ -66,6 +68,8 @@ def materialize_seed_environment(
     materialized_documents = dict(documents)
     overlays: list[ToolResultOverlay] = []
     traits: list[str] = []
+    document_seed_ids: dict[str, set[str]] = {}
+    trait_seed_ids: set[str] = set()
     selected_routes: dict[str, str] = {}
     occupied_paths: list[tuple[str, Mapping[str, Any], str]] = []
 
@@ -75,9 +79,13 @@ def materialize_seed_environment(
         variants = seed.mechanics.variants_for(strength)
         variant = variants[_variant_index(cell.cell_id, seed.seed_id, intensity, len(variants))]
         selected_routes[seed.seed_id] = variant.route
-        _apply_corpus_edits(materialized_documents, variant)
-        _append_tool_overlays(overlays, occupied_paths, variant)
+        edited_documents = _apply_corpus_edits(materialized_documents, variant)
+        for document_id in edited_documents:
+            document_seed_ids.setdefault(document_id, set()).add(seed.seed_id)
+        _append_tool_overlays(overlays, occupied_paths, variant, seed_id=seed.seed_id)
         traits.extend(variant.simulator_traits)
+        if variant.simulator_traits:
+            trait_seed_ids.add(seed.seed_id)
 
     route_context = (
         selected_routes[cell.profile.targeted_seed_id]
@@ -99,6 +107,11 @@ def materialize_seed_environment(
         simulator_traits=tuple(traits),
         route_context=route_context,
         digest=digest,
+        document_seed_ids={
+            document_id: tuple(sorted(seed_ids))
+            for document_id, seed_ids in sorted(document_seed_ids.items())
+        },
+        trait_seed_ids=tuple(sorted(trait_seed_ids)),
     )
 
 
@@ -153,7 +166,8 @@ def _variant_index(cell_id: str, seed_id: str, intensity: float, variant_count: 
     return int.from_bytes(sha256(identity).digest(), "big") % variant_count
 
 
-def _apply_corpus_edits(documents: dict[str, str], variant: SeedVariant) -> None:
+def _apply_corpus_edits(documents: dict[str, str], variant: SeedVariant) -> tuple[str, ...]:
+    edited = []
     for edit in variant.corpus_edits:
         content = documents[edit.document_id]
         if edit.operation == "replace_once":
@@ -162,6 +176,8 @@ def _apply_corpus_edits(documents: dict[str, str], variant: SeedVariant) -> None
             if edit.text is None:
                 raise SeedMechanicsError("append corpus edits require text")
             documents[edit.document_id] = content + edit.text
+        edited.append(edit.document_id)
+    return tuple(edited)
 
 
 def _replace_once(documents: dict[str, str], edit: CorpusEdit, content: str) -> None:
@@ -179,6 +195,8 @@ def _append_tool_overlays(
     overlays: list[ToolResultOverlay],
     occupied_paths: list[tuple[str, Mapping[str, Any], str]],
     variant: SeedVariant,
+    *,
+    seed_id: str,
 ) -> None:
     for overlay in variant.tool_overlays:
         for operation in overlay.operations:
@@ -192,7 +210,14 @@ def _append_tool_overlays(
                         f"tool overlays collide at {overlay.tool_name!r} {operation.path!r}"
                     )
             occupied_paths.append((overlay.tool_name, overlay.match_arguments, operation.path))
-        overlays.append(overlay)
+        overlays.append(
+            ToolResultOverlay(
+                overlay.tool_name,
+                overlay.match_arguments,
+                overlay.operations,
+                source_seed_id=seed_id,
+            )
+        )
 
 
 def _argument_matches_overlap(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:

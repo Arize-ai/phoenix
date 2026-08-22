@@ -39,12 +39,24 @@ DEFAULT_BUDGET_SHARES: Mapping[BudgetPool, Decimal] = {
     "judge": Decimal("0.10"),
     "retry": Decimal("0.15"),
 }
-BUDGET_POOLS: tuple[BudgetPool, BudgetPool, BudgetPool] = ("generation", "judge", "retry")
+BUDGET_POOLS: tuple[BudgetPool, BudgetPool, BudgetPool] = (
+    "generation",
+    "judge",
+    "retry",
+)
 FRONTIER_FRACTION = Decimal("0.05")
 RUN_SCHEMA_VERSION = 2
 MATRIX_SCHEMA_VERSION = 2
 
-_JOURNALS = ("attempts.jsonl", "jobs.jsonl", "costs.jsonl", "accepted.jsonl", "rejects.jsonl")
+_JOURNALS = (
+    "attempts.jsonl",
+    "jobs.jsonl",
+    "costs.jsonl",
+    "accepted.jsonl",
+    "rejects.jsonl",
+    "judging-inputs.jsonl",
+    "judgments.jsonl",
+)
 _TERMINAL_ATTEMPT_EVENTS = frozenset({"completed", "failed"})
 
 
@@ -168,8 +180,13 @@ class RunConfig:
                 raise GenerationError(f"{field} must be a SHA-256 hex digest")
         if self.self_play_target < 1 or self.scripted_target < 1:
             raise GenerationError("lane targets must be positive")
-        if self.run_schema_version != RUN_SCHEMA_VERSION or self.matrix_schema_version != MATRIX_SCHEMA_VERSION:
-            raise GenerationError("schema-v1 flat runs cannot resume; create a profile set and initialize a new run")
+        if (
+            self.run_schema_version != RUN_SCHEMA_VERSION
+            or self.matrix_schema_version != MATRIX_SCHEMA_VERSION
+        ):
+            raise GenerationError(
+                "schema-v1 flat runs cannot resume; create a profile set and initialize a new run"
+            )
         shares = sum(
             (
                 Decimal(value)
@@ -429,9 +446,7 @@ def _profile_draw(
     ordinal: int,
 ) -> ProfileDraw:
     def rng(field: str) -> random.Random:
-        identity = (
-            f"{MATRIX_SCHEMA_VERSION}:{seed}:{lane}:{ordinal}:{profile.profile_id}:{field}"
-        )
+        identity = f"{MATRIX_SCHEMA_VERSION}:{seed}:{lane}:{ordinal}:{profile.profile_id}:{field}"
         return random.Random(int.from_bytes(sha256(identity.encode()).digest(), "big"))
 
     fraction = cast(float, profile_set.sampling["targeted_cell_fraction"])
@@ -444,9 +459,7 @@ def _profile_draw(
     quality = _weighted_choice(profile.quality_tiers, rng("quality_tier"))
     turn_count = _weighted_choice(profile.turn_counts, rng("turn_count"))
     targeted_seed_id = (
-        scenario.target_seed_ids[
-            rng("targeted_seed_id").randrange(len(scenario.target_seed_ids))
-        ]
+        scenario.target_seed_ids[rng("targeted_seed_id").randrange(len(scenario.target_seed_ids))]
         if targeted
         else None
     )
@@ -537,7 +550,9 @@ class GenerationRun:
         try:
             profiles = load_profile_snapshot((directory / "profiles.json").read_bytes())
         except (OSError, ValueError) as error:
-            raise ConfigurationMismatch(f"persisted profile snapshot is invalid: {error}") from error
+            raise ConfigurationMismatch(
+                f"persisted profile snapshot is invalid: {error}"
+            ) from error
         if profiles.profile_set_sha256 != config.profile_set_sha256:
             raise ConfigurationMismatch("persisted profile snapshot does not match run.json")
         if sha256(_canonical_bytes(document)).hexdigest() != config.matrix_sha256:
@@ -582,8 +597,10 @@ class GenerationRun:
             self._require_prices(prices)
         elif mode != "direct":
             raise GenerationError("subscription backends support direct processing only")
-        if cell_id in self.accepted_cell_ids:
+        if cell_id in self.accepted_cell_ids and purpose != "judge":
             raise AlreadyAccepted(f"cell {cell_id} is already accepted")
+        if purpose == "judge" and cell_id not in self.accepted_cell_ids:
+            raise GenerationError(f"cell {cell_id} must be accepted before judging")
         if open_attempt := self._open_attempt(cell_id, purpose):
             self._assert_open_attempt_contract(
                 open_attempt,
@@ -650,7 +667,12 @@ class GenerationRun:
         self._require_open_attempt(attempt_id)
         _append_json(
             self.directory / "attempts.jsonl",
-            {"event": "checkpoint", "at": _now(), "attempt_id": attempt_id, "data": checkpoint},
+            {
+                "event": "checkpoint",
+                "at": _now(),
+                "attempt_id": attempt_id,
+                "data": checkpoint,
+            },
         )
 
     def complete_attempt(
@@ -698,7 +720,11 @@ class GenerationRun:
         reservation = self._reservation(attempt.reservation_id)
         max_input_tokens = cast(int, reservation["max_input_tokens"])
         max_output_tokens = cast(int, reservation["max_output_tokens"])
-        assert input_tokens is not None and output_tokens is not None and cached_input_tokens is not None
+        assert (
+            input_tokens is not None
+            and output_tokens is not None
+            and cached_input_tokens is not None
+        )
         if input_tokens > max_input_tokens or output_tokens > max_output_tokens:
             self._record_cost_invariant_violation(
                 attempt.reservation_id,
@@ -765,12 +791,16 @@ class GenerationRun:
             }
         )
         if attempt.metering == "subscription":
-            if not (all(value is None for value in usage) or all(value is not None for value in usage)):
+            if not (
+                all(value is None for value in usage) or all(value is not None for value in usage)
+            ):
                 raise GenerationError("provider usage must be fully populated or null")
         elif prices is None and all(value is None for value in usage):
             assert attempt.reservation_id is not None
             self._reconcile(attempt.reservation_id, actual_usd=Decimal(), error=reason)
-        elif attempt.metering == "priced" and (prices is None or any(value is None for value in usage)):
+        elif attempt.metering == "priced" and (
+            prices is None or any(value is None for value in usage)
+        ):
             raise GenerationError(
                 "failed attempt usage requires prices, input_tokens, "
                 "cached_input_tokens, and output_tokens"
@@ -824,15 +854,16 @@ class GenerationRun:
                 "usage": usage_record,
             },
         )
-        _append_json(
-            self.directory / "rejects.jsonl",
-            {
-                "at": _now(),
-                "cell_id": attempt.cell_id,
-                "attempt_id": attempt_id,
-                "reason": reason,
-            },
-        )
+        if attempt.purpose == "generation":
+            _append_json(
+                self.directory / "rejects.jsonl",
+                {
+                    "at": _now(),
+                    "cell_id": attempt.cell_id,
+                    "attempt_id": attempt_id,
+                    "reason": reason,
+                },
+            )
 
     def accept_cell(self, cell_id: str, attempt_id: str, fragment: Mapping[str, Any]) -> None:
         cell = self._require_cell(cell_id)
@@ -870,6 +901,96 @@ class GenerationRun:
     @property
     def accepted_cell_ids(self) -> frozenset[str]:
         return frozenset(self.accepted_records)
+
+    def record_judging_input(self, value: Mapping[str, Any]) -> None:
+        from scripts.datagen.judgments import JudgingInputV1, append_immutable_record
+
+        item = JudgingInputV1.from_mapping(value)
+        accepted = self.accepted_records.get(item.cell_id)
+        if accepted is None:
+            raise GenerationError(f"cell {item.cell_id} must be accepted before judging input")
+        fragment = accepted.get("fragment")
+        if (
+            not isinstance(fragment, Mapping)
+            or fragment.get("content_sha256") != item.content_sha256
+        ):
+            raise GenerationError("judging input digest does not match the accepted fragment")
+        cell = self._require_cell(item.cell_id)
+        if dict(item.seed_intensities) != dict(cell.profile.seed_intensities):
+            raise GenerationError("judging input seed context does not match the matrix cell")
+        if (
+            item.target_mode != cell.profile.target_mode
+            or item.targeted_seed_id != cell.profile.targeted_seed_id
+        ):
+            raise GenerationError("judging input target context does not match the matrix cell")
+        append_immutable_record(
+            self.directory / "judging-inputs.jsonl",
+            item.to_dict(),
+            keys=("cell_id", "fragment_id"),
+        )
+
+    @property
+    def judging_inputs(self) -> Mapping[str, Any]:
+        from scripts.datagen.judgments import JudgingInputV1
+
+        records: dict[str, JudgingInputV1] = {}
+        for value in _read_jsonl(self.directory / "judging-inputs.jsonl"):
+            item = JudgingInputV1.from_mapping(value)
+            if item.cell_id in records:
+                raise GenerationError(
+                    f"judging input journal contains duplicate cell {item.cell_id}"
+                )
+            records[item.cell_id] = item
+        return records
+
+    def record_judgment(self, value: Mapping[str, Any]) -> None:
+        from scripts.datagen.judgments import append_immutable_record
+
+        cell_id = value.get("cell_id")
+        fragment_id = value.get("fragment_id")
+        if not isinstance(cell_id, str) or cell_id != fragment_id:
+            raise GenerationError("judgment identity must contain matching cell and fragment IDs")
+        if cell_id not in self.accepted_cell_ids:
+            raise GenerationError(f"cell {cell_id} must be accepted before judgment")
+        route_reason = value.get("route_reason")
+        attempt_id = value.get("attempt_id")
+        if route_reason == "not_selected":
+            if attempt_id is not None or value.get("outcome") is not None:
+                raise GenerationError("unselected judgments may not carry an attempt or outcome")
+        else:
+            states = self._attempt_states()
+            state = states.get(attempt_id) if isinstance(attempt_id, str) else None
+            if (
+                state is None
+                or state["event"] != "completed"
+                or state["attempt"].purpose != "judge"
+                or state["attempt"].cell_id != cell_id
+            ):
+                raise GenerationError("routed judgments require a completed judge attempt")
+        append_immutable_record(
+            self.directory / "judgments.jsonl",
+            value,
+            keys=("cell_id", "fragment_id"),
+        )
+
+    @property
+    def judgment_records(self) -> Mapping[str, Mapping[str, Any]]:
+        records: dict[str, Mapping[str, Any]] = {}
+        for value in _read_jsonl(self.directory / "judgments.jsonl"):
+            cell_id = value.get("cell_id")
+            if not isinstance(cell_id, str) or cell_id in records:
+                raise GenerationError(
+                    "judgment journal contains invalid or duplicate cell identity"
+                )
+            records[cell_id] = value
+        return records
+
+    @property
+    def judge_failure_count(self) -> int:
+        return sum(
+            state["attempt"].purpose == "judge" and state["event"] == "failed"
+            for state in self._attempt_states().values()
+        )
 
     def record_job(self, job: Mapping[str, Any]) -> None:
         if not isinstance(job.get("batch_id"), str) or not job["batch_id"]:
@@ -958,13 +1079,15 @@ class GenerationRun:
             elif event["event"] == "reconciled":
                 reconciliations[event["reservation_id"]] = event
         spent = sum(
-            (Decimal(record["actual_usd"]) for record in reconciliations.values()), Decimal()
+            (Decimal(record["actual_usd"]) for record in reconciliations.values()),
+            Decimal(),
         )
         outstanding = {
             key: record for key, record in reservations.items() if key not in reconciliations
         }
         reserved = sum(
-            (Decimal(record["amount_usd"]) for record in outstanding.values()), Decimal()
+            (Decimal(record["amount_usd"]) for record in outstanding.values()),
+            Decimal(),
         )
         budget = Decimal(self.config.budget_usd)
         pools: dict[BudgetPool, Mapping[str, Decimal]] = {}
@@ -1092,7 +1215,8 @@ class GenerationRun:
     ) -> None:
         events = _read_jsonl(self.directory / "costs.jsonl")
         if violation := next(
-            (event for event in reversed(events) if event["event"] == "invariant_violation"), None
+            (event for event in reversed(events) if event["event"] == "invariant_violation"),
+            None,
         ):
             raise GenerationError(
                 f"run is blocked by cost invariant violation for {violation['reservation_id']}"
@@ -1135,7 +1259,12 @@ class GenerationRun:
             raise BudgetExceeded(pool, amount_usd, pool_available, summary.available_usd)
         _append_json(
             self.directory / "costs.jsonl",
-            {"event": "reserved", "at": _now(), "reservation_id": reservation_id, **expected},
+            {
+                "event": "reserved",
+                "at": _now(),
+                "reservation_id": reservation_id,
+                **expected,
+            },
         )
 
     def _reconcile(
@@ -1306,7 +1435,11 @@ class GenerationRun:
             attempt_id = event["attempt_id"]
             if event["event"] == "started":
                 attempt = _attempt_from_event(event)
-                states[attempt_id] = {"event": "started", "attempt": attempt, "latest": event}
+                states[attempt_id] = {
+                    "event": "started",
+                    "attempt": attempt,
+                    "latest": event,
+                }
             elif attempt_id in states:
                 states[attempt_id]["event"] = event["event"]
                 states[attempt_id]["latest"] = event

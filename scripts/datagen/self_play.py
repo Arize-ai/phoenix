@@ -434,9 +434,16 @@ def _record_attempt(
     simulator_usage = cast(TokenUsage, state["simulator_usage"])
     tool_call_count = cast(int, state["tool_call_count"])
     completed_turns = cast(int, state["completed_turns"])
-    fixture_set = _fixture_set_for_environment(plan.environment)
     attempt_dir = (
         run.directory / "staging" / cell.cell_id / f"attempt-{attempts.assistant.attempt_number}"
+    )
+    fixture_set, base_engagement_events = _fixture_set_for_environment(
+        plan.environment,
+        cell_id=cell.cell_id,
+    )
+    _write_immutable_json(
+        attempt_dir / "engagement-base.json",
+        {"schema_version": 1, "cell_id": cell.cell_id, "events": base_engagement_events},
     )
     ledger = InvocationLedger(attempt_dir / "tool-invocations.jsonl")
 
@@ -558,6 +565,19 @@ def _record_attempt(
         tool_call_count=tool_call_count,
         assistant_usage=assistant_usage,
         simulator_usage=simulator_usage,
+        engaged_seed_ids=tuple(
+            sorted(
+                {
+                    str(event["seed_id"])
+                    for event in base_engagement_events
+                }
+                | {
+                    seed_id
+                    for record in ledger.records
+                    for seed_id in record.engaged_seed_ids
+                }
+            )
+        ),
     )
     run.complete_attempt(
         attempts.simulator.attempt_id,
@@ -705,7 +725,9 @@ def _validate_recorded_turn(recorded: RecordedAssistantTurn) -> None:
 
 def _fixture_set_for_environment(
     environment: MaterializedSeedEnvironment,
-) -> Mapping[str, Any]:
+    *,
+    cell_id: str,
+) -> tuple[Mapping[str, Any], tuple[Mapping[str, str], ...]]:
     fixture_set = _json_copy(dict(environment.tool_fixture_data))
     if not isinstance(fixture_set, dict) or not isinstance(fixture_set.get("name"), str):
         raise SelfPlayError("materialized tool fixture data must contain a string name")
@@ -722,7 +744,16 @@ def _fixture_set_for_environment(
             by_id[document_id]["text"] = content
         else:
             documents.append({"id": document_id, "text": content})
-    return fixture_set
+    events = [
+        {"kind": "document_served", "cell_id": cell_id, "document_id": document_id, "seed_id": seed_id}
+        for document_id, seed_ids in sorted(environment.document_seed_ids.items())
+        for seed_id in seed_ids
+    ]
+    events.extend(
+        {"kind": "trait_active", "cell_id": cell_id, "document_id": "", "seed_id": seed_id}
+        for seed_id in environment.trait_seed_ids
+    )
+    return fixture_set, tuple(events)
 
 
 def _validate_generated_content(cell: MatrixCell, value: Any) -> None:
@@ -768,6 +799,7 @@ def _stage_candidate(
     tool_call_count: int,
     assistant_usage: TokenUsage,
     simulator_usage: TokenUsage,
+    engaged_seed_ids: tuple[str, ...],
 ) -> StagedSelfPlayFragment:
     published_trace_ids = _published_trace_ids(attempt_dir / "traces.jsonl")
     if set(published_trace_ids) != set(trace_ids):
@@ -812,6 +844,11 @@ def _stage_candidate(
         "simulator_attempt_id": attempts.simulator.attempt_id,
         "fragment": fragment,
         "conversation": conversation,
+        "engagement_signal": {
+            "status": "complete",
+            "cell_id": cell.cell_id,
+            "engaged_seed_ids": list(engaged_seed_ids),
+        },
     }
     path = attempt_dir / "fragment-candidate.json"
     _write_immutable_json(path, candidate)

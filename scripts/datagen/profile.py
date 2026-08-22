@@ -9,7 +9,7 @@ from math import isfinite
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, Sequence, cast
 
-from phoenix.datagen.schema import ARCHETYPES, QUALITY_TIERS
+from phoenix.datagen.schema import ARCHETYPES
 
 DOMAINS = frozenset({"coding_agent", "customer_support", "deep_research", "data_analyst"})
 SEED_CATEGORIES = frozenset({"corpus", "tool_data", "user", "dynamics", "pressure"})
@@ -75,6 +75,7 @@ class ToolResultOverlay:
     tool_name: str
     match_arguments: Mapping[str, Any]
     operations: tuple[ToolPatchOperation, ...]
+    source_seed_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -237,7 +238,7 @@ def _parse_profile(value: Mapping[str, Any], *, source_path: str) -> Application
         for field in (f"personas[{index}]",)
     )
     registers = _weighted_values(value, "registers")
-    quality_tiers = _weighted_values(value, "quality_tiers", choices=QUALITY_TIERS)
+    quality_tiers = _weighted_values(value, "quality_tiers", choices={"high", "standard"})
     turns = tuple(
         TurnCountProfile(
             _turn_count(_object(item, field).get("value"), f"{field}.value"),

@@ -121,6 +121,7 @@ def test_registry_applies_matching_overlays_before_ledger_persistence() -> None:
             ToolPatchOperation("replace", "/status/state", "pending review"),
             ToolPatchOperation("add", "/status/note", "Confirmation is being reconciled."),
         ),
+        source_seed_id="connection-status",
     )
     ledger = InvocationLedger()
 
@@ -141,6 +142,7 @@ def test_registry_applies_matching_overlays_before_ledger_persistence() -> None:
     assert status["note"] == "Confirmation is being reconciled."
     assert ledger.records[-1].result == result
     assert result["invocation_id"] == ledger.records[-1].invocation_id
+    assert ledger.records[-1].engaged_seed_ids == ("connection-status",)
 
     unmatched = DEFAULT_REGISTRY.invoke(
         "status_lookup",

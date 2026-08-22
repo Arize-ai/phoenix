@@ -12,8 +12,8 @@ from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-
 from phoenix.datagen.schema import validate_fragment_v2
+
 from scripts.datagen.fake_tools import load_default_fixture_sets
 from scripts.datagen.generation import (
     GenerationRun,
@@ -25,7 +25,11 @@ from scripts.datagen.generation import (
 )
 from scripts.datagen.mock_openai_provider import PlaybackProvider
 from scripts.datagen.model_backend import BackendCapabilities, ModelResult
-from scripts.datagen.profile import ToolPatchOperation, ToolResultOverlay, load_profile_set
+from scripts.datagen.profile import (
+    ToolPatchOperation,
+    ToolResultOverlay,
+    load_profile_set,
+)
 from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
 from scripts.datagen.self_play import (
     AssistantRequest,
@@ -164,6 +168,11 @@ def test_self_play_resumes_complete_turns_and_records_only_assistant_calls(
     assert len(exporter.get_finished_spans()) == 2
     assert all("tools" in request and "tool_choice" not in request for request in playback.requests)
     assert candidate.path.with_name("traces.jsonl").is_file()
+    assert json.loads(candidate.path.read_text())["engagement_signal"] == {
+        "status": "complete",
+        "cell_id": cell.cell_id,
+        "engaged_seed_ids": ["deadline", "policy-window"],
+    }
     checkpoints = [
         json.loads(line)
         for line in (run.directory / "attempts.jsonl").read_text().splitlines()
@@ -437,6 +446,8 @@ def _environment(fixture_set: Any) -> MaterializedSeedEnvironment:
         simulator_traits=("The buyer is preparing for travel.",),
         route_context="Ask whether the store can complete the return before departure.",
         digest="e" * 64,
+        document_seed_ids={"doc-returns": ("policy-window",)},
+        trait_seed_ids=("deadline",),
     )
 
 

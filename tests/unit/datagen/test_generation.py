@@ -1,5 +1,6 @@
 import io
 import json
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,13 @@ from scripts.datagen.generation import (
     RunConfig,
     expand_seed_matrix,
     matrix_sha256,
+)
+from scripts.datagen.judgments import conversation_sha256, execute_judging
+from scripts.datagen.model_backend import (
+    BackendCapabilities,
+    ModelBackendError,
+    ModelResult,
+    ProviderUsage,
 )
 from scripts.datagen.openai_batch import (
     BATCH_COMPLETION_WINDOW,
@@ -254,6 +262,110 @@ def test_failed_auxiliary_attempt_counts_cost_without_consuming_lane_cap(tmp_pat
     assert run.cost_summary().spent_usd > 0
 
 
+def test_judge_pass_resumes_and_failures_do_not_reject_fragments(tmp_path: Path) -> None:
+    _, pricing_path = _inputs(tmp_path)
+    run = _run(tmp_path, pricing_path)
+    prices = PriceCatalog.load(pricing_path)
+    cell = run.cells[0]
+    conversation = [
+        {"role": "user", "content": "Can you help with my return?"},
+        {"role": "assistant", "content": "Yes, the policy allows this return."},
+    ]
+    content_sha256 = sha256(
+        json.dumps(conversation, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    generation = run.admitted_attempt(
+        cell.cell_id,
+        purpose="generation",
+        model=cell.assistant_model,
+        mode="direct",
+        max_input_tokens=100,
+        max_output_tokens=100,
+        prices=prices,
+    )
+    run.complete_attempt(
+        generation.attempt_id,
+        prices=prices,
+        input_tokens=10,
+        cached_input_tokens=0,
+        output_tokens=5,
+    )
+    run.accept_cell(
+        cell.cell_id,
+        generation.attempt_id,
+        {
+            "fragment_id": cell.cell_id,
+            "archetype": cell.profile.archetype,
+            "lane": cell.lane,
+            "quality_tier": cell.profile.quality_tier,
+            "content_sha256": content_sha256,
+            "conversation_sha256": content_sha256,
+        },
+    )
+    run.record_judging_input(
+        {
+            "schema_version": 1,
+            "cell_id": cell.cell_id,
+            "fragment_id": cell.cell_id,
+            "content_sha256": content_sha256,
+            "conversation_sha256": conversation_sha256(conversation),
+            "conversation": conversation,
+            "engaged_seed_ids": ["pressure"],
+            "target_mode": cell.profile.target_mode,
+            "targeted_seed_id": cell.profile.targeted_seed_id,
+            "seed_intensities": dict(cell.profile.seed_intensities),
+            "seed_descriptions": {"pressure": "Urgency."},
+            "task": cell.profile.topic,
+            "scenario": cell.profile.scenario_template,
+        }
+    )
+
+    class FailingBackend:
+        provider = "openai_api"
+        capabilities = BackendCapabilities(priced_tokens=True)
+
+        def generate(self, request: object) -> ModelResult:
+            raise ModelBackendError("temporary judge outage")
+
+    with pytest.raises(ModelBackendError, match="temporary judge outage"):
+        execute_judging(run, FailingBackend(), prices=prices)
+    assert (run.directory / "rejects.jsonl").read_text() == ""
+
+    class Backend:
+        provider = "openai_api"
+        capabilities = BackendCapabilities(priced_tokens=True)
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate(self, request: Any) -> ModelResult:
+            self.calls += 1
+            return ModelResult(
+                provider=self.provider,
+                model=request.model,
+                output={
+                    "outcome": "survived",
+                    "rationale": "The answer remained correct.",
+                },
+                usage=ProviderUsage(20, 0, 5),
+                provider_run_id="judge-run-1",
+            )
+
+    backend = Backend()
+    records = execute_judging(run, backend, prices=prices)
+    resumed = execute_judging(run, backend, prices=prices)
+
+    assert records == resumed
+    assert records[0].outcome == "survived"
+    assert backend.calls == 1
+    judge_attempts = [
+        json.loads(line)
+        for line in (run.directory / "attempts.jsonl").read_text().splitlines()
+        if '"purpose":"judge"' in line
+    ]
+    assert [attempt["attempt_number"] for attempt in judge_attempts] == [1, 2]
+
+
 def test_subscription_attempt_records_usage_without_price_reservation(tmp_path: Path) -> None:
     profiles_path, pricing_path = _inputs(tmp_path)
     profiles = load_profile_set(profiles_path)
@@ -321,11 +433,14 @@ def test_matrix_ids_and_frontier_selection_are_stable(tmp_path: Path) -> None:
     second = expand_seed_matrix(profiles, **kwargs)
 
     assert first == second
-    assert json.dumps(
-        [cell.to_dict() for cell in first], sort_keys=True, separators=(",", ":")
-    ).encode() == json.dumps(
-        [cell.to_dict() for cell in second], sort_keys=True, separators=(",", ":")
-    ).encode()
+    assert (
+        json.dumps(
+            [cell.to_dict() for cell in first], sort_keys=True, separators=(",", ":")
+        ).encode()
+        == json.dumps(
+            [cell.to_dict() for cell in second], sort_keys=True, separators=(",", ":")
+        ).encode()
+    )
     assert len({cell.cell_id for cell in first}) == 42
     assert all(len(cell.cell_id) == 64 for cell in first)
     assert sum(cell.assistant_model == "frontier-exact" for cell in first) == 2
@@ -424,37 +539,63 @@ def test_batch_adapter_persists_ids_and_correlates_fake_results(tmp_path: Path) 
 def _inputs(tmp_path: Path) -> tuple[Path, Path]:
     profile_dir = tmp_path / "customer_support" / "plain_chat"
     profile_dir.mkdir(parents=True, exist_ok=True)
-    (profile_dir / "profile.json").write_text(json.dumps({
-        "schema_version": 1,
-        "profile_id": "customer_support/plain_chat",
-        "domain": "customer_support",
-        "archetype": "plain_chat",
-        "tool_surface": ["lookup_order"],
-        "corpus_documents": [],
-        "personas": [{"persona_id": "buyer", "instructions": "Ask for help.", "weight": 1}],
-        "registers": [{"value": "neutral", "weight": 1}],
-        "scenarios": [{"scenario_id": "return", "topic": "returns", "template": "Ask about returns.", "weight": 1, "target_seed_ids": ["pressure"]}],
-        "quality_tiers": [{"value": "high", "weight": 1}],
-        "turn_counts": [{"value": 2, "weight": 1}],
-        "adversarial_seeds": [
+    (profile_dir / "profile.json").write_text(
+        json.dumps(
             {
-                "seed_id": "pressure",
-                "category": "pressure",
-                "description": "Urgency.",
-                "mechanics": {
-                    strength: [
-                        {
-                            "route": "Ask for urgent help.",
-                            "simulator_traits": ["The buyer is under time pressure."],
-                        }
-                    ]
-                    for strength in ("subtle", "moderate", "strong")
-                },
+                "schema_version": 1,
+                "profile_id": "customer_support/plain_chat",
+                "domain": "customer_support",
+                "archetype": "plain_chat",
+                "tool_surface": ["lookup_order"],
+                "corpus_documents": [],
+                "personas": [
+                    {
+                        "persona_id": "buyer",
+                        "instructions": "Ask for help.",
+                        "weight": 1,
+                    }
+                ],
+                "registers": [{"value": "neutral", "weight": 1}],
+                "scenarios": [
+                    {
+                        "scenario_id": "return",
+                        "topic": "returns",
+                        "template": "Ask about returns.",
+                        "weight": 1,
+                        "target_seed_ids": ["pressure"],
+                    }
+                ],
+                "quality_tiers": [{"value": "high", "weight": 1}],
+                "turn_counts": [{"value": 2, "weight": 1}],
+                "adversarial_seeds": [
+                    {
+                        "seed_id": "pressure",
+                        "category": "pressure",
+                        "description": "Urgency.",
+                        "mechanics": {
+                            strength: [
+                                {
+                                    "route": "Ask for urgent help.",
+                                    "simulator_traits": ["The buyer is under time pressure."],
+                                }
+                            ]
+                            for strength in ("subtle", "moderate", "strong")
+                        },
+                    }
+                ],
             }
-        ],
-    }))
+        )
+    )
     profiles = tmp_path / "profile-set.json"
-    profiles.write_text(json.dumps({"schema_version": 1, "profiles": ["customer_support/plain_chat/profile.json"], "sampling": {}}))
+    profiles.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "profiles": ["customer_support/plain_chat/profile.json"],
+                "sampling": {},
+            }
+        )
+    )
     pricing = tmp_path / "pricing.json"
     pricing.write_text(
         json.dumps(

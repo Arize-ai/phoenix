@@ -28,6 +28,7 @@ if TYPE_CHECKING or __package__:
         expand_seed_matrix,
         matrix_sha256,
     )
+    from scripts.datagen.model_backend import ModelBackend
     from scripts.datagen.profile import ProfileValidationError, load_profile_set
 else:
     from profile import (  # type: ignore[import-not-found,no-redef]
@@ -46,6 +47,7 @@ else:
         expand_seed_matrix,
         matrix_sha256,
     )
+    from model_backend import ModelBackend  # type: ignore[import-not-found,no-redef]
 
 DEFAULT_PRICING_PATH = Path(__file__).with_name("pricing.json")
 
@@ -115,6 +117,18 @@ def build_parser() -> argparse.ArgumentParser:
     accept.add_argument("cell_id")
     accept.add_argument("attempt_id")
     accept.add_argument("fragment_json", type=Path)
+    judging_input = subparsers.add_parser(
+        "record-judging-input", help="append one immutable accepted-fragment judging input"
+    )
+    judging_input.add_argument("run_dir", type=Path)
+    judging_input.add_argument("input_json", type=Path)
+
+    judge = subparsers.add_parser(
+        "judge", help="run or resume judged-outcome classification for accepted fragments"
+    )
+    judge.add_argument("run_dir", type=Path)
+    judge.add_argument("--pricing", type=Path, default=DEFAULT_PRICING_PATH)
+    judge.add_argument("--max-input-tokens", type=int, default=16_000)
     return parser
 
 
@@ -123,18 +137,19 @@ def command(
     *,
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
+    backend: ModelBackend | None = None,
 ) -> int:
     args = build_parser().parse_args(argv)
     try:
-        result = _dispatch(args)
-    except (GenerationError, ProfileValidationError) as error:
+        result = _dispatch(args, backend=backend)
+    except (GenerationError, ProfileValidationError, ValueError) as error:
         print(json.dumps({"error": type(error).__name__, "message": str(error)}), file=stderr)
         return 2
     print(json.dumps(result, sort_keys=True), file=stdout)
     return 0
 
 
-def _dispatch(args: argparse.Namespace) -> Any:
+def _dispatch(args: argparse.Namespace, *, backend: ModelBackend | None = None) -> Any:
     if args.command == "init":
         return _initialize(args)
     run = GenerationRun.resume(args.run_dir)
@@ -173,7 +188,47 @@ def _dispatch(args: argparse.Namespace) -> Any:
     if args.command == "accept":
         run.accept_cell(args.cell_id, args.attempt_id, _read_object(args.fragment_json))
         return {"cell_id": args.cell_id, "accepted": True, "status": run.status()}
+    if args.command == "record-judging-input":
+        run.record_judging_input(_read_object(args.input_json))
+        return {"recorded": True, "judging_input_count": len(run.judging_inputs)}
+    if args.command == "judge":
+        from scripts.datagen.judgments import execute_judging
+
+        selected_backend = backend or _frontier_backend(run.config.frontier_provider)
+        prices = (
+            PriceCatalog.load(args.pricing)
+            if run.config.frontier_provider == "openai_api"
+            else None
+        )
+        records = execute_judging(
+            run,
+            selected_backend,
+            prices=prices,
+            max_input_tokens=args.max_input_tokens,
+        )
+        return {
+            "judgments": len(records),
+            "outcomes": {
+                outcome: sum(record.outcome == outcome for record in records)
+                for outcome in ("survived", "degraded", "failed")
+            },
+            "unjudged": sum(record.outcome is None for record in records),
+        }
     raise AssertionError(args.command)
+
+
+def _frontier_backend(provider: str) -> ModelBackend:
+    if provider == "codex_exec":
+        from scripts.datagen.codex_exec import CodexExecBackend
+
+        return CodexExecBackend()
+    if provider == "openai_api":
+        from openai import OpenAI
+
+        from scripts.datagen.model_backend import OpenAIResponsesBackend
+
+        return OpenAIResponsesBackend(OpenAI().responses.create)
+    raise GenerationError(f"unsupported frontier provider {provider!r}")
 
 
 def _initialize(args: argparse.Namespace) -> Mapping[str, Any]:

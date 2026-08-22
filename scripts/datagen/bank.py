@@ -10,14 +10,13 @@ import tempfile
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterator, Mapping, Sequence
+from typing import Any, Iterable, Iterator, Mapping, Sequence
 
 from google.protobuf.json_format import Parse, ParseError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
-
 from phoenix.datagen.schema import (
     ComposerDefaults,
     Fragment,
@@ -26,13 +25,13 @@ from phoenix.datagen.schema import (
     validate_fragment_v2,
     validate_manifest_v2,
 )
+
 from scripts.datagen.generation import GenerationError, GenerationRun
 from scripts.datagen.quality import (
     JUDGE_SAMPLE_FRACTION,
     LONG_FRAGMENT_RULE,
     NORMALIZER_VERSION,
     SHORT_FRAGMENT_RULE,
-    select_judge_sample,
 )
 
 _BANK_FILES = ("manifest.json", "fragments.jsonl", "traces.jsonl")
@@ -70,6 +69,7 @@ def package_generation_run(
     """Package accepted run fragments and their raw staged OTLP requests atomically."""
     run = GenerationRun.resume(run_dir)
     accepted = run.accepted_records
+    judgments = run.judgment_records
     rows = []
     trace_parts = []
     for cell in run.cells:
@@ -79,8 +79,19 @@ def package_generation_run(
         raw_fragment = record.get("fragment")
         if not isinstance(raw_fragment, Mapping):
             raise BankError(f"accepted cell {cell.cell_id} has no fragment object")
+        judgment = judgments.get(cell.cell_id)
+        if judgment is None:
+            raise BankError(f"accepted cell {cell.cell_id} has no terminal judgment route")
+        quality_results = raw_fragment.get("quality_results")
+        projected_fragment = {
+            **raw_fragment,
+            "quality_results": {
+                **(dict(quality_results) if isinstance(quality_results, Mapping) else {}),
+                "judged_outcome": _judged_outcome_projection(cell.cell_id, judgment),
+            },
+        }
         try:
-            fragment = validate_fragment_v2(raw_fragment)
+            fragment = validate_fragment_v2(projected_fragment)
         except SchemaValidationError as error:
             raise BankError(
                 f"accepted cell {cell.cell_id} fragment field {error.field!r} {error}"
@@ -118,8 +129,8 @@ def package_generation_run(
     trace_ids, span_count, span_kinds = _trace_stats(traces_bytes)
     _validate_membership(rows, trace_ids)
     defaults = composer_defaults or _default_composer(rows)
-    judge_fragment_ids = select_judge_sample(rows, seed=run.config.matrix_seed)
     rejects = _read_jsonl(run_dir / "rejects.jsonl")
+    judgment_summary = _judgment_summary(judgments.values(), judge_failures=run.judge_failure_count)
     manifest_value = {
         "schema_version": 2,
         "scenario_name": scenario_name,
@@ -145,7 +156,7 @@ def package_generation_run(
                 "long": LONG_FRAGMENT_RULE.threshold,
             },
             "judge_sample_fraction": JUDGE_SAMPLE_FRACTION,
-            "judge_sample_fragment_ids": list(judge_fragment_ids),
+            "judged_outcome": judgment_summary,
         },
         "composer_defaults": defaults,
     }
@@ -355,6 +366,64 @@ def _fragment_document(fragment: Fragment) -> dict[str, Any]:
         "trace_ids": list(fragment.trace_ids),
         "content_sha256": fragment.content_sha256,
         "quality_results": dict(fragment.quality_results),
+    }
+
+
+def _judged_outcome_projection(cell_id: str, judgment: Mapping[str, Any]) -> dict[str, Any]:
+    if judgment.get("fragment_id") != cell_id or judgment.get("cell_id") != cell_id:
+        raise BankError(f"judgment identity does not match accepted cell {cell_id}")
+    route_reason = judgment.get("route_reason")
+    outcome = judgment.get("outcome")
+    rationale = judgment.get("rationale")
+    if route_reason not in {"trap_proximity", "baseline", "not_selected"}:
+        raise BankError(f"accepted cell {cell_id} has an invalid judgment route")
+    if route_reason == "not_selected":
+        if outcome is not None or rationale is not None:
+            raise BankError(f"unselected cell {cell_id} may not carry an outcome")
+    elif outcome not in {"survived", "degraded", "failed"} or not isinstance(rationale, str):
+        raise BankError(f"routed cell {cell_id} has no completed judgment")
+    projected_fields = (
+        "seeds_present",
+        "engaged_seed_ids",
+        "seed_proximity",
+        "proximity_source",
+        "targeted_seed_id",
+        "seed_intensities",
+        "route_reason",
+        "outcome",
+        "rationale",
+        "contract_version",
+        "prompt_sha256",
+        "output_schema_sha256",
+        "content_sha256",
+        "attempt_id",
+        "provider",
+        "model",
+    )
+    return {field: judgment.get(field) for field in projected_fields}
+
+
+def _judgment_summary(
+    judgments: Iterable[Mapping[str, Any]],
+    *,
+    judge_failures: int,
+) -> dict[str, Any]:
+    records = tuple(judgments)
+    routes = {reason: 0 for reason in ("trap_proximity", "baseline", "not_selected")}
+    outcomes = {outcome: 0 for outcome in ("survived", "degraded", "failed")}
+    for record in records:
+        route = record.get("route_reason")
+        outcome = record.get("outcome")
+        if route in routes:
+            routes[route] += 1
+        if outcome in outcomes:
+            outcomes[outcome] += 1
+    return {
+        "routes": routes,
+        "judged": sum(outcomes.values()),
+        "unjudged": sum(record.get("outcome") is None for record in records),
+        "outcomes": outcomes,
+        "judge_failures": judge_failures,
     }
 
 

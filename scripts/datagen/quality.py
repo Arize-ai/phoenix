@@ -9,9 +9,14 @@ import unicodedata
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Literal, Mapping, Sequence
 
-from phoenix.datagen.schema import ARCHETYPES, Fragment, SchemaValidationError, validate_fragment_v2
+from phoenix.datagen.schema import (
+    ARCHETYPES,
+    Fragment,
+    SchemaValidationError,
+    validate_fragment_v2,
+)
 
 NORMALIZER_VERSION = "visible-messages-nfkc-lower-ws-v1"
 MINHASH_VALUES = 128
@@ -298,6 +303,37 @@ def select_judge_sample(
         )
         selected.extend(ranked[: quotas[key]])
     return tuple(sorted(selected))
+
+
+def select_judge_routes(
+    fragments: Sequence[Fragment | Mapping[str, Any]],
+    *,
+    proximate_fragment_ids: Iterable[str],
+    seed: int,
+    fraction: float = JUDGE_SAMPLE_FRACTION,
+) -> Mapping[str, Literal["trap_proximity", "baseline", "not_selected"]]:
+    """Route all proximate fragments and sample only from the remainder."""
+    fragment_ids = {_value(fragment, "fragment_id") for fragment in fragments}
+    if any(not isinstance(fragment_id, str) for fragment_id in fragment_ids):
+        raise QualityError("judge routing requires string fragment IDs")
+    proximate = set(proximate_fragment_ids)
+    unknown = proximate - fragment_ids
+    if unknown:
+        raise QualityError(f"proximate fragment IDs are not accepted: {sorted(unknown)!r}")
+    remainder = [
+        fragment for fragment in fragments if _value(fragment, "fragment_id") not in proximate
+    ]
+    baseline = set(select_judge_sample(remainder, seed=seed, fraction=fraction))
+    return {
+        cast_id: (
+            "trap_proximity"
+            if cast_id in proximate
+            else "baseline"
+            if cast_id in baseline
+            else "not_selected"
+        )
+        for cast_id in sorted(fragment_ids)
+    }
 
 
 def _visible_content(value: Any) -> str:

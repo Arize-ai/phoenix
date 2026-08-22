@@ -129,6 +129,7 @@ class InvocationRecord:
     declared_delay_ms: int
     result: Mapping[str, Any] | None = None
     error: str | None = None
+    engaged_seed_ids: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, JSON]:
         return {
@@ -142,6 +143,7 @@ class InvocationRecord:
             "declared_delay_ms": self.declared_delay_ms,
             "result": _json_copy(self.result) if self.result is not None else None,
             "error": self.error,
+            "engaged_seed_ids": list(self.engaged_seed_ids),
         }
 
 
@@ -151,6 +153,33 @@ class InvocationLedger:
         self._records: list[InvocationRecord] = []
         if path is not None:
             path.parent.mkdir(parents=True, exist_ok=True)
+            if path.exists():
+                for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                    try:
+                        value = json.loads(line)
+                    except json.JSONDecodeError as error:
+                        raise ToolError(
+                            f"invalid invocation ledger JSON at line {line_number}"
+                        ) from error
+                    if not isinstance(value, Mapping):
+                        raise ToolError(
+                            f"invocation ledger line {line_number} must be an object"
+                        )
+                    self._records.append(
+                        InvocationRecord(
+                            invocation_id=str(value["invocation_id"]),
+                            tool_name=str(value["tool_name"]),
+                            cell_id=str(value["cell_id"]),
+                            fixture_set=str(value["fixture_set"]),
+                            call_ordinal=int(value["call_ordinal"]),
+                            arguments=cast(Mapping[str, Any], value["arguments"]),
+                            outcome=str(value["outcome"]),
+                            declared_delay_ms=int(value["declared_delay_ms"]),
+                            result=cast(Mapping[str, Any] | None, value.get("result")),
+                            error=cast(str | None, value.get("error")),
+                            engaged_seed_ids=tuple(value.get("engaged_seed_ids", ())),
+                        )
+                    )
 
     @property
     def records(self) -> tuple[InvocationRecord, ...]:
@@ -208,7 +237,7 @@ class ToolRegistry:
             )
             raise InjectedToolFailure(message)
         result = spec.handler(validated, context, invocation_id)
-        result = _apply_result_overlays(
+        result, engaged_seed_ids = _apply_result_overlays(
             name,
             validated,
             result,
@@ -226,6 +255,7 @@ class ToolRegistry:
                 outcome="success",
                 declared_delay_ms=delay_ms,
                 result=result,
+                engaged_seed_ids=engaged_seed_ids,
             )
         )
         return result
@@ -465,8 +495,9 @@ def _apply_result_overlays(
     result: ToolResult,
     overlays: Sequence[ToolResultOverlay],
     invocation_id: str,
-) -> ToolResult:
+) -> tuple[ToolResult, tuple[str, ...]]:
     patched = cast(ToolResult, _json_copy(result))
+    engaged_seed_ids: set[str] = set()
     for overlay in overlays:
         if overlay.tool_name != tool_name or not all(
             arguments.get(name) == value for name, value in overlay.match_arguments.items()
@@ -476,7 +507,9 @@ def _apply_result_overlays(
             _apply_json_pointer_operation(patched, operation)
             if patched.get("invocation_id") != invocation_id:
                 raise ToolError("result overlays may not alter invocation_id")
-    return patched
+        if overlay.source_seed_id is not None:
+            engaged_seed_ids.add(overlay.source_seed_id)
+    return patched, tuple(sorted(engaged_seed_ids))
 
 
 def _apply_json_pointer_operation(result: ToolResult, operation: ToolPatchOperation) -> None:
