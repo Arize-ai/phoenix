@@ -1169,12 +1169,12 @@ function RecordedRunRow({
             ) : (
               <Flex direction="column" gap="size-100">
                 <RecordedRunDetail run={run} />
-                <Tabs defaultSelectedKey="bindings">
+                <Tabs defaultSelectedKey="values">
                   <TabList>
-                    <Tab id="bindings">Bindings</Tab>
+                    <Tab id="values">Values</Tab>
                     <Tab id="context">Context</Tab>
                   </TabList>
-                  <TabPanel id="bindings">
+                  <TabPanel id="values">
                     <Flex direction="column" gap="size-200">
                       <BindingPreview
                         context={row.mappingContext ?? row.context}
@@ -1401,10 +1401,7 @@ function BindingPreview({
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
-        <Alert
-          variant="info"
-          title={`Bindings show the ${recordNoun}'s standard fields`}
-        >
+        <Alert variant="info" title={`Standard ${recordNoun} fields`}>
           Values fill in once this project has a {recordNoun} that matches.
         </Alert>
       ) : null}

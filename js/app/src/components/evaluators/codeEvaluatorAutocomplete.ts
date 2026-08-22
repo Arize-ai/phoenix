@@ -380,11 +380,14 @@ function getEvaluatorInputDetail({
         : provenance.kind === "literal"
           ? "literal"
           : "";
-  const preview =
-    entry.status === "resolved" && evaluationContext.hasSampledRecord
+  // An evaluator input's origin is what its row has to teach, so it owns the
+  // detail column; a value preview beside it only crowds out the path.
+  return (
+    origin ||
+    (entry.status === "resolved" && evaluationContext.hasSampledRecord
       ? toMemberPreview(entry.value)
-      : "";
-  return [origin, preview].filter(Boolean).join(" · ");
+      : "")
+  );
 }
 
 function getEvaluatorInputInfo({
