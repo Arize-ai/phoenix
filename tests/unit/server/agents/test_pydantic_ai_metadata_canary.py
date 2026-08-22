@@ -33,14 +33,6 @@ from phoenix.server.api.routers.agents import (
     _to_pydantic_ai_messages,
 )
 
-_REASONING_STREAM_ID = "reasoning-stream-id"
-"""Stand-in for a reasoning part's stream id.
-
-pydantic-ai mints a fresh UUID for every reasoning block, so the real value cannot be
-pinned here. The canary asserts the id is present and then normalizes it to this
-sentinel, which keeps the rest of the message shape under exact comparison.
-"""
-
 _EXPECTED_UI_MESSAGES: list[dict[str, Any]] = [
     {"id": "user-1", "role": "user", "parts": [{"type": "text", "text": "look this up"}]},
     {
@@ -49,7 +41,6 @@ _EXPECTED_UI_MESSAGES: list[dict[str, Any]] = [
         "parts": [
             {
                 "type": "reasoning",
-                "id": _REASONING_STREAM_ID,
                 "text": "I should search the web and the toolbox.",
                 "state": "done",
                 "providerMetadata": {
@@ -234,12 +225,10 @@ async def _persist_turn() -> PhoenixUIMessage:
 
 async def test_writing_a_turn_produces_the_expected_messages() -> None:
     persisted = await _persist_turn()
-    dumped = persisted.model_dump(mode="json", by_alias=True, exclude_none=True)
-    for part in dumped["parts"]:
-        if part["type"] == "reasoning":
-            assert part["id"], "a reasoning part must carry the id that groups its chunks"
-            part["id"] = _REASONING_STREAM_ID
-    assert dumped == _EXPECTED_UI_MESSAGES[1]
+    assert (
+        persisted.model_dump(mode="json", by_alias=True, exclude_none=True)
+        == _EXPECTED_UI_MESSAGES[1]
+    )
 
 
 def test_expected_messages_reload_with_nothing_lost() -> None:
