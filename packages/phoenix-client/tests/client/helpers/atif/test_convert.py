@@ -600,6 +600,43 @@ class TestSubagentLinking:
         root = spans[0]
         assert "parent_id" not in root
 
+    def test_system_step_ref_uses_emitted_root_span(self) -> None:
+        parent: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "system-parent",
+            "agent": {"name": "parent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "summarize"},
+                {
+                    "step_id": 2,
+                    "source": "system",
+                    "message": "context handoff",
+                    "observation": {
+                        "results": [{"subagent_trajectory_ref": [{"session_id": "system-child"}]}]
+                    },
+                },
+            ],
+        }
+        child: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "system-child",
+            "agent": {"name": "child", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "answer"},
+                {"step_id": 2, "source": "agent", "message": "done"},
+            ],
+        }
+
+        ref_map = _build_subagent_ref_map([parent, child])
+        parent_span_id, parent_trace_id = ref_map["system-child"]
+        spans = _convert_atif_trajectory_to_spans(child, (parent_span_id, parent_trace_id))
+
+        assert parent_span_id == _sha256_span_id("system-parent:root")
+        assert spans[0]["parent_id"] == parent_span_id
+        assert spans[0]["parent_id"] in {
+            span["context"]["span_id"] for span in _convert_atif_trajectory_to_spans(parent)
+        }
+
 
 class TestATIFV17Conversion:
     def test_flatten_embedded_subagents_inherits_session(

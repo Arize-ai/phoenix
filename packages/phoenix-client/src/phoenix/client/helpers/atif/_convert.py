@@ -218,13 +218,16 @@ def _flatten_atif_trajectories(
                 refs = result.get("subagent_trajectory_ref", [])
                 if not isinstance(refs, list):
                     continue
-                tc_id = result.get("source_call_id", "")
-                parent_tool_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
+                if step.get("source") == "agent":
+                    tc_id = result.get("source_call_id", "")
+                    parent_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
+                else:
+                    parent_span_id = _sha256_span_id(f"{span_seed}:root")
                 for ref in refs:
                     if not isinstance(ref, Mapping):
                         continue
                     for key in _subagent_ref_lookup_keys(ref, trajectory_for_conversion):
-                        local_ref_map[key] = (parent_tool_span_id, trace_id)
+                        local_ref_map[key] = (parent_span_id, trace_id)
         for subagent in subagent_trajectories:
             if isinstance(subagent, Mapping):
                 subagent_parent_ctx = None
@@ -669,12 +672,16 @@ def _build_subagent_ref_map(
                 for ref in refs:
                     if not isinstance(ref, dict):
                         continue
-                    tc_id = result.get("source_call_id", "")
-                    parent_tool_span_id = _sha256_span_id(
-                        f"{span_seed}:step:{step_id}:tool:{tc_id}"
-                    )
+                    if step.get("source") == "agent":
+                        tc_id = result.get("source_call_id", "")
+                        parent_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
+                    else:
+                        # System/orchestration steps do not emit TOOL spans. Use
+                        # the trajectory AGENT span so referenced children do
+                        # not point at a parent span that was never emitted.
+                        parent_span_id = _sha256_span_id(f"{span_seed}:root")
                     for key in _subagent_ref_lookup_keys(ref, trajectory):
-                        ref_map[key] = (parent_tool_span_id, trace_id)
+                        ref_map[key] = (parent_span_id, trace_id)
     return ref_map
 
 
