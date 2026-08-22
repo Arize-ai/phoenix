@@ -1185,6 +1185,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/model_providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List built-in model provider families
+         * @description Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.
+         */
+        get: operations["getModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/custom_model_providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List custom model providers
+         * @description Retrieve a paginated list of user-defined custom model providers. Encrypted provider credentials are never returned. Built-in provider families are listed separately by `GET /v1/model_providers`.
+         */
+        get: operations["getCustomModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_identifier}": {
         parameters: {
             query?: never;
@@ -2161,6 +2201,16 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** BuiltInModelProvider */
+        BuiltInModelProvider: {
+            /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
+            provider: components["schemas"]["ModelProvider"];
+            /**
+             * Name
+             * @description The human-readable name of the provider family (e.g. 'OpenAI').
+             */
+            name: string;
+        };
         /**
          * BuiltInProviderModelSelection
          * @description Chat against a Phoenix built-in provider.
@@ -2806,6 +2856,47 @@ export interface components {
              */
             key: string;
         };
+        /** CustomModelProvider */
+        CustomModelProvider: {
+            /**
+             * Id
+             * @description The ID of the custom provider.
+             */
+            id: string;
+            /**
+             * Name
+             * @description The unique name of the custom provider.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of the custom provider.
+             */
+            description?: string | null;
+            /**
+             * Provider
+             * @description The free-form provider label recorded on the custom provider. Unlike the `provider` of a built-in family, this is not drawn from a fixed set.
+             */
+            provider: string;
+            /**
+             * Sdk
+             * @description The SDK used to communicate with the custom provider.
+             * @enum {string}
+             */
+            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock";
+            /**
+             * Created At
+             * Format: date-time
+             * @description The time the custom provider was created.
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description The time the custom provider was last updated.
+             */
+            updated_at: string;
+        };
         /**
          * CustomProviderModelSelection
          * @description Chat against a stored custom provider record.
@@ -3437,6 +3528,13 @@ export interface components {
             /** Data */
             data: components["schemas"]["ApiKey"][];
         };
+        /** GetCustomModelProvidersResponseBody */
+        GetCustomModelProvidersResponseBody: {
+            /** Data */
+            data: components["schemas"]["CustomModelProvider"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetDatasetLabelResponseBody */
         GetDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
@@ -3469,6 +3567,11 @@ export interface components {
             data: components["schemas"]["IncompleteExperimentRun"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetModelProvidersResponseBody */
+        GetModelProvidersResponseBody: {
+            /** Data */
+            data: components["schemas"]["BuiltInModelProvider"][];
         };
         /** GetProjectAnnotationConfigsResponseBody */
         GetProjectAnnotationConfigsResponseBody: {
@@ -11279,6 +11382,78 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getModelProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of built-in model provider families */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetModelProvidersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getCustomModelProviders: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (custom provider ID) */
+                cursor?: string | null;
+                /** @description The max number of custom providers to return at a time (at most 1000). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of custom model providers with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetCustomModelProvidersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

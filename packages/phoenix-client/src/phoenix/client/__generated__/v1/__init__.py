@@ -184,6 +184,16 @@ class CreatedApiKey(TypedDict):
     expires_at: NotRequired[str]
 
 
+class CustomModelProvider(TypedDict):
+    id: str
+    name: str
+    provider: str
+    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"]
+    created_at: str
+    updated_at: str
+    description: NotRequired[str]
+
+
 class CustomProviderModelSelection(TypedDict):
     providerType: Literal["custom"]
     providerId: str
@@ -307,6 +317,11 @@ class FileUIPart(TypedDict):
 
 class GetApiKeysResponseBody(TypedDict):
     data: Sequence[ApiKey]
+
+
+class GetCustomModelProvidersResponseBody(TypedDict):
+    data: Sequence[CustomModelProvider]
+    next_cursor: Optional[str]
 
 
 class GetDatasetLabelResponseBody(TypedDict):
@@ -1319,6 +1334,26 @@ class AssistantMessageMetadataUsage(TypedDict):
     promptDetails: NotRequired[AssistantMessageMetadataUsageCacheTokenDetails]
 
 
+class BuiltInModelProvider(TypedDict):
+    provider: Literal[
+        "OPENAI",
+        "AZURE_OPENAI",
+        "ANTHROPIC",
+        "GOOGLE",
+        "DEEPSEEK",
+        "XAI",
+        "OLLAMA",
+        "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
+        "PERPLEXITY",
+        "TOGETHER",
+    ]
+    name: str
+
+
 class BuiltInProviderModelSelection(TypedDict):
     providerType: Literal["builtin"]
     provider: Literal[
@@ -1561,6 +1596,10 @@ class GetAnnotationConfigsResponseBody(TypedDict):
         Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
     ]
     next_cursor: Optional[str]
+
+
+class GetModelProvidersResponseBody(TypedDict):
+    data: Sequence[BuiltInModelProvider]
 
 
 class GetProjectAnnotationConfigsResponseBody(TypedDict):

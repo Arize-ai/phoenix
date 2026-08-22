@@ -7009,6 +7009,114 @@
         }
       }
     },
+    "/v1/model_providers": {
+      "get": {
+        "tags": [
+          "model_providers"
+        ],
+        "summary": "List built-in model provider families",
+        "description": "Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.",
+        "operationId": "getModelProviders",
+        "responses": {
+          "200": {
+            "description": "A list of built-in model provider families",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetModelProvidersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/custom_model_providers": {
+      "get": {
+        "tags": [
+          "model_providers"
+        ],
+        "summary": "List custom model providers",
+        "description": "Retrieve a paginated list of user-defined custom model providers. Encrypted provider credentials are never returned. Built-in provider families are listed separately by `GET /v1/model_providers`.",
+        "operationId": "getCustomModelProviders",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (custom provider ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (custom provider ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The max number of custom providers to return at a time (at most 1000).",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of custom providers to return at a time (at most 1000)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of custom model providers with pagination information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCustomModelProvidersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/sessions/{session_identifier}": {
       "get": {
         "tags": [
@@ -10365,6 +10473,25 @@
         ],
         "title": "AssistantMessageMetadataUsageTokens"
       },
+      "BuiltInModelProvider": {
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/ModelProvider",
+            "description": "The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI')."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The human-readable name of the provider family (e.g. 'OpenAI')."
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "name"
+        ],
+        "title": "BuiltInModelProvider"
+      },
       "BuiltInProviderModelSelection": {
         "properties": {
           "providerType": {
@@ -12008,6 +12135,71 @@
         ],
         "title": "CreatedApiKey"
       },
+      "CustomModelProvider": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the custom provider."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The unique name of the custom provider."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the custom provider."
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "The free-form provider label recorded on the custom provider. Unlike the `provider` of a built-in family, this is not drawn from a fixed set."
+          },
+          "sdk": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "azure_openai",
+              "anthropic",
+              "google_genai",
+              "aws_bedrock"
+            ],
+            "title": "Sdk",
+            "description": "The SDK used to communicate with the custom provider."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The time the custom provider was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "The time the custom provider was last updated."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "provider",
+          "sdk",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CustomModelProvider"
+      },
       "CustomProviderModelSelection": {
         "properties": {
           "providerType": {
@@ -13486,6 +13678,34 @@
         ],
         "title": "GetApiKeysResponseBody"
       },
+      "GetCustomModelProvidersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CustomModelProvider"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetCustomModelProvidersResponseBody"
+      },
       "GetDatasetLabelResponseBody": {
         "properties": {
           "data": {
@@ -13605,6 +13825,22 @@
           "next_cursor"
         ],
         "title": "GetIncompleteExperimentRunsResponseBody"
+      },
+      "GetModelProvidersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BuiltInModelProvider"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetModelProvidersResponseBody"
       },
       "GetProjectAnnotationConfigsResponseBody": {
         "properties": {
