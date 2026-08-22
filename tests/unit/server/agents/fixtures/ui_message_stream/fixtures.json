@@ -1,6 +1,6 @@
 [
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > text",
     "input": {
@@ -105,7 +105,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > errors",
     "input": {
@@ -121,7 +121,7 @@
     "writes": []
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when text-delta is received without text-start",
     "input": {
@@ -156,7 +156,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when reasoning-delta is received without reasoning-start",
     "input": {
@@ -191,7 +191,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when tool-input-delta is received without tool-input-start",
     "input": {
@@ -226,7 +226,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing text part ids",
     "input": {
@@ -261,7 +261,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing reasoning part ids",
     "input": {
@@ -296,7 +296,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing partial tool call ids",
     "input": {
@@ -331,7 +331,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when text-end is received without text-start",
     "input": {
@@ -365,7 +365,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when reasoning-end is received without reasoning-start",
     "input": {
@@ -399,7 +399,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw UIMessageStreamError with correct properties for text-delta without text-start",
     "input": {
@@ -434,7 +434,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw UIMessageStreamError with correct properties for tool-input-delta without tool-input-start",
     "input": {
@@ -469,7 +469,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip",
     "input": {
@@ -655,7 +655,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with existing assistant message",
     "input": {
@@ -910,7 +910,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with multiple assistant texts",
     "input": {
@@ -1233,7 +1233,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with multiple assistant reasoning",
     "input": {
@@ -1345,6 +1345,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "",
             "state": "streaming"
           }
@@ -1359,6 +1360,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will ",
             "providerMetadata": {
               "testProvider": {
@@ -1378,6 +1380,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1397,6 +1400,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1416,6 +1420,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1443,6 +1448,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1473,6 +1479,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1497,6 +1504,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "",
             "state": "streaming"
           }
@@ -1511,6 +1519,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1535,6 +1544,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "I now know the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1554,6 +1564,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1578,6 +1589,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "I now know the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1597,6 +1609,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1621,6 +1634,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "I now know the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1645,6 +1659,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1669,6 +1684,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "I now know the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1693,6 +1709,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will use a tool to get the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1717,6 +1734,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "I now know the weather in London.",
             "providerMetadata": {
               "testProvider": {
@@ -1735,7 +1753,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with output-error",
     "input": {
@@ -1911,7 +1929,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata",
     "input": {
@@ -2119,7 +2137,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata delayed after finish",
     "input": {
@@ -2228,7 +2246,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata with existing assistant lastMessage",
     "input": {
@@ -2346,7 +2364,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool call streaming",
     "input": {
@@ -2488,7 +2506,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > start with message id",
     "input": {
@@ -2593,7 +2611,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > reasoning",
     "input": {
@@ -2707,6 +2725,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "",
             "state": "streaming"
           }
@@ -2721,6 +2740,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation",
             "state": "streaming"
           }
@@ -2735,6 +2755,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2754,6 +2775,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2773,6 +2795,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2783,6 +2806,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "",
             "state": "streaming"
           }
@@ -2797,6 +2821,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2807,6 +2832,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -2826,6 +2852,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2836,6 +2863,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -2855,6 +2883,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2865,6 +2894,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -2875,6 +2905,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-3",
             "text": "",
             "state": "streaming"
           }
@@ -2889,6 +2920,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2899,6 +2931,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -2909,6 +2942,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-3",
             "text": "Once the user has relaxed,",
             "state": "streaming"
           }
@@ -2923,6 +2957,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2933,6 +2968,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -2943,6 +2979,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-3",
             "text": "Once the user has relaxed, I will pry for valuable information.",
             "providerMetadata": {
               "testProvider": {
@@ -2962,6 +2999,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -2972,6 +3010,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -2982,6 +3021,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-3",
             "text": "Once the user has relaxed, I will pry for valuable information.",
             "providerMetadata": {
               "testProvider": {
@@ -3001,6 +3041,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -3011,6 +3052,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -3021,6 +3063,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-3",
             "text": "Once the user has relaxed, I will pry for valuable information.",
             "providerMetadata": {
               "testProvider": {
@@ -3045,6 +3088,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -3055,6 +3099,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -3065,6 +3110,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-3",
             "text": "Once the user has relaxed, I will pry for valuable information.",
             "providerMetadata": {
               "testProvider": {
@@ -3089,6 +3135,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-1",
             "text": "I will open the conversation with witty banter. ",
             "providerMetadata": {
               "testProvider": {
@@ -3099,6 +3146,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-2",
             "text": "redacted-data",
             "providerMetadata": {
               "testProvider": {
@@ -3109,6 +3157,7 @@
           },
           {
             "type": "reasoning",
+            "id": "reasoning-3",
             "text": "Once the user has relaxed, I will pry for valuable information.",
             "providerMetadata": {
               "testProvider": {
@@ -3127,7 +3176,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > onToolCall is executed",
     "input": {
@@ -3183,7 +3232,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > sources",
     "input": {
@@ -3295,7 +3344,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > file parts",
     "input": {
@@ -3524,7 +3573,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > file parts with providerMetadata",
     "input": {
@@ -3613,7 +3662,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part)",
     "input": {
@@ -3661,7 +3710,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (transient part)",
     "input": {
@@ -3697,7 +3746,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part with id and replacement update)",
     "input": {
@@ -3766,7 +3815,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part with id and merge update)",
     "input": {
@@ -3847,7 +3896,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed static tools",
     "input": {
@@ -4054,7 +4103,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed static tools > should preserve separate call and result provider metadata for static tools",
     "input": {
@@ -4166,7 +4215,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools",
     "input": {
@@ -4386,7 +4435,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools > should preserve separate call and result provider metadata for dynamic tools",
     "input": {
@@ -4498,7 +4547,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools > should preserve tool metadata on dynamic tool parts",
     "input": {
@@ -4594,7 +4643,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > should call onToolCall for client-executed tools",
     "input": {
@@ -4650,7 +4699,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > dynamic tools",
     "input": {
@@ -4863,7 +4912,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > provider metadata",
     "input": {
@@ -5062,7 +5111,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > provider metadata during input-streaming",
     "input": {
@@ -5204,7 +5253,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool input error",
     "input": {
@@ -5314,7 +5363,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool input error with dynamic flag mismatch",
     "input": {
@@ -5425,7 +5474,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > preliminary tool results",
     "input": {
@@ -5570,7 +5619,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > static tool with title",
     "input": {
@@ -5696,7 +5745,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > dynamic tool with title",
     "input": {
@@ -5837,7 +5886,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > tool with title in error state",
     "input": {
@@ -5940,7 +5989,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval requests (static tool)",
     "input": {
@@ -6015,7 +6064,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval requests (dynamic tool)",
     "input": {
@@ -6093,7 +6142,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval request with signature",
     "input": {
@@ -6170,7 +6219,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval response with signature",
     "input": {
@@ -6274,7 +6323,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval request without signature",
     "input": {
@@ -6349,7 +6398,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > automatic tool approval denial (static tool)",
     "input": {
@@ -6482,7 +6531,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > automatic tool approval with execution (dynamic tool)",
     "input": {
@@ -6622,7 +6671,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution after approval (static tool)",
     "input": {
@@ -6797,7 +6846,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution after approval (dynamic tool)",
     "input": {
@@ -6978,7 +7027,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution with preliminary results after approval (static tool)",
     "input": {
@@ -7211,7 +7260,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool execution denial (static tool)",
     "input": {
@@ -7381,7 +7430,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > tool execution denial (dynamic tool)",
     "input": {
@@ -7556,7 +7605,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "upstream",
     "name": "processUIMessageStream > custom",
     "input": {
@@ -7605,7 +7654,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "phoenix",
     "name": "Phoenix custom chunks > durable error part and standard error",
     "input": {
@@ -7649,7 +7698,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "phoenix",
     "name": "Phoenix custom chunks > transient session and persistence events",
     "input": {
@@ -7683,7 +7732,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "phoenix",
     "name": "Phoenix protocol passthrough > abort and done do not change the message",
     "input": {
@@ -7712,7 +7761,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "phoenix",
     "name": "Phoenix protocol coverage > source document",
     "input": {
@@ -7745,7 +7794,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "phoenix",
     "name": "Phoenix stream > interleaved preliminary subagent output",
     "input": {
@@ -7974,7 +8023,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "phoenix",
     "name": "Phoenix stream > forced skill step before model output",
     "input": {
@@ -8147,7 +8196,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "phoenix",
     "name": "Phoenix stream > typed assistant metadata",
     "input": {
@@ -8195,7 +8244,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.58",
+    "upstreamTag": "ai@7.0.66",
     "source": "phoenix",
     "name": "Phoenix stream > client tool continuation",
     "input": {

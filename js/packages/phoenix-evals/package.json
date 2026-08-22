@@ -79,24 +79,24 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/otel": "^1.0.58",
-    "@arizeai/openinference-core": "^2.5.1",
+    "@ai-sdk/otel": "^1.0.66",
+    "@arizeai/openinference-core": "^2.5.2",
     "@opentelemetry/api": "^1.9.1",
-    "ai": "^7.0.58",
+    "ai": "^7.0.66",
     "jsonpath-plus": "^10.4.0",
     "mustache": "^4.2.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@ai-sdk/google": "^4.0.39",
-    "@ai-sdk/openai": "^4.0.36",
-    "@arizeai/openinference-instrumentation-openai": "^4.1.8",
+    "@ai-sdk/google": "^4.0.44",
+    "@ai-sdk/openai": "^4.0.42",
+    "@arizeai/openinference-instrumentation-openai": "^4.1.9",
     "@opentelemetry/sdk-trace-node": "^2.10.0",
     "@types/mustache": "^4.2.6",
     "@types/node": "^26.2.0",
     "msw": "^2.15.0",
     "nock": "^14.0.17",
-    "tsx": "^4.23.11",
+    "tsx": "^4.23.12",
     "typedoc": "^0.28.20",
     "vitest": "^4.1.10"
   },
