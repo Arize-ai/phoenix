@@ -211,7 +211,8 @@ def _apply_project_session_filters(
     the session had activity inside the window.
 
     Every statistic the sessions aside renders runs through here, so a filtered statistic is
-    scoped to exactly the sessions the filtered table lists.
+    scoped to exactly the sessions the filtered table lists. The rowid subquery uses probe
+    lowering so mixed ``all(...)`` conditions stay correlated.
     """
     table = models.ProjectSession
     stmt = stmt.where(table.project_id == project_rowid)
@@ -228,6 +229,7 @@ def _apply_project_session_filters(
                     project_rowids=[project_rowid],
                     start_time=time_range.start if time_range else None,
                     end_time=time_range.end if time_range else None,
+                    lowering="probe",
                 )
             )
         )

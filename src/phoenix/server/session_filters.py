@@ -71,7 +71,15 @@ def get_filtered_session_rowids_subquery(
     end_time: Optional[datetime] = None,
     lowering: FilterLowering = "scan",
 ) -> ScalarSelect[int]:
-    """Compile the session filter DSL into a subquery of matching project-session rowids."""
+    """Compile the session filter DSL into a subquery of matching project-session rowids.
+
+    The default scan lowering is reserved for whole-scan analytical callers. Session aside
+    statistics (record counts, annotation summaries, latency quantiles, span cost summaries,
+    and the sessions-aside aggregations) should select probe lowering. Lowering is chosen
+    once per condition, so probe keeps sibling ``any`` and ``len`` expressions correlated
+    alongside ``all(...)``. Scan's uncorrelated ``any`` semi-join is the sibling of the
+    ``all`` anti-set that exceeded statement timeouts on a 3M-span corpus.
+    """
     session_filter = compile_session_filter(session_filter_condition)
     with session_filter_errors():
         return session_filter.as_session_rowids_subquery(

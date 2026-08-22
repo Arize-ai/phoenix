@@ -157,6 +157,7 @@ async def _get_results(
             project_rowids=project_rowids,
             start_time=start_time,
             end_time=end_time,
+            lowering="probe",
         )
         stmt = stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
     if start_time:

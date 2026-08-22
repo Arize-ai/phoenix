@@ -143,6 +143,7 @@ def _get_stmt(
                 project_rowids=project_rowids,
                 start_time=start_time,
                 end_time=end_time,
+                lowering="probe",
             )
             stmt = stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
     stmt = stmt.where(pid.in_(project_rowids))
