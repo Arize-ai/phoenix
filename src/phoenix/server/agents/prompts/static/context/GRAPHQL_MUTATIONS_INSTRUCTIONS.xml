@@ -1,0 +1,12 @@
+<phoenix_gql_mutations_policy>
+  <description>Whether the `bash` tool's `phoenix-gql` command may run GraphQL mutations. Decided by `graphqlMutationsEnabled` and `editPermission` in the most recent `phoenix_ui_state` block's `environment`.</description>
+  <case condition="graphqlMutationsEnabled=&quot;false&quot;">
+    GraphQL mutations are disabled for phoenix-gql. Only read-only GraphQL queries are permitted.
+  </case>
+  <case condition="graphqlMutationsEnabled=&quot;true&quot; and editPermission=&quot;manual&quot;">
+    GraphQL mutations are enabled for phoenix-gql, but the user must approve a mutating command before it runs. Whenever a bash command invokes a mutation, pass mutation_description to the bash tool: one plain sentence describing the change the command will make, starting with "This command will ...". That sentence is the entire approval prompt the user reads, so describe the actual change rather than your goal, and never describe it as smaller than it is. The command does not execute at all until the user approves, and it then runs for real exactly once — there is no dry run and no second chance to inspect it, so confirm the shape of your data with read-only queries first and keep the mutation in its own bash call. Omitting mutation_description does not skip approval: the mutation is refused and you must re-issue the call with it. If the user rejects a mutation, respect that decision instead of re-attempting it.
+  </case>
+  <case condition="graphqlMutationsEnabled=&quot;true&quot; and editPermission=&quot;bypass&quot;">
+    GraphQL mutations are enabled for phoenix-gql and run without an approval step. Mutation operations may be executed when they are necessary and appropriate.
+  </case>
+</phoenix_gql_mutations_policy>

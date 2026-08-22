@@ -3,15 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from jinja2 import Template
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.capabilities.skills.toolset import SkillsToolset
 
 
 @dataclass
-class SkillsCapability(AbstractStaticCapability[AgentDepsT]):
+class SkillsCapability(AbstractCapability[AgentDepsT]):
     """Capability that wraps a skills toolset with a static instructions template."""
 
     toolset: SkillsToolset[AgentDepsT]
@@ -20,5 +20,5 @@ class SkillsCapability(AbstractStaticCapability[AgentDepsT]):
     def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
         return self.toolset
 
-    def get_static_instructions(self) -> str:
+    def get_instructions(self) -> str:
         return self.instructions.render(skills=self.toolset.skills)

@@ -46,6 +46,7 @@ from phoenix.server.agents.context import (
 )
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
+from phoenix.server.agents.skills import get_all_skills
 from phoenix.server.agents.types import (
     AgentDependencies,
     ModelProviderAvailability,
@@ -54,6 +55,19 @@ from phoenix.server.agents.types import (
 from phoenix.server.types import DbSessionFactory
 
 _DEFAULT_PROMPTS = AgentPrompts()
+
+_FULLY_MOUNTED_CONTEXTS = ResolvedContexts(
+    project=ProjectContext(type="project", project_node_id="UHJvamVjdDox", span_filter="error"),
+    playground=PlaygroundContext(type="playground", instance_ids=[1]),
+    dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+    llm_evaluator=LlmEvaluatorContext(type="llm_evaluator", evaluator_node_id=None),
+    code_evaluator=CodeEvaluatorContext(type="code_evaluator", evaluator_node_id=None),
+)
+"""A surface with every gate-bearing UI context mounted at once.
+
+Paired with an empty ``ResolvedContexts``, it stands in for a user navigating
+between the emptiest and the busiest page in the app — the move that used to
+rewrite the cacheable prefix."""
 
 
 def build_agent(**kwargs: Any) -> Any:
@@ -162,7 +176,7 @@ class TestPromptCacheCapabilityMounting:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_PROMPTS.base.render() in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_PROMPTS.base in _get_concatenated_text(cached_blocks)
 
 
 class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
@@ -265,6 +279,22 @@ def _get_concatenated_text(blocks: list[BetaTextBlockParam]) -> str:
     return "\n".join(block["text"] for block in blocks if block.get("type") == "text")
 
 
+def _get_skills_catalog(body: MessageCreateParams) -> str:
+    """Return the ``<available_skills>`` block from the request's system blocks."""
+    text = "\n".join(_get_system_texts(body))
+    start = text.index("<available_skills>")
+    end = text.index("</available_skills>", start) + len("</available_skills>")
+    return text[start:end]
+
+
+_SKILL_TOOL_NAMES = ("load_skill", "read_skill_resource")
+
+
+def _get_skill_tool_definitions(body: MessageCreateParams) -> list[Any]:
+    """Return the skill tool definitions, in the order they were advertised."""
+    return [tool for tool in body.get("tools") or [] if tool.get("name") in _SKILL_TOOL_NAMES]
+
+
 def _get_tool_names(body: MessageCreateParams) -> set[str]:
     """Return the set of tool names advertised on the Anthropic request."""
     tools = body.get("tools") or []
@@ -304,7 +334,7 @@ class TestSystemBlockCacheBoundary:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_PROMPTS.base.render() in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_PROMPTS.base in _get_concatenated_text(cached_blocks)
 
     async def test_static_capability_instructions_are_inside_cache_boundary(
         self,
@@ -319,17 +349,19 @@ class TestSystemBlockCacheBoundary:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "<available_skills>" in cached_text
-        assert "<phoenix_app_context>" in cached_text
+        assert "<phoenix_ui_state_guide>" in cached_text
 
-    async def test_cache_breakpoint_separates_static_from_dynamic_content(
+    async def test_nothing_sits_after_the_cache_breakpoint(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        """Everything before the cache marker must be static; everything
-        after must be dynamic. Static content includes the base instructions
-        and the skills capability's text; dynamic content includes the
-        per-run UI context blocks and the GraphQL mutations policy."""
+        """The system prompt is entirely static, so the breakpoint sits at its
+        end and there is nothing behind it to reprocess.
+
+        Per-run state does not appear here at all: it rides on the user's turn
+        as a `<phoenix_ui_state>` block, at the tail of the message stream where
+        changing it leaves tools, system, and every prior turn untouched."""
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
@@ -347,23 +379,19 @@ class TestSystemBlockCacheBoundary:
         cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
             captured_request.body
         )
+        assert uncached_blocks == []
         cached_text = _get_concatenated_text(cached_blocks)
-        uncached_text = _get_concatenated_text(uncached_blocks)
-
-        for static_fragment in (
-            _DEFAULT_PROMPTS.base.render(),
+        for documented in (
+            _DEFAULT_PROMPTS.base,
             "<available_skills>",
-            "<phoenix_app_context>",
-        ):
-            assert static_fragment in cached_text
-            assert static_fragment not in uncached_text
-        for dynamic_fragment in (
+            "<phoenix_ui_state_guide>",
             "<phoenix_project_context>",
             "<phoenix_playground_context>",
             "<phoenix_gql_mutations_policy>",
         ):
-            assert dynamic_fragment in uncached_text
-            assert dynamic_fragment not in cached_text
+            assert documented in cached_text
+        # A rendered state block always carries an `<environment .../>` element.
+        assert "<environment editPermission=" not in cached_text
 
     async def test_tool_guidance_is_not_restated_in_the_system_prompt(
         self,
@@ -404,8 +432,103 @@ class TestSystemBlockCacheBoundary:
             assert description not in system_text
 
 
+class TestPrefixStabilityAcrossNavigation:
+    """The cacheable prefix must not move when the user navigates.
+
+    Providers match a cached prefix from the front and stop at the first
+    differing byte, and the prefix sits ahead of every message in the
+    conversation. A prefix that tracked the current page would throw away the
+    cached work for the entire conversation behind it every time the user
+    clicked somewhere else, which is why these compare bytes rather than
+    fragments."""
+
+    async def test_cached_system_blocks_are_byte_identical(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+
+        await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
+        await agent.run("hello", deps=AgentDependencies(contexts=_FULLY_MOUNTED_CONTEXTS))
+
+        bare, mounted = (
+            [block["text"] for block in _partition_system_blocks_by_cache_breakpoint(body)[0]]
+            for body in captured_request.bodies
+        )
+        assert bare == mounted
+
+    async def test_cached_system_blocks_are_byte_identical_across_edit_permissions(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        """``edit_permission`` is a toggle the user can flip mid-conversation.
+        Its value now rides on the turn instead of the system prompt, so the
+        prompt documents both settings and the prefix holds still."""
+        agent = build_agent(model=anthropic_model)
+
+        for edit_permission in ("manual", "bypass"):
+            await agent.run(
+                "hello",
+                deps=AgentDependencies(
+                    contexts=ResolvedContexts(),
+                    edit_permission=edit_permission,
+                ),
+            )
+
+        manual, bypass = (
+            [block["text"] for block in _partition_system_blocks_by_cache_breakpoint(body)[0]]
+            for body in captured_request.bodies
+        )
+        assert manual == bypass
+
+    async def test_skill_tool_definitions_are_byte_identical_in_content_and_order(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        """Tool definitions sit even further forward than the system prompt, so
+        a reordering is as expensive as a rewrite. Context-gated *tool* presence
+        is a separate open question; the skill tools are the ones that must be
+        stable today."""
+        agent = build_agent(model=anthropic_model)
+
+        await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
+        await agent.run("hello", deps=AgentDependencies(contexts=_FULLY_MOUNTED_CONTEXTS))
+
+        bare, mounted = (_get_skill_tool_definitions(body) for body in captured_request.bodies)
+        assert bare == mounted
+        assert [tool["name"] for tool in bare] == ["load_skill", "read_skill_resource"]
+
+    async def test_identical_inputs_produce_identical_tool_arrays(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        """Two agents built the same way must advertise the same tools in the
+        same order. Sets and dicts are easy to iterate somewhere in the build,
+        and a run-to-run reshuffle would bust the cache with nothing in the
+        request having actually changed."""
+        deps = AgentDependencies(contexts=_FULLY_MOUNTED_CONTEXTS)
+
+        await build_agent(model=anthropic_model).run("hello", deps=deps)
+        await build_agent(model=anthropic_model).run("hello", deps=deps)
+
+        first, second = (body.get("tools") for body in captured_request.bodies)
+        assert first == second
+
+
 class TestUIContextInstructions:
-    async def test_playground_context_selected_models_are_outside_cache_boundary(
+    """UI-context prose is documentation; per-run UI state is data.
+
+    The prose covers every case unconditionally and lives in the cached system
+    prompt. The values that decide which case applies never reach the system
+    prompt at all — they ride on the user's turn as a `<phoenix_ui_state>`
+    block, where a navigation costs one block instead of the conversation
+    behind it."""
+
+    async def test_playground_selection_never_reaches_the_system_prompt(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -431,27 +554,23 @@ class TestUIContextInstructions:
 
         await agent.run("hello", deps=deps)
 
-        cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
-            captured_request.body
-        )
+        system_text = "\n".join(_get_system_texts(captured_request.body))
+        for per_run_value in ('instanceId="7"', "gpt-5"):
+            assert per_run_value not in system_text
+        cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
-        uncached_text = _get_concatenated_text(uncached_blocks)
-        playground_context_fragments = (
-            '<instance label="A" instanceId="7" provider="OPENAI" modelName="gpt-5"/>',
+        for documented in (
+            "<phoenix_playground_context>",
             "list_playground_model_targets",
             "set_playground_model",
-        )
-        for fragment in playground_context_fragments:
-            assert fragment in uncached_text
-            assert fragment not in cached_text
+        ):
+            assert documented in cached_text
 
-    async def test_ui_context_instructions_are_outside_cache_boundary(
+    async def test_span_filter_condition_never_reaches_the_system_prompt(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        """Changes to UI state (project, span filter, playground instances,
-        etc.) must not invalidate the cached prefix."""
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
@@ -465,51 +584,36 @@ class TestUIContextInstructions:
 
         await agent.run("hello", deps=deps)
 
-        cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
-            captured_request.body
-        )
-        cached_texts = "\n".join(
-            block["text"] for block in cached_blocks if block.get("type") == "text"
-        )
-        uncached_texts = "\n".join(
-            block["text"] for block in uncached_blocks if block.get("type") == "text"
-        )
-        assert "<phoenix_project_context>" in uncached_texts
-        assert "<phoenix_gql_mutations_policy>" in uncached_texts
-        assert "<phoenix_project_context>" not in cached_texts
-        assert "<phoenix_gql_mutations_policy>" not in cached_texts
+        system_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "UHJvamVjdDox" not in system_text
+        assert 'status_code == "ERROR"' not in system_text
 
-    async def test_ui_context_instructions_are_absent_when_context_is_empty(
+    async def test_documentation_is_present_whatever_is_mounted(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
+        """Every context is documented on the emptiest page as on the busiest —
+        that invariance is what keeps the prefix stable across navigation."""
         agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
 
-        await agent.run("hello", deps=deps)
+        await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
+        await agent.run("hello", deps=AgentDependencies(contexts=_FULLY_MOUNTED_CONTEXTS))
 
-        all_text = "\n".join(_get_system_texts(captured_request.body))
-        for tag in (
-            "<phoenix_project_context>",
-            "<phoenix_trace_context>",
-            "<phoenix_span_context>",
-            "<phoenix_playground_context>",
-        ):
-            assert tag not in all_text
-        cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
-            captured_request.body
-        )
-        uncached_texts = "\n".join(
-            block["text"] for block in uncached_blocks if block.get("type") == "text"
-        )
-        cached_texts = "\n".join(
-            block["text"] for block in cached_blocks if block.get("type") == "text"
-        )
-        assert "<phoenix_gql_mutations_policy>" in uncached_texts
-        assert "<phoenix_gql_mutations_policy>" not in cached_texts
-        assert "<phoenix_app_context>" in cached_texts
-        assert "<phoenix_app_context>" not in uncached_texts
+        for body in captured_request.bodies:
+            cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(body)
+            assert uncached_blocks == []
+            cached_text = _get_concatenated_text(cached_blocks)
+            for tag in (
+                "<phoenix_ui_state_guide>",
+                "<phoenix_project_context>",
+                "<phoenix_trace_context>",
+                "<phoenix_span_context>",
+                "<phoenix_playground_context>",
+                "<phoenix_dataset_context>",
+                "<phoenix_gql_mutations_policy>",
+            ):
+                assert tag in cached_text
 
 
 class TestRouteInfoTool:
@@ -998,7 +1102,7 @@ class TestDocsMCPToolset:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_PROMPTS.docs_tool.render() in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_PROMPTS.docs_tool in _get_concatenated_text(cached_blocks)
 
     async def test_docs_tool_instructions_are_absent_when_docs_mcp_server_is_omitted(
         self,
@@ -1010,13 +1114,11 @@ class TestDocsMCPToolset:
 
         await agent.run("hello", deps=deps)
 
-        assert _DEFAULT_PROMPTS.docs_tool.render() not in "\n".join(
-            _get_system_texts(captured_request.body)
-        )
+        assert _DEFAULT_PROMPTS.docs_tool not in "\n".join(_get_system_texts(captured_request.body))
 
 
 class TestSkillsCapability:
-    async def test_global_bundled_skills_advertised_inside_cache_boundary(
+    async def test_every_skill_advertised_inside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -1029,11 +1131,22 @@ class TestSkillsCapability:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "<available_skills>" in cached_text
-        assert "<name>debug-trace</name>" in cached_text
-        assert "<name>annotate-spans</name>" in cached_text
-        assert "<name>span-coding</name>" in cached_text
-        assert "<name>playground</name>" not in cached_text
-        assert "<name>experiments</name>" not in cached_text
+        for skill in get_all_skills():
+            assert f"<name>{skill.name}</name>" in cached_text
+
+    async def test_catalog_is_identical_on_an_empty_and_a_fully_mounted_surface(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        """The catalog is prefix content, so navigating must not rewrite it."""
+        agent = build_agent(model=anthropic_model)
+
+        await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
+        await agent.run("hello", deps=AgentDependencies(contexts=_FULLY_MOUNTED_CONTEXTS))
+
+        bare, mounted = (_get_skills_catalog(body) for body in captured_request.bodies)
+        assert bare == mounted
 
     async def test_skill_tools_are_advertised(
         self,
@@ -1450,9 +1563,10 @@ class TestLlmEvaluatorFormToolGates:
 
 
 class TestEvaluatorsSkillLoadContract:
-    """The evaluators skill is only reachable if a live surface both advertises
-    it in the catalog and directs the agent to ``load_skill`` it. These assert
-    that contract so the skill cannot silently become inert."""
+    """Advertising the evaluators skill is not enough to make it reachable: a
+    live evaluator surface must also point the agent at ``load_skill``. The
+    catalog half of that contract is unconditional now, so what is asserted here
+    is the direction, which is what keeps the skill from going inert."""
 
     async def test_llm_evaluator_context_directs_load_skill(
         self,
@@ -1475,114 +1589,6 @@ class TestEvaluatorsSkillLoadContract:
         assert "load_skill" in all_text
         assert "evaluators" in all_text
 
-    async def test_evaluators_skill_advertised_with_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-            model_provider_availability=ModelProviderAvailability(has_usable=True),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        all_text = "\n".join(_get_system_texts(captured_request.body))
-        assert "<name>evaluators</name>" in all_text
-
-    async def test_evaluators_skill_advertised_with_code_evaluator_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                code_evaluator=CodeEvaluatorContext(
-                    type="code_evaluator",
-                    evaluator_node_id=None,
-                ),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        all_text = "\n".join(_get_system_texts(captured_request.body))
-        assert "<name>evaluators</name>" in all_text
-
-    async def test_evaluators_skill_absent_without_authoring_surface(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        all_text = "\n".join(_get_system_texts(captured_request.body))
-        assert "<name>evaluators</name>" not in all_text
-        assert "<name>llm-evaluator-authoring</name>" not in all_text
-
-
-class TestExperimentsSkillGate:
-    """The experiments skill is dataset-scoped: it advertises iff a dataset
-    context is mounted, and stays absent on evaluator-only or empty surfaces."""
-
-    async def test_experiments_skill_advertised_with_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        all_text = "\n".join(_get_system_texts(captured_request.body))
-        assert "<name>experiments</name>" in all_text
-
-    async def test_experiments_skill_absent_for_evaluator_only_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                code_evaluator=CodeEvaluatorContext(
-                    type="code_evaluator",
-                    evaluator_node_id=None,
-                ),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        all_text = "\n".join(_get_system_texts(captured_request.body))
-        assert "<name>experiments</name>" not in all_text
-
-    async def test_experiments_skill_absent_without_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        all_text = "\n".join(_get_system_texts(captured_request.body))
-        assert "<name>experiments</name>" not in all_text
-
 
 class TestCapabilityInstructionsOverride:
     async def test_overridden_base_instruction_appears_inside_cache_boundary(
@@ -1590,7 +1596,7 @@ class TestCapabilityInstructionsOverride:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        custom = AgentPrompts(base=Template("CUSTOM_STATIC_SENTINEL"))
+        custom = AgentPrompts(base="CUSTOM_STATIC_SENTINEL")
         agent = build_agent(model=anthropic_model, prompts=custom)
         deps = AgentDependencies(contexts=ResolvedContexts())
 
@@ -1599,7 +1605,7 @@ class TestCapabilityInstructionsOverride:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "CUSTOM_STATIC_SENTINEL" in cached_text
-        assert _DEFAULT_PROMPTS.base.render() not in cached_text
+        assert _DEFAULT_PROMPTS.base not in cached_text
 
     async def test_overridden_skills_instruction_replaces_default_in_system_blocks(
         self,

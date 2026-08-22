@@ -5,6 +5,7 @@ import os
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
@@ -45,6 +46,7 @@ from phoenix.server.agents.model_factory import (
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.agents.ui_state import build_ui_state_snapshot, render_ui_state
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
@@ -248,6 +250,54 @@ def _build_contexts(input: dict[str, Any]) -> ResolvedContexts:
 def _build_dependencies(input: dict[str, Any]) -> AgentDependencies:
     contexts = _build_contexts(input)
     return AgentDependencies(contexts=contexts)
+
+
+def _ui_state_block(deps: AgentDependencies) -> str:
+    """The `<phoenix_ui_state>` block the chat route would put on this turn.
+
+    The system prompt documents every UI surface unconditionally; which case
+    applies is carried by this block on the user's message. The harness drives
+    the agent directly rather than through the chat route, so it has to render
+    the block itself or the agent sees the documentation with none of the state
+    it is conditioned on.
+    """
+    return render_ui_state(
+        build_ui_state_snapshot(
+            contexts=deps.contexts,
+            edit_permission=deps.edit_permission,
+            is_viewer=deps.is_viewer,
+            has_usable_sandbox=deps.sandbox_availability.has_usable,
+            has_usable_model_provider=deps.model_provider_availability.has_usable,
+        )
+    )
+
+
+def _attach_ui_state(
+    block: str,
+    *,
+    user_prompt: str | None,
+    message_history: list[ModelMessage] | None,
+) -> tuple[str | None, list[ModelMessage] | None]:
+    """Put the state block on the run's earliest user turn.
+
+    One example describes one UI state, so — as in production, where a block is
+    emitted only when the state changes — it belongs on the first user turn and
+    stays authoritative for the rest of the run.
+    """
+    for message_index, message in enumerate(message_history or ()):
+        if not isinstance(message, ModelRequest):
+            continue
+        for part_index, part in enumerate(message.parts):
+            if not (isinstance(part, UserPromptPart) and isinstance(part.content, str)):
+                continue
+            parts = list(message.parts)
+            parts[part_index] = replace(part, content=f"{block}\n\n{part.content}")
+            assert message_history is not None
+            message_history[message_index] = replace(message, parts=parts)
+            return user_prompt, message_history
+    if user_prompt is not None:
+        return f"{block}\n\n{user_prompt}", message_history
+    return user_prompt, message_history
 
 
 def _build_run_inputs(
@@ -569,6 +619,12 @@ async def run_pxi_example(
     """
     try:
         user_prompt, message_history = _build_run_inputs(input)
+        deps = _build_dependencies(input)
+        user_prompt, message_history = _attach_ui_state(
+            _ui_state_block(deps),
+            user_prompt=user_prompt,
+            message_history=message_history,
+        )
         model = await _build_model()
         tracer_provider = _get_tracer_provider()
         if tracer_provider is not None:
@@ -590,7 +646,7 @@ async def run_pxi_example(
         )
         result = await agent.run(
             user_prompt,
-            deps=_build_dependencies(input),
+            deps=deps,
             message_history=message_history,
         )
         output = agent_task_output(result)

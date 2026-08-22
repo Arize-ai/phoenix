@@ -13,9 +13,8 @@ from pydantic_ai.tools import ToolDefinition
 
 from phoenix.server.agents.exceptions import CompactionError, SummarizationError
 from phoenix.server.agents.prompts import (
-    COMPACTION_INSTRUCTIONS_TEMPLATE,
-    COMPACTION_MESSAGE_TEMPLATE,
-    SUMMARIZATION_INSTRUCTIONS_TEMPLATE,
+    COMPACTION_INSTRUCTIONS,
+    SUMMARIZATION_INSTRUCTIONS,
 )
 from phoenix.server.agents.session_titles import (
     MAX_AGENT_SESSION_TITLE_LENGTH,
@@ -64,6 +63,31 @@ COMPACTION_TOOL_DEFINITION = ToolDefinition(
 )
 
 
+_COMPACTION_MESSAGE_PREAMBLE = (
+    "The following summarizes the conversation with the user so far. Use it as "
+    "historical context, not as a new user request. Use the latest state "
+    "described below when responding to subsequent user messages."
+)
+
+
+def _render_compaction_message(checkpoint: "_ConversationCheckpoint") -> str:
+    """Render a checkpoint as the durable compaction message.
+
+    Plain string building rather than a template: this produces a *message*, not
+    an instruction, so it never reaches the system prompt and has nothing to do
+    with the cacheable prefix. Sections with no items are omitted entirely.
+    """
+    lines = [_COMPACTION_MESSAGE_PREAMBLE, ""]
+    for key, items in checkpoint.model_dump().items():
+        cleaned = [item.strip() for item in items if item.strip()]
+        if not cleaned:
+            continue
+        lines.append(f"<{key}>")
+        lines.extend(f"- {item}" for item in cleaned)
+        lines.append(f"</{key}>")
+    return "\n".join(lines).strip()
+
+
 async def summarize_messages(
     *,
     messages: list[ModelMessage],
@@ -76,9 +100,7 @@ async def summarize_messages(
         allow_text_output=False,
         instruction_parts=[
             InstructionPart(
-                content=SUMMARIZATION_INSTRUCTIONS_TEMPLATE.render(
-                    max_title_length=MAX_AGENT_SESSION_TITLE_LENGTH
-                ),
+                content=SUMMARIZATION_INSTRUCTIONS,
                 dynamic=False,
             ),
         ],
@@ -119,7 +141,7 @@ async def summarize_messages_for_compaction(
         output_mode="tool",
         allow_text_output=False,
         instruction_parts=[
-            InstructionPart(content=COMPACTION_INSTRUCTIONS_TEMPLATE.render(), dynamic=False),
+            InstructionPart(content=COMPACTION_INSTRUCTIONS, dynamic=False),
         ],
     )
     try:
@@ -143,10 +165,5 @@ async def summarize_messages_for_compaction(
                 checkpoint = _ConversationCheckpoint.model_validate(part.args_as_dict())
             except Exception as exc:
                 raise CompactionError(f"invalid compaction tool arguments: {exc}") from exc
-            return COMPACTION_MESSAGE_TEMPLATE.render(
-                checkpoint={
-                    key: [item.strip() for item in items if item.strip()]
-                    for key, items in checkpoint.model_dump().items()
-                }
-            ).strip()
+            return _render_compaction_message(checkpoint)
     raise CompactionError("model did not call the conversation checkpoint tool")

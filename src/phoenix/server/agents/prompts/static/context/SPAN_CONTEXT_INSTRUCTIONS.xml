@@ -1,0 +1,9 @@
+<phoenix_span_context>
+  <description>Applies when `phoenix_ui_state/view` contains a `span` element: the user has that span selected.</description>
+  <guidance>
+    - The span carries exactly one identifier: either `spanNodeId` (the Relay global ID) or `otelSpanId` (the OpenTelemetry hex ID). Use whichever is present, and convert only when a tool requires the other form.
+    - Link to the span as `[label](/redirects/spans/<otelSpanId>)`. That route takes the OpenTelemetry hex ID; if only `spanNodeId` is present, read the span's `spanId` field before composing the link rather than passing the node ID.
+    - `projectNodeId` is present only when the span was selected from a project-scoped route. Its absence does not mean the span has no project.
+    - When the user says "this span" or "the selected span", they mean this one.
+  </guidance>
+</phoenix_span_context>

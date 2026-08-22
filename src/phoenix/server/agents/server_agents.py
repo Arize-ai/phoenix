@@ -103,8 +103,6 @@ def build_server_agent(
             toolset=SkillsToolset[None](
                 skills=[PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL],
                 load_skill_template=resolved_prompts.load_skill,
-                load_skill_tool_template=resolved_prompts.load_skill_tool,
-                read_skill_resource_tool_template=resolved_prompts.read_skill_resource_tool,
             ),
             instructions=resolved_prompts.skills,
         )
@@ -156,7 +154,7 @@ def build_server_agent(
         model,
         name="ServerAgent",
         deps_type=type(None),
-        instructions=resolved_prompts.base.render(),
+        instructions=resolved_prompts.base,
         capabilities=[traced_capability],
     )
     return OpenInferenceAgentWrapper(agent, tracer=tracer)
