@@ -1,0 +1,17 @@
+# Graded on the tool name: 24 calls against 20 for the runner-up is a wide
+# enough margin that the winner does not change under a different tie-break.
+name: repeated-tool-calls
+task_class: large-result
+prompt: >-
+  Is the agent getting stuck repeating itself in trail-gaia? Find the tool
+  called the most times within a single trace, and say how many times.
+expect:
+  contains: FinderTool
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- FinderTool was called 24 times in a single trace.
+- '**FinderTool** - 24 calls'
+reject:
+- SearchInformationTool, 20 times.
+- LiteLLMModel.__call__ is the most repeated.
