@@ -164,6 +164,9 @@ const COMPACT_WHILE_BUSY_ERROR_TEXT =
 const COMPACT_DRAFT_SESSION_ERROR_TEXT =
   "There is no persisted conversation to compact.";
 const COMPACTION_DIVIDER_TEXT = "── Conversation compacted ──";
+const INTERRUPTED_RESPONSE_DIVIDER_TEXT = "── Response interrupted ──";
+const EMPTY_INTERRUPTED_RESPONSE_DIVIDER_TEXT =
+  "── Interrupted before a response was generated ──";
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
@@ -460,6 +463,11 @@ function Transcript({
         }
         const label = message.role === "user" ? "You" : "PXI";
         const color = message.role === "user" ? "cyan" : "green";
+        const phoenixMetadata = message.metadata?.phoenix;
+        const isInterrupted =
+          message.role === "assistant" &&
+          phoenixMetadata?.type === "assistant" &&
+          phoenixMetadata.interrupted === true;
         return (
           <Box key={message.id} flexDirection="column" marginBottom={1}>
             <Text color={color} bold>
@@ -470,6 +478,13 @@ function Transcript({
               hasLivePendingTools={message.id === liveMessageId}
               phoenixBaseUrl={phoenixBaseUrl}
             />
+            {isInterrupted ? (
+              <Text color="yellow" bold>
+                {message.parts.length > 0
+                  ? INTERRUPTED_RESPONSE_DIVIDER_TEXT
+                  : EMPTY_INTERRUPTED_RESPONSE_DIVIDER_TEXT}
+              </Text>
+            ) : null}
           </Box>
         );
       })}
