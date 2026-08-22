@@ -276,8 +276,8 @@ def _lambda_parameter_document(parameter: exp.Expression) -> Optional[exp.Expres
 def _json_path_from_string(text: str) -> exp.JSONPath:
     """A JSON path for a ``->`` key or a ``$.a.b`` path literal.
 
-    A lambda body is a bare string, so ``'$.a.b'`` used to become one key
-    named ``$.a.b``. SQLite then looks up that name and answers NULL.
+    A lambda body is a bare string, so treating ``'$.a.b'`` as a single key
+    yields one named ``$.a.b``, which SQLite looks up and answers NULL.
     Asking the parser how it reads the same literal as a bare accessor
     reuses the split it already gets right outside a call.
     """
@@ -340,14 +340,14 @@ def _repair_lambda_json_accessor(
 
     ``jsonb_typeof(attributes -> 'llm')`` is a JSON accessor the engines
     execute once parenthesised. The parser reads the arrow as ``x -> body``
-    instead, so admission used to refuse it and name ``->>`` / ``json_extract``,
-    neither of which is valid input to ``jsonb_typeof``. Reconstructing the
+    instead, and admission judging that lambda refuses it while naming ``->>``
+    or ``json_extract``, neither of which is valid input to ``jsonb_typeof``. Reconstructing the
     accessor is the same request the caller wrote.
 
     The reconstructed node is the operator on both backends, matching a bare
     ``->`` outside a call. SQLite's ``->`` returns JSON text; ``json_extract``
-    and ``->>`` return the SQL value. Rebuilding as the function used to
-    change that answer inside MIN/MAX.
+    and ``->>`` return the SQL value, so rebuilding as the function changes
+    what MIN/MAX compares.
     """
     # Innermost first: a three-hop chain nests JSONExtract inside JSONExtract.
     for node in reversed(list(root.find_all(exp.Lambda))):
@@ -681,7 +681,14 @@ def _rewrite_sqlite_interval_arithmetic(
             node.replace(
                 exp.Anonymous(
                     this="datetime",
-                    expressions=[left.copy(), exp.Literal.string(modifier)],
+                    expressions=[
+                        left.copy(),
+                        exp.Literal.string(modifier),
+                        # Storage carries microseconds and `datetime` truncates
+                        # to whole seconds, so without this the shifted value
+                        # loses the fraction the comparison turns on.
+                        exp.Literal.string("subsec"),
+                    ],
                 )
             )
         elif (
@@ -696,7 +703,11 @@ def _rewrite_sqlite_interval_arithmetic(
             node.replace(
                 exp.Anonymous(
                     this="datetime",
-                    expressions=[right.copy(), exp.Literal.string(modifier)],
+                    expressions=[
+                        right.copy(),
+                        exp.Literal.string(modifier),
+                        exp.Literal.string("subsec"),
+                    ],
                 )
             )
     return root
@@ -746,13 +757,19 @@ def _repair_row_constructor(
     # `(1,)` is a one-field row. A one-element Tuple renders as `(1)`, a
     # scalar. ROW(1) is the spelling PostgreSQL still treats as a record.
     # VALUES (1) is a one-column row, not a record constructor — leave it.
+    # The excluded parents spell a parenthesised list that is grammar rather
+    # than a constructor: a grouping key, or the `DISTINCT ON (expr)` key list,
+    # where `ROW` is a syntax error.
     for tuple_node in list(root.find_all(exp.Tuple)):
         items = list(tuple_node.expressions)
         if len(items) != 1:
             continue
         if tuple_node.find_ancestor(exp.Values) is not None:
             continue
-        if isinstance(tuple_node.parent, (exp.GroupingSets, exp.Cube, exp.Rollup, exp.Group)):
+        if isinstance(
+            tuple_node.parent,
+            (exp.GroupingSets, exp.Cube, exp.Rollup, exp.Group, exp.Distinct),
+        ):
             continue
         tuple_node.replace(exp.Anonymous(this="row", expressions=[items[0].copy()]))
     return root
@@ -837,9 +854,8 @@ def _tree_depth(root: exp.Expression) -> int:
 _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
     # OPERATOR(schema.op) invokes an operator by name, and exp.Operator is not an
     # exp.Func either -- so `name ~ 'x'` is refused as regexp_like while
-    # `name OPERATOR(pg_catalog.~) 'x'` was admitted and rendered verbatim. Same
-    # capability, two spellings, opposite verdicts, which means the function
-    # allowlist did not mean what it claimed.
+    # `name OPERATOR(pg_catalog.~) 'x'` bypasses the function allowlist entirely
+    # and renders verbatim. Same capability, two spellings, opposite verdicts.
     exp.Operator: (
         "OPERATOR(...) names an operator directly and bypasses the function "
         "allowlist. Use the operator's ordinary spelling."
@@ -1115,9 +1131,9 @@ def _check_lossy_shapes(
                 "many rows. Write an explicit row count instead.",
             )
     for select in root.find_all(exp.Select):
-        # PostgreSQL accepts an empty select list. SQLAlchemy will not stream
-        # a zero-column cursor, so execution used to fail with "does not
-        # return rows" after EXPLAIN had already succeeded.
+        # PostgreSQL accepts an empty select list. SQLAlchemy will not stream a
+        # zero-column cursor, so admitting one fails at execution with "does
+        # not return rows" -- after EXPLAIN has already succeeded.
         if not select.expressions:
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
@@ -1371,9 +1387,9 @@ def _check_collate(
 
 #: Structural classes a SELECT may contain. Everything the parser can build
 #: that is neither an `exp.Func` (its own allowlist) nor a table source (its
-#: own check) falls here, and until this existed the seam between those two
-#: policies was governed by a five-entry denylist -- so a class nobody had
-#: considered was admitted by default.
+#: own check) falls here. The seam between those two policies is closed-world
+#: for the same reason they are: a denylist admits by default, so any class
+#: nobody has considered is accepted.
 #:
 #: Two provenances, and they are not equally strong. Most entries were produced
 #: by parsing statements this surface ships, tests or teaches -- the admission
@@ -2674,6 +2690,18 @@ def _check_base_tables(
     return None
 
 
+#: Names an engine binds implicitly, so a foreign source in the FROM clause is
+#: not evidence that a relation in the statement projects them. PostgreSQL
+#: system columns and the niladic keywords that parse as a bare column rather
+#: than as a function; SQLite's rowid aliases.
+_RESERVED_IMPLICIT_NAMES: dict[SupportedSQLDialectName, frozenset[str]] = {
+    "postgresql": frozenset(
+        {"ctid", "xmin", "xmax", "cmin", "cmax", "tableoid", "user", "current_role"}
+    ),
+    "sqlite": frozenset({"rowid", "oid", "_rowid_"}),
+}
+
+
 def _check_column_references(
     root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
@@ -2935,7 +2963,23 @@ def _check_column_references(
             # the manifest has never heard of, and `json_each(attributes)`
             # projecting `key` is a shape the schema teaches.
             #
+            # Reserved names are excepted. The engine binds them to the base
+            # table or to the session rather than to the foreign source, so
+            # admitting them on the chance the source projects them hands over
+            # a system column or the session identity. A caller who does mean a
+            # projected column of that name can qualify it.
             if not qualifier and foreign_source:
+                if name.casefold() in _RESERVED_IMPLICIT_NAMES[dialect]:
+                    subject = f"{name} is reserved."
+                    return AdmissionResult(
+                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                        subject,
+                        message=(
+                            f"{subject} Unqualified, it binds to the table or the session "
+                            "rather than to a relation this statement introduces. Qualify it "
+                            "with the relation that projects it if that is what you mean."
+                        ),
+                    )
                 continue
             # Not a column of any table in scope -- a misspelling, most often.
             # Name nearby physical or virtual columns so a misspelling is

@@ -1,3 +1,5 @@
+import asyncio
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -248,13 +250,13 @@ async def test_a_stream_past_its_deadline_times_out() -> None:
 async def test_a_mistyped_column_is_reported_not_leaked(db: DbSessionFactory) -> None:
     """The most common caller mistake must not surface as a driver traceback.
 
-    It used to reach the engine, where EXPLAIN resolves names, and returned
+    Reaching the engine, where EXPLAIN resolves names, produces
     ``(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class
-    'asyncpg.exceptions.UndefinedColumnError'>: ...`` -- naming our driver stack
+    'asyncpg.exceptions.UndefinedColumnError'>: ...`` -- naming the driver stack
     and inviting the caller to debug the server instead of the query.
 
-    Admission now refuses it first, since the column policy is an allowlist, so
-    the statement never reaches PostgreSQL and its "did you mean" never arrives.
+    Admission refuses it first, since the column policy is an allowlist, so the
+    statement never reaches PostgreSQL and its "did you mean" never arrives.
     The suggestion is made here instead, from the manifest -- which knows the
     exposed columns, so it will not propose one the caller cannot read.
     """
@@ -277,13 +279,21 @@ async def test_postgres_intervals_are_normalized_before_result_validation(
 ) -> None:
     result = await execute_analytics_sql(
         analytics_postgres_db,
-        ExecuteParams(sql="SELECT end_time - start_time AS duration FROM spans", row_limit=1),
+        ExecuteParams(
+            sql=(
+                "SELECT end_time - start_time AS duration, latency_ms "
+                "FROM spans WHERE span_id = 'span-1'"
+            )
+        ),
     )
 
-    assert result.envelope.rows
-    duration = result.envelope.rows[0][0]
-    assert isinstance(duration, str)
-    assert duration.startswith("P")
+    # An interval is normalized to an ISO-8601 string, so the assertion is on
+    # the elapsed time the fixture implies rather than on the shape of the
+    # rendering: a normalizer that dropped the fractional second would still
+    # produce a well-formed `P`-prefixed string.
+    duration, latency_ms = result.envelope.rows[0]
+    assert duration == "PT1.5S"
+    assert latency_ms == pytest.approx(1500.0, rel=1e-4)
 
 
 @pytest.mark.postgres_only
@@ -369,16 +379,16 @@ async def test_the_schema_is_resolved_not_assumed(
 ) -> None:
     """Both tools must name the schema Phoenix's ORM actually reads.
 
-    `load_allowlist("sqlite")` returns "public" and only the execute path overrode it,
-    so `describeSqlSchema` published indexes belonging to whatever sits in
-    `public` while the executor read somewhere else — names and JSON path
-    literals from a different instance's tables, and "repeat this spelling"
-    advice that was wrong for every entry.
+    `load_allowlist("sqlite")` returns "public", so a tool that does not override
+    it publishes indexes belonging to whatever sits in `public` while the
+    executor reads somewhere else — names and JSON path literals from a
+    different instance's tables, and "repeat this spelling" advice wrong for
+    every entry.
 
-    The execute path was not right either. It used `get_env_database_schema()
-    or "public"`, the hardcoded fallback #14172 removed from the usage
-    statistics: with the variable unset and the tables reached through
-    `search_path`, "public" names a schema that does not hold them.
+    `get_env_database_schema() or "public"` is not an override either: it is the
+    hardcoded fallback #14172 removed from the usage statistics. With the
+    variable unset and the tables reached through `search_path`, "public" names
+    a schema that does not hold them.
 
     Resolution follows that PR: the environment variable when set, otherwise
     the schema an unqualified `projects` reference resolves from. Deliberately
@@ -958,3 +968,66 @@ class TestSqliteResolutionErrorsAreActionable:
             )
 
         assert "validate_only" not in exc.value.message
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    ["timeout", "interrupted"],
+)
+async def test_an_identifier_named_like_a_deadline_is_not_reported_as_a_timeout(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], identifier: str
+) -> None:
+    """SQLite reports the deadline as exactly "interrupted".
+
+    Matching that as a substring made any error mentioning the word a timeout,
+    so a caller whose own column is named `timeout` was told to retry a
+    statement they needed to fix instead.
+    """
+    db, db_path = analytics_sqlite_db
+    sql = f"SELECT {identifier} FROM (SELECT 1 AS {identifier}) a, (SELECT 2 AS {identifier}) b"
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert caught.value.code is not ErrorCode.TIMEOUT
+
+
+async def test_admission_does_not_block_the_event_loop(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """Parsing and rewriting are CPU-bound and must not run on the event loop.
+
+    They scale with the size of the statement, and the input cap allows a
+    megabyte of it. None of the guards that bound execution -- the row limit,
+    the byte caps, the statement deadline -- applies before the backend is
+    reached, so on the event loop a single call freezes every other request,
+    ingestion included.
+
+    The gap between ticks is what matters, not their number: a task that spins
+    freely before and after a stall still records many ticks. Run on the loop
+    this statement stalls it for the better part of a second; offloaded, no
+    single gap is long.
+    """
+    db, db_path = analytics_sqlite_db
+    sql = "SELECT id FROM spans WHERE id IN (" + ",".join(["1"] * 12000) + ")"
+
+    gaps: list[float] = []
+    stop = asyncio.Event()
+
+    async def heartbeat() -> None:
+        last = time.perf_counter()
+        while not stop.is_set():
+            await asyncio.sleep(0.01)
+            now = time.perf_counter()
+            gaps.append(now - last)
+            last = now
+
+    beat = asyncio.create_task(heartbeat())
+    await asyncio.sleep(0.05)
+    gaps.clear()
+    try:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    finally:
+        stop.set()
+        await beat
+
+    assert gaps, "heartbeat never ran"
+    assert max(gaps) < 0.4, f"event loop stalled for {max(gaps):.2f}s during admission"

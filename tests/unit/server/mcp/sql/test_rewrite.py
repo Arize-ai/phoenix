@@ -1571,9 +1571,9 @@ class TestTimestampLiterals:
 class TestOneSharedResolver:
     """Every reference a rewrite may edit resolves the same way.
 
-    Four passes previously carried four scope models and disagreed; C1, C2, C3,
-    C5 and C6 are those disagreements. Each is pinned here against the shape
-    that produced it.
+    A pass carrying its own scope model disagrees with the others about which
+    relation a reference belongs to, and the disagreement surfaces as a wrong
+    answer rather than an error. C1, C2, C3, C5 and C6 pin one shape each.
     """
 
     @staticmethod
@@ -1878,7 +1878,7 @@ def test_sqlite_timestamp_vs_unixepoch_wraps_the_column() -> None:
     )
     assert "sqlite_timestamp_epoch_compare" in ctx.applied
     folded = rendered.lower()
-    assert "unixepoch(start_time)" in folded.replace(" ", "")
+    assert "unixepoch(start_time,'subsec')" in folded.replace(" ", "")
     assert folded.count("unixepoch") >= 2
 
 
@@ -1889,7 +1889,7 @@ def test_sqlite_timestamp_vs_datetime_wraps_the_column() -> None:
     )
     assert "sqlite_timestamp_epoch_compare" in ctx.applied
     folded = rendered.lower().replace(" ", "")
-    assert "datetime(start_time)" in folded
+    assert "datetime(start_time,'subsec')" in folded
     assert folded.count("datetime") >= 2
 
 
@@ -1988,3 +1988,376 @@ def test_comma_lateral_base_table_is_a_plain_join() -> None:
     assert "LATERAL" not in rendered.upper()
     assert ".traces" in rendered.casefold()
     assert "schema_qualification" in ctx.applied
+
+
+@pytest.mark.parametrize(
+    ("sql", "expected"),
+    [
+        # `_LATENCY_ROWS` spans 12:00:00.000000 to 12:00:04.500000, so the
+        # elapsed time across every row is 4.5 seconds and one row is 0.5.
+        ("SELECT MAX(end_time) - MIN(start_time) AS v FROM spans", 4.5),
+        ("SELECT (end_time) - start_time AS v FROM spans WHERE span_id = 'span-medium'", 0.5),
+        ("SELECT end_time - (start_time) AS v FROM spans WHERE span_id = 'span-medium'", 0.5),
+        ("SELECT end_time - start_time AS v FROM spans WHERE span_id = 'span-medium'", 0.5),
+    ],
+)
+def test_stored_timestamp_subtraction_yields_elapsed_seconds(sql: str, expected: float) -> None:
+    """Subtracting stored timestamps must not reach SQLite as text arithmetic.
+
+    Storage is text, so `end_time - start_time` coerces both sides to the
+    leading integer and answers 0 for every row -- a clean run with a confidently
+    wrong number. The conversion is applied through parentheses and through an
+    aggregate, because `MAX(end) - MIN(start)` is how total elapsed time is
+    written and it reads the same stored text.
+    """
+    rendered = _rendered(sql)
+    assert "UNIXEPOCH" in rendered.upper()
+    assert _run_on_sqlite(rendered)[0][0] == expected
+
+
+def test_subtraction_of_non_timestamp_columns_is_left_alone() -> None:
+    """Guards the test above: converting every subtraction would also satisfy it."""
+    rendered = _rendered(
+        "SELECT llm_token_count_prompt - llm_token_count_completion AS v FROM spans"
+    )
+    assert "UNIXEPOCH" not in rendered.upper()
+
+
+def _run_two_table_sqlite(sql: str) -> list[tuple[Any, ...]]:
+    """spans holds a 1500 ms row; traces holds a 2000 ms row."""
+    conn = sqlean.connect(":memory:")
+    try:
+        conn.execute("CREATE TABLE spans(start_time TEXT, end_time TEXT)")
+        conn.execute("CREATE TABLE traces(start_time TEXT, end_time TEXT)")
+        conn.execute(
+            "INSERT INTO spans VALUES('2026-07-30 12:00:00.000000','2026-07-30 12:00:01.500000')"
+        )
+        conn.execute(
+            "INSERT INTO traces VALUES('2026-07-30 12:00:00.000000','2026-07-30 12:00:02.000000')"
+        )
+        return cast(list[tuple[Any, ...]], conn.execute(sql).fetchall())
+    finally:
+        conn.close()
+
+
+def test_virtual_column_in_a_subquery_resolves_to_the_subquery_relation() -> None:
+    """An unqualified overlay binds to the relation that encloses it.
+
+    `Scope.columns` of an outer query also lists an unqualified column that
+    belongs to a nested subquery. Binding it to the outer table substitutes one
+    relation's timestamps into another relation's query: the statement runs and
+    returns the wrong duration, with nothing to indicate it.
+    """
+    rendered = _rendered("SELECT (SELECT max(latency_ms) FROM spans) AS m FROM traces")
+    assert "spans.end_time" in rendered
+    assert "traces.end_time" not in rendered
+    assert _run_two_table_sqlite(rendered)[0][0] == 1500.0
+
+
+def test_virtual_column_predicate_in_a_subquery_resolves_to_the_subquery_relation() -> None:
+    rendered = _rendered(
+        "SELECT (SELECT count(*) FROM spans WHERE latency_ms < 1800) AS c FROM traces"
+    )
+    assert "spans.end_time" in rendered
+    assert "traces.end_time" not in rendered
+    # The span is 1500 ms so it counts; the trace is 2000 ms and would not.
+    assert _run_two_table_sqlite(rendered)[0][0] == 1
+
+
+@pytest.mark.parametrize(
+    ("sql", "expected"),
+    [
+        # `_LATENCY_ROWS` start at 12:00:00, 12:00:01 and 12:00:02.
+        (
+            "SELECT count(*) AS v FROM spans "
+            "WHERE start_time > unixepoch('2026-07-30 12:00:01') - 1",
+            2,
+        ),
+        (
+            "SELECT count(*) AS v FROM spans WHERE start_time BETWEEN "
+            "unixepoch('2026-07-30 12:00:00') AND unixepoch('2026-07-30 12:00:01')",
+            2,
+        ),
+        # The bare form the pass already covered, kept so a regression is visible.
+        (
+            "SELECT count(*) AS v FROM spans WHERE start_time > unixepoch('2026-07-30 12:00:01')",
+            1,
+        ),
+    ],
+)
+def test_timestamp_compared_to_an_epoch_expression_is_converted(sql: str, expected: int) -> None:
+    """A stored timestamp must be converted whenever the other side is epoch-valued.
+
+    SQLite orders INTEGER below TEXT unconditionally, so an unconverted
+    `text > integer` matches every row and `text < integer` matches none --
+    a bounded window silently answers with the whole table or with nothing.
+    The unit survives arithmetic (`unixepoch('now') - 3600` is still epoch
+    seconds) and BETWEEN compares against both of its bounds.
+    """
+    rendered = _rendered(sql)
+    assert "UNIXEPOCH(START_TIME" in rendered.upper()
+    assert _run_on_sqlite(rendered)[0][0] == expected
+
+
+def test_a_comparison_with_no_epoch_side_is_left_alone() -> None:
+    """Guards the test above: converting every comparison would also satisfy it."""
+    rendered = _rendered("SELECT count(*) AS v FROM spans WHERE start_time > '2026-07-30'")
+    assert "UNIXEPOCH" not in rendered.upper()
+
+
+@pytest.mark.parametrize(
+    ("sql", "dialect"),
+    [
+        ("SELECT attributes -> 'c''d' AS v FROM spans", "postgresql"),
+        ("SELECT attributes ->> 'c''d' AS v FROM spans", "postgresql"),
+        ("SELECT attributes -> '$.\"c''d\"' AS v FROM spans", "sqlite"),
+        ("SELECT attributes ->> '$.\"c''d\"' AS v FROM spans", "sqlite"),
+    ],
+)
+def test_a_json_key_containing_a_quote_is_escaped(sql: str, dialect: str) -> None:
+    """A key holding an apostrophe must not close its own string literal.
+
+    Attribute keys are arbitrary, and describeSqlSchema publishes the populated
+    paths, so an unescaped one is a spelling the surface prints and cannot run.
+    """
+    root = parse_sql(sql, dialect=cast(Any, dialect))
+    root = admit(root, allowlist=load_allowlist(cast(Any, dialect)), dialect=cast(Any, dialect))
+    rendered = render(rewrite(root, _ctx(cast(Any, dialect))), dialect=cast(Any, dialect))
+    assert rendered.count("'") % 2 == 0, f"unbalanced quotes: {rendered}"
+    assert "''" in rendered
+
+
+def test_a_json_key_without_a_quote_keeps_its_path_form() -> None:
+    """Guards the test above: rewriting every path would also satisfy it."""
+    rendered = _rendered("SELECT attributes -> '$.llm' AS v FROM spans")
+    assert "json_path_quote_repair" not in _ctx("sqlite").applied
+    assert "->" in rendered
+
+
+def test_subsecond_precision_survives_an_epoch_comparison() -> None:
+    """Converting the column must not floor it to whole seconds.
+
+    Storage carries microseconds. `datetime()` and `unixepoch()` truncate
+    unless asked for `subsec`, so a comparison decided below the second dropped
+    rows PostgreSQL returns.
+    """
+    rendered = _rendered(
+        "SELECT span_id AS v FROM spans WHERE end_time > start_time + INTERVAL '1' SECOND"
+    )
+    assert "'subsec'" in rendered
+    # span-long runs 2.5s and clears a one-second threshold; the others do not.
+    assert [row[0] for row in _run_on_sqlite(rendered)] == ["span-long"]
+
+
+@pytest.mark.parametrize(
+    ("sql", "dialect"),
+    [
+        ("SELECT count(*) AS v FROM spans WHERE attributes ->> '$.n' > '99'", "sqlite"),
+        ("SELECT count(*) AS v FROM spans WHERE attributes #>> '{n}' > '99'", "postgresql"),
+        # The lambda repair parenthesises an accessor written inside a call.
+        ("SELECT MIN(attributes -> '$.n') AS v FROM spans", "sqlite"),
+    ],
+)
+def test_uncast_json_ordering_is_noted(sql: str, dialect: str) -> None:
+    """The note says "ordered or compared", so a comparison has to reach it.
+
+    Text ordering of a JSON read answers differently from numeric ordering, and
+    the surface cannot tell which the path holds -- so it notes rather than
+    refuses. A note that fires only in MIN/MAX/ORDER BY misses the predicate
+    form, which is where the wrong answer is least visible.
+    """
+    d = cast(Any, dialect)
+    root = admit(parse_sql(sql, dialect=d), allowlist=load_allowlist(d), dialect=d)
+    ctx = RewriteContext(allowlist=load_allowlist(d), dialect=d, row_limit=100)
+    rewrite(root, ctx)
+    assert any("without a cast" in note for note in ctx.notes), ctx.notes
+
+
+def test_a_cast_json_comparison_is_not_noted() -> None:
+    """Guards the test above: a cast says the caller already decided."""
+    ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=100)
+    root = admit(
+        parse_sql(
+            "SELECT count(*) AS v FROM spans WHERE CAST(attributes ->> '$.n' AS REAL) > 99",
+            dialect="sqlite",
+        ),
+        allowlist=load_allowlist("sqlite"),
+        dialect="sqlite",
+    )
+    rewrite(root, ctx)
+    assert not any("without a cast" in note for note in ctx.notes)
+
+
+def test_virtual_using_key_resolves_against_the_whole_left_composite() -> None:
+    """A USING key may come from any relation to its left, not just the last.
+
+    `a JOIN b ON ... JOIN c USING (k)` resolves `k` against the composite of
+    `a` and `b`. Taking only the nearest relation qualified the rewritten
+    comparison with one that does not provide the column, so the engine
+    reported a reference the caller never wrote.
+    """
+    ctx, rendered = _rewritten(
+        "SELECT spans.span_id FROM spans JOIN projects ON projects.id = 1 "
+        "JOIN traces USING (latency_ms)",
+        dialect="postgresql",
+    )
+    assert "virtual_using" in ctx.applied
+    assert "projects.latency_ms" not in rendered
+    assert "spans.end_time" in rendered and "traces.end_time" in rendered
+
+
+def test_two_relation_virtual_using_still_resolves_to_the_left_relation() -> None:
+    """Guards the test above: the simple case must keep working."""
+    _, rendered = _rewritten(
+        "SELECT spans.span_id FROM spans JOIN traces USING (latency_ms)",
+        dialect="postgresql",
+    )
+    assert "spans.end_time" in rendered and "traces.end_time" in rendered
+
+
+def test_a_using_key_provided_by_two_left_relations_is_refused() -> None:
+    """PostgreSQL refuses this too, so binding it silently would answer for the caller."""
+    with pytest.raises(AnalyticsSqlError) as caught:
+        _rewritten(
+            "SELECT s.span_id FROM spans s JOIN traces t1 ON t1.id = 1 "
+            "JOIN traces t2 USING (latency_ms)",
+            dialect="postgresql",
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+
+
+def _rendered_dialect(sql: str, dialect: str) -> str:
+    d = cast(Any, dialect)
+    root = admit(parse_sql(sql, dialect=d), allowlist=load_allowlist(d), dialect=d)
+    return render(rewrite(root, _ctx(d)), dialect=d)
+
+
+def _run_join_on_sqlite(sql: str) -> list[tuple[Any, ...]]:
+    """traces id={1,2}; spans id={1,2,3}, so span 3 has no matching trace."""
+    conn = sqlean.connect(":memory:")
+    try:
+        conn.execute("CREATE TABLE traces(id INT)")
+        conn.execute("CREATE TABLE spans(id INT)")
+        conn.executemany("INSERT INTO traces VALUES(?)", [(1,), (2,)])
+        conn.executemany("INSERT INTO spans VALUES(?)", [(1,), (2,), (3,)])
+        return cast(list[tuple[Any, ...]], conn.execute(sql).fetchall())
+    finally:
+        conn.close()
+
+
+def test_star_over_a_right_join_using_merges_the_key() -> None:
+    """USING exposes the merge of both sides, which matters when the left is absent.
+
+    A right join produces rows with no left row, and there the left copy of the
+    key is NULL while the key itself is not. Emitting the left copy answered
+    NULL for exactly the rows the join was written to keep -- and both engines
+    agreed on it, so comparing deployments would not have shown it.
+    """
+    rendered = _rendered_dialect("SELECT * FROM traces RIGHT JOIN spans USING (id)", "sqlite")
+    assert "COALESCE(traces.id, spans.id) AS id" in rendered
+    # The merged key is what the engine's own USING produces.
+    assert [
+        row[0]
+        for row in _run_join_on_sqlite(
+            "SELECT COALESCE(traces.id, spans.id) AS id "
+            "FROM traces RIGHT JOIN spans USING (id) ORDER BY id"
+        )
+    ] == [
+        row[0]
+        for row in _run_join_on_sqlite(
+            "SELECT * FROM traces RIGHT JOIN spans USING (id) ORDER BY id"
+        )
+    ]
+
+
+def test_star_over_an_inner_join_using_keeps_one_plain_copy() -> None:
+    """Guards the test above: an inner join cannot lose the left row."""
+    rendered = _rendered_dialect("SELECT * FROM traces JOIN spans USING (id)", "sqlite")
+    assert "COALESCE" not in rendered.upper()
+    # The key is projected once, from the left. `spans.id` still appears inside
+    # the span's graphql_node_id expression, which is not a second key column.
+    assert rendered.startswith("SELECT traces.id,")
+    assert ", spans.id," not in rendered
+
+
+def test_a_computed_json_key_is_noted_on_postgres() -> None:
+    """The two engines read the same computed operand differently.
+
+    PostgreSQL's `->` takes a key, so a computed operand names one key; SQLite
+    reads the same text as a path. `doc -> k.key` and `json_extract(doc, k.key)`
+    parse identically, so the surface cannot tell which the caller meant and
+    says so instead of choosing.
+    """
+    al = load_allowlist("postgresql")
+    root = admit(
+        parse_sql(
+            "SELECT json_extract(attributes, '$.' || 'llm') AS v FROM spans", dialect="postgresql"
+        ),
+        allowlist=al,
+        dialect="postgresql",
+    )
+    ctx = RewriteContext(allowlist=al, dialect="postgresql", row_limit=100)
+    rewrite(root, ctx)
+    assert any("computed JSON key" in note for note in ctx.notes)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        # A dynamic column key is a key lookup on both engines, which is what
+        # `->` does -- nothing to warn about.
+        "SELECT s.attributes -> k.key AS v FROM spans s "
+        "CROSS JOIN LATERAL jsonb_each(s.attributes) AS k",
+        "SELECT attributes -> 'llm' AS v FROM spans",
+    ],
+)
+def test_an_ordinary_json_key_is_not_noted(sql: str) -> None:
+    """Guards the test above: noting every accessor would also satisfy it."""
+    al = load_allowlist("postgresql")
+    root = admit(parse_sql(sql, dialect="postgresql"), allowlist=al, dialect="postgresql")
+    ctx = RewriteContext(allowlist=al, dialect="postgresql", row_limit=100)
+    rewrite(root, ctx)
+    assert not any("computed JSON key" in note for note in ctx.notes)
+
+
+def test_using_merge_names_only_the_relations_that_provide_the_key() -> None:
+    """Merging across every relation to the left names columns they do not have.
+
+    `projects` has no `start_time`, so coalescing it into the merge emits a
+    reference the engine refuses -- turning the silent NULL this pass exists to
+    fix into a hard error against a column the caller never wrote.
+    """
+    _, rendered = _rewritten(
+        "SELECT * FROM projects JOIN traces ON traces.project_rowid = projects.id "
+        "RIGHT JOIN spans USING (start_time)",
+        dialect="postgresql",
+    )
+    assert "COALESCE(traces.start_time, spans.start_time)" in rendered
+    assert "projects.start_time" not in rendered
+
+
+def test_interval_arithmetic_keeps_the_fraction_it_shifts() -> None:
+    """Both sides of the comparison must carry subseconds, not just the column.
+
+    `datetime(col, '+1 seconds')` truncates, so a span exactly one second long
+    compared with `> INTERVAL '1' SECOND` answered true, and a half-second span
+    did too.
+    """
+    rendered = _rendered(
+        "SELECT span_id AS v FROM spans WHERE end_time > start_time + INTERVAL '1' SECOND"
+    )
+    assert rendered.count("'subsec'") == 2
+    assert [row[0] for row in _run_on_sqlite(rendered)] == ["span-long"]
+
+
+@pytest.mark.parametrize(
+    ("sql", "converted"),
+    [
+        ("SELECT COALESCE(end_time, start_time) - start_time AS v FROM spans", True),
+        # A branch that is not a stored timestamp makes the result something else.
+        ("SELECT COALESCE(end_time, name) - start_time AS v FROM spans", False),
+    ],
+)
+def test_coalesced_timestamps_subtract_as_timestamps(sql: str, converted: bool) -> None:
+    """COALESCE of stored timestamps is still a stored timestamp."""
+    assert ("UNIXEPOCH" in _rendered(sql).upper()) is converted

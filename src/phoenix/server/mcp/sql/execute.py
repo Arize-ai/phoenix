@@ -626,9 +626,20 @@ async def execute_analytics_sql(
         if dialect == "postgresql":
             schema = await resolve_pg_schema(db)
             allowlist = replace(allowlist, pg_schema=schema)
+
+        # Parsing, admission and rewriting are CPU-bound and scale with the
+        # size of the statement, and the input cap allows a megabyte of it.
+        # Run on the event loop they starve the whole process -- every other
+        # request, ingestion included -- for as long as they take, which the
+        # row limit, byte caps and statement deadline do not bound because
+        # none of them applies before the backend is reached. SQLite execution
+        # is already offloaded for the same reason.
+        def _admitted() -> Any:
+            parsed = parse_sql(params.sql, dialect=dialect)
+            return admit(parsed, allowlist=allowlist, dialect=dialect)
+
         try:
-            root = parse_sql(params.sql, dialect=dialect)
-            root = admit(root, allowlist=allowlist, dialect=dialect)
+            root = await asyncio.to_thread(_admitted)
         except AnalyticsSqlError as exc:
             # A refusal is ordinary traffic, not an incident -- callers are
             # expected to probe the boundary. Debug level records which rule
@@ -661,8 +672,12 @@ async def execute_analytics_sql(
         )
         if params.row_limit is not None and requested != row_limit:
             ctx.notes.append(f"row_limit clamped to {row_limit}")
-        root = rewrite(root, ctx)
-        rendered = render(root, dialect=dialect)
+
+        def _rendered() -> tuple[Any, str]:
+            rewritten = rewrite(root, ctx)
+            return rewritten, render(rewritten, dialect=dialect)
+
+        root, rendered = await asyncio.to_thread(_rendered)
 
         # The executed statement is not the one the caller wrote: stars are
         # expanded, virtual columns substituted, timestamp literals re-emitted
@@ -1169,7 +1184,13 @@ async def _execute_sqlite_file(
         raise
     except _SQLITE_RUNTIME_ERRORS as exc:
         message = str(exc).lower()
-        if "timeout" in message or "interrupted" in message:
+        # Anchored rather than searched. SQLite reports the deadline interrupt
+        # as exactly "interrupted", while a caller's own identifier reaches here
+        # inside a longer sentence -- `ambiguous column name: timeout` was
+        # reported as a timeout, sending an agent to retry a statement it needed
+        # to fix. No SQLite message begins with "timeout"; that branch is a
+        # guard for drivers that word a deadline differently.
+        if message.strip() == "interrupted" or message.startswith("timeout"):
             raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.") from exc
         # A refusal by the authorizer reaches the driver as an ordinary operational
         # error, so without this the caller is told only that something failed. The

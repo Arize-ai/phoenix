@@ -366,12 +366,11 @@ class TestJoinStructure:
 class TestWholeRowReferencesAreRefused:
     """Naming a relation selects every column in it, hidden ones included.
 
-    `SELECT p FROM projects p` and `SELECT CAST(p AS TEXT) FROM projects p` both
-    returned the full record on PostgreSQL -- gradient colours and all -- while
-    the same columns were refused when named. The construct parses as an
-    ordinary unqualified column whose name happens to be the relation's, so
-    every per-column rule was inapplicable: the check reads column names and
-    this names no column.
+    `SELECT p FROM projects p` and `SELECT CAST(p AS TEXT) FROM projects p` each
+    yield the full record on PostgreSQL -- gradient colours and all -- though
+    the same columns are refused when named. The construct parses as an ordinary
+    unqualified column whose name happens to be the relation's, so no per-column
+    rule applies: those read column names, and this names no column.
 
     `exp.Dot` is the same escape inverted: `(d).user_id` reaches a field of that
     row without producing a column node for it.
@@ -403,8 +402,8 @@ class TestWholeRowReferencesAreRefused:
             # `(srf(...)).field` is how PostgreSQL projects one field of a
             # set-returning function's result, and is the statement
             # `allowlist.py` cites as the reason the plan gate's function set
-            # exists. A blanket refusal of exp.Dot removed it, so the code
-            # refused the example its own comment used to justify a design.
+            # exists. A blanket refusal of exp.Dot rejects it, leaving the
+            # code refusing the example its own comment cites.
             "SELECT (jsonb_each(attributes)).key FROM spans",
         ],
     )
@@ -625,12 +624,13 @@ class TestScopeInvariantIsPerScope:
     ],
 )
 def test_composite_access_is_refused_at_any_paren_depth(sql: str) -> None:
-    """The rule unwrapped one parenthesis, so nesting fell through to its neighbour.
+    """Composite field access is refused however deeply it is parenthesised.
 
-    Both spellings were refused either way -- the row-valued rule scans columns
-    at any depth -- but the two are described as covering the escape from both
-    sides, and only one of them was depth-independent. Narrowing that rule later
-    would have reopened this with nothing to catch it.
+    A rule that unwraps a single parenthesis leaves nesting to fall through to
+    its neighbour. Both spellings are refused today because the row-valued rule
+    scans columns at any depth, but the two rules are described as covering this
+    escape from either side, and only one of them is depth-independent --
+    narrowing the other reopens this with nothing to catch it.
     """
     with pytest.raises(AnalyticsSqlError) as caught:
         admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
@@ -749,9 +749,10 @@ class TestLossyShapesAreRefused:
 class TestTimestampComparisonCoverage:
     """Every spelling of a comparison against a timestamp column, not some.
 
-    A literal beside `=` was refused when naive and rewritten to storage format
-    when aware. The same literal inside `IN` got neither, and a double-quoted
-    one was not seen as a literal at all. See D4 and D5.
+    Handling attached to one operator covers only that operator: a literal beside
+    `=` is refused when naive and rewritten to storage format when aware, while
+    the same literal inside `IN` gets neither, and a double-quoted one is not
+    recognised as a literal at all. See D4 and D5.
     """
 
     @staticmethod
@@ -1003,12 +1004,12 @@ class TestTimestampComparisonCoverage:
 
 
 class TestStructuralPolicyIsDefaultDeny:
-    """The seam between the function and table allowlists now has an answer.
+    """The seam between the function and table allowlists is closed-world.
 
     Everything the parser can build that is neither a function nor a table
-    source used to be governed by a five-entry denylist, so a class nobody had
-    considered was admitted. Three defects were found there in one night, none
-    of them by a check. See D1.
+    source falls in that seam. Governed by a denylist it admits by default, so
+    any class nobody enumerated is accepted -- and the classes nobody enumerates
+    are exactly the ones no check is watching. See D1.
     """
 
     @staticmethod
@@ -1314,9 +1315,9 @@ class TestPhysicalColumnsWithForeignSources:
 class TestMainstreamGrammarIsNotRefused:
     """The structural floor must not exclude ordinary analytics SQL.
 
-    Each of these executes on its engine and was admitted before the policy was
-    inverted; none was covered by the corpus, so the omission would have shipped
-    silently.
+    Each of these executes on its engine, and none is reachable from the corpus,
+    so a structural policy that omits one refuses ordinary SQL with nothing to
+    report the omission.
     """
 
     @pytest.mark.parametrize(
@@ -1425,9 +1426,9 @@ class TestOrderByAliasBindsOnlyAsAWholeKey:
     )
     def test_a_set_operation_sorts_by_its_own_output_names(self, sql: str) -> None:
         """A compound select's ORDER BY hangs off the set operation, not either
-        branch, so a walk that looks only at selects never reached it and every
-        such sort key was refused as an unknown column. All four execute on both
-        engines; the single-SELECT form of the same query already admitted.
+        branch, so a walk that looks only at selects never reaches it and every
+        such sort key is refused as an unknown column. All four execute on both
+        engines, and the single-SELECT form of the same query admits.
 
         Every output name qualifies, not just the aliased ones -- a set operation
         has no input columns of its own for a key to bind to instead.
@@ -1872,7 +1873,8 @@ def test_sqlite_interval_addition_becomes_datetime_modifier() -> None:
 
     assert result.outcome is AdmissionOutcome.ADMIT
     folded = (result.rendered_sql or "").lower().replace(" ", "")
-    assert "datetime(start_time,'+1days')" in folded
+    # The shifted value keeps its subseconds; the modifier is what this pins.
+    assert "datetime(start_time,'+1days'" in folded
     assert "interval" not in folded
 
 
@@ -1881,3 +1883,57 @@ def test_sqlite_bare_interval_is_refused() -> None:
 
     assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
     assert "INTERVAL" in result.detail
+
+
+class TestReservedNamesAreNotReachedThroughTheForeignSourceHatch:
+    """An unqualified name is admitted when a foreign source could project it.
+
+    A subquery, CTE or table-valued function in the FROM clause names columns
+    the manifest does not know, so an unqualified reference no allowlisted table
+    offers is admitted rather than refused. The engine does not resolve every
+    such name that way: a system column binds to the base table and a niladic
+    keyword binds to the session, and neither the plan gate nor the SQLite
+    authorizer inspects column expressions.
+    """
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            ("SELECT user FROM spans, (SELECT 1) q", "postgresql"),
+            ("SELECT current_role FROM spans, (SELECT 1) q", "postgresql"),
+            ("SELECT ctid FROM spans, (SELECT 1) q", "postgresql"),
+            ("SELECT xmin, xmax, tableoid FROM spans, (SELECT 1) q", "postgresql"),
+            # Any foreign source opens the hatch, not just a subquery.
+            ("SELECT ctid FROM spans, jsonb_each(attributes) j", "postgresql"),
+            ("WITH t AS (SELECT 1 AS n) SELECT ctid FROM spans, t", "postgresql"),
+            # A reference anywhere reaches it, not only a projection.
+            ("SELECT id FROM spans, (SELECT 1) q WHERE ctid IS NOT NULL", "postgresql"),
+            ("SELECT count(*) FROM spans, (SELECT 1) q GROUP BY user", "postgresql"),
+            ("SELECT rowid FROM spans, (SELECT 1) q", "sqlite"),
+            ("SELECT _rowid_ FROM spans, (SELECT 1) q", "sqlite"),
+            ("SELECT oid FROM spans, (SELECT 1) q", "sqlite"),
+        ],
+    )
+    def test_reserved_names_are_refused(self, sql: str, dialect: SupportedSQLDialectName) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(sql, allowlist=load_allowlist(dialect), dialect=dialect)
+        assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            # What the hatch exists for. Refusing these would take the surface's
+            # own documented json_each idiom with it.
+            ("SELECT key FROM spans, jsonb_each(attributes) j", "postgresql"),
+            ("SELECT j.key FROM spans, jsonb_each(attributes) j", "postgresql"),
+            ("SELECT key FROM spans, json_each(attributes)", "sqlite"),
+            (
+                "WITH t AS (SELECT id AS weird_name FROM spans) SELECT weird_name FROM spans, t",
+                "postgresql",
+            ),
+        ],
+    )
+    def test_the_hatch_still_admits_what_it_is_for(
+        self, sql: str, dialect: SupportedSQLDialectName
+    ) -> None:
+        admit_sql(sql, allowlist=load_allowlist(dialect), dialect=dialect)
