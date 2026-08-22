@@ -507,6 +507,7 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                     bash,
                     takes_ctx=True,
                     description=_BASH_TOOL_DESCRIPTION_TEMPLATE.render(),
+                    defer_loading=True,
                 )
             ]
         )

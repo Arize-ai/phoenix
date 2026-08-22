@@ -28,7 +28,9 @@ class MintlifyDocsMCPCapability(AbstractStaticCapability[AgentDepsT]):
     instructions: Template
 
     def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
-        return self.mcp_server
+        # MCP tools are discovered from the server, so they carry no
+        # ``defer_loading`` flag of their own; defer the whole toolset here.
+        return self.mcp_server.defer_loading()
 
     def get_static_instructions(self) -> str:
         return self.instructions.render()

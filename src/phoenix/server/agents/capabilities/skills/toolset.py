@@ -71,11 +71,13 @@ class SkillsToolset(FunctionToolset[AgentDepsT]):
                     load_skill,
                     takes_ctx=False,
                     description=load_skill_tool_template.render(),
+                    defer_loading=True,
                 ),
                 Tool(
                     read_skill_resource,
                     takes_ctx=True,
                     description=read_skill_resource_tool_template.render(),
+                    defer_loading=True,
                 ),
             ]
         )

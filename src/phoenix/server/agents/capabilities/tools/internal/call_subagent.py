@@ -122,7 +122,14 @@ class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
             return summary
 
         super().__init__(
-            tools=[Tool(call_subagent, takes_ctx=True, description=CALL_SUBAGENT_TOOL_DESCRIPTION)]
+            tools=[
+                Tool(
+                    call_subagent,
+                    takes_ctx=True,
+                    description=CALL_SUBAGENT_TOOL_DESCRIPTION,
+                    defer_loading=True,
+                )
+            ]
         )
 
 

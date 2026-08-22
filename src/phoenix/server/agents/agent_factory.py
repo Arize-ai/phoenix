@@ -12,6 +12,8 @@ from pydantic_ai.capabilities import (
     CapabilityFunc,
     CombinedCapability,
     DynamicCapability,
+    PrepareTools,
+    ToolSearch,
 )
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
@@ -21,6 +23,7 @@ from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     NativeToolRetryCapability,
     SkillsCapability,
+    assert_tools_deferred,
     build_anthropic_prompt_cache_capability,
     get_context_capability_function,
 )
@@ -109,6 +112,7 @@ def build_agent(
         config=TraceConfig(),
     )
     capabilities: list[AbstractCapability[AgentDependencies]] = [
+        PrepareTools(prepare_func=assert_tools_deferred),
         WriteSpanNoteCapability(
             db=db,
             event_queue=event_queue,
@@ -181,6 +185,6 @@ def build_agent(
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=resolved_prompts.base.render(),
-        capabilities=[traced_capability, NativeToolRetryCapability()],
+        capabilities=[ToolSearch(), traced_capability, NativeToolRetryCapability()],
     )
     return agent

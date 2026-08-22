@@ -66,6 +66,7 @@ class GetCurrentDatetimeToolset(FunctionToolset[AgentDependencies]):
                     name=GET_CURRENT_DATETIME_TOOL_NAME,
                     description=_GET_CURRENT_DATETIME_DESCRIPTION,
                     takes_ctx=True,
+                    defer_loading=True,
                 )
             ]
         )
