@@ -2189,6 +2189,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/datasets/fake-id-{}/jsonl"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
+    (404, "GET", "v1/datasets/fake-id-{}/splits"),
     # Dataset labels
     (200, "GET", "v1/dataset_labels"),
     (422, "GET", "v1/dataset_labels/fake-id-{}"),
