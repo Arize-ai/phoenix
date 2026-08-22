@@ -80,13 +80,16 @@ import {
   getAllGeneratedSources,
   getDefaultCodeEvaluatorSource,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
+import { getEvaluatorSlotDefaults } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
+import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -844,10 +847,28 @@ export const CodeEvaluatorSourceEditor = ({
   // The auto-generated type footer is hidden by default.
   const [showTypes, setShowTypes] = useState(false);
 
-  // Get the evaluator mapping source from the store for type generation
-  const evaluatorMappingSource = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource.source
+  const evaluatorMappingSourceState = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource
   );
+  const inputMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
+  );
+  const recordVariableValues = useEvaluatorStore(
+    (state) => state.evaluatorBoundVariables
+  );
+  const evaluatorMappingSource = evaluatorMappingSourceState.source;
+  const evaluationContext = useMemo(() => {
+    const grain = evaluatorMappingSourceState.grain;
+    return grain === "dataset"
+      ? null
+      : materializeEvaluatorContext({
+          grain,
+          evaluatorMappingSource: evaluatorMappingSourceState,
+          inputMapping,
+          slotDefaults: getEvaluatorSlotDefaults(grain),
+          recordVariableValues,
+        });
+  }, [evaluatorMappingSourceState, inputMapping, recordVariableValues]);
 
   // Generate the type footer based on language and available data
   const typeFooter = useMemo(
@@ -860,9 +881,13 @@ export const CodeEvaluatorSourceEditor = ({
       language === "PYTHON" ? python() : javascript({ typescript: true }),
       // Python: 4-space indent; JS/TS: 2-space.
       indentUnit.of(language === "PYTHON" ? "    " : "  "),
-      createEvaluatorAutocompletion(evaluatorMappingSource, language),
+      createEvaluatorAutocompletion({
+        mappingSource: evaluatorMappingSource,
+        language,
+        evaluationContext,
+      }),
     ],
-    [language, evaluatorMappingSource]
+    [language, evaluatorMappingSource, evaluationContext]
   );
 
   const descriptionText =
@@ -953,7 +978,11 @@ export const CodeEvaluatorSourceEditor = ({
           {/* Editable code editor panel */}
           <Panel defaultSize="75%" minSize="30%" style={editorPanelStyle}>
             <div
-              css={[editorWrapCSS, cmLineNumberGutterCSS]}
+              css={[
+                editorWrapCSS,
+                cmLineNumberGutterCSS,
+                codeEvaluatorTypeaheadCSS,
+              ]}
               onKeyDown={(e) => {
                 if (e.key === "Escape" || e.key === "Tab") {
                   e.stopPropagation();
@@ -1397,6 +1426,21 @@ const editorWrapCSS = css`
 
   & .cm-scroller {
     overflow: auto !important;
+  }
+`;
+
+const codeEvaluatorTypeaheadCSS = css`
+  ${typeaheadMenuCSS}
+  .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead
+    li.code-evaluator-completion--unset {
+    color: var(--global-text-color-300);
+  }
+  .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead
+    li.code-evaluator-completion--unset
+    .cm-completionDetail {
+    font-family: var(--global-font-family-sans);
+    font-style: italic;
+    color: var(--global-text-color-300);
   }
 `;
 

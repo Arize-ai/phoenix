@@ -7,44 +7,15 @@ import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
  * shows — the typeahead menu, its info panel, and the error popover — so
  * they all read as the same surface
  */
-const popoverSurfaceCSS = css`
+export const popoverSurfaceCSS = css`
   background-color: var(--global-popover-background-color);
   border: 1px solid var(--global-popover-border-color);
   border-radius: var(--global-rounding-small);
   box-shadow: 0 8px 16px var(--global-overlay-shadow-color);
 `;
 
-export const dslFilterCodeMirrorCSS = css`
-  flex: 1 1 auto;
-  /* A long expression must scroll inside the editor, not push the field's
-     controls out of view — without this the flex item's auto minimum is
-     the full content width */
-  min-width: 0;
-  .cm-scroller {
-    /* This is a single-line input, so keep long conditions horizontally
-       scrollable without letting scrollbar chrome consume vertical space and
-       create a second, unintended scroll axis. Caret movement, keyboard, and
-       trackpad scrolling still move the horizontal scrollport. */
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
-  .cm-content {
-    padding: var(--global-dimension-size-100) 0;
-  }
-  .cm-editor {
-    background-color: transparent !important;
-  }
-  .cm-focused {
-    outline: none;
-  }
-  .cm-selectionLayer .cm-selectionBackground {
-    background: var(--global-color-cyan-400) !important;
-  }
-  /* Restyle the autocomplete tooltip as a design-system menu */
+/** Shared CodeMirror autocomplete menu and info-panel chrome. */
+export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
@@ -149,6 +120,39 @@ export const dslFilterCodeMirrorCSS = css`
     color: var(--global-text-color-700);
     max-width: 300px;
   }
+`;
+
+export const dslFilterCodeMirrorCSS = css`
+  flex: 1 1 auto;
+  /* A long expression must scroll inside the editor, not push the field's
+     controls out of view — without this the flex item's auto minimum is
+     the full content width */
+  min-width: 0;
+  .cm-scroller {
+    /* This is a single-line input, so keep long conditions horizontally
+       scrollable without letting scrollbar chrome consume vertical space and
+       create a second, unintended scroll axis. Caret movement, keyboard, and
+       trackpad scrolling still move the horizontal scrollport. */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+  .cm-content {
+    padding: var(--global-dimension-size-100) 0;
+  }
+  .cm-editor {
+    background-color: transparent !important;
+  }
+  .cm-focused {
+    outline: none;
+  }
+  .cm-selectionLayer .cm-selectionBackground {
+    background: var(--global-color-cyan-400) !important;
+  }
+  ${typeaheadMenuCSS}
   /* The tab-through blanks an inserted snippet leaves behind — CodeMirror's
      default marking is a near-invisible gray, so tint them with the primary
      color to read as "fill me in": the active one is selected for overtyping,
