@@ -134,6 +134,19 @@ deployment. The prefix must expose `index.json`, whose scenario entries continue
 HTTPS archive URLs. `XDG_CACHE_HOME` controls the cache root; otherwise Phoenix uses
 `~/.cache/phoenix/datagen`.
 
+## Replaying scenario traffic
+
+`phoenix datagen` supports four replay realism controls:
+
+- `--rate-schedule {flat,business-hours}` selects a constant rate or a weekly business-hours
+  profile. The default is `flat`.
+- `--timezone <IANA-name>` selects the timezone used to evaluate the business-hours profile. The
+  default is `UTC`.
+- `--backfill <duration>` starts the virtual replay timeline in the past. Durations use a positive
+  number followed by `s`, `m`, `h`, or `d`, such as `48h`.
+- `--error-rate <probability>` sets the probability of injecting a synthetic LLM or tool error.
+  The default is `0`.
+
 ## Publishing a scenario archive
 
 Publication is an owner-run operation. Prepare a schema-v2 generation run locally with:

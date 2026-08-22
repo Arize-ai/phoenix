@@ -7,16 +7,19 @@ import json
 import secrets
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence, cast
+from typing import Any, Iterable, Literal, Mapping, Sequence, cast
+from zoneinfo import ZoneInfo
 
 import numpy as np
 from openinference.semconv.resource import ResourceAttributes
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
-from opentelemetry.proto.trace.v1.trace_pb2 import Span
+from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 
 from phoenix.datagen.composer import ComposerConfig, SessionComposer
 from phoenix.datagen.loader import Scenario
@@ -28,7 +31,16 @@ _COMPLETION_TOKENS = "llm.token_count.completion"
 _TOTAL_TOKENS = "llm.token_count.total"
 _ANOMALY = "datagen.anomaly"
 _COST_PREFIX = "llm.cost."
+_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 _PARENT_END_MARGIN_NS = 1
+_ERROR_EXCEPTION_TYPE = "PhoenixDatagenReplayError"
+_ERROR_EXCEPTION_MESSAGE = "Synthetic replay error"
+_ERROR_EXCEPTION_STACKTRACE = "PhoenixDatagenReplayError: Synthetic replay error"
+_ERROR_SPAN_KINDS = frozenset(
+    (OpenInferenceSpanKindValues.LLM.value, OpenInferenceSpanKindValues.TOOL.value)
+)
+
+AnomalyKind = Literal["token_inflation", "error_injection"]
 
 
 @dataclass(frozen=True)
@@ -39,6 +51,8 @@ class Anomaly:
     trace_id: str
     span_id: str
     inflated_fields: Mapping[str, int | float]
+    kind: AnomalyKind = "token_inflation"
+    virtual_time_ns: int | None = None
 
     def as_json(self) -> Mapping[str, Any]:
         """Return the stable JSONL representation of this anomaly."""
@@ -47,6 +61,8 @@ class Anomaly:
             "trace_id": self.trace_id,
             "span_id": self.span_id,
             "inflated_fields": dict(self.inflated_fields),
+            "kind": self.kind,
+            "virtual_time_ns": self.virtual_time_ns,
         }
 
 
@@ -64,7 +80,7 @@ class AnomalyManifest:
     def __init__(self, path: str | Path) -> None:
         self._path = Path(path)
 
-    def write(self, anomalies: Iterable[Anomaly]) -> None:
+    def write(self, anomalies: Iterable[Anomaly], *, emitted_at_ns: int) -> None:
         """Append one JSON object for each anomaly."""
         records = tuple(anomalies)
         if not records:
@@ -72,7 +88,9 @@ class AnomalyManifest:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with self._path.open("a", encoding="utf-8") as file:
             for anomaly in records:
-                file.write(json.dumps(anomaly.as_json(), sort_keys=True))
+                record = dict(anomaly.as_json())
+                record["emitted_at_ns"] = emitted_at_ns
+                file.write(json.dumps(record, sort_keys=True))
                 file.write("\n")
 
 
@@ -100,11 +118,18 @@ class Replayer:
         fragment_gap_median_seconds: float | None = None,
         fragment_gap_sigma: float | None = None,
         fragment_gap_max_seconds: float | None = None,
+        error_rate: float = 0.0,
     ) -> None:
         if not 0.0 <= epsilon <= 1.0:
             raise ValueError("epsilon must be between 0 and 1")
+        if not 0.0 <= error_rate <= 1.0:
+            raise ValueError("error_rate must be between 0 and 1")
         self.run_nonce = secrets.token_hex(16)
+        self._seed = seed
         self._random = np.random.default_rng(seed)
+        self._schedule_random: np.random.Generator | None = None
+        self._error_rate = error_rate
+        self._error_random: np.random.Generator | None = None
         identity_seed = int.from_bytes(
             hashlib.sha256(f"{seed}:".encode() + bytes.fromhex(self.run_nonce)).digest(),
             "big",
@@ -159,12 +184,20 @@ class Replayer:
         self._ready_sessions: deque[str] = deque()
         self._composed_queue: deque[EmittedTrace] = deque()
 
-    def emit(self, *, now_ns: int | None = None) -> EmittedTrace:
+    def emit(
+        self,
+        *,
+        now_ns: int | None = None,
+        scheduled_start_ns: int | None = None,
+    ) -> EmittedTrace:
         """Emit the next scheduled trace with fresh identity and numeric values."""
         current_time_ns = time.time_ns() if now_ns is None else now_ns
         if self._composer is not None:
             if not self._composed_queue:
-                self._begin_composed_session(now_ns=current_time_ns)
+                self._begin_composed_session(
+                    now_ns=current_time_ns,
+                    scheduled_start_ns=scheduled_start_ns,
+                )
             return self._composed_queue.popleft()
         if not any(self._queues.values()):
             self._begin_cycle()
@@ -176,20 +209,37 @@ class Replayer:
         template = self._queues[session_key].popleft()
         return self._rewrite(
             template,
-            now_ns=current_time_ns,
+            now_ns=(current_time_ns if scheduled_start_ns is None else scheduled_start_ns),
             session_id=self._session_ids.get(session_key),
         )
 
-    def interarrival_seconds(self, *, rate: float, burstiness: float) -> float:
+    def interarrival_seconds(
+        self,
+        *,
+        rate: float,
+        burstiness: float,
+        rate_schedule: str = "flat",
+        timezone: str | ZoneInfo = "UTC",
+        now_ns: int | None = None,
+    ) -> float:
         """Draw the delay before the next trace for a traces-per-minute rate."""
         if rate <= 0:
             raise ValueError("rate must be greater than zero")
         if burstiness < 0:
             raise ValueError("burstiness must not be negative")
-        mean_interval = 60.0 / rate
+        if rate_schedule == "flat":
+            effective_rate = rate
+        elif rate_schedule == "business-hours":
+            timestamp_ns = time.time_ns() if now_ns is None else now_ns
+            zone = timezone if isinstance(timezone, ZoneInfo) else ZoneInfo(timezone)
+            effective_rate = rate * _business_hours_multiplier(timestamp_ns, zone)
+        else:
+            raise ValueError(f"unsupported rate schedule: {rate_schedule}")
+        mean_interval = 60.0 / effective_rate
         if burstiness == 0:
             return mean_interval
-        multiplier = self._random.lognormal(
+        random = self._random if rate_schedule == "flat" else self._get_schedule_random()
+        multiplier = random.lognormal(
             mean=-(burstiness**2) / 2,
             sigma=burstiness,
         )
@@ -204,7 +254,12 @@ class Replayer:
         }
         self._ready_sessions.clear()
 
-    def _begin_composed_session(self, *, now_ns: int) -> None:
+    def _begin_composed_session(
+        self,
+        *,
+        now_ns: int,
+        scheduled_start_ns: int | None,
+    ) -> None:
         assert self._composer is not None
         session = self._composer.compose(now_ns=now_ns)
         session_id = f"datagen-{self._fresh_id(16).hex()}"
@@ -220,16 +275,50 @@ class Replayer:
             )
             for trace in session.traces
         ]
-        latest_end_ns = max(
-            span.end_time_unix_nano
-            for emission in emissions
-            for span in _iter_spans(emission.request)
-        )
-        if latest_end_ns > now_ns:
-            offset_ns = now_ns - latest_end_ns
-            for emission in emissions:
-                _shift_request_times(emission.request, offset_ns)
+        if scheduled_start_ns is not None:
+            earliest_start_ns = min(
+                span.start_time_unix_nano
+                for emission in emissions
+                for span in _iter_spans(emission.request)
+            )
+            offset_ns = scheduled_start_ns - earliest_start_ns
+            emissions = [_shift_emission_times(emission, offset_ns) for emission in emissions]
+        else:
+            latest_end_ns = max(
+                span.end_time_unix_nano
+                for emission in emissions
+                for span in _iter_spans(emission.request)
+            )
+            if latest_end_ns > now_ns:
+                offset_ns = now_ns - latest_end_ns
+                emissions = [_shift_emission_times(emission, offset_ns) for emission in emissions]
         self._composed_queue.extend(emissions)
+
+    def _get_schedule_random(self) -> np.random.Generator:
+        if self._schedule_random is None:
+            schedule_seed = (
+                None
+                if self._seed is None
+                else int.from_bytes(
+                    hashlib.sha256(f"{self._seed}:schedule".encode()).digest(),
+                    "big",
+                )
+            )
+            self._schedule_random = np.random.default_rng(schedule_seed)
+        return self._schedule_random
+
+    def _get_error_random(self) -> np.random.Generator:
+        if self._error_random is None:
+            error_seed = (
+                None
+                if self._seed is None
+                else int.from_bytes(
+                    hashlib.sha256(f"{self._seed}:error".encode()).digest(),
+                    "big",
+                )
+            )
+            self._error_random = np.random.default_rng(error_seed)
+        return self._error_random
 
     def _rewrite(
         self,
@@ -278,6 +367,13 @@ class Replayer:
                 _set_string_attribute(span, _SESSION_ID, session_id)
 
         anomalies = self._numerics.apply(spans, run_nonce=self.run_nonce)
+        if self._error_rate:
+            anomalies += _inject_errors(
+                spans,
+                error_rate=self._error_rate,
+                random=self._get_error_random(),
+                run_nonce=self.run_nonce,
+            )
         _extend_parent_end_times(spans)
         _clamp_event_times(spans)
         anomalies = _refresh_anomaly_latencies(anomalies, spans)
@@ -288,6 +384,17 @@ class Replayer:
         while not any(identifier):
             identifier = bytes(self._identity_random.bytes(size))
         return identifier
+
+
+def _business_hours_multiplier(timestamp_ns: int, timezone: ZoneInfo) -> float:
+    local_time = datetime.fromtimestamp(timestamp_ns // 1_000_000_000, tz=timezone)
+    if local_time.weekday() >= 5:
+        return 0.10
+    if 9 <= local_time.hour < 17:
+        return 1.00
+    if 17 <= local_time.hour < 23:
+        return 0.15
+    return 0.025
 
 
 @dataclass(frozen=True)
@@ -402,9 +509,58 @@ class _NumericsEngine:
                             _TOTAL_TOKENS: total_tokens,
                             "latency_ms": latency_ns / 1_000_000,
                         },
+                        virtual_time_ns=span.start_time_unix_nano,
                     )
                 )
         return tuple(anomalies)
+
+
+def _inject_errors(
+    spans: Sequence[Span],
+    *,
+    error_rate: float,
+    random: np.random.Generator,
+    run_nonce: str,
+) -> tuple[Anomaly, ...]:
+    spans_by_id = {span.span_id: span for span in spans}
+    anomalies = []
+    for span in spans:
+        if _string_attribute(span, _SPAN_KIND) not in _ERROR_SPAN_KINDS:
+            continue
+        if random.random() >= error_rate:
+            continue
+
+        span.status.code = Status.STATUS_CODE_ERROR
+        retained_events = [event for event in span.events if event.name != "exception"]
+        del span.events[:]
+        span.events.extend(retained_events)
+        event = span.events.add(name="exception", time_unix_nano=span.end_time_unix_nano)
+        for key, value in (
+            ("exception.type", _ERROR_EXCEPTION_TYPE),
+            ("exception.message", _ERROR_EXCEPTION_MESSAGE),
+            ("exception.stacktrace", _ERROR_EXCEPTION_STACKTRACE),
+        ):
+            event.attributes.add(key=key).value.string_value = value
+        anomalies.append(
+            Anomaly(
+                run_nonce=run_nonce,
+                trace_id=span.trace_id.hex(),
+                span_id=span.span_id.hex(),
+                inflated_fields={},
+                kind="error_injection",
+                virtual_time_ns=span.start_time_unix_nano,
+            )
+        )
+
+        ancestor_id = span.parent_span_id
+        visited = {span.span_id}
+        while ancestor := spans_by_id.get(ancestor_id):
+            if ancestor.span_id in visited:
+                break
+            ancestor.status.code = Status.STATUS_CODE_ERROR
+            visited.add(ancestor.span_id)
+            ancestor_id = ancestor.parent_span_id
+    return tuple(anomalies)
 
 
 def _extend_parent_end_times(spans: Sequence[Span]) -> None:
@@ -453,6 +609,22 @@ def _shift_request_times(request: ExportTraceServiceRequest, offset_ns: int) -> 
             event.time_unix_nano += offset_ns
 
 
+def _shift_emission_times(emission: EmittedTrace, offset_ns: int) -> EmittedTrace:
+    _shift_request_times(emission.request, offset_ns)
+    return EmittedTrace(
+        request=emission.request,
+        anomalies=tuple(
+            replace(
+                anomaly,
+                virtual_time_ns=(
+                    None if anomaly.virtual_time_ns is None else anomaly.virtual_time_ns + offset_ns
+                ),
+            )
+            for anomaly in emission.anomalies
+        ),
+    )
+
+
 def _refresh_anomaly_latencies(
     anomalies: Sequence[Anomaly],
     spans: Sequence[Span],
@@ -460,19 +632,15 @@ def _refresh_anomaly_latencies(
     spans_by_id = {span.span_id.hex(): span for span in spans}
     refreshed = []
     for anomaly in anomalies:
+        if anomaly.kind != "token_inflation":
+            refreshed.append(anomaly)
+            continue
         span = spans_by_id[anomaly.span_id]
         inflated_fields = dict(anomaly.inflated_fields)
         inflated_fields["latency_ms"] = (
             span.end_time_unix_nano - span.start_time_unix_nano
         ) / 1_000_000
-        refreshed.append(
-            Anomaly(
-                run_nonce=anomaly.run_nonce,
-                trace_id=anomaly.trace_id,
-                span_id=anomaly.span_id,
-                inflated_fields=inflated_fields,
-            )
-        )
+        refreshed.append(replace(anomaly, inflated_fields=inflated_fields))
     return tuple(refreshed)
 
 
