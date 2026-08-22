@@ -10,6 +10,11 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumnDataType,
+    echo_cursor,
+)
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 
 from .models import V1RoutesBaseModel
@@ -206,3 +211,35 @@ async def get_dataset_by_identifier(
                 detail=f"Dataset with ID {dataset_identifier} not found",
             )
     return dataset
+
+
+def parse_cursor(
+    cursor: str,
+    *,
+    sort_column_type: Optional[CursorSortColumnDataType],
+) -> Cursor:
+    """
+    Decodes a pagination cursor, answering one this route cannot use with 422.
+
+    An HTTP adapter over `Cursor.parse`, which defines what makes a cursor
+    usable. The reason a cursor was refused is not echoed back, because the
+    token is opaque to the client and naming the failed check would describe
+    its encoding.
+
+    Args:
+        cursor: The token as received from the client.
+        sort_column_type: The data type of the column the route sorts on, or
+            None if the route orders by rowid alone.
+
+    Returns:
+        The decoded cursor.
+
+    Raises:
+        HTTPException: 422, if the cursor is not one this route can page with.
+    """
+    try:
+        return Cursor.parse(cursor, sort_column_type=sort_column_type)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=422, detail=f"Invalid cursor format: {echo_cursor(cursor)}"
+        ) from error

@@ -1,4 +1,5 @@
 import base64
+from binascii import Error as BinasciiError
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
@@ -7,6 +8,8 @@ from typing import Any, ClassVar, Optional, Union
 from strawberry import UNSET
 from strawberry.relay.types import Connection, Edge, NodeType, PageInfo
 from typing_extensions import TypeAlias, assert_never
+
+from phoenix.server.api.exceptions import BadRequest
 
 ID: TypeAlias = int
 CursorSortColumnValue: TypeAlias = Union[str, int, float, datetime, None]
@@ -62,6 +65,14 @@ class CursorSortColumn:
         else:
             assert_never(type)
         return cls(type=type, value=value)
+
+
+#: The widest integer any SQL engine binds: postgres `BIGINT` and sqlite's rowid
+#: are both 64-bit. A cursor integer beyond it identifies no row in any table and
+#: cannot be bound as a parameter at all, so it is refused here rather than left
+#: to raise in the driver. Unlike a column's own width this needs no knowledge of
+#: the schema, because no wider integer type exists to widen it.
+_BINDABLE_INTEGERS = range(-(2**63), 2**63)
 
 
 @dataclass
@@ -143,6 +154,102 @@ class Cursor:
                 cursor_string=decoded[second_delimiter_index + 1 :],
             )
         return cls(rowid=int(rowid_string), sort_column=sort_column)
+
+    @classmethod
+    def parse(
+        cls,
+        cursor: str,
+        *,
+        sort_column_type: Optional[CursorSortColumnDataType],
+        nullable: bool = False,
+    ) -> "Cursor":
+        """
+        Decodes a cursor and rejects one the caller's query cannot use.
+
+        A cursor is only meaningful to the query that minted it: its sort value
+        is compared against one particular column. `from_string` decodes the
+        token; this additionally checks that the token describes the caller's
+        query, so that a cursor from elsewhere is refused rather than silently
+        compared against the wrong column.
+
+        Args:
+            sort_column_type: The data type of the column the query sorts on, or
+                None if the query orders by rowid alone. A cursor whose sort
+                column disagrees carries a value for a different column.
+            nullable: Whether the sorted column admits nulls. A null sort value
+                is tagged `NULL` rather than the column's own type, and needs a
+                predicate of its own, so only a query that has one may accept it.
+
+        Raises:
+            ValueError: If the cursor is malformed or describes a different query.
+        """
+        if sort_column_type is None and nullable:
+            raise ValueError("A query that does not sort has no null sort value to admit")
+        try:
+            parsed = cls.from_string(cursor)
+        except (BinasciiError, KeyError, UnicodeDecodeError, ValueError) as error:
+            raise ValueError(f"Malformed cursor: {cursor}") from error
+        sort_column = parsed.sort_column
+        if sort_column_type is None:
+            if sort_column is not None:
+                raise ValueError(f"Cursor carries an unexpected sort value: {cursor}")
+        else:
+            accepted = {sort_column_type}
+            if nullable:
+                accepted.add(CursorSortColumnDataType.NULL)
+            if sort_column is None or sort_column.type not in accepted:
+                raise ValueError(f"Cursor was not minted for this sort column: {cursor}")
+        if parsed.rowid not in _BINDABLE_INTEGERS:
+            raise ValueError(f"Cursor rowid is too wide to bind: {cursor}")
+        value = parsed.sort_column.value if parsed.sort_column else None
+        if isinstance(value, int) and value not in _BINDABLE_INTEGERS:
+            raise ValueError(f"Cursor sort value is too wide to bind: {cursor}")
+        return parsed
+
+
+#: How much of a rejected cursor an error repeats back. The token is supplied
+#: by the client and bounded by nothing, so quoting it whole would let a caller
+#: choose the size and content of a line in the logs.
+_ECHO_LIMIT = 200
+
+
+def echo_cursor(cursor: str) -> str:
+    """Renders a rejected cursor for an error message, bounded and printable."""
+    printable = "".join(c if c.isprintable() else "?" for c in cursor[: _ECHO_LIMIT + 1])
+    return printable[:_ECHO_LIMIT] + "..." if len(printable) > _ECHO_LIMIT else printable
+
+
+def parse_cursor(
+    cursor: str,
+    *,
+    sort_column_type: Optional[CursorSortColumnDataType],
+    nullable: bool = False,
+) -> Cursor:
+    """
+    Decodes a connection cursor, answering one this field cannot use with a
+    `BadRequest`.
+
+    A GraphQL adapter over `Cursor.parse`, which defines what makes a cursor
+    usable. The reason a cursor was refused is not echoed back, because the
+    token is opaque to the client and naming the failed check would describe
+    its encoding.
+
+    Args:
+        cursor: The `after` argument as received from the client.
+        sort_column_type: The data type of the column the field sorts on, or
+            None if the field orders by rowid alone.
+        nullable: Whether the sorted column admits nulls.
+
+    Returns:
+        The decoded cursor.
+
+    Raises:
+        BadRequest: If the cursor is not one this field can page with.
+    """
+    try:
+        return Cursor.parse(cursor, sort_column_type=sort_column_type, nullable=nullable)
+    except ValueError as error:
+        raise BadRequest(f"Invalid cursor: {echo_cursor(cursor)}") from error
 
 
 def offset_to_cursor(offset: int) -> CursorString:

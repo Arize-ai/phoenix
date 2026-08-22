@@ -39,6 +39,7 @@ from grpc_interceptor import AsyncServerInterceptor
 from pydantic import SecretStr
 from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.authentication import UnauthenticatedUser
 from starlette.datastructures import URL
@@ -882,6 +883,36 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
+def _is_value_too_wide_to_bind(exc: BaseException) -> bool:
+    """Whether an error is the driver refusing a parameter the column cannot hold.
+
+    Both drivers bottom out in `OverflowError` for this: sqlite raises it
+    directly, while asyncpg wraps it as a `DataError` that SQLAlchemy wraps
+    again. Nothing else in a request reaches the driver with an integer too
+    wide for its column, so the root cause identifies the case on either.
+    """
+    seen: set[int] = set()
+    cause: Optional[BaseException] = exc
+    while cause is not None and id(cause) not in seen:
+        seen.add(id(cause))
+        if isinstance(cause, OverflowError):
+            return True
+        cause = cause.__cause__
+    return False
+
+
+async def db_value_range_exception_handler(request: Request, exc: Exception) -> Response:
+    """Answers a client value the database cannot hold with 422 rather than 500.
+
+    A query parameter wide enough to overflow its column names no row, so the
+    request is unanswerable as written rather than broken on the server. Any
+    other database error keeps its own handling.
+    """
+    if not _is_value_too_wide_to_bind(exc):
+        raise exc
+    return PlainTextResponse("Value out of range for this field", status_code=422)
+
+
 class _HasDbStatus(Protocol):
     @property
     def should_not_insert_or_update(self) -> bool: ...
@@ -1124,6 +1155,8 @@ def create_app(
         exception_handlers={
             HTTPException: plain_text_http_exception_handler,
             AgentSessionConflict: agent_session_conflict_handler,
+            OverflowError: db_value_range_exception_handler,
+            DBAPIError: db_value_range_exception_handler,
         },
         debug=debug,
         swagger_ui_parameters={
