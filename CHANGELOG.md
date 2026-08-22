@@ -1,5 +1,40 @@
 # Changelog
 
+## [20.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.3.0...arize-phoenix-v20.4.0) (2026-08-22)
+
+
+### Features
+
+* apply the 2026 brand to the Phoenix docs ([#15458](https://github.com/Arize-ai/phoenix/issues/15458)) ([66c528c](https://github.com/Arize-ai/phoenix/commit/66c528c95b19bd6f75d4499887210ceda39d91f2))
+* **evals:** add retrieval relevance evaluator ([#14766](https://github.com/Arize-ai/phoenix/issues/14766)) ([7efa7b2](https://github.com/Arize-ai/phoenix/commit/7efa7b21fc3284f0af928ddedda15927974ee94d))
+* **playground:** add gemini-3.7-flash ([#15520](https://github.com/Arize-ai/phoenix/issues/15520)) ([2435eba](https://github.com/Arize-ai/phoenix/commit/2435ebaa24a8f6346c8578eab05d85940138d06d))
+* **pxi:** enable phoenix-gql mutations by default with approval in manual mode ([#15415](https://github.com/Arize-ai/phoenix/issues/15415)) ([391d0dd](https://github.com/Arize-ai/phoenix/commit/391d0ddaa6aa2ec9bdda152ec6dd16ea585abb87))
+* **traces:** AI Query for the trace filter DSL ([#15461](https://github.com/Arize-ai/phoenix/issues/15461)) ([31afcc7](https://github.com/Arize-ai/phoenix/commit/31afcc73734d1d115325c99b52dfec29381204ba))
+
+
+### Bug Fixes
+
+* **auth:** polish password reset and user management ([#15521](https://github.com/Arize-ai/phoenix/issues/15521)) ([7a65831](https://github.com/Arize-ai/phoenix/commit/7a6583190c29ea06fba8e8e1d030c344f7fe456d))
+* **chat-completions:** preserve prompt cache usage ([7a5bc55](https://github.com/Arize-ai/phoenix/commit/7a5bc5578cc059d8a7b7314d7b3e30ad99cb25c5))
+* **cost:** update built-in model token prices ([5150c4d](https://github.com/Arize-ai/phoenix/commit/5150c4d8e42013b4a23ab7ee72955f12342c1615))
+* **cost:** update built-in model token prices ([#15562](https://github.com/Arize-ai/phoenix/issues/15562)) ([ad9b3a1](https://github.com/Arize-ai/phoenix/commit/ad9b3a1121567da3c532e35d21d29de907c07ec7))
+* **deps:** update arize-phoenix-client to 3.2.0 ([1989459](https://github.com/Arize-ai/phoenix/commit/19894595741819494c0a5f874329c78b110c4e09))
+* **evals:** do not echo submitted tool JSON in evaluator prompt validation errors ([#15575](https://github.com/Arize-ai/phoenix/issues/15575)) ([d38df33](https://github.com/Arize-ai/phoenix/commit/d38df33be02d3d99214ca35cab25a3a92ec2ebfd))
+* handle missing annotation labels with pandas 3 ([#15486](https://github.com/Arize-ai/phoenix/issues/15486)) ([aebe53f](https://github.com/Arize-ai/phoenix/commit/aebe53fa24919a9e9ee2d52b9b86d0722e664b02))
+* **mcp/sql:** parenthesise an operator key in a postgres JSON read ([7b77585](https://github.com/Arize-ai/phoenix/commit/7b77585f53ba7cac1f0cdc31a86692508cbd4c98))
+* **mcp/sql:** parenthesise BETWEEN and IN keys in a postgres JSON read ([f12126c](https://github.com/Arize-ai/phoenix/commit/f12126cc2f1c20a94aa5ace42e54f82670d3f903))
+
+
+### Documentation
+
+* Add Phoenix release notes — 2026-08-19 ([#15502](https://github.com/Arize-ai/phoenix/issues/15502)) ([506ebdc](https://github.com/Arize-ai/phoenix/commit/506ebdca6d511b9a7cc347a9d89a0c0e99241ab5))
+* close PXI / agent-assistant documentation gaps for Phoenix 20  ([#15499](https://github.com/Arize-ai/phoenix/issues/15499)) ([729ff11](https://github.com/Arize-ai/phoenix/commit/729ff110d96428f16eb09004c7a8ea9a18b4e0d9))
+* group Arize AX pages under a dedicated left-nav item ([45ddcbf](https://github.com/Arize-ai/phoenix/commit/45ddcbf2a2c3328df307f0266b5a1eb0e07a385d))
+* polish Phoenix vs Arize AX comparison page and fix stale references ([cfda2fa](https://github.com/Arize-ai/phoenix/commit/cfda2fa580e18187a804516c0a29b5b9cfe9ec50))
+* remove legacy evaluator docs ([#14933](https://github.com/Arize-ai/phoenix/issues/14933)) ([5ece969](https://github.com/Arize-ai/phoenix/commit/5ece96933c83335d1e527ac2a2d41dd7738011ff))
+* restore redirects for the removed legacy evaluator pages ([#15579](https://github.com/Arize-ai/phoenix/issues/15579)) ([840fa1e](https://github.com/Arize-ai/phoenix/commit/840fa1e0b62ee9e56bb822be7b899426092c230b))
+* surface agent-first onboarding in Phoenix quickstarts ([bd13ea9](https://github.com/Arize-ai/phoenix/commit/bd13ea95c9e5f0e949d4697a21932320b5538792))
+
 ## [20.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.2.1...arize-phoenix-v20.3.0) (2026-08-16)
 
 
