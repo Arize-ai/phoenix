@@ -726,18 +726,15 @@ _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAd
 def _dump_for_pydantic_ai(messages: Sequence[PhoenixUIMessage]) -> list[dict[str, Any]]:
     """Dump persisted messages into the shape pydantic-ai's UI models accept.
 
-    A few part fields are defined by AI SDK v7 but not modelled by pydantic-ai, so Phoenix
-    carries them on its own copies of the parts to keep what the client sent. pydantic-ai's
-    models set ``extra="forbid"``, so those fields have to come back off here or validation
-    fails. Nothing is lost: pydantic-ai has no field to load them into either way.
+    ``result_provider_metadata`` is defined by AI SDK v7 but not modelled by pydantic-ai, so
+    Phoenix carries it on its own copies of the four tool output parts to keep what the client
+    sent. pydantic-ai's models set ``extra="forbid"``, so it has to come back off here or
+    validation fails. Nothing is lost: pydantic-ai has no field to load it into either way.
     """
     dumped: list[dict[str, Any]] = []
     for message in messages:
         payload = message.model_dump(mode="json", by_alias=True, exclude_none=True)
         for part in payload.get("parts", ()):
-            if part.get("type") == "reasoning":
-                # The id grouping a reasoning block's stream chunks.
-                part.pop("id", None)
             # Result-side provider metadata on the four tool output parts.
             part.pop("resultProviderMetadata", None)
         dumped.append(payload)

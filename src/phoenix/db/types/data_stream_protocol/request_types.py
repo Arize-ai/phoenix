@@ -7,9 +7,9 @@
 # tests/unit/db/types/test_data_stream_protocol_compatibility.py compares this file against
 # the *installed* pydantic-ai on every run, so drift fails CI rather than going unnoticed.
 #
-# That test also allowlists the fields Phoenix adds because AI SDK v7 defines them but
-# pydantic-ai does not yet carry them: `result_provider_metadata` on the four tool output
-# parts, and `id` on `ReasoningUIPart`. Drop an entry there once upstream catches up.
+# That test also allowlists the one divergence Phoenix still carries: `result_provider_metadata`
+# on the four tool output parts, which AI SDK v7 defines but pydantic-ai does not. Drop the
+# entry there once upstream catches up.
 
 """Vercel AI request types (UI messages).
 
@@ -55,14 +55,6 @@ class ReasoningUIPart(BaseUIPart):
     """A reasoning part of a message."""
 
     type: Literal["reasoning"] = "reasoning"
-
-    id: str | None = None
-    """The id that groups the stream chunks belonging to this reasoning block.
-
-    Optional because messages persisted before this field existed have no id, and
-    because `extra="forbid"` would otherwise reject inbound AI SDK v7 messages that
-    carry one.
-    """
 
     text: str
     """The reasoning text."""
