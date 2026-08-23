@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
 
 import type { navigationGoToInputSchema } from "./schemas";
 
@@ -29,7 +29,7 @@ export type BindPendingNavigationOptions = {
   navigate: (path: string) => void;
   /** Reads the current pathname, to detect blocked navigations. */
   getCurrentPath: () => string;
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
   setPendingNavigation: (
     toolCallId: string,
     pending: PendingNavigation | null
