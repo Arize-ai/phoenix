@@ -6,8 +6,8 @@ import {
   deleteDatasetSplitsOperation,
   patchDatasetSplitOperation,
   setDatasetExampleSplitsOperation,
-} from "@phoenix/agent/uiOperations/operations/datasetSplits";
-import type { UiOperationHandler } from "@phoenix/agent/uiOperations/types";
+} from "@phoenix/agent/UIOperations/operations/datasetSplits";
+import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {
@@ -30,7 +30,7 @@ export function createCreateDatasetSplitClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<CreateDatasetSplitInput> {
+}): UIOperationHandler<CreateDatasetSplitInput> {
   return (input, context) =>
     stageDatasetWriteOperation({
       pending: {
@@ -59,7 +59,7 @@ export function createSetDatasetExampleSplitsClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<SetDatasetExampleSplitsInput> {
+}): UIOperationHandler<SetDatasetExampleSplitsInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -99,7 +99,7 @@ export function createPatchDatasetSplitClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<PatchDatasetSplitInput> {
+}): UIOperationHandler<PatchDatasetSplitInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -126,7 +126,7 @@ export function createDeleteDatasetSplitsClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<DeleteDatasetSplitsInput> {
+}): UIOperationHandler<DeleteDatasetSplitsInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {

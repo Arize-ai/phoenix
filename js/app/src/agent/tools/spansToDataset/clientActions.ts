@@ -1,7 +1,7 @@
 import { getActiveContext } from "@phoenix/agent/context/selectors";
 import { stageDatasetWriteOperation } from "@phoenix/agent/shared/pendingDatasetWrite";
-import { addSpansToDatasetOperation } from "@phoenix/agent/uiOperations/operations/datasetWrites";
-import type { UiOperationHandler } from "@phoenix/agent/uiOperations/types";
+import { addSpansToDatasetOperation } from "@phoenix/agent/UIOperations/operations/datasetWrites";
+import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { commitAddSpansToDataset } from "./addSpansToDataset";
@@ -16,7 +16,7 @@ export function createAddSpansToDatasetClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<AddSpansToDatasetInput> {
+}): UIOperationHandler<AddSpansToDatasetInput> {
   return async (input, context) => {
     let spanIds = input.spanIds ?? [];
     if (spanIds.length === 0) {

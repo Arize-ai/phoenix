@@ -191,7 +191,7 @@ ApprovalCard.tsx`), with unified diffs for snapshot changes and curated,
 Goal: shrink the model-facing external tool surface to ~2 meta-tools
 (`search_browser_actions`, `execute_browser_action`) plus genuine server tools. The ~18 remaining
 standalone external tools are UI/client-action writes that should each become a
-`UiOperationDescriptor` under `operations/` and be dispatched by `execute_browser_action`.
+`UIOperationDescriptor` under `operations/` and be dispatched by `execute_browser_action`.
 The shared `ApprovalCard` contract (follow-up 1) means each new write op gets a
 structured approval preview — with a danger note on the destructive ones — for
 free. None of these has a `ui.*` equivalent yet; each needs a new descriptor.
@@ -234,9 +234,9 @@ meta-tools; lower priority.
 
 ### Each subsumed op needs
 
-- a `UiOperationDescriptor` in `operations/` (name, zod input, `kind`,
+- a `UIOperationDescriptor` in `operations/` (name, zod input, `kind`,
   `availability.routeHint`), added to `catalog.ts`;
-- a client-action handler registered on mount via `registerUiOperation`;
+- a client-action handler registered on mount via `registerUIOperation`;
 - for writes: an `ApprovalPreview` built on `ApprovalCard` (danger note on the
   destructive kinds — reuse the `describePreview`/`describeDraft` logic that
   the dataset/annotation cards already carry);
@@ -255,10 +255,10 @@ patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
       emit-resolving staging in `shared/pendingApproval`),
       `stageDatasetWriteOperation` (dataset specialization reusing the
       `pendingDatasetWritesByToolCallId` map + shared card),
-      `RootUiOperationsRegistration` (app-root handler registration, mounted in
+      `RootUIOperationsRegistration` (app-root handler registration, mounted in
       `AuthenticatedRoot`), the dataset-writes cleaner in
       `EXECUTE_UI_PENDING_MAP_CLEANERS`, and the `datasetWriteApprovalPreview`
-      normalizer feeding `ExecuteUiToolDetails` child cards.
+      normalizer feeding `ExecuteUIToolDetails` child cards.
 - [x] dataset splits — `dataset.split.create/setExampleSplits/patch/delete`
       (`operations/datasetSplits.ts` + `tools/datasetSplits/clientActions.ts`),
       registered at the root alongside the dataset writes.

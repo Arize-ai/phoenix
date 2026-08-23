@@ -13,7 +13,7 @@ import type { ApprovalApplyResult, PendingApproval } from "./types";
  * apply resolves `{ ok: false, error }`.
  *
  * `pending.toolCallId` is the inner operation call id
- * (`<executeUiToolCallId>:<sequence>`), so the staged entry renders as a
+ * (`<executeUIToolCallId>:<sequence>`), so the staged entry renders as a
  * child approval card of its `execute_ui` call and interrupt/rewind cleanup
  * clears it by prefix.
  */

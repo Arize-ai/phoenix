@@ -1,8 +1,8 @@
 import {
   createAnnotationConfigOperation,
   updateAnnotationConfigOperation,
-} from "@phoenix/agent/uiOperations/operations/annotationConfig";
-import type { UiOperationHandler } from "@phoenix/agent/uiOperations/types";
+} from "@phoenix/agent/UIOperations/operations/annotationConfig";
+import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { toAnnotationConfigDraft } from "./buildAnnotationConfigInput";
@@ -19,7 +19,7 @@ export function createCreateAnnotationConfigClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<CreateAnnotationConfigInput> {
+}): UIOperationHandler<CreateAnnotationConfigInput> {
   return (input, context) => {
     const draft = toAnnotationConfigDraft(input);
     return stageAnnotationConfigWriteOperation({
@@ -42,7 +42,7 @@ export function createUpdateAnnotationConfigClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<UpdateAnnotationConfigInput> {
+}): UIOperationHandler<UpdateAnnotationConfigInput> {
   return (input, context) => {
     const draft = toAnnotationConfigDraft(input);
     return stageAnnotationConfigWriteOperation({

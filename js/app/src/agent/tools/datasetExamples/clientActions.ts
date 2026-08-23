@@ -5,8 +5,8 @@ import {
   addDatasetExamplesOperation,
   deleteDatasetExamplesOperation,
   patchDatasetExamplesOperation,
-} from "@phoenix/agent/uiOperations/operations/datasetWrites";
-import type { UiOperationHandler } from "@phoenix/agent/uiOperations/types";
+} from "@phoenix/agent/UIOperations/operations/datasetWrites";
+import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { commitAddDatasetExamples } from "./addDatasetExamples";
@@ -32,7 +32,7 @@ export function createAddDatasetExamplesClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<AddDatasetExamplesInput> {
+}): UIOperationHandler<AddDatasetExamplesInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -62,7 +62,7 @@ export function createPatchDatasetExamplesClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<PatchDatasetExamplesInput> {
+}): UIOperationHandler<PatchDatasetExamplesInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -104,7 +104,7 @@ export function createDeleteDatasetExamplesClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<DeleteDatasetExamplesInput> {
+}): UIOperationHandler<DeleteDatasetExamplesInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {

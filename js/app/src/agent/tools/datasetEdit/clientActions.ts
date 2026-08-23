@@ -3,8 +3,8 @@ import { stageDatasetWriteOperation } from "@phoenix/agent/shared/pendingDataset
 import {
   deleteDatasetOperation,
   patchDatasetOperation,
-} from "@phoenix/agent/uiOperations/operations/datasetWrites";
-import type { UiOperationHandler } from "@phoenix/agent/uiOperations/types";
+} from "@phoenix/agent/UIOperations/operations/datasetWrites";
+import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { DATASET_EDIT_NO_DATASET_ERROR } from "./constants";
@@ -21,7 +21,7 @@ export function createPatchDatasetClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<PatchDatasetInput> {
+}): UIOperationHandler<PatchDatasetInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -49,7 +49,7 @@ export function createDeleteDatasetClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<DeleteDatasetInput> {
+}): UIOperationHandler<DeleteDatasetInput> {
   return async (_input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {

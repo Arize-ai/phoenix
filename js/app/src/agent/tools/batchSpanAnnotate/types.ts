@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
 
 import type {
   annotateSpanInputSchema,
@@ -54,5 +54,5 @@ export type BindPendingBatchSpanAnnotateOperationOptions = Omit<
   BindPendingBatchSpanAnnotateOptions,
   "addToolOutput"
 > & {
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
 };

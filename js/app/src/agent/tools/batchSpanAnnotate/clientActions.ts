@@ -1,4 +1,4 @@
-import type { UiOperationHandler } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { applySpanAnnotations } from "./applySpanAnnotations";
@@ -14,7 +14,7 @@ export function createBatchSpanAnnotateClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<BatchSpanAnnotateInput> {
+}): UIOperationHandler<BatchSpanAnnotateInput> {
   return (input, context) =>
     new Promise((resolve) => {
       const pendingAnnotation = bindPendingBatchSpanAnnotateOperationActions({

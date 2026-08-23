@@ -156,22 +156,22 @@ export function RootUIOperationsRegistration() {
       descriptor: deleteDatasetLabelsOperation,
       handler: createDeleteDatasetLabelsClientAction({ agentStore }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: createAnnotationConfigOperation,
       handler: createCreateAnnotationConfigClientAction({ agentStore }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: updateAnnotationConfigOperation,
       handler: createUpdateAnnotationConfigClientAction({ agentStore }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: patchExperimentOperation,
       handler: createPatchExperimentClientAction({ agentStore }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: batchSpanAnnotateOperation,
       handler: createBatchSpanAnnotateClientAction({ agentStore }),

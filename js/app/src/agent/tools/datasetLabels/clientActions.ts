@@ -4,8 +4,8 @@ import {
   createDatasetLabelOperation,
   deleteDatasetLabelsOperation,
   setDatasetLabelsOperation,
-} from "@phoenix/agent/uiOperations/operations/datasetLabels";
-import type { UiOperationHandler } from "@phoenix/agent/uiOperations/types";
+} from "@phoenix/agent/UIOperations/operations/datasetLabels";
+import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {
@@ -26,7 +26,7 @@ export function createCreateDatasetLabelClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<CreateDatasetLabelInput> {
+}): UIOperationHandler<CreateDatasetLabelInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -56,7 +56,7 @@ export function createSetDatasetLabelsClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<SetDatasetLabelsInput> {
+}): UIOperationHandler<SetDatasetLabelsInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -84,7 +84,7 @@ export function createDeleteDatasetLabelsClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<DeleteDatasetLabelsInput> {
+}): UIOperationHandler<DeleteDatasetLabelsInput> {
   return async (input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {

@@ -1,4 +1,4 @@
-import type { UiOperationHandler } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {
@@ -19,7 +19,7 @@ export function createPatchExperimentClientAction({
   agentStore,
 }: {
   agentStore: AgentStore;
-}): UiOperationHandler<PatchExperimentInput> {
+}): UIOperationHandler<PatchExperimentInput> {
   return async (input, context) => {
     let snapshot;
     try {

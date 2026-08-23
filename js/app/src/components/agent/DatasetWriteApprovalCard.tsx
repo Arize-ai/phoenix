@@ -155,7 +155,7 @@ function describePreview(pending: PendingDatasetWrite): PreviewDescriptor {
 /**
  * Normalize a pending dataset write to the shared {@link ApprovalPreview},
  * for both the standalone-tool card below and the script-child approval
- * cards `ExecuteUiToolDetails` renders for `ui.dataset.*` operations.
+ * cards `ExecuteUIToolDetails` renders for `ui.dataset.*` operations.
  */
 export function datasetWriteApprovalPreview(
   pending: PendingDatasetWrite
