@@ -122,7 +122,7 @@ Where the implementation settled the open decisions:
    do-not-retry / offer-a-link instruction.
 4. **Error loop closed**: dispatch's not-mounted error now appends "Use
    ui.navigation.goTo({ path, reason }) to ask the user to go there, then
-   retry," and the `execute_ui` instructions teach the same recovery.
+   retry," and the `execute_browser_action` instructions teach the same recovery.
 
 Path validation matches the concrete path against the registered route
 catalog with the router's own matcher (`matchPath`), so parameterized routes

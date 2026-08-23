@@ -24,7 +24,7 @@ export const navigationGoToOperation = defineUIOperation({
   inputSchema: navigationGoToInputSchema,
   kind: "approval",
   // Never auto-accepted, even in bypass edit mode — so dispatch must open
-  // the host execute_ui card for its approval card in every mode, not just
+  // the host execute_browser_action card for its approval card in every mode, not just
   // manual.
   alwaysRequiresApproval: true,
   requireSession: true,
