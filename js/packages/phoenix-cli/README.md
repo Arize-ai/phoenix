@@ -496,6 +496,46 @@ px prompt get my-evaluator --tag production --format json | jq '.template'
 
 ---
 
+### `px prompt set <prompt-identifier>`
+
+Create a prompt, or append a new version if one with that name already exists. Omitted fields are copied from the latest version.
+
+```bash
+# Create from a template string
+px prompt set greeting --template "Hello {{name}}" --model gpt-4o
+
+# Chat prompt with system + user messages
+px prompt set greeting --message "system:You are a helpful assistant" --message "user:Hello {{name}}" --model gpt-4o
+
+# Update only the template; model and other fields stay as they are
+px prompt set greeting --template "Hi {{name}}"
+
+# Create from a JSON file (POST /v1/prompts body or `px prompt get --format raw`)
+px prompt set greeting --file prompt.json --tag production --format raw --no-progress
+
+# Round-trip the latest version
+px prompt get greeting --format raw --no-progress | px prompt set greeting --file -
+```
+
+| Option                         | Description                                                                 | Default            |
+| ------------------------------ | --------------------------------------------------------------------------- | ------------------ |
+| `--template <text>`            | Prompt body as a single user message                                        | —                  |
+| `--message <role:content>`     | Chat message, repeatable (`user`, `system`, `assistant`, …)                 | —                  |
+| `--file <path>`                | JSON prompt body. Use `-` for stdin                                         | —                  |
+| `--model <name>`               | Model name. Required on create unless `--file` includes `model_name`        | —                  |
+| `--model-provider <provider>`  | Model provider                                                              | `OPENAI` on create |
+| `--template-format <format>`   | `MUSTACHE`, `F_STRING`, or `NONE`                                           | `MUSTACHE`         |
+| `--description <text>`         | Prompt description (applied when creating the prompt)                       | —                  |
+| `--version-description <text>` | Description of this version                                                 | —                  |
+| `--invocation-parameters <json>` | Provider parameters, e.g. `{"temperature":0.2}`                           | —                  |
+| `--metadata <json>`            | Prompt metadata (applied when creating the prompt)                          | —                  |
+| `--tag <name>`                 | Tag the newly written version                                               | —                  |
+| `--format <format>`            | `pretty`, `json`, `raw`, or `text`                                          | `pretty`           |
+
+The command prints the saved prompt version (same shape as `px prompt get`). Names must be lowercase letters, digits, hyphens, and underscores.
+
+---
+
 ### `px project list`
 
 List all available Phoenix projects.
