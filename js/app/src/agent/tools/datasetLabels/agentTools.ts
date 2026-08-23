@@ -98,7 +98,7 @@ export const createDatasetLabelAgentTool = defineTool<CreateDatasetLabelInput>({
   name: CREATE_DATASET_LABEL_TOOL_NAME,
   parseInput: parseCreateDatasetLabelInput,
   invalidInputErrorText: `Invalid ${CREATE_DATASET_LABEL_TOOL_NAME} input. Expected { name: string, description?: string, color?: string, attachToDataset?: boolean }.`,
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -134,7 +134,7 @@ export const setDatasetLabelsAgentTool = defineTool<SetDatasetLabelsInput>({
   name: SET_DATASET_LABELS_TOOL_NAME,
   parseInput: parseSetDatasetLabelsInput,
   invalidInputErrorText: `Invalid ${SET_DATASET_LABELS_TOOL_NAME} input. Expected { labelNames: string[] }.`,
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -166,7 +166,7 @@ export const deleteDatasetLabelsAgentTool =
     name: DELETE_DATASET_LABELS_TOOL_NAME,
     parseInput: parseDeleteDatasetLabelsInput,
     invalidInputErrorText: `Invalid ${DELETE_DATASET_LABELS_TOOL_NAME} input. Expected { labelNames: string[] }.`,
-    uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+    UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {

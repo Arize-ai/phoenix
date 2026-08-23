@@ -17,14 +17,14 @@ import {
   reconcileJudgeOperations,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
+  registerUIOperation,
+  unregisterUIOperation,
+} from "@phoenix/agent/UIOperations/catalog";
 import {
   editLlmEvaluatorDraftOperation,
   readLlmEvaluatorDraftOperation,
   submitLlmEvaluatorDraftOperation,
-} from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
+} from "@phoenix/agent/UIOperations/operations/llmEvaluatorDraft";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
@@ -164,12 +164,12 @@ export const useLlmEvaluatorDraftRegistration = ({
 
     const { setPendingLlmEvaluatorEdit } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: readLlmEvaluatorDraftOperation,
       handler: createReadLlmEvaluatorDraftClientAction({ getDraftHost }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: editLlmEvaluatorDraftOperation,
       handler: createEditLlmEvaluatorDraftClientAction({
@@ -179,7 +179,7 @@ export const useLlmEvaluatorDraftRegistration = ({
           agentStore.getState().permissions.edits === "bypass",
       }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: submitLlmEvaluatorDraftOperation,
       handler: createSubmitLlmEvaluatorDraftClientAction({
@@ -190,15 +190,15 @@ export const useLlmEvaluatorDraftRegistration = ({
     });
     return () => {
       draftHostRef.current = null;
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: readLlmEvaluatorDraftOperation.name,
       });
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: editLlmEvaluatorDraftOperation.name,
       });
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: submitLlmEvaluatorDraftOperation.name,
       });

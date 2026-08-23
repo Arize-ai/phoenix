@@ -2,12 +2,12 @@ import {
   editCodeEvaluatorDraftOperation,
   readCodeEvaluatorDraftOperation,
   testCodeEvaluatorDraftOperation,
-} from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
+} from "@phoenix/agent/UIOperations/operations/codeEvaluatorDraft";
 import {
   editLlmEvaluatorDraftOperation,
   readLlmEvaluatorDraftOperation,
   testLlmEvaluatorDraftOperation,
-} from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
+} from "@phoenix/agent/UIOperations/operations/llmEvaluatorDraft";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import type {
   AgentClientActionResult,

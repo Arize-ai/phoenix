@@ -5,8 +5,8 @@ import {
 import { openDatasetEvaluatorForEditInputSchema } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
 import { setDatasetEvaluatorSelectionInputSchema } from "@phoenix/agent/tools/datasetEvaluatorSelection";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /**
  * Route hint shared by the dataset-evaluator operations: all of them act on
@@ -22,7 +22,7 @@ const DATASET_EVALUATOR_ROUTE_HINT =
  * module (`@phoenix/agent/tools/datasetEvaluatorSelection`); the description
  * moves here verbatim from the Python `DESCRIPTION`.
  */
-export const selectDatasetEvaluatorsOperation = defineUiOperation({
+export const selectDatasetEvaluatorsOperation = defineUIOperation({
   name: "evaluators.select",
   description:
     "Set which existing dataset evaluators are applied to the mounted playground " +
@@ -45,7 +45,7 @@ export const selectDatasetEvaluatorsOperation = defineUiOperation({
  * moves here verbatim from the Python `DESCRIPTION`, with tool references
  * rewritten to operation names.
  */
-export const openDatasetEvaluatorForEditOperation = defineUiOperation({
+export const openDatasetEvaluatorForEditOperation = defineUIOperation({
   name: "evaluators.openForEdit",
   description:
     "Open an existing dataset evaluator's edit form in the mounted playground " +
@@ -69,7 +69,7 @@ export const openDatasetEvaluatorForEditOperation = defineUiOperation({
  * moves here verbatim from the Python `DESCRIPTION` (including the
  * `MAX_EVALUATOR_IDS` interpolation).
  */
-export const readDatasetEvaluatorDefinitionOperation = defineUiOperation({
+export const readDatasetEvaluatorDefinitionOperation = defineUIOperation({
   name: "evaluators.readDefinition",
   description:
     "Read the full definition of one or a few existing dataset evaluators by id, " +
@@ -94,7 +94,7 @@ export const readDatasetEvaluatorDefinitionOperation = defineUiOperation({
  * evaluators run, open one for editing, and read definitions without opening
  * a form.
  */
-export const datasetEvaluatorOperations: UiOperationDescriptor[] = [
+export const datasetEvaluatorOperations: UIOperationDescriptor[] = [
   selectDatasetEvaluatorsOperation,
   openDatasetEvaluatorForEditOperation,
   readDatasetEvaluatorDefinitionOperation,

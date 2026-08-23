@@ -4,8 +4,8 @@ import { setPlaygroundRepetitionsInputSchema } from "@phoenix/agent/tools/playgr
 import { setTemplateVariablesPathInputSchema } from "@phoenix/agent/tools/playgroundTemplateVariablesPath/schemas";
 import { setVariableValuesInputSchema } from "@phoenix/agent/tools/playgroundVariableValues/schemas";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /** Route hint shared by every playground operation. */
 const PLAYGROUND_ROUTE_HINT =
@@ -16,7 +16,7 @@ const PLAYGROUND_ROUTE_HINT =
  * The input schema is reused from the existing tool module; the description
  * moves here verbatim from the Python `DESCRIPTION`.
  */
-export const setVariableValuesOperation = defineUiOperation({
+export const setVariableValuesOperation = defineUIOperation({
   name: "playground.variables.set",
   description:
     "Set manual input values for template variables in the currently mounted " +
@@ -36,7 +36,7 @@ export const setVariableValuesOperation = defineUiOperation({
  * The catalog entry replacing the `set_template_variables_path`
  * client-action tool.
  */
-export const setTemplateVariablesPathOperation = defineUiOperation({
+export const setTemplateVariablesPathOperation = defineUIOperation({
   name: "playground.variables.setPath",
   description:
     "Set the dataset field path that playground template variables resolve against, " +
@@ -58,7 +58,7 @@ export const setTemplateVariablesPathOperation = defineUiOperation({
  * The catalog entry replacing the `set_appended_messages_path` client-action
  * tool.
  */
-export const setAppendedMessagesPathOperation = defineUiOperation({
+export const setAppendedMessagesPathOperation = defineUIOperation({
   name: "playground.messages.setPath",
   description:
     "Set the dataset message-list path appended to playground runs for the currently " +
@@ -82,7 +82,7 @@ export const setAppendedMessagesPathOperation = defineUiOperation({
  * The catalog entry replacing the `set_playground_experiment_recording`
  * client-action tool.
  */
-export const setPlaygroundExperimentRecordingOperation = defineUiOperation({
+export const setPlaygroundExperimentRecordingOperation = defineUIOperation({
   name: "playground.experiment.setRecording",
   description:
     "Set whether future dataset-backed playground runs in the currently mounted " +
@@ -103,7 +103,7 @@ export const setPlaygroundExperimentRecordingOperation = defineUiOperation({
  * The catalog entry replacing the `set_playground_repetitions` client-action
  * tool.
  */
-export const setPlaygroundRepetitionsOperation = defineUiOperation({
+export const setPlaygroundRepetitionsOperation = defineUIOperation({
   name: "playground.repetitions.set",
   description:
     "Set the playground-wide repetitions count in the currently mounted playground. " +
@@ -119,7 +119,7 @@ export const setPlaygroundRepetitionsOperation = defineUiOperation({
 });
 
 /** All playground settings operations, for catalog assembly. */
-export const playgroundSettingsOperations: UiOperationDescriptor[] = [
+export const playgroundSettingsOperations: UIOperationDescriptor[] = [
   setVariableValuesOperation,
   setTemplateVariablesPathOperation,
   setAppendedMessagesPathOperation,

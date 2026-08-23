@@ -8,24 +8,24 @@ import type { AgentClientActionResult } from "@phoenix/store/agentStore";
  */
 
 /** Main thread → worker: start executing the script. Sent exactly once. */
-export type UiScriptRunMessage = {
+export type UIScriptRunMessage = {
   type: "run";
   script: string;
 };
 
 /** Main thread → worker: the result of one proxied `ui.*` call. */
-export type UiScriptCallResultMessage = {
+export type UIScriptCallResultMessage = {
   type: "callResult";
   callId: number;
   result: AgentClientActionResult;
 };
 
-export type UiScriptMessageToWorker =
-  | UiScriptRunMessage
-  | UiScriptCallResultMessage;
+export type UIScriptMessageToWorker =
+  | UIScriptRunMessage
+  | UIScriptCallResultMessage;
 
 /** Worker → main thread: the script invoked `ui.<namespace>.<op>(input)`. */
-export type UiScriptCallMessage = {
+export type UIScriptCallMessage = {
   type: "call";
   callId: number;
   operationName: string;
@@ -33,25 +33,25 @@ export type UiScriptCallMessage = {
 };
 
 /** Worker → main thread: the script called `log(...)`. */
-export type UiScriptLogMessage = {
+export type UIScriptLogMessage = {
   type: "log";
   message: string;
 };
 
 /** Worker → main thread: script finished; `returnValue` is JSON-serialized. */
-export type UiScriptDoneMessage = {
+export type UIScriptDoneMessage = {
   type: "done";
   returnValue: string;
 };
 
 /** Worker → main thread: script threw or failed to parse. */
-export type UiScriptFailedMessage = {
+export type UIScriptFailedMessage = {
   type: "failed";
   error: string;
 };
 
-export type UiScriptMessageToMain =
-  | UiScriptCallMessage
-  | UiScriptLogMessage
-  | UiScriptDoneMessage
-  | UiScriptFailedMessage;
+export type UIScriptMessageToMain =
+  | UIScriptCallMessage
+  | UIScriptLogMessage
+  | UIScriptDoneMessage
+  | UIScriptFailedMessage;

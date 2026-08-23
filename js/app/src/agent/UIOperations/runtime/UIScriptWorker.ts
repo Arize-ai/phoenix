@@ -1,6 +1,6 @@
 import type {
-  UiScriptMessageToMain,
-  UiScriptMessageToWorker,
+  UIScriptMessageToMain,
+  UIScriptMessageToWorker,
 } from "./protocol";
 
 /**
@@ -19,15 +19,15 @@ import type {
  * `DedicatedWorkerGlobalScope`), so the narrow surface this file uses is
  * declared by hand instead of pulling in the WebWorker lib for one module.
  */
-type UiScriptWorkerScope = {
+type UIScriptWorkerScope = {
   addEventListener(
     type: "message",
     listener: (event: MessageEvent) => void
   ): void;
-  postMessage(message: UiScriptMessageToMain): void;
+  postMessage(message: UIScriptMessageToMain): void;
 };
 
-const workerScope = globalThis as unknown as UiScriptWorkerScope;
+const workerScope = globalThis as unknown as UIScriptWorkerScope;
 
 /**
  * Globals removed before the script runs so the `ui` bridge is the worker's
@@ -84,7 +84,7 @@ function postOperationCall(operationName: string, input: unknown) {
  * rejects them with a did-you-mean error the model can act on, which beats a
  * bare `undefined is not a function` inside the script.
  */
-function createUiProxy(): unknown {
+function createUIProxy(): unknown {
   const buildNode = (path: string[]): unknown =>
     new Proxy(function () {}, {
       get: (_target, property) =>
@@ -134,9 +134,9 @@ export function referencesDynamicImport(script: string): boolean {
   return /\bimport\s*[.(]/.test(script);
 }
 
-async function evaluateUiScript(script: string) {
+async function evaluateUIScript(script: string) {
   removeBlockedGlobals();
-  const ui = createUiProxy();
+  const ui = createUIProxy();
   const log = (message: unknown) => {
     workerScope.postMessage({ type: "log", message: String(message) });
   };
@@ -186,9 +186,9 @@ async function evaluateUiScript(script: string) {
 }
 
 workerScope.addEventListener("message", (event: MessageEvent) => {
-  const message = event.data as UiScriptMessageToWorker;
+  const message = event.data as UIScriptMessageToWorker;
   if (message.type === "run") {
-    void evaluateUiScript(message.script);
+    void evaluateUIScript(message.script);
     return;
   }
   if (message.type === "callResult") {

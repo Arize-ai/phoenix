@@ -51,7 +51,7 @@ export const batchSpanAnnotateAgentTool = defineTool<BatchSpanAnnotateInput>({
     isEmptyBatchSpanAnnotateInput(input)
       ? `${BATCH_SPAN_ANNOTATE_TOOL_NAME} needs an annotations array. Call it with { annotations: [{ spanId or spanNodeId, name, and at least one of label, score, or explanation }] }. Do not call this tool until you have a real span id and annotation value.`
       : `Invalid ${BATCH_SPAN_ANNOTATE_TOOL_NAME} input. Expected { annotations: { spanId?: string, spanNodeId?: string, name: string, annotatorKind?: "LLM" | "HUMAN" | "CODE", label?: string | null, score?: number | null, explanation?: string | null, identifier?: string | null, metadata?: object | null }[] }. Each annotation requires exactly one of spanId or spanNodeId, a non-reserved name, and at least one of label, score, or explanation.`,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },

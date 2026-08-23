@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /**
  * Route hint for the draft operations: they only dispatch while an
@@ -197,7 +197,7 @@ export type EditLlmEvaluatorDraftOperationInput = z.infer<
  * The catalog entry replacing the `open_llm_evaluator_form` client-action
  * tool. The description moves here verbatim from the Python `DESCRIPTION`.
  */
-export const openLlmEvaluatorFormOperation = defineUiOperation({
+export const openLlmEvaluatorFormOperation = defineUIOperation({
   name: "evaluators.llm.openForm",
   description:
     "Open the dataset-backed LLM-evaluator form from the current playground " +
@@ -217,7 +217,7 @@ export const openLlmEvaluatorFormOperation = defineUiOperation({
  * tool. The description moves here verbatim from the Python `DESCRIPTION`,
  * with tool references rewritten to operation names.
  */
-export const readLlmEvaluatorDraftOperation = defineUiOperation({
+export const readLlmEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.llm.read",
   description:
     "Read the open LLM-evaluator draft. Returns the draft's name, description, " +
@@ -240,7 +240,7 @@ export const readLlmEvaluatorDraftOperation = defineUiOperation({
  * stages an inline diff and the promise resolves only after the user accepts
  * or rejects it.
  */
-export const editLlmEvaluatorDraftOperation = defineUiOperation({
+export const editLlmEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.llm.edit",
   description:
     "Propose edits to the open LLM-evaluator draft. This operation does not change " +
@@ -262,7 +262,7 @@ export const editLlmEvaluatorDraftOperation = defineUiOperation({
   inputSchema: editLlmEvaluatorDraftInputSchema,
   kind: "approval",
   requireSession: true,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
@@ -278,7 +278,7 @@ export const editLlmEvaluatorDraftOperation = defineUiOperation({
  * (which lives in `run_llm_evaluator_draft.py`; the module uses `run` so
  * pytest does not collect it as a test).
  */
-export const testLlmEvaluatorDraftOperation = defineUiOperation({
+export const testLlmEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.llm.test",
   description:
     "Run the open LLM-evaluator draft against its current test payload through " +
@@ -296,7 +296,7 @@ export const testLlmEvaluatorDraftOperation = defineUiOperation({
  * The catalog entry replacing the `submit_llm_evaluator_draft` client-action
  * tool. The description moves here verbatim from the Python `DESCRIPTION`.
  */
-export const submitLlmEvaluatorDraftOperation = defineUiOperation({
+export const submitLlmEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.llm.submit",
   description:
     "Persist the open LLM-evaluator draft through the form's validated save path — " +
@@ -314,7 +314,7 @@ export const submitLlmEvaluatorDraftOperation = defineUiOperation({
  * All LLM-evaluator draft catalog entries, in lifecycle order: open the
  * form, read the draft, propose edits, test-run, and submit.
  */
-export const llmEvaluatorDraftOperations: UiOperationDescriptor[] = [
+export const llmEvaluatorDraftOperations: UIOperationDescriptor[] = [
   openLlmEvaluatorFormOperation,
   readLlmEvaluatorDraftOperation,
   editLlmEvaluatorDraftOperation,

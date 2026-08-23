@@ -1,7 +1,7 @@
 import { loadDatasetInputSchema } from "@phoenix/agent/tools/playgroundLoadDataset/schemas";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /**
  * The catalog entry replacing the `load_dataset` client-action tool. Loading
@@ -10,7 +10,7 @@ import { defineUiOperation } from "../types";
  * input schema is reused from the existing tool module; the description moves
  * here verbatim from the Python `DESCRIPTION`.
  */
-export const loadDatasetOperation = defineUiOperation({
+export const loadDatasetOperation = defineUIOperation({
   name: "playground.dataset.load",
   description:
     "Load a dataset into the currently mounted playground, optionally scoped to a single " +
@@ -21,7 +21,7 @@ export const loadDatasetOperation = defineUiOperation({
   inputSchema: loadDatasetInputSchema,
   kind: "approval",
   requireSession: true,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
@@ -32,6 +32,6 @@ export const loadDatasetOperation = defineUiOperation({
 });
 
 /** All playground dataset-loading operations, for catalog assembly. */
-export const playgroundLoadDatasetOperations: UiOperationDescriptor[] = [
+export const playgroundLoadDatasetOperations: UIOperationDescriptor[] = [
   loadDatasetOperation,
 ];

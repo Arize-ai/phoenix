@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { TimeRangeKey } from "@phoenix/components/datetime/types";
 
-import { defineUiOperation } from "../types";
+import { defineUIOperation } from "../types";
 
 /**
  * Presets the model may request. `satisfies` guarantees every entry is a valid
@@ -66,10 +66,10 @@ export type SetTimeRangeOperationInput = z.infer<
  * description below moves here verbatim from the Python `DESCRIPTION`; the
  * handler stays where it is today (registered by `TimeRangeContext` while a
  * time range provider is mounted) but is registered via
- * `registerUiOperation` against this descriptor instead of
+ * `registerUIOperation` against this descriptor instead of
  * `registerClientAction` — see PLAN.md for the before/after diff.
  */
-export const setTimeRangeOperation = defineUiOperation({
+export const setTimeRangeOperation = defineUIOperation({
   name: "timeRange.set",
   description:
     "Set the Phoenix app time range selector. Use preset `timeRangeKey` values " +

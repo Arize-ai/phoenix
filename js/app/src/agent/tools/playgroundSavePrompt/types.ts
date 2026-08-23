@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
 import type {
@@ -97,7 +97,7 @@ export type BindPendingSavePromptOptions = {
   pendingSave: PendingSavePrompt;
   savePrompt: SavePromptAction;
   /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
   setPendingSavePrompt: (
     toolCallId: string,
     pendingSave: PendingSavePrompt | null

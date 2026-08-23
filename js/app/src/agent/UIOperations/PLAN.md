@@ -17,10 +17,10 @@ against) + codemode (collapse N tools into search-the-API + execute-code).
 
 ## What changed, end to end
 
-### Catalog (`app/src/agent/uiOperations/`)
+### Catalog (`app/src/agent/UIOperations/`)
 
-- `types.ts` — `UiOperationDescriptor` (namespaced name, description, zod
-  `inputSchema`, `kind: read|write|approval`, `requireSession`, `uiBehavior`,
+- `types.ts` — `UIOperationDescriptor` (namespaced name, description, zod
+  `inputSchema`, `kind: read|write|approval`, `requireSession`, `UIBehavior`,
   availability route hint). The zod schema is now the **only** schema: the
   Python JSON schemas and hand-rolled TS parsers it replaces are deleted.
 - `operations/*.ts` — one descriptor per migrated tool, 35 total (34 migrated
@@ -30,7 +30,7 @@ against) + codemode (collapse N tools into search-the-API + execute-code).
   rendering. **Mounted handlers still live in
   `agentStore.registeredClientActions`**, now keyed by operation name — this
   preserves the store-subscription waiters (`waitForRegisteredClientActions`)
-  used by the open-form flows. `registerUiOperation({ agentStore, descriptor,
+  used by the open-form flows. `registerUIOperation({ agentStore, descriptor,
 handler })` is the typed wrapper components use.
 - `dispatch.ts` — the per-call choke point: catalog lookup (unknown names get
   did-you-mean suggestions) → capability gate → session gate → mounted check
@@ -64,7 +64,7 @@ prompt, load dataset, code/llm evaluator draft edits) now work like this:
    promise with `{ ok: true, output: { status: "accepted" | "rejected", … } }`;
    staleness and navigation-cancel resolve `{ ok: false, error }`.
 3. Pending entries are keyed by the **inner call id**
-   (`<executeUiToolCallId>:<sequence>`) — the field is still named
+   (`<executeUIToolCallId>:<sequence>`) — the field is still named
    `toolCallId` to limit churn. Interrupt/rewind cleanup
    (`pendingToolStateCleanup.ts`) aborts the script run and clears entries by
    tool-call-id prefix.
@@ -72,7 +72,7 @@ prompt, load dataset, code/llm evaluator draft edits) now work like this:
 
 ### Chat rendering
 
-`ToolPart.tsx` renders `execute_browser_action` with `ExecuteUiToolDetails`: the script,
+`ToolPart.tsx` renders `execute_browser_action` with `ExecuteUIToolDetails`: the script,
 generic Accept/Reject cards for any child approvals (wired to the same
 accept/reject closures), and the run result. The old per-tool cases remain in
 the switch so historical transcripts still render. Known follow-up: the

@@ -1,7 +1,7 @@
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
 
-import { dispatchUiOperationCall } from "./dispatch";
-import { runUiScript } from "./runtime/uiScriptBridge";
+import { dispatchUIOperationCall } from "./dispatch";
+import { runUIScript } from "./runtime/UIScriptBridge";
 
 export const EXECUTE_BROWSER_ACTION_TOOL_NAME = "execute_browser_action";
 
@@ -17,7 +17,7 @@ const activeRunAborts = new Map<string, (reason: string) => void>();
  * is still active. Safe to call for unknown ids. Returns whether a run was
  * aborted.
  */
-export function abortActiveUiScriptRun({
+export function abortActiveUIScriptRun({
   toolCallId,
   reason,
 }: {
@@ -32,7 +32,7 @@ export function abortActiveUiScriptRun({
   return true;
 }
 
-type ExecuteUiInput = {
+type ExecuteUIInput = {
   /**
    * User-facing sentence describing what the script accomplishes, rendered as
    * the tool part's preview. Required by the advertised schema but parsed
@@ -42,7 +42,7 @@ type ExecuteUiInput = {
   script: string;
 };
 
-function parseExecuteUiInput(input: unknown): ExecuteUiInput | null {
+function parseExecuteUIInput(input: unknown): ExecuteUIInput | null {
   if (typeof input !== "object" || input === null) {
     return null;
   }
@@ -76,7 +76,7 @@ const LOG_LINE_CHAR_BUDGET = 300;
 
 /**
  * Section markers for the plain-text run output. The renderer and
- * {@link parseExecuteUiRunOutput} share these so the chat card can split the
+ * {@link parseExecuteUIRunOutput} share these so the chat card can split the
  * model-facing text back into status/logs/return-value for display without a
  * second, structured output channel.
  */
@@ -160,7 +160,7 @@ function renderRunOutput({
 }
 
 /** A completed run output split back into sections for display. */
-export type ExecuteUiRunOutputView = {
+export type ExecuteUIRunOutputView = {
   /** "Script completed after N ui calls." — human-readable as-is. */
   status: string;
   /** The log lines the script emitted, or null when it logged nothing. */
@@ -178,9 +178,9 @@ export type ExecuteUiRunOutputView = {
  * Returns null when the text is not a run output (e.g. output from an older
  * format), in which case callers should fall back to raw rendering.
  */
-export function parseExecuteUiRunOutput(
+export function parseExecuteUIRunOutput(
   output: string
-): ExecuteUiRunOutputView | null {
+): ExecuteUIRunOutputView | null {
   if (!output.startsWith(RUN_STATUS_PREFIX)) {
     return null;
   }
@@ -223,17 +223,17 @@ export function parseExecuteUiRunOutput(
  * RFC note: not yet listed in `toolRegistry.ts` — inert until the rollout
  * capability lands.
  */
-export const executeUiAgentTool = defineTool<ExecuteUiInput>({
+export const executeUIAgentTool = defineTool<ExecuteUIInput>({
   name: EXECUTE_BROWSER_ACTION_TOOL_NAME,
-  parseInput: parseExecuteUiInput,
+  parseInput: parseExecuteUIInput,
   invalidInputErrorText:
     "Invalid execute_browser_action input. Expected { script: string } with a non-empty script body.",
   // The card stays collapsed by default — most scripts run and finish
   // without needing the user's attention. When an inner operation stages an
   // Accept/Reject approval, dispatch requests the card open through the
-  // store (see `dispatchUiOperationCall`); `scrollIntoViewOnMount` makes
+  // store (see `dispatchUIOperationCall`); `scrollIntoViewOnMount` makes
   // that store-driven open also scroll the card into view.
-  uiBehavior: { scrollIntoViewOnMount: true },
+  UIBehavior: { scrollIntoViewOnMount: true },
   execute: async ({
     toolCall,
     input,
@@ -242,10 +242,10 @@ export const executeUiAgentTool = defineTool<ExecuteUiInput>({
     agentStore,
     capabilities,
   }) => {
-    const run = await runUiScript({
+    const run = await runUIScript({
       script: input.script,
       dispatchCall: ({ operationName, input: operationInput, callSequence }) =>
-        dispatchUiOperationCall({
+        dispatchUIOperationCall({
           operationName,
           input: operationInput,
           // Approval handlers key pending entries by this id; interrupt

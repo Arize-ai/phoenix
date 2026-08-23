@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
 
 import type { loadDatasetInputSchema } from "./schemas";
 
@@ -63,7 +63,7 @@ export type BindPendingLoadDatasetOptions = {
   readSelectionRevision: () => string;
   applyDatasetSelection: ApplyDatasetSelection;
   /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
   setPendingLoadDataset: (
     toolCallId: string,
     pendingLoad: PendingLoadDataset | null

@@ -9,7 +9,7 @@
  *
  * Browser UI-state operations (time range, spans filter, playground prompts,
  * evaluator drafts, …) are no longer individual tools: they live in the
- * UI-operation catalog (`@phoenix/agent/uiOperations`) and execute through
+ * UI-operation catalog (`@phoenix/agent/UIOperations`) and execute through
  * the `search_browser_actions` / `execute_browser_action` meta-tools registered below.
  */
 import {
@@ -49,8 +49,8 @@ import { listDatasetsAgentTool } from "@phoenix/agent/tools/listDatasets";
 import { patchExperimentAgentTool } from "@phoenix/agent/tools/patchExperiment";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
 import { addSpansToDatasetAgentTool } from "@phoenix/agent/tools/spansToDataset";
-import { executeUiAgentTool } from "@phoenix/agent/uiOperations/executeUiAgentTool";
-import { searchUiAgentTool } from "@phoenix/agent/uiOperations/searchUiAgentTool";
+import { executeUIAgentTool } from "@phoenix/agent/UIOperations/executeUIAgentTool";
+import { searchUIAgentTool } from "@phoenix/agent/UIOperations/searchUIAgentTool";
 
 import type { AgentToolDefinition } from "./registry/defineTool";
 import { createAgentToolDispatcher } from "./registry/dispatch";
@@ -62,9 +62,9 @@ export type { AgentToolCall, AgentToolUIBehavior } from "./registry/defineTool";
  * discovers operations and their signatures; `execute_browser_action` runs an
  * agent-authored script against them in a sandboxed worker.
  */
-const uiOperationTools: AgentToolDefinition[] = [
-  searchUiAgentTool,
-  executeUiAgentTool,
+const UIOperationTools: AgentToolDefinition[] = [
+  searchUIAgentTool,
+  executeUIAgentTool,
 ];
 
 /**
@@ -117,7 +117,7 @@ const tools: AgentToolDefinition[] = [
 
 /** Ordered registry of all frontend-executable tools. */
 const agentToolDefinitions: AgentToolDefinition[] = [
-  ...uiOperationTools,
+  ...UIOperationTools,
   ...datasetTools,
   ...tools,
 ];

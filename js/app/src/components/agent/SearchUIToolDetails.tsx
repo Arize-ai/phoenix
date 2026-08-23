@@ -11,7 +11,7 @@ import type { ToolInvocationPart } from "./toolPartTypes";
  * "full catalog" when the query was empty (an empty query lists every
  * operation).
  */
-export function getSearchUiToolPreview(part: ToolInvocationPart): string {
+export function getSearchUIToolPreview(part: ToolInvocationPart): string {
   const input = part.input;
   if (typeof input === "object" && input !== null && !Array.isArray(input)) {
     const { query } = input as { query?: unknown };
@@ -30,7 +30,7 @@ export function getSearchUiToolPreview(part: ToolInvocationPart): string {
  * can return the whole catalog, so wrap it in the collapsing section other
  * long tool bodies use.
  */
-export function SearchUiToolDetails({ part }: { part: ToolInvocationPart }) {
+export function SearchUIToolDetails({ part }: { part: ToolInvocationPart }) {
   if (part.state === "output-error") {
     return (
       <div className="tool-part__body">

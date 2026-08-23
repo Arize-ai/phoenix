@@ -13,14 +13,14 @@ import type { AgentClientActionResult } from "@phoenix/store/agentStore";
  *   the user accepts or rejects it. The script runtime keeps awaiting (and
  *   pauses the script's wall-clock budget) until the user decides.
  */
-export type UiOperationKind = "read" | "write" | "approval";
+export type UIOperationKind = "read" | "write" | "approval";
 
 /**
  * Where an operation becomes available when its handler is not currently
  * mounted. Surfaced by `search_browser_actions` and by not-mounted dispatch errors so the
  * agent can navigate instead of dead-ending.
  */
-export type UiOperationAvailability = {
+export type UIOperationAvailability = {
   /** Human/model-readable hint, e.g. "the Playground page (/playground)". */
   routeHint: string;
 };
@@ -30,7 +30,7 @@ export type UiOperationAvailability = {
  * JSON-serializable — it crosses the script worker's postMessage boundary
  * and is embedded in the `execute_browser_action` tool output.
  */
-export type UiOperationResult = AgentClientActionResult;
+export type UIOperationResult = AgentClientActionResult;
 
 /**
  * Per-call context handed to an operation handler by dispatch.
@@ -39,7 +39,7 @@ export type UiOperationResult = AgentClientActionResult;
  * to key their pending-approval entries (the role the AI SDK `toolCallId`
  * played when each operation was its own tool call).
  */
-export type UiOperationCallContext = {
+export type UIOperationCallContext = {
   callId: string;
   sessionId: string | null;
 };
@@ -54,7 +54,7 @@ export type UiOperationCallContext = {
  * the `defineClientActionTool` config. The model-facing signature and the
  * runtime validator are both derived from `inputSchema`.
  */
-export type UiOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
+export type UIOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
   /**
    * Namespaced, dot-separated operation name (e.g. `timeRange.set`). The
    * namespace is the property path scripts use: `ui.timeRange.set(...)`.
@@ -64,7 +64,7 @@ export type UiOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
   description: string;
   /** Zod schema for the operation input; the only schema definition anywhere. */
   inputSchema: TSchema;
-  kind: UiOperationKind;
+  kind: UIOperationKind;
   /**
    * Marks an operation whose handler legitimately awaits completion of work
    * that can outlast the script's wall-clock budget (e.g. a playground run).
@@ -84,8 +84,8 @@ export type UiOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
   /** Whether an active agent session is required to dispatch. */
   requireSession?: boolean;
   /** Chat card rendering hints, keyed per inner operation call. */
-  uiBehavior?: AgentToolUIBehavior;
-  availability?: UiOperationAvailability;
+  UIBehavior?: AgentToolUIBehavior;
+  availability?: UIOperationAvailability;
   /** Fallback success output when the handler omits one. */
   defaultSuccessOutput?: string;
 };
@@ -96,10 +96,10 @@ export type UiOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
  * per-call context. Approval handlers return a promise that stays pending
  * until the user accepts or rejects.
  */
-export type UiOperationHandler<TInput> = (
+export type UIOperationHandler<TInput> = (
   input: TInput,
-  context: UiOperationCallContext
-) => Promise<UiOperationResult>;
+  context: UIOperationCallContext
+) => Promise<UIOperationResult>;
 
 /**
  * Resolves an in-flight operation call. Approval binders receive this in
@@ -107,16 +107,16 @@ export type UiOperationHandler<TInput> = (
  * output for a dedicated tool call, accept/reject/cancel resolve the promise
  * the calling `execute_browser_action` script is awaiting.
  */
-export type UiOperationResultEmitter = (result: UiOperationResult) => void;
+export type UIOperationResultEmitter = (result: UIOperationResult) => void;
 
 /**
- * Narrow an unknown handler `context` argument to {@link UiOperationCallContext}.
+ * Narrow an unknown handler `context` argument to {@link UIOperationCallContext}.
  * Dispatch always constructs the context, so a mismatch means the handler was
  * invoked outside the operation dispatch path.
  */
-export function parseUiOperationCallContext(
+export function parseUIOperationCallContext(
   context: unknown
-): UiOperationCallContext | null {
+): UIOperationCallContext | null {
   if (typeof context !== "object" || context === null) {
     return null;
   }
@@ -139,10 +139,10 @@ export function parseUiOperationCallContext(
 
 /**
  * Identity helper that ties the descriptor's inferred input type to its
- * schema so `registerUiOperation` can enforce handler/schema agreement.
+ * schema so `registerUIOperation` can enforce handler/schema agreement.
  */
-export function defineUiOperation<TSchema extends z.ZodType>(
-  descriptor: UiOperationDescriptor<TSchema>
-): UiOperationDescriptor<TSchema> {
+export function defineUIOperation<TSchema extends z.ZodType>(
+  descriptor: UIOperationDescriptor<TSchema>
+): UIOperationDescriptor<TSchema> {
   return descriptor;
 }

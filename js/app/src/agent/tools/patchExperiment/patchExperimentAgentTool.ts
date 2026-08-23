@@ -17,7 +17,7 @@ export const patchExperimentAgentTool = defineTool<PatchExperimentInput>({
   name: PATCH_EXPERIMENT_TOOL_NAME,
   parseInput: parsePatchExperimentInput,
   invalidInputErrorText: `Invalid ${PATCH_EXPERIMENT_TOOL_NAME} input. Expected { experimentId: string, name?: string, description?: string | null, metadata?: object }. Provide experimentId plus at least one field to change.`,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },

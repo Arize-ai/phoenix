@@ -18,7 +18,7 @@ export type {
   EvaluatorSubmitToolOutput,
 };
 
-import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
 
 import type {
   editLlmEvaluatorDraftInputSchema,
@@ -110,7 +110,7 @@ export type BindPendingLlmEvaluatorEditOptions = {
   pendingEdit: PendingLlmEvaluatorEdit;
   draftHost: LlmEvaluatorDraftHost;
   /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
   setPendingLlmEvaluatorEdit: (
     toolCallId: string,
     edit: PendingLlmEvaluatorEdit | null

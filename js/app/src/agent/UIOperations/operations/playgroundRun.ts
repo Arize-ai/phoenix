@@ -5,8 +5,8 @@ import {
   runPlaygroundInputSchema,
 } from "@phoenix/agent/tools/playgroundRun/schemas";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /** Route hint shared by every playground operation. */
 const PLAYGROUND_ROUTE_HINT =
@@ -17,7 +17,7 @@ const PLAYGROUND_ROUTE_HINT =
  * input schema is reused from the existing tool module; the description moves
  * here verbatim from the Python `DESCRIPTION`.
  */
-export const runPlaygroundOperation = defineUiOperation({
+export const runPlaygroundOperation = defineUIOperation({
   name: "playground.run",
   description:
     "Run the currently mounted playground using the browser UI state. This starts " +
@@ -42,7 +42,7 @@ export const runPlaygroundOperation = defineUiOperation({
 /**
  * The catalog entry replacing the `cancel_playground_run` client-action tool.
  */
-export const cancelPlaygroundRunOperation = defineUiOperation({
+export const cancelPlaygroundRunOperation = defineUIOperation({
   name: "playground.run.cancel",
   description:
     "Cancel the currently active run in the mounted playground. This stops the " +
@@ -61,7 +61,7 @@ export const cancelPlaygroundRunOperation = defineUiOperation({
  * tool. The description moves here verbatim from the Python `DESCRIPTION`
  * with tool names updated to operation names.
  */
-export const readPlaygroundOutputOperation = defineUiOperation({
+export const readPlaygroundOutputOperation = defineUIOperation({
   name: "playground.run.readOutput",
   description:
     "Read the output from the currently mounted playground's latest run. The result " +
@@ -81,7 +81,7 @@ export const readPlaygroundOutputOperation = defineUiOperation({
  * `playground.run`, this reads the scored per-example results the model needs
  * to decide its next prompt candidate — without hand-writing GraphQL.
  */
-export const readExperimentResultsOperation = defineUiOperation({
+export const readExperimentResultsOperation = defineUIOperation({
   name: "playground.experiment.readResults",
   description:
     "Read the scored results of a recorded experiment. Pass one of the " +
@@ -105,7 +105,7 @@ export const readExperimentResultsOperation = defineUiOperation({
 });
 
 /** All playground run operations, for catalog assembly. */
-export const playgroundRunOperations: UiOperationDescriptor[] = [
+export const playgroundRunOperations: UIOperationDescriptor[] = [
   runPlaygroundOperation,
   cancelPlaygroundRunOperation,
   readPlaygroundOutputOperation,

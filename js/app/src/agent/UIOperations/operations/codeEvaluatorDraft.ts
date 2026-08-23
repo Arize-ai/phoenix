@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import { editCodeEvaluatorDraftInputSchema } from "@phoenix/agent/tools/codeEvaluatorDraft";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /**
  * Route hint for the draft operations: they only dispatch while a
@@ -23,7 +23,7 @@ const emptyInputSchema = z.strictObject({});
  * The catalog entry replacing the `open_code_evaluator_form` client-action
  * tool. The description moves here verbatim from the Python `DESCRIPTION`.
  */
-export const openCodeEvaluatorFormOperation = defineUiOperation({
+export const openCodeEvaluatorFormOperation = defineUIOperation({
   name: "evaluators.code.openForm",
   description:
     "Open the dataset-backed code-evaluator form from the current playground " +
@@ -43,7 +43,7 @@ export const openCodeEvaluatorFormOperation = defineUiOperation({
  * tool. The description moves here verbatim from the Python `DESCRIPTION`,
  * with tool references rewritten to operation names.
  */
-export const readCodeEvaluatorDraftOperation = defineUiOperation({
+export const readCodeEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.code.read",
   description:
     "Read the open code-evaluator draft. Returns the draft's name, description, " +
@@ -69,7 +69,7 @@ export const readCodeEvaluatorDraftOperation = defineUiOperation({
  * operation names. Approval: the browser stages an inline diff and the
  * promise resolves only after the user accepts or rejects it.
  */
-export const editCodeEvaluatorDraftOperation = defineUiOperation({
+export const editCodeEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.code.edit",
   description:
     "Propose edits to the open code-evaluator draft. This operation does not change " +
@@ -89,7 +89,7 @@ export const editCodeEvaluatorDraftOperation = defineUiOperation({
   inputSchema: editCodeEvaluatorDraftInputSchema,
   kind: "approval",
   requireSession: true,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
@@ -105,7 +105,7 @@ export const editCodeEvaluatorDraftOperation = defineUiOperation({
  * (which lives in `run_code_evaluator_draft.py`; the module uses `run` so
  * pytest does not collect it as a test).
  */
-export const testCodeEvaluatorDraftOperation = defineUiOperation({
+export const testCodeEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.code.test",
   description:
     "Run the open code-evaluator draft against its current test payload through " +
@@ -123,7 +123,7 @@ export const testCodeEvaluatorDraftOperation = defineUiOperation({
  * The catalog entry replacing the `submit_code_evaluator_draft` client-action
  * tool. The description moves here verbatim from the Python `DESCRIPTION`.
  */
-export const submitCodeEvaluatorDraftOperation = defineUiOperation({
+export const submitCodeEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.code.submit",
   description:
     "Persist the open code-evaluator draft through the form's validated save path — " +
@@ -141,7 +141,7 @@ export const submitCodeEvaluatorDraftOperation = defineUiOperation({
  * All code-evaluator draft catalog entries, in lifecycle order: open the
  * form, read the draft, propose edits, test-run, and submit.
  */
-export const codeEvaluatorDraftOperations: UiOperationDescriptor[] = [
+export const codeEvaluatorDraftOperations: UIOperationDescriptor[] = [
   openCodeEvaluatorFormOperation,
   readCodeEvaluatorDraftOperation,
   editCodeEvaluatorDraftOperation,

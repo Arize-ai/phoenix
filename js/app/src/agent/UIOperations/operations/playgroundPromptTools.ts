@@ -3,8 +3,8 @@ import {
   writePromptToolsInputSchema,
 } from "@phoenix/agent/tools/playgroundPromptTools/schemas";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /** Route hint shared by every playground operation. */
 const PLAYGROUND_ROUTE_HINT =
@@ -16,7 +16,7 @@ const PLAYGROUND_ROUTE_HINT =
  * moves here verbatim from the Python `DESCRIPTION` with tool names updated
  * to operation names.
  */
-export const readPromptToolsOperation = defineUiOperation({
+export const readPromptToolsOperation = defineUIOperation({
   name: "playground.prompt.tools.read",
   description:
     "Read the function/tool definitions attached to one playground prompt instance. " +
@@ -41,7 +41,7 @@ export const readPromptToolsOperation = defineUiOperation({
  * Writing tools is an approval operation: the browser stages the batch as a
  * pending change the user must accept or reject.
  */
-export const writePromptToolsOperation = defineUiOperation({
+export const writePromptToolsOperation = defineUIOperation({
   name: "playground.prompt.tools.write",
   description:
     "Create, update, and/or delete function/tool definitions on a playground prompt " +
@@ -85,7 +85,7 @@ export const writePromptToolsOperation = defineUiOperation({
   inputSchema: writePromptToolsInputSchema,
   kind: "approval",
   requireSession: true,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
@@ -96,7 +96,7 @@ export const writePromptToolsOperation = defineUiOperation({
 });
 
 /** All playground prompt-tools operations, for catalog assembly. */
-export const playgroundPromptToolsOperations: UiOperationDescriptor[] = [
+export const playgroundPromptToolsOperations: UIOperationDescriptor[] = [
   readPromptToolsOperation,
   writePromptToolsOperation,
 ];

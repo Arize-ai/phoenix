@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
 import type { ChatMessage, PlaygroundStore } from "@phoenix/store/playground";
 
 import type {
@@ -143,7 +143,7 @@ export type BindPendingPromptEditOptions = {
   /** Live playground store used to re-check revisions and apply accepted edits. */
   playgroundStore: PlaygroundStore;
   /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
   setPendingPromptEdit: (
     toolCallId: string,
     edit: PendingPromptEdit | null
@@ -154,7 +154,7 @@ export type BindPendingPromptInstanceRemovalOptions = {
   pendingRemoval: PendingPromptInstanceRemoval;
   playgroundStore: PlaygroundStore;
   /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
   setPendingPromptInstanceRemoval: (
     toolCallId: string,
     removal: PendingPromptInstanceRemoval | null

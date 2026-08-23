@@ -10,7 +10,7 @@ export const createDatasetAgentTool = defineTool<CreateDatasetInput>({
   name: CREATE_DATASET_TOOL_NAME,
   parseInput: parseCreateDatasetInput,
   invalidInputErrorText: `Invalid ${CREATE_DATASET_TOOL_NAME} input. Expected { name: string, description?: string, examples?: [{ input: object, output?: object, metadata?: object }] }.`,
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     await stageDatasetWrite({
       pending: {

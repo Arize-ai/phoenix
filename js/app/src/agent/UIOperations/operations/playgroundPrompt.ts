@@ -6,8 +6,8 @@ import {
   removePromptInstanceInputSchema,
 } from "@phoenix/agent/tools/playgroundPrompt/schemas";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /** Route hint shared by every playground operation. */
 const PLAYGROUND_ROUTE_HINT =
@@ -19,7 +19,7 @@ const PLAYGROUND_ROUTE_HINT =
  * moves here verbatim from the Python `DESCRIPTION` with tool names updated
  * to operation names.
  */
-export const readPromptOperation = defineUiOperation({
+export const readPromptOperation = defineUIOperation({
   name: "playground.prompt.read",
   description:
     "Read the current playground prompt for one instance. Use this before editing a " +
@@ -40,7 +40,7 @@ export const readPromptOperation = defineUiOperation({
 /**
  * The catalog entry replacing the `clone_prompt_instance` client-action tool.
  */
-export const clonePromptInstanceOperation = defineUiOperation({
+export const clonePromptInstanceOperation = defineUIOperation({
   name: "playground.instance.clone",
   description:
     "Clone an existing playground prompt instance into a new comparison instance. " +
@@ -63,7 +63,7 @@ export const clonePromptInstanceOperation = defineUiOperation({
 /**
  * The catalog entry replacing the `add_prompt_instance` client-action tool.
  */
-export const addPromptInstanceOperation = defineUiOperation({
+export const addPromptInstanceOperation = defineUIOperation({
   name: "playground.instance.add",
   description:
     "Add a fresh chat prompt instance to the mounted playground for comparison. " +
@@ -87,7 +87,7 @@ export const addPromptInstanceOperation = defineUiOperation({
  * tool. Removal is an approval operation: the handler stages a pending
  * removal that resolves only after the user accepts or rejects it.
  */
-export const removePromptInstanceOperation = defineUiOperation({
+export const removePromptInstanceOperation = defineUIOperation({
   name: "playground.instance.remove",
   description:
     "Remove one playground prompt instance. Use this only when the user asks to " +
@@ -99,7 +99,7 @@ export const removePromptInstanceOperation = defineUiOperation({
   inputSchema: removePromptInstanceInputSchema,
   kind: "approval",
   requireSession: true,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
@@ -114,7 +114,7 @@ export const removePromptInstanceOperation = defineUiOperation({
  * Editing is an approval operation: the browser renders an inline diff and
  * the promise resolves only after the user accepts or rejects it.
  */
-export const editPromptOperation = defineUiOperation({
+export const editPromptOperation = defineUIOperation({
   name: "playground.prompt.edit",
   description:
     "Propose edits to one playground prompt instance. This tool does not change the " +
@@ -137,7 +137,7 @@ export const editPromptOperation = defineUiOperation({
   inputSchema: editPromptInputSchema,
   kind: "approval",
   requireSession: true,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
@@ -148,7 +148,7 @@ export const editPromptOperation = defineUiOperation({
 });
 
 /** All playground prompt-instance operations, for catalog assembly. */
-export const playgroundPromptOperations: UiOperationDescriptor[] = [
+export const playgroundPromptOperations: UIOperationDescriptor[] = [
   readPromptOperation,
   clonePromptInstanceOperation,
   addPromptInstanceOperation,

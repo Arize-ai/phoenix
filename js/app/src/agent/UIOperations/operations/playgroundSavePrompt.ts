@@ -1,7 +1,7 @@
 import { savePromptInputSchema } from "@phoenix/agent/tools/playgroundSavePrompt/schemas";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /**
  * The catalog entry replacing the `save_prompt` client-action tool. Saving is
@@ -10,7 +10,7 @@ import { defineUiOperation } from "../types";
  * the existing tool module; the description moves here verbatim from the
  * Python `DESCRIPTION`.
  */
-export const savePromptOperation = defineUiOperation({
+export const savePromptOperation = defineUIOperation({
   name: "playground.prompt.save",
   description:
     "Save the active changes for one mounted playground prompt instance. " +
@@ -30,7 +30,7 @@ export const savePromptOperation = defineUiOperation({
   inputSchema: savePromptInputSchema,
   kind: "approval",
   requireSession: true,
-  uiBehavior: {
+  UIBehavior: {
     autoOpen: true,
     scrollIntoViewOnMount: true,
   },
@@ -41,6 +41,6 @@ export const savePromptOperation = defineUiOperation({
 });
 
 /** All save-prompt operations, for catalog assembly. */
-export const playgroundSavePromptOperations: UiOperationDescriptor[] = [
+export const playgroundSavePromptOperations: UIOperationDescriptor[] = [
   savePromptOperation,
 ];

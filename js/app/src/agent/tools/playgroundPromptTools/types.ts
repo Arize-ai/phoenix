@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
 import type {
   CanonicalToolChoice,
   PlaygroundStore,
@@ -179,7 +179,7 @@ export type BindPendingPromptToolWriteOptions = {
   /** Live playground store used to re-check the revision and apply the batch. */
   playgroundStore: PlaygroundStore;
   /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
   setPendingPromptToolWrite: (
     toolCallId: string,
     write: PendingPromptToolWrite | null

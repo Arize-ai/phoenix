@@ -9,14 +9,14 @@ import { createReadDatasetEvaluatorDefinitionClientAction } from "@phoenix/agent
 import { createOpenDatasetEvaluatorForEditClientAction } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
 import { createSetDatasetEvaluatorSelectionClientAction } from "@phoenix/agent/tools/datasetEvaluatorSelection";
 import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
+  registerUIOperation,
+  unregisterUIOperation,
+} from "@phoenix/agent/UIOperations/catalog";
 import {
   openDatasetEvaluatorForEditOperation,
   readDatasetEvaluatorDefinitionOperation,
   selectDatasetEvaluatorsOperation,
-} from "@phoenix/agent/uiOperations/operations/datasetEvaluators";
+} from "@phoenix/agent/UIOperations/operations/datasetEvaluators";
 import { Flex } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -178,7 +178,7 @@ export function PlaygroundDatasetSection({
   }, [datasetEvaluators, editingEvaluator]);
 
   useEffect(() => {
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: selectDatasetEvaluatorsOperation,
       handler: createSetDatasetEvaluatorSelectionClientAction({
@@ -186,7 +186,7 @@ export function PlaygroundDatasetSection({
         setSelectedDatasetEvaluatorIds,
       }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: openDatasetEvaluatorForEditOperation,
       handler: createOpenDatasetEvaluatorForEditClientAction({
@@ -196,7 +196,7 @@ export function PlaygroundDatasetSection({
         openEvaluatorForEdit: setEditingEvaluator,
       }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: readDatasetEvaluatorDefinitionOperation,
       handler: createReadDatasetEvaluatorDefinitionClientAction({
@@ -205,15 +205,15 @@ export function PlaygroundDatasetSection({
       }),
     });
     return () => {
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: selectDatasetEvaluatorsOperation.name,
       });
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: openDatasetEvaluatorForEditOperation.name,
       });
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: readDatasetEvaluatorDefinitionOperation.name,
       });

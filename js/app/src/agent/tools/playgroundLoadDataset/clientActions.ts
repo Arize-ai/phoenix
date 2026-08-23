@@ -1,6 +1,6 @@
 import type { SetURLSearchParams } from "react-router";
 
-import { parseUiOperationCallContext } from "@phoenix/agent/uiOperations/types";
+import { parseUIOperationCallContext } from "@phoenix/agent/UIOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
@@ -76,7 +76,7 @@ export function createLoadDatasetClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const callContext = parseUiOperationCallContext(context);
+    const callContext = parseUIOperationCallContext(context);
     if (!callContext) {
       return {
         ok: false,

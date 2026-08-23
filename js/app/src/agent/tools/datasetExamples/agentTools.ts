@@ -74,7 +74,7 @@ export const addDatasetExamplesAgentTool = defineTool<AddDatasetExamplesInput>({
   name: ADD_DATASET_EXAMPLES_TOOL_NAME,
   parseInput: parseAddDatasetExamplesInput,
   invalidInputErrorText: `Invalid ${ADD_DATASET_EXAMPLES_TOOL_NAME} input. Expected { examples: [{ input: object, output?: object, metadata?: object }] }.`,
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -106,7 +106,7 @@ export const patchDatasetExamplesAgentTool =
     name: PATCH_DATASET_EXAMPLES_TOOL_NAME,
     parseInput: parsePatchDatasetExamplesInput,
     invalidInputErrorText: `Invalid ${PATCH_DATASET_EXAMPLES_TOOL_NAME} input. Expected { patches: [{ exampleId, input?, output?, metadata? }], versionDescription? }, with each exampleId appearing at most once.`,
-    uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+    UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {
@@ -160,7 +160,7 @@ export const deleteDatasetExamplesAgentTool =
     name: DELETE_DATASET_EXAMPLES_TOOL_NAME,
     parseInput: parseDeleteDatasetExamplesInput,
     invalidInputErrorText: `Invalid ${DELETE_DATASET_EXAMPLES_TOOL_NAME} input. Expected { exampleIds: string[], versionDescription? }.`,
-    uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+    UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {

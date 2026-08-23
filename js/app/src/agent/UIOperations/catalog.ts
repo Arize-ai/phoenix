@@ -15,9 +15,9 @@ import { playgroundSettingsOperations } from "./operations/playgroundSettings";
 import { setTimeRangeOperation } from "./operations/setTimeRange";
 import { spansFilterOperations } from "./operations/spansFilter";
 import type {
-  UiOperationCallContext,
-  UiOperationDescriptor,
-  UiOperationHandler,
+  UIOperationCallContext,
+  UIOperationDescriptor,
+  UIOperationHandler,
 } from "./types";
 
 /**
@@ -25,7 +25,7 @@ import type {
  * currently mounted. Statically importable so `search_browser_actions` can describe
  * operations on other pages and tell the agent how to reach them.
  */
-const knownUiOperations: UiOperationDescriptor[] = [
+const knownUIOperations: UIOperationDescriptor[] = [
   setTimeRangeOperation,
   ...spansFilterOperations,
   ...playgroundPromptOperations,
@@ -53,23 +53,23 @@ const knownUiOperations: UiOperationDescriptor[] = [
  * The generic ties the handler's input type to the descriptor's schema, so a
  * mismatched pair is a compile error at the registration site.
  */
-export function registerUiOperation<TSchema extends z.ZodType>({
+export function registerUIOperation<TSchema extends z.ZodType>({
   agentStore,
   descriptor,
   handler,
 }: {
   agentStore: AgentStore;
-  descriptor: UiOperationDescriptor<TSchema>;
-  handler: UiOperationHandler<z.infer<TSchema>>;
+  descriptor: UIOperationDescriptor<TSchema>;
+  handler: UIOperationHandler<z.infer<TSchema>>;
 }): void {
   // The input type is erased at the store boundary; dispatch re-establishes
   // it by validating against the descriptor's schema before invoking.
   const action: AgentClientAction = (input, context) =>
-    handler(input as z.infer<TSchema>, context as UiOperationCallContext);
+    handler(input as z.infer<TSchema>, context as UIOperationCallContext);
   agentStore.getState().registerClientAction(descriptor.name, action);
 }
 
-export function unregisterUiOperation({
+export function unregisterUIOperation({
   agentStore,
   name,
 }: {
@@ -79,20 +79,20 @@ export function unregisterUiOperation({
   agentStore.getState().unregisterClientAction(name);
 }
 
-export function getUiOperationDescriptor(
+export function getUIOperationDescriptor(
   name: string
-): UiOperationDescriptor | undefined {
-  return knownUiOperations.find((operation) => operation.name === name);
+): UIOperationDescriptor | undefined {
+  return knownUIOperations.find((operation) => operation.name === name);
 }
 
-export function getMountedUiOperationHandler(
+export function getMountedUIOperationHandler(
   agentStore: AgentStore,
   name: string
 ): AgentClientAction | undefined {
   return agentStore.getState().registeredClientActions[name];
 }
 
-export function isUiOperationMounted(
+export function isUIOperationMounted(
   agentStore: AgentStore,
   name: string
 ): boolean {
@@ -100,8 +100,8 @@ export function isUiOperationMounted(
 }
 
 /** One `search_browser_actions` result: the descriptor plus current availability. */
-export type UiOperationSearchResult = {
-  descriptor: UiOperationDescriptor;
+export type UIOperationSearchResult = {
+  descriptor: UIOperationDescriptor;
   isMounted: boolean;
 };
 
@@ -125,15 +125,15 @@ export type UiOperationSearchResult = {
  * @param params.query - free-text ranking hint; empty or whitespace ranks by
  * mounted-ness alone
  */
-export function searchUiOperations({
+export function searchUIOperations({
   agentStore,
   query,
 }: {
   agentStore: AgentStore;
   query: string;
-}): UiOperationSearchResult[] {
+}): UIOperationSearchResult[] {
   const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-  return knownUiOperations
+  return knownUIOperations
     .map((descriptor) => {
       const haystack =
         `${descriptor.name} ${descriptor.description}`.toLowerCase();
@@ -143,7 +143,7 @@ export function searchUiOperations({
       return {
         descriptor,
         matchCount,
-        isMounted: isUiOperationMounted(agentStore, descriptor.name),
+        isMounted: isUIOperationMounted(agentStore, descriptor.name),
       };
     })
     .sort(
@@ -188,10 +188,10 @@ const MAX_OPERATION_NAME_SUGGESTIONS = 5;
  * edit from the `prompt.read` suffix of `playground.prompt.read` even
  * though it is far from the full name.
  */
-export function suggestUiOperationNames(unknownName: string): string[] {
+export function suggestUIOperationNames(unknownName: string): string[] {
   const unknown = unknownName.toLowerCase();
   const unknownSegmentCount = unknown.split(".").filter(Boolean).length;
-  return knownUiOperations
+  return knownUIOperations
     .map(({ name }) => {
       const candidate = name.toLowerCase();
       const suffix = candidate.split(".").slice(-unknownSegmentCount).join(".");
@@ -281,10 +281,10 @@ function renderInlineType(node: JsonSchemaNode | undefined): string {
  * `search_browser_actions` output format. Signatures cost far fewer model tokens than raw
  * JSON schema and read as the exact API the model writes scripts against.
  */
-export function renderUiOperationSignature({
+export function renderUIOperationSignature({
   descriptor,
   isMounted,
-}: UiOperationSearchResult): string {
+}: UIOperationSearchResult): string {
   const availability = isMounted
     ? "available on the current page"
     : `not on this page — requires ${descriptor.availability?.routeHint ?? "a different page"}`;
@@ -298,7 +298,7 @@ export function renderUiOperationSignature({
     ` * ${descriptor.description}`,
     ` * kind: ${descriptor.kind}; ${availability}.${approvalNote}`,
     " */",
-    `ui.${descriptor.name}(input: ${inputType}): Promise<UiResult>;`,
+    `ui.${descriptor.name}(input: ${inputType}): Promise<UIResult>;`,
   ].join("\n");
 }
 
@@ -308,19 +308,19 @@ export function renderUiOperationSignature({
  * search again with a reworded query — every call returns the same
  * operations, only re-ranked.
  */
-export function renderUiOperationCatalog(
-  results: UiOperationSearchResult[]
+export function renderUIOperationCatalog(
+  results: UIOperationSearchResult[]
 ): string {
   if (results.length === 0) {
     return "The UI operation catalog is empty.";
   }
-  const signatures = results.map(renderUiOperationSignature).join("\n\n");
+  const signatures = results.map(renderUIOperationSignature).join("\n\n");
   return [
     `// Complete catalog: all ${results.length} UI operations, best query matches first.\n` +
       "// Further search_browser_actions calls return these same operations re-ranked — reuse\n" +
       "// this catalog instead of searching again. Only per-operation availability\n" +
       '// ("available on the current page") changes, after navigation.',
-    "// UiResult = { ok: true; output?: unknown } | { ok: false; error: string }",
+    "// UIResult = { ok: true; output?: unknown } | { ok: false; error: string }",
     signatures,
   ].join("\n\n");
 }

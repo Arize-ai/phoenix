@@ -4,10 +4,10 @@ import invariant from "tiny-invariant";
 
 import { createTestLlmEvaluatorDraftClientAction } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
-import { testLlmEvaluatorDraftOperation } from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
+  registerUIOperation,
+  unregisterUIOperation,
+} from "@phoenix/agent/UIOperations/catalog";
+import { testLlmEvaluatorDraftOperation } from "@phoenix/agent/UIOperations/operations/llmEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -269,7 +269,7 @@ export const EvaluatorOutputPreview = () => {
     if (!isLlmEvaluator) {
       return undefined;
     }
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: testLlmEvaluatorDraftOperation,
       handler: createTestLlmEvaluatorDraftClientAction({
@@ -278,7 +278,7 @@ export const EvaluatorOutputPreview = () => {
       }),
     });
     return () => {
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: testLlmEvaluatorDraftOperation.name,
       });

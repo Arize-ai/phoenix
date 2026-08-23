@@ -1,21 +1,21 @@
-import { getUiOperationDescriptor } from "../catalog";
-import type { UiOperationResult } from "../types";
+import { getUIOperationDescriptor } from "../catalog";
+import type { UIOperationResult } from "../types";
 import type {
-  UiScriptMessageToMain,
-  UiScriptMessageToWorker,
+  UIScriptMessageToMain,
+  UIScriptMessageToWorker,
 } from "./protocol";
 
 /**
  * Executes one `ui.*` call from a running script. The `execute_browser_action` tool
- * builds this by binding `dispatchUiOperationCall` to its tool-call context
+ * builds this by binding `dispatchUIOperationCall` to its tool-call context
  * (agent store, session, capabilities).
  */
-export type UiScriptDispatchCall = (call: {
+export type UIScriptDispatchCall = (call: {
   operationName: string;
   input: unknown;
   /** Monotonic 1-based sequence of this call within the script run. */
   callSequence: number;
-}) => Promise<UiOperationResult>;
+}) => Promise<UIOperationResult>;
 
 /** Wall-clock budget for one script, excluding time spent awaiting approvals. */
 export const DEFAULT_UI_SCRIPT_TIMEOUT_MS = 30_000;
@@ -23,7 +23,7 @@ export const DEFAULT_UI_SCRIPT_TIMEOUT_MS = 30_000;
 /** Maximum `ui.*` calls one script may make. */
 export const DEFAULT_MAX_UI_CALLS_PER_SCRIPT = 50;
 
-export type UiScriptRunResult = {
+export type UIScriptRunResult = {
   /** Number of `ui.*` calls the script made (successful or not). */
   callCount: number;
   /** Messages the script emitted via `log(...)`, in order. */
@@ -34,8 +34,8 @@ export type UiScriptRunResult = {
  * The worker surface the bridge needs — satisfied by a real `Worker` and
  * trivially fakeable in tests without spawning threads.
  */
-export type UiScriptWorkerLike = {
-  postMessage(message: UiScriptMessageToWorker): void;
+export type UIScriptWorkerLike = {
+  postMessage(message: UIScriptMessageToWorker): void;
   addEventListener(
     type: "message",
     listener: (event: MessageEvent) => void
@@ -49,8 +49,8 @@ export type UiScriptWorkerLike = {
 };
 
 /** Spawn the real module worker (Vite bundles it via the URL constructor). */
-export function createUiScriptWorker(): UiScriptWorkerLike {
-  const workerUrl = new URL("./uiScriptWorker.ts", import.meta.url);
+export function createUIScriptWorker(): UIScriptWorkerLike {
+  const workerUrl = new URL("./UIScriptWorker.ts", import.meta.url);
   if (workerUrl.origin === globalThis.location.origin) {
     return new Worker(workerUrl, { type: "module" });
   }
@@ -96,21 +96,21 @@ export function createUiScriptWorker(): UiScriptWorkerLike {
  *   (chat interrupt / session teardown); the worker is terminated and the
  *   run resolves `ok: false`
  */
-export function runUiScript({
+export function runUIScript({
   script,
   dispatchCall,
-  createWorker = createUiScriptWorker,
+  createWorker = createUIScriptWorker,
   timeoutMs = DEFAULT_UI_SCRIPT_TIMEOUT_MS,
   maxCalls = DEFAULT_MAX_UI_CALLS_PER_SCRIPT,
   registerAbort,
 }: {
   script: string;
-  dispatchCall: UiScriptDispatchCall;
-  createWorker?: () => UiScriptWorkerLike;
+  dispatchCall: UIScriptDispatchCall;
+  createWorker?: () => UIScriptWorkerLike;
   timeoutMs?: number;
   maxCalls?: number;
   registerAbort?: (abort: (reason: string) => void) => void;
-}): Promise<UiScriptRunResult> {
+}): Promise<UIScriptRunResult> {
   return new Promise((resolveRun) => {
     const logs: string[] = [];
     let callCount = 0;
@@ -134,7 +134,7 @@ export function runUiScript({
       }
     };
 
-    const settle = (result: UiScriptRunResult) => {
+    const settle = (result: UIScriptRunResult) => {
       if (isSettled) {
         return;
       }
@@ -202,7 +202,7 @@ export function runUiScript({
       // Approval operations block on the user's accept/reject decision, and
       // long-running operations await external completion (e.g. a playground
       // run); neither wait must burn the script's execution budget.
-      const descriptor = getUiOperationDescriptor(message.operationName);
+      const descriptor = getUIOperationDescriptor(message.operationName);
       const pausesTimerWhileInFlight =
         descriptor?.kind === "approval" || descriptor?.longRunning === true;
       if (pausesTimerWhileInFlight) {
@@ -226,7 +226,7 @@ export function runUiScript({
     };
 
     worker.addEventListener("message", (event: MessageEvent) => {
-      const message = event.data as UiScriptMessageToMain;
+      const message = event.data as UIScriptMessageToMain;
       switch (message.type) {
         case "log":
           logs.push(message.message);

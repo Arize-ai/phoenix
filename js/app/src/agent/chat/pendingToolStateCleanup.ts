@@ -3,9 +3,9 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import {
-  abortActiveUiScriptRun,
+  abortActiveUIScriptRun,
   EXECUTE_BROWSER_ACTION_TOOL_NAME,
-} from "@phoenix/agent/uiOperations/executeUiAgentTool";
+} from "@phoenix/agent/UIOperations/executeUIAgentTool";
 import type { AgentState } from "@phoenix/store/agentStore";
 
 type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
@@ -13,7 +13,7 @@ type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
 /**
  * The approval pending-state maps that `execute_browser_action` script calls can write.
  * Entries are keyed by the inner operation call id
- * (`<executeUiToolCallId>:<sequence>`), so cleanup for an `execute_browser_action` tool
+ * (`<executeUIToolCallId>:<sequence>`), so cleanup for an `execute_browser_action` tool
  * call clears every entry whose key carries that tool call's prefix.
  */
 const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
@@ -57,11 +57,11 @@ const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
  * aborts the script run (terminating its worker) and clears any pending
  * approval entries its inner operation calls staged.
  */
-function cleanupExecuteUiToolState(
+function cleanupExecuteUIToolState(
   state: AgentState,
   toolCallId: string
 ): void {
-  abortActiveUiScriptRun({
+  abortActiveUIScriptRun({
     toolCallId,
     reason: "The script run was interrupted.",
   });
@@ -99,7 +99,7 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
       }
     }
   },
-  [EXECUTE_BROWSER_ACTION_TOOL_NAME]: cleanupExecuteUiToolState,
+  [EXECUTE_BROWSER_ACTION_TOOL_NAME]: cleanupExecuteUIToolState,
 };
 
 /**

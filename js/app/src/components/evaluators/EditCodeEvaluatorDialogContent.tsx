@@ -29,14 +29,14 @@ import {
   toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
+  registerUIOperation,
+  unregisterUIOperation,
+} from "@phoenix/agent/UIOperations/catalog";
 import {
   editCodeEvaluatorDraftOperation,
   readCodeEvaluatorDraftOperation,
   submitCodeEvaluatorDraftOperation,
-} from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
+} from "@phoenix/agent/UIOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -402,12 +402,12 @@ export const EditCodeEvaluatorDialogContent = ({
 
     const { setPendingCodeEvaluatorEdit } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: readCodeEvaluatorDraftOperation,
       handler: createReadCodeEvaluatorDraftClientAction({ getDraftHost }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: editCodeEvaluatorDraftOperation,
       handler: createEditCodeEvaluatorDraftClientAction({
@@ -417,7 +417,7 @@ export const EditCodeEvaluatorDialogContent = ({
           agentStore.getState().permissions.edits === "bypass",
       }),
     });
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: submitCodeEvaluatorDraftOperation,
       handler: createSubmitCodeEvaluatorDraftClientAction({
@@ -429,15 +429,15 @@ export const EditCodeEvaluatorDialogContent = ({
     return () => {
       draftHostRef.current = null;
       handleSubmitRef.current = null;
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: readCodeEvaluatorDraftOperation.name,
       });
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: editCodeEvaluatorDraftOperation.name,
       });
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: submitCodeEvaluatorDraftOperation.name,
       });

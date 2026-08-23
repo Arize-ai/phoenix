@@ -20,7 +20,7 @@ export type {
   EvaluatorSubmitToolOutput,
 };
 
-import type { UiOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
 
 import type {
   editCodeEvaluatorDraftInputSchema,
@@ -140,7 +140,7 @@ export type BindPendingCodeEvaluatorEditOptions = {
   pendingEdit: PendingCodeEvaluatorEdit;
   draftHost: CodeEvaluatorDraftHost;
   /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
-  emitResult: UiOperationResultEmitter;
+  emitResult: UIOperationResultEmitter;
   setPendingCodeEvaluatorEdit: (
     toolCallId: string,
     edit: PendingCodeEvaluatorEdit | null

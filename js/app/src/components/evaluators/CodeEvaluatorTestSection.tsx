@@ -3,10 +3,10 @@ import { graphql, useMutation } from "react-relay";
 
 import { createTestCodeEvaluatorDraftClientAction } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
-  registerUiOperation,
-  unregisterUiOperation,
-} from "@phoenix/agent/uiOperations/catalog";
-import { testCodeEvaluatorDraftOperation } from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
+  registerUIOperation,
+  unregisterUIOperation,
+} from "@phoenix/agent/UIOperations/catalog";
+import { testCodeEvaluatorDraftOperation } from "@phoenix/agent/UIOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -288,7 +288,7 @@ export const CodeEvaluatorTestSection = ({
 
   const agentStore = useAgentStore();
   useEffect(() => {
-    registerUiOperation({
+    registerUIOperation({
       agentStore,
       descriptor: testCodeEvaluatorDraftOperation,
       handler: createTestCodeEvaluatorDraftClientAction({
@@ -297,7 +297,7 @@ export const CodeEvaluatorTestSection = ({
       }),
     });
     return () => {
-      unregisterUiOperation({
+      unregisterUIOperation({
         agentStore,
         name: testCodeEvaluatorDraftOperation.name,
       });

@@ -16,7 +16,7 @@ export const patchDatasetAgentTool = defineTool<PatchDatasetInput>({
   name: PATCH_DATASET_TOOL_NAME,
   parseInput: parsePatchDatasetInput,
   invalidInputErrorText: `Invalid ${PATCH_DATASET_TOOL_NAME} input. Expected at least one of { name?: string, description?: string, metadata?: object }.`,
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -46,7 +46,7 @@ export const deleteDatasetAgentTool = defineTool<DeleteDatasetInput>({
   name: DELETE_DATASET_TOOL_NAME,
   parseInput: parseDeleteDatasetInput,
   invalidInputErrorText: `Invalid ${DELETE_DATASET_TOOL_NAME} input. Expected {}.`,
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
   execute: async ({ toolCall, addToolOutput, agentStore }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {

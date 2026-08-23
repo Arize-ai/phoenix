@@ -90,7 +90,7 @@ export function createAgentToolDispatcher(
 
   return {
     getAgentToolUIBehavior: (toolName) =>
-      definitionsByName.get(toolName)?.uiBehavior,
+      definitionsByName.get(toolName)?.UIBehavior,
 
     isRehydratableAgentTool: (toolName) =>
       definitionsByName.get(toolName)?.rehydratable === true,

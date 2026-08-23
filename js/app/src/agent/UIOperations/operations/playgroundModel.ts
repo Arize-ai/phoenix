@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import { listPlaygroundModelTargetsInputSchema } from "@phoenix/agent/tools/playgroundModel/schemas";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /** Route hint shared by every playground operation. */
 const PLAYGROUND_ROUTE_HINT =
@@ -77,7 +77,7 @@ export type SetPlaygroundModelOperationInput = z.infer<
 /**
  * The catalog entry replacing the `set_playground_model` client-action tool.
  */
-export const setPlaygroundModelOperation = defineUiOperation({
+export const setPlaygroundModelOperation = defineUIOperation({
   name: "playground.model.set",
   description:
     "Switch the selected model for one mounted playground instance. This tool " +
@@ -99,7 +99,7 @@ export const setPlaygroundModelOperation = defineUiOperation({
  * client-action tool. The input schema is reused from the existing tool
  * module.
  */
-export const listPlaygroundModelTargetsOperation = defineUiOperation({
+export const listPlaygroundModelTargetsOperation = defineUIOperation({
   name: "playground.model.list",
   description:
     "List the model targets currently available in the mounted playground. Use this " +
@@ -115,7 +115,7 @@ export const listPlaygroundModelTargetsOperation = defineUiOperation({
 });
 
 /** All playground model operations, for catalog assembly. */
-export const playgroundModelOperations: UiOperationDescriptor[] = [
+export const playgroundModelOperations: UIOperationDescriptor[] = [
   setPlaygroundModelOperation,
   listPlaygroundModelTargetsOperation,
 ];

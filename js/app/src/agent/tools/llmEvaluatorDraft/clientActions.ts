@@ -1,6 +1,6 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
-import { parseUiOperationCallContext } from "@phoenix/agent/uiOperations/types";
+import { parseUIOperationCallContext } from "@phoenix/agent/UIOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import { SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
@@ -56,7 +56,7 @@ export function createEditLlmEvaluatorDraftClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const callContext = parseUiOperationCallContext(context);
+    const callContext = parseUIOperationCallContext(context);
     if (!callContext) {
       return {
         ok: false,

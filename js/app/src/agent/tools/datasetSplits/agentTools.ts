@@ -103,7 +103,7 @@ export const createDatasetSplitAgentTool = defineTool<CreateDatasetSplitInput>({
   name: CREATE_DATASET_SPLIT_TOOL_NAME,
   parseInput: parseCreateDatasetSplitInput,
   invalidInputErrorText: `Invalid ${CREATE_DATASET_SPLIT_TOOL_NAME} input. Expected { name: string, description?: string, color?: string, exampleIds?: string[] }.`,
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     await stageDatasetWrite({
       pending: {
@@ -129,7 +129,7 @@ export const setDatasetExampleSplitsAgentTool =
     name: SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME,
     parseInput: parseSetDatasetExampleSplitsInput,
     invalidInputErrorText: `Invalid ${SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME} input. Expected { exampleIds: string[], splitNames: string[] }.`,
-    uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+    UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {
@@ -185,7 +185,7 @@ export const patchDatasetSplitAgentTool = defineTool<PatchDatasetSplitInput>({
   name: PATCH_DATASET_SPLIT_TOOL_NAME,
   parseInput: parsePatchDatasetSplitInput,
   invalidInputErrorText: `Invalid ${PATCH_DATASET_SPLIT_TOOL_NAME} input. Expected { splitName: string } plus at least one of { name?, description?, color? }.`,
-  uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+  UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
     if (!datasetContext) {
@@ -216,7 +216,7 @@ export const deleteDatasetSplitsAgentTool =
     name: DELETE_DATASET_SPLITS_TOOL_NAME,
     parseInput: parseDeleteDatasetSplitsInput,
     invalidInputErrorText: `Invalid ${DELETE_DATASET_SPLITS_TOOL_NAME} input. Expected { splitNames: string[] }.`,
-    uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
+    UIBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");
       if (!datasetContext) {

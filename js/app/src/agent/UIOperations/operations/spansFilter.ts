@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { UiOperationDescriptor } from "../types";
-import { defineUiOperation } from "../types";
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
 
 /**
  * Input schema for `spansFilter.set`. Ported from the hand-rolled
@@ -29,7 +29,7 @@ export type SetSpansFilterOperationInput = z.infer<
  * description (including the full span filter DSL reference) moves here
  * verbatim from the Python `DESCRIPTION`.
  */
-export const setSpansFilterOperation = defineUiOperation({
+export const setSpansFilterOperation = defineUIOperation({
   name: "spansFilter.set",
   description:
     "Set the spans table filter. The filter is applied declaratively as a " +
@@ -108,6 +108,6 @@ export const setSpansFilterOperation = defineUiOperation({
 });
 
 /** All spans-filter operations, for catalog assembly. */
-export const spansFilterOperations: UiOperationDescriptor[] = [
+export const spansFilterOperations: UIOperationDescriptor[] = [
   setSpansFilterOperation,
 ];

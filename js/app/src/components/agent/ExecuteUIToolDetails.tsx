@@ -21,7 +21,7 @@ import {
   promptToolsSnapshotToText,
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
-import { parseExecuteUiRunOutput } from "@phoenix/agent/uiOperations/executeUiAgentTool";
+import { parseExecuteUIRunOutput } from "@phoenix/agent/UIOperations/executeUIAgentTool";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import {
@@ -52,7 +52,7 @@ type ScriptChildApproval = {
   reject?: () => Promise<void>;
 };
 
-function parseExecuteUiScript(input: unknown): string | null {
+function parseExecuteUIScript(input: unknown): string | null {
   if (typeof input !== "object" || input === null) {
     return null;
   }
@@ -60,7 +60,7 @@ function parseExecuteUiScript(input: unknown): string | null {
   return typeof candidate.script === "string" ? candidate.script : null;
 }
 
-function parseExecuteUiSummary(input: unknown): string | null {
+function parseExecuteUISummary(input: unknown): string | null {
   if (typeof input !== "object" || input === null) {
     return null;
   }
@@ -77,12 +77,12 @@ function parseExecuteUiSummary(input: unknown): string | null {
  * streaming in; falls back to the script's first non-empty line when the
  * summary is missing.
  */
-export function getExecuteUiToolPreview(part: ToolInvocationPart): string {
-  const summary = parseExecuteUiSummary(part.input);
+export function getExecuteUIToolPreview(part: ToolInvocationPart): string {
+  const summary = parseExecuteUISummary(part.input);
   if (summary) {
     return summary;
   }
-  const script = parseExecuteUiScript(part.input);
+  const script = parseExecuteUIScript(part.input);
   if (!script) {
     return "";
   }
@@ -93,7 +93,7 @@ export function getExecuteUiToolPreview(part: ToolInvocationPart): string {
   return firstLine ?? "";
 }
 
-export function formatExecuteUiState(part: ToolInvocationPart): string {
+export function formatExecuteUIState(part: ToolInvocationPart): string {
   if (part.state === "input-available") {
     return "Running script";
   }
@@ -306,8 +306,8 @@ function useScriptChildApprovals(toolCallId: string): ScriptChildApproval[] {
  * to raw text when the output doesn't parse as a run output (e.g. parts
  * persisted by an older format).
  */
-function ExecuteUiRunResult({ output }: { output: string }) {
-  const run = parseExecuteUiRunOutput(output);
+function ExecuteUIRunResult({ output }: { output: string }) {
+  const run = parseExecuteUIRunOutput(output);
   if (run == null) {
     return (
       <>
@@ -342,8 +342,8 @@ function ExecuteUiRunResult({ output }: { output: string }) {
  * tool writes, evaluator draft edits) render as unified diffs; the rest fall
  * back to a text summary.
  */
-export function ExecuteUiToolDetails({ part }: { part: ToolInvocationPart }) {
-  const script = parseExecuteUiScript(part.input);
+export function ExecuteUIToolDetails({ part }: { part: ToolInvocationPart }) {
+  const script = parseExecuteUIScript(part.input);
   const childApprovals = useScriptChildApprovals(part.toolCallId);
 
   return (
@@ -373,7 +373,7 @@ export function ExecuteUiToolDetails({ part }: { part: ToolInvocationPart }) {
         />
       ))}
       {part.state === "output-available" ? (
-        <ExecuteUiRunResult output={stringifyToolValue(part.output)} />
+        <ExecuteUIRunResult output={stringifyToolValue(part.output)} />
       ) : null}
       {part.state === "output-error" ? (
         <>

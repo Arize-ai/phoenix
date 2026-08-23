@@ -4,14 +4,14 @@ import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {
-  getMountedUiOperationHandler,
-  getUiOperationDescriptor,
-  suggestUiOperationNames,
+  getMountedUIOperationHandler,
+  getUIOperationDescriptor,
+  suggestUIOperationNames,
 } from "./catalog";
-import type { UiOperationCallContext, UiOperationResult } from "./types";
+import type { UIOperationCallContext, UIOperationResult } from "./types";
 
 /** Everything dispatch needs from the enclosing `execute_browser_action` tool call. */
-export type UiOperationDispatchContext = {
+export type UIOperationDispatchContext = {
   agentStore: AgentStore;
   sessionId: string | null;
   capabilities: AgentCapabilities;
@@ -30,7 +30,7 @@ export type UiOperationDispatchContext = {
  * throws), so the calling script can branch on errors and the model can
  * recover — e.g. by calling `search_browser_actions` after an unknown-operation error.
  */
-export async function dispatchUiOperationCall({
+export async function dispatchUIOperationCall({
   operationName,
   input,
   callId,
@@ -42,7 +42,7 @@ export async function dispatchUiOperationCall({
   operationName: string;
   input: unknown;
   /**
-   * Unique id for this invocation, `<executeUiToolCallId>:<sequence>`.
+   * Unique id for this invocation, `<executeUIToolCallId>:<sequence>`.
    * Approval handlers key their pending-approval entries by it, and
    * interrupt cleanup cancels pending entries by tool-call-id prefix.
    */
@@ -53,10 +53,10 @@ export async function dispatchUiOperationCall({
    * user-facing approval is about to appear.
    */
   hostToolCallId: string;
-} & UiOperationDispatchContext): Promise<UiOperationResult> {
-  const descriptor = getUiOperationDescriptor(operationName);
+} & UIOperationDispatchContext): Promise<UIOperationResult> {
+  const descriptor = getUIOperationDescriptor(operationName);
   if (descriptor == null) {
-    const suggestions = suggestUiOperationNames(operationName).join(", ");
+    const suggestions = suggestUIOperationNames(operationName).join(", ");
     return {
       ok: false,
       error:
@@ -82,7 +82,7 @@ export async function dispatchUiOperationCall({
     };
   }
 
-  const handler = getMountedUiOperationHandler(agentStore, operationName);
+  const handler = getMountedUIOperationHandler(agentStore, operationName);
   if (handler == null) {
     const routeHint = descriptor.availability?.routeHint;
     return {
@@ -101,7 +101,7 @@ export async function dispatchUiOperationCall({
     };
   }
 
-  const context: UiOperationCallContext = { callId, sessionId };
+  const context: UIOperationCallContext = { callId, sessionId };
 
   // A user-facing approval card is about to be staged inside the host
   // execute_browser_action card: request it open so Accept/Reject is never hidden behind

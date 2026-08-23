@@ -50,8 +50,8 @@ import {
   SET_SPANS_FILTER_TOOL_NAME,
 } from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
-import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
-import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/uiOperations/searchUiAgentTool";
+import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/UIOperations/executeUIAgentTool";
+import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/UIOperations/searchUIAgentTool";
 import { Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
@@ -111,10 +111,10 @@ import {
   getEditPromptToolPreview,
 } from "./EditPromptToolDetails";
 import {
-  ExecuteUiToolDetails,
-  formatExecuteUiState,
-  getExecuteUiToolPreview,
-} from "./ExecuteUiToolDetails";
+  ExecuteUIToolDetails,
+  formatExecuteUIState,
+  getExecuteUIToolPreview,
+} from "./ExecuteUIToolDetails";
 import {
   formatLoadDatasetState,
   getLoadDatasetStatusVariant,
@@ -151,9 +151,9 @@ import {
 } from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
 import {
-  getSearchUiToolPreview,
-  SearchUiToolDetails,
-} from "./SearchUiToolDetails";
+  getSearchUIToolPreview,
+  SearchUIToolDetails,
+} from "./SearchUIToolDetails";
 import { ToolApprovalRequest } from "./ToolApprovalRequest";
 import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import { getToolIconKey } from "./toolIconConfig";
@@ -627,7 +627,7 @@ function ToolInvocationPartDetails({
   defaultOpen?: boolean;
 }) {
   const toolName = getToolName(part);
-  const uiBehavior = getAgentToolUIBehavior(toolName);
+  const UIBehavior = getAgentToolUIBehavior(toolName);
   const hasAutoOpenedRef = useRef(false);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
@@ -653,7 +653,7 @@ function ToolInvocationPartDetails({
       return;
     }
     hasAutoOpenedRef.current = true;
-    if (uiBehavior?.scrollIntoViewOnMount !== true) {
+    if (UIBehavior?.scrollIntoViewOnMount !== true) {
       return;
     }
     requestAnimationFrame(() => {
@@ -661,7 +661,7 @@ function ToolInvocationPartDetails({
         scrollElementIntoViewWithinScrollParent(detailsRef.current);
       }
     });
-  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount, detailsRef]);
+  }, [shouldAutoOpen, UIBehavior?.scrollIntoViewOnMount, detailsRef]);
 
   const isQuiet = variant === "quiet";
   const showQuietSummary = isQuiet && !isRenderedOpen;
@@ -735,8 +735,8 @@ function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
     return true;
   }
   const toolName = getToolName(part);
-  const uiBehavior = getAgentToolUIBehavior(toolName);
-  if (uiBehavior?.autoOpen !== true) {
+  const UIBehavior = getAgentToolUIBehavior(toolName);
+  if (UIBehavior?.autoOpen !== true) {
     return false;
   }
   // Stay collapsed while arguments are still streaming in. Auto-open tools
@@ -1092,17 +1092,17 @@ function getToolPresentation(
   switch (toolName) {
     case EXECUTE_BROWSER_ACTION_TOOL_NAME:
       return {
-        preview: getExecuteUiToolPreview(part),
-        stateLabel: formatExecuteUiState(part),
+        preview: getExecuteUIToolPreview(part),
+        stateLabel: formatExecuteUIState(part),
         statusVariant,
-        details: <ExecuteUiToolDetails part={part} />,
+        details: <ExecuteUIToolDetails part={part} />,
       };
     case SEARCH_BROWSER_ACTIONS_TOOL_NAME:
       return {
-        preview: getSearchUiToolPreview(part),
+        preview: getSearchUIToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        details: <SearchUiToolDetails part={part} />,
+        details: <SearchUIToolDetails part={part} />,
       };
     case "bash":
       return {
