@@ -133,7 +133,7 @@ catalog architecture gives the missing piece an obvious shape: **one more
   at the app root (it only needs `useNavigate`), so it is available from any
   page — exactly right, since its job is to be reachable when nothing else is.
 - **Approval mechanics are the existing ones.** The handler stages a pending
-  entry keyed `<executeUiToolCallId>:<sequence>`, returns a promise that stays
+  entry keyed `<executeUIToolCallId>:<sequence>`, returns a promise that stays
   pending, and `emitResult` resolves it on accept/reject. Because approvals
   pause the script's wall-clock budget, waiting on the user costs nothing.
   The pending map joins `EXECUTE_UI_PENDING_MAP_CLEANERS` so interrupt/rewind
