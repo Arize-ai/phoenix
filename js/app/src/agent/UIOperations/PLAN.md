@@ -116,14 +116,14 @@ link, but the user does the navigating. And dispatch's not-mounted error is a
 deliberate dead end: "requires the Playground page", with no way to act on it
 except asking the user.
 
-Now that `search_ui` discovers operations on pages that are not open, the
+Now that `search_browser_actions` discovers operations on pages that are not open, the
 catalog architecture gives the missing piece an obvious shape: **one more
 `approval`-kind operation**, not a new tool.
 
 ### Design
 
 - **Descriptor.** `navigation.goTo` with `kind: "approval"` and input
-  `{ path, reason }`. The `reason` field plays the same role as `execute_ui`'s
+  `{ path, reason }`. The `reason` field plays the same role as `execute_browser_action`'s
   `summary` argument: user-facing intent as a first-class schema field,
   rendered in the approval card — "PXI wants to take you to **Playground** —
   _'so I can stage the prompt edit you asked for'_". `path` is validated
@@ -166,7 +166,7 @@ catalog architecture gives the missing piece an obvious shape: **one more
 4. **Close the error loop.** The real payoff is changing dispatch's
    not-mounted error from a dead end to a recovery instruction: "…requires
    the Playground page. Use `ui.navigation.goTo` to ask the user to go
-   there." The same self-healing pattern `search_ui` ⇄ `execute_ui` already
+   there." The same self-healing pattern `search_browser_actions` ⇄ `execute_browser_action` already
    use, extended one more hop.
 
 ## Known follow-ups
