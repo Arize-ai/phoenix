@@ -35,7 +35,7 @@ const workerScope = globalThis as unknown as UIScriptWorkerScope;
  * shadowed. Captured at load — before any script runs — so forged
  * `done` / `log` / `call` frames cannot ride the real channel.
  */
-const postMessageToMain: UiScriptWorkerScope["postMessage"] =
+const postMessageToMain: UIScriptWorkerScope["postMessage"] =
   workerScope.postMessage.bind(workerScope);
 
 /**

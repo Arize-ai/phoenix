@@ -1,6 +1,6 @@
-"""Content-Security-Policy for the execute_ui script worker asset.
+"""Content-Security-Policy for the execute_browser_action script worker asset.
 
-execute_ui runs LLM-written JavaScript in a same-origin web worker and relies
+execute_browser_action runs LLM-written JavaScript in a same-origin web worker and relies
 on hygiene inside the worker (removing network-capable globals, rejecting
 dynamic ``import()`` in source) to keep the audited ``ui.*`` bridge the only
 way out. Source-level hygiene can never be complete — ``eval("import(...)")``
@@ -16,7 +16,7 @@ stamps on the worker asset:
   outright, so even a recovered global has no network;
 - ``worker-src 'none'`` bars nested workers.
 
-Only the production asset (``assets/uiScriptWorker-<hash>.js``, emitted by the
+Only the production asset (``assets/UIScriptWorker-<hash>.js``, emitted by the
 Vite build) is matched; the dev server serves the worker module itself, and
 dev-mode execution is not part of the security posture.
 """
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 # Basename prefix of the emitted worker chunk (Vite appends a content hash).
-_WORKER_ASSET_PREFIX = "uiScriptWorker"
+_WORKER_ASSET_PREFIX = "UIScriptWorker"
 
 SANDBOX_CSP = "script-src 'unsafe-eval'; connect-src 'none'; worker-src 'none'"
 
@@ -44,8 +44,8 @@ def _is_worker_js_path(path: str) -> bool:
     return name.startswith(_WORKER_ASSET_PREFIX) and name.endswith(".js")
 
 
-class UiScriptWorkerCSPMiddleware:
-    """Stamps the sandbox CSP on responses for the execute_ui worker asset."""
+class UIScriptWorkerCSPMiddleware:
+    """Stamps the sandbox CSP on responses for the execute_browser_action worker asset."""
 
     def __init__(self, app: "ASGIApp") -> None:
         self.app = app

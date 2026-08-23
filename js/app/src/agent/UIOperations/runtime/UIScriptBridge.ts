@@ -67,7 +67,7 @@ export type UIScriptWorkerLike = {
  * (`assets/UIScriptWorker-<hash>.js`) instead of copying the TypeScript
  * source as a static asset. A standalone `new URL("./UIScriptWorker.ts",
  * import.meta.url)` assigned to a variable is treated as a generic asset
- * (`.ts` → `video/mp2t`, no CSP) and execute_ui cannot boot.
+ * (`.ts` → `video/mp2t`, no CSP) and execute_browser_action cannot boot.
  */
 export function createUIScriptWorker(): UIScriptWorkerLike {
   const workerUrl = new URL(UIScriptWorkerUrl, import.meta.url);
