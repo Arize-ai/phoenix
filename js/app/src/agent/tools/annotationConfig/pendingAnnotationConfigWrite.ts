@@ -55,7 +55,7 @@ export async function stageAnnotationConfigWrite({
  * Stage an approval-gated annotation-config write on behalf of an
  * `ui.annotationConfig.*` operation call: the operation counterpart of
  * {@link stageAnnotationConfigWrite}, mirroring `stageDatasetWriteOperation`.
- * Accept/reject resolve the returned promise the calling `execute_ui` script
+ * Accept/reject resolve the returned promise the calling `execute_browser_action` script
  * is awaiting; bypass edit mode auto-accepts exactly like the tool path.
  */
 export function stageAnnotationConfigWriteOperation({

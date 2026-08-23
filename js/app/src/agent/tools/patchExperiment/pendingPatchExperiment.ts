@@ -139,7 +139,7 @@ export function bindPendingPatchExperimentActions({
 /**
  * The operation-flavored counterpart of
  * {@link bindPendingPatchExperimentActions}: accept/reject/cancel resolve the
- * promise the calling `execute_ui` script awaits via `emitResult` instead of
+ * promise the calling `execute_browser_action` script awaits via `emitResult` instead of
  * writing tool output. Apply failures and drift resolve `{ ok: false }`;
  * rejection resolves `{ ok: true, output: { status: "rejected", … } }` so the
  * script continues with the user's answer.

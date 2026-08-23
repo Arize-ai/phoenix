@@ -1,7 +1,7 @@
 ---
 name: annotate-spans
 description: >
-  Write effective, consistent annotations on LLM/agent spans and traces, and coach the user on annotation practice. Load this whenever you are about to record structured feedback with the `ui.spans.annotate` operation (via `execute_ui`), or when the user asks how to annotate, label, score, or review spans/traces, build a failure taxonomy, or set up human/LLM review. Do NOT load for: pure analysis with no intent to save feedback (use debug-trace), latency or cost statistics, or prompt authoring (use playground).
+  Write effective, consistent annotations on LLM/agent spans and traces, and coach the user on annotation practice. Load this whenever you are about to record structured feedback with the `ui.spans.annotate` operation (via `execute_browser_action`), or when the user asks how to annotate, label, score, or review spans/traces, build a failure taxonomy, or set up human/LLM review. Do NOT load for: pure analysis with no intent to save feedback (use debug-trace), latency or cost statistics, or prompt authoring (use playground).
 summary: Create consistent span or trace annotations and help design useful feedback taxonomies.
 ---
 
@@ -16,7 +16,7 @@ A good annotation earns its place by being useful *later*:
 - **Auditable** — months later, the explanation still justifies the judgment without rerunning anything.
 - **Curatable** — failing spans can be pulled into a dataset to drive evals or fixes.
 
-This skill governs the *judgment* behind annotations. The `spans.annotate` operation description (from `search_ui`) governs the *mechanics* (one array, ID requirements, update keying); follow both, and never contradict the tool's naming and identifier rules.
+This skill governs the *judgment* behind annotations. The `spans.annotate` operation description (from `search_browser_actions`) governs the *mechanics* (one array, ID requirements, update keying); follow both, and never contradict the tool's naming and identifier rules.
 
 ## What Makes an Annotation Useful
 

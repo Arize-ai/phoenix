@@ -4,7 +4,7 @@ import type { ApprovalApplyResult, PendingApproval } from "./types";
 
 /**
  * Stage an approval-gated write on behalf of a `ui.*` operation call and
- * return the promise the calling `execute_ui` script awaits. The operation
+ * return the promise the calling `execute_browser_action` script awaits. The operation
  * counterpart of {@link bindPendingApproval} + `stage*Write`: instead of
  * reporting the outcome through `addToolOutput` (the retired one-tool-call
  * contract), accept/reject resolve the returned promise —
@@ -14,7 +14,7 @@ import type { ApprovalApplyResult, PendingApproval } from "./types";
  *
  * `pending.toolCallId` is the inner operation call id
  * (`<executeUIToolCallId>:<sequence>`), so the staged entry renders as a
- * child approval card of its `execute_ui` call and interrupt/rewind cleanup
+ * child approval card of its `execute_browser_action` call and interrupt/rewind cleanup
  * clears it by prefix.
  */
 export function stageApprovalOperation<TPreview>({

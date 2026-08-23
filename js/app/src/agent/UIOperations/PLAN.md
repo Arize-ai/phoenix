@@ -270,7 +270,7 @@ patch/delete`, `dataset.addSpans`. Introduced the reusable machinery the
       `stageAnnotationConfigWriteOperation` mirroring the dataset staging and
       the `annotationConfigWriteApprovalPreview` normalizer feeding script-child
       cards. Note: the standalone tools were `rehydratable`; as operations,
-      unresolved calls now resolve through the execute_ui stale path instead
+      unresolved calls now resolve through the execute_browser_action stale path instead
       (the rehydration unit test moved to `ask_user`).
 - [x] experiment patch — `experiment.patch` (`operations/experiment.ts` +
       `tools/patchExperiment/clientActions.ts`), with an emit-flavored binder

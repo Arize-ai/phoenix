@@ -75,7 +75,7 @@ export type BindPendingPatchExperimentOptions = {
 
 /**
  * Options for the operation-flavored binder: `emitResult` resolves the
- * promise the calling `execute_ui` script awaits, in place of the tool-call
+ * promise the calling `execute_browser_action` script awaits, in place of the tool-call
  * `addToolOutput` sender.
  */
 export type BindPendingPatchExperimentOperationOptions = Omit<

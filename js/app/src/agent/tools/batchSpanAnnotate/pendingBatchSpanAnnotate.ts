@@ -99,7 +99,7 @@ export function bindPendingBatchSpanAnnotateActions({
 /**
  * The operation-flavored counterpart of
  * {@link bindPendingBatchSpanAnnotateActions}: accept/reject/cancel resolve
- * the promise the calling `execute_ui` script awaits via `emitResult` instead
+ * the promise the calling `execute_browser_action` script awaits via `emitResult` instead
  * of writing tool output. Apply failures resolve `{ ok: false }`; rejection
  * resolves `{ ok: true, output: { status: "rejected", … } }` so the script
  * continues with the user's answer.

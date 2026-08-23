@@ -13,7 +13,7 @@ import type { DatasetWriteApplyResult, DatasetWritePreview } from "./types";
  * The pending entry lands in the same `pendingDatasetWritesByToolCallId`
  * store record (keyed by the inner operation call id), so the shared
  * dataset approval card renders it; accept/reject resolve the returned
- * promise the calling `execute_ui` script is awaiting. Bypass edit mode
+ * promise the calling `execute_browser_action` script is awaiting. Bypass edit mode
  * auto-accepts exactly like the tool path.
  */
 export function stageDatasetWriteOperation({
