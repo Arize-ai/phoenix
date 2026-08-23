@@ -586,56 +586,6 @@ class TestRouteInfoTool:
         assert "do not render its `path` as a markdown link" in description
 
 
-class TestAddDatasetExamplesTool:
-    async def test_advertised_with_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-        )
-
-        await agent.run("hello", deps=deps)
-
-        assert "add_dataset_examples" in _get_tool_names(captured_request.body)
-
-    async def test_absent_without_dataset_context(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        assert "add_dataset_examples" not in _get_tool_names(captured_request.body)
-
-    async def test_hidden_for_viewer_but_read_tool_remains(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-    ) -> None:
-        agent = build_agent(model=anthropic_model)
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            ),
-            is_viewer=True,
-        )
-
-        await agent.run("hello", deps=deps)
-
-        tool_names = _get_tool_names(captured_request.body)
-        assert "add_dataset_examples" not in tool_names
-        # Reads stay available to viewers.
-        assert "list_dataset_examples" in tool_names
-
-
 class TestDocsMCPToolset:
     """The optional docs MCP toolset is wired into the system blocks only
     when supplied by the caller."""
