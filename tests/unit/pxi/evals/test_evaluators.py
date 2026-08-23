@@ -89,9 +89,9 @@ class TestCorrectToolsCalled:
         assert result["score"] == 0.0
         assert result["label"] == "called_forbidden"
 
-    def test_execute_ui_write_operation_satisfies_subsumed_tool(self) -> None:
+    def test_execute_browser_action_write_operation_satisfies_subsumed_tool(self) -> None:
         result = evaluate_tools_called(
-            output=_execute_ui_output(
+            output=_execute_browser_action_output(
                 "return await ui.experiment.patch({experimentId: 'RXhwZXJpbWVudDox'});"
             ),
             expected=_expected(required=["patch_experiment"]),
