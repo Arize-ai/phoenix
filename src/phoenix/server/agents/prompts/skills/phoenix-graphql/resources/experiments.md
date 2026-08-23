@@ -29,7 +29,7 @@ For candidate comparison prefer `compareExperiments(baseExperimentId: GlobalID!,
 
 ## Examples
 
-Note: if the experiment came from a playground run driven through `execute_ui`,
+Note: if the experiment came from a playground run driven through `execute_browser_action`,
 prefer the `playground.experiment.readResults` UI operation over hand-writing
 this query — it returns the same scores-plus-failures shape in one call.
 

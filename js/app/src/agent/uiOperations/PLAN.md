@@ -1,12 +1,12 @@
-# PXI `search_ui` / `execute_ui` — UI-operation meta-tools
+# PXI `search_browser_actions` / `execute_browser_action` — UI-operation meta-tools
 
 This branch performs the **full migration** of PXI's 34 client-action tools
 (the tools that only called a zustand-registered function in the browser)
 onto a two-meta-tool architecture:
 
-- **`search_ui`** — searches a client-side _operation catalog_ and returns
+- **`search_browser_actions`** — searches a client-side _operation catalog_ and returns
   `.d.ts`-style signatures with availability/route hints.
-- **`execute_ui`** — runs an agent-authored JavaScript script in a sandboxed
+- **`execute_browser_action`** — runs an agent-authored JavaScript script in a sandboxed
   **web worker**; the script calls operations through a proxied `ui.*` API
   (`await ui.playground.run({})`), and every call round-trips to the main
   thread where validation, capability/session gates, and approval staging
@@ -35,7 +35,7 @@ handler })` is the typed wrapper components use.
 - `dispatch.ts` — the per-call choke point: catalog lookup (unknown names get
   did-you-mean suggestions) → capability gate → session gate → mounted check
   (with route hint) → zod validation → handler invocation.
-- `runtime/` — the worker sandbox. One fresh worker per `execute_ui` call;
+- `runtime/` — the worker sandbox. One fresh worker per `execute_browser_action` call;
   global hygiene (no fetch/XHR/WebSocket/indexedDB in the realm); nested-Proxy
   `ui` API; main-thread-enforced wall-clock and call budgets;
   `worker.terminate()` on overrun or interrupt. The wall-clock budget
@@ -48,7 +48,7 @@ Namespaces: `timeRange.*`, `spansFilter.*`, `playground.prompt.*`,
 `playground.run` (+ `.cancel`, `.readOutput`), `playground.variables.*`,
 `playground.messages.*`, `playground.experiment.*`,
 `playground.repetitions.*`, `playground.dataset.*`, `evaluators.*`,
-`evaluators.code.*`, `evaluators.llm.*`. `search_ui` with an empty query
+`evaluators.code.*`, `evaluators.llm.*`. `search_browser_actions` with an empty query
 lists everything.
 
 ### Approvals became await points
@@ -72,7 +72,7 @@ prompt, load dataset, code/llm evaluator draft edits) now work like this:
 
 ### Chat rendering
 
-`ToolPart.tsx` renders `execute_ui` with `ExecuteUiToolDetails`: the script,
+`ToolPart.tsx` renders `execute_browser_action` with `ExecuteUiToolDetails`: the script,
 generic Accept/Reject cards for any child approvals (wired to the same
 accept/reject closures), and the run result. The old per-tool cases remain in
 the switch so historical transcripts still render. Known follow-up: the
@@ -81,8 +81,8 @@ replaced by generic summaries in script-child cards for now.
 
 ### Rehydration semantics (builds on the pending-approvals branch)
 
-`execute_ui` is **not** `rehydratable`: a script cannot be safely re-run on
-session load (it may have already applied writes). Unresolved `execute_ui`
+`execute_browser_action` is **not** `rehydratable`: a script cannot be safely re-run on
+session load (it may have already applied writes). Unresolved `execute_browser_action`
 calls are resolved by the existing stale-call path with
 `PENDING_TOOL_CALL_NOT_RESTORED_ERROR`, and the model re-issues the script if
 still needed.
@@ -90,12 +90,12 @@ still needed.
 ### Server side (`src/phoenix/server/`)
 
 - `capabilities/tools/external/` — the 34 per-tool modules are deleted;
-  `search_ui.py` and `execute_ui.py` are the two new static capabilities.
+  `search_browser_actions.py` and `execute_browser_action.py` are the two new static capabilities.
   Registry membership still drives the `toolExecutionEnvironment: "client"`
   stamp in `routers/agents.py`, so both meta-tools are registered in
   `_EXTERNAL_TOOL_DEFINITIONS_BY_NAME`.
-- Instructions: `SEARCH_UI_TOOL_INSTRUCTIONS.xml.j2` /
-  `EXECUTE_UI_TOOL_INSTRUCTIONS.xml.j2` teach the search→script loop,
+- Guidance ships in each tool's `DESCRIPTION` (there are no separate
+  instruction templates): it teaches the search→script loop,
   approval-await semantics, and error recovery.
 - Dataset CRUD tools, `ask_user`, `batch_span_annotate`, `patch_experiment`,
   `get_route_info`, `render_generative_ui`, and the annotation-config tools
@@ -112,11 +112,11 @@ behavior is validated on this branch. Remaining suites pass.
 
 1. Bespoke diff cards for script-child approvals (prompt diff, evaluator
    draft diff) — currently generic summaries.
-2. Streaming per-call progress into the `execute_ui` card while the script
+2. Streaming per-call progress into the `execute_browser_action` card while the script
    runs (today the card shows script + approvals + final result).
 3. PXI evals (`evals/pxi/`) and Playwright suites still assert old tool
-   names; they need the "execute_ui script called op X" mapping.
+   names; they need the "execute_browser_action script called op X" mapping.
 4. CSP hardening: fail with a clear tool error when a strict-CSP deployment
    blocks `new Function` in the worker.
 5. Consider advertising the catalog TOC in the request body so simple
-   one-action asks skip the `search_ui` round-trip.
+   one-action asks skip the `search_browser_actions` round-trip.

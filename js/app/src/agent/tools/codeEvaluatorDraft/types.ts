@@ -121,7 +121,7 @@ export type CodeEvaluatorDraftHost = {
 
 export type PendingCodeEvaluatorEdit = {
   /**
-   * Key of this pending entry. Under `execute_ui` this is the inner
+   * Key of this pending entry. Under `execute_browser_action` this is the inner
    * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
    * the field keeps its historical name to limit churn across consumers.
    */
@@ -139,7 +139,7 @@ export type PendingCodeEvaluatorEdit = {
 export type BindPendingCodeEvaluatorEditOptions = {
   pendingEdit: PendingCodeEvaluatorEdit;
   draftHost: CodeEvaluatorDraftHost;
-  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
   emitResult: UiOperationResultEmitter;
   setPendingCodeEvaluatorEdit: (
     toolCallId: string,

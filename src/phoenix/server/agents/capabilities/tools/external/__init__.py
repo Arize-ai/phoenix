@@ -18,7 +18,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     delete_dataset_examples,
     delete_dataset_labels,
     delete_dataset_splits,
-    execute_ui,
+    execute_browser_action,
     get_route_info,
     list_dataset_examples,
     list_dataset_labels,
@@ -31,7 +31,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     patch_dataset_split,
     patch_experiment,
     render_generative_ui,
-    search_ui,
+    search_browser_actions,
     set_dataset_example_splits,
     set_dataset_labels,
     update_annotation_config,
@@ -70,8 +70,8 @@ from phoenix.server.agents.capabilities.tools.external.delete_dataset_labels imp
 from phoenix.server.agents.capabilities.tools.external.delete_dataset_splits import (
     DeleteDatasetSplitsCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.execute_ui import (
-    ExecuteUiCapability,
+from phoenix.server.agents.capabilities.tools.external.execute_browser_action import (
+    ExecuteBrowserActionCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.get_route_info import (
     GetRouteInfoCapability,
@@ -109,8 +109,8 @@ from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
 from phoenix.server.agents.capabilities.tools.external.render_generative_ui import (
     RenderGenerativeUICapability,
 )
-from phoenix.server.agents.capabilities.tools.external.search_ui import (
-    SearchUiCapability,
+from phoenix.server.agents.capabilities.tools.external.search_browser_actions import (
+    SearchBrowserActionsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.set_dataset_example_splits import (
     SetDatasetExampleSplitsCapability,
@@ -150,11 +150,11 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         batch_span_annotate.TOOL_DEFINITION,
         create_annotation_config.TOOL_DEFINITION,
         update_annotation_config.TOOL_DEFINITION,
-        execute_ui.TOOL_DEFINITION,
+        execute_browser_action.TOOL_DEFINITION,
         get_route_info.TOOL_DEFINITION,
         patch_experiment.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
-        search_ui.TOOL_DEFINITION,
+        search_browser_actions.TOOL_DEFINITION,
     )
 }
 
@@ -175,8 +175,8 @@ def get_external_tool_capability_function() -> CapabilityFunc[AgentDependencies]
         ListDatasetsCapability(),
         ListLabelsCapability(),
         ListSplitsCapability(),
-        SearchUiCapability(),
-        ExecuteUiCapability(),
+        SearchBrowserActionsCapability(),
+        ExecuteBrowserActionCapability(),
         GetRouteInfoCapability(),
         RenderGenerativeUICapability(),
     ]
@@ -235,11 +235,11 @@ __all__ = [
     "BatchSpanAnnotateCapability",
     "CreateAnnotationConfigCapability",
     "UpdateAnnotationConfigCapability",
-    "ExecuteUiCapability",
+    "ExecuteBrowserActionCapability",
     "GetRouteInfoCapability",
     "PatchExperimentCapability",
     "RenderGenerativeUICapability",
-    "SearchUiCapability",
+    "SearchBrowserActionsCapability",
     "get_external_tool_capability_function",
     "get_external_tool_definition",
 ]

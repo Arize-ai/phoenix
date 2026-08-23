@@ -13,7 +13,7 @@
   </available_model_providers>
   <guidance>
     Before authoring or revising this judge, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
-    Call `ui.evaluators.llm.read({})` in an `execute_ui` script before proposing edits to capture the latest draft snapshot and `testPayload` — e.g. `const draft = await ui.evaluators.llm.read({}); return draft;`.
+    Call `ui.evaluators.llm.read({})` in an `execute_browser_action` script before proposing edits to capture the latest draft snapshot and `testPayload` — e.g. `const draft = await ui.evaluators.llm.read({}); return draft;`.
 {% if can_edit_draft %}
     Call `ui.evaluators.llm.edit` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
 {% elif is_viewer %}

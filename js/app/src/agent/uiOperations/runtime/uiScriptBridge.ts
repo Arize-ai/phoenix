@@ -6,7 +6,7 @@ import type {
 } from "./protocol";
 
 /**
- * Executes one `ui.*` call from a running script. The `execute_ui` tool
+ * Executes one `ui.*` call from a running script. The `execute_browser_action` tool
  * builds this by binding `dispatchUiOperationCall` to its tool-call context
  * (agent store, session, capabilities).
  */
@@ -72,7 +72,7 @@ export function createUiScriptWorker(): UiScriptWorkerLike {
 }
 
 /**
- * Run one `execute_ui` script to completion in a fresh worker.
+ * Run one `execute_browser_action` script to completion in a fresh worker.
  *
  * One worker per run: spawn, run, terminate. Workers start in single-digit
  * milliseconds, a fresh realm leaks no state between runs, and timeout

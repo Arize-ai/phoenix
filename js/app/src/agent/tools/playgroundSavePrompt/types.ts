@@ -68,7 +68,7 @@ export type SavePlaygroundPromptPreviewParams = {
 
 export type SavePromptActionResult =
   // `output` is JSON-serializable structured data, not pre-stringified JSON:
-  // it is embedded in the `execute_ui` script result and serialized once there.
+  // it is embedded in the `execute_browser_action` script result and serialized once there.
   { ok: true; output?: unknown } | { ok: false; error: string };
 
 export type SavePromptAction = (
@@ -77,7 +77,7 @@ export type SavePromptAction = (
 
 export type PendingSavePrompt = {
   /**
-   * Key of this pending entry. Under `execute_ui` this is the inner
+   * Key of this pending entry. Under `execute_browser_action` this is the inner
    * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
    * the field keeps its historical name to limit churn across consumers.
    */
@@ -96,7 +96,7 @@ export type PendingSavePrompt = {
 export type BindPendingSavePromptOptions = {
   pendingSave: PendingSavePrompt;
   savePrompt: SavePromptAction;
-  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
   emitResult: UiOperationResultEmitter;
   setPendingSavePrompt: (
     toolCallId: string,

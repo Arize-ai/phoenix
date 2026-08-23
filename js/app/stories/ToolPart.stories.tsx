@@ -60,8 +60,8 @@ import {
   type PendingSavePrompt,
 } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
-import { EXECUTE_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
-import { SEARCH_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/searchUiAgentTool";
+import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
+import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/uiOperations/searchUiAgentTool";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -988,7 +988,7 @@ export const CallSubagentError: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// execute_ui tool mocks
+// execute_browser_action tool mocks
 // ---------------------------------------------------------------------------
 
 const executeUiScript = [
@@ -1029,7 +1029,7 @@ function promptSnapshotFixture(content: string) {
 }
 
 const executeUiAwaitingApprovalPart = makePart({
-  toolName: EXECUTE_UI_TOOL_NAME,
+  toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
   toolCallId: "execute-ui-prompt-edit",
   state: "input-available",
   input: executeUiInput,
@@ -1051,7 +1051,7 @@ const executeUiPendingPromptEdit: PendingPromptEdit = {
 };
 
 const executeUiCompletedPart = makePart({
-  toolName: EXECUTE_UI_TOOL_NAME,
+  toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
   toolCallId: "execute-ui-completed",
   state: "output-available",
   input: executeUiInput,
@@ -1063,7 +1063,7 @@ const executeUiCompletedPart = makePart({
 });
 
 const executeUiStreamingPart = makePart({
-  toolName: EXECUTE_UI_TOOL_NAME,
+  toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
   toolCallId: "execute-ui-streaming",
   state: "input-streaming",
   input: {
@@ -1073,7 +1073,7 @@ const executeUiStreamingPart = makePart({
 });
 
 /**
- * An execute_ui script paused on an inner prompt-edit approval: the
+ * An execute_browser_action script paused on an inner prompt-edit approval: the
  * syntax-highlighted script above, the proposed change as a unified diff, and
  * the Accept/Reject actions that resolve the awaiting script.
  */
@@ -1091,22 +1091,22 @@ export const ExecuteUiAwaitingPromptEditApproval: Story = {
   ],
 };
 
-/** An execute_ui script that completed, showing logs and the return value. */
+/** An execute_browser_action script that completed, showing logs and the return value. */
 export const ExecuteUiCompleted: Story = {
   args: { part: executeUiCompletedPart },
   decorators: [withAgentStore()],
 };
 
-/** An execute_ui call whose summary and script are still streaming in. */
+/** An execute_browser_action call whose summary and script are still streaming in. */
 export const ExecuteUiStreaming: Story = {
   args: { part: executeUiStreamingPart },
   decorators: [withAgentStore()],
 };
 
 // ---------------------------------------------------------------------------
-// search_ui tool mocks
+// search_browser_actions tool mocks
 //
-// search_ui returns a `.d.ts`-style catalog *string* (signatures + doc
+// search_browser_actions returns a `.d.ts`-style catalog *string* (signatures + doc
 // comments). SearchUiToolDetails renders it verbatim as a highlighted code
 // file inside the collapsing section, instead of the generic renderer's
 // JSON.stringify (which would escape the whole thing onto one line).
@@ -1135,7 +1135,7 @@ const searchUiCatalog = [
 ].join("\n");
 
 const searchUiResultsPart = makePart({
-  toolName: SEARCH_UI_TOOL_NAME,
+  toolName: SEARCH_BROWSER_ACTIONS_TOOL_NAME,
   toolCallId: "search-ui-results",
   state: "output-available",
   input: { query: "playground prompt" },
@@ -1143,26 +1143,26 @@ const searchUiResultsPart = makePart({
 });
 
 const searchUiRunningPart = makePart({
-  toolName: SEARCH_UI_TOOL_NAME,
+  toolName: SEARCH_BROWSER_ACTIONS_TOOL_NAME,
   toolCallId: "search-ui-running",
   state: "input-available",
   input: { query: "evaluator" },
 });
 
-/** A search_ui call whose catalog output renders as a highlighted .d.ts file. */
+/** A search_browser_actions call whose catalog output renders as a highlighted .d.ts file. */
 export const SearchUiResults: Story = {
   args: { part: searchUiResultsPart },
 };
 
-/** A search_ui call still running — the query shows in the collapsed preview. */
+/** A search_browser_actions call still running — the query shows in the collapsed preview. */
 export const SearchUiRunning: Story = {
   args: { part: searchUiRunningPart },
 };
 
 // ---------------------------------------------------------------------------
-// execute_ui inner-operation approvals
+// execute_browser_action inner-operation approvals
 //
-// Every approval kind an execute_ui script can stage through a `ui.*` call.
+// Every approval kind an execute_browser_action script can stage through a `ui.*` call.
 // Grouped so the audit can compare them side by side — in particular the split
 // between operations that render a rich unified diff (prompt edit above,
 // prompt-tool write, evaluator drafts) and those that fall back to a raw-JSON
@@ -1172,14 +1172,14 @@ export const SearchUiRunning: Story = {
 // pending entry under that key and `useScriptChildApprovals` picks it up.
 // ---------------------------------------------------------------------------
 
-/** An execute_ui host part awaiting one inner-operation approval. */
+/** An execute_browser_action host part awaiting one inner-operation approval. */
 function executeUiHostPart(
   toolCallId: string,
   summary: string,
   script: string
 ) {
   return makePart({
-    toolName: EXECUTE_UI_TOOL_NAME,
+    toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
     toolCallId,
     state: "input-available",
     input: { summary, script },
@@ -1253,7 +1253,7 @@ const executeUiSavePromptChild = {
 } satisfies PendingSavePrompt;
 
 /**
- * Routed through execute_ui, save-prompt now renders the shared ApprovalCard
+ * Routed through execute_browser_action, save-prompt now renders the shared ApprovalCard
  * with a labeled, curated payload (prompt name, label, tags) rather than a raw
  * `stringifyToolValue(pending.preview)` dump — compare SavePromptAwaitingApproval.
  */
@@ -1297,7 +1297,7 @@ const executeUiLoadDatasetChild = {
 } satisfies PendingLoadDataset;
 
 /**
- * Load-dataset through execute_ui renders the shared ApprovalCard with a
+ * Load-dataset through execute_browser_action renders the shared ApprovalCard with a
  * labeled `{ dataset, split }` payload rather than the raw pending input.
  */
 export const ExecuteUiAwaitingLoadDatasetApproval: Story = {
@@ -1329,7 +1329,7 @@ const executeUiInstanceRemovalChild = {
   reject: async () => undefined,
 } satisfies PendingPromptInstanceRemoval;
 
-/** An execute_ui inner op removing a playground prompt instance (summary-only). */
+/** An execute_browser_action inner op removing a playground prompt instance (summary-only). */
 export const ExecuteUiAwaitingInstanceRemovalApproval: Story = {
   args: {
     part: executeUiHostPart(
@@ -1395,7 +1395,7 @@ const executeUiPromptToolWriteChild = {
   reject: async () => undefined,
 } satisfies PendingPromptToolWrite;
 
-/** An execute_ui inner op writing playground prompt tools (renders a diff). */
+/** An execute_browser_action inner op writing playground prompt tools (renders a diff). */
 export const ExecuteUiAwaitingPromptToolWriteApproval: Story = {
   args: {
     part: executeUiHostPart(
@@ -1429,7 +1429,7 @@ const executeUiCodeEvaluatorChild = {
   reject: async () => undefined,
 } satisfies PendingCodeEvaluatorEdit;
 
-/** An execute_ui inner op editing a code-evaluator draft (renders a diff). */
+/** An execute_browser_action inner op editing a code-evaluator draft (renders a diff). */
 export const ExecuteUiAwaitingCodeEvaluatorEditApproval: Story = {
   args: {
     part: executeUiHostPart(
@@ -1476,7 +1476,7 @@ const executeUiLlmEvaluatorChild = {
   reject: async () => undefined,
 } satisfies PendingLlmEvaluatorEdit;
 
-/** An execute_ui inner op editing an LLM-evaluator draft (renders a diff). */
+/** An execute_browser_action inner op editing an LLM-evaluator draft (renders a diff). */
 export const ExecuteUiAwaitingLlmEvaluatorEditApproval: Story = {
   args: {
     part: executeUiHostPart(
@@ -1502,7 +1502,7 @@ export const ExecuteUiAwaitingLlmEvaluatorEditApproval: Story = {
 //
 // The older, dedicated approval-card path. Note the structured action label
 // per kind and the danger note on every destructive (`delete-*`) kind — the
-// polish the execute_ui summary path does not currently reproduce.
+// polish the execute_browser_action summary path does not currently reproduce.
 // ---------------------------------------------------------------------------
 
 function datasetWritePart(toolName: string, toolCallId: string) {

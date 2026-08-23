@@ -635,7 +635,7 @@ function mergeAgentPersistedState(
  */
 export type AgentClientActionResult =
   // `output` is JSON-serializable: UI-operation results cross a worker
-  // postMessage boundary and are embedded in `execute_ui` tool output.
+  // postMessage boundary and are embedded in `execute_browser_action` tool output.
   { ok: true; output?: unknown } | { ok: false; error: string };
 
 export type AgentClientAction = (

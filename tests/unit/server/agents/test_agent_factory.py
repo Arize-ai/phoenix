@@ -435,7 +435,7 @@ class TestUIContextInstructions:
         cached_text = _get_concatenated_text(cached_blocks)
         uncached_text = _get_concatenated_text(uncached_blocks)
         # `ui.playground.model.set` is deliberately absent here: it also
-        # appears in the execute_ui tool description's worked example, so it
+        # appears in the execute_browser_action tool description's worked example, so it
         # can no longer discriminate the cache boundary.
         playground_context_fragments = (
             '<instance label="A" instanceId="7" provider="OPENAI" modelName="gpt-5"/>',

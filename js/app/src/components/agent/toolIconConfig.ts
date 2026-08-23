@@ -59,8 +59,8 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
   bash: "command",
 
   // UI operation meta-tools
-  execute_ui: "command",
-  search_ui: "search",
+  execute_browser_action: "command",
+  search_browser_actions: "search",
 
   // Configuration
   set_appended_messages_path: "configure",

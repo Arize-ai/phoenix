@@ -11,9 +11,9 @@ ways of working: fast manual prompt iteration without a dataset, and dataset-bac
 experimentation with evaluators and experiments. Choose the workflow that matches the user's
 current goal and the UI context they have mounted.
 
-The playground actions named below are `ui.*` operations, called from `execute_ui` scripts as
+The playground actions named below are `ui.*` operations, called from `execute_browser_action` scripts as
 `await ui.<operation>(input)` (for example `await ui.playground.run({})`). Confirm exact input
-shapes with `search_ui` before first use, and prefer one small script that chains related steps
+shapes with `search_browser_actions` before first use, and prefer one small script that chains related steps
 over many single-call scripts.
 
 ## Workflow: Create And Iterate Without A Dataset
@@ -139,7 +139,7 @@ Function tools are JSON-Schema function definitions stored on the playground pro
 
 These are concrete, runnable input shapes for `ui.playground.prompt.tools.write` — treat them as
 templates, not as fixed prompts. Always pass the latest `revision` returned by
-`ui.playground.prompt.tools.read`; the cleanest idiom is one `execute_ui` script that reads and then
+`ui.playground.prompt.tools.read`; the cleanest idiom is one `execute_browser_action` script that reads and then
 writes:
 
 ```js
@@ -310,7 +310,7 @@ by id; combine it with `tools` to delete and add atomically. Deletes may target 
 
 - Don't call `ui.playground.prompt.tools.write` without calling `ui.playground.prompt.tools.read`
   first this turn — the `expectedRevision` will be stale and the write will be rejected. Reading and
-  writing in the same `execute_ui` script keeps the revision fresh.
+  writing in the same `execute_browser_action` script keeps the revision fresh.
 - Don't try to *write* a tool whose `kind` was `raw` in the read snapshot. Vendor passthrough tools
   (e.g. provider builtins like `web_search`) are not editable through PXI — tell the user to author
   those in the playground tool editor. A `raw` entry in `tools` rejects the whole batch. (You *can*

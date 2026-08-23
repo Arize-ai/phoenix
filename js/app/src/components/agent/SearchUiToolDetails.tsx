@@ -7,7 +7,7 @@ import {
 import type { ToolInvocationPart } from "./toolPartTypes";
 
 /**
- * Collapsed-row preview for a `search_ui` call: the free-text query, or
+ * Collapsed-row preview for a `search_browser_actions` call: the free-text query, or
  * "full catalog" when the query was empty (an empty query lists every
  * operation).
  */
@@ -23,7 +23,7 @@ export function getSearchUiToolPreview(part: ToolInvocationPart): string {
 }
 
 /**
- * Details for a `search_ui` call. Its output is a `.d.ts`-style catalog string
+ * Details for a `search_browser_actions` call. Its output is a `.d.ts`-style catalog string
  * (operation signatures with doc comments), so render it verbatim as a code
  * file — syntax-highlighted, newlines preserved — rather than letting the
  * generic renderer `JSON.stringify` it into one escaped line. A broad query

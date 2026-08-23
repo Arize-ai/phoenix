@@ -19,7 +19,7 @@ _GET_CURRENT_DATETIME_DESCRIPTION = (
     "timezone), falling back to the server's UTC clock when no browser clock is "
     "available. Call this before resolving any relative date or time phrase such "
     "as 'today', 'yesterday', 'last hour', or 'since 9am' into concrete "
-    "timestamps, before setting a `custom` time-range window (via an `execute_ui` "
+    "timestamps, before setting a `custom` time-range window (via an `execute_browser_action` "
     "script) derived from relative language, and whenever an answer depends on knowing what time "
     "it is now. Never guess the current date or time from prior knowledge; your "
     'training data is stale. Treat a `browser` result as "now" for the user\'s '

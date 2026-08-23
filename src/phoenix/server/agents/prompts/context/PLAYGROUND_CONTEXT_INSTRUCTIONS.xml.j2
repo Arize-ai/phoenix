@@ -14,7 +14,7 @@
 {% endfor %}
   </instances>
   <guidance>
-    The operations below are called from `execute_ui` scripts as `await ui.<operation>(input)`; confirm input shapes with `search_ui` before first use, and combine related steps into one small script when that keeps approvals and errors legible.
+    The operations below are called from `execute_browser_action` scripts as `await ui.<operation>(input)`; confirm input shapes with `search_browser_actions` before first use, and combine related steps into one small script when that keeps approvals and errors legible.
     Call `ui.playground.prompt.read` before proposing edits to an existing prompt instance, `ui.playground.instance.add` when the user wants a fresh comparison instance that starts from the default prompt messages, `ui.playground.instance.clone` when the user wants a comparison variant that starts from existing prompt content, `ui.playground.instance.remove` when the user asks to delete a specific prompt instance, and `ui.playground.prompt.edit` to show the user an approval diff before changing prompt messages.
     Call `ui.playground.model.list` before suggesting or listing available playground models, `ui.playground.model.set` to switch an instance's model immediately, and `ui.playground.variables.set` when the user wants to populate manual playground variable inputs.
     Call `ui.playground.variables.setPath` when a prompt needs dataset fields outside the default `input` root (`reference`, `metadata`, or the whole example) — variable names resolve relative to the chosen path, so pair it with `ui.playground.prompt.edit` to rename references that no longer match.
@@ -29,7 +29,7 @@
   <dataset_evaluator_authoring>
 {% if dataset %}
     A dataset is loaded in the playground. If the user asks to create or iterate on a code evaluator for experiment scoring, do not treat that as a prompt-edit task and do not give a manual form walkthrough.
-    1. If the `ui.evaluators.code.openForm` operation is available, call it in an `execute_ui` script to open the code-evaluator form in place. Do not navigate away from the current playground URL.
+    1. If the `ui.evaluators.code.openForm` operation is available, call it in an `execute_browser_action` script to open the code-evaluator form in place. Do not navigate away from the current playground URL.
     2. Once the code-evaluator form is mounted, use `ui.evaluators.code.read` and `ui.evaluators.code.edit` to populate or revise the draft — e.g. read first with `const draft = await ui.evaluators.code.read({}); return draft;`, then propose the edit in a follow-up script.
 {% if edit_permission == "bypass" %}
     3. Once the form is mounted, follow the `<phoenix_code_evaluator_context>` guidance — under auto-accept it drives the populated draft through `ui.evaluators.code.test` and persists it with `ui.evaluators.code.submit` automatically. Do not stop before persistence or wait for a manual Create click; never claim the evaluator is created until that save's success result comes back.

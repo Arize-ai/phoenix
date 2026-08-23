@@ -94,7 +94,7 @@ export function createLoadDatasetClientAction({
     const expectedSelection = getUrlSelection(getSearchParams());
 
     // The returned promise resolves when the user (or bypass mode) decides;
-    // the awaiting execute_ui script sits parked on it until then.
+    // the awaiting execute_browser_action script sits parked on it until then.
     return new Promise((resolve) => {
       const pendingLoad = bindPendingLoadDatasetActions({
         pendingLoad: {

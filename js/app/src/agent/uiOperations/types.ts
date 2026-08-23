@@ -5,7 +5,7 @@ import type { AgentToolUIBehavior } from "@phoenix/agent/extensions/registry/def
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 /**
- * How an operation affects app state, and therefore how the `execute_ui`
+ * How an operation affects app state, and therefore how the `execute_browser_action`
  * runtime treats it:
  * - `read` — returns data, no state change; scripts may call freely.
  * - `write` — mutates client state synchronously (e.g. set the time range).
@@ -17,7 +17,7 @@ export type UiOperationKind = "read" | "write" | "approval";
 
 /**
  * Where an operation becomes available when its handler is not currently
- * mounted. Surfaced by `search_ui` and by not-mounted dispatch errors so the
+ * mounted. Surfaced by `search_browser_actions` and by not-mounted dispatch errors so the
  * agent can navigate instead of dead-ending.
  */
 export type UiOperationAvailability = {
@@ -28,7 +28,7 @@ export type UiOperationAvailability = {
 /**
  * The result every operation resolves with. `output` must be
  * JSON-serializable — it crosses the script worker's postMessage boundary
- * and is embedded in the `execute_ui` tool output.
+ * and is embedded in the `execute_browser_action` tool output.
  */
 export type UiOperationResult = AgentClientActionResult;
 
@@ -105,7 +105,7 @@ export type UiOperationHandler<TInput> = (
  * Resolves an in-flight operation call. Approval binders receive this in
  * place of the retired `addToolOutput` sender: instead of writing tool
  * output for a dedicated tool call, accept/reject/cancel resolve the promise
- * the calling `execute_ui` script is awaiting.
+ * the calling `execute_browser_action` script is awaiting.
  */
 export type UiOperationResultEmitter = (result: UiOperationResult) => void;
 

@@ -7,7 +7,7 @@ import type { BindPendingPromptEditOptions, PendingPromptEdit } from "./types";
 
 /**
  * Attaches accept/reject callbacks to a pending prompt edit. Each callback
- * resolves the awaiting `execute_ui` script call via `emitResult` — the
+ * resolves the awaiting `execute_browser_action` script call via `emitResult` — the
  * script sees `{ ok: true, output: { status: "accepted" | "rejected", ... } }`
  * for a decision and `{ ok: false }` for staleness or navigation cancel.
  */

@@ -1,7 +1,7 @@
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 /**
- * Message protocol between the main-thread bridge and the `execute_ui`
+ * Message protocol between the main-thread bridge and the `execute_browser_action`
  * script worker. Everything crossing the boundary goes through
  * `postMessage`'s structured clone, so payloads are restricted to plain JSON
  * — which the operation zod schemas already guarantee for inputs/outputs.

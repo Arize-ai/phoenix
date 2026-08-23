@@ -17,7 +17,7 @@
   </available_sandbox_configs>
   <guidance>
     Before authoring or revising this evaluator, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
-    Call `ui.evaluators.code.read({})` in an `execute_ui` script before proposing edits to capture the latest draft snapshot and `testPayload` — e.g. `const draft = await ui.evaluators.code.read({}); return draft;`.
+    Call `ui.evaluators.code.read({})` in an `execute_browser_action` script before proposing edits to capture the latest draft snapshot and `testPayload` — e.g. `const draft = await ui.evaluators.code.read({}); return draft;`.
 {% if can_edit_draft %}
     Call `ui.evaluators.code.edit` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
 {% elif is_viewer %}

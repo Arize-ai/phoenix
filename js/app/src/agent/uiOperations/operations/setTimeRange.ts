@@ -29,7 +29,7 @@ const TIME_RANGE_KEY_VALUES = [
  * the server schema's `additionalProperties: false` and to surface
  * hallucinated parameters as errors instead of silently ignoring them.
  * `.describe()` text flows into both the JSON schema the server advertises
- * and the signature `search_ui` renders.
+ * and the signature `search_browser_actions` renders.
  */
 const setTimeRangeInputSchema = z.strictObject({
   timeRangeKey: z

@@ -115,7 +115,7 @@ function collectChildApprovals<TPending>({
 }
 
 /**
- * Collects every pending approval staged by this `execute_ui` call's inner
+ * Collects every pending approval staged by this `execute_browser_action` call's inner
  * operations. Entries are keyed `<toolCallId>:<sequence>` by dispatch, so a
  * prefix match finds exactly this script's children.
  */
@@ -334,7 +334,7 @@ function ExecuteUiRunResult({ output }: { output: string }) {
 }
 
 /**
- * Details card for one `execute_ui` tool call: the script being run
+ * Details card for one `execute_browser_action` tool call: the script being run
  * (syntax-highlighted once its input has finished streaming), Accept/Reject
  * cards for any approvals its inner operations staged (each decision resolves
  * the promise the script is awaiting), and the final result or error.

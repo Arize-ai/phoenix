@@ -10,7 +10,7 @@ import {
 } from "./catalog";
 import type { UiOperationCallContext, UiOperationResult } from "./types";
 
-/** Everything dispatch needs from the enclosing `execute_ui` tool call. */
+/** Everything dispatch needs from the enclosing `execute_browser_action` tool call. */
 export type UiOperationDispatchContext = {
   agentStore: AgentStore;
   sessionId: string | null;
@@ -18,7 +18,7 @@ export type UiOperationDispatchContext = {
 };
 
 /**
- * Execute one operation call on behalf of a running `execute_ui` script.
+ * Execute one operation call on behalf of a running `execute_browser_action` script.
  *
  * This is the single choke point every scripted effect flows through:
  * catalog lookup → capability gate → session gate → mounted check → schema
@@ -28,7 +28,7 @@ export type UiOperationDispatchContext = {
  *
  * Every failure mode returns an actionable `{ ok: false }` result (never
  * throws), so the calling script can branch on errors and the model can
- * recover — e.g. by calling `search_ui` after an unknown-operation error.
+ * recover — e.g. by calling `search_browser_actions` after an unknown-operation error.
  */
 export async function dispatchUiOperationCall({
   operationName,
@@ -48,7 +48,7 @@ export async function dispatchUiOperationCall({
    */
   callId: string;
   /**
-   * The enclosing `execute_ui` tool-call id — the chat card that hosts any
+   * The enclosing `execute_browser_action` tool-call id — the chat card that hosts any
    * approval this call stages. Dispatch requests that card open when a
    * user-facing approval is about to appear.
    */
@@ -61,7 +61,7 @@ export async function dispatchUiOperationCall({
       ok: false,
       error:
         `Unknown operation "${operationName}". Did you mean: ${suggestions}? ` +
-        "Use search_ui to discover operations and their signatures.",
+        "Use search_browser_actions to discover operations and their signatures.",
     };
   }
 
@@ -104,7 +104,7 @@ export async function dispatchUiOperationCall({
   const context: UiOperationCallContext = { callId, sessionId };
 
   // A user-facing approval card is about to be staged inside the host
-  // execute_ui card: request it open so Accept/Reject is never hidden behind
+  // execute_browser_action card: request it open so Accept/Reject is never hidden behind
   // a collapsed disclosure, and release the request once the user decides so
   // the card collapses again when nothing awaits them. This is the single
   // choke point every approval operation flows through, so new approval

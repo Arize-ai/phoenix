@@ -108,7 +108,7 @@ export type PromptEditSummary = {
 
 export type PendingPromptEdit = {
   /**
-   * Key of this pending entry. Under `execute_ui` this is the inner
+   * Key of this pending entry. Under `execute_browser_action` this is the inner
    * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
    * the field keeps its historical name to limit churn across consumers.
    */
@@ -126,7 +126,7 @@ export type PendingPromptEdit = {
 };
 
 export type PendingPromptInstanceRemoval = {
-  /** Inner operation call id under `execute_ui`; see {@link PendingPromptEdit}. */
+  /** Inner operation call id under `execute_browser_action`; see {@link PendingPromptEdit}. */
   toolCallId: string;
   /** Agent session that owns the unresolved playground.instance.remove call. */
   sessionId: string;
@@ -142,7 +142,7 @@ export type BindPendingPromptEditOptions = {
   pendingEdit: PendingPromptEdit;
   /** Live playground store used to re-check revisions and apply accepted edits. */
   playgroundStore: PlaygroundStore;
-  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
   emitResult: UiOperationResultEmitter;
   setPendingPromptEdit: (
     toolCallId: string,
@@ -153,7 +153,7 @@ export type BindPendingPromptEditOptions = {
 export type BindPendingPromptInstanceRemovalOptions = {
   pendingRemoval: PendingPromptInstanceRemoval;
   playgroundStore: PlaygroundStore;
-  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
   emitResult: UiOperationResultEmitter;
   setPendingPromptInstanceRemoval: (
     toolCallId: string,

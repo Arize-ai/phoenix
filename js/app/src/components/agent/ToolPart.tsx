@@ -50,8 +50,8 @@ import {
   SET_SPANS_FILTER_TOOL_NAME,
 } from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
-import { EXECUTE_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
-import { SEARCH_UI_TOOL_NAME } from "@phoenix/agent/uiOperations/searchUiAgentTool";
+import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/uiOperations/executeUiAgentTool";
+import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/uiOperations/searchUiAgentTool";
 import { Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
@@ -1090,14 +1090,14 @@ function getToolPresentation(
 } {
   const statusVariant = getStatusVariant(part.state);
   switch (toolName) {
-    case EXECUTE_UI_TOOL_NAME:
+    case EXECUTE_BROWSER_ACTION_TOOL_NAME:
       return {
         preview: getExecuteUiToolPreview(part),
         stateLabel: formatExecuteUiState(part),
         statusVariant,
         details: <ExecuteUiToolDetails part={part} />,
       };
-    case SEARCH_UI_TOOL_NAME:
+    case SEARCH_BROWSER_ACTIONS_TOOL_NAME:
       return {
         preview: getSearchUiToolPreview(part),
         stateLabel: formatToolState(part.state),

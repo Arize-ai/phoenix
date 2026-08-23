@@ -32,8 +32,10 @@ def _output(*tool_names: str) -> dict[str, Any]:
     }
 
 
-def _execute_ui_output(script: str) -> dict[str, Any]:
-    return _output_with_args("execute_ui", {"summary": "Update the UI", "script": script})
+def _execute_browser_action_output(script: str) -> dict[str, Any]:
+    return _output_with_args(
+        "execute_browser_action", {"summary": "Update the UI", "script": script}
+    )
 
 
 def _expected(
@@ -67,9 +69,9 @@ class TestCorrectToolsCalled:
         assert result["score"] == 1.0
         assert result["label"] == "correct"
 
-    def test_execute_ui_replacement_satisfies_legacy_required_tool(self) -> None:
+    def test_execute_browser_action_replacement_satisfies_legacy_required_tool(self) -> None:
         result = evaluate_tools_called(
-            output=_execute_ui_output(
+            output=_execute_browser_action_output(
                 "return await ui.spansFilter.set({condition: \"status_code == 'ERROR'\"});"
             ),
             expected=_expected(required=["set_spans_filter"]),
@@ -77,9 +79,11 @@ class TestCorrectToolsCalled:
         assert result["score"] == 1.0
         assert result["label"] == "correct"
 
-    def test_execute_ui_replacement_triggers_legacy_forbidden_tool(self) -> None:
+    def test_execute_browser_action_replacement_triggers_legacy_forbidden_tool(self) -> None:
         result = evaluate_tools_called(
-            output=_execute_ui_output("return await ui.timeRange.set({timeRangeKey: '1h'});"),
+            output=_execute_browser_action_output(
+                "return await ui.timeRange.set({timeRangeKey: '1h'});"
+            ),
             expected=_expected(forbidden=["set_time_range"]),
         )
         assert result["score"] == 0.0
@@ -345,9 +349,9 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "pass"
 
-    def test_execute_ui_replacement_matches_legacy_literal_args(self) -> None:
+    def test_execute_browser_action_replacement_matches_legacy_literal_args(self) -> None:
         result = evaluate_tool_call_args(
-            output=_execute_ui_output(
+            output=_execute_browser_action_output(
                 "return await ui.timeRange.set({timeRangeKey: 'custom', "
                 "startTime: '2025-01-01T00:00:00Z'});"
             ),
@@ -361,9 +365,9 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "pass"
 
-    def test_execute_ui_replacement_matches_legacy_string_matchers(self) -> None:
+    def test_execute_browser_action_replacement_matches_legacy_string_matchers(self) -> None:
         result = evaluate_tool_call_args(
-            output=_execute_ui_output(
+            output=_execute_browser_action_output(
                 "return await ui.spansFilter.set({condition: "
                 "\"span_kind == 'LLM' and latency_ms >= 5000\"});"
             ),
@@ -375,9 +379,11 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "pass"
 
-    def test_execute_ui_replacement_rejects_wrong_legacy_args(self) -> None:
+    def test_execute_browser_action_replacement_rejects_wrong_legacy_args(self) -> None:
         result = evaluate_tool_call_args(
-            output=_execute_ui_output("return await ui.timeRange.set({timeRangeKey: '7d'});"),
+            output=_execute_browser_action_output(
+                "return await ui.timeRange.set({timeRangeKey: '7d'});"
+            ),
             expected=self._expected(set_time_range={"timeRangeKey": "1h"}),
         )
         assert result["label"] == "fail"

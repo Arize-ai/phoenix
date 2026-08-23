@@ -10,7 +10,7 @@
  * Browser UI-state operations (time range, spans filter, playground prompts,
  * evaluator drafts, …) are no longer individual tools: they live in the
  * UI-operation catalog (`@phoenix/agent/uiOperations`) and execute through
- * the `search_ui` / `execute_ui` meta-tools registered below.
+ * the `search_browser_actions` / `execute_browser_action` meta-tools registered below.
  */
 import {
   createAnnotationConfigAgentTool,
@@ -58,8 +58,8 @@ import { createAgentToolDispatcher } from "./registry/dispatch";
 export type { AgentToolCall, AgentToolUIBehavior } from "./registry/defineTool";
 
 /**
- * The two meta-tools fronting the UI-operation catalog: `search_ui`
- * discovers operations and their signatures; `execute_ui` runs an
+ * The two meta-tools fronting the UI-operation catalog: `search_browser_actions`
+ * discovers operations and their signatures; `execute_browser_action` runs an
  * agent-authored script against them in a sandboxed worker.
  */
 const uiOperationTools: AgentToolDefinition[] = [

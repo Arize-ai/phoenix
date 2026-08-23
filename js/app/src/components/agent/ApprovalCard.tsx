@@ -118,7 +118,7 @@ export function payloadToApprovalSummaryRows(
 /**
  * The reviewable description of one pending approval, independent of where it
  * was staged (a standalone write tool or an inner `ui.*` call of an
- * `execute_ui` script). Producing this shape is the per-operation concern;
+ * `execute_browser_action` script). Producing this shape is the per-operation concern;
  * rendering it is {@link ApprovalCard}'s.
  */
 export type ApprovalPreview = {
@@ -166,7 +166,7 @@ function ApprovalPreviewBodyView({ body }: { body: ApprovalPreviewBody }) {
 /**
  * The one inline Accept/Reject card shared by every PXI approval — standalone
  * write tools (dataset writes, annotation-config writes, experiment patches)
- * and the inner-operation approvals an `execute_ui` script stages alike. Each
+ * and the inner-operation approvals an `execute_browser_action` script stages alike. Each
  * caller maps its pending state to an {@link ApprovalPreview}; this component
  * owns the label/diff/danger-note/actions layout so every approval reads the
  * same and gains structured previews instead of a raw JSON dump.

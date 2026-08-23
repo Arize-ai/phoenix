@@ -35,7 +35,7 @@ function buildAcceptedOutput({
 
 /**
  * Attaches accept/reject callbacks to a pending prompt save proposal. Each
- * callback resolves the awaiting `execute_ui` script call via `emitResult`;
+ * callback resolves the awaiting `execute_browser_action` script call via `emitResult`;
  * see `bindPendingPromptEditActions` for the result contract.
  */
 export function bindPendingSavePromptActions({

@@ -22,7 +22,7 @@ import type {
 
 /**
  * Every operation PXI can execute, whether or not its UI surface is
- * currently mounted. Statically importable so `search_ui` can describe
+ * currently mounted. Statically importable so `search_browser_actions` can describe
  * operations on other pages and tell the agent how to reach them.
  */
 const knownUiOperations: UiOperationDescriptor[] = [
@@ -99,7 +99,7 @@ export function isUiOperationMounted(
   return name in agentStore.getState().registeredClientActions;
 }
 
-/** One `search_ui` result: the descriptor plus current availability. */
+/** One `search_browser_actions` result: the descriptor plus current availability. */
 export type UiOperationSearchResult = {
   descriptor: UiOperationDescriptor;
   isMounted: boolean;
@@ -229,7 +229,7 @@ type JsonSchemaNode = {
  * Renders the *input* side of transforms (what the model sends), maps
  * unrepresentable pieces (custom types, effects) to `{}` instead of
  * throwing, and falls back to `undefined` (rendered `unknown`) if the
- * conversion still fails — `search_ui` must never crash on a schema.
+ * conversion still fails — `search_browser_actions` must never crash on a schema.
  */
 function toJsonSchemaNode(schema: z.ZodType): JsonSchemaNode | undefined {
   try {
@@ -278,7 +278,7 @@ function renderInlineType(node: JsonSchemaNode | undefined): string {
 
 /**
  * Render one operation as a `.d.ts`-style signature with a doc comment — the
- * `search_ui` output format. Signatures cost far fewer model tokens than raw
+ * `search_browser_actions` output format. Signatures cost far fewer model tokens than raw
  * JSON schema and read as the exact API the model writes scripts against.
  */
 export function renderUiOperationSignature({
@@ -303,7 +303,7 @@ export function renderUiOperationSignature({
 }
 
 /**
- * Render search results as one catalog block for the `search_ui` output.
+ * Render search results as one catalog block for the `search_browser_actions` output.
  * The header says the catalog is complete so the model has no reason to
  * search again with a reworded query — every call returns the same
  * operations, only re-ranked.
@@ -317,7 +317,7 @@ export function renderUiOperationCatalog(
   const signatures = results.map(renderUiOperationSignature).join("\n\n");
   return [
     `// Complete catalog: all ${results.length} UI operations, best query matches first.\n` +
-      "// Further search_ui calls return these same operations re-ranked — reuse\n" +
+      "// Further search_browser_actions calls return these same operations re-ranked — reuse\n" +
       "// this catalog instead of searching again. Only per-operation availability\n" +
       '// ("available on the current page") changes, after navigation.',
     "// UiResult = { ok: true; output?: unknown } | { ok: false; error: string }",

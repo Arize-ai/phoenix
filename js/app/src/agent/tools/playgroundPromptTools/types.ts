@@ -152,7 +152,7 @@ export type PromptToolsWriteSummary = {
  */
 export type PendingPromptToolWrite = {
   /**
-   * Key of this pending entry. Under `execute_ui` this is the inner
+   * Key of this pending entry. Under `execute_browser_action` this is the inner
    * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
    * the field keeps its historical name to limit churn across consumers.
    */
@@ -178,7 +178,7 @@ export type BindPendingPromptToolWriteOptions = {
   pendingWrite: PendingPromptToolWrite;
   /** Live playground store used to re-check the revision and apply the batch. */
   playgroundStore: PlaygroundStore;
-  /** Resolves the awaiting `execute_ui` script call with the user's decision. */
+  /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
   emitResult: UiOperationResultEmitter;
   setPendingPromptToolWrite: (
     toolCallId: string,

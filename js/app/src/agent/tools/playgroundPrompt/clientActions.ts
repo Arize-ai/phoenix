@@ -125,7 +125,7 @@ export function createRemovePromptInstanceClientAction({
     if (!preview.ok) return preview;
 
     // The returned promise resolves when the user (or bypass mode) decides;
-    // the awaiting execute_ui script sits parked on it until then.
+    // the awaiting execute_browser_action script sits parked on it until then.
     return new Promise((resolve) => {
       const pendingRemoval = bindPendingPromptInstanceRemovalActions({
         pendingRemoval: {
@@ -206,7 +206,7 @@ export function createEditPromptClientAction({
     if (!proposed.ok) return proposed;
 
     // The returned promise resolves when the user (or bypass mode) decides;
-    // the awaiting execute_ui script sits parked on it until then.
+    // the awaiting execute_browser_action script sits parked on it until then.
     return new Promise((resolve) => {
       const pendingEdit = bindPendingPromptEditActions({
         pendingEdit: {

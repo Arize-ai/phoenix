@@ -4,16 +4,16 @@ import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnn
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import {
   abortActiveUiScriptRun,
-  EXECUTE_UI_TOOL_NAME,
+  EXECUTE_BROWSER_ACTION_TOOL_NAME,
 } from "@phoenix/agent/uiOperations/executeUiAgentTool";
 import type { AgentState } from "@phoenix/store/agentStore";
 
 type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
 
 /**
- * The approval pending-state maps that `execute_ui` script calls can write.
+ * The approval pending-state maps that `execute_browser_action` script calls can write.
  * Entries are keyed by the inner operation call id
- * (`<executeUiToolCallId>:<sequence>`), so cleanup for an `execute_ui` tool
+ * (`<executeUiToolCallId>:<sequence>`), so cleanup for an `execute_browser_action` tool
  * call clears every entry whose key carries that tool call's prefix.
  */
 const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
@@ -53,7 +53,7 @@ const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
 ];
 
 /**
- * Cleans up everything an interrupted or dropped `execute_ui` call owns:
+ * Cleans up everything an interrupted or dropped `execute_browser_action` call owns:
  * aborts the script run (terminating its worker) and clears any pending
  * approval entries its inner operation calls staged.
  */
@@ -82,8 +82,8 @@ function cleanupExecuteUiToolState(
  * tool calls don't leave dangling Accept/Reject affordances.
  *
  * The playground/evaluator approval tools that used to register here now run
- * as `execute_ui` operations; their pending state is keyed by inner call id
- * and cleaned by the `execute_ui` entry.
+ * as `execute_browser_action` operations; their pending state is keyed by inner call id
+ * and cleaned by the `execute_browser_action` entry.
  */
 const PENDING_TOOL_STATE_CLEANUP: Readonly<
   Record<string, PendingToolStateCleanup>
@@ -99,7 +99,7 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
       }
     }
   },
-  [EXECUTE_UI_TOOL_NAME]: cleanupExecuteUiToolState,
+  [EXECUTE_BROWSER_ACTION_TOOL_NAME]: cleanupExecuteUiToolState,
 };
 
 /**
@@ -108,7 +108,7 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
  */
 export const REWIND_CLEANUP_TOOL_NAMES: ReadonlySet<string> = new Set([
   BATCH_SPAN_ANNOTATE_TOOL_NAME,
-  EXECUTE_UI_TOOL_NAME,
+  EXECUTE_BROWSER_ACTION_TOOL_NAME,
 ]);
 
 /**

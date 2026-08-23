@@ -9,7 +9,7 @@ import type {
 
 /**
  * Attaches accept/reject/cancel callbacks to a pending tool-write batch. Each
- * callback resolves the awaiting `execute_ui` script call via `emitResult`;
+ * callback resolves the awaiting `execute_browser_action` script call via `emitResult`;
  * see `bindPendingPromptEditActions` for the result contract. The batch is
  * re-applied on accept (which re-checks the revision against the current
  * store), so a tool list that drifted between propose and accept is rejected

@@ -4,7 +4,7 @@ import type {
 } from "./protocol";
 
 /**
- * Dedicated-worker entry point for `execute_ui` scripts.
+ * Dedicated-worker entry point for `execute_browser_action` scripts.
  *
  * The worker realm is the *execution* boundary, not a security boundary: it
  * has no DOM, no zustand, no Relay, and (after the hygiene pass below) no
@@ -151,7 +151,7 @@ async function evaluateUiScript(script: string) {
     workerScope.postMessage({
       type: "failed",
       error:
-        "The script uses `import`, which is not available in execute_ui — " +
+        "The script uses `import`, which is not available in execute_browser_action — " +
         "reach the outside world only through `ui.*` operations.",
     });
     return;

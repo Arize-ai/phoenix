@@ -2,7 +2,7 @@ import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
 
 import { renderUiOperationCatalog, searchUiOperations } from "./catalog";
 
-export const SEARCH_UI_TOOL_NAME = "search_ui";
+export const SEARCH_BROWSER_ACTIONS_TOOL_NAME = "search_browser_actions";
 
 type SearchUiInput = {
   query: string;
@@ -20,9 +20,9 @@ function parseSearchUiInput(input: unknown): SearchUiInput | null {
 }
 
 /**
- * `search_ui`: discover UI operations and their signatures. One of the two
+ * `search_browser_actions`: discover UI operations and their signatures. One of the two
  * meta-tools that replace the per-operation client-action tools; the model
- * searches here first, then composes what it found into an `execute_ui`
+ * searches here first, then composes what it found into an `execute_browser_action`
  * script.
  *
  * Every call returns the complete catalog with query matches ranked first
@@ -34,10 +34,10 @@ function parseSearchUiInput(input: unknown): SearchUiInput | null {
  * capability lands.
  */
 export const searchUiAgentTool = defineTool<SearchUiInput>({
-  name: SEARCH_UI_TOOL_NAME,
+  name: SEARCH_BROWSER_ACTIONS_TOOL_NAME,
   parseInput: parseSearchUiInput,
   invalidInputErrorText:
-    "Invalid search_ui input. Expected { query?: string }.",
+    "Invalid search_browser_actions input. Expected { query?: string }.",
   // Pure catalog read with no side effects: always safe to re-dispatch when
   // an unresolved call is found on session load or after a session sync.
   rehydratable: true,
@@ -48,7 +48,7 @@ export const searchUiAgentTool = defineTool<SearchUiInput>({
     });
     await addToolOutput({
       state: "output-available",
-      tool: SEARCH_UI_TOOL_NAME,
+      tool: SEARCH_BROWSER_ACTIONS_TOOL_NAME,
       toolCallId: toolCall.toolCallId,
       output: renderUiOperationCatalog(results),
     });

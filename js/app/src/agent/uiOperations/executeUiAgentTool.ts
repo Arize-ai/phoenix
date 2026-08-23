@@ -3,17 +3,17 @@ import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
 import { dispatchUiOperationCall } from "./dispatch";
 import { runUiScript } from "./runtime/uiScriptBridge";
 
-export const EXECUTE_UI_TOOL_NAME = "execute_ui";
+export const EXECUTE_BROWSER_ACTION_TOOL_NAME = "execute_browser_action";
 
 /**
- * Abort callbacks for in-flight script runs, keyed by the `execute_ui`
+ * Abort callbacks for in-flight script runs, keyed by the `execute_browser_action`
  * tool-call id. Chat interrupt / session teardown uses this to hard-stop a
  * running script (terminating its worker) before clearing pending state.
  */
 const activeRunAborts = new Map<string, (reason: string) => void>();
 
 /**
- * Force-fail the script run belonging to an `execute_ui` tool call, if one
+ * Force-fail the script run belonging to an `execute_browser_action` tool call, if one
  * is still active. Safe to call for unknown ids. Returns whether a run was
  * aborted.
  */
@@ -66,7 +66,7 @@ function parseExecuteUiInput(input: unknown): ExecuteUiInput | null {
  * can crowd out everything else for the rest of the conversation. Budgets
  * are sized so even a script-heavy session stays cheap: at ~4 chars/token,
  * a maxed-out return value costs ~1k tokens and a maxed-out log section
- * ~500, so twenty execute_ui calls stay under ~30k tokens combined. The
+ * ~500, so twenty execute_browser_action calls stay under ~30k tokens combined. The
  * script itself is the escape hatch — it can slice, project, and count
  * before returning — and the truncation notice says so.
  */
@@ -210,8 +210,8 @@ export function parseExecuteUiRunOutput(
 }
 
 /**
- * `execute_ui`: run an agent-authored script against the UI operation catalog
- * in a sandboxed worker. The counterpart to `search_ui` — together they
+ * `execute_browser_action`: run an agent-authored script against the UI operation catalog
+ * in a sandboxed worker. The counterpart to `search_browser_actions` — together they
  * replace the per-operation client-action tools.
  *
  * The script receives two bindings:
@@ -224,10 +224,10 @@ export function parseExecuteUiRunOutput(
  * capability lands.
  */
 export const executeUiAgentTool = defineTool<ExecuteUiInput>({
-  name: EXECUTE_UI_TOOL_NAME,
+  name: EXECUTE_BROWSER_ACTION_TOOL_NAME,
   parseInput: parseExecuteUiInput,
   invalidInputErrorText:
-    "Invalid execute_ui input. Expected { script: string } with a non-empty script body.",
+    "Invalid execute_browser_action input. Expected { script: string } with a non-empty script body.",
   // The card stays collapsed by default — most scripts run and finish
   // without needing the user's attention. When an inner operation stages an
   // Accept/Reject approval, dispatch requests the card open through the
@@ -268,7 +268,7 @@ export const executeUiAgentTool = defineTool<ExecuteUiInput>({
           : "";
       await addToolOutput({
         state: "output-error",
-        tool: EXECUTE_UI_TOOL_NAME,
+        tool: EXECUTE_BROWSER_ACTION_TOOL_NAME,
         toolCallId: toolCall.toolCallId,
         errorText: `${run.error}${logSuffix}`,
       });
@@ -276,7 +276,7 @@ export const executeUiAgentTool = defineTool<ExecuteUiInput>({
     }
     await addToolOutput({
       state: "output-available",
-      tool: EXECUTE_UI_TOOL_NAME,
+      tool: EXECUTE_BROWSER_ACTION_TOOL_NAME,
       toolCallId: toolCall.toolCallId,
       output: renderRunOutput(run),
     });

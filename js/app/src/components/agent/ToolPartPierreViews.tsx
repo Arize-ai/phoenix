@@ -47,7 +47,7 @@ const PIERRE_THEME = { light: "pierre-light", dark: "pierre-dark" } as const;
 
 /**
  * A syntax-highlighted read-only file body (language inferred from
- * `fileName`) for tool part content such as the `execute_ui` script argument.
+ * `fileName`) for tool part content such as the `execute_browser_action` script argument.
  */
 export function ToolPartFileView({
   fileName,

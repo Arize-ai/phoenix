@@ -50,9 +50,9 @@ def _tool_args(call: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-# The search_ui/execute_ui migration replaced these client-action tools with
+# The search_browser_actions/execute_browser_action migration replaced these client-action tools with
 # catalog operations. Keep the existing behavioral datasets useful by treating
-# an execute_ui script that invokes the replacement operation as the legacy
+# an execute_browser_action script that invokes the replacement operation as the legacy
 # tool call the example describes.
 _LEGACY_UI_OPERATION_NAMES: dict[str, str] = {
     "add_prompt_instance": "playground.instance.add",
@@ -142,7 +142,7 @@ def _legacy_ui_operation_arguments(calls: list[dict[str, Any]], legacy_tool_name
         return []
     arguments: list[str] = []
     for call in calls:
-        if _tool_name(call) != "execute_ui":
+        if _tool_name(call) != "execute_browser_action":
             continue
         script = _tool_args(call).get("script")
         if isinstance(script, str):
@@ -151,14 +151,14 @@ def _legacy_ui_operation_arguments(calls: list[dict[str, Any]], legacy_tool_name
 
 
 def _logical_tool_names(calls: list[dict[str, Any]], expected_tool_names: list[str]) -> list[str]:
-    """Project execute_ui operations onto legacy names used by eval datasets."""
+    """Project execute_browser_action operations onto legacy names used by eval datasets."""
     projects_legacy_names = any(name in _LEGACY_UI_OPERATION_NAMES for name in expected_tool_names)
     observed: list[str] = []
     for call in calls:
         name = _tool_name(call)
         if name is None:
             continue
-        if name != "execute_ui":
+        if name != "execute_browser_action":
             observed.append(name)
             continue
         matched_legacy_names = [
@@ -698,7 +698,7 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
             failures[tool_name] = {"reason": "tool or replacement UI operation was not called"}
             continue
         # Pass if ANY (variant, call) pair satisfies the subset check, or if an
-        # execute_ui script invokes the replacement operation with equivalent
+        # execute_browser_action script invokes the replacement operation with equivalent
         # literal argument evidence.
         if any(
             all(_pair_passes(_tool_args(call), key, value) for key, value in variant.items())
