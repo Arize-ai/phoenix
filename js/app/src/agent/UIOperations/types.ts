@@ -96,7 +96,7 @@ export type UIOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
   inputSchema: TSchema;
   /**
    * Zod schema describing the success `output` shape, rendered into the
-   * operation's `search_ui` signature as `Promise<UIResult<T>>`. This is
+   * operation's `search_browser_actions` signature as `Promise<UIResult<T>>`. This is
    * documentation, not a runtime gate — dispatch does not validate outputs
    * against it, so a drifted schema misleads the model but never turns a
    * working operation into a user-facing failure. Approximate shapes
