@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84d63b75da7300a50bca469973cad6ed>>
+ * @generated SignedSource<<febc6ecb4bdcdaf67c0edc11d39cf48b>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,6 @@ export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorMetrics_projectEvaluator$data = {
   readonly evaluationTarget: EvaluationTarget;
-  readonly id: string;
   readonly project: {
     readonly id: string;
   };
@@ -28,15 +27,14 @@ export type ProjectEvaluatorMetrics_projectEvaluator$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v1 = [
-  (v0/*:: as any*/)
+var v0 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "id",
+    "storageKey": null
+  }
 ];
 return {
   "argumentDefinitions": [],
@@ -44,7 +42,6 @@ return {
   "metadata": null,
   "name": "ProjectEvaluatorMetrics_projectEvaluator",
   "selections": [
-    (v0/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -59,7 +56,7 @@ return {
       "kind": "LinkedField",
       "name": "project",
       "plural": false,
-      "selections": (v1/*:: as any*/),
+      "selections": (v0/*:: as any*/),
       "storageKey": null
     },
     {
@@ -69,7 +66,7 @@ return {
       "kind": "LinkedField",
       "name": "traceProject",
       "plural": false,
-      "selections": (v1/*:: as any*/),
+      "selections": (v0/*:: as any*/),
       "storageKey": null
     },
     {
@@ -83,6 +80,6 @@ return {
 };
 })();
 
-(node as any).hash = "d5a865c8aca6b40898b668aab45929d8";
+(node as any).hash = "6c676fb8824e8764dc4282337038c6fa";
 
 export default node;

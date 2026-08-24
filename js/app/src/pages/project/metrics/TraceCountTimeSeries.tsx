@@ -21,7 +21,7 @@ import {
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { CountTimeSeriesTooltipContent } from "@phoenix/pages/project/metrics/CountTimeSeriesTooltipContent";
-import type { EvaluatorScopedProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   PROJECT_METRICS_CHART_SYNC_ID,
   useMetricQueryFetchOptions,
@@ -34,8 +34,7 @@ export function TraceCountTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
-  projectEvaluatorId,
-}: EvaluatorScopedProjectMetricViewProps) {
+}: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
@@ -45,14 +44,12 @@ export function TraceCountTimeSeries({
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
-        $projectEvaluatorId: ID
       ) {
         project: node(id: $projectId) {
           ... on Project {
             traceCountByStatusTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
-              projectEvaluatorId: $projectEvaluatorId
             ) {
               data {
                 timestamp
@@ -75,7 +72,6 @@ export function TraceCountTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-      projectEvaluatorId,
     },
     useMetricQueryFetchOptions()
   );

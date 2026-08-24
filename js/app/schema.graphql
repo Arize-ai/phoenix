@@ -3298,34 +3298,10 @@ type Project implements Node {
   updatedAt: DateTime!
   spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, filterCondition: String): SpanCountTimeSeries!
   traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
-  traceCountByStatusTimeSeries(
-    timeRange: TimeRange!
-    timeBinConfig: TimeBinConfig
-
-    """
-    Restrict to traces produced by this project evaluator. An evaluator's trace project normally holds only its own traces, but legacy shared-project data can mix evaluators; this scope filters out the foreign traces.
-    """
-    projectEvaluatorId: ID
-  ): TraceCountByStatusTimeSeries!
-  traceLatencyMsPercentileTimeSeries(
-    timeRange: TimeRange!
-    timeBinConfig: TimeBinConfig
-
-    """
-    Restrict to traces produced by this project evaluator. An evaluator's trace project normally holds only its own traces, but legacy shared-project data can mix evaluators; this scope filters out the foreign traces.
-    """
-    projectEvaluatorId: ID
-  ): TraceLatencyPercentileTimeSeries!
+  traceCountByStatusTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountByStatusTimeSeries!
+  traceLatencyMsPercentileTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceLatencyPercentileTimeSeries!
   traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
-  traceTokenCostTimeSeries(
-    timeRange: TimeRange!
-    timeBinConfig: TimeBinConfig
-
-    """
-    Restrict to traces produced by this project evaluator. An evaluator's trace project normally holds only its own traces, but legacy shared-project data can mix evaluators; this scope filters out the foreign traces.
-    """
-    projectEvaluatorId: ID
-  ): TraceTokenCostTimeSeries!
+  traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
   spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!

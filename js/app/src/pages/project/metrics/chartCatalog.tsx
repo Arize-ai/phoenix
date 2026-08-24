@@ -37,10 +37,7 @@ import {
   TracePromptTokenDetailsTimeSeries,
   TraceTokenCountTimeSeries,
 } from "./TraceTokenCountTimeSeries";
-import type {
-  EvaluatorScopedProjectMetricViewProps,
-  ProjectMetricViewProps,
-} from "./types";
+import type { ProjectMetricViewProps } from "./types";
 
 export type ProjectMetricChart = {
   key: ProjectMetricChartKey;
@@ -63,7 +60,7 @@ export type ProjectMetricChart = {
   Panel: ComponentType<ProjectMetricPanelProps>;
 };
 
-type ProjectMetricPanelProps = EvaluatorScopedProjectMetricViewProps & {
+type ProjectMetricPanelProps = ProjectMetricViewProps & {
   annotationLevel?: MetricChartTableView;
   annotationName?: string;
   fillHeight?: boolean;
@@ -253,7 +250,7 @@ function ProjectAnnotationChartPanel({
   );
 }
 
-type DeferredProjectMetricPanelProps = EvaluatorScopedProjectMetricViewProps & {
+type DeferredProjectMetricPanelProps = ProjectMetricViewProps & {
   chart: ProjectMetricChart;
   fillHeight?: boolean;
   /** Panel title; the catalog entry's name when omitted. */

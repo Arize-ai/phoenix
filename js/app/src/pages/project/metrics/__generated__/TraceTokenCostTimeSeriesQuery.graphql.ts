@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cfdc4d7d5d78e867fa8045394511158b>>
+ * @generated SignedSource<<c732cfdb6e69194f0e48e27146d5a19e>>
  * @lightSyntaxTransform
  */
 
@@ -18,7 +18,6 @@ export type TimeBinConfig = {
   utcOffsetMinutes?: number;
 };
 export type TraceTokenCostTimeSeriesQuery$variables = {
-  projectEvaluatorId?: string | null;
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
@@ -44,41 +43,31 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "projectEvaluatorId"
+  "name": "projectId"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "projectId"
+  "name": "timeBinConfig"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "timeBinConfig"
-},
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v4 = [
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v5 = {
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
       "args": [
-        {
-          "kind": "Variable",
-          "name": "projectEvaluatorId",
-          "variableName": "projectEvaluatorId"
-        },
         {
           "kind": "Variable",
           "name": "timeBinConfig",
@@ -146,8 +135,7 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
-      (v3/*:: as any*/)
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -155,13 +143,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*:: as any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -172,17 +160,16 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v3/*:: as any*/),
+      (v0/*:: as any*/),
       (v2/*:: as any*/),
-      (v0/*:: as any*/)
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "TraceTokenCostTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -195,7 +182,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v5/*:: as any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -209,16 +196,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f7bf4e2f09fa0d65e8634e3e81b444bc",
+    "cacheID": "7522c293e243611bc4bebfe30c7522ef",
     "id": null,
     "metadata": {},
     "name": "TraceTokenCostTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query TraceTokenCostTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $projectEvaluatorId: ID\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceTokenCostTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, projectEvaluatorId: $projectEvaluatorId) {\n        data {\n          timestamp\n          promptCost\n          completionCost\n          totalCost\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceTokenCostTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceTokenCostTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          promptCost\n          completionCost\n          totalCost\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0941d438dcb02f3fc59b1864d3b23187";
+(node as any).hash = "109edc0430448e11877ced236204dd49";
 
 export default node;

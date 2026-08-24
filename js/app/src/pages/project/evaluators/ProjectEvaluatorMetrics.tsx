@@ -45,8 +45,7 @@ function getAnnotationLevel(
 /**
  * The metrics tab of the project evaluator details page: how the evaluator's
  * results are trending on the evaluated project, and what its own runs cost
- * and how long they take, read from its own trace project scoped to this
- * evaluator.
+ * and how long they take, read from its own trace project.
  */
 export function ProjectEvaluatorMetrics({
   projectEvaluator,
@@ -56,7 +55,6 @@ export function ProjectEvaluatorMetrics({
   const data = useFragment(
     graphql`
       fragment ProjectEvaluatorMetrics_projectEvaluator on ProjectEvaluator {
-        id
         evaluationTarget
         project {
           id
@@ -78,7 +76,6 @@ export function ProjectEvaluatorMetrics({
   return (
     <div css={metricsScrollContainerCSS}>
       <ProjectEvaluatorMetricPanels
-        projectEvaluatorId={data.id}
         evaluatedProjectId={data.project.id}
         traceProjectId={data.traceProject.id}
         annotationLevel={getAnnotationLevel(data.evaluationTarget)}
@@ -92,7 +89,6 @@ export function ProjectEvaluatorMetrics({
 
 const ProjectEvaluatorMetricPanels = memo(
   function ProjectEvaluatorMetricPanels({
-    projectEvaluatorId,
     evaluatedProjectId,
     traceProjectId,
     annotationLevel,
@@ -100,7 +96,6 @@ const ProjectEvaluatorMetricPanels = memo(
     timeRange,
     onTimeRangeSelected,
   }: {
-    projectEvaluatorId: string;
     /** The project whose spans or sessions this evaluator annotates. */
     evaluatedProjectId: string;
     /** The evaluator's own trace project, minted when the evaluator is created. */
@@ -111,11 +106,8 @@ const ProjectEvaluatorMetricPanels = memo(
     timeRange: TimeRange;
     onTimeRangeSelected: (timeRange: TimeRange) => void;
   }) {
-    // The trace charts are scoped to this evaluator because legacy
-    // shared-project data can mix evaluators' traces in one project.
     const evaluatorTraceChartProps = {
       projectId: traceProjectId,
-      projectEvaluatorId,
       timeRange,
       onTimeRangeSelected,
     };

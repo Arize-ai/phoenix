@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<09986eb46439f3b0e1f47b6b7eca5176>>
+ * @generated SignedSource<<ab06607aaa4928371410b940757f9933>>
  * @lightSyntaxTransform
  */
 
@@ -18,7 +18,6 @@ export type TimeBinConfig = {
   utcOffsetMinutes?: number;
 };
 export type TraceLatencyPercentilesTimeSeriesQuery$variables = {
-  projectEvaluatorId?: string | null;
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
@@ -48,41 +47,31 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "projectEvaluatorId"
+  "name": "projectId"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "projectId"
+  "name": "timeBinConfig"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "timeBinConfig"
-},
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v4 = [
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v5 = {
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
       "args": [
-        {
-          "kind": "Variable",
-          "name": "projectEvaluatorId",
-          "variableName": "projectEvaluatorId"
-        },
         {
           "kind": "Variable",
           "name": "timeBinConfig",
@@ -178,8 +167,7 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
-      (v3/*:: as any*/)
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -187,13 +175,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*:: as any*/)
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -204,17 +192,16 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v3/*:: as any*/),
+      (v0/*:: as any*/),
       (v2/*:: as any*/),
-      (v0/*:: as any*/)
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "TraceLatencyPercentilesTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -227,7 +214,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v5/*:: as any*/),
+          (v4/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -241,16 +228,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "774691b6e28221e060760b71e83a06b7",
+    "cacheID": "6c789d659dbd5cdd9a890996b82d2aeb",
     "id": null,
     "metadata": {},
     "name": "TraceLatencyPercentilesTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query TraceLatencyPercentilesTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $projectEvaluatorId: ID\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceLatencyMsPercentileTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, projectEvaluatorId: $projectEvaluatorId) {\n        data {\n          timestamp\n          p50\n          p75\n          p90\n          p95\n          p99\n          p999\n          max\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceLatencyPercentilesTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceLatencyMsPercentileTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          p50\n          p75\n          p90\n          p95\n          p99\n          p999\n          max\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f097e1a81381a09c0e51ba0f76bbd85b";
+(node as any).hash = "741f12e79590c1e1fb779d92730cacf9";
 
 export default node;
