@@ -151,7 +151,10 @@ export function AnnotationScoreTimeSeriesChart({
     useInteractiveLegend();
 
   return (
-    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush
+      onTimeRangeSelected={onTimeRangeSelected}
+      scale={scale}
+    >
       {({ chartProps }) => (
         <ChartEmptyStateOverlay
           isEmpty={!hasData}

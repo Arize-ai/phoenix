@@ -123,6 +123,7 @@ function ProjectAnnotationMetricsPanel({
   timeTickFormatter,
   fullTimeFormatter,
   onTimeRangeSelected,
+  scale,
   fillHeight = false,
 }: {
   series: AnnotationMetricsSeries;
@@ -131,6 +132,7 @@ function ProjectAnnotationMetricsPanel({
   timeTickFormatter: (date: Date) => string;
   fullTimeFormatter: (date: Date) => string;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
+  scale: TimeBinScale;
   fillHeight?: boolean;
 }) {
   const [view, setView] = useState(() =>
@@ -152,7 +154,10 @@ function ProjectAnnotationMetricsPanel({
         ) : undefined
       }
     >
-      <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+      <TimeRangeChartBrush
+        onTimeRangeSelected={onTimeRangeSelected}
+        scale={scale}
+      >
         {({ chartProps }) => (
           <AnnotationMetricsChart
             series={series}
@@ -281,6 +286,7 @@ function ProjectAnnotationMetricPanelContent({
       {...props}
       series={series}
       annotationConfig={annotationConfigsByName.get(series.name)}
+      scale={scale}
       timeTickFormatter={timeTickFormatter}
       fullTimeFormatter={fullTimeFormatter}
       fillHeight={fillHeight}
