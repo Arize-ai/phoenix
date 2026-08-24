@@ -5,7 +5,7 @@ import type {
 } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
-import { useNavigate } from "react-router";
+import { useHref, useNavigate } from "react-router";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
 import { Button } from "@phoenix/components/core/button";
@@ -54,6 +54,7 @@ export const AddProjectEvaluatorMenu = ({
 function AddProjectEvaluatorMenuItems() {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
+  const galleryHref = useHref(paths.gallery);
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
     projectEvaluatorOptionsQueryNode,
     {},
@@ -72,9 +73,7 @@ function AddProjectEvaluatorMenuItems() {
       <Menu
         aria-label="Add evaluator"
         onAction={(action) => {
-          if (action === "browseGallery") {
-            navigate(paths.gallery);
-          } else if (action === "createEvaluator") {
+          if (action === "createEvaluator") {
             navigate(paths.newLlm);
           } else if (action === "createCodeEvaluator") {
             navigate(paths.newCode);
@@ -85,6 +84,7 @@ function AddProjectEvaluatorMenuItems() {
           <MenuItem
             leadingContent={<Icon svg={<Icons.Grid />} />}
             id="browseGallery"
+            href={galleryHref}
           >
             Browse the whole library
           </MenuItem>

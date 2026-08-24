@@ -21,7 +21,6 @@ const MAX_ATTACH_CARDS = 3;
 const EVALUATOR_CARD_HEIGHT = 90;
 
 export function ProjectEvaluatorsEmptyState() {
-  const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
   return (
     <EmptyStateArea>
@@ -40,10 +39,10 @@ export function ProjectEvaluatorsEmptyState() {
             type: "strip",
             items: [
               {
-                kind: "button",
+                kind: "internal-link",
                 variant: "primary",
                 children: "Browse the whole library",
-                onPress: () => navigate(paths.gallery),
+                to: paths.gallery,
               },
             ],
           }}
