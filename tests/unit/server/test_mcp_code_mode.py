@@ -173,6 +173,24 @@ async def test_guest_exception_reaches_the_caller(
     )
 
 
+async def test_a_guest_error_message_is_bounded_in_the_log(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Guest code picks its own exception text, so the log caps what it can carry."""
+    code = "raise ValueError('x' * 50_000)"
+    with caplog.at_level(logging.WARNING, logger="phoenix.server.mcp_code_mode"):
+        with pytest.raises(MontyRuntimeError):
+            await provider.run(code)
+
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "MCP code-mode execute failed" in record.getMessage()
+    )
+    assert "truncated from" in message
+    assert len(message) < 5_000
+
+
 async def test_syntax_error_reaches_the_caller(provider: MontyPoolSandboxProvider) -> None:
     with pytest.raises(MontySyntaxError):
         await provider.run("this is not python(")

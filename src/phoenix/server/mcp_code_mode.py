@@ -51,6 +51,23 @@ def _code_fingerprint(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()[:12]
 
 
+#: Room for any real diagnostic, short of what an exception could carry as a payload.
+_MAX_LOGGED_ERROR_CHARS = 2048
+
+
+def _bounded_message(exc: BaseException) -> str:
+    """The exception's message, capped.
+
+    Guest code raises whatever it likes, so an exception is a channel into the
+    log pipeline wide enough to send a query result down. Real messages are far
+    shorter than the cap, so bounding costs no diagnostic.
+    """
+    message = str(exc)
+    if len(message) <= _MAX_LOGGED_ERROR_CHARS:
+        return message
+    return f"{message[:_MAX_LOGGED_ERROR_CHARS]}... (truncated from {len(message)} chars)"
+
+
 class MontyPoolSandboxProvider:
     """FastMCP adapter for the server's shared Monty worker runtime.
 
@@ -123,7 +140,7 @@ class MontyPoolSandboxProvider:
                     param_keys,
                     (time.perf_counter() - started) * 1000,
                     type(exc).__name__,
-                    exc,
+                    _bounded_message(exc),
                 )
                 raise
             logger.debug(
@@ -154,7 +171,7 @@ class MontyPoolSandboxProvider:
             len(code),
             _code_fingerprint(code),
             type(exc).__name__,
-            exc,
+            _bounded_message(exc),
         )
 
     async def run(
