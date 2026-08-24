@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -14,6 +15,8 @@ from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
+    PhoenixMCPCapability,
+    PhoenixMCPToolset,
     build_anthropic_prompt_cache_capability,
 )
 from phoenix.server.agents.capabilities.skills import SkillsCapability, SkillsToolset
@@ -39,6 +42,11 @@ from phoenix.server.api.context import Context
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
+if TYPE_CHECKING:
+    from fastmcp import FastMCP
+
+    from phoenix.server.bearer_auth import PhoenixUser
+
 
 async def _discard_subagent_message_chunk(_: ToolOutputAvailableChunk) -> None:
     # TODO: Wire this to the direct server-agent route so preliminary
@@ -61,6 +69,8 @@ def build_server_agent(
     event_queue: CanPutItem[DmlEvent],
     prompts: ServerAgentPrompts | None = None,
     docs_mcp_server: MCPToolset[None] | None = None,
+    phoenix_mcp_server: "FastMCP | None" = None,
+    principal: "PhoenixUser | None" = None,
     enable_web_access: bool = False,
     allow_mutations: bool = False,
     require_mutation_approval: bool = True,
@@ -116,6 +126,19 @@ def build_server_agent(
                 instructions=resolved_prompts.docs_tool,
             )
         )
+    if phoenix_mcp_server is not None:
+        # Per agent: the toolset carries this request's principal and this run's
+        # tool-group reveals.
+        capabilities.append(
+            PhoenixMCPCapability[None](
+                mcp_server=PhoenixMCPToolset[None](
+                    phoenix_mcp_server,
+                    principal=principal,
+                    id="phoenix_rest_api",
+                ),
+                instructions=resolved_prompts.phoenix_mcp_tools,
+            )
+        )
     if enable_web_access:
         if (web_search := build_web_search_capability(model)) is not None:
             capabilities.append(web_search)
@@ -131,6 +154,8 @@ def build_server_agent(
             db=db,
             event_queue=event_queue,
             docs_mcp_server=docs_mcp_server,
+            phoenix_mcp_server=phoenix_mcp_server,
+            principal=principal,
             enable_web_access=enable_web_access,
             allow_mutations=allow_mutations,
             require_mutation_approval=require_mutation_approval,

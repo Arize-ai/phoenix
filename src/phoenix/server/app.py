@@ -709,12 +709,12 @@ def _lifespan(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
                     )
-            # Probe the shared runtime once when either consumer can use it.
+            # Probe the shared runtime once when any consumer can use it.
             # Failure is non-fatal because Monty is an optional server feature.
-            if (
-                getattr(app.state, "mcp_code_mode_sandbox", None) is not None
-                or "MONTY" in get_env_allowed_sandbox_providers()
-            ):
+            mounted_mcp_code_mode = getattr(app.state, "mcp_code_mode_sandbox", None) is not None
+            agent_mcp_code_mode = getattr(app.state, "pxi_mcp_sandbox", None) is not None
+            monty_allowed_by_config = "MONTY" in get_env_allowed_sandbox_providers()
+            if mounted_mcp_code_mode or agent_mcp_code_mode or monty_allowed_by_config:
                 try:
                     await sandbox_runtime.monty.probe_runtime()
                 except Exception:
@@ -1233,6 +1233,26 @@ def create_app(
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
+    # The agent's own instance, independent of the mount and its configuration.
+    # Read-only: mutations belong to the agent's editing tools, which route
+    # approval through the user. Its sandbox takes the ``agent`` admission class,
+    # capped one below the worker pool size: consumers compete for workers and a
+    # loser waits at checkout, but no consumer can hold them all.
+    pxi_mcp_server = None
+    pxi_mcp_sandbox = None
+    if not get_env_disable_agent_assistant():
+        from phoenix.server.mcp_server import build_phoenix_mcp_server
+
+        pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
+            app,
+            monty_runtime=sandbox_runtime.monty,
+            code_mode=True,
+            monty_consumer="agent",
+            read_only=True,
+            db=db,
+        )
+    app.state.pxi_mcp_server = pxi_mcp_server
+    app.state.pxi_mcp_sandbox = pxi_mcp_sandbox
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"

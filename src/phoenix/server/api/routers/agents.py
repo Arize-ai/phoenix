@@ -3253,6 +3253,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     event_queue=request.state.event_queue,
                     prompts=ServerAgentPrompts(base=agent_prompts.base),
                     docs_mcp_server=request.app.state.docs_mcp_server,
+                    phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                    principal=phoenix_user,
                     enable_web_access=web_access_enabled,
                     # A headless run has no client to answer an approval
                     # request, so in manual mode it gets no mutation access at
@@ -3302,6 +3304,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         db=request.app.state.db,
                         event_queue=request.state.event_queue,
                         docs_mcp_server=request.app.state.docs_mcp_server,
+                        phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                        principal=phoenix_user,
                         enable_web_access=web_access_enabled,
                         # A subagent runs mid-turn with no way to surface an
                         # approval request, so in manual mode it gets no
@@ -3347,6 +3351,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 agent = build_agent(
                     model=model,
                     docs_mcp_server=request.app.state.docs_mcp_server,
+                    phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                    principal=phoenix_user,
                     enable_web_access=web_access_enabled,
                     tracer_provider=tracer_provider,
                     server_agent=subagent,

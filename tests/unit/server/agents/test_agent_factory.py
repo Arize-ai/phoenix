@@ -512,6 +512,63 @@ class TestUIContextInstructions:
         assert "<phoenix_app_context>" not in uncached_texts
 
 
+class TestPhoenixMCPTools:
+    """The REST API reaches the model as tools only when a server is supplied."""
+
+    @staticmethod
+    def _read_only_mcp_server() -> Any:
+        from fastapi import FastAPI
+
+        from phoenix.server.mcp_server import build_phoenix_mcp_server
+        from phoenix.server.monty_runtime import MontyRuntime
+
+        app = FastAPI()
+
+        @app.get("/v1/projects", tags=["projects"], summary="List projects.")
+        async def projects() -> list[str]:
+            return []
+
+        server, _ = build_phoenix_mcp_server(
+            app,
+            monty_runtime=MontyRuntime(),
+            code_mode=True,
+            monty_consumer="agent",
+            read_only=True,
+            db=Mock(spec=DbSessionFactory),
+        )
+        return server
+
+    async def test_absent_without_a_server(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+
+        await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
+
+        joined_system = "\n".join(_get_system_texts(captured_request.body))
+        assert '<tool_group name="phoenix_rest_api">' not in joined_system
+        assert "execute" not in _get_tool_names(captured_request.body)
+
+    async def test_advertised_with_a_server(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model, phoenix_mcp_server=self._read_only_mcp_server())
+
+        await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
+
+        tool_names = _get_tool_names(captured_request.body)
+        # The derived endpoints arrive behind `execute`, not one tool each.
+        assert "execute" in tool_names
+        assert not any(name.startswith("projects_v1") for name in tool_names)
+        assert '<tool_group name="phoenix_rest_api">' in "\n".join(
+            _get_system_texts(captured_request.body)
+        )
+
+
 class TestRouteInfoTool:
     async def test_get_route_info_tool_is_advertised_by_default(
         self,
