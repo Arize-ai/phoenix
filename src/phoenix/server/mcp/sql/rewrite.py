@@ -483,8 +483,7 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     correctly has no ``max`` aggregate, and a cast would have to guess whether
     the path holds a number or a string. The caller has to cast for themselves,
     and the schema's populated-path comments are where they find out which
-    paths are numeric. Stated rather than silently scoped, because the rest of
-    this docstring reads as though the hazard were settled everywhere.
+    paths are numeric.
     """
     if ctx.dialect != "sqlite":
         return root
