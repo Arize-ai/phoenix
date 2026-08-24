@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
@@ -15,6 +16,16 @@ from phoenix.server.bearer_auth import PhoenixUser, bind_principal
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
+
+
+def _current_binding_key() -> object:
+    """Identifies the context a principal binding was made in.
+
+    The enter and exit of one ``async with`` run in the same task, so the task is
+    what pairs a release with the binding it belongs to. Outside a task there is
+    only one context, and ``None`` keys it.
+    """
+    return asyncio.current_task()
 
 
 class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
@@ -38,26 +49,28 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
         # the mount's bearer guard; `principal` is the caller's identity instead.
         super().__init__(server, **kwargs)
         self._principal = principal
-        self._principal_binding: Optional[ExitStack] = None
-        self._principal_depth = 0
+        self._principal_bindings: dict[object, list[ExitStack]] = {}
 
     @override
     async def __aenter__(self) -> Self:
         # Bound here rather than per call, and before the session opens; see
         # `bind_principal` for why the placement is the only one that works.
-        binding: Optional[ExitStack] = None
-        if self._principal_depth == 0:
-            binding = ExitStack()
-            binding.enter_context(bind_principal(self._principal))
+        #
+        # Every enter binds and keeps its own handle, keyed by the task that will
+        # release it. A shared depth counter cannot serve: context variables are
+        # per task, so resetting one in a task other than the one that set it
+        # raises `ValueError`, and a counter cannot tell those tasks apart. One
+        # instance is entered concurrently whenever a model response fans out two
+        # `call_subagent` calls, because the subagent and its toolset are built
+        # once per request and reused across every invocation.
+        binding = ExitStack()
+        binding.enter_context(bind_principal(self._principal))
         try:
             entered = await super().__aenter__()
         except BaseException:
-            if binding is not None:
-                binding.close()
+            binding.close()
             raise
-        if binding is not None:
-            self._principal_binding = binding
-        self._principal_depth += 1
+        self._principal_bindings.setdefault(_current_binding_key(), []).append(binding)
         return entered
 
     @override
@@ -65,12 +78,15 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
         try:
             return await super().__aexit__(*args)
         finally:
-            # Released by the enter that bound it; the parent is reference counted,
-            # so nested enters must neither rebind nor unbind early.
-            self._principal_depth -= 1
-            if self._principal_depth == 0 and self._principal_binding is not None:
-                self._principal_binding.close()
-                self._principal_binding = None
+            # Released by the enter that bound it, in that enter's own task, so
+            # the set and the reset always share a context. Nested enters unwind
+            # last in, first out, and a token reset restores the enclosing
+            # binding rather than clearing it.
+            key = _current_binding_key()
+            if bindings := self._principal_bindings.get(key):
+                bindings.pop().close()
+                if not bindings:
+                    del self._principal_bindings[key]
 
 
 @dataclass

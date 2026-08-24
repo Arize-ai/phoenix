@@ -148,6 +148,84 @@ class TestPrincipalPropagation:
         assert get_bound_principal() is None
 
 
+class TestOneToolsetEnteredFromSeveralTasks:
+    """The same instance is entered more than once, from different tasks.
+
+    ``PhoenixMCPCapability.get_toolset`` hands back the same toolset every call,
+    and the subagent holding it is built once per request, so a model response
+    that fans out two ``call_subagent`` calls enters this instance twice at once.
+    """
+
+    @staticmethod
+    def _toolset(principal: PhoenixUser) -> PhoenixMCPToolset[None]:
+        mcp, _ = build_phoenix_mcp_server(
+            _rest_app([]), code_mode=False, read_only=True, db=_unused_db()
+        )
+        return PhoenixMCPToolset[None](mcp, principal=principal)
+
+    async def test_enters_that_do_not_overlap_still_release_in_their_own_task(self) -> None:
+        """The binding task exits first, leaving the other to close the session.
+
+        A shared depth count cannot survive this ordering: the last exit would
+        reset a context variable in a task other than the one that set it, which
+        raises. No interleaving inside ``__aenter__`` is required to reach it.
+        """
+        import asyncio
+
+        toolset = self._toolset(_phoenix_user())
+        bound, joined, released = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+        async def binder() -> None:
+            async with toolset:
+                bound.set()
+                await joined.wait()
+            released.set()
+
+        async def joiner() -> None:
+            await bound.wait()
+            async with toolset:
+                joined.set()
+                await released.wait()
+
+        outcomes = await asyncio.gather(binder(), joiner(), return_exceptions=True)
+        assert [o for o in outcomes if isinstance(o, BaseException)] == []
+
+    async def test_overlapping_enters_each_see_the_principal_and_leave_nothing_bound(
+        self,
+    ) -> None:
+        """Four tasks race through the session handshake inside ``__aenter__``."""
+        import asyncio
+
+        from phoenix.server.bearer_auth import get_bound_principal
+
+        principal = _phoenix_user()
+        toolset = self._toolset(principal)
+        seen: list[Any] = []
+
+        async def enter_once() -> None:
+            async with toolset:
+                seen.append(get_bound_principal())
+
+        outcomes = await asyncio.gather(*(enter_once() for _ in range(4)), return_exceptions=True)
+
+        assert [o for o in outcomes if isinstance(o, BaseException)] == []
+        assert seen == [principal] * 4
+        assert toolset._principal_bindings == {}
+
+    async def test_nested_enters_hold_the_binding_until_the_outermost_exit(self) -> None:
+        """The inner exit restores the enclosing binding rather than clearing it."""
+        from phoenix.server.bearer_auth import get_bound_principal
+
+        principal = _phoenix_user()
+        toolset = self._toolset(principal)
+
+        async with toolset:
+            async with toolset:
+                assert get_bound_principal() is principal
+            assert get_bound_principal() is principal
+        assert get_bound_principal() is None
+
+
 class TestInMemoryTransportContract:
     """The transport behavior that fixes where the binding can live.
 
