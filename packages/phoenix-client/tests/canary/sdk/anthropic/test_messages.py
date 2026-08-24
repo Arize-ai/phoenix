@@ -225,8 +225,8 @@ class TestInvocationParametersConversion:
             {"max_tokens": 1024, "temperature": 0.3, "top_p": 0.9},
         )
         content = _InvocationParametersConversion.from_anthropic(obj)["anthropic"]
-        assert content["temperature"] == 0.3
-        assert content["top_p"] == 0.9
+        assert content.get("temperature") == 0.3
+        assert content.get("top_p") == 0.9
 
     def test_sampling_params_are_sent_through_extra_body(self) -> None:
         """`messages.create()` rejects them as keyword arguments, so they must ride in
@@ -240,7 +240,7 @@ class TestInvocationParametersConversion:
         kwargs = _InvocationParametersConversion.to_anthropic(obj)
         assert "temperature" not in kwargs
         assert "top_p" not in kwargs
-        assert kwargs["extra_body"] == {"temperature": 0.3, "top_p": 0.9}
+        assert kwargs.get("extra_body") == {"temperature": 0.3, "top_p": 0.9}
 
 
 class _MockFormatter:
