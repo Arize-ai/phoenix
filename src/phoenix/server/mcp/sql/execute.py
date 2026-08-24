@@ -78,7 +78,10 @@ MAX_ROW_LIMIT = 5_000
 
 # Ceiling on the whole encoded response, as distinct from any single cell.
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
-MAX_SQL_BYTES = 1024 * 1024
+# Parsing, admission and rewriting run before any guard that bounds execution,
+# and their cost grows faster than the input for statements that nest -- so the
+# input is bounded here, and raising this raises that cost superlinearly.
+MAX_SQL_BYTES = 2 * 1024
 BYTE_LIMIT = 262_144
 PG_STATEMENT_TIMEOUT_MS = 30_000
 SQLITE_TIMEOUT_SECONDS = 30
@@ -610,7 +613,7 @@ async def execute_analytics_sql(
         if len(params.sql.encode("utf-8")) > MAX_SQL_BYTES:
             raise AnalyticsSqlError(
                 code=ErrorCode.UNSUPPORTED_SYNTAX,
-                message=f"SQL text exceeds the {MAX_SQL_BYTES // (1024 * 1024)} MiB input limit.",
+                message=f"SQL text exceeds the {MAX_SQL_BYTES // 1024} KiB input limit.",
             )
         if dialect == "sqlite" and sqlite_db_path is None:
             sqlite_db_path = await resolve_sqlite_db_path(db)
@@ -628,7 +631,7 @@ async def execute_analytics_sql(
             allowlist = replace(allowlist, pg_schema=schema)
 
         # Parsing, admission and rewriting are CPU-bound and scale with the
-        # size of the statement, and the input cap allows a megabyte of it.
+        # size of the statement, up to the input cap.
         # Run on the event loop they starve the whole process -- every other
         # request, ingestion included -- for as long as they take, which the
         # row limit, byte caps and statement deadline do not bound because

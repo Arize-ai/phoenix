@@ -1,11 +1,10 @@
-import asyncio
-import time
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from decimal import Decimal
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -990,44 +989,45 @@ async def test_an_identifier_named_like_a_deadline_is_not_reported_as_a_timeout(
     assert caught.value.code is not ErrorCode.TIMEOUT
 
 
-async def test_admission_does_not_block_the_event_loop(
+async def test_admission_does_not_run_on_the_event_loop(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Parsing and rewriting are CPU-bound and must not run on the event loop.
+    """Parsing, admission and rewriting are CPU-bound and must run off the loop.
 
-    They scale with the size of the statement, and the input cap allows a
-    megabyte of it. None of the guards that bound execution -- the row limit,
-    the byte caps, the statement deadline -- applies before the backend is
-    reached, so on the event loop a single call freezes every other request,
-    ingestion included.
+    None of the guards that bound execution -- the row limit, the byte caps, the
+    statement deadline -- applies before the backend is reached, so on the event
+    loop a single call freezes every other request, ingestion included.
 
-    The gap between ticks is what matters, not their number: a task that spins
-    freely before and after a stall still records many ticks. Run on the loop
-    this statement stalls it for the better part of a second; offloaded, no
-    single gap is long.
+    The thread is asserted rather than the wall-clock gap between heartbeats,
+    because the input cap holds this work below scheduler noise: a stall the cap
+    still permits is not reliably larger than an ordinary gap, so timing cannot
+    discriminate. Which thread ran it always can.
+
+    Both offloads are probed: parse and admit share one, rewrite and render the
+    other, and either left on the loop reintroduces the stall.
     """
+    from phoenix.server.mcp.sql import execute as execute_module
+
     db, db_path = analytics_sqlite_db
-    sql = "SELECT id FROM spans WHERE id IN (" + ",".join(["1"] * 12000) + ")"
+    loop_thread = threading.current_thread()
+    threads: dict[str, threading.Thread] = {}
 
-    gaps: list[float] = []
-    stop = asyncio.Event()
+    def probe(name: str, func: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            threads[name] = threading.current_thread()
+            return func(*args, **kwargs)
 
-    async def heartbeat() -> None:
-        last = time.perf_counter()
-        while not stop.is_set():
-            await asyncio.sleep(0.01)
-            now = time.perf_counter()
-            gaps.append(now - last)
-            last = now
+        return wrapper
 
-    beat = asyncio.create_task(heartbeat())
-    await asyncio.sleep(0.05)
-    gaps.clear()
-    try:
-        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    finally:
-        stop.set()
-        await beat
+    for name in ("parse_sql", "rewrite"):
+        monkeypatch.setattr(execute_module, name, probe(name, getattr(execute_module, name)))
 
-    assert gaps, "heartbeat never ran"
-    assert max(gaps) < 0.4, f"event loop stalled for {max(gaps):.2f}s during admission"
+    await execute_analytics_sql(
+        db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
+    )
+
+    # Without this the thread assertion passes vacuously once a name stops being
+    # the one the pipeline calls.
+    assert set(threads) == {"parse_sql", "rewrite"}
+    assert loop_thread not in threads.values(), f"ran on the event loop thread: {threads}"
