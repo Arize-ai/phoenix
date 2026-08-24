@@ -27,7 +27,10 @@ export type BindPendingNavigationOptions = {
   pendingNavigation: PendingNavigation;
   /** Performs the route change; called only on accept. */
   navigate: (path: string) => void;
-  /** Reads the current pathname, to detect blocked navigations. */
+  /**
+   * Reads the rendered pathname. Settle detection prefers the registered
+   * router state source; this is the fallback probe for hosts without one.
+   */
   getCurrentPath: () => string;
   emitResult: UIOperationResultEmitter;
   setPendingNavigation: (

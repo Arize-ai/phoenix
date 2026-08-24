@@ -3,16 +3,64 @@ import { createAgentStore } from "@phoenix/store/agentStore";
 
 import { createNavigationGoToClientAction } from "../clientActions";
 import {
+  buildNavigationSettledElsewhereError,
   NAVIGATION_BLOCKED_ERROR,
   NAVIGATION_DECLINED_ERROR,
 } from "../constants";
+import {
+  createDataRouterNavigationStateSource,
+  registerRouterNavigationStateSource,
+} from "../routerStateRegistry";
+import type { RouterNavigationStateSource } from "../routerStateRegistry";
 
 const CALL_CONTEXT = { callId: "tool-call-1:0", sessionId: "session-1" };
+
+/**
+ * A hand-cranked router state source: tests drive it through the same
+ * loading → idle transitions the data router emits.
+ */
+function createFakeRouterSource(initialPathname: string) {
+  let pathname = initialPathname;
+  let status: "idle" | "loading" | "submitting" = "idle";
+  const listeners = new Set<() => void>();
+  const notify = () => {
+    for (const listener of [...listeners]) {
+      listener();
+    }
+  };
+  const source: RouterNavigationStateSource = {
+    getPathname: () => pathname,
+    getNavigationStatus: () => status,
+    subscribe: (onStateChange) => {
+      listeners.add(onStateChange);
+      return () => {
+        listeners.delete(onStateChange);
+      };
+    },
+  };
+  return {
+    source,
+    startNavigation() {
+      status = "loading";
+      notify();
+    },
+    settleAt(settledPathname: string) {
+      status = "idle";
+      pathname = settledPathname;
+      notify();
+    },
+  };
+}
 
 function setup({
   currentPath = "/projects",
   navigateChangesPath = true,
-}: { currentPath?: string; navigateChangesPath?: boolean } = {}) {
+  routerSource = null,
+}: {
+  currentPath?: string;
+  navigateChangesPath?: boolean;
+  routerSource?: RouterNavigationStateSource | null;
+} = {}) {
   registerRouteInfoCatalog({
     catalog: [
       {
@@ -27,6 +75,7 @@ function setup({
       },
     ],
   });
+  registerRouterNavigationStateSource({ source: routerSource });
   const store = createAgentStore();
   let path = currentPath;
   const navigate = vi.fn((to: string) => {
@@ -45,6 +94,10 @@ function setup({
 function getPending(store: ReturnType<typeof createAgentStore>) {
   return store.getState().pendingNavigationsByToolCallId[CALL_CONTEXT.callId];
 }
+
+afterEach(() => {
+  registerRouterNavigationStateSource({ source: null });
+});
 
 describe("navigation.goTo client action", () => {
   it("rejects a path outside the route catalog without staging", async () => {
@@ -146,5 +199,125 @@ describe("navigation.goTo client action", () => {
     await Promise.resolve();
     expect(getPending(store)).toBeDefined();
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("navigation.goTo settle detection via the router state source", () => {
+  it("waits out a slow-settling navigation instead of reporting it blocked", async () => {
+    const fakeRouter = createFakeRouterSource("/projects");
+    const { store, handler } = setup({
+      routerSource: fakeRouter.source,
+      // The rendered pathname never moves — mimics a destination page
+      // suspending inside the navigation transition.
+      navigateChangesPath: false,
+    });
+    const resultPromise = handler(
+      { path: "/playground", reason: "to stage the prompt edit" },
+      CALL_CONTEXT
+    );
+    await Promise.resolve();
+    const acceptPromise = getPending(store)?.accept?.();
+
+    fakeRouter.startNavigation();
+    // Let well past the old 10-frame poll budget elapse before settling.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    fakeRouter.settleAt("/playground");
+
+    await acceptPromise;
+    await expect(resultPromise).resolves.toMatchObject({
+      ok: true,
+      output: { status: "navigated", path: "/playground" },
+    });
+  });
+
+  it("reports where the router settled when it lands elsewhere", async () => {
+    const fakeRouter = createFakeRouterSource("/projects");
+    const { store, handler } = setup({
+      routerSource: fakeRouter.source,
+      navigateChangesPath: false,
+    });
+    const resultPromise = handler(
+      { path: "/playground", reason: "to stage the prompt edit" },
+      CALL_CONTEXT
+    );
+    await Promise.resolve();
+    const acceptPromise = getPending(store)?.accept?.();
+
+    fakeRouter.startNavigation();
+    fakeRouter.settleAt("/projects");
+
+    await acceptPromise;
+    await expect(resultPromise).resolves.toEqual({
+      ok: false,
+      error: buildNavigationSettledElsewhereError({
+        requestedPath: "/playground",
+        settledPath: "/projects",
+      }),
+    });
+  });
+
+  it("reports blocked when the router never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      const fakeRouter = createFakeRouterSource("/projects");
+      const { store, handler } = setup({
+        routerSource: fakeRouter.source,
+        navigateChangesPath: false,
+      });
+      const resultPromise = handler(
+        { path: "/playground", reason: "to stage the prompt edit" },
+        CALL_CONTEXT
+      );
+      await Promise.resolve();
+      const acceptPromise = getPending(store)?.accept?.();
+
+      // A blocker holds the navigation: the router never leaves idle and the
+      // location never changes.
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      await acceptPromise;
+      await expect(resultPromise).resolves.toEqual({
+        ok: false,
+        error: NAVIGATION_BLOCKED_ERROR,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("createDataRouterNavigationStateSource", () => {
+  function createStubRouter(pathname: string) {
+    return {
+      state: {
+        location: { pathname },
+        navigation: { state: "idle" as const },
+      },
+      subscribe: () => () => {},
+    };
+  }
+
+  it("strips the basename from the router's pathname", () => {
+    const source = createDataRouterNavigationStateSource({
+      router: createStubRouter("/phoenix/playground"),
+      basename: "/phoenix",
+    });
+    expect(source.getPathname()).toBe("/playground");
+  });
+
+  it("returns the pathname unchanged for the root basename", () => {
+    const source = createDataRouterNavigationStateSource({
+      router: createStubRouter("/playground"),
+      basename: "/",
+    });
+    expect(source.getPathname()).toBe("/playground");
+  });
+
+  it("does not strip a same-prefix segment that is not a basename boundary", () => {
+    const source = createDataRouterNavigationStateSource({
+      router: createStubRouter("/phoenixette/playground"),
+      basename: "/phoenix",
+    });
+    expect(source.getPathname()).toBe("/phoenixette/playground");
   });
 });
