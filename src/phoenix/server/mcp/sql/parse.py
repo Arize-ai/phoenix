@@ -828,8 +828,8 @@ def _tree_depth(root: exp.Expression) -> int:
     nested subqueries, which alternate node types, break above 258.
 
     Same-type descent is the rule rather than a list of operator classes,
-    because a list of node classes kept in agreement by hand is how this file
-    has produced defects before.
+    because a list of node classes kept in agreement by hand drifts from the
+    node types that actually exist.
     """
     deepest = 0
     stack: list[tuple[exp.Expression, int]] = [(root, 0)]
@@ -2641,11 +2641,11 @@ def _check_base_tables(
     # an empty map and move on.
     #
     # Refused rather than resolved. PostgreSQL rejects the statement outright
-    # ("table name specified more than once"), so accepting it on SQLite was a
+    # ("table name specified more than once"), so accepting it on SQLite is a
     # divergence as well as a hole, and there is no reading a caller needs.
-    # Stated as the invariant rather than as the shape that broke it. Every real
-    # table must appear in some scope's sources, because that map is what every
-    # later check reads; a table missing from it is skipped rather than refused.
+    # Every real table must appear in some scope's sources, because that map is
+    # what every later check reads; a table missing from it is skipped rather
+    # than refused.
     #
     # Naming the cause instead -- a table alias equal to a CTE name -- would
     # refuse ordinary SQL: in `WITH t AS (...) SELECT ... FROM (SELECT ... FROM
@@ -2653,10 +2653,10 @@ def _check_base_tables(
     # both engines, and `t` is the commonest spelling of each. The invariant
     # refuses only when a table has actually been lost, whatever the cause.
     # Checked per scope, not across the statement. A flat set of every resolved
-    # name let one occurrence mask another: with `projects` read normally in one
-    # subquery and shadowed in a second, the shadowed one passed because the
-    # name appeared somewhere. That admitted a statement SQLite runs and
-    # PostgreSQL rejects outright -- the divergence this refusal exists to
+    # name lets one occurrence mask another: with `projects` read normally in
+    # one subquery and shadowed in a second, the shadowed one passes because the
+    # name appears somewhere, admitting a statement SQLite runs and PostgreSQL
+    # rejects outright -- the divergence this refusal exists to
     # prevent -- while `scope.tables` answers the question actually being asked,
     # which is whether *this* scope resolved the table it names.
     declared = {cte.alias for cte in root.find_all(exp.CTE) if cte.alias}

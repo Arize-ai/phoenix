@@ -738,8 +738,8 @@ async def test_no_window_is_imposed_when_none_is_asked_for(
     result = await execute_analytics_sql(
         db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
     )
-    # Absent entirely, rather than present with null bounds: reporting a window
-    # that was never imposed is what made the old default so easy to miss.
+    # Absent entirely, rather than present with null bounds: a reported window
+    # that was never imposed reads as one that was.
     assert "time_window" not in result.envelope.applied.model_dump(exclude_none=True)
     assert "time_bounds" not in result.envelope.applied.rewrites
 

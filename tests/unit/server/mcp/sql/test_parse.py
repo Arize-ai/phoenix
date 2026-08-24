@@ -907,7 +907,7 @@ class TestTimestampComparisonCoverage:
 
         Every stage handles such a run iteratively -- these render at two
         thousand terms -- and enumerating ids in a four-hundred-term `OR` is an
-        ordinary thing for a caller to write. Measuring it as depth refused them.
+        ordinary thing for a caller to write. Measuring it as depth refuses them.
         """
         assert try_parse_and_admit(sql, dialect="sqlite").outcome is AdmissionOutcome.ADMIT
 

@@ -995,17 +995,15 @@ async def test_admission_does_not_run_on_the_event_loop(
 ) -> None:
     """Parsing, admission and rewriting are CPU-bound and must run off the loop.
 
-    None of the guards that bound execution -- the row limit, the byte caps, the
-    statement deadline -- applies before the backend is reached, so on the event
-    loop a single call freezes every other request, ingestion included.
+    No execution guard -- row limit, byte caps, deadline -- applies before the
+    backend is reached, so on the event loop a single call freezes every other
+    request, ingestion included.
 
-    The thread is asserted rather than the wall-clock gap between heartbeats,
-    because the input cap holds this work below scheduler noise: a stall the cap
-    still permits is not reliably larger than an ordinary gap, so timing cannot
-    discriminate. Which thread ran it always can.
-
-    Both offloads are probed: parse and admit share one, rewrite and render the
-    other, and either left on the loop reintroduces the stall.
+    Thread identity is the assertion rather than elapsed time: the input cap
+    holds this work below scheduler noise, so no stall it permits is reliably
+    larger than ordinary jitter. Both offloads are probed -- parse and admit
+    share one, rewrite and render the other -- since either left on the loop
+    reintroduces the stall.
     """
     from phoenix.server.mcp.sql import execute as execute_module
 
@@ -1027,7 +1025,7 @@ async def test_admission_does_not_run_on_the_event_loop(
         db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
     )
 
-    # Without this the thread assertion passes vacuously once a name stops being
-    # the one the pipeline calls.
+    # A rename in the pipeline would otherwise leave the thread assertion with
+    # nothing to check.
     assert set(threads) == {"parse_sql", "rewrite"}
     assert loop_thread not in threads.values(), f"ran on the event loop thread: {threads}"

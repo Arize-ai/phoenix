@@ -78,9 +78,9 @@ MAX_ROW_LIMIT = 5_000
 
 # Ceiling on the whole encoded response, as distinct from any single cell.
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
-# Parsing, admission and rewriting run before any guard that bounds execution,
-# and their cost grows faster than the input for statements that nest -- so the
-# input is bounded here, and raising this raises that cost superlinearly.
+# Parsing, admission and rewriting precede every guard that bounds execution,
+# and their cost grows superlinearly in the input for statements that nest, so
+# this is the only bound on the CPU a single call can buy.
 MAX_SQL_BYTES = 2 * 1024
 BYTE_LIMIT = 262_144
 PG_STATEMENT_TIMEOUT_MS = 30_000
@@ -630,13 +630,11 @@ async def execute_analytics_sql(
             schema = await resolve_pg_schema(db)
             allowlist = replace(allowlist, pg_schema=schema)
 
-        # Parsing, admission and rewriting are CPU-bound and scale with the
-        # size of the statement, up to the input cap.
-        # Run on the event loop they starve the whole process -- every other
-        # request, ingestion included -- for as long as they take, which the
-        # row limit, byte caps and statement deadline do not bound because
-        # none of them applies before the backend is reached. SQLite execution
-        # is already offloaded for the same reason.
+        # Parsing, admission and rewriting are CPU-bound. Run on the event
+        # loop they starve the whole process -- every other request, ingestion
+        # included -- for as long as they take, and no execution guard -- row
+        # limit, byte caps, deadline -- applies before the backend is reached.
+        # SQLite execution is offloaded for the same reason.
         def _admitted() -> Any:
             parsed = parse_sql(params.sql, dialect=dialect)
             return admit(parsed, allowlist=allowlist, dialect=dialect)
@@ -1009,10 +1007,10 @@ def _rewrite_attribution(exc: BaseException, ctx: RewriteContext) -> Optional[An
     column = match.group("column")
     qualifier = match.group("qualifier")
     # Matched against what a substitution actually wrote, qualifier included.
-    # Keying on the bare column name instead blamed a rewrite for the caller's
+    # Keying on the bare column name instead blames a rewrite for the caller's
     # own mistake: `id`, `start_time` and `end_time` are ordinary column names,
-    # so an unrelated typo like `q.id` drew "this is a defect in the rewrite"
-    # whenever the node-id pass had fired anywhere in the statement.
+    # so an unrelated typo like `q.id` draws "this is a defect in the rewrite"
+    # whenever the node-id pass has fired anywhere in the statement.
     written = f"{qualifier}.{column}" if qualifier else column
     rewrite_name = ctx.substituted_columns.get(written)
     if rewrite_name is None:
@@ -1220,7 +1218,7 @@ async def _execute_sqlite_file(
         # SQLite's own words, as PostgreSQL's are already passed through. The
         # commonest arrival here is an unqualified column two joined tables both
         # offer, which admission cannot refuse and whose message names only the
-        # caller's own identifier -- withholding it turned an ordinary mistake
+        # caller's own identifier -- withholding it turns an ordinary mistake
         # into an un-actionable answer on one backend and a precise one on the
         # other, which is the divergence class this surface exists to avoid.
         #

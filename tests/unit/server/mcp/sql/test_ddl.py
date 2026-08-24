@@ -71,11 +71,11 @@ def test_postgresql_unqualification_only_changes_table_syntax() -> None:
 def test_every_rendering_parses(backend: str, detail: DetailLevel) -> None:
     """Generated DDL fails in ways handwritten DDL does not.
 
-    Both defects this renderer actually shipped were invisible in the output: a
-    trailing comment swallowed the comma after it, so two columns merged into
-    one; and `brief` emitted ``CREATE TABLE spans (...)``, which reads like DDL
-    but is not valid SQL in any backend. Neither is detectable by eye, and the
-    caller cannot detect them at all -- it is prose to them.
+    Its failure modes are invisible in the output: a trailing comment swallows
+    the comma after it, merging two columns into one; `brief` emits ``CREATE
+    TABLE spans (...)``, which reads like DDL but is not valid SQL in any
+    backend. Neither is detectable by eye, and the caller cannot detect them at
+    all -- it is prose to them.
     """
     validate_ddl(render_schema_ddl(detail=detail, dialect=backend), backend)
 
