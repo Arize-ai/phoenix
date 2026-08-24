@@ -161,37 +161,46 @@ async def test_guest_exception_reaches_the_caller(
 ) -> None:
     """Guest errors reach the model with detail, not rewritten into ``ToolError``."""
     code = "raise ValueError('boom')"
-    with caplog.at_level(logging.WARNING, logger="phoenix.server.mcp_code_mode"):
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
         with pytest.raises(MontyRuntimeError) as exc_info:
             await provider.run(code)
     assert "boom" in str(exc_info.value)
     assert any(
         "MCP code-mode execute failed" in record.getMessage()
-        and f"code_length={len(code)}" in record.getMessage()
-        and "error=MontyRuntimeError" in record.getMessage()
+        and "error=MontyRuntimeError: ValueError: boom" in record.getMessage()
         for record in caplog.records
     )
 
 
-async def test_guest_error_text_stays_out_of_warnings(
+async def test_a_guest_failure_says_nothing_at_warning(
     provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Guest code picks its own exception text and can put telemetry in it.
-
-    Warnings stay visible when debug logging is off and are often shipped further
-    than the database they describe, so they carry the type and not the text.
-    """
+    """A guest error is a step in the loop, and its text is the guest's own."""
     code = "raise ValueError('telemetry-that-should-not-be-logged')"
     with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
         with pytest.raises(MontyRuntimeError) as exc_info:
             await provider.run(code)
 
     assert "telemetry-that-should-not-be-logged" in str(exc_info.value)
-    warnings = [
-        record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING
-    ]
-    assert any("error=MontyRuntimeError" in message for message in warnings)
-    assert not any("telemetry-that-should-not-be-logged" in message for message in warnings)
+    assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+
+async def test_a_guest_error_is_bounded_even_at_debug(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Guest code can raise holding a query result, which no log record should be."""
+    code = "raise ValueError('z' * 200_000)"
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        with pytest.raises(MontyRuntimeError):
+            await provider.run(code)
+
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.DEBUG and "execute failed" in record.getMessage()
+    )
+    assert "truncated from" in message
+    assert len(message) < 5_000
 
 
 async def test_a_host_callback_error_is_bounded_in_the_log(

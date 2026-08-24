@@ -58,8 +58,8 @@ _MAX_LOGGED_ERROR_CHARS = 2048
 def _bounded_message(exc: BaseException) -> str:
     """The exception's message, capped.
 
-    A failing call restates the request, whose size the caller chooses. Real
-    messages are far shorter than the cap, so bounding costs no diagnostic.
+    Guest code can raise holding a query result. Real messages run to a few
+    hundred characters, so the cap removes payload, not diagnosis.
     """
     message = str(exc)
     if len(message) <= _MAX_LOGGED_ERROR_CHARS:
@@ -110,12 +110,10 @@ class MontyPoolSandboxProvider:
             return instrumented
 
         async def logged_call_tool(tool_name: str, params: dict[str, Any]) -> Any:
-            # Debug mode is explicitly for inspecting submissions, including the
-            # query or payload a guest sends through this callback. Warnings omit
-            # submitted values because they remain visible when debug logging is
-            # disabled. The exception message stays: it is what makes a failure
-            # diagnosable, and it can restate the request on its own -- an HTTP
-            # error carries the URL, a validation error the value it rejected.
+            # Debug is for inspecting submissions, including the payload a guest
+            # sends. Warnings omit those values, staying visible when debug is off,
+            # but keep the exception: it is the diagnostic, and it restates the
+            # request -- a URL, a rejected value -- not text the guest wrote.
             param_keys = sorted(params) if isinstance(params, dict) else None
             started = time.perf_counter()
             logger.debug(
@@ -158,26 +156,17 @@ class MontyPoolSandboxProvider:
         return instrumented
 
     def _log_guest_failure(self, code: str, exc: Exception) -> None:
-        """Record a marshalling-safe failure summary beside the debug source.
+        """Record a failure beside the debug source that produced it.
 
-        Guest code chooses both its source and its exception text, and either can
-        carry the telemetry the block was reading, so warnings name the exception
-        type and nothing the guest wrote. The message still reaches the caller,
-        and the fingerprint correlates this record with the debug one.
+        Debug only: the model reads the exception and rewrites the block, so a
+        guest error is a step in the loop rather than an operator's problem.
         """
-        logger.warning(
-            "MCP code-mode execute failed (consumer=%s, code_length=%d, code_sha256=%s, error=%s)",
-            self._consumer,
-            len(code),
-            _code_fingerprint(code),
-            type(exc).__name__,
-        )
         logger.debug(
             "MCP code-mode execute failed (consumer=%s, code_sha256=%s, error=%s: %s)",
             self._consumer,
             _code_fingerprint(code),
             type(exc).__name__,
-            exc,
+            _bounded_message(exc),
         )
 
     async def run(
