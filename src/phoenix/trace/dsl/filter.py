@@ -927,9 +927,19 @@ def _compile_condition(
             validated = ast.parse(source, mode="eval")
         except ValueError:
             # A NUL in the source, which CPython 3.10 reports as `ValueError`
-            # rather than `SyntaxError` (3.11+ raises the latter, normalized by
-            # `_format_syntax_error` at the boundary).
+            # rather than `SyntaxError`.
             raise SyntaxError("condition cannot contain a NUL character") from None
+        except SyntaxError as error:
+            # From 3.11 on the same NUL arrives as a `SyntaxError` carrying the
+            # tokenizer's wording ("source code string cannot contain null
+            # bytes"), which describes source code the user never wrote. The
+            # rewrite has to happen here rather than at a caller's boundary:
+            # `SessionFilter` raises out of this function directly, so nothing
+            # downstream would reword it. Every other syntax error is the
+            # parser describing the user's own text and passes through raw.
+            if "null bytes" in (error.msg or ""):
+                raise SyntaxError("condition cannot contain a NUL character") from None
+            raise
         _validate_expression(validated, source, bindings, valid_eval_names=valid_annotation_names)
         _validate_semantics(validated, source, bindings)
         source, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
@@ -1089,9 +1099,11 @@ class SpanFilter:
         try:
             root = ast.parse(source, mode="eval")
         except ValueError as error:
-            # A NUL anywhere in the source, which `ast.parse` reports as a
+            # A NUL anywhere in the source, which CPython 3.10 reports as a
             # `ValueError` rather than a `SyntaxError`. Callers catch only the
-            # latter, so it would escape as a server error.
+            # latter, so it would escape as a server error. From 3.11 on the
+            # same NUL is already a `SyntaxError`, reworded by the
+            # `_format_syntax_error` boundary in `__post_init__`.
             raise SyntaxError("condition cannot contain a NUL character") from error
         _validate_expression(root, source)
         # Derived from the tree parsed just above rather than from the source
