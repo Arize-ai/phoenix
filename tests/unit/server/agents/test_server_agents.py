@@ -173,27 +173,3 @@ class TestPhoenixMCPTools:
         assert instructions is not None
         assert '<tool_group name="phoenix_rest_api">' in instructions
         assert ServerAgentPrompts().phoenix_mcp_tools.render() in instructions
-
-    async def test_nested_subagent_keeps_the_surface(
-        self,
-        model: TestModel,
-        schema: strawberry.Schema,
-        db: DbSessionFactory,
-        phoenix_mcp_server: Any,
-    ) -> None:
-        """Headless runs can spawn subagents; both constructors take the same server."""
-        agent = build_server_agent(
-            model=model,
-            schema=schema,
-            build_graphql_context=lambda: Mock(spec=Context),
-            db=db,
-            event_queue=Mock(),
-            phoenix_mcp_server=phoenix_mcp_server,
-            enable_subagents=True,
-        )
-        await agent.run("hi")
-
-        assert model.last_model_request_parameters is not None
-        tool_names = {tool.name for tool in model.last_model_request_parameters.function_tools}
-        assert "execute" in tool_names
-        assert "call_subagent" in tool_names

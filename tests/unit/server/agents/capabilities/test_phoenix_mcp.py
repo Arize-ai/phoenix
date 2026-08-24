@@ -6,12 +6,19 @@ caller's identity and the session's tool visibility itself.
 
 from __future__ import annotations
 
-from typing import Any
+from contextlib import AsyncExitStack
+from typing import Any, AsyncIterator
 
+import pytest
+from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, Request
 from fastmcp import FastMCP
+from pydantic import SecretStr
+from pydantic_ai import ModelRetry
 
+from phoenix.db.models import UserRoleName
 from phoenix.server.agents.capabilities import PhoenixMCPToolset
+from phoenix.server.app import create_app
 from phoenix.server.bearer_auth import (
     INTERNAL_PRINCIPAL_SCOPE_KEY,
     PhoenixUser,
@@ -26,6 +33,11 @@ from phoenix.server.types import (
     DbSessionFactory,
     RefreshTokenId,
     UserId,
+)
+from tests.unit.conftest import (
+    TestBulkInserter,
+    patch_batched_caller,
+    patch_grpc_server,
 )
 
 
@@ -43,7 +55,7 @@ def _unused_db() -> DbSessionFactory:
     return DbSessionFactory(db=_never, dialect="sqlite")
 
 
-def _phoenix_user(user_id: int = 1) -> PhoenixUser:
+def _phoenix_user(user_id: int = 1, role: UserRoleName = "MEMBER") -> PhoenixUser:
     uid = UserId(user_id)
     return PhoenixUser(
         uid,
@@ -51,7 +63,7 @@ def _phoenix_user(user_id: int = 1) -> PhoenixUser:
             subject=uid,
             token_id=AccessTokenId(user_id),
             attributes=AccessTokenAttributes(
-                user_role="MEMBER",
+                user_role=role,
                 refresh_token_id=RefreshTokenId(user_id),
             ),
         ),
@@ -377,3 +389,75 @@ async def test_the_instructions_account_for_every_directly_named_catalog_tool() 
     assert custom, "expected the analytics SQL tools in the catalog"
     for name in custom:
         assert name in rendered, f"{name} is reachable but the instructions never name it"
+
+
+class TestBoundPrincipalAgainstRealV1Auth:
+    """The in-memory toolset must present a principal that real /v1 auth accepts.
+
+    Public ``/mcp`` covers the HTTP bearer path. This is the agent's path:
+    ``PhoenixMCPToolset`` binds a ``PhoenixUser``, the in-memory transport has
+    no request, and the same ``BearerTokenAuthBackend`` / ``is_authenticated`` /
+    ``require_admin`` stack that serves ``/v1`` must still run.
+
+    Role is taken from the bound claims — the snapshot production forwards —
+    not from a database row or a token-store re-read.
+    """
+
+    @pytest.fixture
+    async def authenticated_app(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> AsyncIterator[FastAPI]:
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_grpc_server())
+            app = create_app(
+                db=db,
+                authentication_enabled=True,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+                secret=SecretStr("test-secret-at-least-32-chars-long!!"),
+            )
+            await stack.enter_async_context(LifespanManager(app))
+            yield app
+
+    async def test_bound_principal_is_what_real_v1_authorizes(
+        self,
+        authenticated_app: FastAPI,
+    ) -> None:
+        mcp = authenticated_app.state.pxi_mcp_server
+        assert mcp is not None
+
+        async with PhoenixMCPToolset[None](mcp, principal=_phoenix_user(1, "MEMBER")) as toolset:
+            projects = await toolset.direct_call_tool(
+                "execute", {"code": "return await call_tool('getProjects', {})"}
+            )
+            assert isinstance(projects, dict) and "data" in projects
+            with pytest.raises(ModelRetry, match="403") as denied:
+                await toolset.direct_call_tool(
+                    "execute", {"code": "return await call_tool('getUsers', {})"}
+                )
+            assert '"email"' not in str(denied.value) and '"role"' not in str(denied.value)
+
+        async with PhoenixMCPToolset[None](mcp, principal=_phoenix_user(2, "ADMIN")) as toolset:
+            users = await toolset.direct_call_tool(
+                "execute", {"code": "return await call_tool('getUsers', {})"}
+            )
+        assert isinstance(users, dict) and any(
+            isinstance(row, dict) and "role" in row for row in users.get("data", [])
+        )
+
+    async def test_without_a_principal_real_v1_rejects_the_call(
+        self,
+        authenticated_app: FastAPI,
+    ) -> None:
+        mcp = authenticated_app.state.pxi_mcp_server
+        assert mcp is not None
+
+        async with PhoenixMCPToolset[None](mcp, principal=None) as toolset:
+            with pytest.raises(ModelRetry, match="401"):
+                await toolset.direct_call_tool(
+                    "execute", {"code": "return await call_tool('getProjects', {})"}
+                )
