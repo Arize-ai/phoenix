@@ -1337,6 +1337,10 @@ def create_app(
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.sandbox_runtime = sandbox_runtime
     app.state.graphql_schema = graphql_schema
+    # Snapshot the provider allow-list once at app creation so the REST and
+    # GraphQL surfaces answer from the same (startup-validated) value.
+    allowed_provider_names = get_env_allowed_providers()
+    app.state.allowed_provider_names = allowed_provider_names
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,
         system_settings=system_settings,
@@ -1349,7 +1353,7 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
         event_queue=dml_event_handler,
-        allowed_provider_names=get_env_allowed_providers(),
+        allowed_provider_names=allowed_provider_names,
         read_only=read_only,
         authentication_enabled=authentication_enabled,
         secret=secret,
