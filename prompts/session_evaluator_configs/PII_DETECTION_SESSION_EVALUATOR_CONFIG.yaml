@@ -1,18 +1,3 @@
-# Out-of-library, session-level classification evaluator template.
-#
-# This is a classification evaluator (it emits one of a fixed set of labels via
-# `choices`), but it is intentionally NOT placed under
-# prompts/classification_evaluator_configs/ and is therefore NOT consumed by
-# `make codegen-prompts` (scripts/prompts/compile_python_prompts.py globs only
-# classification_evaluator_configs/*.yaml). Keeping it here — a sibling of
-# LANGUAGE_DETECTION_SESSION_EVALUATOR_CONFIG.yaml — means it ships no generated
-# factory, no GraphQL config, and no docs: it stays out of the library and is
-# exercised only by its standalone benchmark.
-#
-# It is session-level: it screens the entire conversation record (system
-# instructions, every user/assistant turn, and all tool calls, tool results,
-# and retrieved content — including content the end user never saw) rather than
-# a single turn in isolation.
 name: pii_detection
 description: >-
   Detect and enumerate every instance of personally identifiable information
