@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a68b3f9792cadd3267d8e727421ae01e>>
+ * @generated SignedSource<<71a77d7dc4a2b943c67f5d9f41d16c54>>
  * @lightSyntaxTransform
  */
 
@@ -9,17 +9,23 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type EvaluatorCategory = "AGENTS" | "GROUNDING_AND_RETRIEVAL" | "RESPONSE_QUALITY" | "SAFETY_AND_SECURITY" | "USER_EXPERIENCE";
+export type EvaluatorScope = "SESSION" | "SPAN" | "TRACE";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type projectEvaluatorTemplatesQuery$variables = Record<PropertyKey, never>;
 export type projectEvaluatorTemplatesQuery$data = {
-  readonly classificationEvaluatorConfigs: ReadonlyArray<{
+  readonly evaluatorGalleryConfigs: ReadonlyArray<{
+    readonly category: EvaluatorCategory | null;
     readonly choices: any;
     readonly description: string | null;
+    readonly details: string | null;
     readonly messages: ReadonlyArray<{
       readonly " $fragmentSpreads": FragmentRefs<"promptUtils_promptMessages">;
     }>;
     readonly name: string;
     readonly optimizationDirection: OptimizationDirection;
+    readonly recommended: boolean;
+    readonly scope: EvaluatorScope | null;
   }>;
 };
 export type projectEvaluatorTemplatesQuery = {
@@ -57,6 +63,34 @@ v3 = {
   "storageKey": null
 },
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "scope",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "recommended",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "category",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "details",
+  "storageKey": null
+},
+v8 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -81,7 +115,7 @@ v4 = {
   "type": "TextContentPart",
   "abstractKey": null
 },
-v5 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -100,13 +134,17 @@ return {
         "args": null,
         "concreteType": "ClassificationEvaluatorConfig",
         "kind": "LinkedField",
-        "name": "classificationEvaluatorConfigs",
+        "name": "evaluatorGalleryConfigs",
         "plural": true,
         "selections": [
           (v0/*:: as any*/),
           (v1/*:: as any*/),
           (v2/*:: as any*/),
           (v3/*:: as any*/),
+          (v4/*:: as any*/),
+          (v5/*:: as any*/),
+          (v6/*:: as any*/),
+          (v7/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -127,11 +165,11 @@ return {
                     "name": "content",
                     "plural": true,
                     "selections": [
-                      (v4/*:: as any*/)
+                      (v8/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v5/*:: as any*/)
+                  (v9/*:: as any*/)
                 ],
                 "args": null,
                 "argumentDefinitions": []
@@ -157,13 +195,17 @@ return {
         "args": null,
         "concreteType": "ClassificationEvaluatorConfig",
         "kind": "LinkedField",
-        "name": "classificationEvaluatorConfigs",
+        "name": "evaluatorGalleryConfigs",
         "plural": true,
         "selections": [
           (v0/*:: as any*/),
           (v1/*:: as any*/),
           (v2/*:: as any*/),
           (v3/*:: as any*/),
+          (v4/*:: as any*/),
+          (v5/*:: as any*/),
+          (v6/*:: as any*/),
+          (v7/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -187,11 +229,11 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  (v4/*:: as any*/)
+                  (v8/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v5/*:: as any*/)
+              (v9/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -201,16 +243,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c6c80e4cdc5351aba88d5ba1f49b456f",
+    "cacheID": "df501872be9d85392c84aca78c3a9bdb",
     "id": null,
     "metadata": {},
     "name": "projectEvaluatorTemplatesQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorTemplatesQuery {\n  classificationEvaluatorConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorTemplatesQuery {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    recommended\n    category\n    details\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b938efd265919dc8c2d52b8aa9d45a15";
+(node as any).hash = "0e340a9d94ce94b0cc95de808a9b6de5";
 
 export default node;

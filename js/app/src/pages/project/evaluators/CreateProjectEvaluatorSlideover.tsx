@@ -35,6 +35,7 @@ import {
   toEvaluationDelayInput,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
+  type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import {
@@ -58,6 +59,10 @@ type SeededLlmEvaluatorInitialState = {
   includeExplanation: boolean;
 };
 
+type TemplateLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
+  targetType: ProjectEvaluatorTarget;
+};
+
 export type ProjectEvaluatorCreationMode =
   | { kind: "scratch" }
   | { kind: "newCode" }
@@ -67,7 +72,7 @@ export type ProjectEvaluatorCreationMode =
     }
   | {
       kind: "template";
-      initialState: SeededLlmEvaluatorInitialState;
+      initialState: TemplateLlmEvaluatorInitialState;
     }
   | {
       kind: "code";
@@ -162,8 +167,12 @@ const CreateProjectEvaluatorDialog = ({
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
+  const initialTargetType =
+    creationMode.kind === "template"
+      ? creationMode.initialState.targetType
+      : "SPAN";
   const [scope, setScope] = useState<ProjectEvaluatorScope>({
-    targetType: "SPAN",
+    targetType: initialTargetType,
     filterCondition: "",
     samplingRate: 1,
     evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,

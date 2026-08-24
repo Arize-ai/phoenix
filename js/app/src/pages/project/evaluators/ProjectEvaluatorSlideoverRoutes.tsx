@@ -141,7 +141,7 @@ function NewLlmFromTemplateProjectEvaluatorSlideover({
     {},
     { fetchPolicy: "store-and-network" }
   );
-  const template = data.classificationEvaluatorConfigs.find(
+  const template = data.evaluatorGalleryConfigs.find(
     (config) => config.name === templateName
   );
   if (!template) {

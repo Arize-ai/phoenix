@@ -19,18 +19,12 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
-  getProjectEvaluatorTemplateMetadata,
   type ProjectEvaluatorTemplate,
   projectEvaluatorTemplatesQuery,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
 const RECOMMENDED_CATEGORY = "Recommended";
 const GALLERY_SKELETON_HEIGHT = 440;
-
-type TemplateWithMetadata = {
-  config: ProjectEvaluatorTemplate;
-  metadata: ReturnType<typeof getProjectEvaluatorTemplateMetadata>;
-};
 
 export function ProjectEvaluatorGalleryPage() {
   return (
@@ -60,20 +54,16 @@ function EvaluatorGallery() {
     {},
     { fetchPolicy: "store-and-network" }
   );
-  const templates: TemplateWithMetadata[] =
-    data.classificationEvaluatorConfigs.map((config) => ({
-      config,
-      metadata: getProjectEvaluatorTemplateMetadata(config.name),
-    }));
+  const templates = data.evaluatorGalleryConfigs;
   const categories = Array.from(
     new Set(
-      templates.map(({ metadata }) =>
-        getProjectEvaluatorTemplateCategoryLabel(metadata.category)
+      templates.map(({ category }) =>
+        getProjectEvaluatorTemplateCategoryLabel(category)
       )
     )
   );
   const recommendedTemplateCount = templates.filter(
-    ({ metadata }) => metadata.recommended
+    ({ recommended }) => recommended
   ).length;
   const categoryItems = [
     {
@@ -83,8 +73,8 @@ function EvaluatorGallery() {
     ...categories.map((category) => ({
       name: category,
       count: templates.filter(
-        ({ metadata }) =>
-          getProjectEvaluatorTemplateCategoryLabel(metadata.category) ===
+        ({ category: templateCategory }) =>
+          getProjectEvaluatorTemplateCategoryLabel(templateCategory) ===
           category
       ).length,
     })),
@@ -94,16 +84,14 @@ function EvaluatorGallery() {
   )
     ? selectedCategory
     : (categoryItems[0]?.name ?? RECOMMENDED_CATEGORY);
-  const visibleTemplates = templates.filter(({ metadata }) =>
+  const visibleTemplates = templates.filter(({ recommended, category }) =>
     activeCategory === RECOMMENDED_CATEGORY
-      ? metadata.recommended
-      : getProjectEvaluatorTemplateCategoryLabel(metadata.category) ===
-        activeCategory
+      ? recommended
+      : getProjectEvaluatorTemplateCategoryLabel(category) === activeCategory
   );
   const selectedTemplate =
-    visibleTemplates.find(
-      ({ config }) => config.name === selectedTemplateName
-    ) ?? visibleTemplates[0];
+    visibleTemplates.find(({ name }) => name === selectedTemplateName) ??
+    visibleTemplates[0];
 
   return (
     <div css={galleryCSS} className="project-evaluator-gallery">
@@ -167,24 +155,24 @@ function EvaluatorGallery() {
           {activeCategory}
         </Heading>
         <ul className="project-evaluator-gallery__template-list">
-          {visibleTemplates.map(({ config, metadata }) => {
-            const isSelected = config.name === selectedTemplate?.config.name;
+          {visibleTemplates.map((template) => {
+            const isSelected = template.name === selectedTemplate?.name;
             return (
-              <li key={config.name}>
+              <li key={template.name}>
                 <button
                   className="project-evaluator-gallery__template-card"
                   aria-pressed={isSelected}
-                  onClick={() => setSelectedTemplateName(config.name)}
+                  onClick={() => setSelectedTemplateName(template.name)}
                 >
                   <Flex direction="row" justifyContent="space-between">
                     <Text size="S" weight="heavy">
-                      {config.name}
+                      {template.name}
                     </Text>
-                    <Badge size="S">{metadata.kind}</Badge>
+                    <Badge size="S">LLM</Badge>
                   </Flex>
                   <LineClamp lines={3}>
                     <Text size="XS" color="text-700">
-                      {config.description}
+                      {template.description}
                     </Text>
                   </LineClamp>
                 </button>
@@ -199,9 +187,7 @@ function EvaluatorGallery() {
           <EvaluatorTemplateDetails
             template={selectedTemplate}
             onUseTemplate={() =>
-              navigate(
-                paths.galleryNewLlmFromTemplate(selectedTemplate.config.name)
-              )
+              navigate(paths.galleryNewLlmFromTemplate(selectedTemplate.name))
             }
           />
         ) : (
@@ -218,27 +204,26 @@ function EvaluatorTemplateDetails({
   template,
   onUseTemplate,
 }: {
-  template: TemplateWithMetadata;
+  template: ProjectEvaluatorTemplate;
   onUseTemplate: () => void;
 }) {
-  const { config, metadata } = template;
-  const choices = getProjectEvaluatorTemplateChoices(config);
+  const choices = getProjectEvaluatorTemplateChoices(template);
   return (
     <Flex direction="column" gap="size-200" height="100%">
       <Flex direction="column" gap="size-100">
-        <Heading level={2}>{config.name}</Heading>
+        <Heading level={2}>{template.name}</Heading>
         <Flex direction="row" gap="size-75" wrap>
-          <Badge size="S">{metadata.kind}</Badge>
+          <Badge size="S">LLM</Badge>
           <Badge size="S">
-            {getProjectEvaluatorTemplateCategoryLabel(metadata.category)}
+            {getProjectEvaluatorTemplateCategoryLabel(template.category)}
           </Badge>
         </Flex>
         <Text size="S" color="text-700">
-          {config.description}
+          {template.description}
         </Text>
-        {metadata.details ? (
+        {template.details ? (
           <Text size="S" color="text-700">
-            {metadata.details}
+            {template.details}
           </Text>
         ) : null}
       </Flex>
@@ -246,12 +231,12 @@ function EvaluatorTemplateDetails({
         <div>
           <dt>Scope</dt>
           <dd>
-            {metadata.scope ? capitalize(metadata.scope.toLowerCase()) : "—"}
+            {template.scope ? capitalize(template.scope.toLowerCase()) : "—"}
           </dd>
         </div>
         <div>
           <dt>Optimization</dt>
-          <dd>{capitalize(config.optimizationDirection.toLowerCase())}</dd>
+          <dd>{capitalize(template.optimizationDirection.toLowerCase())}</dd>
         </div>
       </dl>
       <Flex direction="column" gap="size-75">
