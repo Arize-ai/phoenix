@@ -2078,7 +2078,7 @@ def test_virtual_column_predicate_in_a_subquery_resolves_to_the_subquery_relatio
             "unixepoch('2026-07-30 12:00:00') AND unixepoch('2026-07-30 12:00:01')",
             2,
         ),
-        # The bare form the pass already covered, kept so a regression is visible.
+        # The bare form the pass covers, included so a regression is visible.
         (
             "SELECT count(*) AS v FROM spans WHERE start_time > unixepoch('2026-07-30 12:00:01')",
             1,

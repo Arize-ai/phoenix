@@ -587,12 +587,12 @@ async def test_partial_flag_is_honest_at_the_boundary(
 ) -> None:
     """A result of exactly N rows must not claim it was truncated.
 
-    While the injected limit equalled the reported one, the row that would prove
-    truncation was never fetched, so an exactly-complete result was reported
-    identically to a truncated one. An agent acts on that flag by paginating or
-    narrowing a query that was already complete. The rewrite now asks for one
-    row more than the caller wants and the consumer drops it, which is what
-    makes the distinction observable.
+    An injected limit equal to the reported one never fetches the row that would
+    prove truncation, so an exactly-complete result reports identically to a
+    truncated one. An agent acts on that flag by paginating or narrowing a query
+    that is already complete. The rewrite asks for one row more than the caller
+    wants and the consumer drops it, which is what makes the distinction
+    observable.
 
     The rows are seeded here and the query is scoped to them by name. A
     boundary test needs to know exactly how many rows exist, so it cannot read

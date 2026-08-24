@@ -1503,11 +1503,11 @@ def _refused_cast_target(target: exp.Expression) -> Optional[str]:
     scanned relation, so the plan gate cannot see it.
 
     An array of an allowed type is allowed, because it reaches nothing the
-    element type does not. Refusing it made the surface reject its own output:
+    element type does not. Refusing it makes the surface reject its own output:
     `pg_get_indexdef` renders the operand of `#>>` as `'{a,b}'::text[]`, so
-    `describeSqlSchema` published an index spelling under a heading telling the
-    caller to reproduce it exactly, and admission then refused it. Nothing
-    protective was lost -- `regclass[]` does not parse, and an array whose
+    `describeSqlSchema` publishes an index spelling under a heading telling the
+    caller to reproduce it exactly, which admission then refuses. Nothing
+    protective is lost -- `regclass[]` does not parse, and an array whose
     element type is disallowed is still caught by the recursion.
     """
     name = _cast_type_name(target)

@@ -445,12 +445,11 @@ class TestAliasCannotShadowACTE:
             "WITH projects AS (SELECT 1 AS v) SELECT count(*) FROM projects",
             "SELECT count(*) FROM projects AS p",
             # A CTE and a table alias sharing a name in *different* scopes is
-            # legal, unambiguous, and executes on both engines. The first
-            # version of this check refused it, because it looked for the cause
-            # -- any alias equal to any CTE name anywhere in the statement --
-            # rather than for the effect. `t` is simultaneously the commonest
-            # CTE name and the commonest table alias, so the false positive was
-            # easy to reach.
+            # legal, unambiguous, and executes on both engines. A check that
+            # looks for the cause -- any alias equal to any CTE name anywhere in
+            # the statement -- rather than for the effect refuses it. `t` is
+            # simultaneously the commonest CTE name and the commonest table
+            # alias, so that false positive is easy to reach.
             "WITH t AS (SELECT 1 AS v) SELECT n FROM (SELECT count(*) AS n FROM spans AS t) q",
             "WITH s AS (SELECT id FROM projects) "
             "SELECT (SELECT count(*) FROM spans AS s) AS n FROM s",
@@ -468,10 +467,10 @@ class TestCastTargetsAreRestrictedToDataTypes:
     plan gate cannot see it. That is the reason the list exists.
 
     An array of an allowed element type reaches nothing the element type does
-    not, and refusing it made the surface reject its own output: PostgreSQL
+    not, and refusing it makes the surface reject its own output: PostgreSQL
     renders the operand of `#>>` as `'{a,b}'::text[]`, so `describeSqlSchema`
-    published an index spelling under a heading telling the caller to reproduce
-    it exactly, and admission then refused it.
+    publishes an index spelling under a heading telling the caller to reproduce
+    it exactly, which admission then refuses.
 
     The `#>>` case is written here with the cast parenthesised. The
     unparenthesised form is admitted too, as a cast of the path rather than of

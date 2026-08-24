@@ -879,7 +879,7 @@ async def _execute_postgres(
         # EXPLAIN resolves names, so a name error surfaces here rather than at
         # the statement below and needs the same mapping. PostgreSQL's own text
         # is passed through: it describes the caller's query against tables they
-        # were shown, so there is nothing to withhold. Most typos no longer
+        # were shown, so there is nothing to withhold. Most typos do not
         # reach this point -- the column allowlist refuses them first -- but an
         # unqualified name beside a table-valued function still does.
         try:

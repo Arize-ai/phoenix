@@ -926,11 +926,11 @@ class TestLossyNormalisationIsReported:
 
 
 class TestSqliteResolutionErrorsAreActionable:
-    """PostgreSQL's own words already reach the caller; SQLite's did not.
+    """Both backends' own words reach the caller, SQLite's included.
 
     An unqualified column two joined tables both offer passes admission -- it is
     not hidden and both tables offer it -- and then fails at the engine. The
-    message names only the caller's own identifier, so withholding it made an
+    message names only the caller's own identifier, so withholding it makes an
     ordinary mistake un-actionable on one backend and precise on the other.
     """
 

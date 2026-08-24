@@ -153,14 +153,14 @@ def test_table_level_reads_are_judged_before_the_transient_accept(sql: str, allo
     """`count(*)` names no column, so its read presents with no database attached.
 
     That is indistinguishable in shape from a materialised CTE, so an accept
-    path for transient tables placed first returned OK before the catalog deny
-    and before the allowlist check — and this gate stopped being a backstop for
+    path for transient tables placed first returns OK before the catalog deny
+    and before the allowlist check, and this gate stops being a backstop for
     every count-shaped read. Admission refuses these independently, so nothing
-    leaked; what was missing was the second layer, which the authorizer's own
-    logging calls by name.
+    leaks; what is lost is the second layer, which the authorizer's own logging
+    calls by name.
 
-    The CTE case is here to keep the fix honest: reordering must not re-break
-    the materialised-CTE reads that the transient accept was added for.
+    The CTE case is here so that ordering cannot be traded away: it must not
+    refuse the materialised-CTE reads the transient accept exists for.
     """
     import sqlean
 
