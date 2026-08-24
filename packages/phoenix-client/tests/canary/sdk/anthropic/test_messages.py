@@ -217,6 +217,17 @@ class TestInvocationParametersConversion:
         )
         assert not DeepDiff(content, dict(new_obj["anthropic"]))
 
+    def test_reads_sampling_params_captured_from_an_older_sdk(self) -> None:
+        """Kwargs built when `messages.create()` still took these as keyword arguments
+        carry them at the top level, and must keep converting."""
+        obj = cast(
+            "MessageCreateParamsBase",
+            {"max_tokens": 1024, "temperature": 0.3, "top_p": 0.9},
+        )
+        content = _InvocationParametersConversion.from_anthropic(obj)["anthropic"]
+        assert content["temperature"] == 0.3
+        assert content["top_p"] == 0.9
+
     def test_sampling_params_are_sent_through_extra_body(self) -> None:
         """`messages.create()` rejects them as keyword arguments, so they must ride in
         `extra_body` to reach the models that still honor them."""

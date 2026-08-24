@@ -878,296 +878,305 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    system="You are {role}.",
-                    messages=[
-                        {"role": "user", "content": "Write a haiku about {topic}."},
-                    ],
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1024,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        system="You are {role}.",
+                        messages=[
+                            {"role": "user", "content": "Write a haiku about {topic}."},
+                        ],
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-system-message-string",
             ),
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1025,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    thinking={
-                        "type": "enabled",
-                        "budget_tokens": 1024,
-                    },
-                    system="You are {role}.",
-                    messages=[
-                        {"role": "user", "content": "Write a haiku about {topic}."},
-                    ],
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1025,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        thinking={
+                            "type": "enabled",
+                            "budget_tokens": 1024,
+                        },
+                        system="You are {role}.",
+                        messages=[
+                            {"role": "user", "content": "Write a haiku about {topic}."},
+                        ],
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-thinking-enabled",
             ),
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    thinking={"type": "disabled"},
-                    system="You are {role}.",
-                    messages=[
-                        {"role": "user", "content": "Write a haiku about {topic}."},
-                    ],
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1024,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        thinking={"type": "disabled"},
+                        system="You are {role}.",
+                        messages=[
+                            {"role": "user", "content": "Write a haiku about {topic}."},
+                        ],
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-thinking-disabled",
             ),
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    system=[
-                        {"type": "text", "text": "You are {role}."},
-                        {"type": "text", "text": "You study {topic}."},
-                    ],
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": "Write a poem about {topic}."},
-                                {"type": "text", "text": "Make it rhyme."},
-                            ],
-                        },
-                    ],
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1024,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        system=[
+                            {"type": "text", "text": "You are {role}."},
+                            {"type": "text", "text": "You study {topic}."},
+                        ],
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": "Write a poem about {topic}."},
+                                    {"type": "text", "text": "Make it rhyme."},
+                                ],
+                            },
+                        ],
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-system-message-list",
             ),
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": "What's the temperature and population in Los Angeles?",
-                        },
-                    ],
-                    tools=_ANTHROPIC_TOOLS,
-                    tool_choice=ToolChoiceAnyParam(type="any"),
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1024,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": "What's the temperature and population in Los Angeles?",
+                            },
+                        ],
+                        tools=_ANTHROPIC_TOOLS,
+                        tool_choice=ToolChoiceAnyParam(type="any"),
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-tools",
             ),
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": "Given a description of a character, your task is to "
-                            "extract all the characteristics of the character.\n"
-                            "<description>{desc}</description>",
-                        },
-                    ],
-                    tools=[
-                        {
-                            "name": "print_all_characteristics",
-                            "description": "Prints all characteristics which are provided.",
-                            "input_schema": {"type": "object", "additionalProperties": True},
-                        }
-                    ],
-                    tool_choice={"type": "tool", "name": "print_all_characteristics"},
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1024,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": "Given a description of a character, your task is to "
+                                "extract all the characteristics of the character.\n"
+                                "<description>{desc}</description>",
+                            },
+                        ],
+                        tools=[
+                            {
+                                "name": "print_all_characteristics",
+                                "description": "Prints all characteristics which are provided.",
+                                "input_schema": {"type": "object", "additionalProperties": True},
+                            }
+                        ],
+                        tool_choice={"type": "tool", "name": "print_all_characteristics"},
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-tool-with-unknown-keys",
             ),
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    messages=[
-                        MessageParam(
-                            role="user",
-                            content="What's the temperature and population in Los Angeles?",
-                        ),
-                        MessageParam(
-                            role="assistant",
-                            content=[
-                                TextBlockParam(
-                                    type="text",
-                                    text="I'll call these functions",
-                                ),
-                                ToolUseBlockParam(
-                                    type="tool_use",
-                                    id=token_hex(8),
-                                    name="get_weather",
-                                    input={"city": "Los Angeles"},
-                                ),
-                                ToolUseBlockParam(
-                                    type="tool_use",
-                                    id=token_hex(8),
-                                    name="get_population",
-                                    input={"location": "Los Angeles"},
-                                ),
-                            ],
-                        ),
-                    ],
-                    tools=_ANTHROPIC_TOOLS,
-                    tool_choice=ToolChoiceAnyParam(type="any"),
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1024,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        messages=[
+                            MessageParam(
+                                role="user",
+                                content="What's the temperature and population in Los Angeles?",
+                            ),
+                            MessageParam(
+                                role="assistant",
+                                content=[
+                                    TextBlockParam(
+                                        type="text",
+                                        text="I'll call these functions",
+                                    ),
+                                    ToolUseBlockParam(
+                                        type="tool_use",
+                                        id=token_hex(8),
+                                        name="get_weather",
+                                        input={"city": "Los Angeles"},
+                                    ),
+                                    ToolUseBlockParam(
+                                        type="tool_use",
+                                        id=token_hex(8),
+                                        name="get_population",
+                                        input={"location": "Los Angeles"},
+                                    ),
+                                ],
+                            ),
+                        ],
+                        tools=_ANTHROPIC_TOOLS,
+                        tool_choice=ToolChoiceAnyParam(type="any"),
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-tool-use",
             ),
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    messages=[
-                        MessageParam(
-                            role="user",
-                            content="What's the temperature and population in Los Angeles?",
-                        ),
-                        MessageParam(
-                            role="assistant",
-                            content=[
-                                TextBlockParam(
-                                    type="text",
-                                    text="I'll call these functions",
-                                ),
-                                ToolUseBlockParam(
-                                    type="tool_use",
-                                    id=token_hex(8),
-                                    name="get_weather",
-                                    input={"city": "Los Angeles"},
-                                ),
-                                ToolUseBlockParam(
-                                    type="tool_use",
-                                    id=token_hex(8),
-                                    name="get_population",
-                                    input={"location": "Los Angeles"},
-                                ),
-                            ],
-                        ),
-                        MessageParam(
-                            role="user",
-                            content=[
-                                TextBlockParam(
-                                    type="text",
-                                    text="These are function results",
-                                ),
-                                ToolResultBlockParam(
-                                    type="tool_result",
-                                    tool_use_id=token_hex(8),
-                                    content="temp is hot",
-                                ),
-                                ToolResultBlockParam(
-                                    type="tool_result",
-                                    tool_use_id=token_hex(8),
-                                    content="pop is large",
-                                ),
-                            ],
-                        ),
-                    ],
-                    tools=_ANTHROPIC_TOOLS,
-                    tool_choice=ToolChoiceAnyParam(type="any"),
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1024,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        messages=[
+                            MessageParam(
+                                role="user",
+                                content="What's the temperature and population in Los Angeles?",
+                            ),
+                            MessageParam(
+                                role="assistant",
+                                content=[
+                                    TextBlockParam(
+                                        type="text",
+                                        text="I'll call these functions",
+                                    ),
+                                    ToolUseBlockParam(
+                                        type="tool_use",
+                                        id=token_hex(8),
+                                        name="get_weather",
+                                        input={"city": "Los Angeles"},
+                                    ),
+                                    ToolUseBlockParam(
+                                        type="tool_use",
+                                        id=token_hex(8),
+                                        name="get_population",
+                                        input={"location": "Los Angeles"},
+                                    ),
+                                ],
+                            ),
+                            MessageParam(
+                                role="user",
+                                content=[
+                                    TextBlockParam(
+                                        type="text",
+                                        text="These are function results",
+                                    ),
+                                    ToolResultBlockParam(
+                                        type="tool_result",
+                                        tool_use_id=token_hex(8),
+                                        content="temp is hot",
+                                    ),
+                                    ToolResultBlockParam(
+                                        type="tool_result",
+                                        tool_use_id=token_hex(8),
+                                        content="pop is large",
+                                    ),
+                                ],
+                            ),
+                        ],
+                        tools=_ANTHROPIC_TOOLS,
+                        tool_choice=ToolChoiceAnyParam(type="any"),
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-tool-result-string",
             ),
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
-                    model=token_hex(8),
-                    max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
-                    stop_sequences=[token_hex(8), token_hex(8)],
-                    messages=[
-                        MessageParam(
-                            role="user",
-                            content="What's the temperature and population in Los Angeles?",
-                        ),
-                        MessageParam(
-                            role="assistant",
-                            content=[
-                                TextBlockParam(
-                                    type="text",
-                                    text="I'll call these functions",
-                                ),
-                                ToolUseBlockParam(
-                                    type="tool_use",
-                                    id=token_hex(8),
-                                    name="get_weather",
-                                    input={"city": "Los Angeles"},
-                                ),
-                                ToolUseBlockParam(
-                                    type="tool_use",
-                                    id=token_hex(8),
-                                    name="get_population",
-                                    input={"location": "Los Angeles"},
-                                ),
-                            ],
-                        ),
-                        MessageParam(
-                            role="user",
-                            content=[
-                                TextBlockParam(
-                                    type="text",
-                                    text="These are function results",
-                                ),
-                                ToolResultBlockParam(
-                                    type="tool_result",
-                                    tool_use_id=token_hex(8),
-                                    content=[
-                                        TextBlockParam(type="text", text="temp"),
-                                        TextBlockParam(type="text", text="is"),
-                                        TextBlockParam(type="text", text="hot"),
-                                    ],
-                                ),
-                                ToolResultBlockParam(
-                                    type="tool_result",
-                                    tool_use_id=token_hex(8),
-                                    content=[
-                                        TextBlockParam(type="text", text="pop"),
-                                        TextBlockParam(type="text", text="is"),
-                                        TextBlockParam(type="text", text="large"),
-                                    ],
-                                ),
-                            ],
-                        ),
-                    ],
-                    tools=_ANTHROPIC_TOOLS,
-                    tool_choice=ToolChoiceAnyParam(type="any"),
-                ),
+                {
+                    **MessageCreateParamsBase(
+                        model=token_hex(8),
+                        max_tokens=1024,
+                        stop_sequences=[token_hex(8), token_hex(8)],
+                        messages=[
+                            MessageParam(
+                                role="user",
+                                content="What's the temperature and population in Los Angeles?",
+                            ),
+                            MessageParam(
+                                role="assistant",
+                                content=[
+                                    TextBlockParam(
+                                        type="text",
+                                        text="I'll call these functions",
+                                    ),
+                                    ToolUseBlockParam(
+                                        type="tool_use",
+                                        id=token_hex(8),
+                                        name="get_weather",
+                                        input={"city": "Los Angeles"},
+                                    ),
+                                    ToolUseBlockParam(
+                                        type="tool_use",
+                                        id=token_hex(8),
+                                        name="get_population",
+                                        input={"location": "Los Angeles"},
+                                    ),
+                                ],
+                            ),
+                            MessageParam(
+                                role="user",
+                                content=[
+                                    TextBlockParam(
+                                        type="text",
+                                        text="These are function results",
+                                    ),
+                                    ToolResultBlockParam(
+                                        type="tool_result",
+                                        tool_use_id=token_hex(8),
+                                        content=[
+                                            TextBlockParam(type="text", text="temp"),
+                                            TextBlockParam(type="text", text="is"),
+                                            TextBlockParam(type="text", text="hot"),
+                                        ],
+                                    ),
+                                    ToolResultBlockParam(
+                                        type="tool_result",
+                                        tool_use_id=token_hex(8),
+                                        content=[
+                                            TextBlockParam(type="text", text="pop"),
+                                            TextBlockParam(type="text", text="is"),
+                                            TextBlockParam(type="text", text="large"),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                        tools=_ANTHROPIC_TOOLS,
+                        tool_choice=ToolChoiceAnyParam(type="any"),
+                    ),
+                    "extra_body": {"temperature": random(), "top_p": random()},
+                },
                 id="anthropic-tool-result-list",
             ),
             pytest.param(
