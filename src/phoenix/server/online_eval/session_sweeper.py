@@ -71,8 +71,8 @@ from phoenix.server.online_eval.requests import (
 )
 from phoenix.server.online_eval.session_policy import (
     admitted_session_work_count_statement,
-    session_project_evaluator_is_schedulable,
     session_matches_project_evaluator_filter,
+    session_project_evaluator_is_schedulable,
     session_work_answers_request,
     session_work_records_background_decision,
 )
@@ -287,7 +287,7 @@ def _triggered_pairs_statement(
     filter_matches: Optional[ColumnElement[bool]] = None,
 ) -> Select[Any]:
     """The pairs an unfulfilled evaluation request is asking for. ``filter_matches`` is the
-    project_evaluators's own session filter, compiled by the caller for the one project_evaluator covered."""
+    evaluator's own session filter, compiled by the caller for the one evaluator covered."""
     pending = unfulfilled_requests().subquery("pending_requests")
     due_at, current_time = _quiet_delay_columns(project_evaluator_relation, database_now, dialect)
     terminal_work = aliased(models.EvalSessionWorkUnit)
@@ -874,7 +874,7 @@ class SessionEvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[dict[str, int]]]:
         """Materialize this tick's work, returning (work created, pairs waiting by origin).
-        Project evaluators and session rows are locked before the insert, preserving the global order."""
+        Evaluator and session rows are locked before the insert, keeping the global order."""
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None

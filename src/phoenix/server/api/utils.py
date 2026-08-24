@@ -30,4 +30,3 @@ async def delete_traces(
         deleted = list(await session.scalars(select(models.Trace.id).where(trace_filter)))
         await delete_traces_and_stand_down(session, trace_filter)
         return deleted
-

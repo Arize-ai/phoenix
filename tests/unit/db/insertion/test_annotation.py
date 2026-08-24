@@ -30,7 +30,8 @@ async def _seed_annotation_target(db: DbSessionFactory) -> models.Span:
         )
         session.add(evaluator)
         await session.flush()
-        project_evaluators = models.ProjectEvaluator(
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
             name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
@@ -42,7 +43,7 @@ async def _seed_annotation_target(db: DbSessionFactory) -> models.Span:
         await session.flush()
         session.add(
             models.ProjectEvaluatorTrigger(
-                project_evaluator_id=project_evaluators.id,
+                project_evaluator_id=project_evaluator.id,
                 event_kind="annotation_upserted",
             )
         )
@@ -143,4 +144,3 @@ async def test_annotation_rule_gate_is_project_scoped(db: DbSessionFactory) -> N
     async with db() as session:
         assert await session.scalar(select(models.SpanAnnotation.id)) is not None
     assert await _requests(db) == []
-

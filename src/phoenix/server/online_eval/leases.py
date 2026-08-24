@@ -149,4 +149,3 @@ class DatabaseLease:
                 .where(*self.held_by_me)
                 .values({self._holder_column: None, self._heartbeat_column: None})
             )
-

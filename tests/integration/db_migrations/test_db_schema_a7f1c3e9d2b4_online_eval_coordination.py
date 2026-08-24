@@ -423,10 +423,13 @@ class TestEvaluationRequests(_OnlineEvalSchemaTest):
     @override
     @classmethod
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
-        index_names = {"ix_evaluation_requests_project_evaluator_id_project_session_rowid"}
+        index_names = {"ix_evaluation_requests_project_evaluator_id_session_rowid"}
         constraint_names = {
             "pk_evaluation_requests",
-            "uq_evaluation_requests_project_session_rowid_project_evaluator_id",
+            _constraint_name(
+                "uq_evaluation_requests_project_session_rowid_project_evaluator_id",
+                db_backend,
+            ),
             _constraint_name(
                 "fk_evaluation_requests_project_session_rowid_project_sessions",
                 db_backend,
@@ -447,7 +450,10 @@ class TestEvaluationRequests(_OnlineEvalSchemaTest):
             index_names.update(
                 {
                     "pk_evaluation_requests",
-                    "uq_evaluation_requests_project_session_rowid_project_evaluator_id",
+                    _constraint_name(
+                        "uq_evaluation_requests_project_session_rowid_project_evaluator_id",
+                        db_backend,
+                    ),
                 }
             )
         elif db_backend == "sqlite":
@@ -584,4 +590,3 @@ async def test_project_session_liveness_schema(
     # Reflection-driven index drift is symmetric: index names and column lists survive a
     # DESC -> ASC rebuild, so the schema comparison above cannot catch one on the way down.
     await _assert_desc_indexes()
-

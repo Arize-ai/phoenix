@@ -3953,9 +3953,8 @@ class EvaluationRequest(HasId):
             name="valid_materialized_generation",
         ),
         Index(
-            "ix_evaluation_requests_project_evaluator_id_project_session_rowid",
+            "ix_evaluation_requests_project_evaluator_id_session_rowid",
             "project_evaluator_id",
             "project_session_rowid",
         ),
     )
-

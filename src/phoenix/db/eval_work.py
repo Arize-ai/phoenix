@@ -74,4 +74,3 @@ def evaluation_target_check(column: str) -> str:
     """SQL text constraining ``column`` to ``EVALUATION_TARGETS``."""
     targets = ", ".join(f"'{target}'" for target in EVALUATION_TARGETS)
     return f"{column} IN ({targets})"
-

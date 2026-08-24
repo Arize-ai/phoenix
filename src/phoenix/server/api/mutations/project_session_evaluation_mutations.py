@@ -123,4 +123,3 @@ def _rejection_error(rejection: RequestRejection) -> Exception:
     if rejection in _BAD_REQUEST_REJECTIONS:
         return BadRequest(message)
     return Conflict(message)
-

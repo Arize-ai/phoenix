@@ -150,4 +150,3 @@ def _warn_if_pending_work_can_expire_under_backpressure(
             claim_batch_size,
             tick_interval_seconds,
         )
-

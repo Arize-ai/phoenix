@@ -258,7 +258,7 @@ def _create_evaluation_requests_table() -> None:
         ),
     )
     op.create_index(
-        "ix_evaluation_requests_project_evaluator_id_project_session_rowid",
+        "ix_evaluation_requests_project_evaluator_id_session_rowid",
         "evaluation_requests",
         ["project_evaluator_id", "project_session_rowid"],
     )
@@ -546,7 +546,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index(
-        "ix_evaluation_requests_project_evaluator_id_project_session_rowid",
+        "ix_evaluation_requests_project_evaluator_id_session_rowid",
         table_name="evaluation_requests",
     )
     op.drop_table("evaluation_requests")

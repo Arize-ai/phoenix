@@ -1022,4 +1022,3 @@ class TestProjects:
         for i, p in enumerate(projects):
             print(f"Created test project {i + 1}: id={p.id}, name='{p.name}'")
         return projects
-

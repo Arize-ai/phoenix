@@ -28,7 +28,8 @@ async def _add_terminal_work_unit(
     )
     session.add(evaluator)
     await session.flush()
-    project_evaluators = models.ProjectEvaluator(
+    project_evaluator = models.ProjectEvaluator(
+        trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
         project_id=project_session.project_id,
         evaluator_id=evaluator.id,
         name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
@@ -83,4 +84,3 @@ async def test_reap_skips_a_session_whose_only_aged_work_is_the_permanent_surviv
     assert len(statements) == 1
     async with db() as session:
         assert list(await session.scalars(select(models.EvalSessionWorkUnit.id))) == [survivor_id]
-

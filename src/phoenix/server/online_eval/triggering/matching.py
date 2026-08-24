@@ -94,4 +94,3 @@ def _matches(event: AnnotationEvent, rule: TriggerRule) -> bool:
     if rule.annotation_target is not None and event.annotation_target != rule.annotation_target:
         return False
     return True
-

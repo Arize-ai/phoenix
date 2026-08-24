@@ -1530,25 +1530,25 @@ CREATE TABLE public.evaluation_requests (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_evaluation_requests PRIMARY KEY (id),
-    CONSTRAINT uq_evaluation_requests_project_session_rowid_project_evaluator_id
+    CONSTRAINT uq_evaluation_requests_project_session_rowid_project_ev_dc84
         UNIQUE (project_session_rowid, project_evaluator_id),
     CONSTRAINT "ck_evaluation_requests_`valid_materialized_generation`" CHECK (((0 <= materialized_generation) AND (materialized_generation <= requested_generation))),
     CONSTRAINT "ck_evaluation_requests_`valid_requested_generation`" CHECK ((requested_generation >= 0)),
-    CONSTRAINT fk_evaluation_requests_project_evaluator_id_project_evaluators
-        FOREIGN KEY (project_evaluator_id)
-        REFERENCES public.project_evaluators (id)
-        ON DELETE CASCADE,
     CONSTRAINT fk_evaluation_requests_materialized_by_session_work_uni_7d59
         FOREIGN KEY (materialized_by_session_work_unit_id)
         REFERENCES public.eval_session_work_units (id)
         ON DELETE SET NULL,
+    CONSTRAINT fk_evaluation_requests_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE,
     CONSTRAINT fk_evaluation_requests_project_session_rowid_project_sessions
         FOREIGN KEY (project_session_rowid)
         REFERENCES public.project_sessions (id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_evaluation_requests_project_evaluator_id_project_session_rowid ON public.evaluation_requests
+CREATE INDEX ix_evaluation_requests_project_evaluator_id_session_rowid ON public.evaluation_requests
     USING btree (project_evaluator_id, project_session_rowid);
 
 
@@ -1563,7 +1563,7 @@ CREATE TABLE public.project_evaluator_triggers (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
     CONSTRAINT "ck_project_evaluator_triggers_`valid_event_kind`" CHECK (((event_kind)::text = 'annotation_upserted'::text)),
-    CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_project_evalu_acfb
+    CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_proj_d659
         FOREIGN KEY (project_evaluator_id)
         REFERENCES public.project_evaluators (id)
         ON DELETE CASCADE

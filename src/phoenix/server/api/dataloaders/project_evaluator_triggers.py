@@ -23,10 +23,13 @@ class ProjectEvaluatorTriggersDataLoader(DataLoader[Key, Result]):
         async with self._db.read() as session:
             records = await session.stream_scalars(
                 select(models.ProjectEvaluatorTrigger)
-                .where(models.ProjectEvaluatorTrigger.project_evaluator_id.in_(project_evaluator_ids))
+                .where(
+                    models.ProjectEvaluatorTrigger.project_evaluator_id.in_(project_evaluator_ids)
+                )
                 .order_by(models.ProjectEvaluatorTrigger.id)
             )
             async for record in records:
-                triggers_by_project_evaluator.setdefault(record.project_evaluator_id, []).append(record)
+                triggers_by_project_evaluator.setdefault(record.project_evaluator_id, []).append(
+                    record
+                )
         return [triggers_by_project_evaluator.get(key, []) for key in keys]
-

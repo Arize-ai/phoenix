@@ -35,6 +35,7 @@ async def _add_project_evaluator(
     session.add(evaluator)
     await session.flush()
     project_evaluator = models.ProjectEvaluator(
+        trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
         project_id=project.id,
         evaluator_id=evaluator.id,
         name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
@@ -202,7 +203,7 @@ async def test_triggers_on_span_project_evaluators_and_in_trace_projects_do_not_
         await _add_trigger(session, reserved_project_evaluator)
 
     async with db() as session:
-        assert await load_rules(session, project_ids=[project.id, evaluators_project.id]) == ()
+        assert await load_rules(session, project_ids=[project.id, trace_project.id]) == ()
 
 
 async def test_deleting_a_criteria_takes_its_triggers_with_it(db: DbSessionFactory) -> None:
@@ -226,8 +227,8 @@ async def test_deleting_a_criteria_takes_its_triggers_with_it(db: DbSessionFacto
 async def test_rules_load_only_for_the_projects_asked_for(db: DbSessionFactory) -> None:
     async with db() as session:
         project = await _add_project(session)
-        project_evaluators = await _add_project_evaluator(session, project)
-        trigger = await _add_trigger(session, project_evaluators)
+        project_evaluator = await _add_project_evaluator(session, project)
+        trigger = await _add_trigger(session, project_evaluator)
         elsewhere = await _add_project(session)
         await _add_trigger(session, await _add_project_evaluator(session, elsewhere))
 
@@ -236,4 +237,3 @@ async def test_rules_load_only_for_the_projects_asked_for(db: DbSessionFactory) 
             rule.trigger_id for rule in await load_rules(session, project_ids=[project.id])
         ] == [trigger.id]
         assert await load_rules(session, project_ids=[]) == ()
-

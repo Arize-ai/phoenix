@@ -67,6 +67,7 @@ async def _seed_pair(session: AsyncSession) -> _Pair:
     session.add(evaluator)
     await session.flush()
     project_evaluator = models.ProjectEvaluator(
+        trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
         project_id=project.id,
         evaluator_id=evaluator.id,
         name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
@@ -104,7 +105,9 @@ async def test_requesting_an_evaluation_advances_the_generation_and_latches_the_
     assert first.requested_generation == 1
 
     async with db() as session:
-        forced = await request_evaluation(session, pair.target, pair.project_evaluator_id, force=True)
+        forced = await request_evaluation(
+            session, pair.target, pair.project_evaluator_id, force=True
+        )
     assert forced.requested_generation == 2
 
     # A later unforced ask does not unset what the forced one latched.
@@ -113,7 +116,9 @@ async def test_requesting_an_evaluation_advances_the_generation_and_latches_the_
     assert unforced.requested_generation == 3
 
     async with db() as session:
-        (pending,) = await select_pending_requests(session, project_evaluator_ids=[pair.project_evaluator_id])
+        (pending,) = await select_pending_requests(
+            session, project_evaluator_ids=[pair.project_evaluator_id]
+        )
     assert pending.evaluation_request_id == first.evaluation_request_id
     assert pending.observed_generation == 3
     assert pending.forced is True
@@ -126,7 +131,9 @@ async def test_the_force_flag_clears_only_when_no_later_ask_raced_the_acknowledg
         pair = await _seed_pair(session)
 
     async with db() as session:
-        forced = await request_evaluation(session, pair.target, pair.project_evaluator_id, force=True)
+        forced = await request_evaluation(
+            session, pair.target, pair.project_evaluator_id, force=True
+        )
         # An unforced ask arrives after the eligibility read observed the forced one.
         await request_evaluation(session, pair.target, pair.project_evaluator_id)
         await acknowledge_materialization(
@@ -137,7 +144,9 @@ async def test_the_force_flag_clears_only_when_no_later_ask_raced_the_acknowledg
         )
 
     async with db() as session:
-        (pending,) = await select_pending_requests(session, project_evaluator_ids=[pair.project_evaluator_id])
+        (pending,) = await select_pending_requests(
+            session, project_evaluator_ids=[pair.project_evaluator_id]
+        )
         assert pending.forced is True
 
         await acknowledge_materialization(
@@ -180,7 +189,8 @@ async def test_a_batch_advances_one_generation_per_ask_and_none_for_a_rejected_p
 
     async with db() as session:
         again = await request_evaluations(
-            session, [EvaluationAsk(target=pair.target, project_evaluator_id=pair.project_evaluator_id)] * 2
+            session,
+            [EvaluationAsk(target=pair.target, project_evaluator_id=pair.project_evaluator_id)] * 2,
         )
     assert again.granted[0].requested_generation == 5
 
@@ -211,7 +221,12 @@ async def test_standing_a_session_down_closes_its_request_and_bars_the_next_one(
         assert closed.materialized_generation == 2
         assert closed.materialized_by_session_work_unit_id is None
         assert closed.force_requested is False
-        assert await select_pending_requests(session, project_evaluator_ids=[pair.project_evaluator_id]) == ()
+        assert (
+            await select_pending_requests(
+                session, project_evaluator_ids=[pair.project_evaluator_id]
+            )
+            == ()
+        )
 
     async with db() as session:
         with pytest.raises(EvaluationRequestRejected) as rejection:
@@ -269,7 +284,9 @@ async def test_a_request_made_after_the_eligibility_read_survives_the_acknowledg
         request_id = request.id
 
     async with db() as sweep:
-        (pending,) = await select_pending_requests(sweep, project_evaluator_ids=[pair.project_evaluator_id])
+        (pending,) = await select_pending_requests(
+            sweep, project_evaluator_ids=[pair.project_evaluator_id]
+        )
         assert pending.observed_generation == 5
 
         # A sixth ask commits on its own connection while the sweep's read is still open.
@@ -289,6 +306,7 @@ async def test_a_request_made_after_the_eligibility_read_survives_the_acknowledg
         assert answered.requested_generation == 6
         assert answered.materialized_generation == 5
         assert answered.materialized_by_session_work_unit_id == pair.work_unit_id
-        (still_pending,) = await select_pending_requests(session, project_evaluator_ids=[pair.project_evaluator_id])
+        (still_pending,) = await select_pending_requests(
+            session, project_evaluator_ids=[pair.project_evaluator_id]
+        )
         assert still_pending.observed_generation == 6
-

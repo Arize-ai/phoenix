@@ -160,4 +160,3 @@ async def load_rules(
             )
         )
     return tuple(sorted(rules, key=lambda rule: rule.trigger_id))
-

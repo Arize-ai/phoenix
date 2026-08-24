@@ -337,12 +337,14 @@ class ProjectSession(Node):
         from .EvaluationRequest import to_gql_evaluation_request
 
         try:
-            project_evaluator_id = from_global_id_with_expected_type(
+            project_evaluator_rowid = from_global_id_with_expected_type(
                 project_evaluator_id, "ProjectEvaluator"
             )
         except ValueError as error:
             raise BadRequest(str(error))
-        record = await info.context.data_loaders.evaluation_requests.load((self.id, project_evaluator_id))
+        record = await info.context.data_loaders.evaluation_requests.load(
+            (self.id, project_evaluator_rowid)
+        )
         return to_gql_evaluation_request(record) if record is not None else None
 
     @strawberry.field

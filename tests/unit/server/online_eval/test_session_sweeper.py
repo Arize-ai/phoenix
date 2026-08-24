@@ -1478,19 +1478,21 @@ async def test_requested_work_carries_the_fingerprint_resolved_at_sweep_time(
     _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = SessionEvalSweeper(db)
     async with db() as session:
-        fingerprint_at_request_time = (await sweeper._load_project_evaluators(session))[0].fingerprint
+        fingerprint_at_request_time = (await sweeper._load_evaluators(session))[
+            0
+        ].fingerprint
 
     await _request(db, project_session_id, project_evaluator_id)
     async with db() as session:
         await session.execute(
             update(models.ProjectEvaluator)
             .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(name=Identifier(root="renamed-project_evaluators"))
+            .values(name=Identifier(root="renamed-project_evaluator"))
         )
     await sweeper._tick()
 
     async with db() as session:
-        fingerprint_at_sweep_time = (await sweeper._load_project_evaluators(session))[0].fingerprint
+        fingerprint_at_sweep_time = (await sweeper._load_evaluators(session))[0].fingerprint
     unit = (await _work_units(db))[0]
     assert fingerprint_at_sweep_time != fingerprint_at_request_time
     assert unit.config_fingerprint == fingerprint_at_sweep_time
@@ -1640,7 +1642,7 @@ async def test_a_pair_carrying_an_unfulfilled_request_yields_one_decision(
     async with db() as session:
         project_evaluator = await sweeper._load_evaluators(session)
         database_now = await sweeper._database_now(session)
-        relation = session_sweeper._scheduling_relation(project_evaluators, database_now, db.dialect)
+        relation = session_sweeper._scheduling_relation(project_evaluator, database_now, db.dialect)
         origins = list(await session.scalars(select(relation.c.scheduling_origin)))
     assert origins == ["RULE"]
 
@@ -1650,4 +1652,3 @@ async def test_a_pair_carrying_an_unfulfilled_request_yields_one_decision(
     assert [(unit.project_evaluator_id, unit.scheduling_origin) for unit in units] == [
         (project_evaluator_id, "RULE"),
     ]
-

@@ -3101,4 +3101,3 @@ async def test_every_evaluator_output_is_matched_on_its_own(
     assert [request.project_evaluator_id for request in requests] == [watching_project_evaluator_id]
     # The rule names the second output, so only that annotation asked for anything.
     assert requests[0].requested_generation == 1
-

@@ -134,4 +134,3 @@ def test_locally_bound_annotation_model_is_still_a_direct_core_write() -> None:
     )
 
     assert _direct_core_annotation_write_lines(tree) == [3]
-

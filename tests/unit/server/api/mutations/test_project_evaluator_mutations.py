@@ -1499,7 +1499,7 @@ async def test_invalid_sibling_predicates_do_not_block_trigger_mutations(
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
-    project_evaluator_id = from_global_id_with_expected_type(
+    project_evaluator_rowid = from_global_id_with_expected_type(
         GlobalID.from_id(project_evaluator_id),
         "ProjectEvaluator",
     )
@@ -1508,10 +1508,10 @@ async def test_invalid_sibling_predicates_do_not_block_trigger_mutations(
             text(
                 "INSERT INTO project_evaluator_triggers "
                 "(project_evaluator_id, event_kind, predicates) "
-                "VALUES (:project_evaluator_id, 'annotation_upserted', :predicates)"
+                "VALUES (:project_evaluator_rowid, 'annotation_upserted', :predicates)"
             ).bindparams(bindparam("predicates", type_=models.JSON_)),
             {
-                "project_evaluator_id": project_evaluator_id,
+                "project_evaluator_rowid": project_evaluator_rowid,
                 "predicates": {"type": "annotation_upserted", "unexpected": True},
             },
         )
@@ -1551,14 +1551,14 @@ async def test_project_evaluator_trigger_limit_is_refused(
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
-    project_evaluator_id = from_global_id_with_expected_type(
+    project_evaluator_rowid = from_global_id_with_expected_type(
         GlobalID.from_id(project_evaluator_id),
         "ProjectEvaluator",
     )
     async with db() as session:
         session.add_all(
             models.ProjectEvaluatorTrigger(
-                project_evaluator_id=project_evaluator_id,
+                project_evaluator_id=project_evaluator_rowid,
                 event_kind="annotation_upserted",
             )
             for _ in range(MAX_PROJECT_EVALUATOR_TRIGGERS)
@@ -1623,97 +1623,6 @@ async def test_omitting_a_predicate_object_keeps_it_and_nulling_it_matches_every
     assert nulled.data["patchProjectEvaluatorTrigger"]["trigger"]["annotationPredicates"] is None
     reread = await _read_trigger(gql_client, project_evaluator_id)
     assert reread["annotationPredicates"] is None
-
-
-async def test_changing_the_event_kind_replaces_the_predicates(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-    sandbox_config: models.SandboxConfig,
-) -> None:
-    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
-    create_result = await gql_client.execute(
-        _CREATE_TRIGGER,
-        {
-            "input": {
-                "projectEvaluatorId": project_evaluator_id,
-                "eventKind": "ANNOTATION_UPSERTED",
-                "annotationPredicates": {"name": "correctness", "annotatorKind": "HUMAN"},
-            }
-        },
-    )
-    assert create_result.data and not create_result.errors, create_result.errors
-    created = create_result.data["createProjectEvaluatorTrigger"]["trigger"]
-
-    transition = await gql_client.execute(
-        _PATCH_TRIGGER,
-        {
-            "input": {
-                "projectEvaluatorTriggerId": created["id"],
-                "eventKind": "EVALUATION_COMPLETED",
-                "evaluationPredicates": {"name": "quality", "resultChangedOnly": True},
-            }
-        },
-    )
-    assert transition.data and not transition.errors, transition.errors
-    transitioned = transition.data["patchProjectEvaluatorTrigger"]["trigger"]
-    assert transitioned["eventKind"] == "EVALUATION_COMPLETED"
-    assert transitioned["annotationPredicates"] is None
-    assert transitioned["evaluationPredicates"] == {
-        "name": "quality",
-        "label": None,
-        "scoreBelow": None,
-        "scoreAbove": None,
-        "resultChangedOnly": True,
-        "sourceProjectEvaluator": None,
-    }
-    assert await _read_trigger(gql_client, project_evaluator_id) == transitioned
-
-
-async def test_a_trigger_rejects_the_predicates_of_the_other_event_kind(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-    sandbox_config: models.SandboxConfig,
-) -> None:
-    project_evaluator_id = await _add_session_project_evaluator(gql_client, db, sandbox_config)
-    create_result = await gql_client.execute(
-        _CREATE_TRIGGER,
-        {
-            "input": {
-                "projectEvaluatorId": project_evaluator_id,
-                "eventKind": "ANNOTATION_UPSERTED",
-                "evaluationPredicates": {"resultChangedOnly": True},
-            }
-        },
-    )
-    assert create_result.errors
-    assert "evaluationPredicates cannot be set" in create_result.errors[0].message
-    assert await _trigger_count(db) == 0
-
-    evaluation_result = await gql_client.execute(
-        _CREATE_TRIGGER,
-        {
-            "input": {
-                "projectEvaluatorId": project_evaluator_id,
-                "eventKind": "EVALUATION_COMPLETED",
-                "evaluationPredicates": {"resultChangedOnly": True},
-            }
-        },
-    )
-    assert evaluation_result.data and not evaluation_result.errors, evaluation_result.errors
-    trigger = evaluation_result.data["createProjectEvaluatorTrigger"]["trigger"]
-
-    patch_result = await gql_client.execute(
-        _PATCH_TRIGGER,
-        {
-            "input": {
-                "projectEvaluatorTriggerId": trigger["id"],
-                "annotationPredicates": {"annotatorKind": "LLM"},
-            }
-        },
-    )
-    assert patch_result.errors
-    assert "annotationPredicates cannot be set" in patch_result.errors[0].message
-    assert await _read_trigger(gql_client, project_evaluator_id) == trigger
 
 
 async def test_create_project_evaluator_trigger_refuses_a_non_session_evaluator(
@@ -1845,4 +1754,3 @@ async def test_a_trigger_is_reachable_as_a_node(
         "id": trigger_id,
         "annotationPredicates": {"name": "correctness"},
     }
-

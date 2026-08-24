@@ -1040,4 +1040,3 @@ async def test_create_session_annotation_refuses_a_reserved_identifier(
     )
     assert response.errors
     assert "reserved" in response.errors[0].message
-

@@ -25,4 +25,3 @@ TriggerPredicatesType: TypeAlias = Annotated[
 
 class TriggerPredicates(RootModel[TriggerPredicatesType]):
     root: TriggerPredicatesType
-

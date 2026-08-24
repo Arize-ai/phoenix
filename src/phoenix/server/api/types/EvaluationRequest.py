@@ -103,4 +103,3 @@ def to_gql_evaluation_request(record: SessionEvaluationRequest) -> EvaluationReq
         failure_reason=record.failure_reason,
         requested_at=record.requested_at,
     )
-

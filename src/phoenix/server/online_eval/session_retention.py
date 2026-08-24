@@ -107,4 +107,3 @@ async def reap_session_history(
         await session.execute(delete(request).where(request.id.in_(request_ids)))
     if work_ids:
         await session.execute(delete(work).where(work.id.in_(work_ids)))
-

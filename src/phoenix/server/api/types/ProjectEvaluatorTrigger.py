@@ -151,4 +151,3 @@ def _to_gql_annotation_predicates(
             else None
         ),
     )
-

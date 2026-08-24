@@ -105,7 +105,11 @@ async def _add_trigger(
     event_kind: models.EvaluatorEventKind = "annotation_upserted",
 ) -> None:
     async with db() as session:
-        session.add(models.ProjectEvaluatorTrigger(project_evaluator_id=project_evaluator_id, event_kind=event_kind))
+        session.add(
+            models.ProjectEvaluatorTrigger(
+                project_evaluator_id=project_evaluator_id, event_kind=event_kind
+            )
+        )
 
 
 async def _requests(db: DbSessionFactory) -> list[models.EvaluationRequest]:
@@ -356,7 +360,9 @@ async def test_an_annotation_drives_a_session_evaluation_end_to_end(
         assert sweeper is not None and session_consumer is not None
 
         project, _, span = await _seed_quiet_session(db)
-        _, project_evaluator_id = await _seed_llm_criteria(db, project.id, evaluation_target="SESSION")
+        _, project_evaluator_id = await _seed_llm_criteria(
+            db, project.id, evaluation_target="SESSION"
+        )
         await _add_trigger(db, project_evaluator_id, event_kind="annotation_upserted")
 
         async with AsyncClient(
@@ -381,7 +387,9 @@ async def test_an_annotation_drives_a_session_evaluation_end_to_end(
         await sweeper._tick()
         await session_consumer._cycle()
 
-        assert [request.project_evaluator_id for request in await _requests(db)] == [project_evaluator_id]
+        assert [request.project_evaluator_id for request in await _requests(db)] == [
+            project_evaluator_id
+        ]
         evaluation = await _evaluation_answering(db, project_evaluator_id)
         assert evaluation.status == "DONE"
         (annotation,) = await _session_annotations(db)
@@ -421,7 +429,9 @@ async def test_a_published_span_evaluation_drives_a_session_evaluation_end_to_en
         await sweeper._tick()
         await session_consumer._cycle()
 
-        assert [request.project_evaluator_id for request in await _requests(db)] == [session_project_evaluator_id]
+        assert [request.project_evaluator_id for request in await _requests(db)] == [
+            session_project_evaluator_id
+        ]
         evaluation = await _evaluation_answering(db, session_project_evaluator_id)
         assert evaluation.status == "DONE"
         assert evaluation.project_evaluator_id == session_project_evaluator_id
@@ -490,7 +500,7 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
             project.id,
             evaluation_target="SESSION",
             filter_condition=(
-                "annotations[\"A\"].label == 'yes' and annotations[\"B\"].label == 'yes'"
+                "session_annotations[\"A\"].label == 'yes' and session_annotations[\"B\"].label == 'yes'"
             ),
         )
         await _add_trigger(db, project_evaluator_id, event_kind="annotation_upserted")
@@ -515,7 +525,9 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
 
         # One evaluation for the pair, however many occurrences asked for it.
         evaluations = [
-            unit for unit in await _session_work_units(db) if unit.project_evaluator_id == project_evaluator_id
+            unit
+            for unit in await _session_work_units(db)
+            if unit.project_evaluator_id == project_evaluator_id
         ]
         assert len(evaluations) == 1
         assert evaluations[0].status == "DONE"
@@ -523,7 +535,12 @@ async def test_a_rule_request_waits_for_the_evaluators_own_session_filter(
 
         await sweeper._tick()
         assert (
-            len([unit for unit in await _session_work_units(db) if unit.project_evaluator_id == project_evaluator_id])
+            len(
+                [
+                    unit
+                    for unit in await _session_work_units(db)
+                    if unit.project_evaluator_id == project_evaluator_id
+                ]
+            )
             == 1
         )
-

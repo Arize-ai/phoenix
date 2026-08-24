@@ -235,7 +235,9 @@ async def test_a_rule_created_after_a_write_never_fires_on_it(db: DbSessionFacto
     assert request.requested_generation == 1
 
 
-async def test_rules_sharing_a_project_evaluator_ask_once_per_annotation(db: DbSessionFactory) -> None:
+async def test_rules_sharing_a_project_evaluator_ask_once_per_annotation(
+    db: DbSessionFactory,
+) -> None:
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_live_session(session, project)
@@ -370,7 +372,11 @@ async def test_an_opted_in_evaluator_cycle_settles_on_the_unchanged_content_wate
     the cycle is that an annotation never advances the session's content, so the second
     request for A is answered by the evaluation A already finished.
     """
-    project_session_id, project_evaluator_a_id, project_evaluator_b_id = await _seed_mutually_watching_evaluators(db)
+    (
+        project_session_id,
+        project_evaluator_a_id,
+        project_evaluator_b_id,
+    ) = await _seed_mutually_watching_evaluators(db)
     ingested_at = await _last_span_ingested_at(db, project_session_id)
     sweeper = SessionEvalSweeper(db)
 
@@ -411,15 +417,23 @@ async def test_a_retried_publication_re_asks_and_the_brake_refuses_the_duplicate
     units = await _claim_pending(db)
 
     await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION, complete=False)
-    (asked,) = [request for request in await _requests(db) if request.project_evaluator_id == project_evaluator_b_id]
+    (asked,) = [
+        request
+        for request in await _requests(db)
+        if request.project_evaluator_id == project_evaluator_b_id
+    ]
     assert asked.requested_generation == 1
 
     await _publish(db, units[project_evaluator_a_id], name=_A_ANNOTATION)
     (re_asked,) = [
-        request for request in await _requests(db) if request.project_evaluator_id == project_evaluator_b_id
+        request
+        for request in await _requests(db)
+        if request.project_evaluator_id == project_evaluator_b_id
     ]
     assert re_asked.requested_generation == 2
 
     await sweeper._tick()
-    assert [unit.project_evaluator_id for unit in await _work_units(db)] == [project_evaluator_a_id, project_evaluator_b_id]
-
+    assert [unit.project_evaluator_id for unit in await _work_units(db)] == [
+        project_evaluator_a_id,
+        project_evaluator_b_id,
+    ]

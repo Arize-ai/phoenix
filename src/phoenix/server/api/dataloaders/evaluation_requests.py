@@ -155,4 +155,3 @@ def _stmt(pairs: list[Key]) -> sa.Select[Any]:
             ).in_(pairs)
         )
     )
-

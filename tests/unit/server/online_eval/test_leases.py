@@ -78,4 +78,3 @@ async def test_lease_is_acquired_renewed_fenced_and_released(db: DbSessionFactor
     released = await _read_lease(db)
     assert released.holder is None
     assert released.heartbeat_at is None
-

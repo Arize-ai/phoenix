@@ -537,4 +537,3 @@ class OnlineEvalConsumer(DaemonTask):
             if not eval_task.done():
                 await _cancel_and_await(eval_task)
         return await eval_task
-

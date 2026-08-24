@@ -138,4 +138,3 @@ def test_an_evaluator_written_annotation_matches_like_any_other() -> None:
     assert match_events([written_by_an_evaluator], [_rule(project_evaluator_id=100)]) != ()
     by_name = _rule(project_evaluator_id=100, name="human-review")
     assert match_events([written_by_an_evaluator], [by_name]) != ()
-

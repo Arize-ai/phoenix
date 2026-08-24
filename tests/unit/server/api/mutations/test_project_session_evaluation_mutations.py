@@ -84,6 +84,7 @@ async def _seed_pair(
         session.add(evaluator)
         await session.flush()
     project_evaluator = models.ProjectEvaluator(
+        trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
         project_id=project.id,
         evaluator_id=evaluator.id,
         name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
@@ -370,4 +371,3 @@ async def test_an_evaluation_request_is_reachable_as_a_node(
 
     assert read.data and not read.errors, read.errors
     assert read.data["node"] == {"id": requested["id"], "state": "REQUESTED"}
-

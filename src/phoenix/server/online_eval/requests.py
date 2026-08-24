@@ -1,4 +1,5 @@
-"""Store evaluation demand as commutative counters for each (session, project_evaluators) pair. Every
+"""Store evaluation demand as commutative counters per (session, project evaluator) pair.
+Every
 write to a request row goes through this module, except the content-incomplete transition
 that `phoenix.db.helpers.mark_session_content_incomplete` does itself."""
 
@@ -104,7 +105,7 @@ async def request_evaluation(
     *,
     force: bool = False,
 ) -> RequestedEvaluation:
-    """Ask that `target` be evaluated against `project_evaluator_id`, advancing its generation once."""
+    """Ask that `target` be evaluated by `project_evaluator_id`, advancing its generation."""
     ask = EvaluationAsk(target=target, project_evaluator_id=project_evaluator_id, force=force)
     outcome = await request_evaluations(session, (ask,))
     if outcome.rejected:
@@ -122,7 +123,9 @@ async def request_evaluations(
         return BatchRequestOutcome((), ())
 
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    project_evaluators = await _read_project_evaluators(session, {ask.project_evaluator_id for ask in asks}, dialect)
+    project_evaluators = await _read_project_evaluators(
+        session, {ask.project_evaluator_id for ask in asks}, dialect
+    )
     sessions = await _read_sessions(
         session, {ask.target.project_session_rowid for ask in asks}, dialect
     )
@@ -170,7 +173,9 @@ async def select_pending_requests(
     """Read the unfulfilled pairs, optionally narrowed to some project_evaluators or sessions."""
     stmt = unfulfilled_requests()
     if project_evaluator_ids is not None:
-        stmt = stmt.where(models.EvaluationRequest.project_evaluator_id.in_(tuple(project_evaluator_ids)))
+        stmt = stmt.where(
+            models.EvaluationRequest.project_evaluator_id.in_(tuple(project_evaluator_ids))
+        )
     if project_session_rowids is not None:
         stmt = stmt.where(
             models.EvaluationRequest.project_session_rowid.in_(tuple(project_session_rowids))
@@ -251,7 +256,7 @@ async def _read_project_evaluators(
         .order_by(models.ProjectEvaluator.id)
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        # Project evaluators before sessions, the lock order every writer against these tables takes.
+        # Project evaluators before sessions: the lock order every writer here takes.
         stmt = stmt.with_for_update(read=True, key_share=True)
     return {
         row.id: _ProjectEvaluatorFacts(
@@ -339,7 +344,10 @@ def _coalesce(asks: Sequence[EvaluationAsk]) -> tuple[_PairAsk, ...]:
     # Sorted so that batches contending for the same pairs take their row locks in one
     # order.
     return tuple(
-        sorted(counts.values(), key=lambda pair: (pair.project_session_rowid, pair.project_evaluator_id))
+        sorted(
+            counts.values(),
+            key=lambda pair: (pair.project_session_rowid, pair.project_evaluator_id),
+        )
     )
 
 
@@ -396,4 +404,3 @@ def _upsert_set(dialect: SupportedSQLDialect) -> dict[str, Any]:
         "requested_at": excluded.requested_at,
         "updated_at": func.now(),
     }
-

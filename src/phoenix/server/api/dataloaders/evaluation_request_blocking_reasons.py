@@ -223,4 +223,3 @@ async def _filtered_out_pairs(
         )
         filtered_out.update((rowid, project_evaluator_id) for rowid in rowids - matching)
     return filtered_out
-

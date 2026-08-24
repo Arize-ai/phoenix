@@ -1440,21 +1440,21 @@ CREATE TABLE evaluation_requests (
         ),
     CONSTRAINT "ck_evaluation_requests_`valid_requested_generation`"
         CHECK (requested_generation >= 0),
-    CONSTRAINT fk_evaluation_requests_project_evaluator_id_project_evaluators
-        FOREIGN KEY (project_evaluator_id)
-        REFERENCES project_evaluators (id)
-        ON DELETE CASCADE,
     CONSTRAINT fk_evaluation_requests_materialized_by_session_work_unit_id_eval_session_work_units
         FOREIGN KEY (materialized_by_session_work_unit_id)
         REFERENCES eval_session_work_units (id)
         ON DELETE SET NULL,
+    CONSTRAINT fk_evaluation_requests_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE,
     CONSTRAINT fk_evaluation_requests_project_session_rowid_project_sessions
         FOREIGN KEY (project_session_rowid)
         REFERENCES project_sessions (id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_evaluation_requests_project_evaluator_id_project_session_rowid ON evaluation_requests
+CREATE INDEX ix_evaluation_requests_project_evaluator_id_session_rowid ON evaluation_requests
     (project_evaluator_id, project_session_rowid);
 
 

@@ -2038,6 +2038,8 @@ enum EvaluatorScope {
   SPAN
   TRACE
   SESSION
+}
+
 """The sort key and direction for evaluator connections"""
 input EvaluatorSort {
   col: EvaluatorColumn!
@@ -3486,7 +3488,7 @@ type ProjectEvaluator implements Node {
   triggers: [ProjectEvaluatorTrigger!]!
 
   """
-  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New project_evaluators store the current default of 300 seconds when no value is provided. Background evaluation runs once per evaluator configuration; matching trigger rules and explicit requests can schedule additional evaluations, and an explicit request supersedes an earlier declined decision. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
+  Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New project evaluators store the default of 300 seconds when no value is provided. Background evaluation runs once per evaluator configuration; matching trigger rules and explicit requests can schedule additional evaluations, and an explicit request supersedes an earlier declined decision. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
   """
   evaluationDelaySeconds: Int!
   inputMapping: EvaluatorInputMapping!
