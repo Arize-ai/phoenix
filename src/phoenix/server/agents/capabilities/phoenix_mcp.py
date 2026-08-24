@@ -19,11 +19,10 @@ if TYPE_CHECKING:
 
 
 def _current_binding_key() -> object:
-    """Identifies the context a principal binding was made in.
+    """Pairs a release with the binding it belongs to.
 
-    The enter and exit of one ``async with`` run in the same task, so the task is
-    what pairs a release with the binding it belongs to. Outside a task there is
-    only one context, and ``None`` keys it.
+    The enter and exit of one ``async with`` run in the same task, so task
+    identity is the pairing. Outside a task there is one context, keyed ``None``.
     """
     return asyncio.current_task()
 
@@ -55,14 +54,10 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
     async def __aenter__(self) -> Self:
         # Bound here rather than per call, and before the session opens; see
         # `bind_principal` for why the placement is the only one that works.
-        #
-        # Every enter binds and keeps its own handle, keyed by the task that will
-        # release it. A shared depth counter cannot serve: context variables are
-        # per task, so resetting one in a task other than the one that set it
-        # raises `ValueError`, and a counter cannot tell those tasks apart. One
-        # instance is entered concurrently whenever a model response fans out two
-        # `call_subagent` calls, because the subagent and its toolset are built
-        # once per request and reused across every invocation.
+        # Per enter rather than per instance: one instance is entered from
+        # several tasks at once when a model response fans out two
+        # `call_subagent` calls onto the subagent's single toolset, and a
+        # context variable can only be reset in the task that set it.
         binding = ExitStack()
         binding.enter_context(bind_principal(self._principal))
         try:
@@ -78,10 +73,9 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
         try:
             return await super().__aexit__(*args)
         finally:
-            # Released by the enter that bound it, in that enter's own task, so
-            # the set and the reset always share a context. Nested enters unwind
-            # last in, first out, and a token reset restores the enclosing
-            # binding rather than clearing it.
+            # Each exit closes what its own enter opened, so a binding is reset
+            # in the task that set it. Nested enters unwind last in, first out:
+            # the inner reset restores the enclosing binding.
             key = _current_binding_key()
             if bindings := self._principal_bindings.get(key):
                 bindings.pop().close()

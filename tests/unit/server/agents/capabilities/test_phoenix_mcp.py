@@ -123,9 +123,9 @@ class TestPrincipalPropagation:
     async def test_interleaved_toolsets_do_not_share_a_principal(self) -> None:
         """Nested sessions over one server each call as their own principal.
 
-        The two sessions nest and their calls alternate within a single task, so
-        nothing here overlaps. Entering one toolset from several tasks at once is
-        covered by `TestOneToolsetEnteredFromSeveralTasks`.
+        The sessions nest and their calls alternate within one task. Entering a
+        single toolset from several tasks at once is covered by
+        `TestOneToolsetEnteredFromSeveralTasks`.
         """
         seen: list[Any] = []
         mcp, _ = build_phoenix_mcp_server(
@@ -171,9 +171,8 @@ class TestOneToolsetEnteredFromSeveralTasks:
     async def test_enters_that_do_not_overlap_still_release_in_their_own_task(self) -> None:
         """The binding task exits first, leaving the other to close the session.
 
-        A shared depth count cannot survive this ordering: the last exit would
-        reset a context variable in a task other than the one that set it, which
-        raises. No interleaving inside ``__aenter__`` is required to reach it.
+        A binding is only resettable in the task that set it, so pairing releases
+        by count rather than by task fails here even though nothing overlaps.
         """
         import asyncio
 
