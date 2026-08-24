@@ -115,6 +115,39 @@ def _run_ids(client: Client, experiment_id: str) -> set[str]:
     return {run["id"] for run in detail["task_runs"]}
 
 
+def _experiment_records(endpoint: str, experiment_id: str) -> list[dict[str, Any]]:
+    with urllib.request.urlopen(
+        f"{endpoint}/v1/experiments/{experiment_id}/json", timeout=10
+    ) as response:
+        return json.loads(response.read())
+
+
+def _assert_regression_triage_evaluations(
+    endpoint: str,
+    experiment_id: str,
+    *,
+    reward: float,
+    runs: int = 1,
+    expect_all_steps: bool = True,
+) -> None:
+    records = _experiment_records(endpoint, experiment_id)
+    _check(len(records) == runs, repr(records))
+    step_reward_names = {
+        "step_01_aggregate.reward",
+        "step_02_diagnose.reward",
+        "step_03_trace_drilldown.reward",
+        "step_04_create_split.reward",
+    }
+    for record in records:
+        annotations = {annotation["name"]: annotation for annotation in record["annotations"]}
+        _check(annotations["reward"]["score"] == reward, repr(annotations))
+        _check(annotations["infra_ok"]["score"] == 1.0, repr(annotations))
+        _check(annotations["infra_ok"]["label"] == "ok", repr(annotations))
+        _check("verifier.tool_calls" in annotations, repr(annotations))
+        if expect_all_steps:
+            _check(step_reward_names <= annotations.keys(), repr(annotations))
+
+
 def _phoenix_state(client: Client) -> dict[str, Any]:
     state: dict[str, Any] = {}
     for dataset in client.datasets.list():
@@ -225,6 +258,7 @@ def _run_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         _run_numbers(client, direct_experiments[0]["id"]) == [1, 2],
         repr(direct_experiments[0]),
     )
+    _assert_regression_triage_evaluations(endpoint, direct_experiments[0]["id"], reward=1.0, runs=2)
 
     dataset_job = "plugin-e2e-local-dataset"
     _run(
@@ -416,9 +450,22 @@ def _run_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     )
     for experiment in agent_experiments:
         _assert_complete_experiment(experiment, examples=1, repetitions=1, successful_runs=1)
+        agent_name = experiment["metadata"]["harbor_agent"]["agent_name"]
+        _assert_regression_triage_evaluations(
+            endpoint,
+            experiment["id"],
+            reward=1.0 if agent_name == "oracle" else 0.0,
+            expect_all_steps=agent_name == "oracle",
+        )
     experiment_ids_before = {experiment["id"] for experiment in agent_experiments}
     run_ids_before = {
         run_id for experiment in agent_experiments for run_id in _run_ids(client, experiment["id"])
+    }
+    evaluation_counts_before = {
+        experiment["id"]: sum(
+            len(record["annotations"]) for record in _experiment_records(endpoint, experiment["id"])
+        )
+        for experiment in agent_experiments
     }
 
     _run(
@@ -436,6 +483,13 @@ def _run_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         for run_id in _run_ids(client, experiment["id"])
     }
     _check(resumed_run_ids == run_ids_before, repr(resumed_run_ids))
+    evaluation_counts_after = {
+        experiment["id"]: sum(
+            len(record["annotations"]) for record in _experiment_records(endpoint, experiment["id"])
+        )
+        for experiment in resumed_experiments
+    }
+    _check(evaluation_counts_after == evaluation_counts_before, repr(evaluation_counts_after))
 
     mixed_job = "plugin-e2e-mixed-sources"
     mixed_config = root / "mixed-sources.json"

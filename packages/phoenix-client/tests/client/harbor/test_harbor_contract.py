@@ -1,11 +1,14 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false
+# pyright: reportPrivateUsage=false
 """Contract tests against a real Harbor installation."""
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -14,6 +17,7 @@ pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
 
 from phoenix.client.harbor._adapter import build_job_plan, existing_trial_results
 from phoenix.client.harbor._errors import HarborPluginError
+from phoenix.client.harbor._scores import extract_evaluations
 
 TASK_TOML = """schema_version = "1.3"
 
@@ -169,3 +173,41 @@ class TestResolvedPlan:
         assert plan.dataset.name == "harbor-task/arize/triage"
         assert plan.dataset.kind == "adhoc"
         assert [task.task_id for task in plan.tasks] == ["triage"]
+
+
+@pytest.mark.parametrize(
+    "rewards",
+    [
+        None,
+        {},
+        {"reward": 0.5},
+        {"reward": 0.5, "tool_calls": 3},
+        {"accuracy": 0.8},
+        {"accuracy": 0.8, "tool_calls": 3},
+    ],
+)
+def test_primary_reward_rule_matches_harbors_uploader(
+    rewards: dict[str, float | int] | None,
+) -> None:
+    from harbor.models.trial.result import TrialResult
+    from harbor.models.verifier.result import VerifierResult
+    from harbor.upload.uploader import _extract_primary_reward
+
+    now = datetime.now(timezone.utc)
+    trial = cast(
+        TrialResult,
+        SimpleNamespace(
+            id="trial-id",
+            trial_name="task-a__1",
+            task_name="task-a",
+            started_at=now,
+            finished_at=now,
+            verifier=None,
+            verifier_result=(VerifierResult(rewards=rewards) if rewards is not None else None),
+            exception_info=None,
+            step_results=None,
+        ),
+    )
+
+    extracted = {record.name: record.score for record in extract_evaluations(trial)}
+    assert extracted.get("reward") == _extract_primary_reward(trial)

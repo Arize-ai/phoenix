@@ -38,6 +38,7 @@ from phoenix.client.harbor._recorder import (
     PhoenixRecorder,
     RunKey,
 )
+from phoenix.client.harbor._scores import extract_evaluations
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
     async def on_job_start(self, job: Job) -> None:
         plan = build_job_plan(job, dataset_override=self.dataset)
         validate_experiment_name_for_plan(plan, experiment_name=self.experiment_name)
+        _validate_step_names(plan)
         resumed_trials = existing_trial_results(job)
         async with self._open_client() as client:
             recorder = PhoenixRecorder(
@@ -179,30 +181,41 @@ class PhoenixJobPlugin(BaseJobPlugin):
     ) -> None:
         if self.plan is None or self.snapshot is None:
             raise HarborPluginError("Phoenix trial recording started before job setup completed.")
+        plan = self.plan
+        snapshot = self.snapshot
         try:
-            slot = self.plan.trial_for(str(trial_result.trial_name))
+            slot = plan.trial_for(str(trial_result.trial_name))
         except KeyError as error:
             raise HarborPluginError(
                 f"Harbor returned unplanned trial {trial_result.trial_name!r}."
             ) from error
         key = (
             slot.identity_digest,
-            self.snapshot.example_ids[slot.task_id],
+            snapshot.example_ids[slot.task_id],
             slot.repetition,
         )
         existing = self._runs.get(key)
-        if existing is not None and PhoenixRecorder.can_reuse_run(
+        can_reuse = existing is not None and PhoenixRecorder.can_reuse_run(
             existing, trial_result=trial_result
-        ):
-            return
+        )
+        evaluations = extract_evaluations(trial_result)
+
+        async def record_with(active_recorder: PhoenixRecorder) -> v1.ExperimentRun:
+            if can_reuse:
+                assert existing is not None
+                run = existing
+            else:
+                run = await active_recorder.record_trial(
+                    plan=plan,
+                    snapshot=snapshot,
+                    experiments=self.experiments,
+                    trial_result=trial_result,
+                )
+            await active_recorder.record_evaluations(str(run["id"]), evaluations)
+            return run
 
         if recorder is not None:
-            run = await recorder.record_trial(
-                plan=self.plan,
-                snapshot=self.snapshot,
-                experiments=self.experiments,
-                trial_result=trial_result,
-            )
+            run = await record_with(recorder)
         else:
             async with self._open_client() as client:
                 live_recorder = PhoenixRecorder(
@@ -210,12 +223,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
                     experiment_name=self.experiment_name,
                     experiment_name_template=self.experiment_name_template,
                 )
-                run = await live_recorder.record_trial(
-                    plan=self.plan,
-                    snapshot=self.snapshot,
-                    experiments=self.experiments,
-                    trial_result=trial_result,
-                )
+                run = await record_with(live_recorder)
         self._runs[key] = run
 
     @contextlib.asynccontextmanager
@@ -243,4 +251,27 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 experiment_slice.agent_name,
                 experiment_slice.model_name or "default",
             )
-        logger.warning("Not recorded yet: scores.")
+
+
+def _validate_step_names(plan: JobPlan) -> None:
+    reserved = {"reward", "infra_ok", "verifier"}
+    for task in plan.tasks:
+        seen: set[str] = set()
+        for step in task.steps:
+            name = step.name
+            if not name:
+                raise HarborPluginError(
+                    f"Harbor task {task.task_id!r} has an empty step name; evaluation names "
+                    "cannot be generated."
+                )
+            if name in reserved:
+                raise HarborPluginError(
+                    f"Harbor task {task.task_id!r} uses reserved evaluation step name {name!r}. "
+                    "Rename the step before running with the Phoenix plugin."
+                )
+            if name in seen:
+                raise HarborPluginError(
+                    f"Harbor task {task.task_id!r} repeats step name {name!r}; its evaluation "
+                    "names would collide."
+                )
+            seen.add(name)

@@ -5,10 +5,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 import httpx
 from harbor.models.trial.result import TrialResult
@@ -18,6 +19,7 @@ from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
 from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
+from phoenix.client.harbor._scores import EvaluationRecord
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,10 @@ __all__ = [
 ]
 
 _INTEGRATION = "harbor"
+_MAX_WRITE_ATTEMPTS = 3
+_INITIAL_RETRY_DELAY_SECONDS = 0.25
+
+_T = TypeVar("_T")
 
 RunKey = tuple[str, str, int]
 
@@ -242,7 +248,7 @@ class PhoenixRecorder:
                 f"Harbor trial {trial_name!r} has no complete start and end timestamps."
             )
 
-        try:
+        async def write_run() -> v1.ExperimentRun:
             return await self._client.experiments.log_run(
                 experiment_id=experiment.experiment_id,
                 dataset_example_id=example_id,
@@ -251,6 +257,12 @@ class PhoenixRecorder:
                 end_time=end_time,
                 repetition_number=slot.repetition,
                 error=_trial_error(trial_result),
+            )
+
+        try:
+            return await _retry_transient_write(
+                write_run,
+                description=f"Harbor trial {trial_name!r}",
             )
         except httpx.HTTPStatusError as error:
             if error.response.status_code == 409:
@@ -269,6 +281,38 @@ class PhoenixRecorder:
                 f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
                 f"{experiment.name!r}: {error}"
             ) from error
+
+    async def record_evaluations(
+        self,
+        run_id: str,
+        records: Sequence[EvaluationRecord],
+    ) -> None:
+        """Upsert the complete evaluation set for an experiment run."""
+        for record in records:
+
+            async def write_evaluation(record: EvaluationRecord = record) -> object:
+                return await self._client.experiments.log_evaluation(
+                    experiment_run_id=run_id,
+                    name=record.name,
+                    annotator_kind="CODE",
+                    start_time=record.start_time,
+                    end_time=record.end_time,
+                    score=record.score,
+                    label=record.label,
+                    explanation=record.explanation,
+                    metadata=record.metadata,
+                )
+
+            try:
+                await _retry_transient_write(
+                    write_evaluation,
+                    description=f"evaluation {record.name!r} for Phoenix run {run_id}",
+                )
+            except Exception as error:
+                raise HarborPluginError(
+                    f"Could not record Harbor evaluation {record.name!r} for Phoenix run "
+                    f"{run_id}: {error}"
+                ) from error
 
     async def _resolve_experiment(
         self,
@@ -424,6 +468,13 @@ def _trial_output(trial_result: TrialResult) -> dict[str, Any]:
         output["token_usage"] = token_usage
     if cost is not None:
         output["cost_usd"] = cost
+    phase_timings = {
+        name: duration
+        for name in ("environment_setup", "agent_setup", "agent_execution", "verifier")
+        if (duration := _timing_duration(getattr(trial_result, name, None))) is not None
+    }
+    if phase_timings:
+        output["phase_timings"] = phase_timings
     return output
 
 
@@ -432,3 +483,41 @@ def _trial_error(trial_result: TrialResult) -> str | None:
     if error is None:
         return None
     return f"{error.exception_type}: {error.exception_message}"
+
+
+def _timing_duration(timing: Any) -> float | None:
+    if timing is None or timing.started_at is None or timing.finished_at is None:
+        return None
+    return float((timing.finished_at - timing.started_at).total_seconds())
+
+
+async def _retry_transient_write(
+    operation: Callable[[], Awaitable[_T]],
+    *,
+    description: str,
+) -> _T:
+    delay = _INITIAL_RETRY_DELAY_SECONDS
+    for attempt in range(1, _MAX_WRITE_ATTEMPTS + 1):
+        try:
+            return await operation()
+        except Exception as error:
+            if not _is_transient_write_error(error) or attempt == _MAX_WRITE_ATTEMPTS:
+                raise
+            logger.warning(
+                "Transient Phoenix write failure for %s (attempt %d/%d): %s. Retrying in "
+                "%.2f seconds.",
+                description,
+                attempt,
+                _MAX_WRITE_ATTEMPTS,
+                error,
+                delay,
+            )
+            await asyncio.sleep(delay)
+            delay *= 2
+    raise AssertionError("Phoenix write retry loop exited without a result")
+
+
+def _is_transient_write_error(error: Exception) -> bool:
+    if isinstance(error, httpx.HTTPStatusError):
+        return error.response.status_code >= 500
+    return isinstance(error, (httpx.ConnectError, httpx.TimeoutException))

@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import builtins
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -19,7 +19,7 @@ pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
 from harbor.models.job.config import JobConfig
 from harbor.models.job.lock import TaskLock
 from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
-from harbor.models.trial.result import TrialResult
+from harbor.models.trial.result import TimingInfo, TrialResult
 
 from phoenix.client.harbor import EXPERIMENT_NAME_TEMPLATE_FIELDS
 from phoenix.client.harbor._errors import HarborPluginError
@@ -36,6 +36,7 @@ from phoenix.client.harbor._recorder import (
     PhoenixRecorder,
     experiment_identity,
 )
+from phoenix.client.harbor._scores import EvaluationRecord
 
 
 def task(task_id: str, digest: str = "sha256:" + "a" * 64, **overrides: Any) -> TaskRecord:
@@ -110,12 +111,17 @@ class FakeExperiments:
         existing: list[dict[str, Any]] | None = None,
         runs: list[dict[str, Any]] | None = None,
         log_error: Exception | None = None,
+        log_errors: list[Exception | None] | None = None,
+        evaluation_errors: list[Exception | None] | None = None,
     ) -> None:
         self.existing = existing or []
         self.runs = runs or []
         self.log_error = log_error
+        self.log_errors = list(log_errors or [])
+        self.evaluation_errors = list(evaluation_errors or [])
         self.created: list[dict[str, Any]] = []
         self.logged_runs: list[dict[str, Any]] = []
+        self.logged_evaluations: list[dict[str, Any]] = []
 
     async def list(self, *, dataset_id: str) -> list[dict[str, Any]]:
         del dataset_id
@@ -138,9 +144,21 @@ class FakeExperiments:
 
     async def log_run(self, **kwargs: Any) -> dict[str, Any]:
         self.logged_runs.append(kwargs)
+        if self.log_errors:
+            error = self.log_errors.pop(0)
+            if error is not None:
+                raise error
         if self.log_error is not None:
             raise self.log_error
         return {"id": f"run-{len(self.logged_runs)}", **kwargs}
+
+    async def log_evaluation(self, **kwargs: Any) -> dict[str, Any]:
+        self.logged_evaluations.append(kwargs)
+        if self.evaluation_errors:
+            error = self.evaluation_errors.pop(0)
+            if error is not None:
+                raise error
+        return {"id": f"evaluation-{len(self.logged_evaluations)}"}
 
 
 class FakeClient:
@@ -174,6 +192,12 @@ def trial_result(*, trial_name: str = "task-a__1", error: Any = None) -> TrialRe
             task_name="task-a",
             started_at=now,
             finished_at=now,
+            environment_setup=None,
+            agent_setup=None,
+            agent_execution=None,
+            verifier=None,
+            verifier_result=None,
+            step_results=None,
             exception_info=error,
             compute_token_cost_totals=lambda: (10, 2, 4, 0.01),
         ),
@@ -488,6 +512,79 @@ class TestRecordTrial:
         assert logged["output"]["harbor_trial_id"] == "trial-id"
         assert "reward" not in logged["output"]
 
+    async def test_records_available_phase_durations(self) -> None:
+        experiments = FakeExperiments()
+        job = plan(
+            trials=(
+                TrialSlot(
+                    config=TrialConfig(
+                        task=TaskConfig(path=Path("task-a")),
+                        agent=slice_().agent,
+                        trial_name="task-a__1",
+                    ),
+                    identity_digest=slice_().identity_digest,
+                    repetition=1,
+                ),
+            )
+        )
+        client = FakeClient(experiments=experiments)
+        handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
+        result = trial_result()
+        started_at = cast(datetime, result.started_at)
+        result.environment_setup = TimingInfo(
+            started_at=started_at,
+            finished_at=started_at + timedelta(seconds=1.5),
+        )
+
+        await recorder(client).record_trial(
+            plan=job,
+            snapshot=SNAPSHOT,
+            experiments=handles,
+            trial_result=result,
+        )
+
+        assert experiments.logged_runs[0]["output"]["phase_timings"] == {"environment_setup": 1.5}
+
+    async def test_transient_run_write_retries_until_success(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
+        unavailable = httpx.HTTPStatusError(
+            "unavailable", request=request, response=httpx.Response(503, request=request)
+        )
+        experiments = FakeExperiments(log_errors=[unavailable, None])
+        job = plan(
+            trials=(
+                TrialSlot(
+                    config=TrialConfig(
+                        task=TaskConfig(path=Path("task-a")),
+                        agent=slice_().agent,
+                        trial_name="task-a__1",
+                    ),
+                    identity_digest=slice_().identity_digest,
+                    repetition=1,
+                ),
+            )
+        )
+        client = FakeClient(experiments=experiments)
+        handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
+        delays: list[float] = []
+
+        async def no_sleep(delay: float) -> None:
+            delays.append(delay)
+
+        monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
+        recorded = await recorder(client).record_trial(
+            plan=job,
+            snapshot=SNAPSHOT,
+            experiments=handles,
+            trial_result=trial_result(),
+        )
+
+        assert recorded["id"] == "run-2"
+        assert len(experiments.logged_runs) == 2
+        assert delays == [0.25]
+
     async def test_duplicate_conflict_reuses_the_matching_successful_run(self) -> None:
         request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
         conflict = httpx.HTTPStatusError(
@@ -535,3 +632,110 @@ class TestRecordTrial:
         )
 
         assert recorded == existing_run
+
+
+class TestRecordEvaluations:
+    @staticmethod
+    def records() -> tuple[EvaluationRecord, ...]:
+        now = datetime.now(timezone.utc)
+        return (
+            EvaluationRecord(
+                name="reward",
+                score=1.0,
+                start_time=now,
+                end_time=now,
+                metadata={"harbor_trial_id": "trial-id", "source_key": "reward"},
+            ),
+            EvaluationRecord(
+                name="infra_ok",
+                score=1.0,
+                label="ok",
+                start_time=now,
+                end_time=now,
+                metadata={"harbor_trial_id": "trial-id"},
+            ),
+        )
+
+    async def test_logs_each_record_as_a_code_evaluation(self) -> None:
+        experiments = FakeExperiments()
+
+        await recorder(FakeClient(experiments=experiments)).record_evaluations(
+            "run-1", self.records()
+        )
+
+        assert [call["name"] for call in experiments.logged_evaluations] == [
+            "reward",
+            "infra_ok",
+        ]
+        assert all(call["experiment_run_id"] == "run-1" for call in experiments.logged_evaluations)
+        assert all(call["annotator_kind"] == "CODE" for call in experiments.logged_evaluations)
+        assert "error" not in experiments.logged_evaluations[0]
+
+    async def test_replay_posts_the_same_stable_names(self) -> None:
+        experiments = FakeExperiments()
+        phoenix_recorder = recorder(FakeClient(experiments=experiments))
+
+        await phoenix_recorder.record_evaluations("run-1", self.records())
+        await phoenix_recorder.record_evaluations("run-1", self.records())
+
+        assert [call["name"] for call in experiments.logged_evaluations] == [
+            "reward",
+            "infra_ok",
+            "reward",
+            "infra_ok",
+        ]
+
+    async def test_transient_failure_retries_until_success(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        request = httpx.Request("POST", "https://phoenix.example/v1/experiment_evaluations")
+        unavailable = httpx.HTTPStatusError(
+            "unavailable", request=request, response=httpx.Response(503, request=request)
+        )
+        experiments = FakeExperiments(evaluation_errors=[unavailable, None])
+        delays: list[float] = []
+
+        async def no_sleep(delay: float) -> None:
+            delays.append(delay)
+
+        monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
+        await recorder(FakeClient(experiments=experiments)).record_evaluations(
+            "run-1", self.records()[:1]
+        )
+
+        assert len(experiments.logged_evaluations) == 2
+        assert delays == [0.25]
+
+    async def test_exhausted_transient_failure_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        request = httpx.Request("POST", "https://phoenix.example/v1/experiment_evaluations")
+        errors: list[Exception | None] = [
+            httpx.ConnectError("offline", request=request) for _ in range(3)
+        ]
+        experiments = FakeExperiments(evaluation_errors=errors)
+
+        async def no_sleep(delay: float) -> None:
+            del delay
+
+        monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
+        with pytest.raises(HarborPluginError, match="reward.*offline"):
+            await recorder(FakeClient(experiments=experiments)).record_evaluations(
+                "run-1", self.records()[:1]
+            )
+
+        assert len(experiments.logged_evaluations) == 3
+
+    async def test_client_error_does_not_retry(self) -> None:
+        request = httpx.Request("POST", "https://phoenix.example/v1/experiment_evaluations")
+        invalid = httpx.HTTPStatusError(
+            "invalid", request=request, response=httpx.Response(422, request=request)
+        )
+        experiments = FakeExperiments(evaluation_errors=[invalid])
+
+        with pytest.raises(HarborPluginError, match="reward.*invalid"):
+            await recorder(FakeClient(experiments=experiments)).record_evaluations(
+                "run-1", self.records()[:1]
+            )
+
+        assert len(experiments.logged_evaluations) == 1

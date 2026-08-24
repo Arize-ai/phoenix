@@ -25,6 +25,7 @@ from harbor.models.job.lock import TaskLock
 from harbor.models.job.result import JobResult
 from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
 from harbor.models.trial.result import TrialResult
+from harbor.models.verifier.result import VerifierResult
 from harbor.trial.hooks import HookCallback, TrialHookEvent
 
 from phoenix.client.harbor import DEFAULT_EXPERIMENT_NAME_TEMPLATE, PhoenixJobPlugin
@@ -33,6 +34,7 @@ from phoenix.client.harbor._model import (
     DatasetIdentity,
     ExperimentSlice,
     JobPlan,
+    StepRecord,
     TaskRecord,
     TrialSlot,
 )
@@ -106,7 +108,7 @@ class FakeJob(Job):
         return self
 
 
-def trial_result(*, error: Any = None) -> TrialResult:
+def trial_result(*, error: Any = None, rewards: dict[str, float] | None = None) -> TrialResult:
     now = datetime.now(timezone.utc)
     return cast(
         TrialResult,
@@ -117,6 +119,12 @@ def trial_result(*, error: Any = None) -> TrialResult:
             task_name="task-a",
             started_at=now,
             finished_at=now,
+            environment_setup=None,
+            agent_setup=None,
+            agent_execution=None,
+            verifier=None,
+            verifier_result=(VerifierResult(rewards=rewards) if rewards is not None else None),
+            step_results=None,
             exception_info=error,
             compute_token_cost_totals=lambda: (None, None, None, None),
         ),
@@ -230,6 +238,25 @@ class TestJobStart:
         assert job.started_hook is not None
         assert job.ended_hook is not None
 
+    async def test_reserved_step_name_stops_before_upload(
+        self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient
+    ) -> None:
+        invalid_plan = replace(
+            PLAN,
+            tasks=(replace(PLAN.tasks[0], steps=(StepRecord("verifier", "check"),)),),
+        )
+
+        def _build(job: object, *, dataset_override: str | None = None) -> JobPlan:
+            del job, dataset_override
+            return invalid_plan
+
+        monkeypatch.setattr("phoenix.client.harbor._plugin.build_job_plan", _build)
+
+        with pytest.raises(HarborPluginError, match="reserved.*verifier"):
+            await PhoenixJobPlugin().on_job_start(FakeJob())
+
+        assert wired.datasets.calls == []
+
     async def test_exact_name_is_used_for_one_experiment_slice(self, wired: FakeClient) -> None:
         await PhoenixJobPlugin(experiment_name="{literal baseline}").on_job_start(FakeJob())
 
@@ -291,6 +318,9 @@ class TestJobStart:
         (logged,) = wired.experiments.logged_runs
         assert logged["repetition_number"] == 1
         assert logged["dataset_example_id"] == "node-a"
+        assert [evaluation["name"] for evaluation in wired.experiments.logged_evaluations] == [
+            "infra_ok"
+        ]
 
     async def test_retryable_attempt_is_not_recorded(self, wired: FakeClient) -> None:
         plugin = PhoenixJobPlugin()
@@ -318,13 +348,17 @@ class TestJobStart:
         assert job.started_hook is None
         assert job.ended_hook is None
 
-    async def test_resume_reuses_only_a_matching_successful_run(self, wired: FakeClient) -> None:
-        result = trial_result()
+    async def test_resume_reuses_run_and_upserts_evaluations(self, wired: FakeClient) -> None:
+        result = trial_result(rewards={"reward": 1.0})
         wired.experiments.runs = [successful_run(result)]
 
         await PhoenixJobPlugin().on_job_start(FakeJob(existing=(result,)))
 
         assert wired.experiments.logged_runs == []
+        assert [evaluation["name"] for evaluation in wired.experiments.logged_evaluations] == [
+            "reward",
+            "infra_ok",
+        ]
 
     async def test_resume_rejects_a_conflicting_successful_run(self, wired: FakeClient) -> None:
         result = trial_result()
@@ -357,6 +391,24 @@ class TestJobStart:
         await require_hook(job.ended_hook)(event)
 
         assert len(wired.experiments.logged_runs) == 1
+
+    async def test_evaluation_write_failure_sets_the_terminal_failure_flag(
+        self, wired: FakeClient
+    ) -> None:
+        evaluation_errors: list[Exception | None] = [RuntimeError("evaluation rejected")]
+        wired.experiments.evaluation_errors = evaluation_errors
+        plugin = PhoenixJobPlugin()
+        job = FakeJob()
+        await plugin.on_job_start(job)
+        event = hook_event(trial_result(rewards={"reward": 1.0}))
+
+        with pytest.raises(HarborPluginError, match="evaluation rejected"):
+            await require_hook(job.ended_hook)(event)
+        await require_hook(job.ended_hook)(event)
+
+        assert plugin._terminal_failure is not None  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+        assert len(wired.experiments.logged_runs) == 1
+        assert len(wired.experiments.logged_evaluations) == 1
 
 
 class TestJobEnd:

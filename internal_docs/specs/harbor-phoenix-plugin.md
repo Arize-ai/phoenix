@@ -403,7 +403,8 @@ Finding and then creating an experiment is not atomic. Run only one ingester for
 Selecting the Phoenix plugin makes successful Phoenix recording a requirement. This avoids spending compute on a job that will not be recorded. Users can omit the plugin when they want to run Harbor without Phoenix.
 
 - At `on_job_start`, validate dataset identity, Harbor compatibility, trace requirements, the Phoenix connection, and initial writes. Raise a clear error to stop the job before trial compute.
-- After trials begin, raise any required Phoenix write or trace-link error. Harbor stops the job, but completed Phoenix runs remain available. Keep one terminal-failure flag. After it is set, make later trial-end callbacks no-ops while Harbor cancels sibling trials.
+- After trials begin, retry transient run and evaluation write failures with bounded exponential backoff. Connection errors, timeouts, and HTTP `5xx` responses are transient. If the retry budget is exhausted, raise and stop the job. Deterministic extraction errors and HTTP `4xx` responses fail immediately, except for the handled run-conflict recovery path. Completed Phoenix records remain available and Harbor persists terminal trial results for resume.
+- Keep one terminal-failure flag. After it is set, make later trial-end callbacks no-ops while Harbor cancels sibling trials.
 - Record an infrastructure exception as a run error and `infra_ok = 0`; do not rewrite it as `reward = 0`.
 - Do not ingest an attempt that Harbor will retry. Until Harbor exposes a terminal-attempt event, count START events by logical trial name and apply Harbor's retry rules.
 
