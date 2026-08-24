@@ -2,6 +2,7 @@ import { Flex } from "@phoenix/components";
 
 import { LLMInput } from "./LLMInput";
 import { LLMMessagesCollapseProvider } from "./LLMMessagesCollapseContext";
+import { LLMMessagesSearchProvider } from "./LLMMessagesSearchContext";
 import { LLMOutput } from "./LLMOutput";
 import type { AttributeObject, SpanInfoData } from "./types";
 import { getLLMAttributes } from "./utils";
@@ -33,21 +34,28 @@ export function LLMSpanInfo({
     <Flex direction="column" gap="size-200">
       {/* the span is passed so that expanding a message in one span does not
           decide what the next span the reader opens looks like */}
-      <LLMMessagesCollapseProvider spanId={span.id} messages={inputMessages}>
-        <LLMInput
-          modelName={modelName}
-          provider={provider}
-          input={input}
-          inputMessages={inputMessages}
-          toolSchemas={toolSchemas}
-          promptTemplate={promptTemplate}
-          prompts={prompts}
-          invocationParameters={invocationParameters}
-        />
-      </LLMMessagesCollapseProvider>
-      <LLMMessagesCollapseProvider spanId={span.id} messages={outputMessages}>
-        <LLMOutput output={output} outputMessages={outputMessages} />
-      </LLMMessagesCollapseProvider>
+      {/* Search sits outside collapse so a match can open the message it
+          landed on. One pair per list: the reader searching the prompt is not
+          also searching the completion. */}
+      <LLMMessagesSearchProvider spanId={span.id} messages={inputMessages}>
+        <LLMMessagesCollapseProvider spanId={span.id} messages={inputMessages}>
+          <LLMInput
+            modelName={modelName}
+            provider={provider}
+            input={input}
+            inputMessages={inputMessages}
+            toolSchemas={toolSchemas}
+            promptTemplate={promptTemplate}
+            prompts={prompts}
+            invocationParameters={invocationParameters}
+          />
+        </LLMMessagesCollapseProvider>
+      </LLMMessagesSearchProvider>
+      <LLMMessagesSearchProvider spanId={span.id} messages={outputMessages}>
+        <LLMMessagesCollapseProvider spanId={span.id} messages={outputMessages}>
+          <LLMOutput output={output} outputMessages={outputMessages} />
+        </LLMMessagesCollapseProvider>
+      </LLMMessagesSearchProvider>
     </Flex>
   );
 }

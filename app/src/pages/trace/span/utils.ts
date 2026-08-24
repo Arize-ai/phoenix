@@ -23,7 +23,7 @@ import {
   toRecordPreview,
   toToolCallsPreview,
 } from "@phoenix/utils/contentPreviewUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { formatFlatJSONValue, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import type {
   AttributeObject,
@@ -130,6 +130,89 @@ export function getMessagePreview(
       }))
     ) ??
     toToolCallsPreview(functionCall)
+  );
+}
+
+/**
+ * How a message is named to a screen reader: its role, and the same one-line
+ * excerpt its collapsed header shows.
+ *
+ * Lives beside the preview it reuses, and next to the postfixes it reads, so a
+ * spoken description of a message cannot drift from the drawn one.
+ */
+export function describeMessage(message: AttributeMessage): string {
+  const role = message[MessageAttributePostfixes.role];
+  const preview = getMessagePreview(message);
+  return [typeof role === "string" && role !== "" ? role : null, preview]
+    .filter(Boolean)
+    .join(": ");
+}
+
+/**
+ * What a search of the message list looks at, kept as separate strings so a
+ * query cannot match across the seam between two of them.
+ *
+ * Tool call arguments are deliberately excluded: a JSON blob matches far more
+ * queries than a reader means. `formatFlatJSONValue` handles duck-typed
+ * content, the same way the attributes search does.
+ */
+export function getMessageSearchTexts(message: AttributeMessage): string[] {
+  const texts: string[] = [];
+
+  const content = message[MessageAttributePostfixes.content];
+  if (content != null && content !== "") {
+    texts.push(formatFlatJSONValue(content));
+  }
+
+  const contents = message[MessageAttributePostfixes.contents];
+  // Duck-typed like everything else on the message, so guard the shape rather
+  // than trusting the declared type
+  for (const entry of Array.isArray(contents) ? contents : []) {
+    const text = entry?.[SemanticAttributePrefixes.message_content]?.text;
+    if (typeof text === "string" && text !== "") {
+      texts.push(text);
+    }
+  }
+
+  for (const toolCall of getToolCalls(message)) {
+    const name = toolCall.function?.name;
+    if (typeof name === "string" && name !== "") {
+      texts.push(name);
+    }
+  }
+
+  // The deprecated function call is the same thing under an older name, and the
+  // card renders it the same way, so a reader searching a tool name should find
+  // it whichever shape the instrumentation emitted
+  const functionCallName =
+    message[MessageAttributePostfixes.function_call_name];
+  if (typeof functionCallName === "string" && functionCallName !== "") {
+    texts.push(functionCallName);
+  }
+
+  return texts;
+}
+
+/**
+ * Whether a message matches a search query. The one place the question is
+ * answered, so the count, the highlight and the expansion cannot disagree.
+ *
+ * Case-insensitive substring, matching the trace tree and attributes searches.
+ * `includes` rather than a regular expression, so a typed `(` is a search term
+ * and not a syntax error.
+ *
+ * @param normalizedQuery - already trimmed and lower-cased, so a list of
+ * messages does not redo that work per message.
+ */
+export function messageMatchesQuery(
+  message: AttributeMessage,
+  normalizedQuery: string
+): boolean {
+  if (!normalizedQuery) {
+    return false;
+  }
+  return getMessageSearchTexts(message).some((text) =>
+    text.toLowerCase().includes(normalizedQuery)
   );
 }
 

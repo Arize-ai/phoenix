@@ -11,6 +11,8 @@ import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesCollapseToggle } from "./LLMMessagesCollapseToggle";
 import { LLMMessagesList } from "./LLMMessagesList";
+import { LLMMessagesSearch, stickySearchHeaderCSS } from "./LLMMessagesSearch";
+import { useLLMMessagesSearch } from "./LLMMessagesSearchContext";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
 import { countToolCalls, formatJSONForCopy } from "./utils";
@@ -37,6 +39,7 @@ export function LLMOutput({
     views.push({ id: "output-messages", label: "Messages" });
   if (hasOutput) views.push({ id: "output", label: "Raw" });
   const { view, setView } = useLLMIOView(views);
+  const { query: searchQuery } = useLLMMessagesSearch();
   const cardProps = useSpanInfoCardProps("output");
 
   if (!hasOutput && !hasOutputMessages) {
@@ -59,40 +62,53 @@ export function LLMOutput({
 
   return (
     <MarkdownDisplayProvider>
-      <Card
-        {...defaultCardProps}
-        {...cardProps}
-        title="Output"
-        subTitle={
-          toolCallCount > 0
-            ? `${toolCallCount} ${toolCallCount === 1 ? "tool call" : "tool calls"}`
-            : undefined
-        }
-        extra={
-          <Flex direction="row" gap="size-100" alignItems="center">
-            {isRawView && <ConnectedMarkdownModeSelect />}
-            {view === "output-messages" && (
-              <LLMMessagesCollapseToggle scope="output" />
-            )}
-            {views.length > 0 && (
-              <LLMIOViewSelect
-                label="Output view"
-                views={views}
-                value={view ?? ""}
-                onChange={setView}
-              />
-            )}
-            {/* the view switch sits immediately before copy, and copy remains
-                last so both controls stay in a consistent place */}
-            {copyText != null && <CopyToClipboardButton text={copyText} />}
-          </Flex>
+      <div
+        css={stickySearchHeaderCSS}
+        // Follows the field rather than the query: the query is kept while the
+        // reader looks at another view, but with no search on screen there is
+        // nothing to pin and nothing to clear it with.
+        data-search-active={
+          view === "output-messages" && searchQuery.trim().length > 0
         }
       >
-        {view === "output-messages" && (
-          <LLMMessagesList messages={outputMessages} />
-        )}
-        {isRawView && <MimeTypeCodeBlock {...output} />}
-      </Card>
+        <Card
+          {...defaultCardProps}
+          {...cardProps}
+          title="Output"
+          subTitle={
+            toolCallCount > 0
+              ? `${toolCallCount} ${toolCallCount === 1 ? "tool call" : "tool calls"}`
+              : undefined
+          }
+          extra={
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {isRawView && <ConnectedMarkdownModeSelect />}
+              {view === "output-messages" && (
+                <LLMMessagesSearch scope="output" />
+              )}
+              {view === "output-messages" && (
+                <LLMMessagesCollapseToggle scope="output" />
+              )}
+              {views.length > 0 && (
+                <LLMIOViewSelect
+                  label="Output view"
+                  views={views}
+                  value={view ?? ""}
+                  onChange={setView}
+                />
+              )}
+              {/* the view switch sits immediately before copy, and copy remains
+                last so both controls stay in a consistent place */}
+              {copyText != null && <CopyToClipboardButton text={copyText} />}
+            </Flex>
+          }
+        >
+          {view === "output-messages" && (
+            <LLMMessagesList messages={outputMessages} />
+          )}
+          {isRawView && <MimeTypeCodeBlock {...output} />}
+        </Card>
+      </div>
     </MarkdownDisplayProvider>
   );
 }

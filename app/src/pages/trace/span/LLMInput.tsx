@@ -26,6 +26,8 @@ import type { LLMIOView } from "./LLMIOViewSelect";
 import { LLMIOViewSelect, useLLMIOView } from "./LLMIOViewSelect";
 import { LLMMessagesCollapseToggle } from "./LLMMessagesCollapseToggle";
 import { LLMMessagesList } from "./LLMMessagesList";
+import { LLMMessagesSearch, stickySearchHeaderCSS } from "./LLMMessagesSearch";
+import { useLLMMessagesSearch } from "./LLMMessagesSearchContext";
 import { LLMPromptsList } from "./LLMPromptsList";
 import { LLMPromptTemplate } from "./LLMPromptTemplate";
 import { LLMToolSchemasList } from "./LLMToolSchemasList";
@@ -133,6 +135,7 @@ export function LLMInput({
   ].filter(Boolean);
 
   const isRawView = view === "input" && hasInput;
+  const { query: searchQuery } = useLLMMessagesSearch();
   const cardProps = useSpanInfoCardProps("input");
 
   // Whatever the card is showing is what its copy button copies, so the reader
@@ -155,41 +158,52 @@ export function LLMInput({
 
   return (
     <MarkdownDisplayProvider>
-      <Card
-        {...defaultCardProps}
-        {...cardProps}
-        title="Input"
-        subTitle={subTitleEl}
-        extra={
-          <Flex direction="row" gap="size-100" alignItems="center">
-            {isRawView && <ConnectedMarkdownModeSelect />}
-            {view === "input-messages" && (
-              <LLMMessagesCollapseToggle scope="input" />
-            )}
-            {views.length > 0 && (
-              <LLMIOViewSelect
-                label="Input view"
-                views={views}
-                value={view ?? ""}
-                onChange={setView}
-              />
-            )}
-            {/* the view switch sits immediately before copy, and copy remains
-                last so both controls stay in a consistent place */}
-            {copyText != null && <CopyToClipboardButton text={copyText} />}
-          </Flex>
+      <div
+        css={stickySearchHeaderCSS}
+        // Follows the field rather than the query: the query is kept while the
+        // reader looks at another view, but with no search on screen there is
+        // nothing to pin and nothing to clear it with.
+        data-search-active={
+          view === "input-messages" && searchQuery.trim().length > 0
         }
       >
-        {view === "input-messages" && (
-          <LLMMessagesList
-            messages={inputMessages}
-            leadingItems={messageLeadingItems}
-          />
-        )}
-        {view === "tools" && <LLMToolSchemasList toolSchemas={toolSchemas} />}
-        {isRawView && <MimeTypeCodeBlock {...input} />}
-        {view === "prompts" && <LLMPromptsList prompts={prompts} />}
-      </Card>
+        <Card
+          {...defaultCardProps}
+          {...cardProps}
+          title="Input"
+          subTitle={subTitleEl}
+          extra={
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {isRawView && <ConnectedMarkdownModeSelect />}
+              {view === "input-messages" && <LLMMessagesSearch scope="input" />}
+              {view === "input-messages" && (
+                <LLMMessagesCollapseToggle scope="input" />
+              )}
+              {views.length > 0 && (
+                <LLMIOViewSelect
+                  label="Input view"
+                  views={views}
+                  value={view ?? ""}
+                  onChange={setView}
+                />
+              )}
+              {/* the view switch sits immediately before copy, and copy remains
+                last so both controls stay in a consistent place */}
+              {copyText != null && <CopyToClipboardButton text={copyText} />}
+            </Flex>
+          }
+        >
+          {view === "input-messages" && (
+            <LLMMessagesList
+              messages={inputMessages}
+              leadingItems={messageLeadingItems}
+            />
+          )}
+          {view === "tools" && <LLMToolSchemasList toolSchemas={toolSchemas} />}
+          {isRawView && <MimeTypeCodeBlock {...input} />}
+          {view === "prompts" && <LLMPromptsList prompts={prompts} />}
+        </Card>
+      </div>
     </MarkdownDisplayProvider>
   );
 }

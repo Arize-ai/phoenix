@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 
+import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
+
 import type { DocumentEvaluation } from "../types";
 import {
   countToolCalls,
+  describeMessage,
   getEmbeddingAttributes,
   getLLMAttributes,
   getMessagePreview,
+  getMessageSearchTexts,
   getPromptTemplatePreview,
   getRerankerAttributes,
   getRetrieverAttributes,
   getToolAttributes,
   groupDocumentEvaluationsByPosition,
+  messageMatchesQuery,
   parseSpanAttributes,
 } from "../utils";
 
@@ -240,6 +245,174 @@ describe("getMessagePreview", () => {
     expect(
       getMessagePreview({ role: "assistant", content: "" })
     ).toBeUndefined();
+  });
+});
+
+describe("describeMessage", () => {
+  it("names a message by its role and preview", () => {
+    expect(describeMessage({ role: "assistant", content: "Paris" })).toBe(
+      "assistant: Paris"
+    );
+  });
+
+  // an image-only turn previews as nothing at all, and "user: " reads worse
+  // than "user"
+  it("falls back to the role alone when there is no preview", () => {
+    expect(describeMessage({ role: "user" })).toBe("user");
+  });
+
+  it("falls back to the preview alone when there is no role", () => {
+    expect(describeMessage({ content: "Paris" })).toBe("Paris");
+  });
+});
+
+describe("getMessageSearchTexts", () => {
+  it("returns the message content", () => {
+    expect(
+      getMessageSearchTexts({ role: "user", content: "the connection pool" })
+    ).toEqual(["the connection pool"]);
+  });
+
+  it("returns the text of each multi-modal content part", () => {
+    expect(
+      getMessageSearchTexts({
+        role: "user",
+        contents: [
+          { message_content: { type: "text", text: "first part" } },
+          { message_content: { type: "text", text: "second part" } },
+        ],
+      })
+    ).toEqual(["first part", "second part"]);
+  });
+
+  it("returns tool call names but not their arguments", () => {
+    const texts = getMessageSearchTexts({
+      role: "assistant",
+      content: "checking the logs",
+      tool_calls: [
+        {
+          tool_call: {
+            function: {
+              name: "search_logs",
+              arguments: '{"service":"checkout-api"}',
+            },
+          },
+        },
+      ],
+    });
+    expect(texts).toContain("search_logs");
+    expect(texts).toContain("checking the logs");
+    expect(texts.join(" ")).not.toContain("checkout-api");
+  });
+
+  it("returns the deprecated function call name", () => {
+    expect(
+      getMessageSearchTexts({
+        role: "assistant",
+        function_call_name: "get_metrics",
+        function_call_arguments_json: '{"service":"checkout-api"}',
+      })
+    ).toEqual(["get_metrics"]);
+  });
+
+  // A tool result is a message whose content is the result, so it needs no
+  // handling of its own
+  it("returns a tool result's content", () => {
+    expect(
+      getMessageSearchTexts({
+        role: "tool",
+        tool_call_id: "call_001",
+        content: '{"error_rate": 0.42}',
+      })
+    ).toEqual(['{"error_rate": 0.42}']);
+  });
+
+  // Regression guard. `String(value)` on an object yields "[object Object]",
+  // so content emitted as an object would silently match nothing and a reader
+  // would conclude the span does not hold what they searched for.
+  it("stringifies object content as JSON rather than [object Object]", () => {
+    const texts = getMessageSearchTexts({
+      role: "user",
+      content: { role: "user", text: "hello world" },
+    } as never);
+    expect(texts.join(" ")).not.toContain("[object Object]");
+    expect(texts.join(" ")).toContain("hello world");
+  });
+
+  it("skips empty and missing pieces rather than returning blanks", () => {
+    expect(getMessageSearchTexts({ role: "user", content: "" })).toEqual([]);
+    expect(getMessageSearchTexts({ role: "user" })).toEqual([]);
+  });
+
+  it("survives contents that are not an array", () => {
+    expect(
+      getMessageSearchTexts({ role: "user", contents: "not an array" } as never)
+    ).toEqual([]);
+  });
+});
+
+describe("messageMatchesQuery", () => {
+  const message: AttributeMessage = {
+    role: "assistant",
+    content: "the database connection pool is saturated",
+    tool_calls: [
+      {
+        tool_call: {
+          function: { name: "get_metrics", arguments: '{"window":"09:30Z"}' },
+        },
+      },
+    ],
+  };
+
+  it("matches a partial word", () => {
+    expect(messageMatchesQuery(message, "pool")).toBe(true);
+    expect(messageMatchesQuery(message, "satur")).toBe(true);
+  });
+
+  it("matches regardless of case", () => {
+    expect(messageMatchesQuery(message, "database")).toBe(true);
+  });
+
+  it("matches a tool call name", () => {
+    expect(messageMatchesQuery(message, "get_metrics")).toBe(true);
+  });
+
+  it("does not match tool call arguments", () => {
+    expect(messageMatchesQuery(message, "09:30z")).toBe(false);
+  });
+
+  it("does not match the role", () => {
+    expect(messageMatchesQuery(message, "assistant")).toBe(false);
+  });
+
+  it("treats an empty query as matching nothing", () => {
+    expect(messageMatchesQuery(message, "")).toBe(false);
+  });
+
+  // The exclusions the PR states, asserted rather than claimed. Matching is
+  // substring only: it never corrects a typo and never normalises punctuation.
+  it("does not correct a misspelling", () => {
+    const typo: AttributeMessage = {
+      role: "user",
+      content: "the databse is slow",
+    };
+    expect(messageMatchesQuery(typo, "database")).toBe(false);
+    expect(messageMatchesQuery(typo, "databse")).toBe(true);
+  });
+
+  it("does not normalise punctuation or spacing", () => {
+    const hyphenated: AttributeMessage = {
+      role: "user",
+      content: "the request timed out after a time-out",
+    };
+    expect(messageMatchesQuery(hyphenated, "timeout")).toBe(false);
+    expect(messageMatchesQuery(hyphenated, "time-out")).toBe(true);
+  });
+
+  // Each piece is searched on its own, so a query cannot match by spanning the
+  // gap between a message's content and the name of a tool it called
+  it("does not match across the seam between two pieces", () => {
+    expect(messageMatchesQuery(message, "saturated get_metrics")).toBe(false);
   });
 });
 

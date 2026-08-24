@@ -3,6 +3,7 @@ import { createContext, useContext, useState } from "react";
 
 import type { AttributeMessage } from "@phoenix/openInference/tracing/types";
 
+import { useLLMMessagesSearch } from "./LLMMessagesSearchContext";
 import { getMessagePreview } from "./utils";
 
 type MessagesOpenState = {
@@ -70,6 +71,11 @@ export function LLMMessagesCollapseProvider({
 }>) {
   const [state, setState] = useState<MessagesOpenState>(UNTOUCHED);
   const [renderedSpanId, setRenderedSpanId] = useState(spanId);
+  const { query, isMatch, activeMessageIndex, navigationCount } =
+    useLLMMessagesSearch();
+  const [renderedQuery, setRenderedQuery] = useState(query);
+  const [renderedNavigationCount, setRenderedNavigationCount] =
+    useState(navigationCount);
 
   // Adjusting the state during render rather than remounting on a `key`: the
   // cards below hold state of their own — which of messages / tools / raw they
@@ -78,6 +84,42 @@ export function LLMMessagesCollapseProvider({
   if (renderedSpanId !== spanId) {
     setRenderedSpanId(spanId);
     setState(UNTOUCHED);
+  }
+
+  // A new query asks a different question, so the answers the reader gave to
+  // the old one no longer apply. A message they collapsed while hunting one
+  // word should not stay shut when they go looking for another.
+  //
+  // Starting a search clears the bulk toggle as well. Collapsing everything
+  // and then searching is a normal thing to do, and `false` is not nullish, so
+  // a standing collapse would sit above the match below it and leave a search
+  // marking cards it could never open. Refining a query that is already
+  // running leaves the toggle alone, because that collapse was an answer to
+  // this search.
+  if (renderedQuery !== query) {
+    const isNewSearch = renderedQuery.trim() === "" && query.trim() !== "";
+    setRenderedQuery(query);
+    setState((prev) => ({
+      allOpen: isNewSearch ? null : prev.allOpen,
+      openStateByIndex: {},
+    }));
+  }
+
+  // Asking to be taken to a match is a request about that one message, so it
+  // opens that card the same way a click would and beats the bulk toggle for it
+  // alone. Watches the request count, not which match is current, so
+  // stepping back to a card closed since opens it again.
+  if (renderedNavigationCount !== navigationCount) {
+    setRenderedNavigationCount(navigationCount);
+    if (activeMessageIndex >= 0) {
+      setState((prev) => ({
+        ...prev,
+        openStateByIndex: {
+          ...prev.openStateByIndex,
+          [activeMessageIndex]: true,
+        },
+      }));
+    }
   }
 
   /**
@@ -90,9 +132,17 @@ export function LLMMessagesCollapseProvider({
   const isOpenByDefault = (index: number) =>
     index === messages.length - 1 || getMessagePreview(messages[index]) == null;
 
+  /**
+   * A match opens itself: a collapsed card is `display: none`, hidden from the
+   * page and the screen reader alike, so a match nobody can see is no use.
+   *
+   * Ranked below both of the reader's own choices. Search suggests, the reader
+   * decides, and the outline marks a match they chose to keep shut.
+   */
   const isMessageOpen = (index: number) =>
     openState.openStateByIndex[index] ??
     openState.allOpen ??
+    (isMatch(index) || undefined) ??
     isOpenByDefault(index);
 
   const setMessageOpen = (index: number, isOpen: boolean) => {

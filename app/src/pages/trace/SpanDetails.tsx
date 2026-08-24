@@ -326,6 +326,17 @@ function SpanDetailsTabActions() {
 const spanInfoWrapCSS = css`
   flex: 1 1 auto;
   overflow-y: auto;
+
+  // Searching a message pane pins that card's header, so the field and the
+  // match controls stay reachable while stepping through matches. An element
+  // cannot stick past an ancestor that clips its overflow, and \`View\` clips by
+  // default, so the clip is lifted on the one view holding an active search.
+  // The rule lives here because only an ancestor can style it, and this is the
+  // scroll container the header sticks to. Nothing inside scrolls on its own,
+  // so there is no clipping worth keeping.
+  .view:has([data-search-active="true"]) {
+    overflow: visible;
+  }
   // Overflow fails to take into account padding
   & > *:after {
     content: "";
