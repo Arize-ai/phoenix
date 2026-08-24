@@ -711,11 +711,10 @@ def _lifespan(
                     )
             # Probe the shared runtime once when any consumer can use it.
             # Failure is non-fatal because Monty is an optional server feature.
-            if (
-                getattr(app.state, "mcp_code_mode_sandbox", None) is not None
-                or getattr(app.state, "pxi_mcp_sandbox", None) is not None
-                or "MONTY" in get_env_allowed_sandbox_providers()
-            ):
+            mounted_mcp_code_mode = getattr(app.state, "mcp_code_mode_sandbox", None) is not None
+            agent_mcp_code_mode = getattr(app.state, "pxi_mcp_sandbox", None) is not None
+            monty_allowed_by_config = "MONTY" in get_env_allowed_sandbox_providers()
+            if mounted_mcp_code_mode or agent_mcp_code_mode or monty_allowed_by_config:
                 try:
                     await sandbox_runtime.monty.probe_runtime()
                 except Exception:

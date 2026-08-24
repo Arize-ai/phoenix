@@ -13,12 +13,12 @@ from uuid import uuid4
 from asgi_lifespan import LifespanManager
 from openinference.instrumentation import OITracer, TraceConfig, get_span_kind_attributes
 from opentelemetry.sdk.trace import TracerProvider
+from phoenix.otel import register, using_attributes
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.test import TestModel
 
 from phoenix.db.engines import create_engine
-from phoenix.otel import register, using_attributes
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.server_agents import build_server_agent

@@ -198,13 +198,18 @@ def _current_mcp_principal() -> Optional[PhoenixUser]:
 
     ``scope["user"]`` is populated by the outer ``AuthenticationMiddleware`` and
     verified by ``BearerAuthGuard`` before any tool runs; ``get_http_request``
-    resolves that request from ambient context at dispatch time. Returns None when
-    authentication is disabled (no middleware, so no user in the scope) or when
-    there is no live HTTP request to inherit from — e.g. a background task, whose
-    synthetic request snapshots only headers, never the authenticated principal.
+    resolves that request from ambient context at dispatch time. A request
+    carrying a ``PhoenixUser`` yields that user, so a live authenticated request
+    always takes precedence over any binding.
 
-    In-process callers have no request and supply their principal through
-    ``bind_principal``; a live request takes precedence over any such binding.
+    In-process callers have no request at all — ``get_http_request`` raises — and
+    state their principal through ``bind_principal``, which is consulted only on
+    that path.
+
+    Every other case returns None. Authentication being disabled lands here,
+    because no middleware runs to populate the scope. So does a background task:
+    ``get_http_request`` does not raise there, it returns a synthetic request
+    built from snapshotted headers, and that request carries no principal.
     """
     try:
         request = get_http_request()
