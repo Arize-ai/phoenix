@@ -174,7 +174,7 @@ dev = [
   "types-tqdm",
   "typing-extensions",
   "uvloop; platform_system != 'Windows'",
-  "vcrpy>=8.3",  # 8.3 is the first release that patches httpx2, which anthropic 1.x uses
+  "vcrpy>=8.3",  # earlier releases do not patch httpx2, which the anthropic SDK uses
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
   "libcst>=1.8.6",

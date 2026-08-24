@@ -10,9 +10,7 @@ loguru==0.7.2
 pandas==2.2.3
 python-dotenv==1.2.2
 tqdm==4.66.6
-# Left unpinned deliberately: langchain-anthropic still requires anthropic<1, so
-# this example resolves to 0.x until that cap is lifted. Pinning anthropic>=1 here
-# would make the file unresolvable.
+# langchain-anthropic requires anthropic<1, which caps this example at 0.x.
 anthropic
 gradio
 openinference-instrumentation-anthropic

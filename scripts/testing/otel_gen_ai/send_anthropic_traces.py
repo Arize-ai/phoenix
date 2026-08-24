@@ -5,9 +5,8 @@
 #     "opentelemetry-sdk",
 #     "opentelemetry-exporter-otlp-proto-http",
 #     "opentelemetry-instrumentation-anthropic",
-#     # anthropic 1.x makes its requests through httpx2 rather than httpx; 8.3 is
-#     # the first vcrpy that patches httpx2, so older pins record nothing and let
-#     # every call reach the live API.
+#     # anthropic requests go through httpx2, which vcrpy patches only from 8.3
+#     # onward; earlier versions record nothing and let calls reach the live API.
 #     "vcrpy>=8.3",
 # ]
 # ///

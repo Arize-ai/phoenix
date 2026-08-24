@@ -2071,9 +2071,8 @@ def _anthropic_beta_headers_for_tools(
     return {"anthropic-beta": ",".join(betas)}
 
 
-# Sampling parameters the Anthropic SDK no longer takes as keyword arguments. They
-# are sent via `extra_body`, which merges them back into the request JSON, so the
-# models that still honor them see them exactly as before.
+# `messages.create()` accepts no sampling parameters. `extra_body` merges them into
+# the request JSON, which is how the models that support them receive them.
 _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 
 
@@ -2241,11 +2240,7 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
         extra_body: dict[str, Any] | None = None
         if invocation_parameters:
             anthropic_params = invocation_parameters.anthropic
-            # `temperature` and `top_p` are no longer part of the SDK's
-            # `messages.create()` signature, but the API still honors them on models
-            # that accept sampling parameters. Send them through `extra_body`, which
-            # is merged into the request JSON verbatim, so a prompt saved against
-            # such a model keeps sampling behavior it was tuned with.
+            # Sampling parameters reach the request JSON through `extra_body`.
             sampling_params: dict[str, Any] = {}
             if isinstance(anthropic_params.temperature, float):
                 sampling_params["temperature"] = anthropic_params.temperature
@@ -2275,8 +2270,7 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 if thinking.display:
                     adaptive_param["display"] = thinking.display
                 params["thinking"] = adaptive_param
-            # An explicitly configured `extra_body` wins over the sampling params
-            # above, so a user can still override what the prompt was saved with.
+            # A configured `extra_body` overrides the sampling parameters above.
             if isinstance(anthropic_params.extra_body, dict):
                 extra_body = {**sampling_params, **anthropic_params.extra_body}
             elif sampling_params:
@@ -2298,10 +2292,8 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
         input_value: dict[str, Any] = dict(params)
         if extra_body:
-            # Sampling parameters ride in `extra_body` only because the SDK stopped
-            # accepting them as keyword arguments; on the wire they are ordinary
-            # top-level request fields. Record them that way, and reserve the nested
-            # `extra_body` entry for keys the user genuinely asked to pass through.
+            # Sampling parameters are top-level fields on the wire, so record them as
+            # such; the nested entry is for keys the caller asked to pass through.
             input_value.update(
                 {k: v for k, v in extra_body.items() if k in _ANTHROPIC_SAMPLING_PARAM_KEYS}
             )

@@ -88,9 +88,8 @@ class _InvocationParameters(TypedDict, total=False):
     max_tokens: Required[int]
     output_config: OutputConfigParam
     stop_sequences: list[str]
-    # Carries `temperature` / `top_p`, which are no longer keyword arguments of
-    # `messages.create()` but are still honored on the wire by models that accept
-    # sampling parameters.
+    # Carries `temperature` / `top_p`, which reach the request JSON through
+    # `extra_body` rather than as keyword arguments.
     extra_body: dict[str, Any]
     thinking: Union[
         ThinkingConfigEnabledParam,
@@ -250,10 +249,8 @@ class _InvocationParametersConversion:
         ans: _InvocationParameters = _InvocationParameters(
             max_tokens=_DEFAULT_MAX_TOKENS,
         )
-        # `temperature` and `top_p` are not accepted as keyword arguments by
-        # `messages.create()`, so they cannot be returned alongside the other kwargs.
-        # `extra_body` is merged into the request JSON verbatim, which puts them back
-        # on the wire for the models that still honor them.
+        # `messages.create()` accepts no sampling parameters. `extra_body` merges them
+        # into the request JSON, which is how the models that support them receive them.
         sampling: dict[str, Any] = {}
         if obj["type"] == "anthropic":
             anthropic_params: v1.PromptAnthropicInvocationParametersContent
@@ -429,9 +426,8 @@ class _InvocationParametersConversion:
         content = v1.PromptAnthropicInvocationParametersContent(
             max_tokens=obj["max_tokens"],
         )
-        # Sampling parameters travel in `extra_body`, since `messages.create()` no
-        # longer takes them as keyword arguments. Kwargs built against an older SDK
-        # still carry them at the top level, so read whichever place they appear in.
+        # Sampling parameters arrive in `extra_body`. Kwargs built against anthropic
+        # 0.x carry them at the top level, so accept either placement.
         raw = cast("Mapping[str, Any]", obj)
         raw_extra_body = cast("Mapping[str, Any]", raw.get("extra_body") or {})
         temperature = raw_extra_body.get("temperature", raw.get("temperature"))
