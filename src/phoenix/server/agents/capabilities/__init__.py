@@ -10,6 +10,10 @@ from phoenix.server.agents.capabilities.docs_mcp import (
 from phoenix.server.agents.capabilities.native_tool_retry import (
     NativeToolRetryCapability,
 )
+from phoenix.server.agents.capabilities.phoenix_mcp import (
+    PhoenixMCPCapability,
+    PhoenixMCPToolset,
+)
 from phoenix.server.agents.capabilities.skills import SkillsCapability
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
@@ -22,6 +26,8 @@ __all__ = [
     "MintlifyDocsMCPCapability",
     "MintlifyDocsMCPServer",
     "NativeToolRetryCapability",
+    "PhoenixMCPCapability",
+    "PhoenixMCPToolset",
     "SkillsCapability",
     "get_context_capability_function",
     "get_external_tool_capability_function",

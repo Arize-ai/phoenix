@@ -723,6 +723,24 @@ _PydanticAIUIMessageListAdapter: TypeAdapter[list[PydanticAIUIMessage]] = TypeAd
 )
 
 
+def _adapt_messages_for_pydantic_ai(messages: Sequence[PhoenixUIMessage]) -> list[dict[str, Any]]:
+    """Adapt persisted messages into the shape pydantic-ai's UI models accept.
+
+    ``result_provider_metadata`` is defined by AI SDK v7 but not modelled by pydantic-ai, so
+    Phoenix carries it on its own copies of the four tool output parts to keep what the client
+    sent. pydantic-ai's models set ``extra="forbid"``, so it has to come back off here or
+    validation fails. Nothing is lost: pydantic-ai has no field to load it into either way.
+    """
+    dumped: list[dict[str, Any]] = []
+    for message in messages:
+        payload = message.model_dump(mode="json", by_alias=True, exclude_none=True)
+        for part in payload.get("parts", ()):
+            # Result-side provider metadata on the four tool output parts.
+            part.pop("resultProviderMetadata", None)
+        dumped.append(payload)
+    return dumped
+
+
 def _to_pydantic_ai_request_data(
     request_data: ChatRequestBody,
     *,
@@ -732,17 +750,14 @@ def _to_pydantic_ai_request_data(
     return PydanticAISubmitMessage(
         id=request_data.id,
         messages=_PydanticAIUIMessageListAdapter.validate_python(
-            [
-                message.model_dump(mode="json", by_alias=True, exclude_none=True)
-                for message in messages
-            ]
+            _adapt_messages_for_pydantic_ai(messages)
         ),
     )
 
 
 def _to_pydantic_ai_messages(messages: Sequence[PhoenixUIMessage]) -> list[ModelMessage]:
     ui_messages = _PydanticAIUIMessageListAdapter.validate_python(
-        [message.model_dump(mode="json", by_alias=True, exclude_none=True) for message in messages]
+        _adapt_messages_for_pydantic_ai(messages)
     )
     return VercelAIAdapter.load_messages(ui_messages)
 
@@ -3238,6 +3253,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     event_queue=request.state.event_queue,
                     prompts=ServerAgentPrompts(base=agent_prompts.base),
                     docs_mcp_server=request.app.state.docs_mcp_server,
+                    phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                    principal=phoenix_user,
                     enable_web_access=web_access_enabled,
                     # A headless run has no client to answer an approval
                     # request, so in manual mode it gets no mutation access at
@@ -3287,6 +3304,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         db=request.app.state.db,
                         event_queue=request.state.event_queue,
                         docs_mcp_server=request.app.state.docs_mcp_server,
+                        phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                        principal=phoenix_user,
                         enable_web_access=web_access_enabled,
                         # A subagent runs mid-turn with no way to surface an
                         # approval request, so in manual mode it gets no
@@ -3332,6 +3351,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 agent = build_agent(
                     model=model,
                     docs_mcp_server=request.app.state.docs_mcp_server,
+                    phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                    principal=phoenix_user,
                     enable_web_access=web_access_enabled,
                     tracer_provider=tracer_provider,
                     server_agent=subagent,

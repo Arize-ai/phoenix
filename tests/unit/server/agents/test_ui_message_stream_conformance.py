@@ -44,6 +44,14 @@ UNSUPPORTED_BY_PYDANTIC_AI = {
     "processUIMessageStream > custom": (
         "pydantic-ai does not model AI SDK v7 custom chunks or parts"
     ),
+    # pydantic-ai models the reasoning id on ``ReasoningStartChunk`` but not on the
+    # ``ReasoningUIPart`` it materializes, so Phoenix reads the id to correlate the block's
+    # deltas and then has nowhere upstream-compatible to persist it. Carrying it locally
+    # would fork the vendored part from upstream; these two fixtures are skipped instead.
+    "processUIMessageStream > reasoning": "pydantic-ai ReasoningUIPart does not model id",
+    "processUIMessageStream > server-side tool roundtrip with multiple assistant reasoning": (
+        "pydantic-ai ReasoningUIPart does not model id"
+    ),
 }
 
 UNSUPPORTED_APPROVAL_CHUNKS = {
@@ -132,7 +140,7 @@ def test_unsupported_case_list_is_explicit_and_current() -> None:
     fixture_names = {fixture["name"] for fixture in _FIXTURES}
     unsupported_names = set(UNSUPPORTED_BY_PYDANTIC_AI) | set(UNSUPPORTED_APPROVAL_CHUNKS)
 
-    assert len(UNSUPPORTED_BY_PYDANTIC_AI) == 8
+    assert len(UNSUPPORTED_BY_PYDANTIC_AI) == 10
     assert len(UNSUPPORTED_APPROVAL_CHUNKS) == 4
     assert unsupported_names <= fixture_names
 

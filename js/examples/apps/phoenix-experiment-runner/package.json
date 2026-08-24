@@ -14,7 +14,7 @@
     "start": "NODE_NO_WARNINGS=1 node dist/index.js"
   },
   "dependencies": {
-    "@arizeai/openinference-instrumentation-openai": "^4.1.8",
+    "@arizeai/openinference-instrumentation-openai": "^4.1.9",
     "@arizeai/openinference-semantic-conventions": "^2.7.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
@@ -28,6 +28,6 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "rimraf": "^6.1.3",
-    "tsx": "^4.23.11"
+    "tsx": "^4.23.12"
   }
 }

@@ -9,6 +9,7 @@ from phoenix.server.agents.prompts.templating import get_template
 _BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
 _BASE_SUBAGENT_INSTRUCTIONS = get_template("base/BASE_SUBAGENT_INSTRUCTIONS.xml.j2")
 _DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
+_PHOENIX_MCP_TOOL_INSTRUCTIONS = get_template("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml.j2")
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -45,6 +46,7 @@ class AgentPrompts:
 
     base: Template = _BASE_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
+    phoenix_mcp_tools: Template = _PHOENIX_MCP_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE
@@ -69,6 +71,7 @@ class ServerAgentPrompts:
 
     base: Template = _BASE_SUBAGENT_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
+    phoenix_mcp_tools: Template = _PHOENIX_MCP_TOOL_INSTRUCTIONS
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE
     load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
