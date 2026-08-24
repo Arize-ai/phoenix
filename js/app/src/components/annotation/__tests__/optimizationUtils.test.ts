@@ -657,6 +657,17 @@ describe("getBinaryLabelOptimizations", () => {
     ).toBeNull();
   });
 
+  it("returns null when a charted label's score sits exactly at the pivot", () => {
+    // 'neutral' scores 0.5, the midpoint of the 0..1 scale: it is neither the
+    // good nor the bad label, so the pair has no polarity to color.
+    expect(
+      getBinaryLabelOptimizations({
+        config: categoricalConfig,
+        labels: ["neutral", "positive"],
+      })
+    ).toBeNull();
+  });
+
   it("returns null when both charted labels land on the same side of the pivot", () => {
     // The pivot comes from all three config values (midpoint 0.5), so a chart
     // showing only these two has no positive label to contrast against.

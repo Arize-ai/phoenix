@@ -135,6 +135,27 @@ export function getOptimizationBounds(
 }
 
 /**
+ * The score that separates positive from negative results: `threshold` when
+ * provided, the midpoint of the bounds when both are defined, undefined when
+ * neither pins it down.
+ */
+function getOptimizationPivot({
+  lowerBound,
+  upperBound,
+  threshold,
+}: {
+  lowerBound: number | undefined;
+  upperBound: number | undefined;
+  threshold?: number | undefined;
+}): number | undefined {
+  return threshold != null
+    ? threshold
+    : lowerBound != null && upperBound != null
+      ? (lowerBound + upperBound) / 2
+      : undefined;
+}
+
+/**
  * Determines if a score represents a "positive" optimization result.
  *
  * Uses `threshold` as the pivot when provided; falls back to `(lowerBound + upperBound) / 2`
@@ -161,12 +182,7 @@ export function getPositiveOptimization({
     return null;
   }
 
-  const pivot =
-    threshold != null
-      ? threshold
-      : lowerBound != null && upperBound != null
-        ? (lowerBound + upperBound) / 2
-        : undefined;
+  const pivot = getOptimizationPivot({ lowerBound, upperBound, threshold });
 
   if (pivot == null) {
     return null;
@@ -217,6 +233,7 @@ export function getPositiveOptimizationFromConfig({
  * - anything other than exactly two labels
  * - no optimization direction on the config
  * - a label the config gives no score
+ * - a label whose score sits exactly at the pivot — neither good nor bad
  * - both labels on the same side of the pivot
  */
 export function getBinaryLabelOptimizations({
@@ -234,19 +251,21 @@ export function getBinaryLabelOptimizations({
   if (optimizationDirection == null) {
     return null;
   }
+  const pivot = getOptimizationPivot({ lowerBound, upperBound, threshold });
+  if (pivot == null) {
+    return null;
+  }
   const optimizations: boolean[] = [];
   for (const label of labels) {
-    const optimization = getPositiveOptimization({
-      score: config?.values?.find((value) => value.label === label)?.score,
-      lowerBound,
-      upperBound,
-      threshold,
-      optimizationDirection,
-    });
-    if (optimization == null) {
+    const score = config?.values?.find((value) => value.label === label)?.score;
+    // A score at the pivot (e.g. the middle of a three-value scale) is neither
+    // good nor bad; painting it as either would mislead.
+    if (score == null || score === pivot) {
       return null;
     }
-    optimizations.push(optimization);
+    optimizations.push(
+      optimizationDirection === "MAXIMIZE" ? score > pivot : score < pivot
+    );
   }
   // Two labels on the same side of the pivot are not a positive/negative pair.
   if (optimizations[0] === optimizations[1]) {
