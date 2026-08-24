@@ -56,17 +56,17 @@ dependencies = [
   "arize-phoenix-sqlean",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.4.0",
+  "arize-phoenix-evals>=3.5.0",
   "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "fastmcp-slim[client,server]>=3.4.2,<4",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp. Cap below 4: FastMCP 4 is an SDK-v2 engine swap (mcp_types, httpx2, sampling removals) still in prerelease.
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
   "pydantic-monty==0.0.19",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.26.0,<3",
-  # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound;
-  # 1.0 moved the client to httpx2 and changed the messages.stream signature.
-  "anthropic>=0.108.0,<1",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.33.0,<3",
+  # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
+  # here so the major version is chosen deliberately rather than by resolution.
+  "anthropic>=1,<2",
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
   "authlib>=1.7.0",
   "joserfc",
@@ -91,7 +91,7 @@ dev = [
   "aiobotocore>=3.1.1",
   "aioboto3",
   "aiosqlite>=0.22.1",
-  "anthropic>=0.79.0,<1",
+  "anthropic>=1,<2",
   "arize>=8.1.0",
   "asgi-lifespan",
   "asyncpg",
@@ -174,7 +174,7 @@ dev = [
   "types-tqdm",
   "typing-extensions",
   "uvloop; platform_system != 'Windows'",
-  "vcrpy",
+  "vcrpy>=8.3",  # earlier releases do not patch httpx2, which the anthropic SDK uses
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
   "libcst>=1.8.6",
@@ -215,7 +215,7 @@ azure = [
   "aiohttp",  # required async HTTP transport for azure.identity.aio
 ]
 container = [
-  "anthropic>=0.78.0,<1",
+  "anthropic>=1,<2",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
