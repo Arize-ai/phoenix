@@ -1,11 +1,14 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#     "anthropic",
+#     "anthropic>=1,<2",
 #     "opentelemetry-sdk",
 #     "opentelemetry-exporter-otlp-proto-http",
 #     "opentelemetry-instrumentation-anthropic",
-#     "vcrpy==8.1.1",
+#     # anthropic 1.x makes its requests through httpx2 rather than httpx; 8.3 is
+#     # the first vcrpy that patches httpx2, so older pins record nothing and let
+#     # every call reach the live API.
+#     "vcrpy>=8.3",
 # ]
 # ///
 """Send Anthropic API traces to a local Phoenix at http://localhost:6006/v1/traces.

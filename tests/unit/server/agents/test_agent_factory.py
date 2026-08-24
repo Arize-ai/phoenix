@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import Mock
 
-import httpx
+import httpx2
 import pytest
 from anthropic.types.beta import (
     BetaContentBlockParam,
@@ -96,9 +96,9 @@ def anthropic_model(
     captured_request: CapturedRequest,
 ) -> AnthropicModel:
     """An ``AnthropicModel`` whose underlying HTTP client is an
-    ``httpx.MockTransport``."""
+    ``httpx2.MockTransport``."""
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         captured_request.bodies.append(json.loads(request.read()))
         stub_response = BetaMessage(
             id="msg_test",
@@ -110,9 +110,9 @@ def anthropic_model(
             stop_sequence=None,
             usage=BetaUsage(input_tokens=1, output_tokens=1),
         )
-        return httpx.Response(200, json=stub_response.model_dump(mode="json"))
+        return httpx2.Response(200, json=stub_response.model_dump(mode="json"))
 
-    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     provider = AnthropicProvider(api_key=anthropic_api_key, http_client=http_client)
     return AnthropicModel("claude-haiku-4-5", provider=provider)
 

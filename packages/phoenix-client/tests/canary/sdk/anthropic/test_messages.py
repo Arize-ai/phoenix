@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional, cast
 
 import pytest
 from deepdiff.diff import DeepDiff
@@ -9,6 +9,7 @@ from faker import Faker
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.sdk.anthropic.messages import (
+    _InvocationParametersConversion,
     _MessageConversion,
     _TextContentPartConversion,
     _ToolCallContentPartConversion,
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
         ToolResultBlockParam,
         ToolUseBlockParam,
     )
+    from anthropic.types.message_create_params import MessageCreateParamsBase
 
 fake = Faker()
 
@@ -192,6 +194,42 @@ class TestToolKwargs:
         x: Optional[v1.PromptTools] = _ToolKwargsConversion.from_anthropic(obj)
         new_obj: _ToolKwargs = _ToolKwargsConversion.to_anthropic(x)
         assert not DeepDiff(obj, new_obj)
+
+
+class TestInvocationParametersConversion:
+    @pytest.mark.parametrize(
+        "content",
+        [
+            {"max_tokens": 1024},
+            {"max_tokens": 1024, "temperature": 0.3},
+            {"max_tokens": 1024, "top_p": 0.9},
+            {"max_tokens": 1024, "temperature": 0.3, "top_p": 0.9},
+        ],
+    )
+    def test_round_trip(self, content: dict[str, Any]) -> None:
+        obj = v1.PromptAnthropicInvocationParameters(
+            type="anthropic",
+            anthropic=cast("v1.PromptAnthropicInvocationParametersContent", content),
+        )
+        kwargs = _InvocationParametersConversion.to_anthropic(obj)
+        new_obj = _InvocationParametersConversion.from_anthropic(
+            cast("MessageCreateParamsBase", kwargs)
+        )
+        assert not DeepDiff(content, dict(new_obj["anthropic"]))
+
+    def test_sampling_params_are_sent_through_extra_body(self) -> None:
+        """`messages.create()` rejects them as keyword arguments, so they must ride in
+        `extra_body` to reach the models that still honor them."""
+        obj = v1.PromptAnthropicInvocationParameters(
+            type="anthropic",
+            anthropic=v1.PromptAnthropicInvocationParametersContent(
+                max_tokens=1024, temperature=0.3, top_p=0.9
+            ),
+        )
+        kwargs = _InvocationParametersConversion.to_anthropic(obj)
+        assert "temperature" not in kwargs
+        assert "top_p" not in kwargs
+        assert kwargs["extra_body"] == {"temperature": 0.3, "top_p": 0.9}
 
 
 class _MockFormatter:

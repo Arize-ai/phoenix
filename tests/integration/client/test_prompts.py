@@ -878,7 +878,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1024,
                     temperature=random(),
@@ -894,7 +894,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1025,
                     temperature=random(),
@@ -914,7 +914,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1024,
                     temperature=random(),
@@ -931,7 +931,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1024,
                     temperature=random(),
@@ -956,7 +956,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1024,
                     temperature=random(),
@@ -976,7 +976,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1024,
                     temperature=random(),
@@ -1004,7 +1004,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1024,
                     temperature=random(),
@@ -1045,7 +1045,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1024,
                     temperature=random(),
@@ -1105,7 +1105,7 @@ class TestClient:
             pytest.param(
                 "ANTHROPIC",
                 PromptVersion.from_anthropic,
-                MessageCreateParamsBase(
+                MessageCreateParamsBase(  # type: ignore[typeddict-unknown-key]
                     model=token_hex(8),
                     max_tokens=1024,
                     temperature=random(),
