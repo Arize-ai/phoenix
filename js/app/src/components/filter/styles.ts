@@ -20,6 +20,18 @@ export const dslFilterCodeMirrorCSS = css`
      controls out of view — without this the flex item's auto minimum is
      the full content width */
   min-width: 0;
+  .cm-scroller {
+    /* This is a single-line input, so keep long conditions horizontally
+       scrollable without letting scrollbar chrome consume vertical space and
+       create a second, unintended scroll axis. Caret movement, keyboard, and
+       trackpad scrolling still move the horizontal scrollport. */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
   .cm-content {
     padding: var(--global-dimension-size-100) 0;
   }
