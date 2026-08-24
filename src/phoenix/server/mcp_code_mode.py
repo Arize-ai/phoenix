@@ -58,9 +58,8 @@ _MAX_LOGGED_ERROR_CHARS = 2048
 def _bounded_message(exc: BaseException) -> str:
     """The exception's message, capped.
 
-    Guest code raises whatever it likes, so an exception is a channel into the
-    log pipeline wide enough to send a query result down. Real messages are far
-    shorter than the cap, so bounding costs no diagnostic.
+    A failing call restates the request, whose size the caller chooses. Real
+    messages are far shorter than the cap, so bounding costs no diagnostic.
     """
     message = str(exc)
     if len(message) <= _MAX_LOGGED_ERROR_CHARS:
@@ -161,17 +160,24 @@ class MontyPoolSandboxProvider:
     def _log_guest_failure(self, code: str, exc: Exception) -> None:
         """Record a marshalling-safe failure summary beside the debug source.
 
-        The source is fingerprinted rather than logged. The error message is not:
-        it is the only diagnostic here, and guest code chooses what it says.
+        Guest code chooses both its source and its exception text, and either can
+        carry the telemetry the block was reading, so warnings name the exception
+        type and nothing the guest wrote. The message still reaches the caller,
+        and the fingerprint correlates this record with the debug one.
         """
         logger.warning(
-            "MCP code-mode execute failed "
-            "(consumer=%s, code_length=%d, code_sha256=%s, error=%s: %s)",
+            "MCP code-mode execute failed (consumer=%s, code_length=%d, code_sha256=%s, error=%s)",
             self._consumer,
             len(code),
             _code_fingerprint(code),
             type(exc).__name__,
-            _bounded_message(exc),
+        )
+        logger.debug(
+            "MCP code-mode execute failed (consumer=%s, code_sha256=%s, error=%s: %s)",
+            self._consumer,
+            _code_fingerprint(code),
+            type(exc).__name__,
+            exc,
         )
 
     async def run(

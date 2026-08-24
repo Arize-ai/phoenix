@@ -168,24 +168,52 @@ async def test_guest_exception_reaches_the_caller(
     assert any(
         "MCP code-mode execute failed" in record.getMessage()
         and f"code_length={len(code)}" in record.getMessage()
-        and "error=MontyRuntimeError: ValueError: boom" in record.getMessage()
+        and "error=MontyRuntimeError" in record.getMessage()
         for record in caplog.records
     )
 
 
-async def test_a_guest_error_message_is_bounded_in_the_log(
+async def test_guest_error_text_stays_out_of_warnings(
     provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Guest code picks its own exception text, so the log caps what it can carry."""
-    code = "raise ValueError('x' * 50_000)"
+    """Guest code picks its own exception text and can put telemetry in it.
+
+    Warnings stay visible when debug logging is off and are often shipped further
+    than the database they describe, so they carry the type and not the text.
+    """
+    code = "raise ValueError('telemetry-that-should-not-be-logged')"
+    with caplog.at_level(logging.DEBUG, logger="phoenix.server.mcp_code_mode"):
+        with pytest.raises(MontyRuntimeError) as exc_info:
+            await provider.run(code)
+
+    assert "telemetry-that-should-not-be-logged" in str(exc_info.value)
+    warnings = [
+        record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING
+    ]
+    assert any("error=MontyRuntimeError" in message for message in warnings)
+    assert not any("telemetry-that-should-not-be-logged" in message for message in warnings)
+
+
+async def test_a_host_callback_error_is_bounded_in_the_log(
+    provider: MontyPoolSandboxProvider, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A callback failure restates the request, whose size the caller chooses."""
+
+    async def call_tool(tool_name: str, params: dict[str, Any]) -> None:
+        del tool_name, params
+        raise RuntimeError("y" * 50_000)
+
     with caplog.at_level(logging.WARNING, logger="phoenix.server.mcp_code_mode"):
         with pytest.raises(MontyRuntimeError):
-            await provider.run(code)
+            await provider.run(
+                "await call_tool('anything', {})",
+                external_functions={"call_tool": call_tool},
+            )
 
     message = next(
         record.getMessage()
         for record in caplog.records
-        if "MCP code-mode execute failed" in record.getMessage()
+        if "host callback failed" in record.getMessage()
     )
     assert "truncated from" in message
     assert len(message) < 5_000
