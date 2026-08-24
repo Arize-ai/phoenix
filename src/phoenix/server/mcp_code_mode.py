@@ -96,7 +96,10 @@ class MontyPoolSandboxProvider:
         async def logged_call_tool(tool_name: str, params: dict[str, Any]) -> Any:
             # Debug mode is explicitly for inspecting submissions, including the
             # query or payload a guest sends through this callback. Warnings omit
-            # values because they remain visible when debug logging is disabled.
+            # submitted values because they remain visible when debug logging is
+            # disabled. The exception message stays: it is what makes a failure
+            # diagnosable, and it can restate the request on its own -- an HTTP
+            # error carries the URL, a validation error the value it rejected.
             param_keys = sorted(params) if isinstance(params, dict) else None
             started = time.perf_counter()
             logger.debug(
@@ -139,7 +142,11 @@ class MontyPoolSandboxProvider:
         return instrumented
 
     def _log_guest_failure(self, code: str, exc: Exception) -> None:
-        """Record a marshalling-safe failure summary beside the debug source."""
+        """Record a marshalling-safe failure summary beside the debug source.
+
+        The source is fingerprinted rather than logged. The error message is not:
+        it is the only diagnostic here, and guest code chooses what it says.
+        """
         logger.warning(
             "MCP code-mode execute failed "
             "(consumer=%s, code_length=%d, code_sha256=%s, error=%s: %s)",
