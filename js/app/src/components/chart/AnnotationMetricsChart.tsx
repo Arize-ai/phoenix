@@ -37,8 +37,8 @@ import { ChartResponsiveContainer } from "./ChartResponsiveContainer";
 import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
 import {
   getCategoryChartColor,
-  useBinaryOptimizationChartColors,
   useCategoryChartColors,
+  useSemanticChartColors,
 } from "./colors";
 import {
   COMPACT_CHART_ANIMATION_DURATION_MS,
@@ -149,14 +149,13 @@ type AnnotationMetricsChartProps = {
   renderTooltipHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
   getMeanScoreOptimization?: (meanScore: number) => boolean | null;
   /**
-   * Classifies the chart's labels as good versus bad, one flag per label in
-   * order, to color a two-label distribution green and red. Return null to keep
-   * the categorical palette; `getBinaryLabelOptimizations` does so whenever the
+   * Classifies the series' labels as good versus bad, one flag per label in
+   * `series.labels` order, to color a two-label distribution green and red.
+   * Pass null (or omit) to keep the categorical palette;
+   * `getBinaryLabelOptimizations` computes this and returns null whenever the
    * labels carry no such meaning.
    */
-  getLabelOptimizations?: (
-    labels: ReadonlyArray<string>
-  ) => ReadonlyArray<boolean> | null;
+  labelOptimizations?: ReadonlyArray<boolean> | null;
   chartProps?: ComponentProps<typeof ComposedChart>;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
   emptyStateMessage?: string;
@@ -185,7 +184,7 @@ function AnnotationMetricsChartContent({
   syncId,
   renderTooltipHeader,
   getMeanScoreOptimization,
-  getLabelOptimizations,
+  labelOptimizations,
   chartProps,
   additionalLegendItems,
   renderReference,
@@ -193,7 +192,8 @@ function AnnotationMetricsChartContent({
 }: AnnotationMetricsChartProps) {
   const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
-  const binaryOptimizationColors = useBinaryOptimizationChartColors();
+  // A good label reads the same green as an optimized score does elsewhere.
+  const semanticColors = useSemanticChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
   const { data, reference, labels } = series;
@@ -203,14 +203,13 @@ function AnnotationMetricsChartContent({
     ? getScoreDomain([...data, reference])
     : UNIT_DOMAIN;
   // Null means "no good-versus-bad reading": stay on the categorical palette.
-  const labelOptimizations = isScoreView
-    ? null
-    : (getLabelOptimizations?.(labels) ?? null);
+  const appliedLabelOptimizations =
+    (isScoreView ? null : labelOptimizations) ?? null;
   const getLabelFill = (index: number) =>
-    labelOptimizations
-      ? binaryOptimizationColors[
-          labelOptimizations[index] ? "positive" : "negative"
-        ]
+    appliedLabelOptimizations
+      ? appliedLabelOptimizations[index]
+        ? semanticColors.success
+        : semanticColors.danger
       : getCategoryChartColor({ index, colors: categoryColors });
   const isReferencePrepended =
     !isScoreView &&

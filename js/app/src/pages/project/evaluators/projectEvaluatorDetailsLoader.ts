@@ -14,13 +14,9 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         id
         name
         enabled
-        evaluationTarget
         evaluator {
           kind
           description
-        }
-        project {
-          id
         }
         traceProject {
           id
@@ -31,7 +27,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         ...ProjectEvaluatorRunDetails_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
-        ...useProjectEvaluatorOutputConfigFragment
+        ...ProjectEvaluatorMetrics_projectEvaluator
       }
     }
   }

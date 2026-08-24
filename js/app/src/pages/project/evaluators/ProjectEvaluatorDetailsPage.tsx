@@ -162,14 +162,7 @@ function ProjectEvaluatorDetailsPageLoaded({
           </LazyTabPanel>
           <LazyTabPanel id="metrics">
             <Suspense fallback={<Loading />}>
-              <ProjectEvaluatorMetrics
-                projectEvaluatorId={projectEvaluator.id}
-                evaluatedProjectId={projectEvaluator.project.id}
-                traceProjectId={projectEvaluator.traceProject.id}
-                evaluatorName={projectEvaluator.name}
-                evaluationTarget={projectEvaluator.evaluationTarget}
-                projectEvaluatorRef={projectEvaluator}
-              />
+              <ProjectEvaluatorMetrics projectEvaluator={projectEvaluator} />
             </Suspense>
           </LazyTabPanel>
           <LazyTabPanel id="traces">

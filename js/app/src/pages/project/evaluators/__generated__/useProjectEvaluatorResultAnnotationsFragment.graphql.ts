@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ec7e82c4020fc9579f9ecfb223d7420>>
+ * @generated SignedSource<<280d08e2addf321780f16b1d2d934987>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
-export type useProjectEvaluatorOutputConfigFragment$data = {
+export type useProjectEvaluatorResultAnnotationsFragment$data = {
   readonly evaluator: {
     readonly outputConfigs: ReadonlyArray<{
       readonly annotationType?: AnnotationType;
@@ -27,11 +27,11 @@ export type useProjectEvaluatorOutputConfigFragment$data = {
     }>;
   };
   readonly name: string;
-  readonly " $fragmentType": "useProjectEvaluatorOutputConfigFragment";
+  readonly " $fragmentType": "useProjectEvaluatorResultAnnotationsFragment";
 };
-export type useProjectEvaluatorOutputConfigFragment$key = {
-  readonly " $data"?: useProjectEvaluatorOutputConfigFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"useProjectEvaluatorOutputConfigFragment">;
+export type useProjectEvaluatorResultAnnotationsFragment$key = {
+  readonly " $data"?: useProjectEvaluatorResultAnnotationsFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"useProjectEvaluatorResultAnnotationsFragment">;
 };
 
 const node: ReaderFragment = (function(){
@@ -67,7 +67,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "useProjectEvaluatorOutputConfigFragment",
+  "name": "useProjectEvaluatorResultAnnotationsFragment",
   "selections": [
     (v0/*:: as any*/),
     {
@@ -173,6 +173,6 @@ return {
 };
 })();
 
-(node as any).hash = "e6b474093fc1bee0e5a7ca91b7b6d586";
+(node as any).hash = "7089c6d8c2afeb8dab5f060854f0fd68";
 
 export default node;

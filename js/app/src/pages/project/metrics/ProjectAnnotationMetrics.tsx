@@ -183,12 +183,10 @@ function ProjectAnnotationMetricsPanel({
                 score: meanScore,
               })
             }
-            getLabelOptimizations={(labels) =>
-              getBinaryLabelOptimizations({
-                config: annotationConfig,
-                labels,
-              })
-            }
+            labelOptimizations={getBinaryLabelOptimizations({
+              config: annotationConfig,
+              labels: series.labels,
+            })}
             renderTooltipHeader={(point) => (
               <Text weight="heavy" size="S">
                 {fullTimeFormatter(new Date(point.x))}
