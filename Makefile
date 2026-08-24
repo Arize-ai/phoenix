@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
+	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -108,6 +108,7 @@ help: ## Show this help message
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
 	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
 	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
+	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Run the isolated Phoenix Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -480,7 +481,7 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # Environment backend for trials (harbor run -e): docker, daytona, etc.
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
-HARBOR_VERSION ?= 0.18.0
+HARBOR_VERSION ?= 0.21.0
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
 HARBOR_PYTHON ?= 3.13
@@ -511,6 +512,10 @@ harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task
 harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud storage
 	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
 	./evals/harbor/scripts/publish_fixtures.sh
+
+harbor-plugin-e2e: ## Run the isolated Phoenix Harbor plugin E2E matrix
+	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
 
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
 	$(check-harbor-staged)
