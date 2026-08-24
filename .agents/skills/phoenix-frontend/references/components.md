@@ -13,6 +13,19 @@ New features MUST compose from existing core primitives before creating new low-
 
 Existing flex and view layout primitives SHOULD be used for consistent spacing and alignment. Explore `components/core/` for what's available before writing ad-hoc layout wrappers.
 
+## Choose primitives by interaction contract
+
+Choose a component based on its behavior and semantics before its visual treatment:
+
+| Interaction contract | Phoenix primitive |
+|----------------------|-------------------|
+| Read-only content rows | `List` / `ListItem` |
+| Single- or multi-selection without nested controls | `ListBox` / `ListBoxItem` |
+| Selectable rows containing nested interactive controls | `GridList` / `GridListItem` |
+| Independent actions that do not represent collection selection | `Button` / `LinkButton` |
+
+Prefer the shared primitive that owns the required semantics, keyboard behavior, and interaction states. Add local styling only for requirements that the primitive does not already handle.
+
 ## Storybook
 
 New core components MUST include minimal Storybook stories showing primary variants and states. Explore `js/app/stories/` for the existing convention.
