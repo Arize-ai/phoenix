@@ -43,10 +43,6 @@ export function useProjectEvaluatorPaths() {
       list: withCurrentSearch(list),
       gallery: withCurrentSearch(gallery),
       newLlm: withCurrentSearch(newLlmProjectEvaluatorPath(rootPath)),
-      newLlmFromTemplate: (templateName: string) =>
-        withCurrentSearch(
-          `${list}/new/template/${encodeURIComponent(templateName)}`
-        ),
       newCode: withCurrentSearch(newCodeProjectEvaluatorPath(rootPath)),
       galleryNewLlm: withCurrentSearch(`${gallery}/new/llm`),
       galleryNewLlmFromTemplate: (templateName: string) =>

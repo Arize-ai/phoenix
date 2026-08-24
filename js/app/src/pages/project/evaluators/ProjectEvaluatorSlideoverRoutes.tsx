@@ -118,24 +118,12 @@ export function NewGalleryCodeProjectEvaluatorPage() {
   );
 }
 
-export function NewLlmFromTemplateProjectEvaluatorPage() {
-  return <NewLlmFromTemplateProjectEvaluatorSlideover />;
-}
-
 export function NewGalleryLlmFromTemplateProjectEvaluatorPage() {
-  const { gallery } = useProjectEvaluatorPaths();
-  return <NewLlmFromTemplateProjectEvaluatorSlideover closeTo={gallery} />;
-}
-
-function NewLlmFromTemplateProjectEvaluatorSlideover({
-  closeTo,
-}: {
-  closeTo?: string;
-}) {
   const projectId = useRouteProjectId();
   const { templateName } = useParams();
   invariant(templateName, "templateName is required");
-  const onOpenChange = useCloseSlideover(closeTo);
+  const { gallery } = useProjectEvaluatorPaths();
+  const onOpenChange = useCloseSlideover(gallery);
   const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
     projectEvaluatorTemplatesQuery,
     {},

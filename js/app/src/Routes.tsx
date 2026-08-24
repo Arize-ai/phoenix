@@ -90,7 +90,6 @@ import {
   NewGalleryCodeProjectEvaluatorPage,
   NewGalleryLlmFromTemplateProjectEvaluatorPage,
   NewGalleryLlmProjectEvaluatorPage,
-  NewLlmFromTemplateProjectEvaluatorPage,
   NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
   PlaygroundPage,
@@ -520,17 +519,6 @@ export const appRouteObjects = createRoutesFromElements(
                       label: "New Project Code Evaluator",
                       description:
                         "Author a new Python or TypeScript code evaluator for a project from scratch.",
-                    },
-                  }}
-                />
-                <Route
-                  path="new/template/:templateName"
-                  element={<NewLlmFromTemplateProjectEvaluatorPage />}
-                  handle={{
-                    agentRoute: {
-                      label: "New Project Evaluator From Template",
-                      description:
-                        "Create a project LLM evaluator seeded from a classification evaluator template. The templateName route param is the template's name.",
                     },
                   }}
                 />
