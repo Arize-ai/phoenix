@@ -1236,8 +1236,10 @@ def create_app(
     # The agent's own instance, independent of the mount and its configuration.
     # Read-only: mutations belong to the agent's editing tools, which route
     # approval through the user. Its sandbox takes the ``agent`` admission class,
-    # so agent and external-client code mode cannot exhaust the pool on each
-    # other's behalf.
+    # which is capped one below the worker pool size, so an external client can
+    # always still reach a worker. The classes are overcommitted against that
+    # pool by design, so the two do compete for one, and the loser waits at
+    # checkout and can be turned away as busy.
     pxi_mcp_server = None
     pxi_mcp_sandbox = None
     if not get_env_disable_agent_assistant():
