@@ -403,8 +403,8 @@ px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, 
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
-px prompt set <name> --template "Hello {{name}}" --model gpt-4o --format raw --no-progress
-px prompt set <name> --file prompt.json --tag production --format raw --no-progress
+px prompt set <name> --template "Hello {{name}}" --model gpt-4o --model-provider OPENAI --format raw --no-progress
+px prompt set <name> --json prompt.json --tag production --format raw --no-progress
 ```
 
 ## Annotation Configs

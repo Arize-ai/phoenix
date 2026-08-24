@@ -28,10 +28,11 @@ import {
   assertPromptIdentifier,
   buildPromptSetRequest,
   hasPromptVersionInput,
-  parsePromptSetFile,
+  MODEL_PROVIDERS,
   parsePromptSetFlags,
+  parsePromptSetJson,
   PROMPT_SET_USAGE_HINT,
-  type PromptSetFileContents,
+  type PromptSetJsonContents,
 } from "./promptSet";
 
 type Prompt = componentsV1["schemas"]["Prompt"];
@@ -90,23 +91,24 @@ interface PromptSetOptions extends CommonOptions<OutputFormat> {
    */
   message?: string[];
   /**
-   * `--file <path>`: JSON prompt body. Accepts the POST /v1/prompts payload,
+   * `--json <path>`: JSON prompt body. Accepts the POST /v1/prompts payload,
    * a `PromptVersion` (`px prompt get --format raw`), or `{messages: [...]}`.
    * Use `-` to read stdin.
    *
    * @example "prompt.json"
    */
-  file?: string;
+  json?: string;
   /**
    * `--model <name>`: Model name for the new version. Required when creating
-   * a prompt unless `--file` already has `model_name`.
+   * a prompt unless `--json` already has `model_name`.
    *
    * @example "gpt-4o"
    */
   model?: string;
   /**
-   * `--model-provider <provider>`: Model provider. Case-insensitive.
-   * Defaults to `OPENAI` on create; copied from the latest version on update.
+   * `--model-provider <provider>`: Model provider. Case-insensitive. Required
+   * when creating a prompt unless `--json` already has `model_provider`;
+   * copied from the latest version on update.
    *
    * @example "OPENAI"
    */
@@ -426,7 +428,7 @@ async function promptSetHandler(
     writeStructuredError({
       format,
       message:
-        "Provide a template (--template, --message, or --file) or a version field to change (--model, --model-provider, --template-format, --invocation-parameters, --version-description)",
+        "Provide a template (--template, --message, or --json) or a version field to change (--model, --model-provider, --template-format, --invocation-parameters, --version-description)",
       code: "INVALID_ARGUMENT",
       hint: PROMPT_SET_USAGE_HINT,
     });
@@ -435,12 +437,12 @@ async function promptSetHandler(
 
   let name: string;
   let flags: ReturnType<typeof parsePromptSetFlags>;
-  let file: PromptSetFileContents | undefined;
+  let json: PromptSetJsonContents | undefined;
   try {
     name = assertPromptIdentifier(promptIdentifier, "Prompt name");
     flags = parsePromptSetFlags(options);
-    if (options.file !== undefined) {
-      file = parsePromptSetFile(await readPromptSetFile(options.file));
+    if (options.json !== undefined) {
+      json = parsePromptSetJson(await readPromptSetJson(options.json));
     }
   } catch (error) {
     if (error instanceof InvalidArgumentError) {
@@ -481,7 +483,7 @@ async function promptSetHandler(
     const body = buildPromptSetRequest({
       name,
       flags,
-      file,
+      json,
       existing,
     });
 
@@ -564,11 +566,11 @@ async function fetchLatestPromptVersionOrUndefined(
   }
 }
 
-async function readPromptSetFile(filePath: string): Promise<string> {
+async function readPromptSetJson(filePath: string): Promise<string> {
   if (filePath === "-") {
     if (process.stdin.isTTY) {
       throw new InvalidArgumentError(
-        "No prompt JSON on stdin. Pipe a file or pass --file <path>"
+        "No prompt JSON on stdin. Pipe a file or pass --json <path>"
       );
     }
     return readStdin();
@@ -577,7 +579,7 @@ async function readPromptSetFile(filePath: string): Promise<string> {
     return readFileSync(filePath, "utf8");
   } catch (error) {
     throw new InvalidArgumentError(
-      `Failed to read --file '${filePath}': ${error instanceof Error ? error.message : String(error)}`
+      `Failed to read --json '${filePath}': ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }
@@ -658,13 +660,13 @@ export function createPromptSetCommand(): Command {
       []
     )
     .option(
-      "--file <path>",
+      "--json <path>",
       "JSON prompt body (POST /v1/prompts or px prompt get --format raw). Use - for stdin"
     )
-    .option("--model <name>", "Model name, e.g. gpt-4o")
+    .option("--model <name>", "Model name, e.g. gpt-4o. Required on create")
     .option(
       "--model-provider <provider>",
-      "Model provider (default: OPENAI on create)"
+      `Model provider, e.g. OPENAI. Required on create. One of: ${MODEL_PROVIDERS.join(", ")}`
     )
     .option(
       "--template-format <format>",
@@ -693,15 +695,15 @@ export function createPromptSetCommand(): Command {
         "Omitted fields are copied from the latest version.\n" +
         "\nExamples:\n" +
         "  # Create a prompt from a template string\n" +
-        '  px prompt set greeting --template "Hello {{name}}" --model gpt-4o\n\n' +
+        '  px prompt set greeting --template "Hello {{name}}" --model gpt-4o --model-provider OPENAI\n\n' +
         "  # Chat prompt with a system and user message\n" +
-        '  px prompt set greeting --message "system:You are a helpful assistant" --message "user:Hello {{name}}" --model gpt-4o\n\n' +
+        '  px prompt set greeting --message "system:You are a helpful assistant" --message "user:Hello {{name}}" --model gpt-4o --model-provider OPENAI\n\n' +
         "  # Update only the template; model and other fields stay as they are\n" +
         '  px prompt set greeting --template "Hi {{name}}"\n\n' +
         "  # Create from a JSON file and tag the version (agent-friendly)\n" +
-        "  px prompt set greeting --file prompt.json --tag production --format raw --no-progress\n\n" +
+        "  px prompt set greeting --json prompt.json --tag production --format raw --no-progress\n\n" +
         "  # Round-trip the latest version through a file\n" +
-        "  px prompt get greeting --format raw --no-progress | px prompt set greeting --file -\n"
+        "  px prompt get greeting --format raw --no-progress | px prompt set greeting --json -\n"
     )
     .action(promptSetHandler);
 }

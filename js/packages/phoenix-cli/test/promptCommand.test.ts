@@ -177,7 +177,7 @@ describe("prompt get", () => {
 });
 
 describe("prompt set", () => {
-  it("POSTs a new prompt from --template and --model when latest is missing", async () => {
+  it("POSTs a new prompt from --template, --model, and --model-provider when latest is missing", async () => {
     const captured: { body?: Record<string, unknown>; count: number } = {
       count: 0,
     };
@@ -204,6 +204,8 @@ describe("prompt set", () => {
         "Hello {{name}}",
         "--model",
         "gpt-4o",
+        "--model-provider",
+        "OPENAI",
         "--format",
         "raw",
         ...BASE_ARGS,
@@ -308,7 +310,7 @@ describe("prompt set", () => {
         [
           "set",
           "greeting",
-          "--file",
+          "--json",
           filePath,
           "--tag",
           "production",
@@ -347,6 +349,8 @@ describe("prompt set", () => {
           "greeting",
           "--template",
           "Hello",
+          "--model-provider",
+          "OPENAI",
           "--format",
           "raw",
           ...BASE_ARGS,
@@ -358,6 +362,38 @@ describe("prompt set", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining("Missing required flag --model")
+    );
+  });
+
+  it("exits INVALID_ARGUMENT when creating without --model-provider", async () => {
+    mock.server.use(
+      http.get("/v1/prompts/{prompt_identifier}/latest", ({ response }) =>
+        response.untyped(HttpResponse.json({}, { status: 404 }))
+      )
+    );
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createPromptCommand().parseAsync(
+        [
+          "set",
+          "greeting",
+          "--template",
+          "Hello",
+          "--model",
+          "gpt-4o",
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Missing required flag --model-provider")
     );
   });
 
@@ -418,6 +454,8 @@ describe("prompt set", () => {
         "Hello {{name}}",
         "--model",
         "gpt-4o",
+        "--model-provider",
+        "OPENAI",
         "--format",
         "raw",
         ...BASE_ARGS,

@@ -52,17 +52,16 @@ export const PROMPT_MESSAGE_ROLES: readonly PromptMessage["role"][] = [
  */
 export const PROMPT_IDENTIFIER_PATTERN = /^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$/;
 
-const DEFAULT_MODEL_PROVIDER: ModelProvider = "OPENAI";
 const DEFAULT_TEMPLATE_FORMAT: PromptTemplateFormat = "MUSTACHE";
 
 export const PROMPT_SET_USAGE_HINT =
-  'px prompt set <name> --template "..." --model gpt-4o';
+  'px prompt set <name> --template "..." --model gpt-4o --model-provider OPENAI';
 
 /**
- * Fields parsed from `--file` (or stdin). Flags overlay these; a latest
+ * Fields parsed from `--json` (or stdin). Flags overlay these; a latest
  * version, when one exists, fills anything still missing.
  */
-export interface PromptSetFileContents {
+export interface PromptSetJsonContents {
   promptDescription?: string | null;
   promptMetadata?: Record<string, unknown> | null;
   version?: Partial<PromptVersionData>;
@@ -93,7 +92,7 @@ export interface BuildPromptSetRequestInput {
    */
   name: string;
   flags: PromptSetParsedFlags;
-  file?: PromptSetFileContents;
+  json?: PromptSetJsonContents;
   /**
    * Latest version of an existing prompt, used so `set` can change one field
    * without respecifying the rest.
@@ -110,7 +109,7 @@ export interface BuildPromptSetRequestInput {
 export function hasPromptVersionInput(options: {
   template?: string;
   message?: string[];
-  file?: string;
+  json?: string;
   model?: string;
   modelProvider?: string;
   templateFormat?: string;
@@ -120,7 +119,7 @@ export function hasPromptVersionInput(options: {
   return (
     options.template !== undefined ||
     (options.message !== undefined && options.message.length > 0) ||
-    options.file !== undefined ||
+    options.json !== undefined ||
     options.model !== undefined ||
     options.modelProvider !== undefined ||
     options.templateFormat !== undefined ||
@@ -248,16 +247,16 @@ export function parsePromptSetFlags(options: {
 }
 
 /**
- * Parse a `--file` payload. Accepts the POST /v1/prompts body, a
+ * Parse a `--json` payload. Accepts the POST /v1/prompts body, a
  * `PromptVersion` (including `px prompt get --format raw` output), a
  * `{ data: PromptVersion }` wrapper, a `{ messages: [...] }` chat template,
  * or a JSON string treated as a user-message template.
  */
-export function parsePromptSetFile(contents: string): PromptSetFileContents {
+export function parsePromptSetJson(contents: string): PromptSetJsonContents {
   const trimmed = contents.trim();
   if (trimmed === "") {
     throw new InvalidArgumentError(
-      "--file is empty. Pass a JSON prompt body or the output of px prompt get --format raw"
+      "--json is empty. Pass a JSON prompt body or the output of px prompt get --format raw"
     );
   }
 
@@ -266,32 +265,34 @@ export function parsePromptSetFile(contents: string): PromptSetFileContents {
     parsed = JSON.parse(trimmed);
   } catch {
     throw new InvalidArgumentError(
-      "--file must be valid JSON. Use --template for a plain-text prompt"
+      "--json must be valid JSON. Use --template for a plain-text prompt"
     );
   }
 
   if (typeof parsed === "string") {
     if (parsed.trim() === "") {
-      throw new InvalidArgumentError("--file JSON string must not be empty");
+      throw new InvalidArgumentError(
+        "--json string template must not be empty"
+      );
     }
     return { templateText: parsed };
   }
 
   if (!isRecord(parsed)) {
     throw new InvalidArgumentError(
-      "--file must be a JSON object (prompt version, {prompt, version}, or {messages})"
+      "--json must be a JSON object (prompt version, {prompt, version}, or {messages})"
     );
   }
 
   const unwrapped = unwrapPromptVersionRecord(parsed);
-  const file: PromptSetFileContents = {};
+  const json: PromptSetJsonContents = {};
 
   if (isRecord(unwrapped.prompt)) {
     if (typeof unwrapped.prompt.description === "string") {
-      file.promptDescription = unwrapped.prompt.description;
+      json.promptDescription = unwrapped.prompt.description;
     }
     if (isRecord(unwrapped.prompt.metadata)) {
-      file.promptMetadata = unwrapped.prompt.metadata;
+      json.promptMetadata = unwrapped.prompt.metadata;
     }
   }
 
@@ -302,75 +303,75 @@ export function parsePromptSetFile(contents: string): PromptSetFileContents {
       : undefined;
 
   if (versionRecord !== undefined) {
-    file.version = promptVersionDataFromRecord(versionRecord);
+    json.version = promptVersionDataFromRecord(versionRecord);
     if (
       typeof versionRecord.template === "string" &&
       versionRecord.template.trim() !== ""
     ) {
-      file.templateText = versionRecord.template;
+      json.templateText = versionRecord.template;
     }
   }
 
   if (
     Array.isArray(unwrapped.messages) &&
-    file.version?.template === undefined
+    json.version?.template === undefined
   ) {
-    file.messages = parseFileMessages(unwrapped.messages);
+    json.messages = parseJsonMessages(unwrapped.messages);
   }
 
   const hasContent =
-    file.version !== undefined ||
-    file.templateText !== undefined ||
-    file.messages !== undefined ||
-    file.promptDescription !== undefined ||
-    file.promptMetadata !== undefined;
+    json.version !== undefined ||
+    json.templateText !== undefined ||
+    json.messages !== undefined ||
+    json.promptDescription !== undefined ||
+    json.promptMetadata !== undefined;
   if (!hasContent) {
     throw new InvalidArgumentError(
-      "--file JSON must include a prompt version (template / messages) or {prompt, version}"
+      "--json must include a prompt version (template / messages) or {prompt, version}"
     );
   }
 
-  return file;
+  return json;
 }
 
 export function buildPromptSetRequest({
   name,
   flags,
-  file,
+  json,
   existing,
 }: BuildPromptSetRequestInput): {
   prompt: PromptData;
   version: PromptVersionData;
 } {
-  const template = resolveChatTemplate({ flags, file, existing });
-  const modelName = resolveModelName({ flags, file, existing });
-  const modelProvider = resolveModelProvider({ flags, file, existing });
+  const template = resolveChatTemplate({ flags, json, existing });
+  const modelName = resolveModelName({ flags, json, existing });
+  const modelProvider = resolveModelProvider({ flags, json, existing });
   const templateFormat =
     flags.templateFormat ??
-    file?.version?.template_format ??
+    json?.version?.template_format ??
     existing?.template_format ??
     DEFAULT_TEMPLATE_FORMAT;
   const versionDescription =
     flags.versionDescription ??
-    file?.version?.description ??
+    json?.version?.description ??
     existing?.description ??
     undefined;
   const invocationParameters = resolveInvocationParameters({
     flags,
-    file,
+    json,
     existing,
     modelProvider,
   });
-  const tools = file?.version?.tools ?? existing?.tools ?? undefined;
+  const tools = json?.version?.tools ?? existing?.tools ?? undefined;
   const responseFormat =
-    file?.version?.response_format ?? existing?.response_format ?? undefined;
+    json?.version?.response_format ?? existing?.response_format ?? undefined;
 
   const prompt: PromptData = { name };
-  const description = flags.description ?? file?.promptDescription;
+  const description = flags.description ?? json?.promptDescription;
   if (description !== undefined && description !== null) {
     prompt.description = description;
   }
-  const metadata = flags.metadata ?? file?.promptMetadata;
+  const metadata = flags.metadata ?? json?.promptMetadata;
   if (metadata !== undefined && metadata !== null) {
     prompt.metadata = metadata;
   }
@@ -398,11 +399,11 @@ export function buildPromptSetRequest({
 
 function resolveChatTemplate({
   flags,
-  file,
+  json,
   existing,
 }: {
   flags: PromptSetParsedFlags;
-  file?: PromptSetFileContents;
+  json?: PromptSetJsonContents;
   existing?: PromptVersion;
 }): PromptChatTemplate {
   if (flags.messages !== undefined) {
@@ -411,34 +412,34 @@ function resolveChatTemplate({
   if (flags.template !== undefined) {
     return userMessageTemplate(flags.template);
   }
-  if (file?.messages !== undefined) {
-    return { type: "chat", messages: file.messages };
+  if (json?.messages !== undefined) {
+    return { type: "chat", messages: json.messages };
   }
-  if (file?.templateText !== undefined) {
-    return userMessageTemplate(file.templateText);
+  if (json?.templateText !== undefined) {
+    return userMessageTemplate(json.templateText);
   }
-  if (file?.version?.template !== undefined) {
-    return toChatTemplate(file.version.template);
+  if (json?.version?.template !== undefined) {
+    return toChatTemplate(json.version.template);
   }
   if (existing?.template !== undefined) {
     return toChatTemplate(existing.template);
   }
   throw new InvalidArgumentError(
-    "Missing prompt template. Pass --template, --message, or --file"
+    "Missing prompt template. Pass --template, --message, or --json"
   );
 }
 
 function resolveModelName({
   flags,
-  file,
+  json,
   existing,
 }: {
   flags: PromptSetParsedFlags;
-  file?: PromptSetFileContents;
+  json?: PromptSetJsonContents;
   existing?: PromptVersion;
 }): string {
   const modelName =
-    flags.model ?? file?.version?.model_name ?? existing?.model_name;
+    flags.model ?? json?.version?.model_name ?? existing?.model_name;
   if (modelName === undefined || modelName.trim() === "") {
     throw new InvalidArgumentError("Missing required flag --model");
   }
@@ -447,29 +448,33 @@ function resolveModelName({
 
 function resolveModelProvider({
   flags,
-  file,
+  json,
   existing,
 }: {
   flags: PromptSetParsedFlags;
-  file?: PromptSetFileContents;
+  json?: PromptSetJsonContents;
   existing?: PromptVersion;
 }): ModelProvider {
-  return (
+  const modelProvider =
     flags.modelProvider ??
-    file?.version?.model_provider ??
-    existing?.model_provider ??
-    DEFAULT_MODEL_PROVIDER
-  );
+    json?.version?.model_provider ??
+    existing?.model_provider;
+  if (modelProvider === undefined) {
+    throw new InvalidArgumentError(
+      `Missing required flag --model-provider. Must be one of: ${MODEL_PROVIDERS.join(", ")}`
+    );
+  }
+  return modelProvider;
 }
 
 function resolveInvocationParameters({
   flags,
-  file,
+  json,
   existing,
   modelProvider,
 }: {
   flags: PromptSetParsedFlags;
-  file?: PromptSetFileContents;
+  json?: PromptSetJsonContents;
   existing?: PromptVersion;
   modelProvider: ModelProvider;
 }): InvocationParameters {
@@ -477,13 +482,13 @@ function resolveInvocationParameters({
     return buildInvocationParameters(modelProvider, flags.invocationParameters);
   }
   if (
-    file?.version?.invocation_parameters !== undefined &&
+    json?.version?.invocation_parameters !== undefined &&
     invocationParametersMatchProvider(
-      file.version.invocation_parameters,
+      json.version.invocation_parameters,
       modelProvider
     )
   ) {
-    return file.version.invocation_parameters;
+    return json.version.invocation_parameters;
   }
   if (
     existing?.invocation_parameters !== undefined &&
@@ -629,23 +634,23 @@ function isPromptTemplate(
   return false;
 }
 
-function parseFileMessages(values: unknown[]): PromptMessage[] {
+function parseJsonMessages(values: unknown[]): PromptMessage[] {
   const messages: PromptMessage[] = [];
   for (const value of values) {
     if (!isRecord(value) || typeof value.role !== "string") {
       throw new InvalidArgumentError(
-        "--file messages must be objects with a role and content"
+        "--json messages must be objects with a role and content"
       );
     }
     const role = value.role.toLowerCase();
     if (!isPromptMessageRole(role)) {
       throw new InvalidArgumentError(
-        `Invalid message role '${value.role}' in --file. Must be one of: ${PROMPT_MESSAGE_ROLES.join(", ")}`
+        `Invalid message role '${value.role}' in --json. Must be one of: ${PROMPT_MESSAGE_ROLES.join(", ")}`
       );
     }
     if (typeof value.content !== "string" && !Array.isArray(value.content)) {
       throw new InvalidArgumentError(
-        "--file messages must include string or content-part content"
+        "--json messages must include string or content-part content"
       );
     }
     messages.push({
@@ -654,7 +659,7 @@ function parseFileMessages(values: unknown[]): PromptMessage[] {
     });
   }
   if (messages.length === 0) {
-    throw new InvalidArgumentError("--file messages must not be empty");
+    throw new InvalidArgumentError("--json messages must not be empty");
   }
   return messages;
 }

@@ -7,8 +7,8 @@ import {
   buildPromptSetRequest,
   hasPromptVersionInput,
   parsePromptMessages,
-  parsePromptSetFile,
   parsePromptSetFlags,
+  parsePromptSetJson,
 } from "../src/commands/promptSet";
 import { InvalidArgumentError } from "../src/exitCodes";
 
@@ -29,10 +29,10 @@ describe("hasPromptVersionInput", () => {
     expect(hasPromptVersionInput({ message: [] })).toBe(false);
   });
 
-  it("is true for a template, messages, file, or version field", () => {
+  it("is true for a template, messages, json, or version field", () => {
     expect(hasPromptVersionInput({ template: "Hi" })).toBe(true);
     expect(hasPromptVersionInput({ message: ["user:Hi"] })).toBe(true);
-    expect(hasPromptVersionInput({ file: "p.json" })).toBe(true);
+    expect(hasPromptVersionInput({ json: "p.json" })).toBe(true);
     expect(hasPromptVersionInput({ model: "gpt-4o" })).toBe(true);
   });
 });
@@ -102,18 +102,18 @@ describe("parsePromptSetFlags", () => {
   });
 });
 
-describe("parsePromptSetFile", () => {
+describe("parsePromptSetJson", () => {
   it("accepts a PromptVersion from px prompt get --format raw", () => {
-    const file = parsePromptSetFile(JSON.stringify(EXISTING));
-    expect(file.version?.model_name).toBe("gpt-4o");
-    expect(file.version?.template).toEqual({
+    const parsed = parsePromptSetJson(JSON.stringify(EXISTING));
+    expect(parsed.version?.model_name).toBe("gpt-4o");
+    expect(parsed.version?.template).toEqual({
       type: "string",
       template: "Hello {{name}}",
     });
   });
 
   it("accepts a {prompt, version} POST body", () => {
-    const file = parsePromptSetFile(
+    const parsed = parsePromptSetJson(
       JSON.stringify({
         prompt: { name: "greeting", description: "says hello" },
         version: {
@@ -129,8 +129,8 @@ describe("parsePromptSetFile", () => {
         },
       })
     );
-    expect(file.promptDescription).toBe("says hello");
-    expect(file.version?.template).toEqual({
+    expect(parsed.promptDescription).toBe("says hello");
+    expect(parsed.version?.template).toEqual({
       type: "chat",
       messages: [{ role: "user", content: "Hi" }],
     });
@@ -138,19 +138,19 @@ describe("parsePromptSetFile", () => {
 
   it("accepts {messages: [...]} and a JSON string template", () => {
     expect(
-      parsePromptSetFile(
+      parsePromptSetJson(
         JSON.stringify({ messages: [{ role: "user", content: "Hi" }] })
       ).messages
     ).toEqual([{ role: "user", content: "Hi" }]);
-    expect(parsePromptSetFile(JSON.stringify("Hello"))).toEqual({
+    expect(parsePromptSetJson(JSON.stringify("Hello"))).toEqual({
       templateText: "Hello",
     });
   });
 
   it("rejects empty or non-object JSON", () => {
-    expect(() => parsePromptSetFile("")).toThrow(InvalidArgumentError);
-    expect(() => parsePromptSetFile("[]")).toThrow(InvalidArgumentError);
-    expect(() => parsePromptSetFile("not json")).toThrow(InvalidArgumentError);
+    expect(() => parsePromptSetJson("")).toThrow(InvalidArgumentError);
+    expect(() => parsePromptSetJson("[]")).toThrow(InvalidArgumentError);
+    expect(() => parsePromptSetJson("not json")).toThrow(InvalidArgumentError);
   });
 });
 
@@ -185,10 +185,14 @@ describe("buildInvocationParameters", () => {
 });
 
 describe("buildPromptSetRequest", () => {
-  it("creates a chat version from --template and --model", () => {
+  it("creates a chat version from --template, --model, and --model-provider", () => {
     const { prompt, version } = buildPromptSetRequest({
       name: "greeting",
-      flags: { template: "Hello {{name}}", model: "gpt-4o" },
+      flags: {
+        template: "Hello {{name}}",
+        model: "gpt-4o",
+        modelProvider: "OPENAI",
+      },
     });
     expect(prompt).toEqual({ name: "greeting" });
     expect(version.model_provider).toBe("OPENAI");
@@ -242,11 +246,11 @@ describe("buildPromptSetRequest", () => {
     });
   });
 
-  it("overlays --file onto flags", () => {
+  it("overlays --json onto flags", () => {
     const { prompt, version } = buildPromptSetRequest({
       name: "greeting",
       flags: { model: "gpt-4.1", description: "from flags" },
-      file: parsePromptSetFile(JSON.stringify(EXISTING)),
+      json: parsePromptSetJson(JSON.stringify(EXISTING)),
     });
     expect(prompt.description).toBe("from flags");
     expect(version.model_name).toBe("gpt-4.1");
@@ -256,12 +260,30 @@ describe("buildPromptSetRequest", () => {
     });
   });
 
-  it("requires --model when creating without a file", () => {
+  it("requires --model when creating without JSON input", () => {
     expect(() =>
       buildPromptSetRequest({
         name: "greeting",
-        flags: { template: "Hello" },
+        flags: { template: "Hello", modelProvider: "OPENAI" },
       })
     ).toThrow(InvalidArgumentError);
+  });
+
+  it("requires --model-provider when creating without JSON input", () => {
+    expect(() =>
+      buildPromptSetRequest({
+        name: "greeting",
+        flags: { template: "Hello", model: "gpt-4o" },
+      })
+    ).toThrow(InvalidArgumentError);
+  });
+
+  it("inherits the provider from --json when the flag is omitted", () => {
+    const { version } = buildPromptSetRequest({
+      name: "greeting",
+      flags: { template: "Hello" },
+      json: parsePromptSetJson(JSON.stringify(EXISTING)),
+    });
+    expect(version.model_provider).toBe("OPENAI");
   });
 });
