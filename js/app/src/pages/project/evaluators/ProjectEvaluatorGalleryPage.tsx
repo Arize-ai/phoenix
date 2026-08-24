@@ -9,8 +9,13 @@ import {
   Counter,
   Flex,
   Heading,
+  List,
+  ListBox,
+  ListBoxItem,
+  ListItem,
   Skeleton,
   Text,
+  View,
 } from "@phoenix/components";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -28,7 +33,14 @@ const GALLERY_SKELETON_HEIGHT = 440;
 
 export function ProjectEvaluatorGalleryPage() {
   return (
-    <main css={galleryOuterCSS}>
+    <View
+      elementType="main"
+      flex="1 1 auto"
+      width="100%"
+      height="100%"
+      minHeight={GALLERY_SKELETON_HEIGHT}
+      overflow="hidden"
+    >
       <ErrorBoundary fallback={EvaluatorGalleryError}>
         <Suspense fallback={<EvaluatorGallerySkeleton />}>
           <EvaluatorGallery />
@@ -37,7 +49,7 @@ export function ProjectEvaluatorGalleryPage() {
       <Suspense fallback={null}>
         <Outlet />
       </Suspense>
-    </main>
+    </View>
   );
 }
 
@@ -99,28 +111,43 @@ function EvaluatorGallery() {
         className="project-evaluator-gallery__categories"
         aria-label="Evaluator template categories"
       >
-        <Heading level={2} css={sectionHeadingCSS}>
+        <Text
+          id="evaluator-template-category-list-title"
+          elementType="h2"
+          size="S"
+          weight="heavy"
+        >
           Category
-        </Heading>
-        <ul className="project-evaluator-gallery__category-list">
-          {categoryItems.map(({ name, count }) => {
-            const isSelected = name === activeCategory;
-            return (
-              <li key={name}>
-                <button
-                  className="project-evaluator-gallery__category-button"
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedCategory(name)}
-                >
+        </Text>
+        <ListBox
+          aria-labelledby="evaluator-template-category-list-title"
+          className="project-evaluator-gallery__category-list"
+          items={categoryItems}
+          selectionMode="single"
+          selectionBehavior="replace"
+          disallowEmptySelection
+          selectedKeys={[activeCategory]}
+          onSelectionChange={(selection) => {
+            if (selection === "all") return;
+            const category = selection.keys().next().value;
+            if (typeof category === "string") {
+              setSelectedCategory(category);
+            }
+          }}
+        >
+          {({ name, count }) => (
+            <ListBoxItem key={name} id={name} textValue={name}>
+              {({ isSelected }) => (
+                <>
                   <Text size="S">{name}</Text>
                   <Counter variant={isSelected ? "quiet" : "default"}>
                     {count}
                   </Counter>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                </>
+              )}
+            </ListBoxItem>
+          )}
+        </ListBox>
         <Flex
           direction="column"
           gap="size-50"
@@ -147,39 +174,51 @@ function EvaluatorGallery() {
         className="project-evaluator-gallery__templates"
         aria-labelledby="evaluator-template-list-title"
       >
-        <Heading
+        <Text
           id="evaluator-template-list-title"
-          level={2}
-          css={sectionHeadingCSS}
+          elementType="h2"
+          size="S"
+          weight="heavy"
         >
           {activeCategory}
-        </Heading>
-        <ul className="project-evaluator-gallery__template-list">
-          {visibleTemplates.map((template) => {
-            const isSelected = template.name === selectedTemplate?.name;
-            return (
-              <li key={template.name}>
-                <button
-                  className="project-evaluator-gallery__template-card"
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedTemplateName(template.name)}
-                >
-                  <Flex direction="row" justifyContent="space-between">
-                    <Text size="S" weight="heavy">
-                      {template.name}
-                    </Text>
-                    <Badge size="S">LLM</Badge>
-                  </Flex>
-                  <LineClamp lines={3}>
-                    <Text size="XS" color="text-700">
-                      {template.description}
-                    </Text>
-                  </LineClamp>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        </Text>
+        <ListBox
+          aria-labelledby="evaluator-template-list-title"
+          className="project-evaluator-gallery__template-list"
+          items={visibleTemplates}
+          layout="grid"
+          selectionMode="single"
+          selectionBehavior="replace"
+          disallowEmptySelection
+          selectedKeys={selectedTemplate ? [selectedTemplate.name] : []}
+          onSelectionChange={(selection) => {
+            if (selection === "all") return;
+            const templateName = selection.keys().next().value;
+            if (typeof templateName === "string") {
+              setSelectedTemplateName(templateName);
+            }
+          }}
+        >
+          {(template) => (
+            <ListBoxItem
+              key={template.name}
+              id={template.name}
+              textValue={template.name}
+            >
+              <Flex direction="row" justifyContent="space-between">
+                <Text size="S" weight="heavy">
+                  {template.name}
+                </Text>
+                <Badge size="S">LLM</Badge>
+              </Flex>
+              <LineClamp lines={3}>
+                <Text size="XS" color="text-700">
+                  {template.description}
+                </Text>
+              </LineClamp>
+            </ListBoxItem>
+          )}
+        </ListBox>
       </section>
 
       <aside className="project-evaluator-gallery__details" aria-live="polite">
@@ -229,30 +268,51 @@ function EvaluatorTemplateDetails({
       </Flex>
       <dl className="project-evaluator-gallery__definition-list">
         <div>
-          <dt>Scope</dt>
+          <dt>
+            <Text size="XS" color="text-500">
+              Scope
+            </Text>
+          </dt>
           <dd>
-            {template.scope ? capitalize(template.scope.toLowerCase()) : "—"}
+            <Text size="S">
+              {template.scope ? capitalize(template.scope.toLowerCase()) : "—"}
+            </Text>
           </dd>
         </div>
         <div>
-          <dt>Optimization</dt>
-          <dd>{capitalize(template.optimizationDirection.toLowerCase())}</dd>
+          <dt>
+            <Text size="XS" color="text-500">
+              Optimization
+            </Text>
+          </dt>
+          <dd>
+            <Text size="S">
+              {capitalize(template.optimizationDirection.toLowerCase())}
+            </Text>
+          </dd>
         </div>
       </dl>
       <Flex direction="column" gap="size-75">
-        <Heading level={3} css={sectionHeadingCSS}>
+        <Text elementType="h3" size="S" weight="heavy">
           Output choices
-        </Heading>
-        <ul className="project-evaluator-gallery__choice-list">
+        </Text>
+        <List size="S">
           {choices.map(({ label, score }) => (
-            <li key={label}>
-              <Text size="S">{label}</Text>
-              <Text size="XS" color="text-500">
-                {score}
-              </Text>
-            </li>
+            <ListItem key={label}>
+              <Flex
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                gap="size-100"
+              >
+                <Text size="S">{label}</Text>
+                <Text size="XS" color="text-500">
+                  {score}
+                </Text>
+              </Flex>
+            </ListItem>
           ))}
-        </ul>
+        </List>
       </Flex>
       <Button
         variant="primary"
@@ -300,12 +360,24 @@ const galleryCSS = css`
   .project-evaluator-gallery__categories,
   .project-evaluator-gallery__templates,
   .project-evaluator-gallery__details {
+    min-height: 0;
     padding: var(--global-dimension-size-200);
   }
 
   .project-evaluator-gallery__categories {
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+  }
+
+  .project-evaluator-gallery__templates {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .project-evaluator-gallery__details {
+    overflow-y: auto;
   }
 
   .project-evaluator-gallery__categories,
@@ -314,75 +386,43 @@ const galleryCSS = css`
       var(--global-border-color-default);
   }
 
-  .project-evaluator-gallery__category-list,
-  .project-evaluator-gallery__template-list,
-  .project-evaluator-gallery__choice-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
   .project-evaluator-gallery__category-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-50);
+    flex: 1 1 auto;
+    min-height: 0;
     margin-top: var(--global-dimension-size-100);
+
+    .react-aria-ListBoxItem {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--global-dimension-size-100);
+    }
   }
 
   .project-evaluator-gallery__scratch-actions {
-    margin-top: auto;
+    flex: none;
     padding-top: var(--global-dimension-size-200);
     border-top: var(--global-border-size-thin) solid
       var(--global-border-color-default);
   }
 
-  .project-evaluator-gallery__category-button,
-  .project-evaluator-gallery__template-card {
-    width: 100%;
-    border: var(--global-border-size-thin) solid transparent;
-    border-radius: var(--global-rounding-small);
-    background-color: transparent;
-    color: inherit;
-    cursor: pointer;
-    text-align: left;
-
-    &:hover {
-      background-color: var(--global-list-item-hover-background-color);
-    }
-
-    &:focus-visible {
-      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-      outline-offset: var(--focus-ring-offset);
-    }
-
-    &[aria-pressed="true"] {
-      border-color: var(--global-border-color-default);
-      background-color: var(--global-list-item-selected-background-color);
-    }
-  }
-
-  .project-evaluator-gallery__category-button {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-75) var(--global-dimension-size-100);
-  }
-
   .project-evaluator-gallery__template-list {
+    flex: 1 1 auto;
+    min-height: 0;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    align-content: start;
     gap: var(--global-dimension-size-100);
     margin-top: var(--global-dimension-size-100);
-  }
 
-  .project-evaluator-gallery__template-card {
-    display: flex;
-    min-height: var(--global-dimension-size-1400);
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-150);
-    border-color: var(--global-border-color-default);
+    .react-aria-ListBoxItem {
+      min-height: var(--global-dimension-size-1400);
+      gap: var(--global-dimension-size-100);
+      margin: 0;
+      padding: var(--global-dimension-size-150);
+      border: var(--global-border-size-thin) solid
+        var(--global-border-color-default);
+    }
   }
 
   .project-evaluator-gallery__definition-list {
@@ -397,30 +437,8 @@ const galleryCSS = css`
       gap: var(--global-dimension-size-25);
     }
 
-    dt {
-      color: var(--global-text-color-500);
-      font-size: var(--global-font-size-xs);
-    }
-
     dd {
       margin: 0;
-      font-size: var(--global-font-size-s);
-    }
-  }
-
-  .project-evaluator-gallery__choice-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-50);
-
-    li {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--global-dimension-size-100);
-      padding-bottom: var(--global-dimension-size-50);
-      border-bottom: var(--global-border-size-thin) solid
-        var(--global-border-color-default);
     }
   }
 
@@ -428,6 +446,19 @@ const galleryCSS = css`
     overflow-x: hidden;
     overflow-y: auto;
     grid-template-columns: minmax(160px, 0.65fr) minmax(320px, 1.5fr);
+
+    .project-evaluator-gallery__categories,
+    .project-evaluator-gallery__templates,
+    .project-evaluator-gallery__details {
+      min-height: auto;
+      overflow: visible;
+    }
+
+    .project-evaluator-gallery__category-list,
+    .project-evaluator-gallery__template-list {
+      flex: none;
+      overflow: visible;
+    }
 
     .project-evaluator-gallery__templates {
       border-right: 0;
@@ -455,19 +486,4 @@ const galleryCSS = css`
       border-top: 0;
     }
   }
-`;
-
-const galleryOuterCSS = css`
-  box-sizing: border-box;
-  flex: 1 1 auto;
-  width: 100%;
-  height: 100%;
-  min-height: ${GALLERY_SKELETON_HEIGHT}px;
-  overflow: hidden;
-`;
-
-const sectionHeadingCSS = css`
-  font-size: var(--global-font-size-s);
-  line-height: var(--global-line-height-s);
-  font-weight: 600;
 `;
