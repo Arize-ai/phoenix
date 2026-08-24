@@ -122,6 +122,17 @@ def _experiment_records(endpoint: str, experiment_id: str) -> list[dict[str, Any
         return json.loads(response.read())
 
 
+def _evaluation_state(
+    endpoint: str, experiment_id: str
+) -> dict[tuple[str, int], list[dict[str, Any]]]:
+    return {
+        (record["example_id"], record["repetition_number"]): sorted(
+            record["annotations"], key=lambda annotation: annotation["name"]
+        )
+        for record in _experiment_records(endpoint, experiment_id)
+    }
+
+
 def _assert_regression_triage_evaluations(
     endpoint: str,
     experiment_id: str,
@@ -461,10 +472,8 @@ def _run_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     run_ids_before = {
         run_id for experiment in agent_experiments for run_id in _run_ids(client, experiment["id"])
     }
-    evaluation_counts_before = {
-        experiment["id"]: sum(
-            len(record["annotations"]) for record in _experiment_records(endpoint, experiment["id"])
-        )
+    evaluations_before = {
+        experiment["id"]: _evaluation_state(endpoint, experiment["id"])
         for experiment in agent_experiments
     }
 
@@ -483,13 +492,11 @@ def _run_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         for run_id in _run_ids(client, experiment["id"])
     }
     _check(resumed_run_ids == run_ids_before, repr(resumed_run_ids))
-    evaluation_counts_after = {
-        experiment["id"]: sum(
-            len(record["annotations"]) for record in _experiment_records(endpoint, experiment["id"])
-        )
+    evaluations_after = {
+        experiment["id"]: _evaluation_state(endpoint, experiment["id"])
         for experiment in resumed_experiments
     }
-    _check(evaluation_counts_after == evaluation_counts_before, repr(evaluation_counts_after))
+    _check(evaluations_after == evaluations_before, repr(evaluations_after))
 
     mixed_job = "plugin-e2e-mixed-sources"
     mixed_config = root / "mixed-sources.json"

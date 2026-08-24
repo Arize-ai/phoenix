@@ -1,6 +1,7 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportPrivateUsage=false
 """Tests for Harbor dataset and experiment recording."""
 
 from __future__ import annotations
@@ -34,6 +35,8 @@ from phoenix.client.harbor._model import (
 from phoenix.client.harbor._recorder import (
     DatasetSnapshot,
     PhoenixRecorder,
+    _is_transient_write_error,
+    _retry_transient_write,
     experiment_identity,
 )
 from phoenix.client.harbor._scores import EvaluationRecord
@@ -473,6 +476,27 @@ class TestExperimentNames:
 
 
 class TestRecordTrial:
+    def test_phase_timing_does_not_break_legacy_run_reuse(self) -> None:
+        result = trial_result()
+        started_at = cast(datetime, result.started_at)
+        result.environment_setup = TimingInfo(
+            started_at=started_at,
+            finished_at=started_at + timedelta(seconds=1.5),
+        )
+        legacy_run = {
+            "id": "run-existing",
+            "output": {
+                "harbor_trial_id": "trial-id",
+                "harbor_trial_name": "task-a__1",
+                "harbor_trial_uri": "file:///trial",
+                "task_name": "task-a",
+                "token_usage": {"input": 10, "cache": 2, "output": 4},
+                "cost_usd": 0.01,
+            },
+        }
+
+        assert PhoenixRecorder.can_reuse_run(cast(Any, legacy_run), trial_result=result)
+
     async def test_records_the_planned_repetition_without_rewards(self) -> None:
         experiments = FakeExperiments()
         job = plan(
@@ -512,47 +536,36 @@ class TestRecordTrial:
         assert logged["output"]["harbor_trial_id"] == "trial-id"
         assert "reward" not in logged["output"]
 
-    async def test_records_available_phase_durations(self) -> None:
-        experiments = FakeExperiments()
-        job = plan(
-            trials=(
-                TrialSlot(
-                    config=TrialConfig(
-                        task=TaskConfig(path=Path("task-a")),
-                        agent=slice_().agent,
-                        trial_name="task-a__1",
-                    ),
-                    identity_digest=slice_().identity_digest,
-                    repetition=1,
-                ),
-            )
-        )
-        client = FakeClient(experiments=experiments)
-        handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
-        result = trial_result()
-        started_at = cast(datetime, result.started_at)
-        result.environment_setup = TimingInfo(
-            started_at=started_at,
-            finished_at=started_at + timedelta(seconds=1.5),
-        )
-
-        await recorder(client).record_trial(
-            plan=job,
-            snapshot=SNAPSHOT,
-            experiments=handles,
-            trial_result=result,
-        )
-
-        assert experiments.logged_runs[0]["output"]["phase_timings"] == {"environment_setup": 1.5}
-
-    async def test_transient_run_write_retries_until_success(
+    async def test_transient_response_loss_recovers_conflicting_run(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
         unavailable = httpx.HTTPStatusError(
             "unavailable", request=request, response=httpx.Response(503, request=request)
         )
-        experiments = FakeExperiments(log_errors=[unavailable, None])
+        conflict = httpx.HTTPStatusError(
+            "duplicate",
+            request=request,
+            response=httpx.Response(409, request=request),
+        )
+        existing_run = {
+            "id": "run-existing",
+            "experiment_id": "experiment-1",
+            "dataset_example_id": "node-a",
+            "repetition_number": 1,
+            "output": {
+                "harbor_trial_id": "trial-id",
+                "harbor_trial_name": "task-a__1",
+                "harbor_trial_uri": "file:///trial",
+                "task_name": "task-a",
+                "token_usage": {"input": 10, "cache": 2, "output": 4},
+                "cost_usd": 0.01,
+            },
+        }
+        experiments = FakeExperiments(
+            runs=[existing_run],
+            log_errors=[unavailable, conflict],
+        )
         job = plan(
             trials=(
                 TrialSlot(
@@ -581,57 +594,9 @@ class TestRecordTrial:
             trial_result=trial_result(),
         )
 
-        assert recorded["id"] == "run-2"
+        assert recorded == existing_run
         assert len(experiments.logged_runs) == 2
         assert delays == [0.25]
-
-    async def test_duplicate_conflict_reuses_the_matching_successful_run(self) -> None:
-        request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
-        conflict = httpx.HTTPStatusError(
-            "duplicate",
-            request=request,
-            response=httpx.Response(409, request=request),
-        )
-        result = trial_result()
-        existing_run = {
-            "id": "run-existing",
-            "experiment_id": "experiment-1",
-            "dataset_example_id": "node-a",
-            "repetition_number": 1,
-            "output": {
-                "harbor_trial_id": "trial-id",
-                "harbor_trial_name": "task-a__1",
-                "harbor_trial_uri": "file:///trial",
-                "task_name": "task-a",
-                "token_usage": {"input": 10, "cache": 2, "output": 4},
-                "cost_usd": 0.01,
-            },
-        }
-        experiments = FakeExperiments(runs=[existing_run], log_error=conflict)
-        job = plan(
-            trials=(
-                TrialSlot(
-                    config=TrialConfig(
-                        task=TaskConfig(path=Path("task-a")),
-                        agent=slice_().agent,
-                        trial_name="task-a__1",
-                    ),
-                    identity_digest=slice_().identity_digest,
-                    repetition=1,
-                ),
-            )
-        )
-        client = FakeClient(experiments=experiments)
-        handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
-
-        recorded = await recorder(client).record_trial(
-            plan=job,
-            snapshot=SNAPSHOT,
-            experiments=handles,
-            trial_result=result,
-        )
-
-        assert recorded == existing_run
 
 
 class TestRecordEvaluations:
@@ -671,71 +636,92 @@ class TestRecordEvaluations:
         assert all(call["annotator_kind"] == "CODE" for call in experiments.logged_evaluations)
         assert "error" not in experiments.logged_evaluations[0]
 
-    async def test_replay_posts_the_same_stable_names(self) -> None:
-        experiments = FakeExperiments()
-        phoenix_recorder = recorder(FakeClient(experiments=experiments))
 
-        await phoenix_recorder.record_evaluations("run-1", self.records())
-        await phoenix_recorder.record_evaluations("run-1", self.records())
-
-        assert [call["name"] for call in experiments.logged_evaluations] == [
-            "reward",
-            "infra_ok",
-            "reward",
-            "infra_ok",
-        ]
-
-    async def test_transient_failure_retries_until_success(
-        self, monkeypatch: pytest.MonkeyPatch
+class TestRetryTransientWrite:
+    @pytest.mark.parametrize(
+        "error_type",
+        [
+            httpx.ConnectError,
+            httpx.ReadError,
+            httpx.WriteError,
+            httpx.RemoteProtocolError,
+            httpx.ProxyError,
+            httpx.ReadTimeout,
+        ],
+    )
+    def test_classifies_transient_transport_errors(
+        self, error_type: type[httpx.RequestError]
     ) -> None:
-        request = httpx.Request("POST", "https://phoenix.example/v1/experiment_evaluations")
-        unavailable = httpx.HTTPStatusError(
-            "unavailable", request=request, response=httpx.Response(503, request=request)
+        request = httpx.Request("POST", "https://phoenix.example")
+
+        assert _is_transient_write_error(error_type("transient", request=request))
+
+    @pytest.mark.parametrize(("status_code", "expected"), [(503, True), (422, False)])
+    def test_classifies_http_statuses(self, status_code: int, expected: bool) -> None:
+        request = httpx.Request("POST", "https://phoenix.example")
+        error = httpx.HTTPStatusError(
+            "response",
+            request=request,
+            response=httpx.Response(status_code, request=request),
         )
-        experiments = FakeExperiments(evaluation_errors=[unavailable, None])
+
+        assert _is_transient_write_error(error) is expected
+
+    async def test_retries_with_bounded_backoff(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        request = httpx.Request("POST", "https://phoenix.example")
+        outcomes: list[Exception | str] = [
+            httpx.ReadError("lost", request=request),
+            httpx.ReadError("lost", request=request),
+            "recorded",
+        ]
         delays: list[float] = []
+
+        async def operation() -> str:
+            outcome = outcomes.pop(0)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
 
         async def no_sleep(delay: float) -> None:
             delays.append(delay)
 
         monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
-        await recorder(FakeClient(experiments=experiments)).record_evaluations(
-            "run-1", self.records()[:1]
-        )
 
-        assert len(experiments.logged_evaluations) == 2
-        assert delays == [0.25]
+        assert await _retry_transient_write(operation, description="test write") == "recorded"
+        assert delays == [0.25, 0.5]
 
-    async def test_exhausted_transient_failure_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        request = httpx.Request("POST", "https://phoenix.example/v1/experiment_evaluations")
-        errors: list[Exception | None] = [
-            httpx.ConnectError("offline", request=request) for _ in range(3)
-        ]
-        experiments = FakeExperiments(evaluation_errors=errors)
+    async def test_stops_after_the_retry_budget(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        request = httpx.Request("POST", "https://phoenix.example")
+        attempts = 0
+
+        async def operation() -> None:
+            nonlocal attempts
+            attempts += 1
+            raise httpx.WriteError("lost", request=request)
 
         async def no_sleep(delay: float) -> None:
             del delay
 
         monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
-        with pytest.raises(HarborPluginError, match="reward.*offline"):
-            await recorder(FakeClient(experiments=experiments)).record_evaluations(
-                "run-1", self.records()[:1]
-            )
 
-        assert len(experiments.logged_evaluations) == 3
+        with pytest.raises(httpx.WriteError, match="lost"):
+            await _retry_transient_write(operation, description="test write")
+        assert attempts == 3
 
-    async def test_client_error_does_not_retry(self) -> None:
-        request = httpx.Request("POST", "https://phoenix.example/v1/experiment_evaluations")
+    async def test_does_not_retry_a_non_transient_error(self) -> None:
+        request = httpx.Request("POST", "https://phoenix.example")
         invalid = httpx.HTTPStatusError(
-            "invalid", request=request, response=httpx.Response(422, request=request)
+            "invalid",
+            request=request,
+            response=httpx.Response(422, request=request),
         )
-        experiments = FakeExperiments(evaluation_errors=[invalid])
+        attempts = 0
 
-        with pytest.raises(HarborPluginError, match="reward.*invalid"):
-            await recorder(FakeClient(experiments=experiments)).record_evaluations(
-                "run-1", self.records()[:1]
-            )
+        async def operation() -> None:
+            nonlocal attempts
+            attempts += 1
+            raise invalid
 
-        assert len(experiments.logged_evaluations) == 1
+        with pytest.raises(httpx.HTTPStatusError, match="invalid"):
+            await _retry_transient_write(operation, description="test write")
+        assert attempts == 1

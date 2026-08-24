@@ -468,13 +468,6 @@ def _trial_output(trial_result: TrialResult) -> dict[str, Any]:
         output["token_usage"] = token_usage
     if cost is not None:
         output["cost_usd"] = cost
-    phase_timings = {
-        name: duration
-        for name in ("environment_setup", "agent_setup", "agent_execution", "verifier")
-        if (duration := _timing_duration(getattr(trial_result, name, None))) is not None
-    }
-    if phase_timings:
-        output["phase_timings"] = phase_timings
     return output
 
 
@@ -485,19 +478,14 @@ def _trial_error(trial_result: TrialResult) -> str | None:
     return f"{error.exception_type}: {error.exception_message}"
 
 
-def _timing_duration(timing: Any) -> float | None:
-    if timing is None or timing.started_at is None or timing.finished_at is None:
-        return None
-    return float((timing.finished_at - timing.started_at).total_seconds())
-
-
 async def _retry_transient_write(
     operation: Callable[[], Awaitable[_T]],
     *,
     description: str,
 ) -> _T:
     delay = _INITIAL_RETRY_DELAY_SECONDS
-    for attempt in range(1, _MAX_WRITE_ATTEMPTS + 1):
+    attempt = 1
+    while True:
         try:
             return await operation()
         except Exception as error:
@@ -514,10 +502,18 @@ async def _retry_transient_write(
             )
             await asyncio.sleep(delay)
             delay *= 2
-    raise AssertionError("Phoenix write retry loop exited without a result")
+            attempt += 1
 
 
 def _is_transient_write_error(error: Exception) -> bool:
     if isinstance(error, httpx.HTTPStatusError):
         return error.response.status_code >= 500
-    return isinstance(error, (httpx.ConnectError, httpx.TimeoutException))
+    return isinstance(
+        error,
+        (
+            httpx.NetworkError,
+            httpx.TimeoutException,
+            httpx.RemoteProtocolError,
+            httpx.ProxyError,
+        ),
+    )

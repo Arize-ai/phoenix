@@ -254,7 +254,6 @@ class PhoenixJobPlugin(BaseJobPlugin):
 
 
 def _validate_step_names(plan: JobPlan) -> None:
-    reserved = {"reward", "infra_ok", "verifier"}
     for task in plan.tasks:
         seen: set[str] = set()
         for step in task.steps:
@@ -263,11 +262,6 @@ def _validate_step_names(plan: JobPlan) -> None:
                 raise HarborPluginError(
                     f"Harbor task {task.task_id!r} has an empty step name; evaluation names "
                     "cannot be generated."
-                )
-            if name in reserved:
-                raise HarborPluginError(
-                    f"Harbor task {task.task_id!r} uses reserved evaluation step name {name!r}. "
-                    "Rename the step before running with the Phoenix plugin."
                 )
             if name in seen:
                 raise HarborPluginError(

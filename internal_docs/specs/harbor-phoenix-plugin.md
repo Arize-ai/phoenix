@@ -344,7 +344,7 @@ Rules:
 - Store step rewards in their original numeric scale.
 - Keep infrastructure failures separate from behavioral failures.
 - Do not add a built-in `all_steps_passed` or `tool_calls` score. Tasks can emit task-specific scores when useful.
-- Store the Harbor terminal trial ID, token usage, cost, and available phase timings in a compact JSON-safe run `output` envelope. The public Phoenix run API has no run-metadata argument.
+- Store the Harbor terminal trial ID, token usage, and cost in a compact JSON-safe run `output` envelope. The public Phoenix run API has no run-metadata argument. Defer phase timings until the output schema can represent multi-step timings without breaking reuse of immutable runs written by older plugin versions.
 
 Phoenix can calculate token cost and latency from traces. Consumers can calculate pass rate, pass^k, confidence intervals, and release gates from stored rewards.
 

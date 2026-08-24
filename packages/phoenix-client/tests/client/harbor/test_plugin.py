@@ -238,12 +238,45 @@ class TestJobStart:
         assert job.started_hook is not None
         assert job.ended_hook is not None
 
-    async def test_reserved_step_name_stops_before_upload(
-        self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient
+    @pytest.mark.parametrize("step_name", ["reward", "infra_ok", "verifier"])
+    async def test_evaluation_namespace_step_names_are_allowed(
+        self,
+        step_name: str,
+        monkeypatch: pytest.MonkeyPatch,
+        wired: FakeClient,
+    ) -> None:
+        valid_plan = replace(
+            PLAN,
+            tasks=(replace(PLAN.tasks[0], steps=(StepRecord(step_name, "check"),)),),
+        )
+
+        def _build(job: object, *, dataset_override: str | None = None) -> JobPlan:
+            del job, dataset_override
+            return valid_plan
+
+        monkeypatch.setattr("phoenix.client.harbor._plugin.build_job_plan", _build)
+
+        await PhoenixJobPlugin().on_job_start(FakeJob())
+
+        assert len(wired.datasets.calls) == 1
+
+    @pytest.mark.parametrize(
+        "steps",
+        [
+            (StepRecord("", "check"),),
+            (StepRecord("repeated", "first"), StepRecord("repeated", "second")),
+        ],
+        ids=["empty", "duplicate"],
+    )
+    async def test_invalid_step_names_stop_before_upload(
+        self,
+        steps: tuple[StepRecord, ...],
+        monkeypatch: pytest.MonkeyPatch,
+        wired: FakeClient,
     ) -> None:
         invalid_plan = replace(
             PLAN,
-            tasks=(replace(PLAN.tasks[0], steps=(StepRecord("verifier", "check"),)),),
+            tasks=(replace(PLAN.tasks[0], steps=steps),),
         )
 
         def _build(job: object, *, dataset_override: str | None = None) -> JobPlan:
@@ -252,7 +285,7 @@ class TestJobStart:
 
         monkeypatch.setattr("phoenix.client.harbor._plugin.build_job_plan", _build)
 
-        with pytest.raises(HarborPluginError, match="reserved.*verifier"):
+        with pytest.raises(HarborPluginError, match="empty step name|repeats step name"):
             await PhoenixJobPlugin().on_job_start(FakeJob())
 
         assert wired.datasets.calls == []

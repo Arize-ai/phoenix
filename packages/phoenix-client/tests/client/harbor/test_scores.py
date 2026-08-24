@@ -185,11 +185,13 @@ def test_infrastructure_explanation_lists_trial_and_step_failures() -> None:
 
 def test_generated_name_collision_raises() -> None:
     result = trial_result(
-        rewards={"score": 0.5, "other": 1.0},
-        steps=[step("verifier", rewards={"score": 1.0})],
+        steps=[
+            step("a", rewards={"b.c": 1.0}),
+            step("a.b", rewards={"c": 1.0}),
+        ],
     )
 
-    with pytest.raises(ValueError, match="verifier.score.*both"):
+    with pytest.raises(ValueError, match="a.b.c.*both"):
         extract_evaluations(result)
 
 

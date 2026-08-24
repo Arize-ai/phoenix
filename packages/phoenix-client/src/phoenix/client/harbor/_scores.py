@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from harbor.models.trial.result import TimingInfo, TrialResult
+from harbor.models.trial.result import ExceptionInfo, TimingInfo, TrialResult
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +156,7 @@ def _infrastructure_failures(trial_result: TrialResult) -> list[str]:
     return failures
 
 
-def _format_exception(where: str, exception: Any) -> str:
+def _format_exception(where: str, exception: ExceptionInfo) -> str:
     return f"{where}: {exception.exception_type}: {exception.exception_message}"
 
 
