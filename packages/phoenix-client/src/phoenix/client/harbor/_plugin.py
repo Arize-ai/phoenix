@@ -43,6 +43,8 @@ from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 logger = logging.getLogger(__name__)
 
+_TRIAL_REWARD_PREFIX = "verifier"
+
 
 class PhoenixJobPlugin(BaseJobPlugin):
     """Record a Harbor job as a Phoenix dataset and experiments."""
@@ -195,22 +197,21 @@ class PhoenixJobPlugin(BaseJobPlugin):
             slot.repetition,
         )
         existing = self._runs.get(key)
-        can_reuse = existing is not None and PhoenixRecorder.can_reuse_run(
-            existing, trial_result=trial_result
+        reusable = (
+            existing
+            if existing is not None
+            and PhoenixRecorder.can_reuse_run(existing, trial_result=trial_result)
+            else None
         )
         evaluations = extract_evaluations(trial_result)
 
         async def record_with(active_recorder: PhoenixRecorder) -> v1.ExperimentRun:
-            if can_reuse:
-                assert existing is not None
-                run = existing
-            else:
-                run = await active_recorder.record_trial(
-                    plan=plan,
-                    snapshot=snapshot,
-                    experiments=self.experiments,
-                    trial_result=trial_result,
-                )
+            run = reusable or await active_recorder.record_trial(
+                plan=plan,
+                snapshot=snapshot,
+                experiments=self.experiments,
+                trial_result=trial_result,
+            )
             await active_recorder.record_evaluations(str(run["id"]), evaluations)
             return run
 
@@ -254,6 +255,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
 
 
 def _validate_step_names(plan: JobPlan) -> None:
+    """Reject step names that cannot produce unique evaluation names."""
     for task in plan.tasks:
         seen: set[str] = set()
         for step in task.steps:
@@ -262,6 +264,11 @@ def _validate_step_names(plan: JobPlan) -> None:
                 raise HarborPluginError(
                     f"Harbor task {task.task_id!r} has an empty step name; evaluation names "
                     "cannot be generated."
+                )
+            if name == _TRIAL_REWARD_PREFIX:
+                raise HarborPluginError(
+                    f"Harbor task {task.task_id!r} has a step named {name!r}; its evaluation "
+                    f"names would collide with trial-level {name}.<key> scores."
                 )
             if name in seen:
                 raise HarborPluginError(

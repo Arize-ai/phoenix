@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -289,23 +290,9 @@ class PhoenixRecorder:
     ) -> None:
         """Upsert the complete evaluation set for an experiment run."""
         for record in records:
-
-            async def write_evaluation(record: EvaluationRecord = record) -> object:
-                return await self._client.experiments.log_evaluation(
-                    experiment_run_id=run_id,
-                    name=record.name,
-                    annotator_kind="CODE",
-                    start_time=record.start_time,
-                    end_time=record.end_time,
-                    score=record.score,
-                    label=record.label,
-                    explanation=record.explanation,
-                    metadata=record.metadata,
-                )
-
             try:
                 await _retry_transient_write(
-                    write_evaluation,
+                    functools.partial(self._log_evaluation, run_id, record),
                     description=f"evaluation {record.name!r} for Phoenix run {run_id}",
                 )
             except Exception as error:
@@ -313,6 +300,19 @@ class PhoenixRecorder:
                     f"Could not record Harbor evaluation {record.name!r} for Phoenix run "
                     f"{run_id}: {error}"
                 ) from error
+
+    async def _log_evaluation(self, run_id: str, record: EvaluationRecord) -> None:
+        await self._client.experiments.log_evaluation(
+            experiment_run_id=run_id,
+            name=record.name,
+            annotator_kind="CODE",
+            start_time=record.start_time,
+            end_time=record.end_time,
+            score=record.score,
+            label=record.label,
+            explanation=record.explanation,
+            metadata=record.metadata,
+        )
 
     async def _resolve_experiment(
         self,

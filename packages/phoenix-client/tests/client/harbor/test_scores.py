@@ -17,6 +17,7 @@ pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
 from harbor.models.trial.result import ExceptionInfo, StepResult, TimingInfo, TrialResult
 from harbor.models.verifier.result import VerifierResult
 
+from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._scores import EvaluationRecord, extract_evaluations
 
 NOW = datetime(2026, 8, 24, 12, 0, tzinfo=timezone.utc)
@@ -191,7 +192,7 @@ def test_generated_name_collision_raises() -> None:
         ],
     )
 
-    with pytest.raises(ValueError, match="a.b.c.*both"):
+    with pytest.raises(HarborPluginError, match="a.b.c.*both"):
         extract_evaluations(result)
 
 
