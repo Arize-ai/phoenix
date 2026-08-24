@@ -132,8 +132,8 @@ function ProjectEvaluatorDetailsPageLoaded({
             {/* The key stays `configuration` -- it is the tab's identity, not its
               label, and a Traces deep link selects by it. */}
             <Tab id="configuration">Overview</Tab>
-            <Tab id="metrics">Metrics</Tab>
             <Tab id="traces">Traces</Tab>
+            <Tab id="metrics">Metrics</Tab>
           </TabList>
           <LazyTabPanel id="configuration">
             <View width="100%" overflow="auto" height="100%">
@@ -160,11 +160,6 @@ function ProjectEvaluatorDetailsPageLoaded({
               </View>
             </View>
           </LazyTabPanel>
-          <LazyTabPanel id="metrics">
-            <Suspense fallback={<Loading />}>
-              <ProjectEvaluatorMetrics projectEvaluator={projectEvaluator} />
-            </Suspense>
-          </LazyTabPanel>
           <LazyTabPanel id="traces">
             <Suspense fallback={<Loading />}>
               <ProjectEvaluatorTraces
@@ -172,6 +167,11 @@ function ProjectEvaluatorDetailsPageLoaded({
                 projectEvaluatorId={projectEvaluator.id}
                 hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
               />
+            </Suspense>
+          </LazyTabPanel>
+          <LazyTabPanel id="metrics">
+            <Suspense fallback={<Loading />}>
+              <ProjectEvaluatorMetrics projectEvaluator={projectEvaluator} />
             </Suspense>
           </LazyTabPanel>
         </Tabs>
