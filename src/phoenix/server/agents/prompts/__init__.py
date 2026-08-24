@@ -71,6 +71,7 @@ class ServerAgentPrompts:
 
     base: Template = _BASE_SUBAGENT_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
+    phoenix_mcp_tools: Template = _PHOENIX_MCP_TOOL_INSTRUCTIONS
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE
     load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE

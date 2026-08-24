@@ -225,6 +225,8 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             event_queue=request.state.event_queue,
             prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
+            phoenix_mcp_server=request.app.state.pxi_mcp_server,
+            principal=phoenix_user,
             enable_web_access=web_access_enabled,
             # This deprecated route runs with ``deps=None`` and cannot surface
             # an approval request, so mutations require an explicit bypass.

@@ -13,12 +13,12 @@ from uuid import uuid4
 from asgi_lifespan import LifespanManager
 from openinference.instrumentation import OITracer, TraceConfig, get_span_kind_attributes
 from opentelemetry.sdk.trace import TracerProvider
-from phoenix.otel import register, using_attributes
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.test import TestModel
 
 from phoenix.db.engines import create_engine
+from phoenix.otel import register, using_attributes
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.server_agents import build_server_agent
@@ -100,6 +100,7 @@ async def run(args: argparse.Namespace) -> None:
                 # Mirror the /agents route so the eval exercises the same base
                 # prompt production serves, not build_server_agent's default.
                 prompts=ServerAgentPrompts(base=AgentPrompts().base),
+                phoenix_mcp_server=app.state.pxi_mcp_server,
                 allow_mutations=_resolve_allow_mutations(args),
                 tracer_provider=tracer_provider,
             )
