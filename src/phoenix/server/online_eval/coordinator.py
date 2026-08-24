@@ -57,6 +57,7 @@ class ClaimedWorkUnit:
     attempts: int
     claimed_by: str
     lease_expires_at: datetime
+    scheduling_origin: models.SchedulingOrigin = "AMBIENT"
 
 
 @dataclass(frozen=True)

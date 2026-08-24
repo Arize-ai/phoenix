@@ -14,7 +14,11 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
+from phoenix.db.eval_work import (
+    evaluator_event_kind_check,
+    live_eval_session_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
+)
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -84,6 +88,16 @@ def _create_session_work_units_table() -> None:
             nullable=False,
             server_default="PENDING",
         ),
+        sa.Column(
+            "scheduling_origin",
+            sa.String(),
+            sa.CheckConstraint(
+                "scheduling_origin IN ('AMBIENT', 'RULE', 'EXPLICIT')",
+                name="valid_scheduling_origin",
+            ),
+            nullable=False,
+            server_default="AMBIENT",
+        ),
         sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("claimed_by", sa.String(), nullable=True),
         sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
@@ -121,8 +135,8 @@ def _create_session_work_units_table() -> None:
         "ix_eval_session_work_units_terminal",
         "eval_session_work_units",
         ["updated_at"],
-        postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
-        sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+        postgresql_where=sa.text(terminal_eval_session_work_index_predicate()),
+        sqlite_where=sa.text(terminal_eval_session_work_index_predicate()),
     )
     op.create_index(
         "ix_eval_session_work_units_terminal_watermark",
@@ -146,6 +160,118 @@ def _create_session_work_units_table() -> None:
         "eval_session_work_units",
         ["project_evaluator_id"],
     )
+
+
+def _create_project_evaluator_triggers_table() -> None:
+    op.create_table(
+        "project_evaluator_triggers",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "event_kind",
+            sa.String(),
+            sa.CheckConstraint(evaluator_event_kind_check("event_kind"), name="valid_event_kind"),
+            nullable=False,
+        ),
+        sa.Column("predicates", JSON_, nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+    )
+    op.create_index(
+        "ix_project_evaluator_triggers_project_evaluator_id",
+        "project_evaluator_triggers",
+        ["project_evaluator_id"],
+    )
+
+
+def _create_evaluation_requests_table() -> None:
+    op.create_table(
+        "evaluation_requests",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "project_session_rowid",
+            _Integer,
+            sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("requested_generation", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("materialized_generation", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "force_requested",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
+        sa.Column(
+            "materialized_by_session_work_unit_id",
+            _Integer,
+            sa.ForeignKey("eval_session_work_units.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "requested_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("project_session_rowid", "project_evaluator_id"),
+        sa.CheckConstraint(
+            "requested_generation >= 0",
+            name="valid_requested_generation",
+        ),
+        sa.CheckConstraint(
+            "0 <= materialized_generation AND materialized_generation <= requested_generation",
+            name="valid_materialized_generation",
+        ),
+    )
+    op.create_index(
+        "ix_evaluation_requests_project_evaluator_id_session_rowid",
+        "evaluation_requests",
+        ["project_evaluator_id", "project_session_rowid"],
+    )
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute(
+            "ALTER TABLE evaluation_requests SET ("
+            "fillfactor = 80, "
+            "autovacuum_vacuum_scale_factor = 0.02, "
+            "autovacuum_analyze_scale_factor = 0.02, "
+            "autovacuum_vacuum_threshold = 50, "
+            "autovacuum_analyze_threshold = 50"
+            ")"
+        )
 
 
 def upgrade() -> None:
@@ -414,9 +540,23 @@ def upgrade() -> None:
         ["project_evaluator_id"],
     )
     _create_session_work_units_table()
+    _create_project_evaluator_triggers_table()
+    _create_evaluation_requests_table()
 
 
 def downgrade() -> None:
+    op.drop_index(
+        "ix_evaluation_requests_project_evaluator_id_session_rowid",
+        table_name="evaluation_requests",
+    )
+    op.drop_table("evaluation_requests")
+
+    op.drop_index(
+        "ix_project_evaluator_triggers_project_evaluator_id",
+        table_name="project_evaluator_triggers",
+    )
+    op.drop_table("project_evaluator_triggers")
+
     op.drop_index(
         "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
     )

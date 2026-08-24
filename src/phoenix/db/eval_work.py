@@ -6,18 +6,38 @@ This module has no Phoenix imports so the schema (``models``), the queries
 
 from __future__ import annotations
 
-# Retry budget for a work unit before its ERROR state becomes terminal. The producer
-# excludes attempt-exhausted rows from reaping and backstop re-materialization using
-# this value, and the consumer-side coordinator stops reclaiming ERROR rows at it —
-# the two sides drifting apart either resurrects dead work or strands retryable work.
+# Read by coordinator claims, producer recovery, session policy, session sweeping, session
+# retention, and evaluator run counts; all six must agree.
 MAX_ATTEMPTS = 3
 
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
+
+TERMINAL_EVAL_SESSION_WORK_STATUSES = (
+    "DONE",
+    "EXPIRED",
+    *SESSION_DECLINED_STATUSES,
+)
+
+# Marks online evaluation's own annotations; also matched by the content-incomplete
+# transition and reserved against clients at the annotation write boundary.
+ONLINE_EVAL_IDENTIFIER_PREFIX = "online:"
+
+
+def is_reserved_annotation_identifier(identifier: str) -> bool:
+    """Whether `identifier` is one only online evaluation may write."""
+    return identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX)
+
+
+EVALUATOR_EVENT_KINDS = ("annotation_upserted",)
+
+EVALUATION_TARGETS = ("SPAN", "TRACE", "SESSION")
 
 # Stamped on session work units retired because their session lost content. Like the
 # subsystem's other error markers it is read by operators and matched in tests, so it
 # is spelled once here rather than at the deletion path that writes it.
 SESSION_CONTENT_INCOMPLETE_ERROR = "session content incomplete"
+
+SUPERSEDED_BY_REQUEST_ERROR = "superseded by evaluation request"
 
 
 def live_eval_work_index_predicate() -> str:
@@ -36,3 +56,21 @@ def live_eval_session_work_index_predicate() -> str:
     """SQL text selecting session work and decisions that hold their dedup key."""
     declined = ", ".join(f"'{status}'" for status in SESSION_DECLINED_STATUSES)
     return f"{live_eval_work_index_predicate()} OR status IN ({declined})"
+
+
+def terminal_eval_session_work_index_predicate() -> str:
+    """SQL text selecting session work whose history retention may reap."""
+    terminal = ", ".join(f"'{status}'" for status in TERMINAL_EVAL_SESSION_WORK_STATUSES)
+    return f"status IN ({terminal}) OR status = 'ERROR' AND attempts >= {MAX_ATTEMPTS}"
+
+
+def evaluator_event_kind_check(column: str) -> str:
+    """SQL text constraining ``column`` to ``EVALUATOR_EVENT_KINDS``."""
+    kinds = ", ".join(f"'{kind}'" for kind in EVALUATOR_EVENT_KINDS)
+    return f"{column} IN ({kinds})"
+
+
+def evaluation_target_check(column: str) -> str:
+    """SQL text constraining ``column`` to ``EVALUATION_TARGETS``."""
+    targets = ", ".join(f"'{target}'" for target in EVALUATION_TARGETS)
+    return f"{column} IN ({targets})"

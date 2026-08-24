@@ -1327,6 +1327,9 @@ CHECK (status IN (
             'FILTERED_OUT',
             'SAMPLED_OUT'
         )),
+    scheduling_origin VARCHAR DEFAULT 'AMBIENT' NOT NULL
+        CONSTRAINT "ck_eval_session_work_units_`valid_scheduling_origin`"
+        CHECK (scheduling_origin IN ('AMBIENT', 'RULE', 'EXPLICIT')),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     attempts INTEGER DEFAULT '0' NOT NULL,
@@ -1360,7 +1363,7 @@ CREATE INDEX ix_eval_session_work_units_evaluator_id ON eval_session_work_units
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
-    WHERE status IN ('DONE', 'EXPIRED');
+    WHERE status IN ('DONE', 'EXPIRED', 'FILTERED_OUT', 'SAMPLED_OUT') OR status = 'ERROR' AND attempts >= 3;
 CREATE INDEX ix_eval_session_work_units_terminal_watermark ON eval_session_work_units
     (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units
@@ -1412,6 +1415,69 @@ CREATE INDEX ix_eval_work_units_project_evaluator_id ON eval_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
     WHERE status IN ('DONE', 'EXPIRED');
+
+
+-- Table: evaluation_requests
+-- --------------------------
+CREATE TABLE evaluation_requests (
+    id INTEGER NOT NULL,
+    project_session_rowid INTEGER NOT NULL,
+    project_evaluator_id INTEGER NOT NULL,
+    requested_generation INTEGER DEFAULT '0' NOT NULL,
+    materialized_generation INTEGER DEFAULT '0' NOT NULL,
+    force_requested BOOLEAN DEFAULT false NOT NULL,
+    materialized_by_session_work_unit_id INTEGER,
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_evaluation_requests PRIMARY KEY (id),
+    CONSTRAINT uq_evaluation_requests_project_session_rowid_project_evaluator_id
+        UNIQUE (project_session_rowid, project_evaluator_id),
+    CONSTRAINT "ck_evaluation_requests_`valid_materialized_generation`"
+        CHECK (
+            0 <= materialized_generation
+            AND materialized_generation <= requested_generation
+        ),
+    CONSTRAINT "ck_evaluation_requests_`valid_requested_generation`"
+        CHECK (requested_generation >= 0),
+    CONSTRAINT fk_evaluation_requests_materialized_by_session_work_unit_id_eval_session_work_units
+        FOREIGN KEY (materialized_by_session_work_unit_id)
+        REFERENCES eval_session_work_units (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_evaluation_requests_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_evaluation_requests_project_session_rowid_project_sessions
+        FOREIGN KEY (project_session_rowid)
+        REFERENCES project_sessions (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_evaluation_requests_project_evaluator_id_session_rowid ON evaluation_requests
+    (project_evaluator_id, project_session_rowid);
+
+
+-- Table: project_evaluator_triggers
+-- ---------------------------------
+CREATE TABLE project_evaluator_triggers (
+    id INTEGER NOT NULL,
+    project_evaluator_id INTEGER NOT NULL,
+    event_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluator_triggers_`valid_event_kind`"
+        CHECK (event_kind IN ('annotation_upserted')),
+    predicates JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_project_evaluator_triggers PRIMARY KEY (id),
+    CONSTRAINT fk_project_evaluator_triggers_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_project_evaluator_triggers_project_evaluator_id ON project_evaluator_triggers
+    (project_evaluator_id);
 
 
 -- Table: project_session_annotations

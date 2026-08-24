@@ -37,6 +37,10 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.ProjectEvaluatorTrigger import (
+    ProjectEvaluatorTrigger,
+    to_gql_project_evaluator_trigger,
+)
 from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.online_eval.session_policy import (
     DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
@@ -55,13 +59,14 @@ if TYPE_CHECKING:
     from .User import User
 
 _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
-    "session at the first quiet period after the evaluation delay: it applies the session "
-    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
-    "A filter non-match or sampling miss is permanently declined for that evaluator "
-    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
-    "but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. "
-    "The target can change only until evaluation work exists for the project evaluator."
+    "SPAN evaluators run on matching sampled spans. Background SESSION evaluation runs once "
+    "per evaluator configuration at the first quiet period after the evaluation delay: it "
+    "applies the session filter first, then deterministic sampling, and schedules admitted "
+    "evaluations asynchronously. Matching trigger rules and explicit requests can schedule "
+    "additional evaluations. An explicit request supersedes an earlier filter or sampling "
+    "decline. TRACE evaluators are stored but not scheduled. Non-SESSION targets preserve the "
+    "evaluation delay without using it. The target can change only until evaluation work "
+    "exists for the project evaluator."
 )
 
 
@@ -145,9 +150,7 @@ def _project_evaluator_schedulability(
     record: models.ProjectEvaluator,
 ) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
     if record.evaluation_target == "SESSION":
-        # Every SESSION condition is declared once in session_policy, beside the SQL
-        # the sweeper and the executor gate on, so this field cannot advertise an
-        # evaluator as schedulable that they will never pick up.
+        # Row-side twin of `session_project_evaluator_is_schedulable`.
         if (reason := session_schedulability_reason(record)) is not None:
             return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
         return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
@@ -1291,12 +1294,25 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
+            "Rules that make this evaluator run when a matching event is recorded, in "
+            "addition to whatever its own schedule already runs. Only SESSION evaluators act "
+            "on them."
+        )
+    )
+    async def triggers(self, info: Info[Context, None]) -> list[ProjectEvaluatorTrigger]:
+        records = await info.context.data_loaders.project_evaluator_triggers.load(self.id)
+        return [to_gql_project_evaluator_trigger(record) for record in records]
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
             f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New project evaluators store the "
             f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds when no value is "
-            "provided. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator "
-            "cannot set one, and TRACE evaluators are not scheduled."
+            "provided. Background evaluation runs once per evaluator configuration; matching "
+            "trigger rules and explicit requests can schedule additional evaluations, and an "
+            "explicit request supersedes an earlier declined decision. Only SESSION scheduling "
+            "honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not "
+            "scheduled."
         )
     )
     async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:

@@ -16,8 +16,10 @@ from enum import Enum
 from typing import Any
 
 from phoenix.db.eval_work import MAX_ATTEMPTS as MAX_ATTEMPTS
+from phoenix.db.eval_work import (
+    ONLINE_EVAL_IDENTIFIER_PREFIX as ONLINE_EVAL_IDENTIFIER_PREFIX,
+)
 
-_IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
 
 # Error recorded when a claimed unit's recomputed fingerprint no longer matches the
@@ -78,7 +80,7 @@ def config_fingerprint(resolved: ResolvedProjectEvaluator) -> str:
 
 def annotation_identifier(fingerprint: str) -> str:
     """Identifier keying the idempotent annotation write for a work unit."""
-    return _IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
+    return ONLINE_EVAL_IDENTIFIER_PREFIX + fingerprint[:_IDENTIFIER_FINGERPRINT_CHARS]
 
 
 def sample_key(artifact_identity: int | str) -> float:

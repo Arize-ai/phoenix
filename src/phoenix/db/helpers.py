@@ -34,7 +34,10 @@ from phoenix.config import (
     get_env_database_schema,
 )
 from phoenix.db import models
-from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
+from phoenix.db.eval_work import (
+    ONLINE_EVAL_IDENTIFIER_PREFIX,
+    SESSION_CONTENT_INCOMPLETE_ERROR,
+)
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
 
@@ -430,25 +433,22 @@ def exclude_project_evaluator_trace_projects(
     ).where(models.ProjectEvaluator.trace_project_id.is_(None))
 
 
-async def delete_projects_and_evaluator_trace_projects(
-    session: AsyncSession,
-    project_ids: Iterable[int],
-) -> None:
-    ids = set(project_ids)
-    if not ids:
-        return
-    trace_project_ids = (
-        await session.scalars(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.project_id.in_(ids)
-            )
-        )
-    ).all()
-    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
-    if trace_project_ids:
-        await session.execute(
-            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
-        )
+def exclude_project_evaluators_in_trace_projects(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    """Drop project evaluators whose own project is some evaluator's trace project.
+
+    Evaluating a trace project would feed evaluator output back into the evaluators
+    that produced it. The projects query applies the same exclusion to projects via
+    `exclude_project_evaluator_trace_projects`; this is its voice for statements that
+    select project evaluators.
+    """
+    trace_owner = aliased(models.ProjectEvaluator)
+    return stmt.where(
+        ~select(trace_owner.id)
+        .where(trace_owner.trace_project_id == models.ProjectEvaluator.project_id)
+        .exists()
+    )
 
 
 def date_trunc(
@@ -644,17 +644,43 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
 _SESSION_CONTENT_DELETE_BATCH_SIZE = 1_000
 
 
+async def delete_projects(
+    session: AsyncSession,
+    project_filter: sa.ColumnElement[bool],
+) -> list[int]:
+    """Delete the projects matching this filter, returning their rowids.
+
+    Deleting a project also removes the trace projects its evaluators write to.
+    Route new project deletions through here.
+    """
+    project_ids = sa.select(models.Project.id).where(project_filter)
+    trace_project_ids = (
+        await session.scalars(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.project_id.in_(project_ids),
+                models.ProjectEvaluator.trace_project_id.is_not(None),
+            )
+        )
+    ).all()
+    deleted = list(
+        await session.scalars(
+            sa.delete(models.Project)
+            .where(models.Project.id.in_(project_ids))
+            .returning(models.Project.id)
+        )
+    )
+    if trace_project_ids:
+        await session.execute(
+            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+        )
+    return deleted
+
+
 async def delete_traces(
     session: AsyncSession,
     trace_filter: sa.ColumnElement[bool],
 ) -> None:
-    """Delete the traces matching this filter, standing down the evaluations of every
-    session that loses content.
-
-    Deleting traces is what makes a session's evaluation wrong, so the delete and the
-    stand-down belong to one function rather than to five callers who each have to
-    remember. Route new trace deletions through here.
-    """
+    """Delete the traces matching this filter and mark affected session content incomplete."""
     while trace_rowids := tuple(
         await session.scalars(
             sa.select(models.Trace.id)
@@ -679,12 +705,7 @@ async def delete_spans(
     session: AsyncSession,
     span_filter: sa.ColumnElement[bool],
 ) -> None:
-    """Delete the spans matching this filter, standing down the evaluations of every
-    session that loses content.
-
-    Removing a span changes what the session contains whether or not its trace survives,
-    so span deletion stands down the same way trace deletion does. See `delete_traces`.
-    """
+    """Delete the spans matching this filter and mark affected session content incomplete."""
     while span_rowids := tuple(
         await session.scalars(
             sa.select(models.Span.id)
@@ -711,14 +732,9 @@ async def mark_session_content_incomplete(
     session: AsyncSession,
     project_session_rowids: Union[Iterable[int], InElementRole],
 ) -> None:
-    """Record that content was removed from these sessions, and stand down their evals.
-
-    A session evaluation scores the session as a whole, so once part of it is gone the
-    score describes content that no longer exists. Session scheduling is evaluate-once,
-    which makes a wrong score permanent — every path that destroys session content must
-    call this before or with the delete. `delete_traces` and `delete_spans` are how
-    deletion paths get that for free.
-    """
+    """Record that content was removed from these sessions and retire their evaluations.
+    Every path destroying session content must call this; `delete_traces` and `delete_spans`
+    do. The one place outside `server/online_eval/requests.py` that writes a request row."""
     session_rowids_stmt = (
         sa.select(models.ProjectSession.id)
         .where(models.ProjectSession.id.in_(project_session_rowids))
@@ -750,9 +766,18 @@ async def mark_session_content_incomplete(
         )
     )
     await session.execute(
+        sa.update(models.EvaluationRequest)
+        .where(models.EvaluationRequest.project_session_rowid.in_(session_rowids))
+        .values(
+            materialized_generation=models.EvaluationRequest.requested_generation,
+            materialized_by_session_work_unit_id=None,
+            force_requested=False,
+        )
+    )
+    await session.execute(
         sa.delete(models.ProjectSessionAnnotation).where(
             models.ProjectSessionAnnotation.project_session_id.in_(session_rowids),
-            models.ProjectSessionAnnotation.identifier.startswith("online:"),
+            models.ProjectSessionAnnotation.identifier.startswith(ONLINE_EVAL_IDENTIFIER_PREFIX),
         )
     )
 

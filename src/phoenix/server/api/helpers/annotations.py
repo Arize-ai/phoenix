@@ -2,6 +2,23 @@ from uuid import uuid4
 
 from strawberry.relay import GlobalID
 
+from phoenix.db.eval_work import (
+    ONLINE_EVAL_IDENTIFIER_PREFIX,
+    is_reserved_annotation_identifier,
+)
+from phoenix.server.api.exceptions import BadRequest
+
+RESERVED_ANNOTATION_IDENTIFIER = (
+    f"Annotation identifiers starting with {ONLINE_EVAL_IDENTIFIER_PREFIX!r} are reserved for "
+    f"evaluations Phoenix runs itself. Choose an identifier with a different prefix."
+)
+
+
+def raise_if_identifier_is_reserved(identifier: str) -> None:
+    """Refuse an identifier only online evaluation may write."""
+    if is_reserved_annotation_identifier(identifier):
+        raise BadRequest(RESERVED_ANNOTATION_IDENTIFIER)
+
 
 def get_user_identifier(user_id: int) -> str:
     """

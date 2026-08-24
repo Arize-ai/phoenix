@@ -7,7 +7,11 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_CONTENT_INCOMPLETE_ERROR
+from phoenix.db.eval_work import (
+    MAX_ATTEMPTS,
+    SESSION_CONTENT_INCOMPLETE_ERROR,
+    SUPERSEDED_BY_REQUEST_ERROR,
+)
 from phoenix.server.online_eval.derivation import STALE_FINGERPRINT_ERROR
 from phoenix.server.types import DbSessionFactory
 
@@ -66,13 +70,15 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
         return [result.get(project_evaluator_id, empty) for project_evaluator_id in keys]
 
 
-def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
+def failed_work(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     """A unit that was given up on — the only units whose errors the user is owed.
 
-    Two expiries are excluded because nothing failed: a stale fingerprint means the
-    evaluator's configuration changed under the unit, and content-incomplete means
-    the session's traces were deleted (retention or an explicit delete) before the
-    evaluation ran. Both are lifecycle events, not evaluation failures.
+    Three expiries are excluded because nothing failed: a stale fingerprint means the
+    evaluator's configuration changed under the unit, content-incomplete means the
+    session's traces were deleted (retention or an explicit delete) before the
+    evaluation ran, and a superseded decision was a filter or sampling decline that an
+    explicit request displaced. All three are scheduling or data-lifecycle events, not
+    evaluation failures.
     """
     return sa.or_(
         sa.and_(model.status == "ERROR", model.attempts >= MAX_ATTEMPTS),
@@ -80,7 +86,13 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
             model.status == "EXPIRED",
             sa.or_(
                 model.error.is_(None),
-                model.error.not_in((STALE_FINGERPRINT_ERROR, SESSION_CONTENT_INCOMPLETE_ERROR)),
+                model.error.not_in(
+                    (
+                        STALE_FINGERPRINT_ERROR,
+                        SESSION_CONTENT_INCOMPLETE_ERROR,
+                        SUPERSEDED_BY_REQUEST_ERROR,
+                    )
+                ),
             ),
         ),
     )
@@ -89,14 +101,12 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
 def _outcome(model: _WorkUnitModel) -> sa.Case[Optional[str]]:
     """Bucket a work unit into the funnel the user sees.
 
-    Superseded units — expired because the evaluator's configuration changed under
-    them — and content-incomplete units — expired because their session's traces
-    were deleted first — fall outside every bucket, since no evaluation was ever
-    owed for them.
+    The three expiries ``failed_work`` excludes fall outside every bucket, since no
+    evaluation was ever owed for them.
     """
     return sa.case(
         (model.status == "DONE", _EVALUATED),
-        (_failed(model), _FAILED),
+        (failed_work(model), _FAILED),
         (model.status.in_(("PENDING", "RUNNING", "ERROR")), _QUEUED),
         else_=None,
     )
@@ -147,7 +157,7 @@ def _last_error_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
         ).where(
             model.project_evaluator_id.in_(project_evaluator_ids),
             model.error.is_not(None),
-            _failed(model),
+            failed_work(model),
         )
 
     grains = sa.union_all(grain(models.EvalWorkUnit), grain(models.EvalSessionWorkUnit)).subquery()

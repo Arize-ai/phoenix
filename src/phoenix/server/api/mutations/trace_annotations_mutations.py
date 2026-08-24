@@ -1,15 +1,19 @@
 from typing import Any, Optional, cast
 
 import strawberry
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from strawberry import UNSET, Info
 
 from phoenix.db import models
+from phoenix.db.insertion.annotation import insert_annotations, update_annotations
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.annotations import get_user_identifier
+from phoenix.server.api.helpers.annotations import (
+    get_user_identifier,
+    raise_if_identifier_is_reserved,
+)
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -78,6 +82,7 @@ class TraceAnnotationMutationMixin:
                     resolved_identifier = annotation_input.identifier
                 elif annotation_input.source == AnnotationSource.APP and user_id is not None:
                     resolved_identifier = get_user_identifier(user_id)
+                raise_if_identifier_is_reserved(resolved_identifier)
                 values = {
                     "trace_rowid": trace_rowid,
                     "name": annotation_input.name,
@@ -111,14 +116,15 @@ class TraceAnnotationMutationMixin:
                     existing_annotation.annotator_kind = annotation_input.annotator_kind.value
                     existing_annotation.source = annotation_input.source.value
                     existing_annotation.user_id = user_id
-                    session.add(existing_annotation)
+                    await update_annotations(session, existing_annotation)
                     processed_annotation = existing_annotation
 
                 if processed_annotation is None:
-                    stmt = insert(models.TraceAnnotation).values(**values)
-                    stmt = stmt.returning(models.TraceAnnotation)
-                    result = await session.scalars(stmt)
-                    processed_annotation = result.one()
+                    (processed_annotation,) = await insert_annotations(
+                        session,
+                        values,
+                        table=models.TraceAnnotation,
+                    )
 
                 processed_annotations_map[idx] = processed_annotation
 
@@ -202,7 +208,8 @@ class TraceAnnotationMutationMixin:
                     trace_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
                     trace_annotation.identifier = patch.identifier or ""
-                session.add(trace_annotation)
+                    raise_if_identifier_is_reserved(trace_annotation.identifier)
+            await update_annotations(session, *trace_annotations_by_id.values())
             await session.commit()
 
         patched_annotations = [

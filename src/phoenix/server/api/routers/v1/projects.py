@@ -9,7 +9,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.helpers import (
-    delete_projects_and_evaluator_trace_projects,
+    delete_projects,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
     exclude_project_evaluator_trace_projects,
@@ -340,7 +340,7 @@ async def delete_project(
                 detail="This project holds an evaluator's traces; delete the evaluator instead",
             )
 
-        await delete_projects_and_evaluator_trace_projects(session, [project.id])
+        await delete_projects(session, models.Project.id == project.id)
     return None
 
 

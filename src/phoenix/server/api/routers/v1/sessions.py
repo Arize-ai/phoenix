@@ -6,14 +6,15 @@ from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.annotation import insert_annotations, upsert_annotations
+from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.session_aggregates import SESSION_ROWID, token_counts_by_session
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
@@ -481,15 +482,14 @@ async def annotate_sessions(
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_sessions[p.session_id]).row))
-            session_annotation_id = await session.scalar(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.ProjectSessionAnnotation,
-                    unique_by=("name", "project_session_id", "identifier"),
-                ).returning(models.ProjectSessionAnnotation.id)
+            (annotation,) = await upsert_annotations(
+                session,
+                values,
+                dialect=dialect,
+                table=models.ProjectSessionAnnotation,
+                unique_by=("name", "project_session_id", "identifier"),
             )
-            inserted_ids.append(session_annotation_id)
+            inserted_ids.append(annotation.id)
 
     request.state.event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSessionsResponseBody(
@@ -562,21 +562,20 @@ async def create_session_note(
 
         if note_data.identifier:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            result = await session.execute(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.ProjectSessionAnnotation,
-                    unique_by=("name", "project_session_id", "identifier"),
-                ).returning(models.ProjectSessionAnnotation.id)
+            (annotation,) = await upsert_annotations(
+                session,
+                values,
+                dialect=dialect,
+                table=models.ProjectSessionAnnotation,
+                unique_by=("name", "project_session_id", "identifier"),
             )
         else:
-            result = await session.execute(
-                insert(models.ProjectSessionAnnotation)
-                .values(**values)
-                .returning(models.ProjectSessionAnnotation.id)
+            (annotation,) = await insert_annotations(
+                session,
+                values,
+                table=models.ProjectSessionAnnotation,
             )
-        annotation_id = result.scalar_one()
+        annotation_id = annotation.id
 
     request.state.event_queue.put(ProjectSessionAnnotationInsertEvent((annotation_id,)))
     return CreateSessionNoteResponseBody(

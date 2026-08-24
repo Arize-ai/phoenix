@@ -10,10 +10,11 @@ claim as False via the update rowcount.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import and_, case, func, or_, select, type_coerce, update
+from sqlalchemy import and_, case, func, literal, or_, select, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -100,13 +101,16 @@ class DbEvalWorkCoordinator:
         # Only SESSION work carries a coverage watermark: a span is evaluated whole,
         # while a session is evaluated up to the content the transcript actually read.
         self._coverage_column: Optional[InstrumentedAttribute[Optional[datetime]]] = None
+        self._scheduling_origin_column: Any
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
+            self._scheduling_origin_column = literal("AMBIENT")
         elif evaluation_target == "SESSION":
             self._work_unit_model = models.EvalSessionWorkUnit
             self._target_row_column = models.EvalSessionWorkUnit.project_session_rowid
             self._coverage_column = models.EvalSessionWorkUnit.transcript_covered_through
+            self._scheduling_origin_column = models.EvalSessionWorkUnit.scheduling_origin
         else:
             raise ValueError(
                 "Online evaluation work coordination supports SPAN and SESSION targets"
@@ -186,6 +190,7 @@ class DbEvalWorkCoordinator:
                             work_unit_model.project_evaluator_id,
                             work_unit_model.config_fingerprint,
                             work_unit_model.attempts,
+                            self._scheduling_origin_column.label("scheduling_origin"),
                         )
                         .where(work_unit_model.id.in_(claimed_ids))
                         .order_by(work_unit_model.id)
@@ -208,6 +213,7 @@ class DbEvalWorkCoordinator:
                 attempts=row.attempts,
                 claimed_by=claimed_by,
                 lease_expires_at=lease_expires_at,
+                scheduling_origin=row.scheduling_origin,
             )
             for row in rows
         ]
@@ -389,6 +395,7 @@ class DbEvalWorkCoordinator:
         work_unit_id: int,
         claim_owner: str,
         already_status: Optional[str] = None,
+        on_transition: Optional[Callable[[AsyncSession], Awaitable[None]]] = None,
         **values: Any,
     ) -> bool:
         work_unit_model = self._work_unit_model
@@ -406,6 +413,8 @@ class DbEvalWorkCoordinator:
             )
             rowcount = result.rowcount  # type: ignore[attr-defined]
             transitioned = bool(rowcount == 1)
+            if transitioned and on_transition is not None:
+                await on_transition(session)
             if not transitioned and already_status is not None:
                 status = await session.scalar(
                     select(work_unit_model.status).where(work_unit_model.id == work_unit_id)

@@ -17,6 +17,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
+    delete_projects,
     get_experiment_incomplete_runs_query,
     insert_experiment_with_examples_snapshot,
 )
@@ -600,10 +601,7 @@ async def delete_experiment(
             raise HTTPException(detail="Experiment does not exist", status_code=404)
         project_name = result.project_name
         if delete_project and project_name:
-            delete_project_stmt = sa.delete(models.Project).where(
-                models.Project.name == project_name
-            )
-            await session.execute(delete_project_stmt)
+            await delete_projects(session, models.Project.name == project_name)
 
 
 class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):

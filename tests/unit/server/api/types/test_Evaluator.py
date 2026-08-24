@@ -7,7 +7,11 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_CONTENT_INCOMPLETE_ERROR
+from phoenix.db.eval_work import (
+    MAX_ATTEMPTS,
+    SESSION_CONTENT_INCOMPLETE_ERROR,
+    SUPERSEDED_BY_REQUEST_ERROR,
+)
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -1826,6 +1830,21 @@ async def test_project_evaluator_run_summary(
                     error=SESSION_CONTENT_INCOMPLETE_ERROR,
                     updated_at=now,
                 ),
+                # A declined decision an ordinary request displaced. Users produce
+                # these by asking for an evaluation, so if the exclusion ever
+                # lapsed an evaluator's failure count would climb with every
+                # successful request and lastError would read as though the
+                # displacement were the breakage.
+                models.EvalSessionWorkUnit(
+                    project_session_rowid=project_session.id,
+                    evaluator_id=evaluator.id,
+                    project_evaluator_id=project_evaluator.id,
+                    config_fingerprint=token_hex(8),
+                    evaluated_through=now,
+                    status="EXPIRED",
+                    error=SUPERSEDED_BY_REQUEST_ERROR,
+                    updated_at=now,
+                ),
             ]
         )
         await session.flush()
@@ -1854,7 +1873,8 @@ async def test_project_evaluator_run_summary(
     assert run_summary["status"] == "HEALTHY"
     assert run_summary["evaluatedCount"] == 2
     # Given up on: the ERROR at MAX_ATTEMPTS and the non-stale EXPIRED. The
-    # stale-fingerprint and content-incomplete expiries fall outside every bucket.
+    # stale-fingerprint, content-incomplete and superseded expiries fall outside
+    # every bucket.
     assert run_summary["failedCount"] == 2
     # Waiting: the PENDING unit and the ERROR with attempts remaining.
     assert run_summary["queuedCount"] == 2

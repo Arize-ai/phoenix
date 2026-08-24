@@ -54,7 +54,12 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
+from phoenix.db.eval_work import (
+    evaluation_target_check,
+    evaluator_event_kind_check,
+    live_eval_session_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
+)
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -69,6 +74,10 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
+)
+from phoenix.db.types.evaluator_trigger_predicates import (
+    TriggerPredicates,
+    TriggerPredicatesType,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
@@ -201,6 +210,10 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
+EvaluatorEventKind: TypeAlias = Literal["annotation_upserted"]
+AnnotationChange: TypeAlias = Literal["created", "updated"]
+AnnotationTarget: TypeAlias = Literal["span", "trace", "session"]
+SchedulingOrigin: TypeAlias = Literal["AMBIENT", "RULE", "EXPLICIT"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
@@ -497,6 +510,21 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         self, value: Optional[str], _: Dialect
     ) -> Optional[AnnotationConfigType]:
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
+
+
+class _TriggerPredicates(TypeDecorator[TriggerPredicatesType]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[TriggerPredicatesType], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return TriggerPredicates(root=value).model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[TriggerPredicatesType]:
+        return TriggerPredicates.model_validate(value).root if value is not None else None
 
 
 class _AnnotationConfigList(TypeDecorator[list[AnnotationConfigType]]):
@@ -3606,7 +3634,7 @@ class ProjectEvaluator(HasId):
     filter_condition: Mapped[str] = mapped_column(String, nullable=False, server_default="")
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(
         CheckConstraint(
-            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')",
+            evaluation_target_check("evaluation_target"),
             name="valid_evaluation_target",
         ),
         nullable=False,
@@ -3666,16 +3694,13 @@ class EvalWorkLease(HasId):
 
 
 class EvalWorkCursor(HasId):
-    """SPAN producer lease and position in the span arrival log, one row per
-    (evaluation_target, consumer_group). produced_through_id, observed_high_water_id and
-    observed_at are Span.id positions in that log, so only targets materialized by
-    scanning it keep a row here — targets that materialize from entity state take a
-    plain EvalWorkLease instead."""
+    """Where a scanning materializer has reached, one row per (evaluation_target,
+    consumer_group); the SPAN producer's positions are Span.id values."""
 
     __tablename__ = "eval_work_cursors"
     evaluation_target: Mapped[EvaluationTarget] = mapped_column(
         CheckConstraint(
-            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
+            evaluation_target_check("evaluation_target"), name="valid_evaluation_target"
         ),
         nullable=False,
     )
@@ -3684,7 +3709,6 @@ class EvalWorkCursor(HasId):
     produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
     observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
     observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-
     claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     claimed_by: Mapped[Optional[str]] = mapped_column(String)
 
@@ -3794,6 +3818,15 @@ class EvalSessionWorkUnit(HasId):
         default="PENDING",
         server_default="PENDING",
     )
+    scheduling_origin: Mapped[SchedulingOrigin] = mapped_column(
+        CheckConstraint(
+            "scheduling_origin IN ('AMBIENT', 'RULE', 'EXPLICIT')",
+            name="valid_scheduling_origin",
+        ),
+        nullable=False,
+        default="AMBIENT",
+        server_default="AMBIENT",
+    )
     claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     claimed_by: Mapped[Optional[str]] = mapped_column(String)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
@@ -3828,8 +3861,8 @@ class EvalSessionWorkUnit(HasId):
         Index(
             "ix_eval_session_work_units_terminal",
             "updated_at",
-            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
-            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+            postgresql_where=text(terminal_eval_session_work_index_predicate()),
+            sqlite_where=text(terminal_eval_session_work_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_terminal_watermark",
@@ -3842,5 +3875,86 @@ class EvalSessionWorkUnit(HasId):
             "attempts",
             postgresql_where=text("status = 'ERROR'"),
             sqlite_where=text("status = 'ERROR'"),
+        ),
+    )
+
+
+class ProjectEvaluatorTrigger(HasId):
+    """One rule saying which events should make its project_evaluators run; NULL predicates fire on
+    every event of that kind."""
+
+    __tablename__ = "project_evaluator_triggers"
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    event_kind: Mapped[EvaluatorEventKind] = mapped_column(
+        CheckConstraint(evaluator_event_kind_check("event_kind"), name="valid_event_kind"),
+        nullable=False,
+    )
+    predicates: Mapped[Optional[TriggerPredicatesType]] = mapped_column(_TriggerPredicates)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project_evaluators: Mapped["ProjectEvaluator"] = relationship(
+        "ProjectEvaluator",
+        foreign_keys=[project_evaluator_id],
+    )
+
+
+class EvaluationRequest(HasId):
+    """Standing state for one (session, project_evaluators) pair: it is unfulfilled exactly when
+    materialized_generation < requested_generation."""
+
+    __tablename__ = "evaluation_requests"
+    project_session_rowid: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    requested_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    materialized_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    force_requested: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    materialized_by_session_work_unit_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("eval_session_work_units.id", ondelete="SET NULL"),
+    )
+    requested_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+    project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
+    materialized_by_session_work_unit: Mapped[Optional["EvalSessionWorkUnit"]] = relationship(
+        "EvalSessionWorkUnit"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("project_session_rowid", "project_evaluator_id"),
+        CheckConstraint(
+            "requested_generation >= 0",
+            name="valid_requested_generation",
+        ),
+        CheckConstraint(
+            "0 <= materialized_generation AND materialized_generation <= requested_generation",
+            name="valid_materialized_generation",
+        ),
+        Index(
+            "ix_evaluation_requests_project_evaluator_id_session_rowid",
+            "project_evaluator_id",
+            "project_session_rowid",
         ),
     )
