@@ -1,0 +1,185 @@
+---
+title: "PII Detection"
+description: "Detect personally identifiable information in a conversation record."
+---
+
+## Overview
+
+The **PII Detection** evaluator screens a conversation record for personally identifiable information (PII). It looks at the entire record — system instructions, every user and assistant turn, tool calls and their results, and retrieved content the end user may never have seen — and classifies whether any identifying personal data is present.
+
+Use it to audit agent traces, experiment runs, and logged conversations for privacy exposure. When `include_explanation` is `True` (the default on `ClassificationEvaluator`), the judge lists each instance in a `FINDINGS` block on the score's `explanation` so downstream filters can act on specific categories (email, national ID, API token, and so on). Set `include_explanation=False` to skip that reasoning and return only the label and score.
+
+<Info>
+Direction is `minimize`: detecting PII is the undesirable outcome.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply when a span already contains the full conversation record to screen. |
+| **Trace** | Yes | Concatenate span input/output (and tool results) into one conversation string. |
+| **Session** | Yes | Best fit: screen the whole session, including hidden tool output and retrieved documents. |
+
+**Relevant span kinds:** AGENT, CHAIN, LLM, and TOOL spans that preserve conversation or tool payloads.
+
+## Input Requirements
+
+The PII Detection evaluator requires one input:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `conversation` | `string` | The full conversation record to screen, including system instructions, turns, tool calls, and retrieved content. |
+
+### Formatting Tips
+
+For best results:
+
+- **Screen the whole record**, not just the final assistant message.
+- **Use human-readable strings** rather than raw JSON when you can. 
+- **For multi-turn conversations**, format turns as:
+  ```
+  User: Reset my account.
+  Assistant: What email is on the account?
+  User: jane.doe@acme.com
+  ```
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"pii_detected"` or `"no_pii_detected"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (`1.0` = PII found) |
+| `explanation` | `string` or omitted | Present when `include_explanation` is `True` (default). Contains the judge's reasoning and a `FINDINGS` list of each instance. |
+| `direction` | `"minimize"` | Lower aggregate scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Interpretation:**
+- **PII detected (1.0)**: The record contains at least one instance of identifying personal data
+- **No PII detected (0.0)**: The record contains none of the rubric categories
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import PiiDetectionEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o-mini")
+    pii_eval = PiiDetectionEvaluator(
+        llm=llm,
+        temperature=0.0,
+        include_explanation=True,  # default; set False to omit FINDINGS
+    )
+
+    scores = pii_eval.evaluate({
+        "conversation": (
+            "User: Reset my account.\n"
+            "Assistant: What email is on the account?\n"
+            "User: jane.doe@acme.com"
+        ),
+    })
+
+    print(scores[0])
+    # Score(name='pii_detection', score=1.0, label='pii_detected', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createPiiDetectionEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const evaluator = createPiiDetectionEvaluator({
+      model: openai("gpt-4o-mini"),
+    });
+
+    const result = await evaluator.evaluate({
+      conversation:
+        "User: Reset my account.\nAssistant: What email is on the account?\nUser: jane.doe@acme.com",
+    });
+
+    console.log(result);
+    // { score: 1, label: "pii_detected", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+## Using Input Mapping
+
+Map a trace, session, or dataset row into the single `conversation` field. Concatenate messages, tool calls, and retrieved documents when they live in separate columns.
+
+```python
+input_mapping = {
+    "conversation": lambda row: render_session(row["messages"], row.get("tool_results")),
+}
+
+scores = evaluator.evaluate(dataset_row, input_mapping)
+```
+
+See [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping) for
+additional mapping options.
+
+## Viewing and Modifying the Prompt
+
+The default prompt is maintained in the
+[classification evaluator config](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/PII_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml).
+Adapt it when your product has domain-specific identifiers or a different
+definition of personal data.
+
+```typescript
+import { createPiiDetectionEvaluator } from "@arizeai/phoenix-evals";
+
+const evaluator = createPiiDetectionEvaluator({
+  model,
+  promptTemplate: `Conversation: {{conversation}}
+Does this record contain personally identifiable information?`,
+  choices: { pii_detected: 1, no_pii_detected: 0 },
+});
+```
+
+## Configuration
+
+`PiiDetectionEvaluator` is a `ClassificationEvaluator`. The following constructor argument controls whether the judge writes FINDINGS into the score:
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `include_explanation` | `bool` (optional) | If `True` (default), the LLM is asked for an explanation and puts each detected instance in a `FINDINGS` block there. If `False`, the score has no `explanation`. |
+
+<Note>
+`include_explanation` is a Python constructor argument. The TypeScript `createPiiDetectionEvaluator` always requests an explanation.
+</Note>
+
+For model and provider options, see
+[Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+## Using with Phoenix
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## Benchmarks
+
+On a stratified 150-record sample of
+[nvidia/Nemotron-PII](https://huggingface.co/datasets/nvidia/Nemotron-PII)
+(all positives) using `gpt-4o-mini`, the default prompt achieves a **0.93
+detection rate** (recall). Precision cannot be measured on this fixture because
+it contains effectively no negatives. See
+[pii_detection.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/pii_detection.eval.ts)
+for the fixture and scoring.
+
+## API Reference
+
+- **Python:** [PiiDetectionEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript:** [createPiiDetectionEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Refusal Evaluator](/docs/phoenix/evaluation/pre-built-metrics/refusal)
+- [User Friction Evaluator](/docs/phoenix/evaluation/pre-built-metrics/user-friction)
