@@ -79,7 +79,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     )
     parser.add_argument(
         "--project",
-        help=("Destination project; defaults to datagen-<scenario> (env: PHOENIX_PROJECT_NAME)."),
+        help=("Destination project; defaults to phoenix-datagen (env: PHOENIX_PROJECT_NAME)."),
     )
     parser.add_argument(
         "--rate",

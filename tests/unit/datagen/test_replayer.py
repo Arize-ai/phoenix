@@ -192,7 +192,7 @@ def test_flat_schedule_preserves_serialized_request_digest() -> None:
         digest.update(emitted.request.SerializeToString(deterministic=True))
         replayer.interarrival_seconds(rate=12.5, burstiness=0.7)
 
-    assert digest.hexdigest() == "a76b500b886184c69a172368fbb39fecc9788b9093343d65cb52ca90611bd487"
+    assert digest.hexdigest() == "091fb569b16228818b88e0d8d4315a1f4013df135e9a885359a0fb376c30d3e2"
 
 
 def test_business_hours_schedule_uses_weekly_rate_tiers() -> None:
@@ -288,7 +288,7 @@ def test_replayer_sets_project_resource_attribute() -> None:
         for resource_spans in default_emitted.request.resource_spans
         for attribute in resource_spans.resource.attributes
         if attribute.key == ResourceAttributes.PROJECT_NAME
-    } == {"datagen-synthetic-chat"}
+    } == {"phoenix-datagen"}
 
 
 def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -> None:

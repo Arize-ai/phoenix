@@ -135,7 +135,7 @@ class Replayer:
             "big",
         )
         self._identity_random = np.random.default_rng(identity_seed)
-        self._project_name = project_name or f"datagen-{_scenario_name(scenario)}"
+        self._project_name = project_name or "phoenix-datagen"
         composer_overrides: Mapping[str, Any] = {
             "session_fragments_median": session_fragments_median,
             "session_fragments_sigma": session_fragments_sigma,
@@ -648,14 +648,6 @@ def _refresh_anomaly_latencies(
         ) / 1_000_000
         refreshed.append(replace(anomaly, inflated_fields=inflated_fields))
     return tuple(refreshed)
-
-
-def _scenario_name(scenario: Scenario) -> str:
-    for key in ("scenario_name", "scenario", "name"):
-        value = scenario.manifest.get(key)
-        if isinstance(value, str) and value:
-            return value
-    return Path(scenario.source.rstrip("/")).name or "default"
 
 
 def _set_project_name(request: ExportTraceServiceRequest, project_name: str) -> None:
