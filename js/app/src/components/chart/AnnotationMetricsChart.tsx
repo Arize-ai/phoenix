@@ -35,7 +35,11 @@ import {
 import { ChartEmptyStateOverlay } from "./ChartEmptyStateOverlay";
 import { ChartResponsiveContainer } from "./ChartResponsiveContainer";
 import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
-import { getCategoryChartColor, useCategoryChartColors } from "./colors";
+import {
+  getCategoryChartColor,
+  useCategoryChartColors,
+  useSemanticChartColors,
+} from "./colors";
 import {
   COMPACT_CHART_ANIMATION_DURATION_MS,
   compactChartMargin,
@@ -50,6 +54,13 @@ const MEAN_SCORE_DATA_KEY = "meanScore";
 const LABEL_DATA_KEY_PREFIX = "fractions.";
 const OTHER_DATA_KEY = "otherFraction";
 const OTHER_COLOR = "var(--global-color-gray-500)";
+const MEAN_SCORE_SERIES_NAME = "mean score";
+const DISTRIBUTION_STACK_ID = "distribution";
+const BAR_SIZE = 10;
+const UNIT_DOMAIN: [number, number] = [0, 1];
+// Only the topmost segment of a stack is rounded, so the stack reads as one bar.
+const STACK_TOP_RADIUS: [number, number, number, number] = [2, 2, 0, 0];
+const SQUARE_RADIUS = 0;
 const SCORE_CHART_MARGIN = {
   ...compactChartMargin,
   // A score of exactly 1 puts the dot center on the top gridline.
@@ -65,6 +76,20 @@ const formatAnnotationFraction = (fraction: number) =>
 
 function getLabelDataKey(index: number): string {
   return `${LABEL_DATA_KEY_PREFIX}${index}`;
+}
+
+/**
+ * The score axis domain: the unit domain when every score fits inside it,
+ * otherwise undefined so recharts auto-scales rather than clipping.
+ */
+function getScoreDomain(
+  points: ReadonlyArray<AnnotationMetricsChartPoint | undefined>
+): [number, number] | undefined {
+  const fitsUnitDomain = points.every(
+    (point) =>
+      point?.meanScore == null || (point.meanScore >= 0 && point.meanScore <= 1)
+  );
+  return fitsUnitDomain ? UNIT_DOMAIN : undefined;
 }
 
 function AnnotationMetricsTooltip({
@@ -128,6 +153,14 @@ type AnnotationMetricsChartProps = {
   syncId: string;
   renderTooltipHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
   getMeanScoreOptimization?: (meanScore: number) => boolean | null;
+  /**
+   * Classifies the series' labels as good versus bad, one flag per label in
+   * `series.labels` order, to color a two-label distribution green and red.
+   * Pass null (or omit) to keep the categorical palette;
+   * `getBinaryLabelOptimizations` computes this and returns null whenever the
+   * labels carry no such meaning.
+   */
+  labelOptimizations?: ReadonlyArray<boolean> | null;
   chartProps?: ComponentProps<typeof ComposedChart>;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
   emptyStateMessage?: string;
@@ -198,6 +231,7 @@ function AnnotationMetricsChartContent({
   syncId,
   renderTooltipHeader,
   getMeanScoreOptimization,
+  labelOptimizations,
   chartProps,
   additionalLegendItems,
   renderReference,
@@ -206,10 +240,11 @@ function AnnotationMetricsChartContent({
 }: AnnotationMetricsChartProps) {
   const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
+  // A good label reads the same green as an optimized score does elsewhere.
+  const semanticColors = useSemanticChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
-  const { data } = series;
-  const visibleLabels = series.labels;
+  const { data, labels } = series;
   const {
     chartData,
     domain,
@@ -218,6 +253,15 @@ function AnnotationMetricsChartContent({
     isScoreView,
   } = getAnnotationChartState({ series, view });
   const isScoreLine = isScoreView && chartType === "lineTimeSeries";
+  // Null means "no good-versus-bad reading": stay on the categorical palette.
+  const appliedLabelOptimizations =
+    (isScoreView ? null : labelOptimizations) ?? null;
+  const getLabelFill = (index: number) =>
+    appliedLabelOptimizations
+      ? appliedLabelOptimizations[index]
+        ? semanticColors.success
+        : semanticColors.danger
+      : getCategoryChartColor({ index, colors: categoryColors });
 
   return (
     <ChartEmptyStateOverlay
@@ -229,7 +273,7 @@ function AnnotationMetricsChartContent({
         <ComposedChart
           data={chartData}
           margin={isScoreView ? SCORE_CHART_MARGIN : compactChartMargin}
-          barSize={10}
+          barSize={BAR_SIZE}
           syncId={syncId}
           // A prepended label baseline changes indexes; synchronize by x-value.
           syncMethod="value"
@@ -277,7 +321,7 @@ function AnnotationMetricsChartContent({
             <Line
               type="monotone"
               dataKey={MEAN_SCORE_DATA_KEY}
-              name="mean score"
+              name={MEAN_SCORE_SERIES_NAME}
               stroke={getWordColor({ word: series.name, theme })}
               strokeWidth={2}
               dot={{ r: 3 }}
@@ -287,23 +331,20 @@ function AnnotationMetricsChartContent({
             />
           )}
           {!isScoreView &&
-            visibleLabels.map((label, index) => {
+            labels.map((label, index) => {
               const dataKey = getLabelDataKey(index);
               return (
                 <Bar
                   key={label}
                   dataKey={dataKey}
                   name={label}
-                  stackId="distribution"
-                  fill={getCategoryChartColor({
-                    index,
-                    colors: categoryColors,
-                  })}
+                  stackId={DISTRIBUTION_STACK_ID}
+                  fill={getLabelFill(index)}
                   hide={isDataKeyHidden(dataKey)}
                   radius={
-                    index === visibleLabels.length - 1 && !hasOtherValues
-                      ? [2, 2, 0, 0]
-                      : 0
+                    index === labels.length - 1 && !hasOtherValues
+                      ? STACK_TOP_RADIUS
+                      : SQUARE_RADIUS
                   }
                 />
               );
@@ -312,10 +353,10 @@ function AnnotationMetricsChartContent({
             <Bar
               dataKey={OTHER_DATA_KEY}
               name="other"
-              stackId="distribution"
+              stackId={DISTRIBUTION_STACK_ID}
               fill={OTHER_COLOR}
               legendType="none"
-              radius={[2, 2, 0, 0]}
+              radius={STACK_TOP_RADIUS}
             />
           )}
           <InteractiveLegend
