@@ -87,6 +87,41 @@ def span_bound_variables(entity: Mapping[str, Any]) -> dict[str, Any]:
     return {name: entity[name] for name in sorted(SPAN_BOUND_VARIABLE_NAMES)}
 
 
+def bind_context_bound_variables(
+    *,
+    context: Mapping[str, Any],
+    input_schema: Mapping[str, Any],
+    input_mapping: InputMapping,
+) -> InputMapping:
+    """Bind declared-but-unmapped vocabulary names from the entity document itself.
+
+    The preview path's counterpart of the executor's hydration-time binding: the
+    entity documents a preview receives already carry the vocabulary values the
+    online path computes (the span document holds its scalars; the session
+    document is materialized with its aggregates), so unmapped names are read
+    from the document rather than recomputed. A name the document does not hold
+    stays unbound and fails the same way it would online.
+    """
+    if isinstance(context.get("span"), Mapping):
+        evaluation_target, entity = "SPAN", context["span"]
+    elif isinstance(context.get("session"), Mapping):
+        evaluation_target, entity = "SESSION", context["session"]
+    else:
+        return input_mapping
+    names = unmapped_bound_variable_names(
+        input_schema=input_schema,
+        input_mapping=input_mapping,
+        evaluation_target=evaluation_target,
+    )
+    available = {name: entity[name] for name in sorted(names) if name in entity}
+    if not available:
+        return input_mapping
+    return InputMapping(
+        path_mapping=dict(input_mapping.path_mapping or {}),
+        literal_mapping={**available, **(input_mapping.literal_mapping or {})},
+    )
+
+
 def session_duration_ms(start_time: datetime, end_time: datetime) -> float:
     """A session's wall-clock duration, rounded the way the filter language rounds it."""
     return round((end_time - start_time).total_seconds() * 1000, 1)
