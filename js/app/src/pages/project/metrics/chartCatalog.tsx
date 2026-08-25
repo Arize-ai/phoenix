@@ -64,6 +64,10 @@ type ProjectMetricPanelProps = ProjectMetricViewProps & {
   annotationLevel?: MetricChartTableView;
   annotationName?: string;
   fillHeight?: boolean;
+  /** Panel title; the catalog entry's name when omitted. */
+  title?: string;
+  /** Panel subtitle; the catalog entry's description when omitted. */
+  subtitle?: string;
 };
 
 type ProjectMetricChartDefinition = Omit<
@@ -185,9 +189,18 @@ function createProjectMetricPanel({
   description,
   Component,
 }: ProjectMetricChartDefinition): ComponentType<ProjectMetricPanelProps> {
-  return function ProjectMetricPanel({ fillHeight = false, ...props }) {
+  return function ProjectMetricPanel({
+    fillHeight = false,
+    title,
+    subtitle,
+    ...props
+  }) {
     return (
-      <ChartPanel title={name} subtitle={description} fillHeight={fillHeight}>
+      <ChartPanel
+        title={title ?? name}
+        subtitle={subtitle ?? description}
+        fillHeight={fillHeight}
+      >
         <Component {...props} />
       </ChartPanel>
     );
@@ -237,28 +250,39 @@ function ProjectAnnotationChartPanel({
   );
 }
 
+type DeferredProjectMetricPanelProps = ProjectMetricViewProps & {
+  chart: ProjectMetricChart;
+  fillHeight?: boolean;
+  /** Panel title; the catalog entry's name when omitted. */
+  title?: string;
+  /** Panel subtitle; the catalog entry's description when omitted. */
+  subtitle?: string;
+};
+
 /**
  * A catalog chart wrapped in a {@link DeferredChartPanel} so it doesn't fetch
  * until scrolled into view. The placeholder's title and subtitle come from
- * the same catalog entry as the chart's, so they can't drift apart.
+ * the same source as the chart's — the overrides when given, the catalog
+ * entry otherwise — so they can't drift apart.
  */
 export function DeferredProjectMetricPanel({
   chart,
   fillHeight = false,
+  title,
+  subtitle,
   ...props
-}: ProjectMetricViewProps & {
-  chart: ProjectMetricChart;
-  fillHeight?: boolean;
-}) {
+}: DeferredProjectMetricPanelProps) {
   return (
     <DeferredChartPanel
-      title={chart.name}
-      subtitle={chart.description}
+      title={title ?? chart.name}
+      subtitle={subtitle ?? chart.description}
       fillHeight={fillHeight}
     >
       <MetricPanelWithFrozenTimeRange
         chart={chart}
         fillHeight={fillHeight}
+        title={title}
+        subtitle={subtitle}
         {...props}
       />
     </DeferredChartPanel>
@@ -275,10 +299,7 @@ function MetricPanelWithFrozenTimeRange({
   timeRange,
   fillHeight,
   ...props
-}: ProjectMetricViewProps & {
-  chart: ProjectMetricChart;
-  fillHeight?: boolean;
-}) {
+}: DeferredProjectMetricPanelProps) {
   const visibleTimeRange = useFrozenWhileHidden(timeRange);
   return (
     <chart.Panel

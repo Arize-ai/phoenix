@@ -1,6 +1,7 @@
 import React, {
   createContext,
   startTransition,
+  useCallback,
   useEffect,
   useEffectEvent,
   useMemo,
@@ -146,11 +147,19 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   const [timeRangeNow, setTimeRangeNow] = useState(() => Date.now());
 
   // The URL wins when it carries a usable range; otherwise fall back to the
-  // stored preference (computed lazily, only when the URL carries no range).
-  const urlTimeRange = getTimeRangeFromSearchParams(searchParams, timeRangeNow);
-  const timeRange =
-    urlTimeRange ??
-    getStoredTimeRange({ storedLastNTimeRangeKey, now: timeRangeNow });
+  // stored preference. Memoized so consumers that key on the range's identity
+  // (memoized chart subtrees, the context value below) do not re-render when an
+  // unrelated provider render recomputes an equivalent range.
+  const urlTimeRange = useMemo(
+    () => getTimeRangeFromSearchParams(searchParams, timeRangeNow),
+    [searchParams, timeRangeNow]
+  );
+  const timeRange = useMemo(
+    () =>
+      urlTimeRange ??
+      getStoredTimeRange({ storedLastNTimeRangeKey, now: timeRangeNow }),
+    [urlTimeRange, storedLastNTimeRangeKey, timeRangeNow]
+  );
   const timeRangeStartMs = timeRange.start?.getTime();
   const start = timeRange.start?.toISOString();
   const end = timeRange.end?.toISOString();
@@ -165,37 +174,43 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
    * preference. Callers can explicitly push discrete changes that should be
    * undoable with browser Back.
    */
-  const setTimeRange = (
-    timeRange: OpenTimeRangeWithKey,
-    options?: SetTimeRangeOptions
-  ) => {
-    startTransition(() => {
-      setSearchParams(
-        (currentSearchParams) =>
-          setTimeRangeSearchParams({
-            searchParams: currentSearchParams,
-            timeRange,
-          }),
-        { replace: options?.history !== "push" }
-      );
-      // Persist the preset and re-anchor "now" so the live window refreshes.
-      if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
-        setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
-        setTimeRangeNow(Date.now());
-      }
-    });
-  };
+  // Stable identities: these are handed to memoized chart subtrees
+  // (e.g. the metrics pages' panel columns), where a per-render function
+  // identity would defeat the memo.
+  const setTimeRange = useCallback(
+    (timeRange: OpenTimeRangeWithKey, options?: SetTimeRangeOptions) => {
+      startTransition(() => {
+        setSearchParams(
+          (currentSearchParams) =>
+            setTimeRangeSearchParams({
+              searchParams: currentSearchParams,
+              timeRange,
+            }),
+          { replace: options?.history !== "push" }
+        );
+        // Persist the preset and re-anchor "now" so the live window refreshes.
+        if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
+          setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
+          setTimeRangeNow(Date.now());
+        }
+      });
+    },
+    [setSearchParams, setStoredLastNTimeRangeKey]
+  );
 
-  const setCustomTimeRange = (timeRange: TimeRange) => {
-    setTimeRange(
-      {
-        timeRangeKey: "custom",
-        start: timeRange.start,
-        end: timeRange.end,
-      },
-      { history: "push" }
-    );
-  };
+  const setCustomTimeRange = useCallback(
+    (timeRange: TimeRange) => {
+      setTimeRange(
+        {
+          timeRangeKey: "custom",
+          start: timeRange.start,
+          end: timeRange.end,
+        },
+        { history: "push" }
+      );
+    },
+    [setTimeRange]
+  );
 
   // Seed a fresh URL from the stored preference on first load. Once the URL
   // carries a range it is canonical, so this no-ops. A live window's refresh
@@ -233,15 +248,18 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
 
   useRegisterSetTimeRangeClientAction({ setTimeRange });
 
+  const value = useMemo(
+    () => ({
+      timeRange,
+      timeRangeISOStrings,
+      setTimeRange,
+      setCustomTimeRange,
+    }),
+    [timeRange, timeRangeISOStrings, setTimeRange, setCustomTimeRange]
+  );
+
   return (
-    <TimeRangeContext.Provider
-      value={{
-        timeRange,
-        timeRangeISOStrings,
-        setTimeRange,
-        setCustomTimeRange,
-      }}
-    >
+    <TimeRangeContext.Provider value={value}>
       {children}
     </TimeRangeContext.Provider>
   );
