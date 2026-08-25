@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
@@ -13,12 +12,18 @@ import {
   Icon,
   Icons,
   LinkButton,
-  List,
-  ListItem,
   Text,
   View,
 } from "@phoenix/components";
 import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
+import {
+  EvaluatorDetailList,
+  EvaluatorDetailRow,
+  evaluatorSplitContainerCSS,
+  evaluatorSplitLayoutCSS,
+} from "@phoenix/components/evaluators/EvaluatorDetailsSection";
+import type { OutputConfig } from "@phoenix/components/evaluators/OutputConfigBlock";
+import { OutputConfigBlock } from "@phoenix/components/evaluators/OutputConfigBlock";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
@@ -30,29 +35,6 @@ import {
 
 type SandboxBackendInfo =
   datasetEvaluatorDetailsLoaderQuery["response"]["sandboxBackends"][number];
-
-type OutputConfig = {
-  name: string;
-  optimizationDirection?: string | null;
-  values?: ReadonlyArray<{
-    label?: string | null;
-    score?: number | null;
-  }> | null;
-  lowerBound?: number | null;
-  upperBound?: number | null;
-  threshold?: number | null;
-};
-
-const splitLayoutCSS = css`
-  display: grid;
-  gap: var(--global-dimension-size-200);
-  grid-template-columns: minmax(0, 1fr) clamp(300px, 24vw, 380px);
-  align-items: start;
-
-  @media (max-width: 1100px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-`;
 
 const mapGridCSS = css`
   display: grid;
@@ -67,51 +49,6 @@ const mapGridCSS = css`
     grid-template-columns: 1fr;
   }
 `;
-
-const annotationGridCSS = css`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--global-dimension-size-200);
-`;
-
-function SandboxRow({
-  label,
-  labelExtra,
-  value,
-}: {
-  label: ReactNode;
-  labelExtra?: ReactNode;
-  value: ReactNode;
-}) {
-  return (
-    <Flex
-      direction="row"
-      alignItems="center"
-      justifyContent="space-between"
-      gap="size-200"
-    >
-      <Flex direction="row" alignItems="center" gap="size-50" flexShrink={0}>
-        {typeof label === "string" ? (
-          <Text size="S" color="text-700">
-            {label}
-          </Text>
-        ) : (
-          label
-        )}
-        {labelExtra}
-      </Flex>
-      <Flex
-        direction="row"
-        alignItems="center"
-        justifyContent="end"
-        gap="size-100"
-        minWidth={0}
-      >
-        {typeof value === "string" ? <Text size="S">{value}</Text> : value}
-      </Flex>
-    </Flex>
-  );
-}
 
 function CapabilityRow({ label, value }: { label: string; value: string }) {
   return (
@@ -213,80 +150,6 @@ function MappingTile({
   );
 }
 
-function AnnotationCell({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <Flex direction="column" gap="size-50">
-      <Text size="XS" color="text-700" weight="heavy">
-        {label}
-      </Text>
-      {typeof value === "string" ? <Text>{value}</Text> : value}
-    </Flex>
-  );
-}
-
-function formatOptimizationDirection(direction: string | null | undefined) {
-  if (!direction) return "None";
-  return direction.charAt(0).toUpperCase() + direction.slice(1).toLowerCase();
-}
-
-function formatCategoricalValues(values: OutputConfig["values"]): string {
-  if (!values || values.length === 0) return "—";
-  return values
-    .map((v) => `${v.label}${v.score != null ? ` (${v.score})` : ""}`)
-    .join(", ");
-}
-
-function formatBound(value: number | null | undefined): string {
-  return value != null ? String(value) : "Unbounded";
-}
-
-function OutputConfigBlock({ config }: { config: OutputConfig }) {
-  const isCategorical = config.values != null;
-  const isContinuous = config.lowerBound != null || config.upperBound != null;
-  const isFreeform = !isCategorical && !isContinuous;
-  const direction = formatOptimizationDirection(config.optimizationDirection);
-
-  return (
-    <div css={annotationGridCSS}>
-      <AnnotationCell label="Name" value={config.name} />
-      {isCategorical && (
-        <>
-          <AnnotationCell label="Type" value="Categorical" />
-          <AnnotationCell label="Optimization Direction" value={direction} />
-          <AnnotationCell
-            label="Values"
-            value={formatCategoricalValues(config.values)}
-          />
-        </>
-      )}
-      {isContinuous && (
-        <>
-          <AnnotationCell label="Type" value="Continuous" />
-          <AnnotationCell label="Optimization Direction" value={direction} />
-          <AnnotationCell
-            label="Lower bound"
-            value={formatBound(config.lowerBound)}
-          />
-          <AnnotationCell
-            label="Upper bound"
-            value={formatBound(config.upperBound)}
-          />
-        </>
-      )}
-      {isFreeform && (
-        <>
-          <AnnotationCell label="Type" value="Freeform" />
-          <AnnotationCell label="Optimization Direction" value={direction} />
-          <AnnotationCell
-            label="Threshold"
-            value={config.threshold != null ? String(config.threshold) : "—"}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
 /** Values that should render in muted-italic (off / none) vs plain mono. */
 const MUTED_SETTING_VALUES = new Set(["off", "none"]);
 
@@ -373,6 +236,7 @@ export function CodeDatasetEvaluatorDetails({
           pathMapping
         }
         outputConfigs {
+          __typename
           ... on CategoricalAnnotationConfig {
             name
             optimizationDirection
@@ -401,6 +265,7 @@ export function CodeDatasetEvaluatorDetails({
             description
             language
             outputConfigs {
+              __typename
               ... on CategoricalAnnotationConfig {
                 name
                 optimizationDirection
@@ -521,142 +386,131 @@ export function CodeDatasetEvaluatorDetails({
   invariant(evaluator.language, "code evaluator language is required");
 
   return (
-    <div css={splitLayoutCSS}>
-      <Flex direction="column" gap="size-200" minWidth={0}>
-        <Card
-          title="Source Code"
-          extra={<LanguageWithIcon language={evaluator.language} />}
-        >
-          <CodeEvaluatorSourceCodeBlock
-            language={evaluator.language}
-            sourceCode={currentVersion.sourceCode}
-          />
-        </Card>
-      </Flex>
-      <Flex direction="column" gap="size-200" minWidth={0}>
-        <Card
-          title={
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <Icon svg={<Icons.HardDrive />} />
-              <span>Sandbox</span>
-            </Flex>
-          }
-          extra={
-            canManageSandboxes ? (
-              <LinkButton
-                size="S"
-                to="/settings/sandboxes"
-                aria-label="Configure sandboxes"
-                leadingVisual={<Icon svg={<Icons.Settings />} />}
-              />
-            ) : undefined
-          }
-        >
-          {sandboxConfig == null ? (
-            <View padding="size-200">
-              <Text color="text-700">No sandbox configuration selected.</Text>
-            </View>
-          ) : (
-            <List size="M">
-              <ListItem>
-                <SandboxRow
-                  label="Config"
-                  value={
-                    <Text size="S" fontFamily="mono">
-                      {sandboxConfig.name}
-                    </Text>
-                  }
+    <div css={evaluatorSplitContainerCSS}>
+      <div css={evaluatorSplitLayoutCSS}>
+        <Flex direction="column" gap="size-200" minWidth={0}>
+          <Card
+            title="Source Code"
+            extra={<LanguageWithIcon language={evaluator.language} />}
+          >
+            <CodeEvaluatorSourceCodeBlock
+              language={evaluator.language}
+              sourceCode={currentVersion.sourceCode}
+            />
+          </Card>
+        </Flex>
+        <Flex direction="column" gap="size-200" minWidth={0}>
+          <Card
+            title={
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Icon svg={<Icons.HardDrive />} />
+                <span>Sandbox</span>
+              </Flex>
+            }
+            extra={
+              canManageSandboxes ? (
+                <LinkButton
+                  size="S"
+                  to="/settings/sandboxes"
+                  aria-label="Configure sandboxes"
+                  leadingVisual={<Icon svg={<Icons.Settings />} />}
                 />
-              </ListItem>
-              {sandboxConfig.description ? (
-                <ListItem>
-                  <SandboxRow
-                    label="Description"
-                    value={sandboxConfig.description}
-                  />
-                </ListItem>
-              ) : null}
-              <ListItem>
-                <SandboxRow
+              ) : undefined
+            }
+          >
+            {sandboxConfig == null ? (
+              <View padding="size-200">
+                <Text color="text-700">No sandbox configuration selected.</Text>
+              </View>
+            ) : (
+              <EvaluatorDetailList>
+                <EvaluatorDetailRow label="Config">
+                  <Text size="S" fontFamily="mono">
+                    {sandboxConfig.name}
+                  </Text>
+                </EvaluatorDetailRow>
+                {sandboxConfig.description ? (
+                  <EvaluatorDetailRow label="Description">
+                    {sandboxConfig.description}
+                  </EvaluatorDetailRow>
+                ) : null}
+                <EvaluatorDetailRow
                   label="Provider"
                   labelExtra={
                     <ProviderCapabilitiesHelp sandboxBackend={sandboxBackend} />
                   }
-                  value={
-                    <Flex direction="row" gap="size-100" alignItems="center">
-                      <SandboxProviderIcon
-                        backendType={sandboxConfig.provider.backendType}
-                        height={16}
-                      />
-                      <Text size="S">
-                        {sandboxBackend?.displayName ??
-                          sandboxConfig.provider.backendType}
-                      </Text>
-                    </Flex>
-                  }
+                >
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <SandboxProviderIcon
+                      backendType={sandboxConfig.provider.backendType}
+                      height={16}
+                    />
+                    <Text size="S">
+                      {sandboxBackend?.displayName ??
+                        sandboxConfig.provider.backendType}
+                    </Text>
+                  </Flex>
+                </EvaluatorDetailRow>
+                <EvaluatorDetailRow label="Timeout">
+                  {`${sandboxConfig.timeout} seconds`}
+                </EvaluatorDetailRow>
+                {customSettings.map((setting) => (
+                  <EvaluatorDetailRow key={setting.key} label={setting.label}>
+                    <SettingValue
+                      settingKey={setting.key}
+                      value={setting.value}
+                    />
+                  </EvaluatorDetailRow>
+                ))}
+              </EvaluatorDetailList>
+            )}
+          </Card>
+          <Card
+            title={
+              outputConfigs.length > 1
+                ? `Evaluator Annotations (${outputConfigs.length})`
+                : "Evaluator Annotation"
+            }
+          >
+            <View padding="size-200">
+              <Flex direction="column" gap="size-200">
+                {outputConfigs.map((config, idx) => {
+                  // The union's unknown arm ("%other") selects no fields, so
+                  // the block renders it as an all-defaults freeform config.
+                  const outputConfig = config as OutputConfig;
+                  return (
+                    <OutputConfigBlock
+                      key={outputConfig.name || idx}
+                      config={outputConfig}
+                      typename={config.__typename}
+                    />
+                  );
+                })}
+              </Flex>
+            </View>
+          </Card>
+          <Card title="Input Mapping">
+            <View padding="size-200">
+              <div css={mapGridCSS}>
+                <MappingTile
+                  title="Path mapping"
+                  description="Map function args to fields on the example"
+                  entries={pathMappingEntries}
+                  emptyLabel="No paths set"
+                  formatValue={formatPathMappingValue}
                 />
-              </ListItem>
-              <ListItem>
-                <SandboxRow
-                  label="Timeout"
-                  value={`${sandboxConfig.timeout} seconds`}
+                <MappingTile
+                  title="Literal mapping"
+                  description="Pass fixed literal values to function args"
+                  entries={literalMappingEntries}
+                  emptyLabel="No literals set"
+                  formatValue={formatLiteral}
                 />
-              </ListItem>
-              {customSettings.map((setting) => (
-                <ListItem key={setting.key}>
-                  <SandboxRow
-                    label={setting.label}
-                    value={
-                      <SettingValue
-                        settingKey={setting.key}
-                        value={setting.value}
-                      />
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </Card>
-        <Card
-          title={
-            outputConfigs.length > 1
-              ? `Evaluator Annotations (${outputConfigs.length})`
-              : "Evaluator Annotation"
-          }
-        >
-          <View padding="size-200">
-            <Flex direction="column" gap="size-200">
-              {outputConfigs.map((config, idx) => (
-                <OutputConfigBlock
-                  key={config.name || idx}
-                  config={config as OutputConfig}
-                />
-              ))}
-            </Flex>
-          </View>
-        </Card>
-        <Card title="Input Mapping">
-          <View padding="size-200">
-            <div css={mapGridCSS}>
-              <MappingTile
-                title="Path mapping"
-                description="Map function args to fields on the example"
-                entries={pathMappingEntries}
-                emptyLabel="No paths set"
-                formatValue={formatPathMappingValue}
-              />
-              <MappingTile
-                title="Literal mapping"
-                description="Pass fixed literal values to function args"
-                entries={literalMappingEntries}
-                emptyLabel="No literals set"
-                formatValue={formatLiteral}
-              />
-            </div>
-          </View>
-        </Card>
-      </Flex>
+              </div>
+            </View>
+          </Card>
+        </Flex>
+      </div>
     </div>
   );
 }

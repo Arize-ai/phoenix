@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<edbda144e7da8676138e8eea9d72c4cc>>
+ * @generated SignedSource<<3a4019143a4a9fe7437b81f936f2993e>>
  * @lightSyntaxTransform
  */
 
@@ -25,15 +25,28 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly language?: Language;
     readonly name?: string;
     readonly outputConfigs?: ReadonlyArray<{
-      readonly lowerBound?: number | null;
-      readonly name?: string;
-      readonly optimizationDirection?: OptimizationDirection;
-      readonly threshold?: number | null;
-      readonly upperBound?: number | null;
-      readonly values?: ReadonlyArray<{
+      readonly __typename: "CategoricalAnnotationConfig";
+      readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly values: ReadonlyArray<{
         readonly label: string;
         readonly score: number | null;
       }>;
+    } | {
+      readonly __typename: "ContinuousAnnotationConfig";
+      readonly lowerBound: number | null;
+      readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly upperBound: number | null;
+    } | {
+      readonly __typename: "FreeformAnnotationConfig";
+      readonly name: string;
+      readonly optimizationDirection: OptimizationDirection;
+      readonly threshold: number | null;
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
     }>;
     readonly sandboxConfig?: {
       readonly config: {
@@ -63,15 +76,28 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly pathMapping: any;
   };
   readonly outputConfigs: ReadonlyArray<{
-    readonly lowerBound?: number | null;
-    readonly name?: string;
-    readonly optimizationDirection?: OptimizationDirection;
-    readonly threshold?: number | null;
-    readonly upperBound?: number | null;
-    readonly values?: ReadonlyArray<{
+    readonly __typename: "CategoricalAnnotationConfig";
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly values: ReadonlyArray<{
       readonly label: string;
       readonly score: number | null;
     }>;
+  } | {
+    readonly __typename: "ContinuousAnnotationConfig";
+    readonly lowerBound: number | null;
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly upperBound: number | null;
+  } | {
+    readonly __typename: "FreeformAnnotationConfig";
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly threshold: number | null;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   }>;
   readonly " $fragmentType": "CodeDatasetEvaluatorDetails_datasetEvaluator";
 };
@@ -110,6 +136,13 @@ v3 = {
   "name": "outputConfigs",
   "plural": true,
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "__typename",
+      "storageKey": null
+    },
     {
       "kind": "InlineFragment",
       "selections": [
@@ -391,6 +424,6 @@ return {
 };
 })();
 
-(node as any).hash = "f6db6b8a7683d602ff749b80c5e039fa";
+(node as any).hash = "1344550f0cc7e5cc56ae973ba9ef8b97";
 
 export default node;
