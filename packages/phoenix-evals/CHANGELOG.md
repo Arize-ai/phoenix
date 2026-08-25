@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.5.0...arize-phoenix-evals-v3.5.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* upgrade to anthropic SDK v1 ([#15588](https://github.com/Arize-ai/phoenix/issues/15588)) ([b28cf94](https://github.com/Arize-ai/phoenix/commit/b28cf94fcd37afeacfd059b4a01e7ad38327e483))
+
 ## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.4.0...arize-phoenix-evals-v3.5.0) (2026-08-21)
 
 
