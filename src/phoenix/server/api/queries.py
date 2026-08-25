@@ -1708,13 +1708,7 @@ class Query:
             session_retention_max_count_per_user=session_retention.max_count_per_user or None,
         )
 
-    @strawberry.field(
-        description=(
-            "Every assistant skill, in catalog order. The list does not depend on what the "
-            "user is viewing: the agent is advertised all of them and `load_skill` will load "
-            "any of them from any page."
-        )
-    )  # type: ignore
+    @strawberry.field
     def available_agent_skills(
         self,
         info: Info[Context, None],

@@ -3872,10 +3872,6 @@ type Query {
   """
   agentSessions(first: Int = 20, after: String, viewerOnly: Boolean! = true): AgentSessionConnection!
   agentsConfig: AgentsConfig!
-
-  """
-  Every assistant skill, in catalog order. The list does not depend on what the user is viewing: the agent is advertised all of them and `load_skill` will load any of them from any page.
-  """
   availableAgentSkills: [AgentSkill!]!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
