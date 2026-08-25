@@ -77,7 +77,6 @@ def test_every_ui_context_is_documented() -> None:
     ui_contexts = AgentPrompts().ui_contexts
 
     for tag in (
-        "<phoenix_ui_state_guide>",
         "<phoenix_project_context>",
         "<phoenix_trace_context>",
         "<phoenix_session_context>",

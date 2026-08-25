@@ -345,7 +345,7 @@ class TestSystemBlockCacheBoundary:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "<available_skills>" in cached_text
-        assert "<phoenix_ui_state_guide>" in cached_text
+        assert "<phoenix_project_context>" in cached_text
 
     async def test_nothing_sits_after_the_cache_breakpoint(
         self,
@@ -378,7 +378,6 @@ class TestSystemBlockCacheBoundary:
         for documented in (
             _DEFAULT_PROMPTS.base,
             "<available_skills>",
-            "<phoenix_ui_state_guide>",
             "<phoenix_project_context>",
             "<phoenix_playground_context>",
             "<phoenix_gql_mutations_policy>",
@@ -620,7 +619,6 @@ class TestUIContextInstructions:
             assert uncached_blocks == []
             cached_text = _get_concatenated_text(cached_blocks)
             for tag in (
-                "<phoenix_ui_state_guide>",
                 "<phoenix_project_context>",
                 "<phoenix_trace_context>",
                 "<phoenix_span_context>",

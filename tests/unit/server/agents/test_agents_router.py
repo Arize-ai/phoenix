@@ -5126,7 +5126,7 @@ async def test_chat_turn_carries_ui_state_on_the_message_not_the_system_prompt(
         for message in first_messages
         if isinstance(message, ModelRequest) and message.instructions
     )
-    assert "<phoenix_ui_state_guide>" in instructions
+    assert "<phoenix_project_context>" in instructions
     assert "UHJvamVjdDox" not in instructions
 
     second_response = await httpx_client.post(
