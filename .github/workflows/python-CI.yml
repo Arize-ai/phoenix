@@ -52,6 +52,7 @@ jobs:
               - "scripts/prompts/compile_python_prompts.py"
             phoenix:
               - "evals/**"
+              - "scripts/**"
               - "src/**"
               - "tests/**"
               - "tutorials/**"

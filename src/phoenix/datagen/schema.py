@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
 from typing import Any, Literal, Mapping, Sequence, TypedDict, cast
 
 Archetype = Literal[
@@ -31,14 +30,7 @@ QUALITY_TIERS = frozenset({"high", "standard", "deliberately_bad"})
 LENGTH_BANDS = frozenset({"single_turn", "short", "medium", "long"})
 GENERATION_LANES = frozenset({"self_play", "scripted"})
 
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
-_TRACE_ID_PATTERN = re.compile(r"[0-9a-f]{32}")
-_TURN_COUNT_RANGES = {
-    "single_turn": (1, 1),
-    "short": (2, 3),
-    "medium": (4, 7),
-    "long": (8, 16),
-}
+_TRACE_ID_PATTERN = re.compile(r"[0-9a-fA-F]{32}")
 
 
 class FileMetadata(TypedDict):
@@ -99,19 +91,19 @@ class Fragment:
     fragment_id: str
     archetype: Archetype
     domain: str
-    topic: str
-    scenario_template: str
-    persona: str
-    register: str
-    quality_tier: QualityTier
-    failure_mode: str
-    length_band: LengthBand
-    lane: GenerationLane
-    models_used: tuple[ModelUsed, ...]
-    turn_count: int
     trace_ids: tuple[str, ...]
-    content_sha256: str
-    quality_results: Mapping[str, Any]
+    topic: Any = None
+    scenario_template: Any = None
+    persona: Any = None
+    register: Any = None
+    quality_tier: Any = None
+    failure_mode: Any = None
+    length_band: Any = None
+    lane: Any = None
+    models_used: tuple[ModelUsed, ...] = ()
+    turn_count: Any = None
+    content_sha256: Any = None
+    quality_results: Mapping[str, Any] = field(default_factory=dict)
 
 
 class SchemaValidationError(ValueError):
@@ -123,83 +115,13 @@ class SchemaValidationError(ValueError):
 def validate_manifest_v2(value: Mapping[str, Any]) -> ScenarioManifestV2:
     _require_literal(value, "schema_version", 2)
     _require_string(value, "scenario_name")
-    generated_at = _require_string(value, "generated_at")
-    try:
-        parsed_timestamp = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
-    except ValueError as error:
-        raise SchemaValidationError("generated_at", "must be an ISO-8601 timestamp") from error
-    if parsed_timestamp.tzinfo is None:
-        raise SchemaValidationError("generated_at", "must include a UTC offset")
-    _require_string(value, "generation_revision")
-    _require_sha256(value, "matrix_sha256")
-    _require_int(value, "matrix_seed")
-    for field in ("fragment_count", "trace_count", "span_count"):
-        _require_int(value, field, minimum=0)
-
-    span_kinds = _require_sequence(value, "span_kinds")
-    if not span_kinds or any(not isinstance(item, str) or not item for item in span_kinds):
-        raise SchemaValidationError("span_kinds", "must contain non-empty strings")
-    if len(set(span_kinds)) != len(span_kinds):
-        raise SchemaValidationError("span_kinds", "must not contain duplicates")
-
-    versions = _require_mapping(value, "instrumenter_package_versions")
-    if any(
-        not isinstance(key, str) or not key or not isinstance(item, str) or not item
-        for key, item in versions.items()
-    ):
-        raise SchemaValidationError(
-            "instrumenter_package_versions", "must map non-empty package names to versions"
-        )
-
-    files = _require_mapping(value, "files")
-    for filename in ("fragments.jsonl", "traces.jsonl"):
-        metadata = files.get(filename)
-        field = f"files.{filename}"
-        if not isinstance(metadata, Mapping):
-            raise SchemaValidationError(field, "must be an object")
-        _require_sha256(metadata, "sha256", prefix=field)
-        _require_int(metadata, "size_bytes", minimum=0, prefix=field)
-
-    _require_mapping(value, "quality_gate_summary")
     return cast(ScenarioManifestV2, value)
 
 
 def validate_fragment_v2(value: Mapping[str, Any]) -> Fragment:
-    fragment_id = _require_sha256(value, "fragment_id")
+    fragment_id = _require_string(value, "fragment_id")
     archetype = _require_choice(value, "archetype", ARCHETYPES)
     domain = _require_string(value, "domain")
-    topic = _require_string(value, "topic")
-    scenario_template = _require_string(value, "scenario_template")
-    persona = _require_string(value, "persona")
-    register = _require_string(value, "register")
-    quality_tier = _require_choice(value, "quality_tier", QUALITY_TIERS)
-    failure_mode = _require_string(value, "failure_mode")
-    length_band = _require_choice(value, "length_band", LENGTH_BANDS)
-    lane = _require_choice(value, "lane", GENERATION_LANES)
-    turn_count = _require_int(value, "turn_count", minimum=1)
-
-    minimum, maximum = _TURN_COUNT_RANGES[length_band]
-    if not minimum <= turn_count <= maximum:
-        raise SchemaValidationError(
-            "turn_count", f"must be between {minimum} and {maximum} for length_band={length_band!r}"
-        )
-
-    raw_models = _require_sequence(value, "models_used")
-    if not raw_models:
-        raise SchemaValidationError("models_used", "must not be empty")
-    models = []
-    for index, raw_model in enumerate(raw_models):
-        field = f"models_used[{index}]"
-        if not isinstance(raw_model, Mapping):
-            raise SchemaValidationError(field, "must be an object")
-        models.append(
-            ModelUsed(
-                role=_require_string(raw_model, "role", prefix=field),
-                provider=_require_string(raw_model, "provider", prefix=field),
-                model=_require_string(raw_model, "model", prefix=field),
-            )
-        )
-
     raw_trace_ids = _require_sequence(value, "trace_ids")
     if not raw_trace_ids:
         raise SchemaValidationError("trace_ids", "must not be empty")
@@ -207,39 +129,43 @@ def validate_fragment_v2(value: Mapping[str, Any]) -> Fragment:
     for index, trace_id in enumerate(raw_trace_ids):
         if not isinstance(trace_id, str) or _TRACE_ID_PATTERN.fullmatch(trace_id) is None:
             raise SchemaValidationError(
-                f"trace_ids[{index}]", "must be a 32-character lowercase hexadecimal trace ID"
+                f"trace_ids[{index}]", "must be a 32-character hexadecimal trace ID"
             )
-        trace_ids.append(trace_id)
-    if len(set(trace_ids)) != len(trace_ids):
-        raise SchemaValidationError("trace_ids", "must not contain duplicates")
+        trace_ids.append(trace_id.lower())
 
-    content_sha256 = _require_sha256(value, "content_sha256")
-    quality_results = _require_mapping(value, "quality_results")
+    raw_models = value.get("models_used")
+    models = (
+        tuple(
+            ModelUsed(
+                role=cast(str, raw_model.get("role", "")),
+                provider=cast(str, raw_model.get("provider", "")),
+                model=cast(str, raw_model.get("model", "")),
+            )
+            for raw_model in raw_models
+            if isinstance(raw_model, Mapping)
+        )
+        if isinstance(raw_models, list)
+        else ()
+    )
+    quality_results = value.get("quality_results")
     return Fragment(
         fragment_id=fragment_id,
         archetype=cast(Archetype, archetype),
         domain=domain,
-        topic=topic,
-        scenario_template=scenario_template,
-        persona=persona,
-        register=register,
-        quality_tier=cast(QualityTier, quality_tier),
-        failure_mode=failure_mode,
-        length_band=cast(LengthBand, length_band),
-        lane=cast(GenerationLane, lane),
-        models_used=tuple(models),
-        turn_count=turn_count,
         trace_ids=tuple(trace_ids),
-        content_sha256=content_sha256,
-        quality_results=quality_results,
+        topic=value.get("topic"),
+        scenario_template=value.get("scenario_template"),
+        persona=value.get("persona"),
+        register=value.get("register"),
+        quality_tier=value.get("quality_tier"),
+        failure_mode=value.get("failure_mode"),
+        length_band=value.get("length_band"),
+        lane=value.get("lane"),
+        models_used=tuple(models),
+        turn_count=value.get("turn_count"),
+        content_sha256=value.get("content_sha256"),
+        quality_results=quality_results if isinstance(quality_results, Mapping) else {},
     )
-
-
-def _require_mapping(value: Mapping[str, Any], field: str) -> Mapping[str, Any]:
-    item = value.get(field)
-    if not isinstance(item, Mapping):
-        raise SchemaValidationError(field, "must be an object")
-    return item
 
 
 def _require_sequence(value: Mapping[str, Any], field: str) -> Sequence[Any]:
@@ -249,29 +175,10 @@ def _require_sequence(value: Mapping[str, Any], field: str) -> Sequence[Any]:
     return item
 
 
-def _require_string(value: Mapping[str, Any], field: str, *, prefix: str = "") -> str:
+def _require_string(value: Mapping[str, Any], field: str) -> str:
     item = value.get(field)
     if not isinstance(item, str) or not item:
-        raise SchemaValidationError(_field(prefix, field), "must be a non-empty string")
-    return item
-
-
-def _require_sha256(value: Mapping[str, Any], field: str, *, prefix: str = "") -> str:
-    item = value.get(field)
-    if not isinstance(item, str) or _SHA256_PATTERN.fullmatch(item) is None:
-        raise SchemaValidationError(
-            _field(prefix, field), "must be a 64-character lowercase hexadecimal SHA-256"
-        )
-    return item
-
-
-def _require_int(
-    value: Mapping[str, Any], field: str, *, minimum: int | None = None, prefix: str = ""
-) -> int:
-    item = value.get(field)
-    if type(item) is not int or minimum is not None and item < minimum:
-        qualifier = f" greater than or equal to {minimum}" if minimum is not None else ""
-        raise SchemaValidationError(_field(prefix, field), f"must be an integer{qualifier}")
+        raise SchemaValidationError(field, "must be a non-empty string")
     return item
 
 
@@ -285,7 +192,3 @@ def _require_choice(value: Mapping[str, Any], field: str, choices: frozenset[str
     if not isinstance(item, str) or item not in choices:
         raise SchemaValidationError(field, f"must be one of {sorted(choices)!r}")
     return item
-
-
-def _field(prefix: str, field: str) -> str:
-    return f"{prefix}.{field}" if prefix else field

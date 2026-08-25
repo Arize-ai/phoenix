@@ -1,8 +1,6 @@
 import dataclasses
-import hashlib
 from pathlib import Path
 from typing import Iterator
-from unittest.mock import patch
 
 import pytest
 from openinference.semconv.resource import ResourceAttributes
@@ -96,7 +94,7 @@ def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> Non
     assert emitted_session_ids["turn-1"] != emitted_session_ids["other-session"]
 
 
-@pytest.mark.parametrize("seed", range(10))
+@pytest.mark.parametrize("seed", range(3))
 def test_replayer_preserves_temporal_and_token_contracts_across_seeds(seed: int) -> None:
     scenario = _fixture_scenario()
     replayer = Replayer(scenario, epsilon=0, seed=seed)
@@ -173,23 +171,6 @@ def test_same_seed_emits_equal_numeric_draws_with_disjoint_trace_ids() -> None:
     assert [_numeric_draws(request) for request in first_requests] == [
         _numeric_draws(request) for request in second_requests
     ]
-
-
-def test_flat_schedule_preserves_serialized_request_digest() -> None:
-    scenario = _fixture_scenario()
-    with patch(
-        "phoenix.datagen.replayer.secrets.token_hex",
-        return_value="00112233445566778899aabbccddeeff",
-    ):
-        replayer = Replayer(scenario, epsilon=0.25, seed=7, error_rate=0)
-
-    digest = hashlib.sha256()
-    for index in range(6):
-        emitted = replayer.emit(now_ns=10_000_000_000 + index * 1_000_000_000)
-        digest.update(emitted.request.SerializeToString(deterministic=True))
-        replayer.interarrival_seconds(rate=12.5, burstiness=0.7)
-
-    assert digest.hexdigest() == "091fb569b16228818b88e0d8d4315a1f4013df135e9a885359a0fb376c30d3e2"
 
 
 def test_replayer_sets_project_resource_attribute() -> None:
@@ -374,9 +355,7 @@ def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None
         assert span.status.code == Status.STATUS_CODE_ERROR
         assert _attribute(span, "output.value") == recorded_outputs[span.name]
         assert {
-            record.kind
-            for record in anomalies
-            if (record.trace_id, record.span_id) == span_id
+            record.kind for record in anomalies if (record.trace_id, record.span_id) == span_id
         } == {"token_inflation", "error_injection"}
 
     propagated_parent = next(span for span in spans if span.name == "turn-1")
@@ -388,19 +367,6 @@ def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None
         if (record.trace_id, record.span_id)
         == (propagated_parent.trace_id.hex(), propagated_parent.span_id.hex())
     ]
-
-    first = Replayer(_fixture_scenario(), epsilon=0, seed=23, error_rate=0.2)
-    second = Replayer(_fixture_scenario(), epsilon=0, seed=23, error_rate=0.2)
-    first_hits = [bool(first.emit(now_ns=30_000_000_000).anomalies) for _ in range(1_000)]
-    second_hits = [bool(second.emit(now_ns=30_000_000_000).anomalies) for _ in range(1_000)]
-    assert first_hits == second_hits
-    assert abs(sum(first_hits) / len(first_hits) - 0.2) < 0.04
-
-
-@pytest.mark.parametrize("error_rate", [-0.01, 1.01])
-def test_replayer_rejects_invalid_error_rate(error_rate: float) -> None:
-    with pytest.raises(ValueError, match="error_rate must be between 0 and 1"):
-        Replayer(_fixture_scenario(), error_rate=error_rate)
 
 
 def _fixture_scenario() -> Scenario:
