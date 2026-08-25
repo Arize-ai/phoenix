@@ -1,4 +1,3 @@
-import io
 import json
 import shutil
 import tarfile
@@ -8,13 +7,17 @@ from typing import Callable
 
 import pytest
 
-from phoenix.datagen import load_scenario
-from phoenix.datagen.fetcher import ScenarioFetchError, fetch_scenario, load_scenario_index
+from phoenix.datagen import load_corpus
+from phoenix.datagen.fetcher import (
+    CorpusFetchError,
+    fetch_corpus,
+    load_corpus_pointer,
+)
 
 
-def test_fetch_scenario_caches_a_checksum_verified_bank(tmp_path: Path) -> None:
-    archive = _build_archive(tmp_path, "remote-bank")
-    index = _write_index(tmp_path, "remote-bank", archive)
+def test_fetch_corpus_caches_a_checksum_verified_archive(tmp_path: Path) -> None:
+    archive = _build_archive(tmp_path)
+    pointer = _write_pointer(tmp_path, archive)
     downloads = 0
 
     def download(_url: str, destination: Path) -> None:
@@ -22,144 +25,106 @@ def test_fetch_scenario_caches_a_checksum_verified_bank(tmp_path: Path) -> None:
         downloads += 1
         shutil.copyfile(archive, destination)
 
-    cached = fetch_scenario(
-        "remote-bank",
+    cached = fetch_corpus(
         cache_dir=tmp_path / "cache",
-        index_path=index,
+        pointer_path=pointer,
         downloader=download,
     )
-    scenario = load_scenario(cached)
-    cached_again = fetch_scenario(
-        "remote-bank",
+    corpus = load_corpus(cached)
+    cached_again = fetch_corpus(
         cache_dir=tmp_path / "cache",
-        index_path=index,
+        pointer_path=pointer,
         downloader=download,
     )
 
     assert cached_again == cached
-    assert scenario.manifest["scenario_name"] == "fragment-bank"
+    assert corpus.manifest["scenario_name"] == "fragment-bank"
+    assert cached.parent.name == "cache"
     assert downloads == 1
 
 
-def test_fetch_scenario_refuses_a_checksum_mismatch(tmp_path: Path) -> None:
-    archive = _build_archive(tmp_path, "remote-bank")
-    index = _write_index(tmp_path, "remote-bank", archive, digest="0" * 64)
+def test_fetch_corpus_refuses_a_checksum_mismatch(tmp_path: Path) -> None:
+    archive = _build_archive(tmp_path)
+    pointer = _write_pointer(tmp_path, archive, digest="0" * 64)
 
-    with pytest.raises(ScenarioFetchError, match="checksum mismatch"):
-        fetch_scenario(
-            "remote-bank",
+    with pytest.raises(CorpusFetchError, match="checksum mismatch"):
+        fetch_corpus(
             cache_dir=tmp_path / "cache",
-            index_path=index,
+            pointer_path=pointer,
             downloader=_copy_downloader(archive),
         )
 
-    assert not any((tmp_path / "cache").glob("remote-bank/*"))
+    assert not any((tmp_path / "cache").iterdir())
 
 
-def test_fetch_scenario_refuses_archive_traversal(tmp_path: Path) -> None:
-    archive = _build_archive(tmp_path, "remote-bank", unsafe_member="../outside")
-    index = _write_index(tmp_path, "remote-bank", archive)
+def test_fetch_corpus_refuses_archive_traversal(tmp_path: Path) -> None:
+    archive = _build_archive(tmp_path, unsafe_member="../outside")
+    pointer = _write_pointer(tmp_path, archive)
 
-    with pytest.raises(ScenarioFetchError, match="unsafe member"):
-        fetch_scenario(
-            "remote-bank",
+    with pytest.raises(CorpusFetchError, match="unsafe member"):
+        fetch_corpus(
             cache_dir=tmp_path / "cache",
-            index_path=index,
+            pointer_path=pointer,
             downloader=_copy_downloader(archive),
         )
 
     assert not (tmp_path / "outside").exists()
 
 
-def test_load_scenario_index_uses_a_cached_copy_when_offline(tmp_path: Path) -> None:
-    archive = _build_archive(tmp_path, "remote-bank")
-    source_index = _write_index(tmp_path, "remote-bank", archive)
+def test_load_corpus_pointer_uses_a_cached_copy_when_offline(tmp_path: Path) -> None:
+    archive = _build_archive(tmp_path)
+    source_pointer = _write_pointer(tmp_path, archive)
     downloads = 0
 
     def download(_url: str, destination: Path) -> None:
         nonlocal downloads
         downloads += 1
         if downloads == 1:
-            shutil.copyfile(source_index, destination)
+            shutil.copyfile(source_pointer, destination)
         else:
             raise OSError("offline")
 
-    first = load_scenario_index(cache_dir=tmp_path / "cache", downloader=download)
-    second = load_scenario_index(cache_dir=tmp_path / "cache", downloader=download)
+    first = load_corpus_pointer(cache_dir=tmp_path / "cache", downloader=download)
+    second = load_corpus_pointer(cache_dir=tmp_path / "cache", downloader=download)
 
     assert first == second
-    assert set(second) == {"remote-bank"}
 
 
-def test_load_scenario_index_explains_how_to_recover_when_offline(tmp_path: Path) -> None:
+def test_load_corpus_pointer_explains_how_to_recover_when_offline(
+    tmp_path: Path,
+) -> None:
     def offline(_url: str, _destination: Path) -> None:
         raise OSError("offline")
 
-    with pytest.raises(ScenarioFetchError, match="phoenix datagen pull"):
-        load_scenario_index(cache_dir=tmp_path / "cache", downloader=offline)
+    with pytest.raises(CorpusFetchError, match="phoenix datagen pull"):
+        load_corpus_pointer(cache_dir=tmp_path / "cache", downloader=offline)
 
 
-def test_fetch_scenario_resolves_an_implicit_name_only_when_unambiguous(tmp_path: Path) -> None:
-    archive = _build_archive(tmp_path, "remote-bank")
-    index = _write_index(tmp_path, "remote-bank", archive)
-
-    cached = fetch_scenario(
-        cache_dir=tmp_path / "cache",
-        index_path=index,
-        downloader=_copy_downloader(archive),
-    )
-
-    assert cached.parent.parent.name == "cache"
-    assert (cached / "manifest.json").is_file()
-    index_path = tmp_path / "multi-index.json"
-    entry = json.loads(index.read_text())
-    entry["scenarios"]["second-bank"] = dict(entry["scenarios"]["remote-bank"])
-    index_path.write_text(json.dumps(entry))
-
-    with pytest.raises(ScenarioFetchError, match="pass --scenario"):
-        fetch_scenario(cache_dir=tmp_path / "cache", index_path=index_path)
-
-
-def _build_archive(
-    tmp_path: Path,
-    scenario: str,
-    unsafe_member: str | None = None,
-) -> Path:
-    fixture = Path(__file__).parent / "fixtures" / "fragment_bank"
-    archive = tmp_path / f"{scenario}.tar.gz"
-    with tarfile.open(archive, "w:gz") as output:
+def _build_archive(tmp_path: Path, *, unsafe_member: str | None = None) -> Path:
+    source = Path(__file__).parent / "fixtures" / "fragment_bank"
+    archive = tmp_path / "corpus.tar.gz"
+    with tarfile.open(archive, "w:gz") as contents:
         for filename in ("manifest.json", "fragments.jsonl", "traces.jsonl"):
-            output.add(fixture / filename, arcname=f"{scenario}/{filename}")
+            contents.add(source / filename, arcname=f"recorded-traces/{filename}")
         if unsafe_member is not None:
-            member = tarfile.TarInfo(unsafe_member)
-            member.size = 1
-            output.addfile(member, io.BytesIO(b"x"))
+            payload = tmp_path / "payload"
+            payload.write_text("unsafe")
+            contents.add(payload, arcname=unsafe_member)
     return archive
 
 
-def _write_index(
-    tmp_path: Path,
-    scenario: str,
-    archive: Path,
-    *,
-    digest: str | None = None,
-) -> Path:
-    index = tmp_path / "index.json"
-    content = archive.read_bytes()
-    index.write_text(
+def _write_pointer(tmp_path: Path, archive: Path, *, digest: str | None = None) -> Path:
+    pointer = tmp_path / "corpus.json"
+    pointer.write_text(
         json.dumps(
             {
                 "schema_version": 2,
-                "scenarios": {
-                    scenario: {
-                        "url": f"https://assets.example/{archive.name}",
-                        "sha256": digest or sha256(content).hexdigest(),
-                    }
-                },
+                "url": "https://assets.example/datagen/corpus.tar.gz",
+                "sha256": digest or sha256(archive.read_bytes()).hexdigest(),
             }
         )
     )
-    return index
+    return pointer
 
 
 def _copy_downloader(source: Path) -> Callable[[str, Path], None]:

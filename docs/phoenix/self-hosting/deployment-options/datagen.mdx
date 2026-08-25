@@ -3,9 +3,12 @@ title: "Synthetic trace generation"
 description: Run phoenix datagen beside a development or demo Phoenix instance
 ---
 
-`phoenix datagen` downloads and caches published OpenInference trace scenarios, then continuously
-replays them into a Phoenix collector over OTLP HTTP. It is useful for development, demonstrations,
+`phoenix datagen` downloads and caches a published OpenInference trace corpus, then continuously
+replays it into a Phoenix collector over OTLP HTTP. It is useful for development, demonstrations,
 and testing ingestion or evaluation workflows without connecting a real application.
+
+The corpus is the set of recorded traces datagen replays; publish updates by uploading a new
+archive and repointing `corpus.json`.
 
 <Warning>
   Never enable `phoenix datagen` against a production instance. It writes synthetic traces to the
@@ -27,11 +30,11 @@ phoenix datagen
 ```
 
 Traces land in the `phoenix-datagen` project. Stop the generator with `Ctrl+C`. Run
-`phoenix datagen --help` to see the project, rate, scenario, burstiness, and authentication
+`phoenix datagen --help` to see the project, rate, corpus, burstiness, and authentication
 options.
 
 Docker images ship with the trace data bundled. Outside Docker, the first run needs network
-access to the public Phoenix asset bucket; later runs use the verified local cache if the index
+access to the public Phoenix asset bucket; later runs use the verified local cache if the pointer
 cannot be refreshed. To prefetch before going offline, run `phoenix datagen pull`.
 
 ## Docker Compose
@@ -119,35 +122,34 @@ Because `phoenix datagen` runs continuously, set a job timeout for the intended 
 or delete the job afterward. A standalone Cloud Run service is not appropriate because the
 generator does not listen on the injected HTTP port.
 
-## Publishing scenario assets
+## Publishing the corpus
 
 Publication to the public Phoenix bucket is performed manually by an asset owner. From the
-repository root, prepare a packaged generation run and the next index:
+repository root, prepare a packaged generation run and the latest pointer:
 
 ```bash
 uv run python -m scripts.datagen.publish prepare-run <run-dir> \
-  --scenario-name <scenario-name> \
   --generated-at <ISO-8601-UTC-timestamp> \
   --generation-revision <git-revision> \
   --instrumenter-package <distribution>=<version> \
   --output-dir dist/datagen-publication
 ```
 
-The command validates the archive, stages it under its SHA-256, updates a local copy of the current
-public `index.json`, and prints the concrete upload commands. Review the index and run those commands
+The command validates the archive, stages it under its SHA-256, writes `corpus.json`, and prints the
+concrete upload commands. Review the pointer and run those commands
 in order:
 
 ```bash
 gcloud storage cp --no-clobber \
   --cache-control="public,max-age=31536000,immutable" \
-  "dist/datagen-publication/scenarios/<scenario>/<sha256>/<scenario>.tar.gz" \
-  "gs://arize-phoenix-assets/datagen/scenarios/<scenario>/<sha256>/<scenario>.tar.gz"
+  "dist/datagen-publication/corpus/<sha256>/corpus.tar.gz" \
+  "gs://arize-phoenix-assets/datagen/corpus/<sha256>/corpus.tar.gz"
 gcloud storage cp \
   --cache-control="no-cache,max-age=0" \
-  "dist/datagen-publication/index.json" \
-  "gs://arize-phoenix-assets/datagen/index.json"
+  "dist/datagen-publication/corpus.json" \
+  "gs://arize-phoenix-assets/datagen/corpus.json"
 ```
 
-Upload the archive first and the index last. Repeat `--instrumenter-package` for every recorder
+Upload the archive first and the pointer last. Repeat `--instrumenter-package` for every recorder
 dependency represented in the run. To publish an existing archive, use `prepare-archive --archive
-<archive> --asset-schema-version 2` instead.
+<archive>` instead.

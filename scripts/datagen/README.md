@@ -1,8 +1,11 @@
-# Trace scenario recorder
+# Trace corpus recorder
 
-These scripts record deterministic scenario traffic through real OpenInference instrumenters. The
+These scripts record deterministic trace traffic through real OpenInference instrumenters. The
 result is OTLP protobuf JSON published to GCS and downloaded on demand, so replay does not install
-the scenario frameworks or add recorded traces to the Phoenix wheel.
+the recording frameworks or add recorded traces to the Phoenix wheel.
+
+The corpus is the set of recorded traces datagen replays; publish updates by uploading a new
+archive and repointing `corpus.json`.
 
 Each recorder pins its own instrumenter stack in a PEP 723 header, so it must be run with
 `uv run --script` — a plain `uv run` would use the repository environment instead. `pyproject.toml`
@@ -29,12 +32,12 @@ request purpose also admits `judge` for the accepted-fragment outcome pass.
 
 Use a supplemental run when an existing schema-v2 archive needs new recorder behavior without
 regenerating its accepted fragments. Verify the base archive before initialization, then bind its
-scenario and digest into the immutable run configuration. This example allocates ten fault cells
+identity and digest into the immutable run configuration. This example allocates ten fault cells
 across all provider and tool modes while leaving enough eligible cells in both lanes:
 
 ```console
-BASE_ARCHIVE=/path/to/<base-scenario>.tar.gz
-BASE_SCENARIO=<base-scenario>
+BASE_ARCHIVE=/path/to/corpus.tar.gz
+BASE_CORPUS=corpus
 BASE_SHA256=<verified-base-sha256>
 RUN_DIR=dist/datagen-runs/<supplement-run>
 
@@ -50,7 +53,7 @@ uv run python scripts/datagen/generate.py init "$RUN_DIR" \
   --fault-fraction 0.5555555555555556 \
   --fault-modes \
     provider_429=100,provider_timeout=100,malformed_response=100,tool_delay=1,tool_exception=1 \
-  --base-scenario-name "$BASE_SCENARIO" \
+  --base-scenario-name "$BASE_CORPUS" \
   --base-archive-sha256 "$BASE_SHA256"
 ```
 
@@ -77,12 +80,11 @@ Package the supplement with every instrumenter version represented by its record
 it only with the digest-verified base declared at initialization:
 
 ```console
-SUPPLEMENT_ARCHIVE="$RUN_DIR/<supplement-scenario>.tar.gz"
-MERGED_ARCHIVE="$RUN_DIR/$BASE_SCENARIO.tar.gz"
+SUPPLEMENT_ARCHIVE="$RUN_DIR/supplement/corpus.tar.gz"
+MERGED_ARCHIVE="$RUN_DIR/merged/corpus.tar.gz"
 
 uv run python -m scripts.datagen.scenario package "$RUN_DIR" \
   --archive "$SUPPLEMENT_ARCHIVE" \
-  --scenario-name <supplement-scenario> \
   --generated-at <ISO-8601-UTC-timestamp> \
   --generation-revision <git-revision> \
   --instrumenter-package <distribution>=<version>
@@ -93,7 +95,7 @@ uv run python -m scripts.datagen.scenario merge \
   --archive "$MERGED_ARCHIVE"
 
 uv run python -m scripts.datagen.publish validate \
-  --archive "$MERGED_ARCHIVE" --asset-schema-version 2
+  --archive "$MERGED_ARCHIVE"
 ```
 
 The merged manifest retains the base's top-level instrumenter map for schema-v2 compatibility.
@@ -137,7 +139,7 @@ tool schema, so the same provider backs every recorder below.
 ## Recorders with a command-line entry point
 
 `openai_chat_sessions` and `langchain_agent_rag` record standalone trace sets. Both default
-`--output-dir` to their directory under `dist/datagen-assets/`, replacing that scenario's
+`--output-dir` to their directory under `dist/datagen-assets/`, replacing that recorder's
 `traces.jsonl` and regenerating `manifest.json` from the spans actually recorded. The `dist/`
 output is intentionally untracked. Neither manifest is the canonical schema-v2 form, so a
 publishable archive comes from a generation run packaged by `scenario.py`.
@@ -188,27 +190,26 @@ uv run --no-project --python 3.11 --with-requirements /tmp/recorder-reqs.txt pyt
 
 ## Freshness
 
-Re-record and review the scenario assets whenever a pinned instrumenter version changes. This
+Re-record and review the corpus whenever a pinned instrumenter version changes. This
 version-bump workflow is the freshness mechanism for keeping stored span shapes aligned with
 upstream instrumentation.
 
 Every JSONL line is one protobuf-JSON `ExportTraceServiceRequest`; requests from a multi-span trace
 may occupy multiple lines. Re-recorded assets are not package data and do not affect wheel size.
 
-## Fetching published scenarios
+## Fetching the published corpus
 
-Phoenix reads the public index at
-`https://storage.googleapis.com/arize-phoenix-assets/datagen/index.json`, downloads a selected
-archive, verifies its indexed byte size and SHA-256, verifies the schema-v2 per-file hashes from
-the manifest, and publishes the extracted files into the local cache. A previously cached index
-and scenario continue to work offline.
+Phoenix reads the public pointer at
+`https://storage.googleapis.com/arize-phoenix-assets/datagen/corpus.json`, downloads its archive,
+verifies the archive SHA-256, and publishes the extracted files into the local cache. A previously
+cached pointer and corpus continue to work offline.
 
-With no `--scenario`, replay uses a scenario bundled into the installation (Docker images bake
-one in at build time) or, failing that, the sole scenario in the public index. Development and
-private deployments pass `--scenario <local directory>`. `XDG_CACHE_HOME` controls the cache
-root; otherwise Phoenix uses `~/.cache/phoenix/datagen`.
+With no `--corpus`, replay uses a corpus bundled into the installation (Docker images bake one in
+at build time) or, failing that, the published corpus. Development and private deployments pass
+`--corpus <local directory>`. `XDG_CACHE_HOME` controls the cache root; otherwise Phoenix uses
+`~/.cache/phoenix/datagen/corpus`.
 
-## Replaying scenario traffic
+## Replaying corpus traffic
 
 `phoenix datagen` replays at a constant mean rate (`--rate`, `--burstiness`) and supports two
 content controls:
@@ -218,10 +219,10 @@ content controls:
 - `--error-rate <probability>` sets the probability of injecting a synthetic LLM or tool error.
   The default is `0`.
 
-## Publishing a scenario archive
+## Publishing the corpus
 
-Preparation is entirely local. `publish.py` validates the archive, fetches the current public index,
-stages the archive under its SHA-256, writes the next `index.json` beside it, and prints the two
+Preparation is entirely local. `publish.py` validates the archive, stages it under its SHA-256,
+writes the latest `corpus.json` pointer beside it, and prints the two
 `gcloud storage cp` commands that would upload them. It holds no credentials and makes no network
 write, so nothing reaches the bucket until someone runs those commands with their own `gcloud`
 credentials.
@@ -230,7 +231,6 @@ Prepare a schema-v2 generation run with:
 
 ```console
 uv run python -m scripts.datagen.publish prepare-run <run-dir> \
-  --scenario-name <scenario-name> \
   --generated-at <ISO-8601-UTC-timestamp> \
   --generation-revision <git-revision> \
   --instrumenter-package <distribution>=<version> \
@@ -238,8 +238,8 @@ uv run python -m scripts.datagen.publish prepare-run <run-dir> \
 ```
 
 Repeat `--instrumenter-package` for every recorder dependency represented in the run. For an
-already packaged schema-v2 archive, use `prepare-archive --archive <archive>
---asset-schema-version 2` instead. Both commands validate the canonical archive through the runtime
+already packaged schema-v2 archive, use `prepare-archive --archive <archive>` instead. Both
+commands validate the canonical archive through the runtime
 fetch and load path before staging anything.
 
 For a merged supplemental archive, stop after staging and hand the command output to whoever holds
@@ -248,29 +248,23 @@ the bucket credentials:
 ```console
 uv run python -m scripts.datagen.publish prepare-archive \
   --archive "$MERGED_ARCHIVE" \
-  --asset-schema-version 2 \
   --output-dir dist/datagen-publication
 ```
 
-An HTTP 404 for an unpublished index is treated as an empty schema-v2 index. Preparation still
-stages the digest-namespaced archive and replacement index.
-
-Review the staged index, then run the printed commands in order. They have this form:
+Review the staged pointer, then run the printed commands in order. They have this form:
 
 ```console
 gcloud storage cp --no-clobber \
   --cache-control="public,max-age=31536000,immutable" \
-  "dist/datagen-publication/scenarios/<scenario>/<sha256>/<scenario>.tar.gz" \
-  "gs://arize-phoenix-assets/datagen/scenarios/<scenario>/<sha256>/<scenario>.tar.gz"
+  "dist/datagen-publication/corpus/<sha256>/corpus.tar.gz" \
+  "gs://arize-phoenix-assets/datagen/corpus/<sha256>/corpus.tar.gz"
 gcloud storage cp \
   --cache-control="no-cache,max-age=0" \
-  "dist/datagen-publication/index.json" \
-  "gs://arize-phoenix-assets/datagen/index.json"
+  "dist/datagen-publication/corpus.json" \
+  "gs://arize-phoenix-assets/datagen/corpus.json"
 ```
 
-Upload the archive first and the index last. `--no-clobber` on the archive upload is what makes a
-published scenario immutable: each archive lives at a path containing its own SHA-256, and the
+Upload the archive first and the pointer last. `--no-clobber` on the archive upload is what makes a
+published corpus immutable: each archive lives at a path containing its own SHA-256, and the
 upload refuses to overwrite an object that is already there, so republishing a changed archive
-produces a new digest, a new path, and a new index entry rather than replacing anything. Re-run
-the preparation command immediately before publishing so the staged index is based on the current
-remote index.
+produces a new digest and a new path before `corpus.json` is repointed.

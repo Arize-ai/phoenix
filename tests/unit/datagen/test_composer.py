@@ -6,17 +6,17 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 
-from phoenix.datagen import ComposerConfig, Scenario, SessionComposer, load_scenario
+from phoenix.datagen import ComposerConfig, Corpus, SessionComposer, load_corpus
 
 
 def test_composer_samples_whole_same_archetype_fragments_without_replacement() -> None:
-    scenario = _scenario_with_two_plain_chat_fragments()
+    corpus = _corpus_with_two_plain_chat_fragments()
     recorded = {
         trace_id: request.SerializeToString()
-        for trace_id, request in scenario.requests_by_trace_id.items()
+        for trace_id, request in corpus.requests_by_trace_id.items()
     }
     composer = SessionComposer(
-        scenario,
+        corpus,
         config=ComposerConfig(
             session_fragments_median=2,
             session_fragments_sigma=0,
@@ -62,23 +62,23 @@ def test_composer_samples_whole_same_archetype_fragments_without_replacement() -
     assert second_start_ns - first_end_ns == 5_000_000_000
     assert recorded == {
         trace_id: request.SerializeToString()
-        for trace_id, request in scenario.requests_by_trace_id.items()
+        for trace_id, request in corpus.requests_by_trace_id.items()
     }
 
 
 def test_composer_keeps_same_archetype_sessions_within_one_application() -> None:
-    scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
-    scenario = Scenario(
-        manifest=scenario.manifest,
-        requests=scenario.requests,
-        source=scenario.source,
+    corpus = load_corpus(Path(__file__).parent / "fixtures" / "fragment_bank")
+    corpus = Corpus(
+        manifest=corpus.manifest,
+        requests=corpus.requests,
+        source=corpus.source,
         fragments=(
-            scenario.fragments[0],
-            replace(scenario.fragments[1], archetype="plain_chat", domain="analytics"),
+            corpus.fragments[0],
+            replace(corpus.fragments[1], archetype="plain_chat", domain="analytics"),
         ),
     )
     composer = SessionComposer(
-        scenario,
+        corpus,
         config=ComposerConfig(
             session_fragments_median=4,
             session_fragments_sigma=0,
@@ -99,13 +99,13 @@ def test_composer_keeps_same_archetype_sessions_within_one_application() -> None
     assert {session.fragments[0].domain for session in sessions} == {"support", "analytics"}
 
 
-def _scenario_with_two_plain_chat_fragments() -> Scenario:
-    scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
-    return Scenario(
-        manifest=scenario.manifest,
-        requests=scenario.requests,
-        source=scenario.source,
-        fragments=(scenario.fragments[0], replace(scenario.fragments[1], archetype="plain_chat")),
+def _corpus_with_two_plain_chat_fragments() -> Corpus:
+    corpus = load_corpus(Path(__file__).parent / "fixtures" / "fragment_bank")
+    return Corpus(
+        manifest=corpus.manifest,
+        requests=corpus.requests,
+        source=corpus.source,
+        fragments=(corpus.fragments[0], replace(corpus.fragments[1], archetype="plain_chat")),
     )
 
 

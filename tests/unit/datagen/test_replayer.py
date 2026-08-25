@@ -9,7 +9,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 
-from phoenix.datagen import ComposerConfig, Replayer, Scenario, load_scenario
+from phoenix.datagen import ComposerConfig, Corpus, Replayer, load_corpus
 
 _PROMPT_TOKENS = "llm.token_count.prompt"
 _COMPLETION_TOKENS = "llm.token_count.completion"
@@ -17,11 +17,11 @@ _TOTAL_TOKENS = "llm.token_count.total"
 
 
 def test_replayer_groups_trace_spans_across_jsonl_lines() -> None:
-    scenario_path = Path(__file__).parent / "fixtures" / "split_trace"
-    scenario = _without_fragments(load_scenario(scenario_path))
+    corpus_path = Path(__file__).parent / "fixtures" / "split_trace"
+    corpus = _without_fragments(load_corpus(corpus_path))
 
-    assert len(scenario.requests) == scenario.manifest["trace_count"] == 1
-    request = scenario.requests[0]
+    assert len(corpus.requests) == corpus.manifest["trace_count"] == 1
+    request = corpus.requests[0]
     associations = {
         (
             next(
@@ -40,11 +40,11 @@ def test_replayer_groups_trace_spans_across_jsonl_lines() -> None:
     }
 
     recorded_trace_id = next(_iter_spans(request)).trace_id
-    emitted = Replayer(scenario, epsilon=0, seed=7).emit(now_ns=10_000_000_000)
+    emitted = Replayer(corpus, epsilon=0, seed=7).emit(now_ns=10_000_000_000)
     spans = tuple(_iter_spans(emitted.request))
     emitted_trace_ids = {span.trace_id for span in spans}
 
-    assert len(spans) == scenario.manifest["span_count"] == 2
+    assert len(spans) == corpus.manifest["span_count"] == 2
     assert len(emitted_trace_ids) == 1
     assert recorded_trace_id not in emitted_trace_ids
     root = next(span for span in spans if span.name == "root")
@@ -53,14 +53,14 @@ def test_replayer_groups_trace_spans_across_jsonl_lines() -> None:
 
 
 def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> None:
-    scenario = _fixture_scenario()
-    one_trace_scenario = Scenario(
-        manifest=scenario.manifest,
-        requests=scenario.requests[:1],
-        source=scenario.source,
+    corpus = _fixture_corpus()
+    one_trace_corpus = Corpus(
+        manifest=corpus.manifest,
+        requests=corpus.requests[:1],
+        source=corpus.source,
     )
-    original_spans = tuple(_iter_spans(scenario.requests[0]))
-    replayer = Replayer(one_trace_scenario, epsilon=0, seed=7)
+    original_spans = tuple(_iter_spans(corpus.requests[0]))
+    replayer = Replayer(one_trace_corpus, epsilon=0, seed=7)
 
     emitted = replayer.emit(now_ns=10_000_000_000)
     spans = tuple(_iter_spans(emitted.request))
@@ -80,7 +80,7 @@ def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> Non
     assert len(session_ids) == 1
     assert session_ids != {"session-a"}
 
-    session_replayer = Replayer(scenario, epsilon=0, seed=7)
+    session_replayer = Replayer(corpus, epsilon=0, seed=7)
     scheduled = [session_replayer.emit(now_ns=10_000_000_000) for _ in range(3)]
     emitted_names = [next(_iter_spans(emission.request)).name for emission in scheduled]
     assert emitted_names.index("turn-1") < emitted_names.index("turn-2")
@@ -96,10 +96,10 @@ def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> Non
 
 @pytest.mark.parametrize("seed", range(3))
 def test_replayer_preserves_temporal_and_token_contracts_across_seeds(seed: int) -> None:
-    scenario = _fixture_scenario()
-    replayer = Replayer(scenario, epsilon=0, seed=seed)
+    corpus = _fixture_corpus()
+    replayer = Replayer(corpus, epsilon=0, seed=seed)
 
-    for _ in range(scenario.manifest["trace_count"]):
+    for _ in range(corpus.manifest["trace_count"]):
         spans = tuple(_iter_spans(replayer.emit(now_ns=10_000_000_000).request))
         spans_by_id = {span.span_id: span for span in spans}
         for span in spans:
@@ -109,9 +109,9 @@ def test_replayer_preserves_temporal_and_token_contracts_across_seeds(seed: int)
 
 
 def test_replayer_rebases_events_and_preserves_dangling_parent() -> None:
-    scenario = _fixture_scenario()
+    corpus = _fixture_corpus()
     request = ExportTraceServiceRequest()
-    request.CopyFrom(scenario.requests[0])
+    request.CopyFrom(corpus.requests[0])
     recorded_spans = tuple(_iter_spans(request))
     recorded_first_start = min(span.start_time_unix_nano for span in recorded_spans)
     recorded_root = next(span for span in recorded_spans if span.name == "turn-1")
@@ -122,15 +122,15 @@ def test_replayer_rebases_events_and_preserves_dangling_parent() -> None:
     late_event_time = recorded_child.end_time_unix_nano
     recorded_child.events.add(name="early", time_unix_nano=early_event_time)
     recorded_child.events.add(name="late", time_unix_nano=late_event_time)
-    one_trace_scenario = Scenario(
-        manifest=scenario.manifest,
+    one_trace_corpus = Corpus(
+        manifest=corpus.manifest,
         requests=(request,),
-        source=scenario.source,
+        source=corpus.source,
     )
 
     now_ns = 10_000_000_000
     spans = tuple(
-        _iter_spans(Replayer(one_trace_scenario, epsilon=0, seed=7).emit(now_ns=now_ns).request)
+        _iter_spans(Replayer(one_trace_corpus, epsilon=0, seed=7).emit(now_ns=now_ns).request)
     )
     emitted_root = next(span for span in spans if span.name == "turn-1")
     emitted_child = next(span for span in spans if span.name == "chat")
@@ -152,15 +152,15 @@ def test_replayer_rebases_events_and_preserves_dangling_parent() -> None:
 
 
 def test_same_seed_emits_equal_numeric_draws_with_disjoint_trace_ids() -> None:
-    scenario = _fixture_scenario()
-    first = Replayer(scenario, epsilon=0.25, seed=7)
-    second = Replayer(scenario, epsilon=0.25, seed=7)
+    corpus = _fixture_corpus()
+    first = Replayer(corpus, epsilon=0.25, seed=7)
+    second = Replayer(corpus, epsilon=0.25, seed=7)
 
     first_requests = tuple(
-        first.emit(now_ns=10_000_000_000).request for _ in range(scenario.manifest["trace_count"])
+        first.emit(now_ns=10_000_000_000).request for _ in range(corpus.manifest["trace_count"])
     )
     second_requests = tuple(
-        second.emit(now_ns=10_000_000_000).request for _ in range(scenario.manifest["trace_count"])
+        second.emit(now_ns=10_000_000_000).request for _ in range(corpus.manifest["trace_count"])
     )
 
     first_trace_ids = {span.trace_id for request in first_requests for span in _iter_spans(request)}
@@ -174,13 +174,13 @@ def test_same_seed_emits_equal_numeric_draws_with_disjoint_trace_ids() -> None:
 
 
 def test_replayer_sets_project_resource_attribute() -> None:
-    scenario = _fixture_scenario()
-    for request in scenario.requests:
+    corpus = _fixture_corpus()
+    for request in corpus.requests:
         for resource_spans in request.resource_spans:
             attribute = resource_spans.resource.attributes.add(key=ResourceAttributes.PROJECT_NAME)
             attribute.value.string_value = "recorded-project"
 
-    emitted = Replayer(scenario, epsilon=0, seed=7, project_name="configured-project").emit(
+    emitted = Replayer(corpus, epsilon=0, seed=7, project_name="configured-project").emit(
         now_ns=10_000_000_000
     )
 
@@ -191,7 +191,7 @@ def test_replayer_sets_project_resource_attribute() -> None:
         if attribute.key == ResourceAttributes.PROJECT_NAME
     } == {"configured-project"}
 
-    default_emitted = Replayer(_fixture_scenario(), epsilon=0, seed=7).emit(now_ns=10_000_000_000)
+    default_emitted = Replayer(_fixture_corpus(), epsilon=0, seed=7).emit(now_ns=10_000_000_000)
     assert {
         attribute.value.string_value
         for resource_spans in default_emitted.request.resource_spans
@@ -201,16 +201,16 @@ def test_replayer_sets_project_resource_attribute() -> None:
 
 
 def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -> None:
-    scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
-    for request in scenario.requests:
+    corpus = load_corpus(Path(__file__).parent / "fixtures" / "fragment_bank")
+    for request in corpus.requests:
         for span in _iter_spans(request):
             attribute = span.attributes.add(key="input.value")
             attribute.value.string_value = f"recorded:{span.name}"
     recorded_trace_ids = {
-        span.trace_id for request in scenario.requests for span in _iter_spans(request)
+        span.trace_id for request in corpus.requests for span in _iter_spans(request)
     }
     replayer = Replayer(
-        scenario,
+        corpus,
         epsilon=0,
         seed=7,
         composer_config=ComposerConfig(
@@ -273,7 +273,7 @@ def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -
 
 
 def test_contamination_labels_match_anomaly_ground_truth() -> None:
-    replayer = Replayer(_fixture_scenario(), epsilon=1, seed=11)
+    replayer = Replayer(_fixture_corpus(), epsilon=1, seed=11)
     emitted = replayer.emit(now_ns=10_000_000_000)
 
     spans = tuple(_iter_spans(emitted.request))
@@ -305,8 +305,8 @@ def test_contamination_labels_match_anomaly_ground_truth() -> None:
 
 
 def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None:
-    scenario = _fixture_scenario()
-    tool_span = next(_iter_spans(scenario.requests[1]))
+    corpus = _fixture_corpus()
+    tool_span = next(_iter_spans(corpus.requests[1]))
     next(
         attribute
         for attribute in tool_span.attributes
@@ -314,17 +314,17 @@ def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None
     ).value.string_value = "TOOL"
     tool_span.events.add(name="exception", time_unix_nano=tool_span.end_time_unix_nano)
     recorded_outputs = {}
-    for request in scenario.requests:
+    for request in corpus.requests:
         for span in _iter_spans(request):
             if _attribute(span, "openinference.span.kind") in {"LLM", "TOOL"}:
                 output = f"recorded output for {span.name}"
                 span.attributes.add(key="output.value").value.string_value = output
                 recorded_outputs[span.name] = output
 
-    replayer = Replayer(scenario, epsilon=1, seed=17, error_rate=1)
+    replayer = Replayer(corpus, epsilon=1, seed=17, error_rate=1)
     emissions = [
         replayer.emit(now_ns=10_000_000_000 + index * 1_000_000_000)
-        for index in range(scenario.manifest["trace_count"])
+        for index in range(corpus.manifest["trace_count"])
     ]
 
     spans = tuple(span for emission in emissions for span in _iter_spans(emission.request))
@@ -369,13 +369,13 @@ def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None
     ]
 
 
-def _fixture_scenario() -> Scenario:
-    return _without_fragments(load_scenario(Path(__file__).parent / "fixtures" / "scenario"))
+def _fixture_corpus() -> Corpus:
+    return _without_fragments(load_corpus(Path(__file__).parent / "fixtures" / "scenario"))
 
 
-def _without_fragments(scenario: Scenario) -> Scenario:
+def _without_fragments(corpus: Corpus) -> Corpus:
     """Drop fragments so Replayer skips session composition."""
-    return dataclasses.replace(scenario, fragments=())
+    return dataclasses.replace(corpus, fragments=())
 
 
 def _iter_spans(request: ExportTraceServiceRequest) -> Iterator[Span]:

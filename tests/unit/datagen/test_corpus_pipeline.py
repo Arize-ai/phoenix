@@ -5,11 +5,11 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from phoenix.datagen import load_scenario
+from phoenix.datagen import load_corpus
 from scripts.datagen.generation import GenerationRun
 from scripts.datagen.judgments import JudgingInputV1, route_judging_inputs
 from scripts.datagen.quality import QualityGate
-from scripts.datagen.scenario import command as scenario_command
+from scripts.datagen.scenario import command as corpus_command
 
 
 def test_scripts_produced_archive_loads_through_shipped_loader(
@@ -60,16 +60,14 @@ def test_scripts_produced_archive_loads_through_shipped_loader(
             "rationale": None,
         }
     )
-    archive = tmp_path / "scenario.tar.gz"
+    archive = tmp_path / "corpus.tar.gz"
     assert (
-        scenario_command(
+        corpus_command(
             [
                 "package",
                 str(run.directory),
                 "--archive",
                 str(archive),
-                "--scenario-name",
-                "scenario-pipeline",
                 "--generated-at",
                 "2026-08-25T00:00:00Z",
                 "--generation-revision",
@@ -92,11 +90,11 @@ def test_scripts_produced_archive_loads_through_shipped_loader(
             source = contents.extractfile(member)
             assert source is not None
             target.write_bytes(source.read())
-    scenario = load_scenario(extracted / "scenario-pipeline")
+    corpus = load_corpus(extracted / "corpus")
 
-    assert scenario.schema_version == 2
-    assert len(scenario.fragments) == 1
-    assert len(scenario.requests) == 1
+    assert corpus.schema_version == 2
+    assert len(corpus.fragments) == 1
+    assert len(corpus.requests) == 1
 
 
 def test_judging_inputs_route_at_the_wrapper_altitude() -> None:

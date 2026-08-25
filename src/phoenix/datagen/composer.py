@@ -11,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 
-from phoenix.datagen.loader import Scenario
+from phoenix.datagen.loader import Corpus
 from phoenix.datagen.schema import ARCHETYPES, Archetype, Fragment
 
 
@@ -72,18 +72,18 @@ class SessionComposer:
 
     def __init__(
         self,
-        scenario: Scenario,
+        corpus: Corpus,
         *,
         config: ComposerConfig,
         random: np.random.Generator,
     ) -> None:
-        if not scenario.fragments:
-            raise ValueError("scenario contains no fragments")
+        if not corpus.fragments:
+            raise ValueError("corpus contains no fragments")
         self._config = config
         self._random = random
-        self._requests_by_trace_id = scenario.requests_by_trace_id
+        self._requests_by_trace_id = corpus.requests_by_trace_id
         fragments_by_application: dict[Archetype, dict[str, list[Fragment]]] = {}
-        for fragment in scenario.fragments:
+        for fragment in corpus.fragments:
             fragments_by_application.setdefault(fragment.archetype, {}).setdefault(
                 fragment.domain, []
             ).append(fragment)

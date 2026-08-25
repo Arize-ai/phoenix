@@ -24,7 +24,7 @@ class _Config:
     endpoint: str
     api_key: str | None
     headers: Mapping[str, str]
-    scenario: str | None
+    corpus: str | None
     project: str | None
     rate: float
     burstiness: float
@@ -40,24 +40,18 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     )
     parser.set_defaults(func=run)
     commands = parser.add_subparsers(dest="datagen_command")
-    pull_parser = commands.add_parser("pull", help="Download and cache a scenario bank.")
+    pull_parser = commands.add_parser("pull", help="Download and cache the published corpus.")
     pull_parser.set_defaults(func=pull)
-    pull_parser.add_argument(
-        "scenario",
-        nargs="?",
-        default=None,
-        help="Scenario name from the published index; defaults to the sole published scenario.",
-    )
     parser.add_argument(
         "--endpoint",
         help="Phoenix collector base URL (env: PHOENIX_COLLECTOR_ENDPOINT).",
     )
     parser.add_argument("--api-key", help="Phoenix API key (env: PHOENIX_API_KEY).")
     parser.add_argument(
-        "--scenario",
+        "--corpus",
         help=(
-            "Local scenario directory or published scenario name; "
-            "defaults to the bundled or sole published scenario."
+            "Local directory of recorded traces to replay "
+            "(default: the bundled or published corpus)."
         ),
     )
     parser.add_argument(
@@ -92,18 +86,18 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
 
 
 def pull(args: Namespace) -> None:
-    from phoenix.datagen.fetcher import fetch_scenario
+    from phoenix.datagen.fetcher import fetch_corpus
 
-    print(fetch_scenario(args.scenario))
+    print(fetch_corpus())
 
 
 def run(args: Namespace) -> None:
-    from phoenix.datagen import OTLPHTTPExporter, Replayer, load_scenario
+    from phoenix.datagen import OTLPHTTPExporter, Replayer, load_corpus
 
     config = _resolve_config(args, os.environ)
-    scenario = load_scenario(config.scenario)
+    corpus = load_corpus(config.corpus)
     replayer = Replayer(
-        scenario,
+        corpus,
         epsilon=config.epsilon,
         seed=config.seed,
         project_name=config.project,
@@ -141,7 +135,7 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
         ),
         api_key=args.api_key or environ.get("PHOENIX_API_KEY"),
         headers=parse_env_headers(environ.get("PHOENIX_CLIENT_HEADERS")),
-        scenario=args.scenario,
+        corpus=args.corpus,
         project=args.project or environ.get("PHOENIX_PROJECT_NAME"),
         rate=args.rate if args.rate is not None else _DEFAULT_RATE,
         burstiness=args.burstiness if args.burstiness is not None else _DEFAULT_BURSTINESS,

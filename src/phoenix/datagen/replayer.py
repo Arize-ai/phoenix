@@ -18,7 +18,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 
 from phoenix.datagen.composer import ComposerConfig, SessionComposer
-from phoenix.datagen.loader import Scenario
+from phoenix.datagen.loader import Corpus
 
 _SESSION_ID = "session.id"
 _PROMPT_TOKENS = "llm.token_count.prompt"
@@ -69,7 +69,7 @@ class Replayer:
 
     def __init__(
         self,
-        scenario: Scenario,
+        corpus: Corpus,
         *,
         epsilon: float = 0.02,
         seed: int | None = None,
@@ -94,21 +94,21 @@ class Replayer:
         self._project_name = project_name or "phoenix-datagen"
         self._composer = (
             SessionComposer(
-                scenario,
+                corpus,
                 config=composer_config or ComposerConfig(),
                 random=self._random,
             )
-            if scenario.fragments
+            if corpus.fragments
             else None
         )
         self._numerics = _NumericsEngine.from_requests(
-            scenario.requests,
+            corpus.requests,
             epsilon=epsilon,
             random=self._random,
         )
         templates_by_session: dict[str, list[_TraceTemplate]] = defaultdict(list)
         trace_number = 0
-        for request in scenario.requests:
+        for request in corpus.requests:
             for trace_request in _split_traces(request):
                 session_ids = {
                     session_id
@@ -116,7 +116,7 @@ class Replayer:
                     if (session_id := _string_attribute(span, _SESSION_ID))
                 }
                 if len(session_ids) > 1:
-                    raise ValueError("A scenario trace contains multiple session.id values")
+                    raise ValueError("A corpus trace contains multiple session.id values")
                 has_session = bool(session_ids)
                 session_key = next(iter(session_ids), f"__trace_{trace_number}")
                 templates_by_session[session_key].append(
@@ -124,7 +124,7 @@ class Replayer:
                 )
                 trace_number += 1
         if not templates_by_session:
-            raise ValueError("scenario contains no traces")
+            raise ValueError("corpus contains no traces")
         self._sessions = {key: tuple(templates) for key, templates in templates_by_session.items()}
         self._queues: dict[str, deque[_TraceTemplate]] = {}
         self._session_ids: dict[str, str] = {}

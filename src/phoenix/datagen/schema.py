@@ -38,9 +38,8 @@ class FileMetadata(TypedDict):
     size_bytes: int
 
 
-class ScenarioManifestV2(TypedDict):
+class CorpusManifestV2(TypedDict):
     schema_version: Literal[2]
-    scenario_name: str
     generated_at: str
     generation_revision: str
     matrix_sha256: str
@@ -112,10 +111,9 @@ class SchemaValidationError(ValueError):
         super().__init__(message)
 
 
-def validate_manifest_v2(value: Mapping[str, Any]) -> ScenarioManifestV2:
+def validate_corpus_manifest_v2(value: Mapping[str, Any]) -> CorpusManifestV2:
     _require_literal(value, "schema_version", 2)
-    _require_string(value, "scenario_name")
-    return cast(ScenarioManifestV2, value)
+    return cast(CorpusManifestV2, value)
 
 
 def validate_fragment_v2(value: Mapping[str, Any]) -> Fragment:

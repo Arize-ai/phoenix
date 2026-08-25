@@ -1,10 +1,9 @@
-"""Prepare and validate datagen scenario archives for manual publication."""
+"""Prepare and validate the datagen corpus for manual publication."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import shlex
 import shutil
 import sys
@@ -13,34 +12,27 @@ from dataclasses import asdict, dataclass
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Mapping, Sequence, TextIO
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
-from urllib.request import urlopen
 
-from phoenix.datagen.fetcher import ScenarioFetchError, fetch_scenario
-from phoenix.datagen.loader import ScenarioError, load_scenario
+from phoenix.datagen.fetcher import CorpusFetchError, fetch_corpus
+from phoenix.datagen.loader import CorpusError, load_corpus
 from scripts.datagen.scenario import (
-    ScenarioArchiveError,
+    CorpusArchiveError,
     _parse_instrumenter_versions,
     package_generation_run,
-    read_scenario_archive,
+    read_corpus_archive,
 )
 
-_ARCHIVE_NAME = re.compile(r"[a-z0-9][a-z0-9_-]*\.tar\.gz")
+_ARCHIVE_NAME = "corpus.tar.gz"
 _BUCKET = "arize-phoenix-assets"
 _PREFIX = "datagen"
-_PUBLIC_BASE_URL = f"https://storage.googleapis.com/{_BUCKET}/{_PREFIX}"
-_DEFAULT_INDEX_URL = f"{_PUBLIC_BASE_URL}/index.json"
 _DEFAULT_OUTPUT_DIR = Path("dist/datagen-publication")
 
 
 @dataclass(frozen=True)
-class ValidatedScenario:
+class ValidatedCorpus:
     archive: Path
-    scenario: str
     sha256: str
     size_bytes: int
-    asset_schema_version: int
     fragment_count: int
     archetypes: tuple[str, ...]
 
@@ -49,20 +41,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    validate = subparsers.add_parser("validate", help="validate one canonical scenario archive")
-    _add_archive_arguments(validate)
+    validate = subparsers.add_parser("validate", help="validate the canonical corpus archive")
+    _add_archive_argument(validate)
 
     prepare_archive = subparsers.add_parser(
-        "prepare-archive", help="stage an existing archive and the next public index"
+        "prepare-archive", help="stage an existing corpus archive and the latest pointer"
     )
-    _add_archive_arguments(prepare_archive)
-    _add_prepare_arguments(prepare_archive)
+    _add_archive_argument(prepare_archive)
+    _add_output_argument(prepare_archive)
 
     prepare_run = subparsers.add_parser(
         "prepare-run", help="package a generation run and stage it for publication"
     )
     prepare_run.add_argument("run_dir", type=Path)
-    prepare_run.add_argument("--scenario-name", required=True)
     prepare_run.add_argument("--generated-at", required=True)
     prepare_run.add_argument("--generation-revision", required=True)
     prepare_run.add_argument(
@@ -70,21 +61,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         required=True,
         metavar="NAME=VERSION",
-        help=("record an instrumenter distribution version; repeat for every recorder dependency"),
+        help="record an instrumenter distribution version; repeat for every recorder dependency",
     )
-    _add_prepare_arguments(prepare_run)
+    _add_output_argument(prepare_run)
     return parser
 
 
-def _add_archive_arguments(parser: argparse.ArgumentParser) -> None:
+def _add_archive_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--archive", type=Path, required=True)
-    parser.add_argument("--asset-schema-version", type=int, choices=(2,), required=True)
 
 
-def _add_prepare_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--index", default=_DEFAULT_INDEX_URL, help="current index path or HTTPS URL"
-    )
+def _add_output_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--output-dir", type=Path, default=_DEFAULT_OUTPUT_DIR)
 
 
@@ -97,7 +84,7 @@ def command(
     args = build_parser().parse_args(argv)
     try:
         result = _dispatch(args)
-    except (ScenarioFetchError, ScenarioArchiveError, OSError, ScenarioError, ValueError) as error:
+    except (CorpusFetchError, CorpusArchiveError, OSError, CorpusError, ValueError) as error:
         print(
             json.dumps({"error": type(error).__name__, "message": str(error)}),
             file=stderr,
@@ -109,120 +96,86 @@ def command(
 
 def _dispatch(args: argparse.Namespace) -> Mapping[str, Any]:
     if args.command == "validate":
-        return _validated_scenario_document(
-            validate_archive(args.archive, asset_schema_version=args.asset_schema_version)
-        )
+        return _validated_corpus_document(validate_archive(args.archive))
     if args.command == "prepare-archive":
-        validated = validate_archive(args.archive, asset_schema_version=args.asset_schema_version)
-        return prepare_publication(validated, index=args.index, output_dir=args.output_dir)
+        return prepare_publication(validate_archive(args.archive), output_dir=args.output_dir)
     if args.command == "prepare-run":
-        instrumenter_versions = _parse_instrumenter_versions(args.instrumenter_package)
-        archive = args.output_dir / f"{args.scenario_name}.tar.gz"
+        archive = args.output_dir / _ARCHIVE_NAME
         package_generation_run(
             args.run_dir,
             archive,
-            scenario_name=args.scenario_name,
             generated_at=args.generated_at,
             generation_revision=args.generation_revision,
-            instrumenter_package_versions=instrumenter_versions,
+            instrumenter_package_versions=_parse_instrumenter_versions(args.instrumenter_package),
         )
-        validated = validate_archive(archive, asset_schema_version=2)
-        return prepare_publication(validated, index=args.index, output_dir=args.output_dir)
+        return prepare_publication(validate_archive(archive), output_dir=args.output_dir)
     raise AssertionError(args.command)
 
 
-def validate_archive(archive: Path, *, asset_schema_version: int) -> ValidatedScenario:
+def validate_archive(archive: Path) -> ValidatedCorpus:
     archive = archive.resolve()
     if not archive.is_file():
-        raise ValueError(f"scenario archive does not exist: {archive}")
-    if _ARCHIVE_NAME.fullmatch(archive.name) is None:
-        raise ValueError("scenario archive name must match <scenario>.tar.gz")
-    scenario = archive.name.removesuffix(".tar.gz")
+        raise ValueError(f"corpus archive does not exist: {archive}")
+    if archive.name != _ARCHIVE_NAME:
+        raise ValueError(f"corpus archive must be named {_ARCHIVE_NAME}")
     archive_bytes = archive.read_bytes()
     archive_digest = sha256(archive_bytes).hexdigest()
 
-    scenario_archive = read_scenario_archive(archive)
-    fragment_count = scenario_archive.manifest["fragment_count"]
-    archetypes = tuple(sorted({fragment.archetype for fragment in scenario_archive.fragments}))
+    corpus_archive = read_corpus_archive(archive)
+    fragment_count = corpus_archive.manifest["fragment_count"]
+    archetypes = tuple(sorted({fragment.archetype for fragment in corpus_archive.fragments}))
 
     with tempfile.TemporaryDirectory(prefix="phoenix-datagen-validation-") as directory:
         validation_root = Path(directory)
-        validation_index = validation_root / "validation-index.json"
-        validation_index.write_text(
+        validation_pointer = validation_root / "corpus.json"
+        validation_pointer.write_text(
             json.dumps(
                 {
                     "schema_version": 2,
-                    "scenarios": {
-                        scenario: {
-                            "url": f"https://assets.invalid/{archive.name}",
-                            "sha256": archive_digest,
-                            "size_bytes": len(archive_bytes),
-                            "asset_schema_version": asset_schema_version,
-                            "fragment_count": fragment_count,
-                            "archetypes": list(archetypes),
-                        }
-                    },
+                    "url": "https://assets.invalid/corpus.tar.gz",
+                    "sha256": archive_digest,
                 }
             ),
             encoding="utf-8",
         )
-        extracted = fetch_scenario(
-            scenario,
+        extracted = fetch_corpus(
             cache_dir=validation_root / "cache",
-            index_path=validation_index,
+            pointer_path=validation_pointer,
             downloader=lambda _url, destination: shutil.copyfile(archive, destination),
         )
-        loaded = load_scenario(extracted)
+        load_corpus(extracted)
 
-    manifest_name = loaded.manifest.get("scenario_name")
-    if manifest_name != scenario:
-        raise ValueError(
-            f"archive name {archive.name!r} does not match manifest scenario {manifest_name!r}"
-        )
-    return ValidatedScenario(
+    return ValidatedCorpus(
         archive=archive,
-        scenario=scenario,
         sha256=archive_digest,
         size_bytes=len(archive_bytes),
-        asset_schema_version=asset_schema_version,
         fragment_count=fragment_count,
         archetypes=archetypes,
     )
 
 
 def prepare_publication(
-    validated: ValidatedScenario,
+    validated: ValidatedCorpus,
     *,
-    index: str,
     output_dir: Path,
 ) -> Mapping[str, Any]:
-    index_document = _read_index(index)
-    object_name = (
-        f"{_PREFIX}/scenarios/{validated.scenario}/{validated.sha256}/{validated.archive.name}"
-    )
+    object_name = f"{_PREFIX}/corpus/{validated.sha256}/{_ARCHIVE_NAME}"
     public_url = f"https://storage.googleapis.com/{_BUCKET}/{object_name}"
-    index_document["scenarios"][validated.scenario] = {
+    pointer_document = {
+        "schema_version": 2,
         "url": public_url,
         "sha256": validated.sha256,
-        "size_bytes": validated.size_bytes,
-        "asset_schema_version": validated.asset_schema_version,
-        "fragment_count": validated.fragment_count,
-        "archetypes": list(validated.archetypes),
     }
 
     output_dir = output_dir.resolve()
-    staged_archive = (
-        output_dir / "scenarios" / validated.scenario / validated.sha256 / validated.archive.name
-    )
+    staged_archive = output_dir / "corpus" / validated.sha256 / _ARCHIVE_NAME
     staged_archive.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(validated.archive, staged_archive)
-    staged_index = output_dir / "index.json"
-    staged_index.write_text(
-        json.dumps(index_document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    staged_pointer = output_dir / "corpus.json"
+    staged_pointer.write_text(
+        json.dumps(pointer_document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
-    archive_uri = f"gs://{_BUCKET}/{object_name}"
-    index_uri = f"gs://{_BUCKET}/{_PREFIX}/index.json"
     upload_commands = [
         shlex.join(
             (
@@ -232,7 +185,7 @@ def prepare_publication(
                 "--no-clobber",
                 "--cache-control=public,max-age=31536000,immutable",
                 str(staged_archive),
-                archive_uri,
+                f"gs://{_BUCKET}/{object_name}",
             )
         ),
         shlex.join(
@@ -241,48 +194,20 @@ def prepare_publication(
                 "storage",
                 "cp",
                 "--cache-control=no-cache,max-age=0",
-                str(staged_index),
-                index_uri,
+                str(staged_pointer),
+                f"gs://{_BUCKET}/{_PREFIX}/corpus.json",
             )
         ),
     ]
     return {
-        **_validated_scenario_document(validated),
+        **_validated_corpus_document(validated),
         "staged_archive": str(staged_archive),
-        "staged_index": str(staged_index),
+        "staged_pointer": str(staged_pointer),
         "upload_commands": upload_commands,
     }
 
 
-def _read_index(source: str) -> dict[str, Any]:
-    parsed = urlparse(source)
-    if parsed.scheme:
-        if parsed.scheme != "https":
-            raise ValueError("the current scenario index URL must use HTTPS")
-        try:
-            with urlopen(source, timeout=30) as response:  # noqa: S310
-                content = response.read()
-        except HTTPError as error:
-            if error.code == 404:
-                return {"schema_version": 2, "scenarios": {}}
-            raise ValueError(f"unable to download the current scenario index: {error}") from error
-        except URLError as error:
-            raise ValueError(f"unable to download the current scenario index: {error}") from error
-    else:
-        content = Path(source).read_bytes()
-    try:
-        value = json.loads(content)
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValueError(f"invalid datagen scenario index {source}: {error}") from error
-    if not isinstance(value, dict) or value.get("schema_version") != 2:
-        raise ValueError(f"datagen scenario index {source} must have schema_version 2")
-    scenarios = value.get("scenarios")
-    if not isinstance(scenarios, dict):
-        raise ValueError(f"datagen scenario index {source} field 'scenarios' must be an object")
-    return value
-
-
-def _validated_scenario_document(validated: ValidatedScenario) -> dict[str, Any]:
+def _validated_corpus_document(validated: ValidatedCorpus) -> dict[str, Any]:
     value = asdict(validated)
     value["archive"] = str(validated.archive)
     value["archetypes"] = list(validated.archetypes)

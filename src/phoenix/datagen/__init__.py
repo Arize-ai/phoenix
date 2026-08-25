@@ -1,10 +1,10 @@
 """Replay recorded OpenInference traces into a Phoenix collector.
 
-Scenarios contain a protobuf-JSON ``ExportTraceServiceRequest`` on each line of
+The corpus contains a protobuf-JSON ``ExportTraceServiceRequest`` on each line of
 ``traces.jsonl`` plus descriptive metadata in ``manifest.json``. The replayer
 splits batches into traces, interleaves recorded sessions without reordering
 their turns, and assigns fresh trace, span, session, and timestamp values on
-every pass. Token-bearing spans are redrawn from scenario-fitted lognormal
+every pass. Token-bearing spans are redrawn from corpus-fitted lognormal
 distributions; a seeded per-span contamination draw jointly inflates tokens and
 latency and marks ground-truth anomalies. Recorded cost attributes are removed
 because Phoenix derives cost from token counts and model pricing.
@@ -21,10 +21,11 @@ from phoenix.datagen.composer import (
     SessionComposer,
 )
 from phoenix.datagen.exporter import OTLPHTTPExporter
-from phoenix.datagen.loader import Scenario, ScenarioError, load_scenario
+from phoenix.datagen.loader import Corpus, CorpusError, load_corpus
 from phoenix.datagen.replayer import Anomaly, EmittedTrace, Replayer
 from phoenix.datagen.schema import (
     Archetype,
+    CorpusManifestV2,
     Fragment,
     FragmentRecordV2,
     GenerationLane,
@@ -32,10 +33,9 @@ from phoenix.datagen.schema import (
     ModelUsed,
     ModelUsedRecord,
     QualityTier,
-    ScenarioManifestV2,
     SchemaValidationError,
+    validate_corpus_manifest_v2,
     validate_fragment_v2,
-    validate_manifest_v2,
 )
 
 __all__ = [
@@ -44,6 +44,9 @@ __all__ = [
     "ComposedSession",
     "ComposedTrace",
     "ComposerConfig",
+    "Corpus",
+    "CorpusError",
+    "CorpusManifestV2",
     "EmittedTrace",
     "Fragment",
     "FragmentRecordV2",
@@ -54,12 +57,9 @@ __all__ = [
     "OTLPHTTPExporter",
     "QualityTier",
     "Replayer",
-    "Scenario",
-    "ScenarioError",
-    "ScenarioManifestV2",
     "SchemaValidationError",
     "SessionComposer",
-    "load_scenario",
+    "load_corpus",
+    "validate_corpus_manifest_v2",
     "validate_fragment_v2",
-    "validate_manifest_v2",
 ]
