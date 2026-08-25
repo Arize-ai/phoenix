@@ -1,7 +1,6 @@
 import {
   addPromptInstanceInputSchema,
   clonePromptInstanceInputSchema,
-  editPromptActionContextSchema,
   editPromptInputSchema,
   readPromptInputSchema,
   removePromptInstanceInputSchema,
@@ -10,7 +9,6 @@ import {
 import type {
   AddPromptInstanceInput,
   ClonePromptInstanceInput,
-  EditPromptActionContext,
   EditPromptInput,
   ReadPromptInput,
   RemovePromptInstanceInput,
@@ -47,10 +45,4 @@ export function parseRemovePromptInstanceOutput(
 
 export function parseEditPromptInput(input: unknown): EditPromptInput | null {
   return editPromptInputSchema.safeParse(input).data ?? null;
-}
-
-export function parseEditPromptActionContext(
-  input: unknown
-): EditPromptActionContext | null {
-  return editPromptActionContextSchema.safeParse(input).data ?? null;
 }

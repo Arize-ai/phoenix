@@ -1,10 +1,10 @@
+import { parseUIOperationCallContext } from "@phoenix/agent/UIOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
 import {
   parseAddPromptInstanceInput,
   parseClonePromptInstanceInput,
-  parseEditPromptActionContext,
   parseEditPromptInput,
   parseReadPromptInput,
   parseRemovePromptInstanceInput,
@@ -22,7 +22,7 @@ import type { PendingPromptEdit, PendingPromptInstanceRemoval } from "./types";
 
 /**
  * Creates the client action handler for the read_prompt_instance tool.
- * Returns the current prompt snapshot as JSON.
+ * Returns the current prompt snapshot as a structured object.
  */
 export function createReadPromptClientAction({
   playgroundStore,
@@ -32,7 +32,7 @@ export function createReadPromptClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseReadPromptInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid read_prompt_instance input." };
+      return { ok: false, error: "Invalid playground.prompt.read input." };
     }
     const snapshot = getPromptSnapshot({
       playgroundStore,
@@ -41,7 +41,7 @@ export function createReadPromptClientAction({
     if (!snapshot.ok) {
       return snapshot;
     }
-    return { ok: true, output: JSON.stringify(snapshot.output, null, 2) };
+    return snapshot;
   };
 }
 
@@ -57,17 +57,12 @@ export function createClonePromptInstanceClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseClonePromptInstanceInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid clone_prompt_instance input." };
+      return { ok: false, error: "Invalid playground.instance.clone input." };
     }
-    const result = clonePromptInstance({
+    return clonePromptInstance({
       playgroundStore,
       instanceId: parsed.instanceId,
     });
-    if (!result.ok) return result;
-    return {
-      ok: true,
-      output: JSON.stringify(result.output, null, 2),
-    };
   };
 }
 
@@ -84,14 +79,9 @@ export function createAddPromptInstanceClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseAddPromptInstanceInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid add_prompt_instance input." };
+      return { ok: false, error: "Invalid playground.instance.add input." };
     }
-    const result = addPromptInstance({ playgroundStore });
-    if (!result.ok) return result;
-    return {
-      ok: true,
-      output: JSON.stringify(result.output, null, 2),
-    };
+    return addPromptInstance({ playgroundStore });
   };
 }
 
@@ -115,16 +105,17 @@ export function createRemovePromptInstanceClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const actionContext = parseEditPromptActionContext(context);
-    if (!actionContext) {
+    const callContext = parseUIOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
-        error: "Cannot remove prompt instance without tool call context.",
+        error:
+          "Cannot remove prompt instance without an operation call context.",
       };
     }
     const parsed = parseRemovePromptInstanceInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid remove_prompt_instance input." };
+      return { ok: false, error: "Invalid playground.instance.remove input." };
     }
 
     const preview = resolveRemovablePromptInstance({
@@ -133,25 +124,28 @@ export function createRemovePromptInstanceClientAction({
     });
     if (!preview.ok) return preview;
 
-    const pendingRemoval = bindPendingPromptInstanceRemovalActions({
-      pendingRemoval: {
-        toolCallId: actionContext.toolCallId,
-        sessionId: actionContext.sessionId,
-        instanceId: preview.output.instanceId,
-        label: preview.output.label,
-      },
-      playgroundStore,
-      addToolOutput: actionContext.addToolOutput,
-      setPendingPromptInstanceRemoval,
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_browser_action script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingRemoval = bindPendingPromptInstanceRemovalActions({
+        pendingRemoval: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          instanceId: preview.output.instanceId,
+          label: preview.output.label,
+        },
+        playgroundStore,
+        emitResult: resolve,
+        setPendingPromptInstanceRemoval,
+      });
+
+      if (shouldAutoAccept()) {
+        void pendingRemoval.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingPromptInstanceRemoval(callContext.callId, pendingRemoval);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingRemoval.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingPromptInstanceRemoval(actionContext.toolCallId, pendingRemoval);
-    return { ok: true };
   };
 }
 
@@ -176,16 +170,16 @@ export function createEditPromptClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const editContext = parseEditPromptActionContext(context);
-    if (!editContext) {
+    const callContext = parseUIOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
-        error: "Cannot propose prompt edit without tool call context.",
+        error: "Cannot propose prompt edit without an operation call context.",
       };
     }
     const parsed = parseEditPromptInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid edit_prompt_instance input." };
+      return { ok: false, error: "Invalid playground.prompt.edit input." };
     }
     const before = getPromptSnapshot({
       playgroundStore,
@@ -193,9 +187,17 @@ export function createEditPromptClientAction({
     });
     if (!before.ok) return before;
     if (before.output.revision !== parsed.expectedRevision) {
+      // A mismatch means the token is wrong, not necessarily that anyone
+      // edited the prompt — say so, and carry the current revision so the
+      // script can retry without another read.
       return {
         ok: false,
-        error: "The prompt has changed since it was last viewed by PXI.",
+        code: "STALE_REVISION",
+        error:
+          `expectedRevision "${parsed.expectedRevision}" does not match the ` +
+          `prompt's current revision "${before.output.revision}". Retry with ` +
+          "the current revision (a successful edit's returned `revision` is " +
+          "also valid); re-read the prompt only if you need its latest content.",
       };
     }
     const proposed = buildProposedPromptSnapshot({
@@ -204,27 +206,30 @@ export function createEditPromptClientAction({
     });
     if (!proposed.ok) return proposed;
 
-    const pendingEdit = bindPendingPromptEditActions({
-      pendingEdit: {
-        toolCallId: editContext.toolCallId,
-        sessionId: editContext.sessionId,
-        instanceId: parsed.instanceId,
-        expectedRevision: parsed.expectedRevision,
-        before: before.output,
-        after: proposed.output.after,
-        operations: proposed.output.operations,
-      },
-      playgroundStore,
-      addToolOutput: editContext.addToolOutput,
-      setPendingPromptEdit,
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_browser_action script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingEdit = bindPendingPromptEditActions({
+        pendingEdit: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          instanceId: parsed.instanceId,
+          expectedRevision: parsed.expectedRevision,
+          before: before.output,
+          after: proposed.output.after,
+          operations: proposed.output.operations,
+        },
+        playgroundStore,
+        emitResult: resolve,
+        setPendingPromptEdit,
+      });
+
+      if (shouldAutoAccept()) {
+        void pendingEdit.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingPromptEdit(callContext.callId, pendingEdit);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingEdit.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingPromptEdit(editContext.toolCallId, pendingEdit);
-    return { ok: true };
   };
 }

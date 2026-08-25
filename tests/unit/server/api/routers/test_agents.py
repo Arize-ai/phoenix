@@ -15,7 +15,6 @@ from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart, TurnTraceContext
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.agents.capabilities.tools.external import edit_code_evaluator_draft
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.types import (
     SandboxAvailability,
@@ -655,21 +654,6 @@ class TestAgentDependenciesShape:
         assert deps.is_viewer is False
         assert isinstance(deps.sandbox_availability, SandboxAvailability)
         assert deps.sandbox_availability.has_usable is False
-
-
-class TestEditCodeEvaluatorDraftToolDescription:
-    """The code-evaluator draft-edit tool does not inline a sandbox inventory. Its
-    description directs the agent to fetch the selectable set on-demand via
-    ``phoenix-gql``, requesting env-var names but never ``secretKey``."""
-
-    def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:
-        description = edit_code_evaluator_draft.DESCRIPTION
-        assert "phoenix-gql" in description
-        assert "sandboxProviders" in description
-        assert "envVars { name }" in description
-        # The projection requests env-var names only; the description explicitly
-        # forbids requesting the secret-bearing field.
-        assert "never `secretKey`" in description
 
 
 class TestChatRequestBodyInstrumentUserId:

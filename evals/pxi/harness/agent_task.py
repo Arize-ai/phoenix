@@ -314,8 +314,9 @@ def _materialize_messages(raw_messages: list[Any]) -> list[ModelMessage]:
     Primed tool calls + returns are exactly the same message shape pydantic_ai
     builds for genuinely-executed tools, so the model cannot tell the
     difference. This lets datasets isolate one step of agent behavior (e.g.
-    "given a known latest-trace date, did set_spans_filter get the right
-    args?") from the upstream discovery steps that would normally precede it.
+    "given a primed catalog and a known latest-trace date, did the
+    ui.spansFilter.set invocation get the right condition?") from the
+    upstream discovery steps that would normally precede it.
     """
     if not isinstance(raw_messages, list):
         raise ValueError("PXI eval input.messages must be a list")

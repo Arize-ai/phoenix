@@ -18,16 +18,14 @@ export type {
   EvaluatorSubmitToolOutput,
 };
 
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
+
 import type {
-  editLlmEvaluatorDraftActionContextSchema,
   editLlmEvaluatorDraftInputSchema,
   editLlmEvaluatorDraftOperationSchema,
-  LlmEvaluatorEditToolOutputSender,
   readLlmEvaluatorDraftInputSchema,
   testLlmEvaluatorDraftInputSchema,
 } from "./schemas";
-
-export type { LlmEvaluatorEditToolOutputSender } from "./schemas";
 
 export type ReadLlmEvaluatorDraftInput = z.output<
   typeof readLlmEvaluatorDraftInputSchema
@@ -43,10 +41,6 @@ export type EditLlmEvaluatorDraftOperation = z.output<
 
 export type EditLlmEvaluatorDraftInput = z.output<
   typeof editLlmEvaluatorDraftInputSchema
->;
-
-export type EditLlmEvaluatorDraftActionContext = z.output<
-  typeof editLlmEvaluatorDraftActionContextSchema
 >;
 
 export type LlmEvaluatorFormMode = "create" | "edit";
@@ -96,7 +90,13 @@ export type LlmEvaluatorDraftHost = {
 };
 
 export type PendingLlmEvaluatorEdit = {
+  /**
+   * Key of this pending entry. Under `execute_browser_action` this is the inner
+   * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
+   * the field keeps its historical name to limit churn across consumers.
+   */
   toolCallId: string;
+  /** Agent session that owns the unresolved evaluators.llm.edit call. */
   sessionId: string;
   before: LLMEvaluatorDraftSnapshot;
   after: LLMEvaluatorDraftSnapshot;
@@ -109,7 +109,8 @@ export type PendingLlmEvaluatorEdit = {
 export type BindPendingLlmEvaluatorEditOptions = {
   pendingEdit: PendingLlmEvaluatorEdit;
   draftHost: LlmEvaluatorDraftHost;
-  addToolOutput: LlmEvaluatorEditToolOutputSender;
+  /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
+  emitResult: UIOperationResultEmitter;
   setPendingLlmEvaluatorEdit: (
     toolCallId: string,
     edit: PendingLlmEvaluatorEdit | null

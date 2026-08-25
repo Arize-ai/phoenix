@@ -2,10 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  EDIT_PROMPT_TOOL_NAME,
-  READ_PROMPT_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
+import { READ_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 
 vi.mock("@phoenix/components/code", () => ({
@@ -54,28 +51,6 @@ function createToolPart(
     input: {},
     output: "done",
     errorText: undefined,
-    ...overrides,
-  } as ToolInvocationPart;
-}
-
-function createAutoOpenToolPart(
-  overrides: Partial<ToolInvocationPart> = {}
-): ToolInvocationPart {
-  return {
-    type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
-    toolCallId: "tool-call-edit",
-    state: "input-available",
-    input: {
-      instanceId: 0,
-      expectedRevision: "prompt-1",
-      operations: [
-        {
-          type: "update_message",
-          messageId: 1,
-          content: "Updated prompt",
-        },
-      ],
-    },
     ...overrides,
   } as ToolInvocationPart;
 }
@@ -143,63 +118,6 @@ describe("tool disclosure controls", () => {
         } as Partial<ToolInvocationPart>)
       )
     ).toBe("https://example.com/docs");
-  });
-
-  it("allows manually collapsing and expanding an auto-open solo tool part", () => {
-    renderToolPart(createAutoOpenToolPart());
-    const details = container.querySelector("details.tool-part");
-    const summary = container.querySelector("summary");
-
-    expect(details?.hasAttribute("open")).toBe(true);
-
-    click(summary);
-    expect(details?.hasAttribute("open")).toBe(false);
-
-    click(summary);
-    expect(details?.hasAttribute("open")).toBe(true);
-  });
-
-  it("keeps an auto-open solo tool collapsed after streaming updates", () => {
-    renderToolPart(createAutoOpenToolPart());
-    const summary = container.querySelector("summary");
-
-    expect(
-      container.querySelector("details.tool-part")?.hasAttribute("open")
-    ).toBe(true);
-
-    click(summary);
-    expect(
-      container.querySelector("details.tool-part")?.hasAttribute("open")
-    ).toBe(false);
-
-    renderToolPart(
-      createAutoOpenToolPart({
-        state: "output-available",
-        output: { ok: true },
-      })
-    );
-
-    expect(
-      container.querySelector("details.tool-part")?.hasAttribute("open")
-    ).toBe(false);
-  });
-
-  it("stays collapsed while an auto-open tool's input is still streaming", () => {
-    // The expanded body is built from a pending client-action that only exists
-    // once the input is complete, so opening mid-stream would show an empty
-    // shell. Auto-open should wait for the input to finish streaming.
-    renderToolPart(createAutoOpenToolPart({ state: "input-streaming" }));
-
-    expect(
-      container.querySelector("details.tool-part")?.hasAttribute("open")
-    ).toBe(false);
-
-    // Once the input completes, the part auto-opens with real content.
-    renderToolPart(createAutoOpenToolPart({ state: "input-available" }));
-
-    expect(
-      container.querySelector("details.tool-part")?.hasAttribute("open")
-    ).toBe(true);
   });
 
   it("does not render empty subagent message parts under nested tools", () => {

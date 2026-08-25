@@ -9,6 +9,10 @@ import { RouterProvider } from "react-router/dom";
 
 import { buildRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/catalog";
 import { registerRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/routeCatalogRegistry";
+import {
+  createDataRouterNavigationStateSource,
+  registerRouterNavigationStateSource,
+} from "@phoenix/agent/tools/navigation/routerStateRegistry";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -1175,6 +1179,16 @@ registerRouteNavigationCatalog({
 
 const router = createBrowserRouter(appRouteObjects, {
   basename: window.Config.basename,
+});
+
+// The navigation.goTo operation judges whether a navigation settled from the
+// router's own state — the rendered pathname lags it whenever the destination
+// page suspends inside the navigation transition.
+registerRouterNavigationStateSource({
+  source: createDataRouterNavigationStateSource({
+    router,
+    basename: window.Config.basename,
+  }),
 });
 
 export function AppRoutes() {

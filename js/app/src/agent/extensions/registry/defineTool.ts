@@ -68,7 +68,7 @@ export type AgentToolUIBehavior = {
 export type AgentToolDefinition = {
   /** Server-advertised tool name; the single contract with the backend. */
   name: string;
-  uiBehavior?: AgentToolUIBehavior;
+  UIBehavior?: AgentToolUIBehavior;
   requiredCapabilities?: AgentCapabilityKey[];
   /** Safe to re-dispatch on reload: dispatch only shows an Accept/Reject prompt. */
   rehydratable?: boolean;
@@ -103,7 +103,7 @@ function resolveInvalidInputErrorText(
  * @param config.parseInput - validates raw input, returning `null` when invalid
  * @param config.invalidInputErrorText - message (or builder) for invalid input
  * @param config.requiredCapabilities - capability keys gated by the kernel
- * @param config.uiBehavior - chat UI surfacing hints
+ * @param config.UIBehavior - chat UI surfacing hints
  * @param config.rehydratable - dispatch only shows an approval prompt, so
  * re-dispatching on page reload is safe
  * @param config.execute - handler invoked with parsed input
@@ -113,13 +113,13 @@ export function defineTool<TInput>(config: {
   parseInput: (input: unknown) => TInput | null;
   invalidInputErrorText: string | ((input: unknown) => string);
   requiredCapabilities?: AgentCapabilityKey[];
-  uiBehavior?: AgentToolUIBehavior;
+  UIBehavior?: AgentToolUIBehavior;
   rehydratable?: boolean;
   execute: (context: AgentToolHandlerContext<TInput>) => Promise<void>;
 }): AgentToolDefinition {
   return {
     name: config.name,
-    uiBehavior: config.uiBehavior,
+    UIBehavior: config.UIBehavior,
     requiredCapabilities: config.requiredCapabilities,
     rehydratable: config.rehydratable,
     dispatch: async (context) => {

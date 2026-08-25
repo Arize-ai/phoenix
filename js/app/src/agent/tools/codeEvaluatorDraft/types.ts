@@ -20,16 +20,14 @@ export type {
   EvaluatorSubmitToolOutput,
 };
 
+import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
+
 import type {
-  CodeEvaluatorEditToolOutputSender,
-  editCodeEvaluatorDraftActionContextSchema,
   editCodeEvaluatorDraftInputSchema,
   editCodeEvaluatorDraftOperationSchema,
   readCodeEvaluatorDraftInputSchema,
   testCodeEvaluatorDraftInputSchema,
 } from "./schemas";
-
-export type { CodeEvaluatorEditToolOutputSender } from "./schemas";
 
 export type ReadCodeEvaluatorDraftInput = z.output<
   typeof readCodeEvaluatorDraftInputSchema
@@ -45,10 +43,6 @@ export type EditCodeEvaluatorDraftInput = z.output<
 
 export type TestCodeEvaluatorDraftInput = z.output<
   typeof testCodeEvaluatorDraftInputSchema
->;
-
-export type EditCodeEvaluatorDraftActionContext = z.output<
-  typeof editCodeEvaluatorDraftActionContextSchema
 >;
 
 export type CodeEvaluatorFormMode = "create" | "edit";
@@ -79,6 +73,14 @@ export type OutputConfigDraft =
   | ContinuousOutputConfigDraft
   | FreeformOutputConfigDraft;
 
+/** One selectable sandbox, as surfaced in the draft snapshot. */
+export type AvailableSandboxConfig = {
+  id: string;
+  name: string;
+  language: CodeEvaluatorLanguage;
+  backendType: string;
+};
+
 export type CodeEvaluatorDraftSnapshot = {
   mode: CodeEvaluatorFormMode;
   evaluatorNodeId: string | null;
@@ -90,6 +92,13 @@ export type CodeEvaluatorDraftSnapshot = {
   inputMapping: EvaluatorInputMapping;
   testPayload: EvaluatorMappingSource;
   outputConfigs: OutputConfigDraft[];
+  /**
+   * The sandboxes `set_sandbox_config` may target, so the agent picks a
+   * `sandboxConfigId` from the snapshot instead of querying the API.
+   * Optional: absent in snapshots embedded in approval diffs and older
+   * fixtures.
+   */
+  availableSandboxConfigs?: AvailableSandboxConfig[];
 };
 
 export type CodeEvaluatorActionResult<TOutput> =
@@ -111,7 +120,13 @@ export type CodeEvaluatorDraftHost = {
 };
 
 export type PendingCodeEvaluatorEdit = {
+  /**
+   * Key of this pending entry. Under `execute_browser_action` this is the inner
+   * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
+   * the field keeps its historical name to limit churn across consumers.
+   */
   toolCallId: string;
+  /** Agent session that owns the unresolved evaluators.code.edit call. */
   sessionId: string;
   before: CodeEvaluatorDraftSnapshot;
   after: CodeEvaluatorDraftSnapshot;
@@ -124,7 +139,8 @@ export type PendingCodeEvaluatorEdit = {
 export type BindPendingCodeEvaluatorEditOptions = {
   pendingEdit: PendingCodeEvaluatorEdit;
   draftHost: CodeEvaluatorDraftHost;
-  addToolOutput: CodeEvaluatorEditToolOutputSender;
+  /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
+  emitResult: UIOperationResultEmitter;
   setPendingCodeEvaluatorEdit: (
     toolCallId: string,
     edit: PendingCodeEvaluatorEdit | null

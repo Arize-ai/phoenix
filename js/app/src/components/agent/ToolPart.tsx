@@ -38,22 +38,18 @@ import {
 import { LIST_DATASETS_TOOL_NAME } from "@phoenix/agent/tools/listDatasets";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { PATCH_EXPERIMENT_TOOL_NAME } from "@phoenix/agent/tools/patchExperiment";
-import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
-import {
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
-import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import {
   parseSetSpansFilterInput,
   SET_SPANS_FILTER_TOOL_NAME,
 } from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
+import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/UIOperations/executeUIAgentTool";
+import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/UIOperations/searchUIAgentTool";
 import { Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
 import { MarkdownBlock } from "@phoenix/components/markdown";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -103,16 +99,10 @@ import {
   getEditLlmEvaluatorDraftToolPreview,
 } from "./EditLLMEvaluatorDraftToolDetails";
 import {
-  EditPromptToolDetails,
-  formatEditPromptState,
-  getEditPromptToolPreview,
-} from "./EditPromptToolDetails";
-import {
-  formatLoadDatasetState,
-  getLoadDatasetStatusVariant,
-  getLoadDatasetToolPreview,
-  LoadDatasetToolDetails,
-} from "./LoadDatasetToolDetails";
+  ExecuteUIToolDetails,
+  formatExecuteUIState,
+  getExecuteUIToolPreview,
+} from "./ExecuteUIToolDetails";
 import {
   getLoadSkillToolPreview,
   LOAD_SKILL_TOOL_NAME,
@@ -129,19 +119,11 @@ import {
   READ_SKILL_RESOURCE_TOOL_NAME,
   ReadSkillResourceToolDetails,
 } from "./ReadSkillResourceToolDetails";
-import {
-  formatRemovePromptInstanceState,
-  getRemovePromptInstanceStatusVariant,
-  getRemovePromptInstanceToolPreview,
-  RemovePromptInstanceToolDetails,
-} from "./RemovePromptInstanceToolDetails";
-import {
-  formatSavePromptState,
-  getSavePromptStatusVariant,
-  getSavePromptToolPreview,
-  SavePromptToolDetails,
-} from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
+import {
+  getSearchUIToolPreview,
+  SearchUIToolDetails,
+} from "./SearchUIToolDetails";
 import { ToolApprovalRequest } from "./ToolApprovalRequest";
 import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import { getToolIconKey } from "./toolIconConfig";
@@ -160,11 +142,6 @@ import {
   stringifyToolValue,
 } from "./toolPartTypes";
 import { useToolDisclosure } from "./useToolDisclosure";
-import {
-  formatWritePromptToolsState,
-  getWritePromptToolsToolPreview,
-  WritePromptToolsToolDetails,
-} from "./WritePromptToolsToolDetails";
 
 /**
  * Re-export the message part type for consumers that need it for grouping.
@@ -272,6 +249,39 @@ export const toolPartCSS = css`
   .tool-part__code {
     flex: 1;
     min-width: 0;
+  }
+
+  .tool-part__text {
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  }
+
+  /* Key–value rows for approval summaries: labels in the quiet color, values
+     as prose, structured values as scoped code blocks. */
+  .tool-part__kv {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: var(--global-dimension-size-200);
+    row-gap: var(--global-dimension-size-50);
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+
+    dt {
+      color: var(--tool-call-quiet-color);
+      white-space: nowrap;
+    }
+
+    dd {
+      margin: 0;
+      min-width: 0;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
   }
 
   .tool-part__summary {
@@ -582,12 +592,19 @@ function ToolInvocationPartDetails({
   defaultOpen?: boolean;
 }) {
   const toolName = getToolName(part);
-  const uiBehavior = getAgentToolUIBehavior(toolName);
+  const UIBehavior = getAgentToolUIBehavior(toolName);
   const hasAutoOpenedRef = useRef(false);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
     getToolPresentation(toolName, part);
-  const shouldAutoOpen = shouldAutoOpenToolPart(part);
+  // Store-driven open request: set when this call stages a user-facing
+  // approval (see `requestToolPartOpen`), so Accept/Reject is never hidden
+  // behind a collapsed disclosure. It layers under the same manual-toggle
+  // override as the static heuristic — a card the user closed stays closed.
+  const isOpenRequested = useAgentContext((state) =>
+    Boolean(state.toolPartOpenRequests[part.toolCallId])
+  );
+  const shouldAutoOpen = isOpenRequested || shouldAutoOpenToolPart(part);
   const {
     ref: detailsRef,
     isOpen: isRenderedOpen,
@@ -601,7 +618,7 @@ function ToolInvocationPartDetails({
       return;
     }
     hasAutoOpenedRef.current = true;
-    if (uiBehavior?.scrollIntoViewOnMount !== true) {
+    if (UIBehavior?.scrollIntoViewOnMount !== true) {
       return;
     }
     requestAnimationFrame(() => {
@@ -609,7 +626,7 @@ function ToolInvocationPartDetails({
         scrollElementIntoViewWithinScrollParent(detailsRef.current);
       }
     });
-  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount, detailsRef]);
+  }, [shouldAutoOpen, UIBehavior?.scrollIntoViewOnMount, detailsRef]);
 
   const isQuiet = variant === "quiet";
   const showQuietSummary = isQuiet && !isRenderedOpen;
@@ -683,8 +700,8 @@ function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
     return true;
   }
   const toolName = getToolName(part);
-  const uiBehavior = getAgentToolUIBehavior(toolName);
-  if (uiBehavior?.autoOpen !== true) {
+  const UIBehavior = getAgentToolUIBehavior(toolName);
+  if (UIBehavior?.autoOpen !== true) {
     return false;
   }
   // Stay collapsed while arguments are still streaming in. Auto-open tools
@@ -1038,6 +1055,20 @@ function getToolPresentation(
 } {
   const statusVariant = getStatusVariant(part.state);
   switch (toolName) {
+    case EXECUTE_BROWSER_ACTION_TOOL_NAME:
+      return {
+        preview: getExecuteUIToolPreview(part),
+        stateLabel: formatExecuteUIState(part),
+        statusVariant,
+        details: <ExecuteUIToolDetails part={part} />,
+      };
+    case SEARCH_BROWSER_ACTIONS_TOOL_NAME:
+      return {
+        preview: getSearchUIToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <SearchUIToolDetails part={part} />,
+      };
     case "bash":
       return {
         preview: getBashToolPreview(part),
@@ -1055,42 +1086,6 @@ function getToolPresentation(
         details: <AskUserToolDetails part={part} />,
       };
     }
-    case EDIT_PROMPT_TOOL_NAME:
-      return {
-        preview: getEditPromptToolPreview(part),
-        stateLabel: formatEditPromptState(part),
-        statusVariant,
-        details: <EditPromptToolDetails part={part} />,
-      };
-    case WRITE_PROMPT_TOOLS_TOOL_NAME:
-      return {
-        preview: getWritePromptToolsToolPreview(part),
-        stateLabel: formatWritePromptToolsState(part),
-        statusVariant,
-        details: <WritePromptToolsToolDetails part={part} />,
-      };
-    case SAVE_PROMPT_TOOL_NAME:
-      return {
-        preview: getSavePromptToolPreview(part),
-        stateLabel: formatSavePromptState(part),
-        statusVariant: getSavePromptStatusVariant(part) ?? statusVariant,
-        details: <SavePromptToolDetails part={part} />,
-      };
-    case REMOVE_PROMPT_INSTANCE_TOOL_NAME:
-      return {
-        preview: getRemovePromptInstanceToolPreview(part),
-        stateLabel: formatRemovePromptInstanceState(part),
-        statusVariant:
-          getRemovePromptInstanceStatusVariant(part) ?? statusVariant,
-        details: <RemovePromptInstanceToolDetails part={part} />,
-      };
-    case LOAD_DATASET_TOOL_NAME:
-      return {
-        preview: getLoadDatasetToolPreview(part),
-        stateLabel: formatLoadDatasetState(part),
-        statusVariant: getLoadDatasetStatusVariant(part) ?? statusVariant,
-        details: <LoadDatasetToolDetails part={part} />,
-      };
     case CREATE_DATASET_TOOL_NAME:
       return {
         preview: getCreateDatasetToolPreview(part),
