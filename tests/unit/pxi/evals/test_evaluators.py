@@ -480,6 +480,61 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "pass"
 
+    def test_ui_operation_args_literal_follows_hoisted_shorthand_value(self) -> None:
+        # The value of a shorthand property lives in a hoisted const, so
+        # literal matching falls back to the whole script.
+        result = evaluate_tool_call_args(
+            output=_execute_browser_action_output(
+                "const condition = \"parent_id == 'abc123'\";\n"
+                "return await ui.spansFilter.set({ condition });"
+            ),
+            expected={
+                "ui_operation_args": {"spansFilter.set": {"condition": "parent_id == 'abc123'"}}
+            },
+        )
+        assert result["label"] == "pass"
+
+    def test_ui_operation_args_hoisted_wrong_literal_still_fails(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_execute_browser_action_output(
+                "const condition = \"span_kind == 'LLM'\";\n"
+                "return await ui.spansFilter.set({ condition });"
+            ),
+            expected={
+                "ui_operation_args": {"spansFilter.set": {"condition": "parent_id == 'abc123'"}}
+            },
+        )
+        assert result["label"] == "fail"
+
+    def test_ui_operation_args_non_empty_follows_hoisted_shorthand_value(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_execute_browser_action_output(
+                "const description = 'Adds stricter handoff criteria';\n"
+                "return await ui.playground.prompt.save({ description });"
+            ),
+            expected={
+                "ui_operation_args": {
+                    "playground.prompt.save": {"description": {"non_empty": True}}
+                }
+            },
+        )
+        assert result["label"] == "pass"
+
+    def test_ui_operation_args_longhand_value_stays_argument_scoped(self) -> None:
+        # A longhand key must match on the argument source itself; a stray
+        # occurrence of the expected literal elsewhere in the script does not
+        # rescue a wrong inline value.
+        result = evaluate_tool_call_args(
+            output=_execute_browser_action_output(
+                "// user asked for parent_id == 'abc123'\n"
+                "return await ui.spansFilter.set({condition: \"span_kind == 'LLM'\"});"
+            ),
+            expected={
+                "ui_operation_args": {"spansFilter.set": {"condition": "parent_id == 'abc123'"}}
+            },
+        )
+        assert result["label"] == "fail"
+
     def test_ui_operation_args_match_nested_literal_object(self) -> None:
         result = evaluate_tool_call_args(
             output=_execute_browser_action_output(

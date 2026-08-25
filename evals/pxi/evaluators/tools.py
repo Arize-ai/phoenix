@@ -122,11 +122,18 @@ def _extract_ui_operation_arguments(script: str, operation_name: str) -> list[st
     return arguments
 
 
-def _ui_operation_arguments(scripts: list[str], operation_name: str) -> list[str]:
-    """Return argument source for every invocation of one operation across scripts."""
-    arguments: list[str] = []
+def _ui_operation_arguments(scripts: list[str], operation_name: str) -> list[tuple[str, str]]:
+    """Return ``(script, argument_source)`` for every invocation of one operation.
+
+    The enclosing script travels with each argument source so value matchers
+    can follow hoisted variables (see :func:`_source_pair_passes`).
+    """
+    arguments: list[tuple[str, str]] = []
     for script in scripts:
-        arguments.extend(_extract_ui_operation_arguments(script, operation_name))
+        arguments.extend(
+            (script, argument_source)
+            for argument_source in _extract_ui_operation_arguments(script, operation_name)
+        )
     return arguments
 
 
@@ -603,54 +610,66 @@ def _source_has_literal(source: str, value: Any) -> bool:
     return str(value) in source
 
 
-def _source_pair_passes(source: str, key: str, expected_value: Any) -> bool:
+def _source_has_longhand_key(source: str, key: str) -> bool:
+    quoted_key = re.escape(key)
+    return bool(re.search(rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:", source))
+
+
+def _source_pair_passes(source: str, key: str, expected_value: Any, script: str = "") -> bool:
+    """Check one ``(key, expected_value)`` pair against an invocation's argument source.
+
+    Key presence/absence is always judged on the argument source alone, so
+    subset and ``absent`` semantics stay scoped to the invocation. Value
+    evidence is judged on the argument source when the key is written
+    longhand (``key: value``); when the key is an ES6 shorthand property
+    (``{ key }``) the value is a hoisted variable whose text lives elsewhere
+    in the script, so value checks fall back to the whole ``script``.
+    """
     has_key = _source_has_key(source, key)
+    # Where the value's text lives: the argument source for longhand, the
+    # whole script for shorthand (hoisted `const key = ...`).
+    value_scope = source if _source_has_longhand_key(source, key) or not script else script
     if not _is_matcher_dict(expected_value):
-        return has_key and _source_has_literal(source, expected_value)
+        return has_key and _source_has_literal(value_scope, expected_value)
     if "absent" in expected_value:
         return not has_key
+    quoted_key = re.escape(key)
+    # `key: value` in an object literal, or a hoisted `key = value` binding.
+    key_binding = rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*[:=]"
     if "empty_or_absent" in expected_value:
         if not has_key:
             return True
-        quoted_key = re.escape(key)
-        return bool(
-            re.search(
-                rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:\s*(?:''|\"\"|\[\s*\]|\{{\s*\}})",
-                source,
-            )
-        )
+        return bool(re.search(rf"{key_binding}\s*(?:''|\"\"|\[\s*\]|\{{\s*\}})", value_scope))
     if not has_key:
         return False
     if "non_empty" in expected_value:
-        quoted_key = re.escape(key)
-        if not re.search(
-            rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:\s*(['\"])(?:(?!\1).)+\1",
-            source,
-        ):
+        if not re.search(rf"{key_binding}\s*(['\"])(?:(?!\1).)+\1", value_scope):
             return False
-    if "equals" in expected_value and not _source_has_literal(source, expected_value["equals"]):
+    if "equals" in expected_value and not _source_has_literal(
+        value_scope, expected_value["equals"]
+    ):
         return False
     if "has_keys" in expected_value and not all(
-        _source_has_key(source, nested_key) for nested_key in expected_value["has_keys"]
+        _source_has_key(value_scope, nested_key) for nested_key in expected_value["has_keys"]
     ):
         return False
     if "contains_all" in expected_value and not all(
-        needle in source for needle in expected_value["contains_all"]
+        needle in value_scope for needle in expected_value["contains_all"]
     ):
         return False
     if "contains_any" in expected_value and not any(
-        needle in source for needle in expected_value["contains_any"]
+        needle in value_scope for needle in expected_value["contains_any"]
     ):
         return False
     if "not_contains" in expected_value and any(
-        needle in source for needle in expected_value["not_contains"]
+        needle in value_scope for needle in expected_value["not_contains"]
     ):
         return False
     return True
 
 
-def _ui_operation_variant_passes(source: str, variant: dict[str, Any]) -> bool:
-    return all(_source_pair_passes(source, key, value) for key, value in variant.items())
+def _ui_operation_variant_passes(source: str, variant: dict[str, Any], script: str = "") -> bool:
+    return all(_source_pair_passes(source, key, value, script) for key, value in variant.items())
 
 
 def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
@@ -738,22 +757,22 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
                 "matcher_errors": matcher_errors,
             }
             continue
-        argument_sources = _ui_operation_arguments(scripts, operation_name)
-        if not argument_sources:
+        invocations = _ui_operation_arguments(scripts, operation_name)
+        if not invocations:
             failures[operation_name] = {
                 "reason": "UI operation was not invoked by any execute_browser_action script"
             }
             continue
         # Pass if ANY (variant, invocation) pair matches the argument source.
         if any(
-            _ui_operation_variant_passes(source, variant)
+            _ui_operation_variant_passes(source, variant, script)
             for variant in variants
-            for source in argument_sources
+            for script, source in invocations
         ):
             continue
         failures[operation_name] = {
             "expected": ([dict(v) for v in variants] if len(variants) > 1 else dict(variants[0])),
-            "observed_argument_sources": argument_sources,
+            "observed_argument_sources": [source for _, source in invocations],
         }
 
     if failures:
@@ -827,8 +846,8 @@ def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, A
                 "value": forbidden_for_operation,
             }
             continue
-        for source in _ui_operation_arguments(scripts, operation_name):
-            if _ui_operation_variant_passes(source, forbidden_for_operation):
+        for script, source in _ui_operation_arguments(scripts, operation_name):
+            if _ui_operation_variant_passes(source, forbidden_for_operation, script):
                 violations[operation_name] = {
                     "forbidden_args": dict(forbidden_for_operation),
                     "observed_argument_source": source,
