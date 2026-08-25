@@ -8,8 +8,6 @@ description: >-
   found and lists each instance, quoted and categorized, favoring recall over
   precision.
 labels:
-  - promoted_dataset_evaluator
-  - session_level_evaluator
 optimization_direction: minimize
 messages:
   - role: user
