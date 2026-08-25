@@ -2064,6 +2064,85 @@ def test_virtual_column_predicate_in_a_subquery_resolves_to_the_subquery_relatio
     assert _run_two_table_sqlite(rendered)[0][0] == 1
 
 
+class TestCorrelatedVirtualColumns:
+    """A qualified overlay may name a relation an enclosing scope introduced.
+
+    `Scope.columns` lists such a reference on the inner scope as well, and
+    `traverse()` reaches that scope first. Attributing it there leaves the
+    qualifier naming nothing the scope holds, so the overlay is emitted as the
+    caller wrote it: a statement this surface admits and the engine then
+    refuses, naming a column the manifest advertises.
+    """
+
+    @staticmethod
+    def _postgres(sql: str) -> str:
+        root = parse_sql(sql, dialect="postgresql")
+        root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
+        return render(rewrite(root, _ctx("postgresql")), dialect="postgresql")
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT t.id FROM traces t "
+            "WHERE EXISTS (SELECT 1 FROM spans s WHERE s.latency_ms < t.latency_ms)",
+            "SELECT t.id FROM traces t WHERE t.id IN "
+            "(SELECT s.trace_rowid FROM spans s WHERE s.latency_ms < t.latency_ms)",
+            "SELECT (SELECT count(*) FROM spans s WHERE s.latency_ms < t.latency_ms) AS c "
+            "FROM traces t",
+            # LATERAL correlates by definition, and SQLGlot files its table
+            # outside the scope's `sources`.
+            "SELECT t.id FROM traces t, LATERAL "
+            "(SELECT s.id FROM spans s WHERE s.latency_ms < t.latency_ms) x",
+            # Two levels: the reference is external to both inner scopes.
+            "SELECT t.id FROM traces t WHERE EXISTS (SELECT 1 FROM spans s WHERE EXISTS "
+            "(SELECT 1 FROM spans s2 WHERE s2.latency_ms < t.latency_ms))",
+        ],
+    )
+    def test_a_correlated_duration_overlay_is_substituted(self, sql: str) -> None:
+        rendered = self._postgres(sql)
+        assert "latency_ms" not in rendered.lower()
+        assert "t.end_time - t.start_time" in rendered
+
+    def test_a_correlated_node_id_overlay_is_substituted(self) -> None:
+        rendered = self._postgres(
+            "SELECT t.id FROM traces t WHERE EXISTS "
+            "(SELECT 1 FROM spans s WHERE s.trace_rowid = t.id AND t.graphql_node_id = 'x')"
+        )
+        assert "graphql_node_id" not in rendered.lower()
+        assert "'Trace:' || CAST(t.id AS TEXT)" in rendered
+
+    def test_a_correlated_overlay_reads_the_outer_relation(self) -> None:
+        """Substituting is not enough; it must reach the enclosing relation.
+
+        Both sides carry the overlay, so a rewrite that substituted the inner
+        relation's timestamps on both would still render without the column
+        name and still run.
+        """
+        rendered = _rendered(
+            "SELECT (SELECT count(*) FROM spans s WHERE s.latency_ms < t.latency_ms) AS c "
+            "FROM traces t"
+        )
+        # The span is 1500 ms and the trace 2000 ms, so the span counts. Read
+        # from one relation twice, either comparison is against itself and the
+        # count is 0.
+        assert _run_two_table_sqlite(rendered)[0][0] == 1
+
+    def test_a_shadowed_alias_still_binds_to_the_inner_relation(self) -> None:
+        """The qualifier decides by what a scope introduces, not by name alone.
+
+        Both relations answer to `t` here, so a guard that deferred every
+        qualified reference outward would read the trace's duration inside the
+        subquery over `spans`.
+        """
+        rendered = _rendered(
+            "SELECT count(*) AS c FROM traces t "
+            "WHERE EXISTS (SELECT 1 FROM spans t WHERE t.latency_ms < 1800)"
+        )
+        # The span is 1500 ms and clears the threshold; the trace is 2000 ms
+        # and would not.
+        assert _run_two_table_sqlite(rendered)[0][0] == 1
+
+
 @pytest.mark.parametrize(
     ("sql", "expected"),
     [

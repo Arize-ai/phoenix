@@ -2361,6 +2361,32 @@ def _ancestor_scopes(scope: Any) -> Iterable[Any]:
         current = getattr(current, "parent", None)
 
 
+def _scope_relation_keys(scope: Any, *, dialect: SupportedSQLDialectName) -> frozenset[str]:
+    """Dialect keys of the relations this scope introduces, enclosing ones excluded.
+
+    Physical tables, the tables SQLGlot files under a LATERAL rather than under
+    `sources`, and query-local aliases. A qualifier absent from this set is
+    correlated: it names a relation an enclosing scope introduced, and belongs
+    to that scope rather than to this one.
+    """
+    keys: set[str] = set()
+    for source in scope.sources.values():
+        table = _table_from_scope_source(source)
+        if table is not None:
+            keys |= _relation_identifier_keys(table, dialect=dialect)
+    for table in _lateral_tables_in_scope(scope):
+        keys |= _relation_identifier_keys(table, dialect=dialect)
+    for ident in _derived_alias_identifiers(scope):
+        keys.add(
+            _identifier_key(
+                ident.this or "",
+                quoted=bool(ident.args.get("quoted")),
+                dialect=dialect,
+            )
+        )
+    return frozenset(keys)
+
+
 def _scope_exposes_qualifier(
     scope: Any,
     qualifier: str,
@@ -2370,25 +2396,10 @@ def _scope_exposes_qualifier(
 ) -> bool:
     """Whether `qualifier` names a relation this scope or an enclosing one exposes."""
     want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
-    for current in _ancestor_scopes(scope):
-        for source in current.sources.values():
-            table = _table_from_scope_source(source)
-            if table is not None and want in _relation_identifier_keys(table, dialect=dialect):
-                return True
-        for table in _lateral_tables_in_scope(current):
-            if want in _relation_identifier_keys(table, dialect=dialect):
-                return True
-        for ident in _derived_alias_identifiers(current):
-            if (
-                _identifier_key(
-                    ident.this or "",
-                    quoted=bool(ident.args.get("quoted")),
-                    dialect=dialect,
-                )
-                == want
-            ):
-                return True
-    return False
+    return any(
+        want in _scope_relation_keys(current, dialect=dialect)
+        for current in _ancestor_scopes(scope)
+    )
 
 
 def _allowlisted_table_for_qualifier(

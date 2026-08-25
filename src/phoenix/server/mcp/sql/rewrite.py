@@ -37,6 +37,7 @@ from phoenix.server.mcp.sql.parse import (
     _quantifier_list_container,
     _relation_identifier_keys,
     _scope_columns,
+    _scope_relation_keys,
     _strip_parens,
     _table_alias_column_names,
     _timestamp_literals,
@@ -1393,12 +1394,24 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                     aliases.add(key)
                     exposed_by_key[key] = exposed
             names = frozenset(aliases)
-            # `Scope.columns` of an outer query includes an unqualified column
-            # that belongs to a nested subquery, and `traverse()` yields the
-            # inner scope first. Keeping the first attribution binds the column
-            # to the relation that actually encloses it; overwriting binds a
-            # subquery's `latency_ms` to the outer query's table.
+            # Every relation this scope introduces, not just the duration tables
+            # above: a qualifier the scope binds to something else still belongs
+            # to the scope, and must not fall through to an enclosing one.
+            scope_relations = _scope_relation_keys(scope, dialect=ctx.dialect)
+            # `Scope.columns` reaches in both directions -- an outer query lists
+            # a nested subquery's unqualified column, and an inner query lists
+            # the correlated columns that reference outward -- and `traverse()`
+            # yields the inner scope first. A scope claims a qualified column
+            # only when it introduces that qualifier, so a correlated reference
+            # is left for the scope that does; keeping the first attribution
+            # then binds an unqualified column to the relation enclosing it,
+            # rather than to the outer query's table.
             for column in (*scope.columns, *_scope_columns(scope.expression)):
+                if (
+                    column.table
+                    and _column_qualifier_key(column, dialect=ctx.dialect) not in scope_relations
+                ):
+                    continue
                 duration_scope.setdefault(id(column), (duration_sources, names, exposed_by_key))
             if duration_sources < 2:
                 continue
@@ -2096,9 +2109,17 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                 scope, allowlist=ctx.allowlist, dialect=ctx.dialect
             )
             fallback = next(iter(set(by_alias.values()))) if n_sources == 1 else None
-            # Innermost attribution wins, as in the duration overlay: an outer
-            # scope lists a nested subquery's unqualified column too.
+            # Attribution follows the duration overlay: a scope claims a
+            # qualified column only when it introduces that qualifier, so a
+            # correlated reference is left for the scope that does, and the
+            # innermost scope wins for an unqualified one.
+            scope_relations = _scope_relation_keys(scope, dialect=ctx.dialect)
             for column in (*scope.columns, *_scope_columns(scope.expression)):
+                if (
+                    column.table
+                    and _column_qualifier_key(column, dialect=ctx.dialect) not in scope_relations
+                ):
+                    continue
                 resolution.setdefault(id(column), (by_alias, fallback, n_sources, exposed_by_key))
     if not any(n_sources for _, _, n_sources, _ in resolution.values()):
         return root
