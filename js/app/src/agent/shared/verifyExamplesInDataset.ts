@@ -71,7 +71,7 @@ export async function verifyExamplesInDataset({
           : "";
       return {
         ok: false,
-        error: `${missing.length} example id(s) are not rows of the dataset in view ("${dataset.name}"): ${listed}${suffix}. Get current row ids from list_dataset_examples.`,
+        error: `${missing.length} example id(s) are not rows of the dataset in view ("${dataset.name}"): ${listed}${suffix}. Get current row ids from the dataset's examples via a GraphQL query with the bash tool.`,
       };
     }
     return { ok: true, datasetName: dataset.name };

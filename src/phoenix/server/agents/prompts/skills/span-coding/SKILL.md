@@ -50,7 +50,7 @@ file by default; recover durable notes from Phoenix when you need to resume.
 5. Skip correct spans. Open coding is a signal-building pass, not a requirement to annotate
    every span.
 
-Do not use `batch_span_annotate` during open coding unless the user has already supplied a
+Do not use the `ui.spans.annotate` operation during open coding unless the user has already supplied a
 stable rubric. Free-form PXI notes come first; structured annotation comes later.
 
 ## Recover PXI Span Notes
@@ -96,6 +96,6 @@ Use recovered PXI notes as the raw material for axial coding.
 1. Group notes that describe the same underlying failure.
 2. Name categories for likely causes or fixes, not generic symptoms.
 3. Check project annotation configs before creating new structured labels.
-4. Use `batch_span_annotate` only after the categories and labels stabilize.
+4. Use the `ui.spans.annotate` operation only after the categories and labels stabilize.
 5. Keep optional bash sidecars focused on analysis handoff: grouping tables, current counts,
    and draft taxonomies. The DB notes remain the durable open-coding record.

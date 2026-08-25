@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 import {
@@ -9,8 +8,6 @@ import {
 } from "@phoenix/types";
 
 import type { OutputConfigDraft } from "./types";
-
-export type CodeEvaluatorEditToolOutputSender = AddToolOutput;
 
 // The Python tool schema (agents/tools/*) is the model-facing source of truth
 // for these enums; this TS layer only validates what the client dispatches.
@@ -211,13 +208,3 @@ export const editCodeEvaluatorDraftInputSchema = z
     })
   )
   .transform((input) => input);
-
-export const editCodeEvaluatorDraftActionContextSchema = z
-  .object({
-    toolCallId: z.string(),
-    sessionId: z.string(),
-    addToolOutput: z.custom<CodeEvaluatorEditToolOutputSender>(
-      (value) => typeof value === "function"
-    ),
-  })
-  .transform((context) => context);

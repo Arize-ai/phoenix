@@ -453,7 +453,20 @@ Each example needs a stable `id`, exactly one split in a list-shaped `splits`
 field, and whatever `input`, `expected`, and `metadata` shape its evaluators
 consume. For the current tool-call evaluators, examples commonly use
 `input.messages`, `expected.tools`, and expected tool arguments under
-`expected.tool_call_args`.
+`expected.tool_call_args`. Behavior that lives behind the browser-action
+surface is asserted with `expected.ui_operations` (required/forbidden
+operation names, matched against `ui.<name>(...)` invocations inside observed
+`execute_browser_action` scripts) and `expected.ui_operation_args` (the same
+matcher vocabulary applied to the invocation's argument source).
+
+Because `search_browser_actions` and `execute_browser_action` are external
+tools, an agent run ends on the first one it emits. An example that scores
+operation selection or arguments therefore primes the discovery step in
+`input.messages` — an assistant `search_browser_actions` call plus a tool
+return carrying a catalog excerpt rendered in the real
+`renderUIOperationCatalog` format — so the agent resumes mid-loop holding the
+catalog and the scored step is the `execute_browser_action` script it
+composes next. Fresh-turn negatives stay unprimed.
 
 Example IDs must be unique because the runner uses them for stable upserts.
 Use `splits: [regression]` for a regression example.
@@ -564,7 +577,11 @@ Schema notes:
 ## Matcher Vocabulary
 
 The `tool_call_args_match` evaluator compares expected args to observed args
-with subset semantics (extra observed keys are ignored). Each expected value
+with subset semantics (extra observed keys are ignored). The same vocabulary
+applies to `expected.ui_operation_args[<operation>]`, matched textually
+against the JavaScript argument source of `ui.<operation>(...)` invocations
+in observed `execute_browser_action` scripts (literals assert the key and
+value appear in the source). Each expected value
 is either a literal (compared by `==`) or a **matcher object** -- a dict
 whose top-level keys are all in this vocabulary:
 
@@ -614,10 +631,10 @@ matcher vocabulary above. For example, `contains_all: ["span_kind == 'LLM'",
 literal order-insensitive. Use `absent: true` for keys that must be omitted
 despite subset matching otherwise allowing extra observed keys.
 
-Tool arg keys must match the tool's exact JSON schema, including camelCase. For
-`set_spans_filter` that means `condition` -- and only `condition`, since
-root-span scoping is expressed inside the filter DSL (`parent_id is None`)
-rather than as a separate argument.
+Tool and operation arg keys must match the exact input schema, including
+camelCase. For `spansFilter.set` that means `condition` -- and only
+`condition`, since root-span scoping is expressed inside the filter DSL
+(`parent_id is None`) rather than as a separate argument.
 
 ## Evaluators
 
