@@ -2245,6 +2245,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "POST", "v1/users"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
+    (422, "PATCH", "v1/projects/fake-id-{}/retention"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
     (200, "GET", "v1/system/api_keys"),
