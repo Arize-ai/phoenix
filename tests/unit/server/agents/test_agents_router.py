@@ -4506,13 +4506,16 @@ async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(
 
 async def test_client_disconnect_persists_partial_turn(
     db: DbSessionFactory,
+    app: FastAPI,
     asgi_app: ASGIApp,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Interrupting a streaming turn — the UI stop button, a CLI interrupt, or
     a dropped SSE connection — persists the partial turn and releases the turn
-    lock, so clients can reload the transcript and resume with a follow-up
-    message instead of snapping back to the pre-turn state."""
+    lock, and records the partial response on the errored turn span, so clients
+    can reload the transcript and resume with a follow-up message instead of
+    snapping back to the pre-turn state."""
+    await _enable_local_trace_recording(app)
 
     async def stream_function(
         messages: list[ModelMessage],
@@ -4533,7 +4536,11 @@ async def test_client_disconnect_persists_partial_turn(
     session_id = "17171717-1717-4717-8717-171717171717"
     agent_session_id = await _create_agent_session_row(db, title="Already titled")
     request_body = json.dumps(
-        _chat_body(session_id, _user_message("interrupt me", message_id=_message_uuid("stop-1")))
+        _chat_body(
+            session_id,
+            _user_message("interrupt me", message_id=_message_uuid("stop-1")),
+            recordLocalTraces=True,
+        )
     ).encode()
 
     # Drive the ASGI app directly: httpx's ASGI transport cannot emit the
@@ -4586,6 +4593,7 @@ async def test_client_disconnect_persists_partial_turn(
         # The interrupted turn released its lock, so a follow-up can claim it.
         assert agent_session.heartbeat_at is None
         messages = await _load_session_messages(session, agent_session.id)
+        root_span = await session.scalar(select(models.Span).where(models.Span.name == "pxi.turn"))
 
     assert [message["role"] for message in messages] == ["user", "assistant"]
     assistant_message = messages[-1]
@@ -4594,6 +4602,9 @@ async def test_client_disconnect_persists_partial_turn(
     # The text streamed before the disconnect is kept and finalized.
     assert text_parts[0]["text"].startswith("partial")
     assert text_parts[0]["state"] == "done"
+    assert root_span is not None
+    assert root_span.status_code == "ERROR"
+    assert root_span.output_value == text_parts[0]["text"].strip()
     # The persisted message is flagged interrupted so clients can render the
     # cut-off turn distinctly (including when no parts streamed at all).
     assert assistant_message["metadata"]["phoenix"]["type"] == "assistant"
