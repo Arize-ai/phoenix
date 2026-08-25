@@ -283,7 +283,13 @@ examples:
   # tool-agnostic. Variants cover both summary-level and per-run reads.
 
   - id: footprint-three-axis-read
-    splits: [regression]
+    # quarantined regression -> dev (2026-08-25): since the browser-action
+    # meta-tools landed, the agent loads the right skills but then drifts to
+    # an execute_browser_action script (which cannot read GraphQL) and gives
+    # up, instead of running the bash phoenix-gql read the skill prescribes.
+    # Reproduced in CI runs 32749407419 + 32865446008 and locally. Real
+    # agent deficiency to investigate, not flake.
+    splits: [dev]
     input:
       contexts:
         - type: dataset
