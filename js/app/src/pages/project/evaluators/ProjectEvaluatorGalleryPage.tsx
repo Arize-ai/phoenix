@@ -124,12 +124,8 @@ function EvaluatorGallery() {
     count: number;
   }) => (
     <ListBoxItem key={name} id={name} textValue={name}>
-      {({ isSelected }) => (
-        <>
-          <Text size="S">{name}</Text>
-          <Counter variant={isSelected ? "quiet" : "default"}>{count}</Counter>
-        </>
-      )}
+      <Text size="S">{name}</Text>
+      <Counter variant="quiet">{count}</Counter>
     </ListBoxItem>
   );
 
