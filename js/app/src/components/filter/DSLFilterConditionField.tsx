@@ -16,13 +16,14 @@ import {
   StateEffect,
   StateField,
 } from "@codemirror/state";
-import { css } from "@emotion/react";
+import { css, Global } from "@emotion/react";
 import CodeMirror, {
   type BasicSetupOptions,
   Decoration,
   type DecorationSet,
   EditorView,
   keymap,
+  tooltips,
 } from "@uiw/react-codemirror";
 import type { ReactNode, Ref } from "react";
 import {
@@ -59,6 +60,7 @@ import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
+  portaledTypeaheadMenuCSS,
 } from "./styles";
 
 /**
@@ -827,6 +829,7 @@ export function DSLFilterConditionField<
       className={classNames("dsl-filter-condition-field", className)}
       css={dslFilterFieldCSS}
     >
+      <Global styles={portaledTypeaheadMenuCSS} />
       <Flex direction="row" alignItems="center">
         {leadingVisual ?? (
           <Icon svg={<Icons.ListFilter />} className="filter-icon" />
@@ -838,6 +841,22 @@ export function DSLFilterConditionField<
           readOnly={isReadOnly}
           onCreateEditor={(editorView) => {
             editorViewRef.current = editorView;
+            // A centered modal transforms and overflow-clips its dialog. That
+            // makes CodeMirror's fixed tooltip relative to the dialog and
+            // hides the completion menu outside the input's row. Reparent all
+            // editor tooltips to the modal overlay: they stay in the modal's
+            // interaction subtree while escaping the dialog's clip.
+            const tooltipParent = editorView.dom.closest<HTMLElement>(
+              '[data-overlay-container="modal"]'
+            );
+            if (tooltipParent) {
+              tooltipParent.classList.add("dsl-filter-tooltip-root");
+              editorView.dispatch({
+                effects: StateEffect.appendConfig.of(
+                  tooltips({ parent: tooltipParent })
+                ),
+              });
+            }
           }}
           onFocus={() => {
             // Refresh the loaded completions each time the user returns to
