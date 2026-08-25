@@ -1,7 +1,10 @@
 import { graphql, useFragment } from "react-relay";
 
 import type { ProjectAnnotationConfigsByNameFragment$key } from "./__generated__/ProjectAnnotationConfigsByNameFragment.graphql";
-import type { AnnotationOptimizationConfig } from "./optimizationUtils";
+import {
+  type AnnotationOptimizationConfig,
+  toAnnotationOptimizationConfig,
+} from "./optimizationUtils";
 
 export function useProjectAnnotationConfigsByName(
   project: ProjectAnnotationConfigsByNameFragment$key | null | undefined
@@ -47,17 +50,14 @@ export function useProjectAnnotationConfigsByName(
   );
   const configsByName = new Map<string, AnnotationOptimizationConfig>();
   data?.annotationConfigs.edges.forEach(({ config }) => {
-    if (config.name == null || config.annotationType == null) {
+    if (config.name == null) {
       return;
     }
-    configsByName.set(config.name, {
-      annotationType: config.annotationType,
-      optimizationDirection: config.optimizationDirection,
-      lowerBound: config.lowerBound,
-      upperBound: config.upperBound,
-      threshold: config.threshold,
-      values: config.values,
-    });
+    const optimizationConfig = toAnnotationOptimizationConfig(config);
+    if (optimizationConfig == null) {
+      return;
+    }
+    configsByName.set(config.name, optimizationConfig);
   });
   return configsByName;
 }
