@@ -8,7 +8,7 @@
     "start": "tsx experiment.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.97",
+    "@ai-sdk/openai": "^3.0.99",
     "@arizeai/openinference-instrumentation-openai": "^4.1.9",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
