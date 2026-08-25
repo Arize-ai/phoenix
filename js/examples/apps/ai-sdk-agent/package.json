@@ -9,10 +9,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.42",
-    "@ai-sdk/otel": "^1.0.66",
+    "@ai-sdk/openai": "^4.0.46",
+    "@ai-sdk/otel": "^1.0.77",
     "@arizeai/phoenix-otel": "workspace:*",
-    "ai": "^7.0.66",
+    "ai": "^7.0.77",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -35,7 +35,7 @@ Phoenix Client provides an interface for interacting with the Phoenix platform v
 
 ## Installation
 
-Install the Phoenix Client using pip:
+Install the Phoenix Client with pip:
 
 ```bash
 pip install arize-phoenix-client
