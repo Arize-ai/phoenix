@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import Any
 
@@ -16,29 +15,25 @@ from scripts.datagen.mock_openai_provider import (
     create_chat_completion,
 )
 from scripts.datagen.model_backend import BackendCapabilities, ModelResult
-from scripts.datagen.openai_batch import BatchResult
 from scripts.datagen.openai_chat_sessions import OpenAIPlainChatRecorder, SpanCaptureExporter
 from scripts.datagen.scripted import (
     ConversationScript,
     ConversationTurn,
-    build_script_request,
+    build_model_request,
     generate_script,
-    scripts_from_batch_results,
 )
 from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
 
 
-def test_scripted_batch_result_replays_through_instrumented_openai_client() -> None:
+def test_scripted_script_replays_through_instrumented_openai_client() -> None:
     cell = _cell()
-    request = build_script_request("run-1", cell, _environment())
-    assert request.custom_id == f"run-1:{cell.cell_id}:script"
-    assert request.body["model"] == "model-exact"
-    prompt = request.body["input"]
-    assert "Returns are accepted within 21 days." in prompt
-    assert "The buyer is preparing for travel." in prompt
-    assert "target_mode" not in prompt
-    assert "seed_intensities" not in prompt
-    schema = request.body["text"]["format"]["schema"]
+    request = build_model_request(cell, _environment())
+    assert request.model == "model-exact"
+    assert "Returns are accepted within 21 days." in request.prompt
+    assert "The buyer is preparing for travel." in request.prompt
+    assert "target_mode" not in request.prompt
+    assert "seed_intensities" not in request.prompt
+    schema = request.output_schema
     assert schema["properties"]["messages"]["minItems"] == 2
     assert schema["properties"]["messages"]["maxItems"] == 2
     assert schema["properties"]["messages"]["items"]["properties"] == {
@@ -46,19 +41,16 @@ def test_scripted_batch_result_replays_through_instrumented_openai_client() -> N
         "content": {"type": "string", "pattern": "\\S"},
     }
 
-    result = BatchResult(
-        custom_id=request.custom_id,
-        response_status_code=200,
-        request_id="batch-request-1",
-        body=_responses_body(
+    script, _ = generate_script(
+        _backend(
             _generated_conversation(
                 "When will my order arrive?",
                 "Standard delivery takes four to six business days.",
             )
         ),
-        error=None,
+        cell,
+        _environment(),
     )
-    (script,) = scripts_from_batch_results("run-1", [cell], [result])
 
     provider = PlaybackProvider(script.to_dict())
     exporter = InMemorySpanExporter()
@@ -182,21 +174,9 @@ def test_compatibility_provider_is_request_deterministic() -> None:
     assert create_chat_completion(request) == create_chat_completion(request)
 
 
-def test_structured_backend_generates_script_without_batch() -> None:
-    class Backend:
-        provider = "codex_exec"
-        capabilities = BackendCapabilities()
-
-        def generate(self, request: object) -> ModelResult:
-            return ModelResult(
-                provider=self.provider,
-                model="model-exact",
-                output=_generated_conversation("Question", "Answer"),
-                usage=None,
-            )
-
+def test_structured_backend_generates_script_from_a_direct_result() -> None:
     script, result = generate_script(
-        Backend(),
+        _backend(_generated_conversation("Question", "Answer")),
         _cell(failure_mode="malformed_response", failure_turn=0),
         _environment(),
     )
@@ -209,19 +189,27 @@ def test_structured_backend_generates_script_without_batch() -> None:
 
 def test_scripted_results_reject_internal_profile_language() -> None:
     cell = _cell(seed_intensities={"policy-window": 0.2})
-    result = BatchResult(
-        custom_id=f"run-1:{cell.cell_id}:script",
-        response_status_code=200,
-        request_id="batch-request-leak",
-        body=_responses_body(_generated_conversation("Use policy-window.", "I can help.")),
-        error=None,
-    )
+    backend = _backend(_generated_conversation("Use policy-window.", "I can help."))
 
     with pytest.raises(GenerationError, match="exposed internal context"):
-        scripts_from_batch_results("run-1", [cell], [result])
+        generate_script(backend, cell, _environment())
 
 
 def test_scripted_results_require_exact_role_alternation() -> None:
+    backend = _backend(
+        {
+            "messages": [
+                {"role": "assistant", "content": "I can help."},
+                {"role": "user", "content": "Please answer my question."},
+            ]
+        }
+    )
+
+    with pytest.raises(GenerationError, match="message 0 must have role 'user'"):
+        generate_script(backend, _cell(), _environment())
+
+
+def _backend(output: dict[str, Any]) -> Any:
     class Backend:
         provider = "codex_exec"
         capabilities = BackendCapabilities()
@@ -230,17 +218,11 @@ def test_scripted_results_require_exact_role_alternation() -> None:
             return ModelResult(
                 provider=self.provider,
                 model="model-exact",
-                output={
-                    "messages": [
-                        {"role": "assistant", "content": "I can help."},
-                        {"role": "user", "content": "Please answer my question."},
-                    ]
-                },
+                output=output,
                 usage=None,
             )
 
-    with pytest.raises(GenerationError, match="message 0 must have role 'user'"):
-        generate_script(Backend(), _cell(), _environment())
+    return Backend()
 
 
 def _cell(
@@ -284,17 +266,6 @@ def _environment() -> MaterializedSeedEnvironment:
         route_context="Ask whether the return can be completed before departure.",
         digest="e" * 64,
     )
-
-
-def _responses_body(value: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "output": [
-            {
-                "type": "message",
-                "content": [{"type": "output_text", "text": json.dumps(value)}],
-            }
-        ]
-    }
 
 
 def _generated_conversation(user: str, assistant: str) -> dict[str, Any]:

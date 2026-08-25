@@ -25,7 +25,6 @@ if TYPE_CHECKING or __package__:
         GenerationError,
         GenerationRun,
         MatrixCell,
-        PriceCatalog,
     )
     from scripts.datagen.model_backend import ModelBackend, ModelRequest
     from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
@@ -36,7 +35,6 @@ else:
         GenerationError,
         GenerationRun,
         MatrixCell,
-        PriceCatalog,
     )
     from model_backend import ModelBackend, ModelRequest
     from seed_mechanics import MaterializedSeedEnvironment
@@ -347,7 +345,6 @@ def record_self_play_cell(
     *,
     simulator: UserSimulator,
     recorder: AssistantRecorder,
-    prices: PriceCatalog | None,
     pass_seed: int,
     assistant_max_input_tokens: int,
     assistant_max_output_tokens: int,
@@ -363,7 +360,6 @@ def record_self_play_cell(
             run,
             cell,
             plan,
-            prices=prices,
             assistant_max_input_tokens=assistant_max_input_tokens,
             assistant_max_output_tokens=assistant_max_output_tokens,
             simulator_max_input_tokens=simulator_max_input_tokens,
@@ -377,7 +373,6 @@ def record_self_play_cell(
                 plan,
                 simulator=simulator,
                 recorder=recorder,
-                prices=prices,
                 pass_seed=pass_seed,
                 registry=registry,
             )
@@ -390,7 +385,6 @@ def _admit_attempts(
     cell: MatrixCell,
     plan: SelfPlayPlan,
     *,
-    prices: PriceCatalog | None,
     assistant_max_input_tokens: int,
     assistant_max_output_tokens: int,
     simulator_max_input_tokens: int,
@@ -400,10 +394,8 @@ def _admit_attempts(
         cell.cell_id,
         purpose="generation",
         model=cell.assistant_model,
-        mode="direct",
         max_input_tokens=assistant_max_input_tokens,
         max_output_tokens=assistant_max_output_tokens,
-        prices=prices,
         provider=plan.assistant_provider,
     )
     try:
@@ -411,10 +403,8 @@ def _admit_attempts(
             cell.cell_id,
             purpose="user_simulator",
             model=plan.simulator.model,
-            mode="direct",
             max_input_tokens=simulator_max_input_tokens,
             max_output_tokens=simulator_max_output_tokens,
-            prices=prices,
             provider=plan.simulator.provider,
         )
     except Exception:
@@ -431,7 +421,6 @@ def _record_attempt(
     *,
     simulator: UserSimulator,
     recorder: AssistantRecorder,
-    prices: PriceCatalog | None,
     pass_seed: int,
     registry: ToolRegistry,
 ) -> StagedSelfPlayFragment:
@@ -525,7 +514,6 @@ def _record_attempt(
             _fail_incomplete_attempts(
                 run,
                 attempts,
-                prices,
                 reason=turn_error,
                 assistant_usage=assistant_usage,
                 simulator_usage=simulator_usage,
@@ -558,7 +546,6 @@ def _record_attempt(
         _fail_incomplete_attempts(
             run,
             attempts,
-            prices,
             reason=reason,
             assistant_usage=assistant_usage,
             simulator_usage=simulator_usage,
@@ -572,7 +559,6 @@ def _record_attempt(
         _fail_incomplete_attempts(
             run,
             attempts,
-            prices,
             reason=fault_error,
             assistant_usage=assistant_usage,
             simulator_usage=simulator_usage,
@@ -597,14 +583,12 @@ def _record_attempt(
     )
     run.complete_attempt(
         attempts.simulator.attempt_id,
-        prices=prices,
         input_tokens=simulator_usage.input_tokens,
         cached_input_tokens=simulator_usage.cached_input_tokens,
         output_tokens=simulator_usage.output_tokens,
     )
     run.complete_attempt(
         attempts.assistant.attempt_id,
-        prices=prices,
         input_tokens=assistant_usage.input_tokens,
         cached_input_tokens=assistant_usage.cached_input_tokens,
         output_tokens=assistant_usage.output_tokens,
@@ -628,7 +612,6 @@ def _fault_observation_error(failure_mode: str, ledger: InvocationLedger) -> str
 def _fail_incomplete_attempts(
     run: GenerationRun,
     attempts: SelfPlayAttempts,
-    prices: PriceCatalog | None,
     *,
     reason: str,
     assistant_usage: TokenUsage,
@@ -637,7 +620,6 @@ def _fail_incomplete_attempts(
     run.fail_attempt(
         attempts.simulator.attempt_id,
         reason,
-        prices=prices,
         input_tokens=simulator_usage.input_tokens,
         cached_input_tokens=simulator_usage.cached_input_tokens,
         output_tokens=simulator_usage.output_tokens,
@@ -645,7 +627,6 @@ def _fail_incomplete_attempts(
     run.fail_attempt(
         attempts.assistant.attempt_id,
         reason,
-        prices=prices,
         input_tokens=assistant_usage.input_tokens,
         cached_input_tokens=assistant_usage.cached_input_tokens,
         output_tokens=assistant_usage.output_tokens,

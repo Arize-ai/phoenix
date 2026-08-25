@@ -19,7 +19,7 @@ from scripts.datagen.model_backend import (
 from scripts.datagen.quality import select_judge_routes
 
 if TYPE_CHECKING:
-    from scripts.datagen.generation import GenerationRun, PriceCatalog
+    from scripts.datagen.generation import GenerationRun
 
 JudgedOutcome = Literal["survived", "degraded", "failed"]
 RouteReason = Literal["fault", "trap_proximity", "baseline", "not_selected"]
@@ -387,7 +387,6 @@ def execute_judging(
     run: GenerationRun,
     backend: ModelBackend,
     *,
-    prices: PriceCatalog | None,
     max_input_tokens: int = 16_000,
 ) -> tuple[JudgmentRecordV1, ...]:
     fragments = []
@@ -419,10 +418,8 @@ def execute_judging(
             route.input.cell_id,
             purpose="judge",
             model=run.config.frontier_model,
-            mode="direct",
             max_input_tokens=max_input_tokens,
             max_output_tokens=JudgmentContractV1.max_output_tokens,
-            prices=prices,
             provider=run.config.frontier_provider,
         )
         request = JudgmentContractV1.build_request(route, model=run.config.frontier_model)
@@ -443,7 +440,6 @@ def execute_judging(
         usage = result.usage
         run.complete_attempt(
             attempt.attempt_id,
-            prices=prices,
             input_tokens=usage.input_tokens if usage else None,
             cached_input_tokens=usage.cached_input_tokens if usage else None,
             output_tokens=usage.output_tokens if usage else None,

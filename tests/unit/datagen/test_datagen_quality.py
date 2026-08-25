@@ -2,7 +2,6 @@ import base64
 import io
 import json
 import tarfile
-from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Mapping
@@ -22,8 +21,6 @@ from scripts.datagen.bank import (
 )
 from scripts.datagen.generation import (
     GenerationRun,
-    ModelPrice,
-    PriceCatalog,
     RunConfig,
     expand_seed_matrix,
     matrix_sha256,
@@ -47,7 +44,7 @@ from scripts.datagen.quality import (
 def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
     tmp_path: Path,
 ) -> None:
-    run, prices = _generation_run(
+    run = _generation_run(
         tmp_path,
         base_scenario_name="datagen-e2e-20260822-r5",
         base_archive_sha256=("b5a0114413903245ea6bb2d7ab43f7f4fa1ad0e6273432a19192d31bad77f2ce"),
@@ -75,16 +72,13 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
             cell.cell_id,
             purpose="generation",
             model=cell.assistant_model,
-            mode="direct",
             max_input_tokens=10,
             max_output_tokens=10,
-            prices=prices,
         )
         stage = run.directory / "staging" / cell.cell_id / "attempt-1"
         (stage / "traces.jsonl").write_bytes(staged_traces[index])
         run.complete_attempt(
             attempt.attempt_id,
-            prices=prices,
             input_tokens=1,
             cached_input_tokens=0,
             output_tokens=1,
@@ -103,7 +97,7 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
         accepted.append(outcome.fragment)
 
     assert accepted[0]["content_sha256"] == accepted[1]["content_sha256"]
-    _judge(run, prices, accepted, messages)
+    _judge(run, accepted, messages)
     archive = tmp_path / "quality-bank.tar.gz"
     output = io.StringIO()
     assert (
@@ -404,7 +398,7 @@ def test_short_fragment_jaccard_threshold_is_inclusive(tmp_path: Path) -> None:
 def test_validity_gate_rejects_structural_corruption(
     tmp_path: Path, messages: list[Mapping[str, Any]], reason: str
 ) -> None:
-    run, _ = _generation_run(tmp_path)
+    run = _generation_run(tmp_path)
     gate = QualityGate(rejects_path=run.directory / "rejects.jsonl")
 
     outcome = gate.evaluate(_candidate("a" * 64, "plain_chat", "self_play", ["a" * 32]), messages)
@@ -554,7 +548,7 @@ def _generation_run(
     *,
     base_scenario_name: str | None = None,
     base_archive_sha256: str | None = None,
-) -> tuple[GenerationRun, PriceCatalog]:
+) -> GenerationRun:
     profile_dir = tmp_path / "customer_support" / "plain_chat"
     profile_dir.mkdir(parents=True)
     (profile_dir / "profile.json").write_text(
@@ -616,8 +610,6 @@ def _generation_run(
             matrix_sha256=digest,
             luna_model="fake-model",
             frontier_model="fake-model",
-            pricing_version="fake-v1",
-            pricing_sha256="0" * 64,
             profile_set_sha256=profiles.profile_set_sha256,
             self_play_target=1,
             scripted_target=1,
@@ -627,13 +619,7 @@ def _generation_run(
         cells=cells,
         profiles=profiles,
     )
-    price = ModelPrice(
-        input_per_million_usd=Decimal("0.1"),
-        cached_input_per_million_usd=Decimal("0.01"),
-        output_per_million_usd=Decimal("0.2"),
-        batch_multiplier=Decimal("0.5"),
-    )
-    return run, PriceCatalog("fake-v1", {"fake-model": price}, sha256_digest="0" * 64)
+    return run
 
 
 def _candidate(
@@ -662,7 +648,6 @@ def _candidate(
 
 def _judge(
     run: GenerationRun,
-    prices: PriceCatalog,
     accepted: list[Mapping[str, Any]],
     messages: list[Mapping[str, Any]],
 ) -> None:
@@ -703,4 +688,4 @@ def _judge(
                 usage=ProviderUsage(10, 0, 4),
             )
 
-    execute_judging(run, Backend(), prices=prices)
+    execute_judging(run, Backend())

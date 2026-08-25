@@ -24,10 +24,18 @@ def test_codex_exec_uses_isolated_structured_cli_contract() -> None:
 
     result = CodexExecBackend(executable="codex-test", run_process=run).generate(_request())
 
-    assert captured["argv"][:2] == ["codex-test", "exec"]
-    assert captured["argv"][-2:] == ["--json", "-"]
-    assert "--ignore-user-config" in captured["argv"]
-    assert "--ignore-rules" in captured["argv"]
+    argv = captured["argv"]
+    assert argv[:2] == ["codex-test", "exec"]
+    assert argv[2 : argv.index("--cd") + 1] == [
+        "--ephemeral",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--sandbox",
+        "read-only",
+        "--skip-git-repo-check",
+        "--cd",
+    ]
+    assert argv[-2:] == ["--json", "-"]
     assert captured["kwargs"]["input"] == b"Return JSON."
     assert result.output == {"answer": "ok"}
     assert result.provider_run_id == "thread-1"

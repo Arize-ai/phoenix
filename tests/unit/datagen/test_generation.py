@@ -10,9 +10,7 @@ from scripts.datagen.generate import command
 from scripts.datagen.generation import (
     AlreadyAccepted,
     ConfigurationMismatch,
-    GenerationError,
     GenerationRun,
-    PriceCatalog,
     RunConfig,
     expand_seed_matrix,
     matrix_sha256,
@@ -24,18 +22,11 @@ from scripts.datagen.model_backend import (
     ModelResult,
     ProviderUsage,
 )
-from scripts.datagen.openai_batch import (
-    BATCH_COMPLETION_WINDOW,
-    BatchRequest,
-    OpenAIBatchAdapter,
-    custom_id,
-    usage_from_body,
-)
 from scripts.datagen.profile import load_profile_set
 
 
 def test_generation_command_resumes_without_duplicate_accepts(tmp_path: Path) -> None:
-    profiles, pricing = _inputs(tmp_path)
+    profiles = _inputs(tmp_path)
     run_dir = tmp_path / "run"
     init_args = [
         "init",
@@ -48,8 +39,6 @@ def test_generation_command_resumes_without_duplicate_accepts(tmp_path: Path) ->
         "7",
         "--frontier-model",
         "frontier-exact",
-        "--pricing",
-        str(pricing),
         "--self-play-target",
         "1",
         "--scripted-target",
@@ -66,14 +55,10 @@ def test_generation_command_resumes_without_duplicate_accepts(tmp_path: Path) ->
                 "admit",
                 str(run_dir),
                 cell.cell_id,
-                "--mode",
-                "direct",
                 "--max-input-tokens",
                 "100",
                 "--max-output-tokens",
                 "100",
-                "--pricing",
-                str(pricing),
             ],
             stdout=output,
         )
@@ -86,10 +71,8 @@ def test_generation_command_resumes_without_duplicate_accepts(tmp_path: Path) ->
         cell.cell_id,
         purpose="generation",
         model=cell.assistant_model,
-        mode="direct",
         max_input_tokens=100,
         max_output_tokens=100,
-        prices=PriceCatalog.load(pricing),
     )
     assert same_attempt.attempt_id == attempt_id
     with pytest.raises(ConfigurationMismatch, match="admission inputs changed"):
@@ -97,15 +80,12 @@ def test_generation_command_resumes_without_duplicate_accepts(tmp_path: Path) ->
             cell.cell_id,
             purpose="generation",
             model=cell.assistant_model,
-            mode="direct",
             max_input_tokens=101,
             max_output_tokens=100,
-            prices=PriceCatalog.load(pricing),
         )
 
     resumed.complete_attempt(
         attempt_id,
-        prices=PriceCatalog.load(pricing),
         input_tokens=20,
         cached_input_tokens=5,
         output_tokens=10,
@@ -117,132 +97,26 @@ def test_generation_command_resumes_without_duplicate_accepts(tmp_path: Path) ->
             cell.cell_id,
             purpose="generation",
             model=cell.assistant_model,
-            mode="direct",
             max_input_tokens=100,
             max_output_tokens=100,
-            prices=PriceCatalog.load(pricing),
         )
     assert len(GenerationRun.resume(run_dir).accepted_records) == 1
 
 
-def test_generation_command_reports_exact_budget_denial(tmp_path: Path) -> None:
-    profiles, pricing = _inputs(tmp_path)
-    run_dir = tmp_path / "run"
-    assert (
-        command(
-            [
-                "init",
-                str(run_dir),
-                "--profile-set",
-                str(profiles),
-                "--run-id",
-                "small-budget",
-                "--seed",
-                "1",
-                "--frontier-model",
-                "frontier-exact",
-                "--pricing",
-                str(pricing),
-                "--budget-usd",
-                "0.001",
-                "--self-play-target",
-                "1",
-                "--scripted-target",
-                "1",
-            ],
-            stdout=io.StringIO(),
-        )
-        == 0
-    )
-    cell = GenerationRun.resume(run_dir).cells[1]
-    error = io.StringIO()
-    assert (
-        command(
-            [
-                "admit",
-                str(run_dir),
-                cell.cell_id,
-                "--mode",
-                "batch",
-                "--max-input-tokens",
-                "2000",
-                "--max-output-tokens",
-                "2000",
-                "--pricing",
-                str(pricing),
-            ],
-            stdout=io.StringIO(),
-            stderr=error,
-        )
-        == 2
-    )
-    failure = json.loads(error.getvalue())
-    assert failure["error"] == "BudgetExceeded"
-    status = GenerationRun.resume(run_dir).status()
-    assert status["costs"]["spent_usd"] == "0E-9"
-    assert status["costs"]["reserved_usd"] == "0E-9"
-    assert status["exhausted"][-1]["kind"] == "budget"
-    assert status["exhausted"][-1]["requested_usd"] == "0.001400000"
-
-
-def test_reconciliation_blocks_run_when_usage_exceeds_admitted_envelope(tmp_path: Path) -> None:
-    _, pricing = _inputs(tmp_path)
-    run = _run(tmp_path, pricing)
-    first, second = run.cells
-    prices = PriceCatalog.load(pricing)
-    attempt = run.admitted_attempt(
-        first.cell_id,
-        purpose="generation",
-        model=first.assistant_model,
-        mode="direct",
-        max_input_tokens=100,
-        max_output_tokens=100,
-        prices=prices,
-    )
-
-    with pytest.raises(GenerationError, match="exceeds admitted token envelope"):
-        run.complete_attempt(
-            attempt.attempt_id,
-            prices=prices,
-            input_tokens=101,
-            cached_input_tokens=0,
-            output_tokens=100,
-        )
-
-    status = run.status()
-    assert status["costs"]["available_usd"] == "0"
-    assert status["exhausted"][-1]["kind"] == "cost_invariant"
-    with pytest.raises(GenerationError, match="blocked by cost invariant violation"):
-        run.admitted_attempt(
-            second.cell_id,
-            purpose="generation",
-            model=second.assistant_model,
-            mode="batch",
-            max_input_tokens=100,
-            max_output_tokens=100,
-            prices=prices,
-        )
-
-
-def test_failed_auxiliary_attempt_counts_cost_without_consuming_lane_cap(tmp_path: Path) -> None:
-    _, pricing = _inputs(tmp_path)
-    run = _run(tmp_path, pricing)
+def test_failed_auxiliary_attempt_does_not_consume_the_lane_cap(tmp_path: Path) -> None:
+    run = _run(tmp_path)
     cell = run.cells[0]
-    prices = PriceCatalog.load(pricing)
 
     simulator = run.admitted_attempt(
         cell.cell_id,
         purpose="user_simulator",
         model=cell.assistant_model,
-        mode="direct",
         max_input_tokens=100,
         max_output_tokens=100,
-        prices=prices,
     )
     run.fail_attempt(
         simulator.attempt_id,
         "assistant trace capture incomplete",
-        prices=prices,
         input_tokens=20,
         cached_input_tokens=5,
         output_tokens=10,
@@ -252,29 +126,22 @@ def test_failed_auxiliary_attempt_counts_cost_without_consuming_lane_cap(tmp_pat
         cell.cell_id,
         purpose="generation",
         model=cell.assistant_model,
-        mode="direct",
         max_input_tokens=100,
         max_output_tokens=100,
-        prices=prices,
     )
     assert generation.attempt_number == 1
     assert run.status()["attempts"]["self_play"] == 1
-    assert run.cost_summary().spent_usd > 0
 
 
 def test_generation_rejections_are_counted_by_gate(tmp_path: Path) -> None:
-    _, pricing = _inputs(tmp_path)
-    run = _run(tmp_path, pricing)
+    run = _run(tmp_path)
     cell = run.cells[0]
-    prices = PriceCatalog.load(pricing)
     attempt = run.admitted_attempt(
         cell.cell_id,
         purpose="generation",
         model=cell.assistant_model,
-        mode="direct",
         max_input_tokens=100,
         max_output_tokens=100,
-        prices=prices,
     )
 
     run.fail_attempt(attempt.attempt_id, "invalid generated conversation")
@@ -283,9 +150,7 @@ def test_generation_rejections_are_counted_by_gate(tmp_path: Path) -> None:
 
 
 def test_judge_pass_resumes_and_failures_do_not_reject_fragments(tmp_path: Path) -> None:
-    _, pricing_path = _inputs(tmp_path)
-    run = _run(tmp_path, pricing_path)
-    prices = PriceCatalog.load(pricing_path)
+    run = _run(tmp_path)
     cell = run.cells[0]
     conversation = [
         {"role": "user", "content": "Can you help with my return?"},
@@ -298,14 +163,11 @@ def test_judge_pass_resumes_and_failures_do_not_reject_fragments(tmp_path: Path)
         cell.cell_id,
         purpose="generation",
         model=cell.assistant_model,
-        mode="direct",
         max_input_tokens=100,
         max_output_tokens=100,
-        prices=prices,
     )
     run.complete_attempt(
         generation.attempt_id,
-        prices=prices,
         input_tokens=10,
         cached_input_tokens=0,
         output_tokens=5,
@@ -348,7 +210,7 @@ def test_judge_pass_resumes_and_failures_do_not_reject_fragments(tmp_path: Path)
             raise ModelBackendError("temporary judge outage")
 
     with pytest.raises(ModelBackendError, match="temporary judge outage"):
-        execute_judging(run, FailingBackend(), prices=prices)
+        execute_judging(run, FailingBackend())
     assert (run.directory / "rejects.jsonl").read_text() == ""
 
     class Backend:
@@ -372,8 +234,8 @@ def test_judge_pass_resumes_and_failures_do_not_reject_fragments(tmp_path: Path)
             )
 
     backend = Backend()
-    records = execute_judging(run, backend, prices=prices)
-    resumed = execute_judging(run, backend, prices=prices)
+    records = execute_judging(run, backend)
+    resumed = execute_judging(run, backend)
 
     assert records == resumed
     assert records[0].outcome == "survived"
@@ -386,10 +248,9 @@ def test_judge_pass_resumes_and_failures_do_not_reject_fragments(tmp_path: Path)
     assert [attempt["attempt_number"] for attempt in judge_attempts] == [1, 2]
 
 
-def test_subscription_attempt_records_usage_without_price_reservation(tmp_path: Path) -> None:
-    profiles_path, pricing_path = _inputs(tmp_path)
+def test_codex_exec_attempt_records_provider_usage(tmp_path: Path) -> None:
+    profiles_path = _inputs(tmp_path)
     profiles = load_profile_set(profiles_path)
-    prices = PriceCatalog.load(pricing_path)
     cells = expand_seed_matrix(
         profiles,
         seed=5,
@@ -405,8 +266,6 @@ def test_subscription_attempt_records_usage_without_price_reservation(tmp_path: 
             matrix_sha256=matrix_sha256(cells, 5, profiles.profile_set_sha256),
             luna_model="gpt-5.6-luna",
             frontier_model="frontier-exact",
-            pricing_version=prices.version,
-            pricing_sha256=prices.sha256,
             profile_set_sha256=profiles.profile_set_sha256,
             luna_provider="codex_exec",
             frontier_provider="codex_exec",
@@ -422,7 +281,6 @@ def test_subscription_attempt_records_usage_without_price_reservation(tmp_path: 
         cell.cell_id,
         purpose="generation",
         model=cell.assistant_model,
-        mode="direct",
         max_input_tokens=100,
         max_output_tokens=100,
     )
@@ -435,13 +293,11 @@ def test_subscription_attempt_records_usage_without_price_reservation(tmp_path: 
     )
 
     assert attempt.provider == "codex_exec"
-    assert attempt.reservation_id is None
-    assert run.cost_summary().reserved_usd == 0
     assert run.status()["provider_usage"]["codex_exec"]["input_tokens"] == 12
 
 
 def test_matrix_ids_and_frontier_selection_are_stable(tmp_path: Path) -> None:
-    profiles_path, _ = _inputs(tmp_path)
+    profiles_path = _inputs(tmp_path)
     profiles = load_profile_set(profiles_path)
     first = expand_seed_matrix(
         profiles,
@@ -482,7 +338,7 @@ def test_matrix_ids_and_frontier_selection_are_stable(tmp_path: Path) -> None:
 def test_fault_matrix_is_seed_stable_and_preserves_supplemental_lineage(
     tmp_path: Path,
 ) -> None:
-    profiles_path, pricing_path = _inputs(tmp_path)
+    profiles_path = _inputs(tmp_path)
     modes = "provider_429=2,provider_timeout,malformed_response,tool_delay,tool_exception"
 
     def initialize(run_dir: Path, run_id: str) -> GenerationRun:
@@ -499,8 +355,6 @@ def test_fault_matrix_is_seed_stable_and_preserves_supplemental_lineage(
                     "42",
                     "--frontier-model",
                     "frontier-exact",
-                    "--pricing",
-                    str(pricing_path),
                     "--self-play-target",
                     "4",
                     "--scripted-target",
@@ -617,7 +471,7 @@ def test_fault_init_refuses_invalid_contracts_before_creating_the_run(
     without_tools: bool,
     message: str,
 ) -> None:
-    profiles_path, pricing_path = _inputs(tmp_path)
+    profiles_path = _inputs(tmp_path)
     if without_tools:
         profile_path = tmp_path / "customer_support" / "plain_chat" / "profile.json"
         profile = json.loads(profile_path.read_text())
@@ -638,8 +492,6 @@ def test_fault_init_refuses_invalid_contracts_before_creating_the_run(
                 "1",
                 "--frontier-model",
                 "frontier-exact",
-                "--pricing",
-                str(pricing_path),
                 "--self-play-target",
                 "1",
                 "--scripted-target",
@@ -655,90 +507,7 @@ def test_fault_init_refuses_invalid_contracts_before_creating_the_run(
     assert not run_dir.exists()
 
 
-def test_bundled_pricing_preserves_models_and_requires_frontier_price(tmp_path: Path) -> None:
-    profiles, _ = _inputs(tmp_path)
-    common = [
-        "--profile-set",
-        str(profiles),
-        "--seed",
-        "1",
-        "--self-play-target",
-        "1",
-        "--scripted-target",
-        "1",
-    ]
-    assert (
-        command(
-            [
-                "init",
-                str(tmp_path / "luna-run"),
-                "--run-id",
-                "luna-run",
-                "--frontier-model",
-                "gpt-5.6-luna",
-                *common,
-            ],
-            stdout=io.StringIO(),
-        )
-        == 0
-    )
-    error = io.StringIO()
-    assert (
-        command(
-            [
-                "init",
-                str(tmp_path / "unknown-run"),
-                "--run-id",
-                "unknown-run",
-                "--frontier-model",
-                "frontier-without-price",
-                *common,
-            ],
-            stdout=io.StringIO(),
-            stderr=error,
-        )
-        == 2
-    )
-    assert "model substitution is disabled" in json.loads(error.getvalue())["message"]
-
-
-def test_batch_adapter_persists_ids_and_correlates_fake_results(tmp_path: Path) -> None:
-    run = _run(tmp_path)
-    cell = run.cells[-1]
-    identifier = custom_id(run.config.run_id, cell.cell_id, "script")
-    client = _FakeClient(identifier)
-    adapter = OpenAIBatchAdapter(client, run)
-    assert run.batch_cells_to_submit([cell.cell_id], purpose="script") == (cell.cell_id,)
-
-    job = adapter.submit(
-        [
-            BatchRequest(
-                custom_id=identifier,
-                endpoint="/v1/responses",
-                body={"model": "gpt-5.6-luna", "input": "hello"},
-            )
-        ]
-    )
-    assert job["batch_id"] == "batch-1"
-    assert client.create_batch_args == {
-        "input_file_id": "file-input",
-        "endpoint": "/v1/responses",
-        "completion_window": BATCH_COMPLETION_WINDOW,
-    }
-    assert run.batch_cells_to_submit([cell.cell_id], purpose="script") == ()
-    refreshed = adapter.refresh("batch-1")
-    assert refreshed["status"] == "completed"
-    assert run.batch_cells_to_submit([cell.cell_id], purpose="script") == (cell.cell_id,)
-    result = adapter.results("batch-1")[0]
-    assert result.custom_id == identifier
-    assert result.succeeded
-    assert usage_from_body(result.body or {}) == (12, 2, 5)
-    assert run.latest_jobs["batch-1"]["output_file_id"] == "file-output"
-    assert run.batch_cells_to_submit([cell.cell_id], purpose="script") == ()
-    assert '"event":"result"' in (run.directory / "jobs.jsonl").read_text()
-
-
-def _inputs(tmp_path: Path) -> tuple[Path, Path]:
+def _inputs(tmp_path: Path) -> Path:
     profile_dir = tmp_path / "customer_support" / "plain_chat"
     profile_dir.mkdir(parents=True, exist_ok=True)
     (profile_dir / "profile.json").write_text(
@@ -798,33 +567,11 @@ def _inputs(tmp_path: Path) -> tuple[Path, Path]:
             }
         )
     )
-    pricing = tmp_path / "pricing.json"
-    pricing.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "version": "test",
-                "models": {
-                    model: {
-                        "input_per_million_usd": "0.20",
-                        "cached_input_per_million_usd": "0.02",
-                        "output_per_million_usd": "1.20",
-                        "batch_multiplier": "0.50",
-                    }
-                    for model in ("gpt-5.6-luna", "frontier-exact")
-                },
-            }
-        )
-    )
-    return profiles, pricing
+    return profiles
 
 
-def _run(tmp_path: Path, pricing_path: Path | None = None) -> GenerationRun:
-    if pricing_path is None:
-        _, pricing_path = _inputs(tmp_path)
-    prices = PriceCatalog.load(pricing_path)
-    profiles_path, _ = _inputs(tmp_path)
-    profiles = load_profile_set(profiles_path)
+def _run(tmp_path: Path) -> GenerationRun:
+    profiles = load_profile_set(_inputs(tmp_path))
     cells = expand_seed_matrix(
         profiles,
         seed=3,
@@ -833,13 +580,11 @@ def _run(tmp_path: Path, pricing_path: Path | None = None) -> GenerationRun:
         lane_targets={"self_play": 1, "scripted": 1},
     )
     config = RunConfig(
-        run_id="batch-pass",
+        run_id="generation-pass",
         matrix_seed=3,
         matrix_sha256=matrix_sha256(cells, 3, profiles.profile_set_sha256),
         luna_model="gpt-5.6-luna",
         frontier_model="frontier-exact",
-        pricing_version="test",
-        pricing_sha256=prices.sha256,
         profile_set_sha256=profiles.profile_set_sha256,
         self_play_target=1,
         scripted_target=1,
@@ -847,66 +592,3 @@ def _run(tmp_path: Path, pricing_path: Path | None = None) -> GenerationRun:
     return GenerationRun.create_or_resume(
         tmp_path / "run", config=config, cells=cells, profiles=profiles
     )
-
-
-class _FakeFiles:
-    def __init__(self, custom_identifier: str) -> None:
-        self.custom_identifier = custom_identifier
-        self.uploaded = b""
-
-    def create(self, *, file: Any, purpose: str) -> dict[str, str]:
-        assert purpose == "batch"
-        self.uploaded = file.read()
-        return {"id": "file-input"}
-
-    def content(self, file_id: str) -> bytes:
-        assert file_id == "file-output"
-        return (
-            json.dumps(
-                {
-                    "custom_id": self.custom_identifier,
-                    "response": {
-                        "status_code": 200,
-                        "request_id": "request-1",
-                        "body": {
-                            "usage": {
-                                "input_tokens": 12,
-                                "output_tokens": 5,
-                                "input_tokens_details": {"cached_tokens": 2},
-                            }
-                        },
-                    },
-                    "error": None,
-                }
-            )
-            + "\n"
-        ).encode()
-
-
-class _FakeBatches:
-    def __init__(self) -> None:
-        self.create_args: dict[str, str] = {}
-
-    def create(self, **kwargs: str) -> dict[str, Any]:
-        self.create_args = kwargs
-        return {"id": "batch-1", "status": "validating", **kwargs}
-
-    def retrieve(self, batch_id: str) -> dict[str, Any]:
-        assert batch_id == "batch-1"
-        return {
-            "id": batch_id,
-            "status": "completed",
-            "output_file_id": "file-output",
-            "request_counts": {"total": 1, "completed": 1, "failed": 0},
-            "completed_at": 1,
-        }
-
-
-class _FakeClient:
-    def __init__(self, custom_identifier: str) -> None:
-        self.files = _FakeFiles(custom_identifier)
-        self.batches = _FakeBatches()
-
-    @property
-    def create_batch_args(self) -> dict[str, str]:
-        return self.batches.create_args

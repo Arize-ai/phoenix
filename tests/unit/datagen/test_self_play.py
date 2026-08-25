@@ -20,7 +20,6 @@ from scripts.datagen.fake_tools import InjectedToolFailure, load_default_fixture
 from scripts.datagen.generation import (
     GenerationRun,
     MatrixCell,
-    PriceCatalog,
     RunConfig,
     expand_seed_matrix,
     matrix_sha256,
@@ -50,7 +49,7 @@ from scripts.datagen.self_play import (
 
 
 def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) -> None:
-    _, cell, _ = _run(tmp_path, self_play_target=1)
+    _, cell = _run(tmp_path, self_play_target=1)
     cell = replace(
         cell,
         profile=replace(cell.profile, failure_mode="tool_delay", failure_turn=None),
@@ -113,7 +112,7 @@ def test_profile_draw_builds_plan_and_structured_user_simulator(tmp_path: Path) 
 def test_self_play_resumes_complete_turns_and_records_only_assistant_calls(
     tmp_path: Path,
 ) -> None:
-    run, cell, prices = _run(tmp_path, self_play_target=1)
+    run, cell = _run(tmp_path, self_play_target=1)
     playback = _CapturingPlaybackProvider(
         {
             "cell_id": cell.cell_id,
@@ -149,7 +148,7 @@ def test_self_play_resumes_complete_turns_and_records_only_assistant_calls(
         )
     )
     recorder = _OpenAIRecorder(client, exporter)
-    kwargs = _record_kwargs(run, cell, prices, simulator, recorder)
+    kwargs = _record_kwargs(run, cell, simulator, recorder)
 
     try:
         with pytest.raises(_SimulatedInterruption):
@@ -196,16 +195,16 @@ def test_self_play_resumes_complete_turns_and_records_only_assistant_calls(
     assert run.accepted_cell_ids == {cell.cell_id}
 
 
-def test_repeated_trace_capture_restarts_both_paid_roles_under_a_new_attempt(
+def test_repeated_trace_capture_restarts_both_roles_under_a_new_attempt(
     tmp_path: Path,
 ) -> None:
-    run, cell, prices = _run(tmp_path, self_play_target=2)
+    run, cell = _run(tmp_path, self_play_target=2)
     recorder = _CollisionOnceRecorder()
     simulator = _StaticSimulator(
         ("Please check my order status.", "Has the carrier posted a delivery estimate?")
     )
 
-    candidate = record_self_play_cell(**_record_kwargs(run, cell, prices, simulator, recorder))
+    candidate = record_self_play_cell(**_record_kwargs(run, cell, simulator, recorder))
 
     assert candidate.assistant_attempt_id.endswith(":generation:2")
     assert candidate.simulator_attempt_id.endswith(":user_simulator:2")
@@ -214,7 +213,6 @@ def test_repeated_trace_capture_restarts_both_paid_roles_under_a_new_attempt(
         run.directory / "staging" / cell.cell_id / "attempt-1" / "fragment-candidate.json"
     ).exists()
     assert run.status()["attempts"]["self_play"] == 2
-    assert run.cost_summary().spent_usd > 0
     assert candidate.fragment["trace_ids"] == ["2" * 32, "3" * 32]
     failures = [
         json.loads(line)
@@ -225,14 +223,13 @@ def test_repeated_trace_capture_restarts_both_paid_roles_under_a_new_attempt(
 
 
 def test_self_play_rejects_internal_language_from_the_simulator(tmp_path: Path) -> None:
-    run, cell, prices = _run(tmp_path, self_play_target=1)
+    run, cell = _run(tmp_path, self_play_target=1)
 
     with pytest.raises(SelfPlayError, match="exposed internal context"):
         record_self_play_cell(
             **_record_kwargs(
                 run,
                 cell,
-                prices,
                 _StaticSimulator(("Discuss the targeted seed.",)),
                 _CollisionOnceRecorder(),
                 turn_count=1,
@@ -241,14 +238,13 @@ def test_self_play_rejects_internal_language_from_the_simulator(tmp_path: Path) 
 
 
 def test_self_play_tools_receive_materialized_overlays(tmp_path: Path) -> None:
-    run, cell, prices = _run(tmp_path, self_play_target=1)
+    run, cell = _run(tmp_path, self_play_target=1)
     recorder = _ToolCallingRecorder()
 
     record_self_play_cell(
         **_record_kwargs(
             run,
             cell,
-            prices,
             _StaticSimulator(("What does the return guidance say?",)),
             recorder,
             turn_count=1,
@@ -260,14 +256,13 @@ def test_self_play_tools_receive_materialized_overlays(tmp_path: Path) -> None:
 
 
 def test_self_play_applies_tool_exception_only_to_the_first_invocation(tmp_path: Path) -> None:
-    run, cell, prices = _run(tmp_path, self_play_target=1)
+    run, cell = _run(tmp_path, self_play_target=1)
     recorder = _RecoveringToolCallingRecorder()
 
     candidate = record_self_play_cell(
         **_record_kwargs(
             run,
             cell,
-            prices,
             _StaticSimulator(("What does the return guidance say?",)),
             recorder,
             turn_count=1,
@@ -287,7 +282,7 @@ def test_self_play_applies_tool_exception_only_to_the_first_invocation(tmp_path:
 def test_self_play_delays_only_the_first_tool_invocation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    run, cell, prices = _run(tmp_path, self_play_target=1)
+    run, cell = _run(tmp_path, self_play_target=1)
     recorder = _RecoveringToolCallingRecorder()
     delays: list[float] = []
     monkeypatch.setattr(self_play_module, "sleep", delays.append)
@@ -296,7 +291,6 @@ def test_self_play_delays_only_the_first_tool_invocation(
         **_record_kwargs(
             run,
             cell,
-            prices,
             _StaticSimulator(("What does the return guidance say?",)),
             recorder,
             turn_count=1,
@@ -313,14 +307,13 @@ def test_self_play_delays_only_the_first_tool_invocation(
 
 
 def test_self_play_rejects_an_unobserved_tool_fault(tmp_path: Path) -> None:
-    run, cell, prices = _run(tmp_path, self_play_target=1)
+    run, cell = _run(tmp_path, self_play_target=1)
 
     with pytest.raises(SelfPlayError, match="tool_delay requires at least one tool invocation"):
         record_self_play_cell(
             **_record_kwargs(
                 run,
                 cell,
-                prices,
                 _StaticSimulator(("Please summarize the return window.",)),
                 _CollisionOnceRecorder(),
                 turn_count=1,
@@ -491,7 +484,6 @@ class _RecoveringToolCallingRecorder(_ToolCallingRecorder):
 def _record_kwargs(
     run: GenerationRun,
     cell: MatrixCell,
-    prices: PriceCatalog,
     simulator: Any,
     recorder: Any,
     *,
@@ -518,7 +510,6 @@ def _record_kwargs(
         ),
         "simulator": simulator,
         "recorder": recorder,
-        "prices": prices,
         "pass_seed": 17,
         "assistant_max_input_tokens": 2_000,
         "assistant_max_output_tokens": 2_000,
@@ -554,25 +545,7 @@ def _run(
     tmp_path: Path,
     *,
     self_play_target: int,
-) -> tuple[GenerationRun, MatrixCell, PriceCatalog]:
-    pricing_path = tmp_path / "pricing.json"
-    pricing_path.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "version": "test",
-                "models": {
-                    "gpt-5.6-luna": {
-                        "input_per_million_usd": "0.20",
-                        "cached_input_per_million_usd": "0.02",
-                        "output_per_million_usd": "1.20",
-                        "batch_multiplier": "0.50",
-                    }
-                },
-            }
-        )
-    )
-    prices = PriceCatalog.load(pricing_path)
+) -> tuple[GenerationRun, MatrixCell]:
     profile_dir = tmp_path / "customer_support" / "plain_chat"
     profile_dir.mkdir(parents=True, exist_ok=True)
     (profile_dir / "profile.json").write_text(
@@ -625,8 +598,6 @@ def _run(
         matrix_sha256=matrix_sha256(cells, 3, profiles.profile_set_sha256),
         luna_model="gpt-5.6-luna",
         frontier_model="gpt-5.6-luna",
-        pricing_version="test",
-        pricing_sha256=prices.sha256,
         profile_set_sha256=profiles.profile_set_sha256,
         self_play_target=self_play_target,
         scripted_target=1,
@@ -635,4 +606,4 @@ def _run(
         tmp_path / "run", config=config, cells=cells, profiles=profiles
     )
     cell = next(cell for cell in cells if cell.lane == "self_play")
-    return run, cell, prices
+    return run, cell
