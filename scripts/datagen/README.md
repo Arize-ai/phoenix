@@ -27,7 +27,7 @@ request purpose also admits `judge` for the accepted-fragment outcome pass.
 
 ## Run a supplemental fault pass
 
-Use a supplemental run when an existing schema-v2 bank needs new recorder behavior without
+Use a supplemental run when an existing schema-v2 archive needs new recorder behavior without
 regenerating its accepted fragments. Verify the base archive before initialization, then bind its
 scenario and digest into the immutable run configuration. This example allocates ten fault cells
 across all provider and tool modes while leaving enough eligible cells in both lanes:
@@ -80,19 +80,19 @@ it only with the digest-verified base declared at initialization:
 SUPPLEMENT_ARCHIVE="$RUN_DIR/<supplement-scenario>.tar.gz"
 MERGED_ARCHIVE="$RUN_DIR/$BASE_SCENARIO.tar.gz"
 
-uv run python scripts/datagen/bank.py package "$RUN_DIR" \
+uv run python -m scripts.datagen.scenario package "$RUN_DIR" \
   --archive "$SUPPLEMENT_ARCHIVE" \
   --scenario-name <supplement-scenario> \
   --generated-at <ISO-8601-UTC-timestamp> \
   --generation-revision <git-revision> \
   --instrumenter-package <distribution>=<version>
 
-uv run python scripts/datagen/bank.py merge \
+uv run python -m scripts.datagen.scenario merge \
   --base "$BASE_ARCHIVE" \
   --supplement "$SUPPLEMENT_ARCHIVE" \
   --archive "$MERGED_ARCHIVE"
 
-uv run python scripts/datagen/publish.py validate \
+uv run python -m scripts.datagen.publish validate \
   --archive "$MERGED_ARCHIVE" --asset-schema-version 2
 ```
 
@@ -106,7 +106,7 @@ exception topology.
 ## Judge accepted outcomes
 
 Outcome labels describe what the conversation delivered; they do not decide whether a valid
-fragment belongs in the bank. `survived` means the result remained correct and appropriately
+fragment belongs in the archive. `survived` means the result remained correct and appropriately
 cautious, `degraded` means a material but bounded loss left it usable or recoverable, and `failed`
 means the result was materially wrong, unsafe, or unusable. All three remain product data.
 
@@ -136,10 +136,11 @@ tool schema, so the same provider backs every recorder below.
 
 ## Recorders with a command-line entry point
 
-`openai_chat_sessions` and `langchain_agent_rag` write the starter assets. Both default
+`openai_chat_sessions` and `langchain_agent_rag` record standalone trace sets. Both default
 `--output-dir` to their directory under `dist/datagen-assets/`, replacing that scenario's
 `traces.jsonl` and regenerating `manifest.json` from the spans actually recorded. The `dist/`
-output is intentionally untracked; package, validate, and publish it manually.
+output is intentionally untracked. Neither manifest is the canonical schema-v2 form, so a
+publishable archive comes from a generation run packaged by `scenario.py`.
 
 ```console
 OPENAI_API_KEY=datagen-dummy-key OPENAI_BASE_URL=http://127.0.0.1:8765/v1 \
@@ -194,16 +195,15 @@ upstream instrumentation.
 Every JSONL line is one protobuf-JSON `ExportTraceServiceRequest`; requests from a multi-span trace
 may occupy multiple lines. Re-recorded assets are not package data and do not affect wheel size.
 
-## Fetching published assets
+## Fetching published scenarios
 
 Phoenix reads the public index at
 `https://storage.googleapis.com/arize-phoenix-assets/datagen/index.json`, downloads a selected
-archive, verifies its indexed byte size and SHA-256, verifies schema-v2 per-file hashes from the
-manifest, and publishes the extracted files into the local cache. Schema-v1 starter manifests do
-not contain per-file hashes, so their indexed archive hash plus cache-local file hashes preserve
-their existing bytes. A previously cached index and scenario continue to work offline.
+archive, verifies its indexed byte size and SHA-256, verifies the schema-v2 per-file hashes from
+the manifest, and publishes the extracted files into the local cache. A previously cached index
+and scenario continue to work offline.
 
-Set `PHOENIX_DATAGEN_ASSETS_BASE_URL` to an alternate HTTPS prefix for development or a private
+Set `PHOENIX_DATAGEN_SCENARIO_BASE_URL` to an alternate HTTPS prefix for development or a private
 deployment. The prefix must expose `index.json`, whose scenario entries continue to use absolute
 HTTPS archive URLs. `XDG_CACHE_HOME` controls the cache root; otherwise Phoenix uses
 `~/.cache/phoenix/datagen`.
@@ -223,7 +223,13 @@ HTTPS archive URLs. `XDG_CACHE_HOME` controls the cache root; otherwise Phoenix 
 
 ## Publishing a scenario archive
 
-Publication is an owner-run operation. Prepare a schema-v2 generation run locally with:
+Preparation is entirely local. `publish.py` validates the archive, fetches the current public index,
+stages the archive under its SHA-256, writes the next `index.json` beside it, and prints the two
+`gcloud storage cp` commands that would upload them. It holds no credentials and makes no network
+write, so nothing reaches the bucket until someone runs those commands with their own `gcloud`
+credentials.
+
+Prepare a schema-v2 generation run with:
 
 ```console
 uv run python -m scripts.datagen.publish prepare-run <run-dir> \
@@ -235,23 +241,22 @@ uv run python -m scripts.datagen.publish prepare-run <run-dir> \
 ```
 
 Repeat `--instrumenter-package` for every recorder dependency represented in the run. For an
-already packaged schema-v1 or schema-v2 archive, use `prepare-archive --archive <archive>
---asset-schema-version <1-or-2>` instead. Both commands validate the canonical archive through the
-runtime fetch and load path, fetch the current public index, stage the archive under its SHA-256,
-write the next `index.json`, and print the exact upload commands.
+already packaged schema-v2 archive, use `prepare-archive --archive <archive>
+--asset-schema-version 2` instead. Both commands validate the canonical archive through the runtime
+fetch and load path before staging anything.
 
-For a merged supplemental bank, stop after staging and preserve the command output for the asset
-owner:
+For a merged supplemental archive, stop after staging and hand the command output to whoever holds
+the bucket credentials:
 
 ```console
-uv run python scripts/datagen/publish.py prepare-archive \
+uv run python -m scripts.datagen.publish prepare-archive \
   --archive "$MERGED_ARCHIVE" \
   --asset-schema-version 2 \
   --output-dir dist/datagen-publication
 ```
 
 An HTTP 404 for an unpublished index is treated as an empty schema-v2 index. Preparation still
-stages the digest-namespaced archive and replacement index. It does not upload either file.
+stages the digest-namespaced archive and replacement index.
 
 Review the staged index, then run the printed commands in order. They have this form:
 
@@ -266,5 +271,9 @@ gcloud storage cp \
   "gs://arize-phoenix-assets/datagen/index.json"
 ```
 
-Upload the immutable archive first and the index last. Re-run the preparation command immediately
-before publishing so the staged index is based on the current remote index.
+Upload the archive first and the index last. `--no-clobber` on the archive upload is what makes a
+published scenario immutable: each archive lives at a path containing its own SHA-256, and the
+upload refuses to overwrite an object that is already there, so republishing a changed archive
+produces a new digest, a new path, and a new index entry rather than replacing anything. Re-run
+the preparation command immediately before publishing so the staged index is based on the current
+remote index.

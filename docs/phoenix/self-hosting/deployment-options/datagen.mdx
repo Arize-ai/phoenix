@@ -35,8 +35,8 @@ Stop the generator with `Ctrl+C`. Run `phoenix datagen --help` to see the scenar
 authentication, and anomaly-manifest options.
 
 The first run needs network access to the public Phoenix asset bucket. Later runs use the verified
-local cache if the index cannot be refreshed. To use another HTTPS asset prefix, set
-`PHOENIX_DATAGEN_ASSETS_BASE_URL`; to prefetch a scenario before going offline, run
+local cache if the index cannot be refreshed. To use another HTTPS scenario prefix, set
+`PHOENIX_DATAGEN_SCENARIO_BASE_URL`; to prefetch a scenario before going offline, run
 `phoenix datagen pull <scenario>`.
 
 ## Docker Compose
@@ -155,4 +155,4 @@ gcloud storage cp \
 
 Upload the archive first and the index last. Repeat `--instrumenter-package` for every recorder
 dependency represented in the run. To publish an existing archive, use `prepare-archive --archive
-<archive> --asset-schema-version <1-or-2>` instead.
+<archive> --asset-schema-version 2` instead.
