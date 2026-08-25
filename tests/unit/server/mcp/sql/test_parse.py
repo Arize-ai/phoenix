@@ -1883,6 +1883,47 @@ def test_sqlite_bare_interval_is_refused() -> None:
     assert "INTERVAL" in result.detail
 
 
+class TestJsonEachColumnsAreCheckedWithoutABaseTable:
+    """SQLite reads a quoted unknown identifier as a string.
+
+    `"nope"` beside json_each therefore returns that word as data rather than
+    "no such column", and nothing downstream can tell the two apart. json_each
+    names its own columns, so the check needs no allowlisted table in scope --
+    and a statement that reads none is exactly where it used to be skipped.
+    """
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT \"nope\" FROM json_each('[1]')",
+            "SELECT nope FROM json_each('[1]')",
+            "SELECT j.\"nope\" FROM json_each('[1]') j",
+            # Still refused where an allowlisted table shares the scope.
+            'SELECT "nope" FROM spans, json_each(attributes)',
+        ],
+    )
+    def test_a_column_json_each_does_not_project_is_refused(self, sql: str) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
+        assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            "SELECT key FROM json_each('[1]')",
+            "SELECT value FROM json_each('[1]') j",
+            "SELECT key FROM spans, json_each(attributes)",
+            "SELECT j.key FROM spans, json_each(attributes) j",
+            "SELECT id FROM spans, json_each(attributes)",
+            # A relation nobody can enumerate could have projected the name.
+            "WITH t AS (SELECT id AS weird FROM spans) "
+            "SELECT weird FROM spans, t, json_each(attributes)",
+        ],
+    )
+    def test_the_documented_idiom_is_admitted(self, sql: str) -> None:
+        admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="sqlite")
+
+
 class TestSessionIdentityIsRefusedWhateverTheStatementReads:
     """The niladic keywords resolve against the session, not against a relation.
 

@@ -2756,6 +2756,78 @@ def _check_session_identity(
     return None
 
 
+def _json_each_column_failure(
+    scope: Any,
+    *,
+    localities: Any,
+    by_reference: dict[str, str],
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> Optional[AdmissionResult]:
+    """Refuse a column `json_each` does not project.
+
+    SQLite reads a quoted unknown identifier as a string, so `"nope"` beside
+    `json_each` returns that word as data rather than "no such column".
+
+    The names `json_each` projects are fixed, so this resolves against the
+    function alone. It is asked of every scope holding one, including a scope
+    that reads no allowlisted table and therefore has nothing else to check
+    a column against.
+    """
+    if dialect != "sqlite":
+        return None
+    json_each_by_alias = _json_each_bindings(scope)
+    if not json_each_by_alias:
+        return None
+    # A source whose columns nobody can enumerate could have projected the
+    # name, so an unqualified reference is no longer evidence about json_each.
+    has_opaque_foreign = any(
+        not (
+            isinstance(source, exp.Table)
+            and (
+                _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect) is not None
+                or _json_each_columns_for_relation(source) is not None
+            )
+        )
+        for source in scope.sources.values()
+    )
+    json_each_names = frozenset().union(*json_each_by_alias.values())
+    candidates = list(dict.fromkeys(by_reference.values()))
+    for column in _scope_columns(scope.expression):
+        if localities.is_structurally_local(column) or isinstance(column.this, exp.Star):
+            continue
+        if localities.is_alias_bound(column):
+            continue
+        qualifier = column.table or ""
+        if qualifier:
+            if qualifier.casefold() not in json_each_by_alias:
+                continue
+            offered = json_each_by_alias[qualifier.casefold()]
+        else:
+            if has_opaque_foreign:
+                continue
+            offered = json_each_names
+        name = column.name or ""
+        if name.casefold() in offered:
+            continue
+        if not qualifier and any(
+            _offers_column(allowlist, table_name, column, dialect) for table_name in candidates
+        ):
+            continue
+        listed = ", ".join(_JSON_EACH_COLUMNS)
+        subject = (
+            f"Column {qualifier}.{name} is not projected by json_each."
+            if qualifier
+            else f"Column {name} is not projected by json_each."
+        )
+        return AdmissionResult(
+            AdmissionOutcome.UNSUPPORTED_SYNTAX,
+            subject,
+            message=f"{subject} json_each columns are {listed}.",
+        )
+    return None
+
+
 def _check_column_references(
     root: exp.Expression, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
 ) -> Optional[AdmissionResult]:
@@ -2816,6 +2888,17 @@ def _check_column_references(
             if table_name is not None:
                 by_reference.setdefault(node.alias or node.name, table_name)
                 by_reference.setdefault(node.name, table_name)
+        # Ahead of the early-out: json_each names its own columns, so this one
+        # resolves without an allowlisted table to check against.
+        json_each_failure = _json_each_column_failure(
+            scope,
+            localities=localities,
+            by_reference=by_reference,
+            allowlist=allowlist,
+            dialect=dialect,
+        )
+        if json_each_failure is not None:
+            return json_each_failure
         if not by_reference:
             continue
         columns = _scope_columns(scope.expression)
@@ -2928,17 +3011,6 @@ def _check_column_references(
             )
             for source in scope.sources.values()
         )
-        has_opaque_foreign = any(
-            not (
-                isinstance(source, exp.Table)
-                and (
-                    _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
-                    is not None
-                    or _json_each_columns_for_relation(source) is not None
-                )
-            )
-            for source in scope.sources.values()
-        )
         for column in columns:
             if localities.is_structurally_local(column) or isinstance(column.this, exp.Star):
                 continue
@@ -2989,26 +3061,6 @@ def _check_column_references(
             )
             if json_each_columns is not None and name.casefold() in json_each_columns:
                 continue
-            # SQLite treats a quoted unknown identifier as a string, so
-            # `"nope"` from json_each is a silent wrong answer rather than
-            # "no such column". Name the columns json_each actually projects.
-            if (
-                dialect == "sqlite"
-                and json_each_by_alias
-                and (qualifier.casefold() in json_each_by_alias or not qualifier)
-                and not (not qualifier and has_opaque_foreign)
-            ):
-                offered = ", ".join(_JSON_EACH_COLUMNS)
-                subject = (
-                    f"Column {qualifier}.{name} is not projected by json_each."
-                    if qualifier
-                    else f"Column {name} is not projected by json_each."
-                )
-                return AdmissionResult(
-                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                    subject,
-                    message=f"{subject} json_each columns are {offered}.",
-                )
             if not candidates:
                 continue
             # Unknown to the manifest. That is a refusal when the allowlisted
