@@ -195,6 +195,13 @@ def test_scripted_results_reject_internal_profile_language() -> None:
         generate_script(backend, cell, _environment())
 
 
+def test_scripted_results_reject_bare_role_name_placeholders() -> None:
+    backend = _backend(_generated_conversation("Please answer my question.", "System"))
+
+    with pytest.raises(GenerationError, match="bare role-name placeholder"):
+        generate_script(backend, _cell(), _environment())
+
+
 def test_scripted_results_require_exact_role_alternation() -> None:
     backend = _backend(
         {

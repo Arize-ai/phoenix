@@ -32,6 +32,7 @@ if TYPE_CHECKING or __package__:
         json_copy,
         write_immutable_json,
     )
+    from scripts.datagen.transcript import RESERVED_TRANSCRIPT_PHRASES, is_bare_role_name
 else:
     from fake_tools import DEFAULT_REGISTRY, InvocationLedger, ToolContext, ToolRegistry
     from generation import (
@@ -43,15 +44,10 @@ else:
     from model_backend import ModelBackend, ModelRequest
     from seed_mechanics import MaterializedSeedEnvironment
     from serialization import canonical_bytes, json_copy, write_immutable_json
+    from transcript import RESERVED_TRANSCRIPT_PHRASES, is_bare_role_name
 
 AssistantMessage = Mapping[str, Any]
 ToolInvoker = Callable[[str, Mapping[str, Any]], Mapping[str, Any]]
-_RESERVED_TRANSCRIPT_PHRASES = (
-    "adversarial seed",
-    "seed intensity",
-    "targeted seed",
-    "make a mistake",
-)
 _TOOL_FAILURE_MODES = frozenset({"tool_delay", "tool_exception"})
 
 
@@ -241,7 +237,7 @@ class SimulatedUserMessage:
     def __post_init__(self) -> None:
         if not self.content.strip():
             raise SelfPlayError("user simulator returned an empty message")
-        if self.content.strip().casefold() in {"user", "assistant"}:
+        if is_bare_role_name(self.content):
             raise SelfPlayError("user simulator returned a bare role-name placeholder")
 
 
@@ -734,7 +730,7 @@ def _validate_recorded_turn(recorded: RecordedAssistantTurn) -> None:
     content = recorded.messages[-1].get("content")
     if not isinstance(content, str) or not content.strip():
         raise SelfPlayError("a complete assistant turn must end with non-empty content")
-    if content.strip().casefold() in {"user", "assistant"}:
+    if is_bare_role_name(content):
         raise SelfPlayError("assistant recorder returned a bare role-name placeholder")
     _validate_trace_ids(recorded.trace_ids)
     if not recorded.trace_ids:
@@ -780,7 +776,7 @@ def _fixture_set_for_environment(
 
 
 def _validate_generated_content(cell: MatrixCell, value: Any) -> None:
-    forbidden = (*_RESERVED_TRANSCRIPT_PHRASES, *cell.profile.seed_intensities)
+    forbidden = (*RESERVED_TRANSCRIPT_PHRASES, *cell.profile.seed_intensities)
     for content in _text_values(value):
         lowered = content.casefold()
         if any(term.casefold() in lowered for term in forbidden):

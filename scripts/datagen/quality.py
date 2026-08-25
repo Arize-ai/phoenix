@@ -17,6 +17,7 @@ from phoenix.datagen.schema import (
     SchemaValidationError,
     validate_fragment_v2,
 )
+from scripts.datagen.transcript import is_bare_role_name
 
 NORMALIZER_VERSION = "visible-messages-nfkc-lower-ws-v1"
 VALIDITY_VERSION = "conversation-structure-v1"
@@ -34,7 +35,6 @@ _ASSISTANT_VOICE_FIRST_TURN = re.compile(
     r"use|verify|walk)\b|here(?:'s| is| are)\b)",
     re.IGNORECASE,
 )
-_BARE_ROLE_NAMES = frozenset({"assistant", "system", "tool", "user"})
 _MINHASH_PRIME = (1 << 61) - 1
 
 
@@ -268,7 +268,7 @@ def normalize_visible_messages(
         content = _visible_content(message.get("content"))
         if _is_whitespace_only(message.get("content")):
             raise QualityError(f"messages[{index}].content is whitespace-only; regenerate it")
-        if content.strip().casefold() in _BARE_ROLE_NAMES:
+        if is_bare_role_name(content):
             raise QualityError(
                 f"messages[{index}].content is the bare role name {content.strip()!r}; "
                 "regenerate it"

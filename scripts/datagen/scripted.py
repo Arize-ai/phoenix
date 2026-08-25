@@ -17,10 +17,12 @@ if TYPE_CHECKING or __package__:
     from scripts.datagen.generation import GenerationError, MatrixCell
     from scripts.datagen.model_backend import ModelBackend, ModelRequest, ModelResult
     from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
+    from scripts.datagen.transcript import RESERVED_TRANSCRIPT_PHRASES, is_bare_role_name
 else:
     from generation import GenerationError, MatrixCell
     from model_backend import ModelBackend, ModelRequest, ModelResult
     from seed_mechanics import MaterializedSeedEnvironment
+    from transcript import RESERVED_TRANSCRIPT_PHRASES, is_bare_role_name
 
 SCRIPT_SCHEMA_VERSION = 1
 FailureMode = Literal[
@@ -32,12 +34,6 @@ FailureMode = Literal[
 ]
 FAILURE_MODES: frozenset[str] = frozenset(
     {"none", "provider_429", "provider_timeout", "malformed_response", "tool_exception"}
-)
-_RESERVED_TRANSCRIPT_PHRASES = (
-    "adversarial seed",
-    "seed intensity",
-    "targeted seed",
-    "make a mistake",
 )
 
 _SCRIPT_OUTPUT_SCHEMA: Mapping[str, Any] = {
@@ -226,7 +222,7 @@ def _parse_generated_message(value: Any, index: int) -> str:
     content = value.get("content")
     if not isinstance(content, str) or not content.strip():
         raise GenerationError(f"Conversation script message {index} must contain visible text")
-    if content.strip().casefold() in {"user", "assistant"}:
+    if is_bare_role_name(content):
         raise GenerationError(
             f"Conversation script message {index} contains a bare role-name placeholder"
         )
@@ -251,7 +247,7 @@ def _failure_mode(value: Any) -> FailureMode:
 
 def _validate_transcript_text(cell: MatrixCell, content: str) -> None:
     lowered = content.casefold()
-    forbidden = (*_RESERVED_TRANSCRIPT_PHRASES, *cell.profile.seed_intensities)
+    forbidden = (*RESERVED_TRANSCRIPT_PHRASES, *cell.profile.seed_intensities)
     if any(term.casefold() in lowered for term in forbidden):
         raise GenerationError(
             f"Generated transcript for cell {cell.cell_id!r} exposed internal context"

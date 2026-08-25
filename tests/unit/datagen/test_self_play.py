@@ -237,6 +237,11 @@ def test_self_play_rejects_internal_language_from_the_simulator(tmp_path: Path) 
         )
 
 
+def test_self_play_rejects_bare_role_names_from_the_simulator() -> None:
+    with pytest.raises(SelfPlayError, match="bare role-name placeholder"):
+        SimulatedUserMessage(content="Tool")
+
+
 def test_self_play_tools_receive_materialized_overlays(tmp_path: Path) -> None:
     run, cell = _run(tmp_path, self_play_target=1)
     recorder = _ToolCallingRecorder()
