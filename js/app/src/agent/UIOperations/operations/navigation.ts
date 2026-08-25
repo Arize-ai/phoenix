@@ -4,7 +4,7 @@ import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
 
 /**
- * Approval-gated navigation, per the RFC in `PLAN.md`. The handler registers
+ * Approval-gated navigation. The handler registers
  * at the app root, so the operation is available from every page — exactly
  * right, since its job is to be reachable when the operation the script
  * wants is not. Unlike every other approval operation it is NEVER
