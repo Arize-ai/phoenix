@@ -8,7 +8,8 @@
  * iteration measures only the binary DETECTION RATE: given realistic
  * PII-bearing text, does the evaluator score `pii_detected`? Because there are
  * effectively no negatives, precision / false-positive rate cannot be measured
- * here.
+ * here. For a balanced precision/recall suite, see
+ * `pii_detection.synthetic.eval.ts`.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
