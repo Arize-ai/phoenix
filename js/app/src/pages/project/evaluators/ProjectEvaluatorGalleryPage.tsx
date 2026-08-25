@@ -20,7 +20,6 @@ import {
   SelectValue,
   Skeleton,
   Text,
-  View,
 } from "@phoenix/components";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -36,17 +35,12 @@ import {
 const ALL_EVALUATORS_CATEGORY = "All evaluators";
 const RECOMMENDED_CATEGORY = "Recommended";
 const GALLERY_SKELETON_HEIGHT = 440;
+/** The combined minimum width of the category, template, and details columns. */
+const GALLERY_EXPANDED_MIN_WIDTH = 960;
 
 export function ProjectEvaluatorGalleryPage() {
   return (
-    <View
-      elementType="main"
-      flex="1 1 auto"
-      width="100%"
-      height="100%"
-      minHeight={GALLERY_SKELETON_HEIGHT}
-      overflow="hidden"
-    >
+    <main css={galleryContainerCSS}>
       <ErrorBoundary fallback={EvaluatorGalleryError}>
         <Suspense fallback={<EvaluatorGallerySkeleton />}>
           <EvaluatorGallery />
@@ -55,7 +49,7 @@ export function ProjectEvaluatorGalleryPage() {
       <Suspense fallback={null}>
         <Outlet />
       </Suspense>
-    </View>
+    </main>
   );
 }
 
@@ -441,12 +435,36 @@ const compactCategoryListCSS = css`
   }
 `;
 
+const galleryContainerCSS = css`
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: ${GALLERY_SKELETON_HEIGHT}px;
+  overflow: hidden;
+  container: project-evaluator-gallery / inline-size;
+`;
+
 const galleryCSS = css`
+  --project-evaluator-gallery-column-separator-width: var(
+    --global-border-size-thin
+  );
+  --project-evaluator-gallery-column-padding: var(--global-dimension-size-200);
+  --project-evaluator-gallery-template-card-min-width: var(
+    --global-dimension-size-3000
+  );
+  --project-evaluator-gallery-template-column-min-width: calc(
+    var(--project-evaluator-gallery-template-card-min-width) +
+      var(--project-evaluator-gallery-column-padding) +
+      var(--project-evaluator-gallery-column-padding) +
+      var(--project-evaluator-gallery-column-separator-width)
+  );
+
   box-sizing: border-box;
   display: grid;
   grid-template-columns:
-    minmax(var(--global-dimension-size-3000), 0.65fr)
-    minmax(320px, 1.5fr)
+    minmax(var(--global-dimension-size-3000), var(--global-dimension-size-4000))
+    minmax(var(--global-dimension-size-4000), 1.5fr)
     minmax(var(--global-dimension-size-5000), 1fr);
   height: 100%;
   min-height: ${GALLERY_SKELETON_HEIGHT}px;
@@ -457,7 +475,7 @@ const galleryCSS = css`
   .project-evaluator-gallery__templates,
   .project-evaluator-gallery__details {
     min-height: 0;
-    padding: var(--global-dimension-size-200);
+    padding: var(--project-evaluator-gallery-column-padding);
   }
 
   .project-evaluator-gallery__categories {
@@ -478,7 +496,7 @@ const galleryCSS = css`
 
   .project-evaluator-gallery__categories,
   .project-evaluator-gallery__templates {
-    border-right: var(--global-border-size-thin) solid
+    border-right: var(--project-evaluator-gallery-column-separator-width) solid
       var(--global-border-color-default);
   }
 
@@ -525,7 +543,7 @@ const galleryCSS = css`
     display: grid;
     grid-template-columns: repeat(
       auto-fit,
-      minmax(var(--global-dimension-size-3000), 1fr)
+      minmax(var(--project-evaluator-gallery-template-card-min-width), 1fr)
     );
     align-content: start;
     gap: var(--global-dimension-size-100);
@@ -558,11 +576,14 @@ const galleryCSS = css`
     }
   }
 
-  @media (max-width: 900px) {
+  @container project-evaluator-gallery (width < ${GALLERY_EXPANDED_MIN_WIDTH}px) {
     overflow-x: auto;
     overflow-y: hidden;
     grid-template-columns:
-      minmax(var(--global-dimension-size-3000), 1fr)
+      minmax(
+        var(--project-evaluator-gallery-template-column-min-width),
+        var(--global-dimension-size-5000)
+      )
       minmax(var(--global-dimension-size-5000), 1fr);
 
     .project-evaluator-gallery__categories {
@@ -585,7 +606,10 @@ const galleryCSS = css`
     }
 
     .project-evaluator-gallery__template-list {
-      grid-template-columns: minmax(var(--global-dimension-size-3000), 1fr);
+      grid-template-columns: minmax(
+        var(--project-evaluator-gallery-template-card-min-width),
+        1fr
+      );
     }
 
     .project-evaluator-gallery__compact-scratch-actions {
