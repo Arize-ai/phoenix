@@ -166,13 +166,20 @@ For model and provider options, see
 
 ## Benchmarks
 
+On a 40-example authored suite (24 with PII, 16 without) using `gpt-4o-mini`,
+the default prompt achieves **0.85 accuracy**, **0.87 macro precision**,
+**0.82 macro recall**, and **0.84 macro F1**. False positives concentrate on
+placeholder and template values (for example Jane Doe, sample SSNs, and
+`name@company.com` used in the abstract); the one false negative was a
+name + employer + role combination without a contact identifier. See
+[pii_detection.synthetic.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/pii_detection.synthetic.eval.ts).
+
 On a stratified 150-record sample of
 [nvidia/Nemotron-PII](https://huggingface.co/datasets/nvidia/Nemotron-PII)
-(all positives) using `gpt-4o-mini`, the default prompt achieves a **0.93
-detection rate** (recall). Precision cannot be measured on this fixture because
+(all positives) using `gpt-4o-mini`, the same prompt achieves a **0.93
+detection rate** (recall). Precision cannot be measured on that fixture because
 it contains effectively no negatives. See
-[pii_detection.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/pii_detection.eval.ts)
-for the fixture and scoring.
+[pii_detection.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/pii_detection.eval.ts).
 
 ## API Reference
 

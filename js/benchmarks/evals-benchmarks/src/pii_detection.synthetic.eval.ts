@@ -290,7 +290,6 @@ px.describe(
         px.logAnnotation({
           name: "pii_detection",
           label: result.label,
-          score: result.score,
           explanation: result.explanation,
           annotatorKind: "LLM",
         });
