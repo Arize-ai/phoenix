@@ -750,6 +750,7 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
+            scripts/prompts/
             src/phoenix/
             evals/
             packages/

@@ -32,6 +32,7 @@ import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LL
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { ProjectEvaluatorMetrics } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMetrics";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorRunDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRunDetails";
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
@@ -132,6 +133,7 @@ function ProjectEvaluatorDetailsPageLoaded({
               label, and a Traces deep link selects by it. */}
             <Tab id="configuration">Overview</Tab>
             <Tab id="traces">Traces</Tab>
+            <Tab id="metrics">Metrics</Tab>
           </TabList>
           <LazyTabPanel id="configuration">
             <View width="100%" overflow="auto" height="100%">
@@ -165,6 +167,11 @@ function ProjectEvaluatorDetailsPageLoaded({
                 projectEvaluatorId={projectEvaluator.id}
                 hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
               />
+            </Suspense>
+          </LazyTabPanel>
+          <LazyTabPanel id="metrics">
+            <Suspense fallback={<Loading />}>
+              <ProjectEvaluatorMetrics projectEvaluator={projectEvaluator} />
             </Suspense>
           </LazyTabPanel>
         </Tabs>
