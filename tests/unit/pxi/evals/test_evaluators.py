@@ -14,6 +14,7 @@ import pytest
 from evals.pxi.evaluators.links import evaluate_in_app_links
 from evals.pxi.evaluators.text import evaluate_assistant_text_substrings
 from evals.pxi.evaluators.tools import (
+    evaluate_forbidden_tool_call_args,
     evaluate_tool_call_args,
     evaluate_tools_called,
 )
@@ -465,6 +466,20 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "pass"
 
+    def test_ui_operation_args_presence_matcher_accepts_es6_shorthand(self) -> None:
+        # Scripts commonly hoist a value into a const and pass it as an ES6
+        # shorthand property; presence matchers must see it.
+        result = evaluate_tool_call_args(
+            output=_execute_browser_action_output(
+                "const repetitions = 5;\n"
+                "return await ui.playground.repetitions.set({ repetitions });"
+            ),
+            expected={
+                "ui_operation_args": {"playground.repetitions.set": {"repetitions": {"any": True}}}
+            },
+        )
+        assert result["label"] == "pass"
+
     def test_ui_operation_args_match_nested_literal_object(self) -> None:
         result = evaluate_tool_call_args(
             output=_execute_browser_action_output(
@@ -641,6 +656,64 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "fail"
         assert "must be an object" in result["metadata"]["set_time_range"]["reason"]
+
+
+class TestForbiddenToolCallArgsMatch:
+    def test_vacuous_pass_when_no_sections(self) -> None:
+        result = evaluate_forbidden_tool_call_args(
+            output=_output("load_skill"),
+            expected={},
+        )
+        assert result["label"] == "pass"
+
+    def test_forbidden_tool_args_violation(self) -> None:
+        result = evaluate_forbidden_tool_call_args(
+            output=_output_with_args("load_skill", {"skill_name": "debug-trace"}),
+            expected={"forbidden_tool_call_args": {"load_skill": {"skill_name": "debug-trace"}}},
+        )
+        assert result["label"] == "fail"
+        assert "load_skill" in result["metadata"]["violations"]
+
+    def test_forbidden_ui_operation_args_violation(self) -> None:
+        result = evaluate_forbidden_tool_call_args(
+            output=_execute_browser_action_output(
+                "return await ui.playground.experiment.setRecording({recordExperiments: false});"
+            ),
+            expected={
+                "forbidden_ui_operation_args": {
+                    "playground.experiment.setRecording": {"recordExperiments": False}
+                }
+            },
+        )
+        assert result["label"] == "fail"
+        assert "playground.experiment.setRecording" in result["metadata"]["violations"]
+
+    def test_forbidden_ui_operation_args_allow_other_direction(self) -> None:
+        # Only the harmful direction is forbidden: a redundant re-assert of
+        # recordExperiments: true passes.
+        result = evaluate_forbidden_tool_call_args(
+            output=_execute_browser_action_output(
+                "await ui.playground.experiment.setRecording({recordExperiments: true});\n"
+                "return await ui.playground.run({});"
+            ),
+            expected={
+                "forbidden_ui_operation_args": {
+                    "playground.experiment.setRecording": {"recordExperiments": False}
+                }
+            },
+        )
+        assert result["label"] == "pass"
+
+    def test_forbidden_ui_operation_args_pass_when_operation_not_invoked(self) -> None:
+        result = evaluate_forbidden_tool_call_args(
+            output=_output("search_browser_actions"),
+            expected={
+                "forbidden_ui_operation_args": {
+                    "playground.experiment.setRecording": {"recordExperiments": False}
+                }
+            },
+        )
+        assert result["label"] == "pass"
 
 
 def _text_output(text: str | None) -> dict[str, Any]:

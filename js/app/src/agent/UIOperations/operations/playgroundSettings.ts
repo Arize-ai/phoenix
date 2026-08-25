@@ -90,7 +90,10 @@ export const setPlaygroundExperimentRecordingOperation = defineUIOperation({
     "unrecorded runs, and optionally stage a name, description, and metadata for the " +
     "experiments the next run produces. Use this before running when the user asks to " +
     "record, persist, save the run as an experiment, run without recording, or label " +
-    "the next experiment with notes such as a hypothesis.",
+    "the next experiment with notes such as a hypothesis. Stage structured notes " +
+    "(a hypothesis, the variable being changed, a baseline experiment id) as keys on " +
+    "`experimentMetadata` rather than as description prose, so later reads can find " +
+    "them programmatically.",
   inputSchema: setPlaygroundExperimentRecordingInputSchema,
   kind: "write",
   defaultSuccessOutput: "Experiment recording settings updated.",

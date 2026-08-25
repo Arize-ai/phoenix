@@ -576,7 +576,12 @@ def _invalid_arg_expectation_reason(expected_for_tool: Any) -> str | None:
 
 def _source_has_key(source: str, key: str) -> bool:
     quoted_key = re.escape(key)
-    return bool(re.search(rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:", source))
+    # Longhand (`key: value`, bare or quoted) or ES6 shorthand (`{key}` /
+    # `{key, ...}`), where the property value is a same-named variable.
+    return bool(
+        re.search(rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:", source)
+        or re.search(rf"[{{,]\s*{quoted_key}\s*[,}}]", source)
+    )
 
 
 def _source_has_literal(source: str, value: Any) -> bool:
@@ -765,15 +770,27 @@ def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, A
     :func:`evaluate_tool_call_args`). Passes vacuously when the section is
     absent or empty.
 
+    Also reads ``expected.forbidden_ui_operation_args[operation_name] ->
+    {key: value}`` the same way, matched against the argument source of
+    ``ui.<operation>(...)`` invocations inside observed
+    ``execute_browser_action`` scripts (source-level semantics, see
+    :func:`_source_pair_passes`).
+
     This is the inverse of :func:`evaluate_tool_call_args`: instead of
     asserting a call DID happen with certain args, it asserts a call did NOT.
-    The primary use case is checking that a specific skill was not triggered --
-    e.g. ``forbidden_tool_call_args: {load_skill: {skill_name: debug-trace}}``
-    -- without forbidding *all* ``load_skill`` calls (the agent may legitimately
-    load a different skill in the same turn).
+    The primary use cases are checking that a specific skill was not
+    triggered -- e.g. ``forbidden_tool_call_args: {load_skill: {skill_name:
+    debug-trace}}`` -- without forbidding *all* ``load_skill`` calls, and
+    forbidding only the harmful direction of an idempotent UI write -- e.g.
+    ``forbidden_ui_operation_args: {playground.experiment.setRecording:
+    {recordExperiments: false}}`` while a redundant re-assert of the current
+    value stays acceptable.
     """
     forbidden_args_by_tool = _as_dict(_as_dict(expected).get("forbidden_tool_call_args", {}))
-    if not forbidden_args_by_tool:
+    forbidden_args_by_operation = _as_dict(
+        _as_dict(expected).get("forbidden_ui_operation_args", {})
+    )
+    if not forbidden_args_by_tool and not forbidden_args_by_operation:
         return _success()
 
     observed_calls = tool_calls_from_output(output)
@@ -800,6 +817,24 @@ def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, A
                 }
                 break
 
+    scripts = _execute_browser_action_scripts(observed_calls)
+    for operation_name, forbidden_for_operation in forbidden_args_by_operation.items():
+        if not isinstance(operation_name, str):
+            continue
+        if not isinstance(forbidden_for_operation, dict):
+            violations[operation_name] = {
+                "reason": "forbidden_ui_operation_args entry must be an object",
+                "value": forbidden_for_operation,
+            }
+            continue
+        for source in _ui_operation_arguments(scripts, operation_name):
+            if _ui_operation_variant_passes(source, forbidden_for_operation):
+                violations[operation_name] = {
+                    "forbidden_args": dict(forbidden_for_operation),
+                    "observed_argument_source": source,
+                }
+                break
+
     if violations:
         return _failure(
             "Forbidden tool+args combination was called",
@@ -812,9 +847,11 @@ def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, A
 def forbidden_tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
     """Evaluator entrypoint: assert a specific tool+args combination was NOT called.
 
-    Reads ``expected.forbidden_tool_call_args[tool_name] -> {key: value}``.
-    Fails if any observed call to the named tool matches ALL specified arg
-    pairs. Passes vacuously when the section is absent.
+    Reads ``expected.forbidden_tool_call_args[tool_name] -> {key: value}`` and
+    ``expected.forbidden_ui_operation_args[operation_name] -> {key: value}``.
+    Fails if any observed call to the named tool (or any ``ui.<operation>``
+    invocation inside an observed ``execute_browser_action`` script) matches
+    ALL specified arg pairs. Passes vacuously when both sections are absent.
 
     Use this instead of (or alongside) ``expected.tools.forbidden`` when the
     tool may legitimately be called with *different* args in the same turn --

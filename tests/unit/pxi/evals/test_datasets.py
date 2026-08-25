@@ -303,6 +303,7 @@ examples:
         assert len(dataset.examples) == 6
         assert dataset.evaluators == [
             "correct_tools_called",
+            "forbidden_tool_call_args_match",
             "tool_call_args_match",
             "tool_call_count_within_limit",
         ]

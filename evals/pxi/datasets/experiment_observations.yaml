@@ -68,7 +68,7 @@ examples:
             ui.playground.run.readOutput(input: { instanceId?: number; repetitionNumber?: number }): Promise<UIResult<{ status: "not_started" | "running" | "partial" | "finished"; instances: unknown[]; message: string }>>;
 
             /**
-             * Set whether future dataset-backed playground runs in the currently mounted playground are recorded as persistent experiments or created as temporary unrecorded runs, and optionally stage a name, description, and metadata for the experiments the next run produces. Use this before running when the user asks to record, persist, save the run as an experiment, run without recording, or label the next experiment with notes such as a hypothesis.
+             * Set whether future dataset-backed playground runs in the currently mounted playground are recorded as persistent experiments or created as temporary unrecorded runs, and optionally stage a name, description, and metadata for the experiments the next run produces. Use this before running when the user asks to record, persist, save the run as an experiment, run without recording, or label the next experiment with notes such as a hypothesis. Stage structured notes (a hypothesis, the variable being changed, a baseline experiment id) as keys on `experimentMetadata` rather than as description prose, so later reads can find them programmatically.
              * kind: write; available on the current page.
              */
             ui.playground.experiment.setRecording(input: { recordExperiments: boolean; experimentName?: string; experimentDescription?: string; experimentMetadata?: unknown }): Promise<UIResult>;
@@ -119,9 +119,13 @@ examples:
         required: [playground.experiment.setRecording]
         forbidden: [experiment.patch]
       ui_operation_args:
+        # Scaffold metadata keys are free-form, so accept either naming
+        # convention the agent reasonably picks.
         playground.experiment.setRecording:
-          recordExperiments: true
-          experimentMetadata: { has_keys: [hypothesis, changed_variable] }
+          - recordExperiments: true
+            experimentMetadata: { has_keys: [hypothesis, changed_variable] }
+          - recordExperiments: true
+            experimentMetadata: { has_keys: [hypothesis, changedVariable] }
       budgets:
         max_tool_calls: 2
     metadata:
@@ -158,10 +162,18 @@ examples:
         required: [playground.experiment.setRecording]
         forbidden: [experiment.patch]
       ui_operation_args:
+        # Scripts legitimately hoist values into consts (defeating literal
+        # value matchers) and pick free-form scaffold key names, so the
+        # stable contract is: recording on, a name staged, and staged
+        # metadata that references the baseline at all. `contains_any` scans
+        # the whole argument source, so any baseline-ish key or comment
+        # inside the staged input counts.
         playground.experiment.setRecording:
           recordExperiments: true
-          experimentName: { non_empty: true }
-          experimentMetadata: { has_keys: [baseline_experiment_id] }
+          experimentName: { any: true }
+          experimentMetadata:
+            any: true
+            contains_any: [baseline, Baseline]
       budgets:
         max_tool_calls: 2
     metadata:

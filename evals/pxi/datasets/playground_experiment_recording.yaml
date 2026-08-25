@@ -10,6 +10,7 @@ description: >-
   operation-selection step.
 evaluators:
   - correct_tools_called
+  - forbidden_tool_call_args_match
   - tool_call_args_match
   - tool_call_count_within_limit
 examples:
@@ -62,7 +63,7 @@ examples:
             ui.playground.run.readOutput(input: { instanceId?: number; repetitionNumber?: number }): Promise<UIResult<{ status: "not_started" | "running" | "partial" | "finished"; instances: unknown[]; message: string }>>;
 
             /**
-             * Set whether future dataset-backed playground runs in the currently mounted playground are recorded as persistent experiments or created as temporary unrecorded runs, and optionally stage a name, description, and metadata for the experiments the next run produces. Use this before running when the user asks to record, persist, save the run as an experiment, run without recording, or label the next experiment with notes such as a hypothesis.
+             * Set whether future dataset-backed playground runs in the currently mounted playground are recorded as persistent experiments or created as temporary unrecorded runs, and optionally stage a name, description, and metadata for the experiments the next run produces. Use this before running when the user asks to record, persist, save the run as an experiment, run without recording, or label the next experiment with notes such as a hypothesis. Stage structured notes (a hypothesis, the variable being changed, a baseline experiment id) as keys on `experimentMetadata` rather than as description prose, so later reads can find them programmatically.
              * kind: write; available on the current page.
              */
             ui.playground.experiment.setRecording(input: { recordExperiments: boolean; experimentName?: string; experimentDescription?: string; experimentMetadata?: unknown }): Promise<UIResult>;
@@ -188,6 +189,10 @@ examples:
       polarity: positive
 
   - id: normal-run-no-recording-change
+    # Recording is already on and the user just asks to run. Turning
+    # recording OFF is the failure mode; a defensive re-assert of the
+    # current value inside the run script is idempotent and acceptable, so
+    # only the recordExperiments: false direction is forbidden.
     splits: [regression]
     input:
       contexts:
@@ -210,7 +215,9 @@ examples:
     expected:
       ui_operations:
         required: [playground.run]
-        forbidden: [playground.experiment.setRecording]
+      forbidden_ui_operation_args:
+        playground.experiment.setRecording:
+          recordExperiments: false
       budgets:
         max_tool_calls: 2
     metadata:
@@ -250,6 +257,9 @@ examples:
       polarity: negative
 
   - id: already-recording-run
+    # Same idempotence rationale as normal-run-no-recording-change: the run
+    # must happen and recording must not be switched off; re-asserting the
+    # already-true value is acceptable.
     splits: [regression]
     input:
       contexts:
@@ -272,7 +282,9 @@ examples:
     expected:
       ui_operations:
         required: [playground.run]
-        forbidden: [playground.experiment.setRecording]
+      forbidden_ui_operation_args:
+        playground.experiment.setRecording:
+          recordExperiments: false
       budgets:
         max_tool_calls: 2
     metadata:
