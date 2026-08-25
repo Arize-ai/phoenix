@@ -7,9 +7,9 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
-  Modal,
-  ModalOverlay,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
@@ -67,11 +67,11 @@ export function SessionsTableEmpty() {
               node: (
                 <DialogTrigger>
                   <Button size="S">Set up Sessions</Button>
-                  <ModalOverlay>
-                    <Modal variant="slideover" size="L">
+                  <ViewportModalOverlay>
+                    <ViewportModal size="L">
                       <SetupSessionsDialog />
-                    </Modal>
-                  </ModalOverlay>
+                    </ViewportModal>
+                  </ViewportModalOverlay>
                 </DialogTrigger>
               ),
             },

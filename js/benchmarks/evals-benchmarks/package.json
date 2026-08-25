@@ -11,14 +11,14 @@
     "evals:watch": "vitest watch --config phoenix.vitest.config.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.91",
+    "@ai-sdk/openai": "^3.0.97",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "dotenv": "^17.4.2",
-    "tsx": "^4.23.11",
+    "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

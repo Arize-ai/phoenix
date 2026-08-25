@@ -310,6 +310,26 @@ SESSION_BINDINGS = _FilterBindings(
     quantifiers=frozenset(COMPREHENSION_NAMES),
     exists_names=frozenset(_EXISTS_ATTRIBUTE_PATHS),
     iterables=_SESSION_ITERABLES,
+    annotation_accessors=frozenset({"session_annotations"}),
+    annotation_accessor_errors=MappingProxyType(
+        {
+            "annotations": (
+                "`annotations[...]` is not available in the session filter; use "
+                "`session_annotations[...]` for session annotations, or iterate "
+                "`span_annotations` for span-level annotations"
+            ),
+            "evals": (
+                "`evals[...]` is not available in the session filter; use "
+                "`session_annotations[...]` for session annotations, or iterate "
+                "`span_annotations` for span-level annotations"
+            ),
+            "trace_annotations": (
+                "`trace_annotations[...]` is not available in the session filter; sessions "
+                "do not expose a trace-annotation accessor; use `session_annotations[...]` "
+                "for session annotations, or iterate `span_annotations` for span-level annotations"
+            ),
+        }
+    ),
     annotation_iterable="session_annotations",
     case_insensitive_containment=True,
     strict_semantics=True,

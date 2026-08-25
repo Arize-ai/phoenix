@@ -8,11 +8,11 @@ import { Alert, Flex } from "@phoenix/components";
 import {
   PreformattedTextCell,
   ResizableTable,
-  UserCell,
 } from "@phoenix/components/table";
 import { TABLE_DATA_CELL_CLASS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanAnnotationDeleteButton } from "@phoenix/components/trace/SpanAnnotationDeleteButton";
+import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { NOTE_ANNOTATION_NAME } from "@phoenix/constants/annotationConstants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import type { NotificationHookParams } from "@phoenix/contexts/NotificationContext";
@@ -62,7 +62,7 @@ function NotesTable({
         // the column actually shows
         accessorFn: (note) => note.user?.username ?? "",
         size: 160,
-        cell: ({ row }) => <UserCell user={row.original.user} />,
+        cell: ({ row }) => <UserDisplay user={row.original.user} />,
       },
       {
         header: "note",

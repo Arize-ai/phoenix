@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import { useTheme } from "@phoenix/contexts/ThemeContext";
+import { classNames } from "@phoenix/utils/classNames";
 
 import type { BadgeProps } from "./types";
 
@@ -73,6 +74,7 @@ export const Badge = ({
   size = "S",
   overflowMode = "wrap",
   css: propCSS,
+  className,
   ...otherProps
 }: BadgeProps) => {
   const { theme } = useTheme();
@@ -85,7 +87,9 @@ export const Badge = ({
       data-size={size}
       data-overflow-mode={overflowMode}
       data-theme={theme}
-      className="badge"
+      // The emotion jsx transform delivers a caller's `css` prop as
+      // `className`, so it must be merged, not overwritten.
+      className={classNames("badge", className)}
     >
       {children}
     </span>

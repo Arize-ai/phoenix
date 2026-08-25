@@ -145,6 +145,11 @@ export interface PreferencesProps {
    */
   displayTimezone?: DisplayTimezone;
   /**
+   * Whether to use the browser and operating system's native scrollbar styling
+   * @default false
+   */
+  isNativeScrollbarStylingEnabled: boolean;
+  /**
    * The preferred programming language for code snippets
    * @default "Python"
    */
@@ -255,6 +260,12 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the display timezone
    */
   setDisplayTimezone: (displayTimezone: DisplayTimezone | undefined) => void;
+  /**
+   * Setter for using native scrollbar styling
+   */
+  setIsNativeScrollbarStylingEnabled: (
+    isNativeScrollbarStylingEnabled: boolean
+  ) => void;
   /**
    * Setter for the preferred programming language
    */
@@ -400,6 +411,12 @@ export const createPreferencesStore = (
         throw new Error(`Invalid timezone: ${displayTimezone}`);
       }
       set({ displayTimezone }, false, { type: "setDisplayTimezone" });
+    },
+    isNativeScrollbarStylingEnabled: false,
+    setIsNativeScrollbarStylingEnabled: (isNativeScrollbarStylingEnabled) => {
+      set({ isNativeScrollbarStylingEnabled }, false, {
+        type: "setIsNativeScrollbarStylingEnabled",
+      });
     },
     programmingLanguage: "Python",
     setProgrammingLanguage: (programmingLanguage) => {

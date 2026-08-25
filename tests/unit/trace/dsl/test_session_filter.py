@@ -709,7 +709,7 @@ async def test_session_filter_first_last_io_returns_window_turn_matches(
 
 
 async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> None:
-    """user.id / metadata read the earliest root span, and annotations["Name"] joins the
+    """user.id / metadata read the earliest root span, and session_annotations["Name"] joins the
     ProjectSessionAnnotation peer."""
     start = datetime.now(timezone.utc)
     async with db() as session:
@@ -752,7 +752,7 @@ async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> 
         assert by_metadata == {gold.id}
 
         by_annotation = await _matched_rowids(
-            session, SessionFilter('annotations["Quality"].score > 0.5'), project
+            session, SessionFilter('session_annotations["Quality"].score > 0.5'), project
         )
         assert by_annotation == {gold.id}
         assert silver.id not in by_annotation
@@ -886,9 +886,11 @@ async def test_session_filter_agrees_with_reference_evaluator(
 async def test_session_annotation_idioms_select_the_same_sessions(
     db: DbSessionFactory, lowering: FilterLowering
 ) -> None:
-    """`annotations["q"].score > x` and the equivalent `session_annotations` quantification lower
-    differently — an aliased outer join versus an EXISTS — so their agreement is pinned directly,
-    over fixtures carrying duplicate names, null scores and labels, and missing annotations."""
+    """Point access and equivalent `session_annotations` quantification select the same rows.
+
+    They lower differently — an aliased outer join versus an EXISTS — so their agreement is pinned
+    over fixtures carrying duplicate names, null scores and labels, and missing annotations.
+    """
     async with db() as session:
         project = await _add_project(session)
         for fixture in FIXTURE_SESSIONS:

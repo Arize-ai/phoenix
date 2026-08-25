@@ -319,6 +319,7 @@ function PlaygroundRender(args: StoryArgs) {
       selection.selectedPromptIndex !== null &&
       selection.selectedPromptIndex >= prompts.length
     ) {
+      // eslint-disable-next-line react/set-state-in-effect
       setSelection((s) => ({ ...s, selectedPromptIndex: null }));
     }
   }, [prompts.length, selection.selectedPromptIndex]);

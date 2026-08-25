@@ -6,7 +6,9 @@ import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDra
 import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
 import {
+  DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -57,6 +59,7 @@ export const EditLLMEvaluatorDialogContent = ({
   };
 
   const handleSubmitRef = useRef(handleSubmit);
+  // eslint-disable-next-line react/refs
   handleSubmitRef.current = handleSubmit;
 
   useLlmEvaluatorDraftRegistration({
@@ -71,19 +74,7 @@ export const EditLLMEvaluatorDialogContent = ({
           {mode === "create" ? "Create LLM Evaluator" : "Edit LLM Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
-          <Button slot="close" isDisabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button
-            data-testid="llm-evaluator-form-submit-button"
-            data-mode={mode}
-            variant="primary"
-            isDisabled={isSubmitting}
-            isPending={isSubmitting}
-            onPress={handleSubmit}
-          >
-            {mode === "create" ? "Create" : "Update"}
-          </Button>
+          <DialogCloseButton />
         </DialogTitleExtra>
       </DialogHeader>
       <fieldset
@@ -96,6 +87,9 @@ export const EditLLMEvaluatorDialogContent = ({
           min-height: 0;
           gap: var(--global-dimension-size-200);
           overflow: auto;
+          // keep trackpad overscroll from chaining to the dialog and
+          // dragging the header/footer with it
+          overscroll-behavior: contain;
         `}
       >
         {showValidationError && (
@@ -120,6 +114,21 @@ export const EditLLMEvaluatorDialogContent = ({
           <EvaluatorForm />
         </LLMEvaluatorInputVariablesProvider>
       </fieldset>
+      <DialogFooter>
+        <Button slot="close" isDisabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button
+          data-testid="llm-evaluator-form-submit-button"
+          data-mode={mode}
+          variant="primary"
+          isDisabled={isSubmitting}
+          isPending={isSubmitting}
+          onPress={handleSubmit}
+        >
+          {mode === "create" ? "Create" : "Update"}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 };

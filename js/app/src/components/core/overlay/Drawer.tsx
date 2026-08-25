@@ -6,27 +6,37 @@ import type {
   ReactNode,
   Ref,
 } from "react";
-import { useId, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { OverlayTriggerStateContext } from "react-aria-components";
+import { createPortal } from "react-dom";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
-import type { SizeValue } from "@phoenix/types/sizing";
-
 import {
-  DRAWER_CLASS_NAME,
   DRAWER_DEFAULT_MAX_SIZE,
   DRAWER_DEFAULT_MIN_SIZE,
   DRAWER_DEFAULT_SIZE,
   DRAWER_HARD_MIN_SIZE_PX,
+  DRAWER_SIDE_NAV_GAP_PX,
+  DRAWER_VISIBLE_GUTTER_PX,
 } from "./constants";
+import { DrawerContext } from "./DrawerContext";
+import { useOverlayFrame } from "./frame";
+import type { SizeValue } from "./sizing";
+import { LOCAL_RAISED_Z_INDEX } from "./stacking";
+import { createDismissTriggerState } from "./triggerState";
 
 /**
- * Resolve a {@link SizeValue} to pixels using the current viewport width.
+ * Resolve a {@link SizeValue} to pixels using the containing viewport width.
  */
-function resolveToPixels(value: SizeValue): number {
+function resolveToPixels({
+  containerWidth,
+  value,
+}: {
+  containerWidth: number;
+  value: SizeValue;
+}): number {
   if (typeof value === "number") return value;
-  return (parseFloat(value) / 100) * window.innerWidth;
+  return (parseFloat(value) / 100) * containerWidth;
 }
 
 const RESIZE_HANDLE_WIDTH_PX = 4;
@@ -35,24 +45,37 @@ const KEYBOARD_RESIZE_STEP_PERCENT = 5;
 const drawerSlideIn = keyframes`
   from {
     transform: translateX(100%);
+    opacity: 0;
   }
   to {
     transform: translateX(0);
+    opacity: 1;
   }
 `;
 
 const drawerCSS = css`
-  --visual-viewport-height: 100vh;
-  height: var(--visual-viewport-height);
-  position: fixed;
+  height: 100%;
+  position: absolute;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  z-index: 100;
+  z-index: ${LOCAL_RAISED_Z_INDEX};
   top: 0;
   right: 0;
   left: auto;
-  animation: ${drawerSlideIn} 300ms;
+  /* Strong deceleration with no overshoot — an overshooting curve would
+     briefly detach the drawer from the viewport's right edge. */
+  animation: ${drawerSlideIn} 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+
+  &[data-frame-hosted="false"] {
+    position: fixed;
+    height: 100vh;
+  }
 
   .drawer__resize-handle {
     position: absolute;
@@ -63,13 +86,28 @@ const drawerCSS = css`
     cursor: ew-resize;
     z-index: 2;
     touch-action: none;
+  }
+
+  /* The visible highlight is inset from the rounded corners so it tracks
+     the straight run of the drawer's edge; the full-height parent keeps
+     the entire edge grabbable. */
+  .drawer__resize-handle::before {
+    content: "";
+    position: absolute;
+    inset: var(--global-rounding-medium) 0;
+    border-radius: ${RESIZE_HANDLE_WIDTH_PX / 2}px;
     background-color: transparent;
     transition: background-color 150ms ease-out;
   }
 
-  .drawer__resize-handle:hover,
-  .drawer__resize-handle[data-dragging="true"],
-  .drawer__resize-handle:focus-visible {
+  &[data-frame-hosted="false"] .drawer__resize-handle::before {
+    inset: 0;
+    border-radius: 0;
+  }
+
+  .drawer__resize-handle:hover::before,
+  .drawer__resize-handle[data-dragging="true"]::before,
+  .drawer__resize-handle:focus-visible::before {
     background-color: var(--global-border-color-default);
   }
 
@@ -84,13 +122,27 @@ const drawerCSS = css`
 
   .react-aria-Dialog {
     box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
+    box-sizing: border-box;
     width: 100%;
     height: 100%;
-    border-radius: 0;
+    /* Mirror the application content frame: hug the top navigation with a
+       matching border and round the corners on the visible (left) edge. */
+    border-radius: var(--global-rounding-medium) 0 0
+      var(--global-rounding-medium);
     background: var(--global-background-color-default);
     color: var(--global-text-color-900);
+    border-top: 1px solid var(--global-border-color-default);
     border-left: 1px solid var(--global-border-color-default);
+    border-bottom: 1px solid var(--global-border-color-default);
     outline: none;
+  }
+
+  /* Outside the application frame the drawer spans the full window height,
+     so there is no navigation edge to round against. */
+  &[data-frame-hosted="false"] .react-aria-Dialog {
+    border-radius: 0;
+    border-top: none;
+    border-bottom: none;
   }
 `;
 
@@ -99,15 +151,15 @@ export type DrawerProps = {
   isOpen?: boolean;
   /** Called when the drawer should close (Escape key, close button, etc.). */
   onClose?: () => void;
-  /** Initial size. Pixels (number) or percentage of viewport (e.g. "35%"). */
+  /** Initial size. Pixels or percentage of the application viewport. */
   defaultSize?: SizeValue;
-  /** Minimum size. Pixels (number) or percentage of viewport (e.g. "50%"). */
+  /** Minimum size. Pixels or percentage of the application viewport. */
   minSize?: SizeValue;
-  /** Maximum size. Pixels (number) or percentage of viewport (e.g. "95%"). */
+  /** Maximum size. Pixels or percentage of the application viewport. */
   maxSize?: SizeValue;
   /**
    * Fires on every rAF-throttled drag update and on drag end with the
-   * current width as a viewport percentage (e.g. 50 for 50%). Pair with
+   * current width as an application-viewport percentage. Pair with
    * the `useDefaultDrawerSize` hook to persist size between visits.
    */
   onResize?: (sizePercent: number) => void;
@@ -116,7 +168,7 @@ export type DrawerProps = {
 };
 
 /**
- * A resizable, non-modal side panel pinned to the right edge of the viewport.
+ * A resizable, non-modal side panel pinned to the application viewport.
  *
  * Unlike a `<Modal>`, the Drawer does **not** block interaction with the
  * content behind it — users can click, scroll, and navigate the underlying
@@ -151,31 +203,67 @@ export function Drawer({
   children,
 }: DrawerProps) {
   const drawerId = useId();
+  const frame = useOverlayFrame();
+  const drawerHostElement = frame?.drawerHostElement ?? null;
+  const sideNavigationElement = frame?.sideNavigationElement ?? null;
+  const getContainerWidth = () =>
+    drawerHostElement?.getBoundingClientRect().width || window.innerWidth;
+  const getVisibleGutterWidth = () =>
+    Math.max(
+      DRAWER_VISIBLE_GUTTER_PX,
+      (sideNavigationElement?.getBoundingClientRect().width ?? 0) +
+        DRAWER_SIDE_NAV_GAP_PX
+    );
+  const [containerWidth, setContainerWidth] = useState(getContainerWidth);
+  const [visibleGutterWidth, setVisibleGutterWidth] = useState(
+    getVisibleGutterWidth
+  );
   const resolvedMinSize = minSize ?? DRAWER_DEFAULT_MIN_SIZE;
   const resolvedMaxSize = maxSize ?? DRAWER_DEFAULT_MAX_SIZE;
 
-  /** Resolve min to pixels, enforcing the hard pixel floor. */
-  const resolveMin = () =>
-    Math.max(resolveToPixels(resolvedMinSize), DRAWER_HARD_MIN_SIZE_PX);
+  /** Resolve min to pixels, enforcing the hard floor when it fits. */
+  const resolveMin = (width = containerWidth) =>
+    Math.min(
+      width,
+      Math.max(
+        resolveToPixels({ containerWidth: width, value: resolvedMinSize }),
+        DRAWER_HARD_MIN_SIZE_PX
+      )
+    );
 
-  /** Resolve max to pixels, capped by the viewport width so the drawer
-   *  can never exceed it regardless of what `maxSize` resolves to. */
-  const resolveMax = () => {
-    const maxPx = Math.min(resolveToPixels(resolvedMaxSize), window.innerWidth);
-    return Math.max(maxPx, resolveMin());
+  /** Resolve max while preserving the side navigation or minimum gutter. */
+  const resolveMax = (
+    width = containerWidth,
+    gutterWidth = visibleGutterWidth
+  ) => {
+    const requestedMax = resolveToPixels({
+      containerWidth: width,
+      value: resolvedMaxSize,
+    });
+    const availableMax = Math.max(width - gutterWidth, 0);
+    return Math.max(Math.min(requestedMax, availableMax), resolveMin(width));
   };
 
-  /** Clamp a viewport percentage between the resolved min and max bounds. */
-  const clampPercent = (pct: number) => {
-    const vw = window.innerWidth;
-    const minPct = (resolveMin() / vw) * 100;
-    const maxPct = (resolveMax() / vw) * 100;
-    return Math.min(Math.max(pct, minPct), maxPct);
+  /** Clamp a percentage between the resolved container-relative bounds. */
+  const clampPercent = (
+    percent: number,
+    width = containerWidth,
+    gutterWidth = visibleGutterWidth
+  ) => {
+    if (width <= 0) return 0;
+    const minPercent = (resolveMin(width) / width) * 100;
+    const maxPercent = (resolveMax(width, gutterWidth) / width) * 100;
+    return Math.min(Math.max(percent, minPercent), maxPercent);
   };
 
   const [sizePercent, setSizePercent] = useState<number>(() => {
-    const initialPx = resolveToPixels(defaultSize ?? DRAWER_DEFAULT_SIZE);
-    return clampPercent((initialPx / window.innerWidth) * 100);
+    const width = getContainerWidth();
+    const gutterWidth = getVisibleGutterWidth();
+    const initialPx = resolveToPixels({
+      containerWidth: width,
+      value: defaultSize ?? DRAWER_DEFAULT_SIZE,
+    });
+    return clampPercent((initialPx / width) * 100, width, gutterWidth);
   });
   const [isDragging, setIsDragging] = useState(false);
 
@@ -189,6 +277,63 @@ export function Drawer({
   const startPercentRef = useRef(0);
   const pendingPercentRef = useRef<number | null>(null);
   const rafIdRef = useRef<number | null>(null);
+
+  const hasInitializedContainerSizeRef = useRef(frame == null);
+
+  useLayoutEffect(() => {
+    const container = drawerHostElement;
+    const sideNavigation = sideNavigationElement;
+    const updateFrameMeasurements = () => {
+      const nextWidth =
+        container?.getBoundingClientRect().width || window.innerWidth;
+      const nextGutterWidth = Math.max(
+        DRAWER_VISIBLE_GUTTER_PX,
+        (sideNavigation?.getBoundingClientRect().width ?? 0) +
+          DRAWER_SIDE_NAV_GAP_PX
+      );
+      setContainerWidth(nextWidth);
+      setVisibleGutterWidth(nextGutterWidth);
+      setSizePercent((currentPercent) => {
+        if (!hasInitializedContainerSizeRef.current && container) {
+          hasInitializedContainerSizeRef.current = true;
+          const initialPx = resolveToPixels({
+            containerWidth: nextWidth,
+            value: defaultSize ?? DRAWER_DEFAULT_SIZE,
+          });
+          return clampPercent(
+            (initialPx / nextWidth) * 100,
+            nextWidth,
+            nextGutterWidth
+          );
+        }
+        return clampPercent(currentPercent, nextWidth, nextGutterWidth);
+      });
+    };
+
+    updateFrameMeasurements();
+    const resizeObserver =
+      container || sideNavigation
+        ? new ResizeObserver(updateFrameMeasurements)
+        : null;
+    if (container && resizeObserver) resizeObserver.observe(container);
+    if (sideNavigation && resizeObserver) {
+      resizeObserver.observe(sideNavigation);
+    }
+    if (!container) {
+      window.addEventListener("resize", updateFrameMeasurements);
+    }
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateFrameMeasurements);
+    };
+  }, [
+    defaultSize,
+    drawerHostElement,
+    resolvedMaxSize,
+    resolvedMinSize,
+    sideNavigationElement,
+  ]);
 
   const flushPendingSize = () => {
     rafIdRef.current = null;
@@ -212,9 +357,9 @@ export function Drawer({
     if (!isDraggingRef.current) return;
     // Drawer is pinned to the right edge — dragging left (negative delta)
     // increases width; dragging right decreases it. Work entirely in
-    // viewport percentages to avoid unnecessary pixel round-tripping.
+    // container percentages to avoid unnecessary pixel round-tripping.
     const deltaPct =
-      ((event.clientX - startXRef.current) / window.innerWidth) * 100;
+      ((event.clientX - startXRef.current) / containerWidth) * 100;
     pendingPercentRef.current = clampPercent(
       startPercentRef.current - deltaPct
     );
@@ -266,55 +411,49 @@ export function Drawer({
         break;
       case "Home":
         event.preventDefault();
-        commitSize((resolveMin() / window.innerWidth) * 100);
+        commitSize((resolveMin() / containerWidth) * 100);
         break;
       case "End":
         event.preventDefault();
-        commitSize((resolveMax() / window.innerWidth) * 100);
+        commitSize((resolveMax() / containerWidth) * 100);
         break;
     }
   };
 
   // Global Escape listener — works regardless of where focus is so the
   // drawer can be dismissed while interacting with the content behind it.
-  useHotkeys("Escape", () => onClose?.(), { enabled: isOpen });
+  // Guarded on the frame's blocked state because this listener sits outside
+  // React Aria's overlay stack: an open viewport modal owns Escape.
+  useHotkeys("Escape", () => onClose?.(), {
+    enabled: isOpen && !(frame?.isViewportBlocked ?? false),
+  });
 
-  if (!isOpen) return null;
+  if (!isOpen || (frame && !drawerHostElement)) return null;
 
   const minPx = resolveMin();
   const maxPx = resolveMax();
 
   const style = {
-    width: `${sizePercent}vw`,
+    width: drawerHostElement ? `${sizePercent}%` : `${sizePercent}vw`,
     minWidth: `${minPx}px`,
+    maxWidth: `${maxPx}px`,
   } as CSSProperties;
 
   // Provide OverlayTriggerStateContext so react-aria's Dialog render prop
   // surfaces a working `close` function and `slot="close"` auto-wires.
-  // `point` anchors an overlay to the cursor (context menus). A drawer is
-  // anchored to the viewport edge, so it stays null and `setPoint` is a no-op.
-  const overlayState = {
-    isOpen: true as const,
-    open: () => {},
-    close: () => onClose?.(),
-    toggle: () => onClose?.(),
-    setOpen: (open: boolean) => {
-      if (!open) onClose?.();
-    },
-    point: null,
-    setPoint: () => {},
-  };
+  const overlayState = createDismissTriggerState(() => onClose?.());
 
-  return (
+  const drawer = (
     <DrawerContext.Provider value={true}>
       <OverlayTriggerStateContext.Provider value={overlayState}>
         <div
           role="complementary"
           id={drawerId}
-          className={DRAWER_CLASS_NAME}
+          className="drawer"
           aria-label="Detail drawer"
           css={drawerCSS}
           data-dragging={isDragging ? "true" : undefined}
+          data-frame-hosted={drawerHostElement ? "true" : "false"}
           style={style}
           ref={ref}
         >
@@ -325,8 +464,8 @@ export function Drawer({
             aria-orientation="vertical"
             aria-label="Resize drawer"
             aria-valuenow={Math.round(sizePercent)}
-            aria-valuemin={Math.round((minPx / window.innerWidth) * 100)}
-            aria-valuemax={Math.round((maxPx / window.innerWidth) * 100)}
+            aria-valuemin={Math.round((minPx / containerWidth) * 100)}
+            aria-valuemax={Math.round((maxPx / containerWidth) * 100)}
             className="drawer__resize-handle"
             data-dragging={isDragging ? "true" : undefined}
             onPointerDown={handlePointerDown}
@@ -340,4 +479,6 @@ export function Drawer({
       </OverlayTriggerStateContext.Provider>
     </DrawerContext.Provider>
   );
+
+  return drawerHostElement ? createPortal(drawer, drawerHostElement) : drawer;
 }

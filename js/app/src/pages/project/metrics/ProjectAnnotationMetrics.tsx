@@ -8,6 +8,7 @@ import {
   type AnnotationOptimizationConfig,
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
+import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import {
   AnnotationMetricsChart,
   type AnnotationMetricsSeries,
@@ -45,7 +46,6 @@ import {
   PROJECT_METRICS_CHART_SYNC_ID,
   useMetricQueryFetchOptions,
 } from "./types";
-import { useProjectAnnotationConfigsByName } from "./useProjectAnnotationConfigsByName";
 
 type AnnotationMetricsData = ReadonlyArray<{
   readonly timestamp: string;
@@ -123,6 +123,7 @@ function ProjectAnnotationMetricsPanel({
   timeTickFormatter,
   fullTimeFormatter,
   onTimeRangeSelected,
+  scale,
   fillHeight = false,
 }: {
   series: AnnotationMetricsSeries;
@@ -131,6 +132,7 @@ function ProjectAnnotationMetricsPanel({
   timeTickFormatter: (date: Date) => string;
   fullTimeFormatter: (date: Date) => string;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
+  scale: TimeBinScale;
   fillHeight?: boolean;
 }) {
   const [view, setView] = useState(() =>
@@ -152,7 +154,10 @@ function ProjectAnnotationMetricsPanel({
         ) : undefined
       }
     >
-      <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+      <TimeRangeChartBrush
+        onTimeRangeSelected={onTimeRangeSelected}
+        scale={scale}
+      >
         {({ chartProps }) => (
           <AnnotationMetricsChart
             series={series}
@@ -281,6 +286,7 @@ function ProjectAnnotationMetricPanelContent({
       {...props}
       series={series}
       annotationConfig={annotationConfigsByName.get(series.name)}
+      scale={scale}
       timeTickFormatter={timeTickFormatter}
       fullTimeFormatter={fullTimeFormatter}
       fillHeight={fillHeight}
@@ -553,7 +559,7 @@ function useSpanAnnotationMetricsSeries(
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectAnnotationMetricsConfigFragment
+            ...ProjectAnnotationConfigsByNameFragment
               @arguments(annotationConfigNames: [$annotationName], first: 1)
             spanAnnotationMetricsTimeSeries(
               annotationName: $annotationName
@@ -605,7 +611,7 @@ function useTraceAnnotationMetricsSeries(
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectAnnotationMetricsConfigFragment
+            ...ProjectAnnotationConfigsByNameFragment
               @arguments(annotationConfigNames: [$annotationName], first: 1)
             traceAnnotationMetricsTimeSeries(
               annotationName: $annotationName
@@ -657,7 +663,7 @@ function useSessionAnnotationMetricsSeries(
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectAnnotationMetricsConfigFragment
+            ...ProjectAnnotationConfigsByNameFragment
               @arguments(annotationConfigNames: [$annotationName], first: 1)
             sessionAnnotationMetricsTimeSeries(
               annotationName: $annotationName

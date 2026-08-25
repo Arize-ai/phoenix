@@ -33,6 +33,7 @@ type Anchor = ReturnType<typeof useScrollAnchor>;
 function renderScrollAnchor(stopScroll: () => void): Anchor {
   let value: Anchor | null = null;
   function Harness() {
+    // eslint-disable-next-line react/globals
     value = useScrollAnchor();
     return null;
   }

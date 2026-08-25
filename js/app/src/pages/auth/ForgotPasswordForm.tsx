@@ -78,6 +78,7 @@ export function ForgotPasswordForm({
               name="email"
               isRequired
               type="email"
+              autoFocus
               onChange={onChange}
               onBlur={onBlur}
               value={value}

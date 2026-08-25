@@ -77,7 +77,7 @@ export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
     });
   }, [rows, columns]);
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     columns: tableColumns,
     data: tableData,

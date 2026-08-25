@@ -26,6 +26,7 @@ import {
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
+import { useNotify } from "@phoenix/contexts/NotificationContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
@@ -157,6 +158,32 @@ function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
   return seed.requiresServerValidation ? null : seed;
 }
 
+export function LegacyTraceFilterParamNotice({
+  isActive,
+}: {
+  isActive: boolean;
+}) {
+  const notify = useNotify();
+  const [searchParams] = useSearchParams();
+  const hasNotified = useRef(false);
+
+  useEffect(() => {
+    if (!isActive || !searchParams.has(SPAN_FILTER_CONDITION_PARAM)) {
+      return;
+    }
+    if (!hasNotified.current) {
+      hasNotified.current = true;
+      notify({
+        title: "Traces now use trace-level filters",
+        message:
+          "The span-level filter from this link still applies on the Spans tab.",
+      });
+    }
+  }, [isActive, notify, searchParams]);
+
+  return null;
+}
+
 function ProjectPageContentBody({
   projectId,
   timeRangeISOStrings,
@@ -198,8 +225,6 @@ function ProjectPageContentBody({
     useState<SettledSpanFilterSeed | null>(() =>
       settledSeedFromUrl(DEFAULT_SPAN_FILTER_CONDITION)
     );
-  const [tracesFilterSeed, setTracesFilterSeed] =
-    useState<SettledSpanFilterSeed | null>(() => settledSeedFromUrl(""));
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
@@ -275,31 +300,6 @@ function ProjectPageContentBody({
   // connection with stale rows (see issue #14216). The tables instead own
   // time-range and filter liveness through their own `refetch`; parent preloads
   // need only an initial window and reload solely on project or tab changes.
-  /** As `resolveSpansSeed`, for the traces tab. */
-  const resolveTracesSeed = useCallback(
-    (seed: SettledSpanFilterSeed, persistToUrl = true) => {
-      startTransition(() => {
-        setTracesFilterSeed(seed);
-        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
-          setSearchParamsRef.current(
-            (prev) => {
-              const next = new URLSearchParams(prev);
-              next.set(SPAN_FILTER_CONDITION_PARAM, seed.condition);
-              return next;
-            },
-            { replace: true }
-          );
-        }
-        loadTracesQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          filterCondition: seed.condition || null,
-        });
-      });
-    },
-    [projectId, loadTracesQuery]
-  );
-
   const loadTableQueryForTab = useEffectEvent(
     (currentTabIndex: number, currentProjectId: string) => {
       if (currentTabIndex === TAB_INDEX_MAP.spans) {
@@ -328,19 +328,10 @@ function ProjectPageContentBody({
           resolveSpansSeed(seed, fromUrl !== null);
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
-        const fromUrl = searchParams.get(SPAN_FILTER_CONDITION_PARAM);
-        const seed = spanFilterSeed(fromUrl ?? "");
-        if (
-          tracesQueryReference &&
-          tracesFilterSeed?.condition === seed.condition
-        ) {
-          return;
-        }
-        if (seed.requiresServerValidation) {
-          setTracesFilterSeed(null);
-        } else {
-          resolveTracesSeed(seed, fromUrl !== null);
-        }
+        loadTracesQuery({
+          id: currentProjectId,
+          timeRange: timeRangeISOStrings,
+        });
       } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
         loadSessionsQuery({
           id: currentProjectId,
@@ -376,6 +367,9 @@ function ProjectPageContentBody({
 
   return (
     <main css={mainCSS}>
+      <LegacyTraceFilterParamNotice
+        isActive={tabIndex === TAB_INDEX_MAP.traces}
+      />
       <TopNavActions order={1}>
         <ProjectTimeRangeControls project={data.project} />
       </TopNavActions>
@@ -386,8 +380,6 @@ function ProjectPageContentBody({
           resolveSpansSeed,
           sessionsQueryReference: sessionsQueryReference ?? null,
           tracesQueryReference: tracesQueryReference ?? null,
-          tracesFilterSeed,
-          resolveTracesSeed,
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >

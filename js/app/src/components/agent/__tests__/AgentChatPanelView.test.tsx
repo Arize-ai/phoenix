@@ -3,10 +3,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  MODAL_OVERLAY_CLASS_NAME,
-  MODAL_PORTAL_CONTAINER_ATTR,
-} from "@phoenix/components/core/overlay/constants";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { AgentChatHeader, FloatingAgentChatFrame } from "../AgentChatPanelView";
@@ -77,9 +73,6 @@ describe("AgentChatHeader", () => {
       root.unmount();
     });
     container.remove();
-    document
-      .querySelectorAll(`.${MODAL_OVERLAY_CLASS_NAME}`)
-      .forEach((element) => element.remove());
     vi.restoreAllMocks();
   });
 
@@ -308,28 +301,7 @@ describe("AgentChatHeader", () => {
     expect(onPositionChange).not.toHaveBeenCalled();
   });
 
-  it("portals the floating panel into the modal portal container", () => {
-    const overlay = document.createElement("div");
-    const modalRoot = document.createElement("div");
-    overlay.className = MODAL_OVERLAY_CLASS_NAME;
-    modalRoot.setAttribute(MODAL_PORTAL_CONTAINER_ATTR, "");
-    overlay.appendChild(modalRoot);
-    document.body.appendChild(overlay);
-
-    act(() => {
-      root.render(
-        <FloatingAgentChatFrame layer="modal" placement="bottom-end">
-          <span>PXI content</span>
-        </FloatingAgentChatFrame>
-      );
-    });
-
-    const panel = modalRoot.querySelector(".resizable-floating-panel");
-    expect(panel).not.toBeNull();
-    expect(panel?.getAttribute("data-layer")).toBe("modal");
-  });
-
-  it("keeps forced content-layer panels anchored to the content boundary", () => {
+  it("keeps floating panels anchored to the content boundary", () => {
     const boundaryRef = createBoundaryRef({
       height: 850,
       left: 128,
@@ -339,12 +311,7 @@ describe("AgentChatHeader", () => {
 
     act(() => {
       root.render(
-        <FloatingAgentChatFrame
-          boundaryRef={boundaryRef}
-          isForcedFloating
-          layer="content"
-          placement="top-start"
-        >
+        <FloatingAgentChatFrame boundaryRef={boundaryRef} placement="top-start">
           <span>PXI content</span>
         </FloatingAgentChatFrame>
       );

@@ -1,6 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
-import { PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_NOTIFICATION_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
  * How far (in px) each stacked toast peeks out from behind the front toast
@@ -30,22 +30,23 @@ const slideInFromTop = keyframes`
 `;
 
 /**
- * The toast region is a fixed, top-centered container that lays out the toast
- * stack. Toasts are absolutely positioned inside it; the region only owns the
- * width and the (animated) height so the hover target tracks the visible stack.
+ * The toast region is a top-centered container within the application viewport
+ * that lays out the toast stack. Toasts are absolutely positioned inside it;
+ * the region only owns the width and the (animated) height so the hover target
+ * tracks the visible stack.
  *
  * `--toast-count` and `--toast-row-height` are written by `attachToastRegion`
  * in `ToastRegion.tsx` once the toasts have been measured.
  */
 export const toastRegionCSS = css`
-  position: fixed;
+  position: absolute;
   top: var(--global-dimension-size-200);
   left: 50%;
   width: 400px;
-  max-width: calc(100vw - var(--global-dimension-size-400));
+  max-width: calc(100% - var(--global-dimension-size-400));
   transform: translateX(-50%);
   outline: none;
-  z-index: ${PORTALED_OVERLAY_Z_INDEX};
+  z-index: ${APP_NOTIFICATION_Z_INDEX};
 
   --collapsed-peek: ${COLLAPSED_PEEK}px;
   --expanded-gap: ${EXPANDED_GAP}px;

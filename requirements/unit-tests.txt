@@ -22,7 +22,7 @@ syrupy
 tenacity
 tiktoken
 typing-extensions
-vcrpy
+vcrpy>=8.3
 pytest-smtpd
 freezegun
 aiosqlite>=0.22.1

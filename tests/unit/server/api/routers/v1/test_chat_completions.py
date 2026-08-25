@@ -4,6 +4,7 @@ import json
 from typing import Any, AsyncIterator, Union
 
 import httpx
+import httpx2
 import pytest
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionChunk as OpenAIChatCompletionChunk
@@ -17,6 +18,8 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models.function import AgentInfo, DeltaToolCalls, FunctionModel
+from pydantic_ai.usage import RequestUsage
+from starlette.types import ASGIApp
 from strawberry.relay import GlobalID
 
 import phoenix.server.api.routers.v1.chat_completions as chat_completions_module
@@ -64,11 +67,12 @@ def build_model_spy(monkeypatch: pytest.MonkeyPatch) -> _BuildModelSpy:
 
 
 @pytest.fixture
-def openai_client(httpx_client: httpx.AsyncClient) -> AsyncOpenAI:
+def openai_client(asgi_app: ASGIApp) -> AsyncOpenAI:
     return AsyncOpenAI(
         base_url="http://test/v1",
         api_key="sk-unused",  # the app under test runs with authentication disabled
-        http_client=httpx_client,
+        # the openai SDK is httpx2-based; the shared httpx fixture cannot back its transport
+        http_client=httpx2.AsyncClient(transport=httpx2.ASGITransport(app=asgi_app)),
         max_retries=0,  # surface the first response instead of retrying 5xx
     )
 
@@ -99,6 +103,18 @@ def _validated_chunks(sse_text: str) -> list[dict[str, Any]]:
 
 
 class TestCreateChatCompletion:
+    def test_openai_usage_preserves_prompt_cache_hits(self) -> None:
+        usage = chat_completions_module._to_openai_usage(
+            RequestUsage(input_tokens=100, output_tokens=20, cache_read_tokens=60)
+        )
+
+        assert usage.model_dump(exclude_none=True) == {
+            "prompt_tokens": 100,
+            "completion_tokens": 20,
+            "total_tokens": 120,
+            "prompt_tokens_details": {"cached_tokens": 60},
+        }
+
     async def test_returns_openai_response_shape(
         self,
         openai_client: AsyncOpenAI,

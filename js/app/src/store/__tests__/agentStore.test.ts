@@ -456,7 +456,7 @@ describe("agentStore", () => {
   describe("persisted capabilities", () => {
     it("backfills missing capability keys when rehydrating persisted state", () => {
       const persistedCapabilities: Partial<AgentCapabilities> = {
-        "graphql.mutations": true,
+        "subagents.enabled": true,
         "web.access": true,
       };
       localStorage.setItem(
@@ -471,9 +471,26 @@ describe("agentStore", () => {
 
       expect(store.getState().capabilities).toEqual({
         ...createDefaultAgentCapabilities(),
-        "graphql.mutations": true,
+        "subagents.enabled": true,
         "web.access": true,
       });
+    });
+
+    it("ignores unknown persisted capability keys on rehydration", () => {
+      // e.g. a blob written before a capability was retired.
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: { capabilities: { "graphql.mutations": false } },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      expect(store.getState().capabilities).toEqual(
+        createDefaultAgentCapabilities()
+      );
     });
   });
 

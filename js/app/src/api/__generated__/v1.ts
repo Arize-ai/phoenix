@@ -1205,6 +1205,46 @@ export interface paths {
         patch: operations["setProjectRetentionPolicy"];
         trace?: never;
     };
+    "/v1/model_providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List built-in model provider families
+         * @description Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.
+         */
+        get: operations["getModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/custom_model_providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List custom model providers
+         * @description Retrieve a paginated list of user-defined custom model providers. Encrypted provider credentials are never returned. Built-in provider families are listed separately by `GET /v1/model_providers`.
+         */
+        get: operations["getCustomModelProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_identifier}": {
         parameters: {
             query?: never;
@@ -1815,6 +1855,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agent_sessions/{session_id}/tool_approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Agent Session Tool Approvals
+         * @description Persist answered tool approvals for the session's open turn.
+         */
+        post: operations["submitAgentSessionToolApprovals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agent_sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -1908,6 +1968,12 @@ export interface components {
          *       mismatch). Unlike ``agent_session_messages_stale`` this is not a
          *       concurrent-writer race but an inconsistent request; fix the client
          *       rather than retrying.
+         *     - ``agent_session_tool_approvals_conflict``: the submitted ``toolApprovals``
+         *       do not match the transcript's trailing assistant message (no trailing
+         *       assistant message to answer, an unknown ``toolCallId``, a call that is
+         *       not awaiting approval, or a reversal of an already-persisted answer).
+         *       Like the tool-output conflict this is an inconsistent request rather than
+         *       a concurrent-writer race; fix the client rather than retrying.
          *     - ``agent_session_already_compact``: there are no complete turns to
          *       compact — either nothing new has finished since the transcript's latest
          *       checkpoint, or a concurrent request's checkpoint already covers them.
@@ -1921,7 +1987,7 @@ export interface components {
              * @description Machine-readable reason the request conflicted.
              * @enum {string}
              */
-            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
+            code: "agent_session_busy" | "agent_session_model_stale" | "agent_session_messages_stale" | "agent_session_tool_outputs_conflict" | "agent_session_tool_approvals_conflict" | "agent_session_already_compact" | "agent_session_compaction_conflict";
             /**
              * Message
              * @description Optional human-readable elaboration on the conflict.
@@ -2155,6 +2221,16 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** BuiltInModelProvider */
+        BuiltInModelProvider: {
+            /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
+            provider: components["schemas"]["ModelProvider"];
+            /**
+             * Name
+             * @description The human-readable name of the provider family (e.g. 'OpenAI').
+             */
+            name: string;
+        };
         /**
          * BuiltInProviderModelSelection
          * @description Chat against a Phoenix built-in provider.
@@ -2303,6 +2379,12 @@ export interface components {
             completion_tokens: number;
             /** Total Tokens */
             total_tokens: number;
+            prompt_tokens_details?: components["schemas"]["ChatCompletionUsagePromptTokensDetails"] | null;
+        };
+        /** ChatCompletionUsagePromptTokensDetails */
+        ChatCompletionUsagePromptTokensDetails: {
+            /** Cached Tokens */
+            cached_tokens: number;
         };
         /**
          * ChatContext
@@ -2349,6 +2431,11 @@ export interface components {
              * @description Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs.
              */
             toolOutputs?: (components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"])[];
+            /**
+             * Toolapprovals
+             * @description Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``.
+             */
+            toolApprovals?: components["schemas"]["ToolApproval"][];
             /**
              * Lastmessageid
              * @description The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` — the client should refetch the session before retrying.
@@ -2788,6 +2875,47 @@ export interface components {
              * @description The API key. This is the only time it is returned; it cannot be recovered from the listing endpoints.
              */
             key: string;
+        };
+        /** CustomModelProvider */
+        CustomModelProvider: {
+            /**
+             * Id
+             * @description The ID of the custom provider.
+             */
+            id: string;
+            /**
+             * Name
+             * @description The unique name of the custom provider.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of the custom provider.
+             */
+            description?: string | null;
+            /**
+             * Provider
+             * @description The free-form provider label recorded on the custom provider. Unlike the `provider` of a built-in family, this is not drawn from a fixed set.
+             */
+            provider: string;
+            /**
+             * Sdk
+             * @description The SDK used to communicate with the custom provider.
+             * @enum {string}
+             */
+            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock";
+            /**
+             * Created At
+             * Format: date-time
+             * @description The time the custom provider was created.
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description The time the custom provider was last updated.
+             */
+            updated_at: string;
         };
         /**
          * CustomProviderModelSelection
@@ -3420,6 +3548,13 @@ export interface components {
             /** Data */
             data: components["schemas"]["ApiKey"][];
         };
+        /** GetCustomModelProvidersResponseBody */
+        GetCustomModelProvidersResponseBody: {
+            /** Data */
+            data: components["schemas"]["CustomModelProvider"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetDatasetLabelResponseBody */
         GetDatasetLabelResponseBody: {
             data: components["schemas"]["DatasetLabel"];
@@ -3452,6 +3587,11 @@ export interface components {
             data: components["schemas"]["IncompleteExperimentRun"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetModelProvidersResponseBody */
+        GetModelProvidersResponseBody: {
+            /** Data */
+            data: components["schemas"]["BuiltInModelProvider"][];
         };
         /** GetProjectAnnotationConfigsResponseBody */
         GetProjectAnnotationConfigsResponseBody: {
@@ -3528,7 +3668,8 @@ export interface components {
         };
         /**
          * GraphQLContext
-         * @description GraphQL runtime state.
+         * @deprecated
+         * @description Deprecated GraphQL mutations opt-in.
          */
         GraphQLContext: {
             /**
@@ -5903,6 +6044,29 @@ export interface components {
             enabled: boolean;
         };
         /**
+         * SubmitAgentSessionToolApprovalsRequestBody
+         * @description Persist answered tool approvals without continuing the turn.
+         */
+        SubmitAgentSessionToolApprovalsRequestBody: {
+            /**
+             * Toolapprovals
+             * @description Answers to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Resending a persisted answer is a no-op; an answer that reverses one, or that matches no call awaiting approval, is rejected with HTTP 409 and code ``agent_session_tool_approvals_conflict``.
+             */
+            toolApprovals: components["schemas"]["ToolApproval"][];
+            /**
+             * Lastmessageid
+             * @description The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``.
+             */
+            lastMessageId: string;
+        };
+        /**
+         * SubmitAgentSessionToolApprovalsResponseBody
+         * @description The trailing assistant message with the submitted approvals applied.
+         */
+        SubmitAgentSessionToolApprovalsResponseBody: {
+            data: components["schemas"]["PhoenixUIMessage"];
+        };
+        /**
          * SubmitAgentSessionToolOutputsRequestBody
          * @description Persist resolved client tool outputs without continuing the turn.
          */
@@ -5956,6 +6120,19 @@ export interface components {
                     [key: string]: unknown;
                 };
             } | null;
+        };
+        /**
+         * ToolApproval
+         * @description A user's response to a tool call awaiting approval.
+         */
+        ToolApproval: {
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * Approved
+             * @description Whether the user approved the tool call.
+             */
+            approved: boolean;
         };
         /**
          * ToolApprovalRequested
@@ -11319,6 +11496,78 @@ export interface operations {
             };
         };
     };
+    getModelProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of built-in model provider families */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetModelProvidersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getCustomModelProviders: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (custom provider ID) */
+                cursor?: string | null;
+                /** @description The max number of custom providers to return at a time (at most 1000). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of custom model providers with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetCustomModelProvidersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     getSession: {
         parameters: {
             query?: never;
@@ -13108,6 +13357,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmitAgentSessionToolOutputsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The request conflicts with the session's current state; the body's ``code`` field says how. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionConflictError"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    submitAgentSessionToolApprovals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitAgentSessionToolApprovalsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitAgentSessionToolApprovalsResponseBody"];
                 };
             };
             /** @description Bad Request */

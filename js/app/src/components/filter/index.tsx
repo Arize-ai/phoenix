@@ -8,6 +8,7 @@ export {
   type DSLFilterComprehensionScope,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
+  detectDSLFilterEnclosingComprehensionScopeForClauseTarget,
   detectDSLFilterForClauseTarget,
   findDSLFilterComprehensionRange,
 } from "./dslFilterConditionFieldUtils";

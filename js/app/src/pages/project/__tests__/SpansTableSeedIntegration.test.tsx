@@ -54,6 +54,13 @@ vi.mock("@phoenix/components/datetime", async (importOriginal) => ({
   useTimeRange: () => timeRangeState,
 }));
 
+vi.mock(
+  "@phoenix/components/annotation/useProjectAnnotationConfigsByName",
+  () => ({
+    useProjectAnnotationConfigsByName: () => new Map(),
+  })
+);
+
 vi.mock("@phoenix/contexts/StreamStateContext", () => ({
   useStreamState: () => ({ fetchKey: 0 }),
 }));
@@ -263,6 +270,7 @@ describe("SpansTable seed loading integration", () => {
 let probedSearch = "";
 /** Records the router's current search so tests can observe param writes. */
 function SearchProbe() {
+  // eslint-disable-next-line react/globals
   probedSearch = useLocation().search;
   return null;
 }

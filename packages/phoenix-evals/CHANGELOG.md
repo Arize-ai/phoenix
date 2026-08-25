@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.4.0...arize-phoenix-evals-v3.5.0) (2026-08-21)
+
+
+### Features
+
+* **evals:** add retrieval relevance evaluator ([#14766](https://github.com/Arize-ai/phoenix/issues/14766)) ([7efa7b2](https://github.com/Arize-ai/phoenix/commit/7efa7b21fc3284f0af928ddedda15927974ee94d))
+
+## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.3.0...arize-phoenix-evals-v3.4.0) (2026-08-15)
+
+
+### Features
+
+* **evals:** add hallucination evaluator ([#14708](https://github.com/Arize-ai/phoenix/issues/14708)) ([1aa1a84](https://github.com/Arize-ai/phoenix/commit/1aa1a8454b6524a9e7618f3c9970ae9466df67d2))
+
 ## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.3.0...arize-phoenix-evals-v3.4.0) (2026-08-08)
 
 

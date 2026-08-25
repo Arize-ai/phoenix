@@ -2228,6 +2228,9 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/sessions/fake-id-{}"),
     # Traces (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/traces"),
+    # Model providers
+    (200, "GET", "v1/model_providers"),
+    (200, "GET", "v1/custom_model_providers"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
     # API keys (the authenticated user's own personal keys)

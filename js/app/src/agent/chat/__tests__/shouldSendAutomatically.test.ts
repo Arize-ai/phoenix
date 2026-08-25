@@ -122,6 +122,88 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     ).toBe(false);
   });
 
+  it("continues once every requested approval has a response", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-bash",
+            toolCallId: "tool-call-1",
+            state: "approval-responded",
+            input: {},
+            approval: { id: "approval-1", approved: false },
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toBe(true);
+  });
+
+  it("keeps the turn open while an approval is still awaiting the user", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-bash",
+            toolCallId: "tool-call-1",
+            state: "approval-requested",
+            input: {},
+            approval: { id: "approval-1" },
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toBe(false);
+  });
+
+  it("continues when a resolved tool output accompanies a responded approval", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-available",
+            input: {},
+            output: "done",
+          },
+          {
+            type: "tool-bash",
+            toolCallId: "tool-call-2",
+            state: "approval-responded",
+            input: {},
+            approval: { id: "approval-1", approved: true },
+          },
+        ],
+      }),
+    ];
+
+    expect(
+      shouldSendAutomaticallyAfterToolOutput({
+        messages,
+        locallyInterruptedToolCallIds: {},
+      })
+    ).toBe(true);
+  });
+
   it("ignores marks for tool calls that are not on the trailing message", () => {
     const messages = [
       createMessage({

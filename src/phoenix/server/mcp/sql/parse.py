@@ -157,8 +157,7 @@ def _finish_parse(root: Optional[exp.Expr], *, dialect: SupportedSQLDialectName)
                 "Simplify the statement, or split it into CTEs."
             ),
         )
-    repaired = _repair_jsonb_extract_array_bracket(root)
-    repaired = _repair_lambda_json_accessor(repaired, dialect=dialect)
+    repaired = _repair_lambda_json_accessor(root, dialect=dialect)
     repaired = _promote_lateral_table_references(repaired, dialect=dialect)
     repaired = _repair_row_constructor(repaired, dialect=dialect)
     repaired = _repair_jsonb_typeof_text_extract(repaired, dialect=dialect)
@@ -249,41 +248,6 @@ def _recover_grouping_limit_parse(
         root.set("limit", exp.Limit(expression=exp.Literal.number(limit)))
     if offset is not None:
         root.set("offset", exp.Offset(expression=exp.Literal.number(offset)))
-    return root
-
-
-def _is_bare_array_name(expression: Optional[exp.Expression]) -> bool:
-    """Whether this is the unquoted identifier SQLGlot leaves when it misparses ARRAY[...]."""
-    if not isinstance(expression, exp.Column) or expression.table:
-        return False
-    identifier = expression.this
-    if isinstance(identifier, exp.Identifier) and identifier.args.get("quoted"):
-        return False
-    return (expression.name or "").casefold() == "array"
-
-
-def _repair_jsonb_extract_array_bracket(root: exp.Expression) -> exp.Expression:
-    """Rebuild ``doc #> ARRAY['a','b']`` from SQLGlot's Bracket misparse.
-
-    SQLGlot parses that spelling as subscripting ``JSONB_EXTRACT(doc, ARRAY)``
-    with the array elements as keys, so admission saw a Bracket (not in the
-    grammar) while ``doc #> '{a,b}'`` and ``doc #- ARRAY['a','b']`` both
-    admitted. Postgres treats the two path spellings as equivalent.
-    """
-    for bracket in list(root.find_all(exp.Bracket)):
-        extract = bracket.this
-        if not isinstance(extract, (exp.JSONBExtract, exp.JSONBExtractScalar)):
-            continue
-        if not _is_bare_array_name(extract.expression):
-            continue
-        elements = bracket.expressions
-        if not elements:
-            continue
-        rebuilt = type(extract)(
-            this=extract.this.copy(),
-            expression=exp.Array(expressions=[item.copy() for item in elements]),
-        )
-        bracket.replace(rebuilt)
     return root
 
 
@@ -1478,46 +1442,7 @@ def _check_node_classes(root: exp.Expression) -> Optional[AdmissionResult]:
                     f"CAST to {refused} is not supported; cast to one of the column "
                     "types describeSqlSchema reports.",
                 )
-            if _is_ambiguous_path_cast(node):
-                return AdmissionResult(
-                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                    "A cast written directly after `#>` or `#>>` is ambiguous: it could "
-                    "cast the path or the extracted value. Parenthesise the one you mean "
-                    "-- `a #>> (b::text[])` casts the path, `(a #>> b)::text[]` casts the "
-                    "result. A path literal needs no cast at all.",
-                )
     return None
-
-
-# WORKAROUND sqlglot<=30.15.0 -- remove when pin > 30.16.0
-# Upstream: tobymao/sqlglot#8063 (closes #8035)
-# https://github.com/tobymao/sqlglot/issues/8035
-#
-# `#>` and `#>>` take a `text[]` path, so a cast on their right operand is
-# meaningful; `pg_get_indexdef` emits exactly that form for an expression index
-# over a JSON path.
-#
-# Through 30.15.0 SQLGlot binds such a cast to the whole extraction, so
-# `a #>> b::text[]` parses as `CAST(a #>> b AS TEXT[])`. A deliberate
-# `CAST(a #>> b AS text[])` produces the identical tree and means something
-# else: it parses the extracted string as an array literal, so
-# `('{"tags":"{a,b}"}'::jsonb #>> '{tags}')::text[]` yields a two-element array.
-#
-# Nothing in the tree separates the two, so neither reading can be chosen on the
-# caller's behalf, and the shape is refused with both unambiguous spellings
-# named. A parenthesised operand is unambiguous and never reaches this test: it
-# arrives under a `Paren` node.
-#
-# 30.16.0 binds the cast to the path. The two readings become distinct trees,
-# and this refusal is then only hitting the deliberate CAST-of-extraction form.
-_JSON_PATH_EXTRACTIONS = (exp.JSONBExtract, exp.JSONBExtractScalar)
-
-
-def _is_ambiguous_path_cast(node: exp.Cast) -> bool:
-    """True for a cast to an array type applied directly to a `#>`/`#>>` extraction."""
-    if not isinstance(node.this, _JSON_PATH_EXTRACTIONS):
-        return False
-    return isinstance(node.to, exp.DataType) and bool(node.to.this == exp.DataType.Type.ARRAY)
 
 
 def _cast_type_name(target: exp.Expression) -> str:

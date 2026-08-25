@@ -18,8 +18,10 @@ import {
   Loading,
   TitleWithID,
 } from "@phoenix/components";
-import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
-import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
+import {
+  DRAWER_DEFAULT_MIN_SIZE,
+  useDefaultDrawerSize,
+} from "@phoenix/components/core/overlay";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import type { sessionLoaderQuery } from "@phoenix/pages/trace/__generated__/sessionLoaderQuery.graphql";
