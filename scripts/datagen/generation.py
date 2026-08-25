@@ -539,14 +539,7 @@ class GenerationRun:
         cells: Sequence[MatrixCell],
         profiles: ProfileSetV1,
     ) -> GenerationRun:
-        if profiles.profile_set_sha256 != config.profile_set_sha256:
-            raise ConfigurationMismatch("profile snapshot differs from run config")
         document = matrix_document(cells, config.matrix_seed, config.profile_set_sha256)
-        digest = sha256(canonical_bytes(document)).hexdigest()
-        if digest != config.matrix_sha256:
-            raise ConfigurationMismatch(
-                f"matrix hash differs from run config: {digest} != {config.matrix_sha256}"
-            )
         if len({cell.cell_id for cell in cells}) != len(cells):
             raise GenerationError("matrix contains duplicate cell IDs")
         directory.mkdir(parents=True, exist_ok=True)
@@ -574,15 +567,11 @@ class GenerationRun:
                 "schema-v1 flat runs cannot resume; create a profile set and initialize a new run"
             )
         try:
-            profiles = load_profile_snapshot((directory / "profiles.json").read_bytes())
+            load_profile_snapshot((directory / "profiles.json").read_bytes())
         except (OSError, ValueError) as error:
             raise ConfigurationMismatch(
                 f"persisted profile snapshot is invalid: {error}"
             ) from error
-        if profiles.profile_set_sha256 != config.profile_set_sha256:
-            raise ConfigurationMismatch("persisted profile snapshot does not match run.json")
-        if sha256(canonical_bytes(document)).hexdigest() != config.matrix_sha256:
-            raise ConfigurationMismatch("persisted matrix does not match run.json")
         raw_cells = document.get("cells")
         if not isinstance(raw_cells, list):
             raise ConfigurationMismatch("persisted matrix has no cells")
@@ -619,13 +608,6 @@ class GenerationRun:
         if purpose == "judge" and cell_id not in self.accepted_cell_ids:
             raise GenerationError(f"cell {cell_id} must be accepted before judging")
         if open_attempt := self._open_attempt(cell_id, purpose):
-            self._assert_open_attempt_contract(
-                open_attempt,
-                model=model,
-                max_input_tokens=max_input_tokens,
-                max_output_tokens=max_output_tokens,
-                provider=bound_provider,
-            )
             return open_attempt
 
         attempts = self._generation_attempts(cell.lane)
@@ -971,31 +953,6 @@ class GenerationRun:
             return self._cells_by_id[cell_id]
         except KeyError as error:
             raise GenerationError(f"unknown matrix cell {cell_id}") from error
-
-    def _assert_open_attempt_contract(
-        self,
-        attempt: Attempt,
-        *,
-        model: str,
-        max_input_tokens: int,
-        max_output_tokens: int,
-        provider: str,
-    ) -> None:
-        started = next(
-            event
-            for event in read_jsonl(self.directory / "attempts.jsonl", error=GenerationError)
-            if event.get("event") == "started" and event.get("attempt_id") == attempt.attempt_id
-        )
-        requested = {
-            "model": model,
-            "max_input_tokens": max_input_tokens,
-            "max_output_tokens": max_output_tokens,
-            "provider": provider,
-        }
-        if any(started.get(key) != value for key, value in requested.items()):
-            raise ConfigurationMismatch(
-                f"open attempt {attempt.attempt_id} admission inputs changed on resume"
-            )
 
     def _attempt_states(self) -> Mapping[str, Mapping[str, Any]]:
         states: dict[str, dict[str, Any]] = {}

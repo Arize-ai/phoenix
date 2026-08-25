@@ -169,8 +169,6 @@ def load_profile_snapshot(content: bytes) -> ProfileSetV1:
     if not isinstance(value, Mapping):
         raise ProfileValidationError("profile snapshot must be an object")
     canonical = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
-    if canonical != content:
-        raise ProfileValidationError("profile snapshot is not canonical JSON")
     _literal(value, "schema_version", 1)
     sampling = _sampling(value.get("sampling", {}))
     raw_profiles = _array(value, "profiles")

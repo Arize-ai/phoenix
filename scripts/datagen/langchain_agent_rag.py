@@ -20,7 +20,6 @@ import importlib.metadata
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
 
 from google.protobuf.json_format import MessageToJson
 from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
@@ -31,6 +30,11 @@ from opentelemetry.sdk.trace.export import (
     SpanExporter,
     SpanExportResult,
 )
+
+if __package__:
+    from scripts.datagen.recording import validate_recording
+else:
+    from recording import validate_recording  # type: ignore[import-not-found,no-redef]
 
 SCENARIO_NAME = "langchain_agent_rag"
 REQUIRED_SPAN_KINDS = frozenset({"CHAIN", "EMBEDDING", "RETRIEVER", "RERANKER", "LLM"})
@@ -50,48 +54,14 @@ class JsonlOtlpExporter(SpanExporter):  # type: ignore[misc]
         return SpanExportResult.SUCCESS
 
 
-def _iter_spans(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    return [
-        span
-        for resource_spans in payload.get("resourceSpans", [])
-        for scope_spans in resource_spans.get("scopeSpans", [])
-        for span in scope_spans.get("spans", [])
-    ]
-
-
-def _attribute(span: dict[str, Any], key: str) -> Any:
-    for attribute in span.get("attributes", []):
-        if attribute.get("key") == key:
-            return next(iter(attribute.get("value", {}).values()), None)
-    return None
-
-
-def inspect_recording(path: Path) -> tuple[list[dict[str, Any]], set[str]]:
-    spans = [
-        span for line in path.read_text().splitlines() for span in _iter_spans(json.loads(line))
-    ]
-    kinds = {
-        kind for span in spans if (kind := _attribute(span, "openinference.span.kind")) is not None
-    }
-    return spans, kinds
-
-
-def validate_recording(path: Path) -> tuple[list[dict[str, Any]], set[str]]:
-    spans, kinds = inspect_recording(path)
-    if missing_kinds := REQUIRED_SPAN_KINDS - kinds:
-        missing = ", ".join(sorted(missing_kinds))
-        raise RuntimeError(f"RAG instrumenter did not emit required span kinds: {missing}")
-    missing_sessions = [span["spanId"] for span in spans if not _attribute(span, "session.id")]
-    if missing_sessions:
-        raise RuntimeError(
-            "RAG instrumenter emitted spans without session.id: " + ", ".join(missing_sessions)
-        )
-    return spans, kinds
-
-
 def write_manifest(output_dir: Path, sessions: Mapping[str, Sequence[str]]) -> None:
-    spans, kinds = validate_recording(output_dir / "traces.jsonl")
+    spans, kinds = validate_recording(
+        output_dir / "traces.jsonl",
+        required_span_kinds=REQUIRED_SPAN_KINDS,
+        recorder_name="RAG instrumenter",
+    )
     manifest = {
+        "schema_version": 2,
         "scenario_name": SCENARIO_NAME,
         "instrumenter_package_versions": {
             package: importlib.metadata.version(package)

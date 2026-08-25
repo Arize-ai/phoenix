@@ -19,42 +19,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-REQUIRED_SPAN_KIND = "GUARDRAIL"
+if __package__:
+    from scripts.datagen.recording import validate_recording
+else:
+    from recording import validate_recording  # type: ignore[import-not-found,no-redef]
 
 
 @dataclass(frozen=True)
 class GuardrailOutcome:
     name: Literal["allowed", "blocked", "degraded"]
     caller_result: str
-
-
-def inspect_recording(path: Path) -> tuple[list[dict[str, Any]], set[str]]:
-    spans = [
-        span
-        for line in path.read_text(encoding="utf-8").splitlines()
-        for resource in json.loads(line).get("resourceSpans", [])
-        for scope in resource.get("scopeSpans", [])
-        for span in scope.get("spans", [])
-    ]
-    kinds = {
-        kind for span in spans if (kind := _attribute(span, "openinference.span.kind")) is not None
-    }
-    return spans, kinds
-
-
-def validate_recording(path: Path) -> tuple[list[dict[str, Any]], set[str]]:
-    spans, kinds = inspect_recording(path)
-    if REQUIRED_SPAN_KIND not in kinds:
-        raise RuntimeError("Guardrails instrumenter did not emit a GUARDRAIL span")
-    missing_sessions = [
-        span.get("spanId", "unknown") for span in spans if not _attribute(span, "session.id")
-    ]
-    if missing_sessions:
-        raise RuntimeError(
-            "Guardrails instrumenter emitted spans without session.id: "
-            + ", ".join(missing_sessions)
-        )
-    return spans, kinds
 
 
 def record(output_dir: Path) -> tuple[GuardrailOutcome, ...]:
@@ -120,12 +94,9 @@ def record(output_dir: Path) -> tuple[GuardrailOutcome, ...]:
     finally:
         instrumentor.uninstrument()
         provider.shutdown()
-    validate_recording(traces_path)
+    validate_recording(
+        traces_path,
+        required_span_kinds=("GUARDRAIL",),
+        recorder_name="Guardrails instrumenter",
+    )
     return tuple(outcomes)
-
-
-def _attribute(span: dict[str, Any], key: str) -> Any:
-    for attribute in span.get("attributes", []):
-        if attribute.get("key") == key:
-            return next(iter(attribute.get("value", {}).values()), None)
-    return None

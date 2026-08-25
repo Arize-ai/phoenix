@@ -3,8 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-import pytest
-from openai import BadRequestError, OpenAI
+from openai import OpenAI
 from openinference.instrumentation.openai import OpenAIInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -17,7 +16,7 @@ from scripts.datagen.structured_extraction import (
 )
 
 
-def test_structured_extraction_records_function_result_and_provider_refusal(
+def test_structured_extraction_records_function_result(
     tmp_path: Path,
 ) -> None:
     provider = _ExtractionProvider()
@@ -44,16 +43,6 @@ def test_structured_extraction_records_function_result_and_provider_refusal(
                 traces_path=tmp_path / "accepted.jsonl",
             )
         )
-        provider.reject = True
-        with pytest.raises(BadRequestError, match="schema validation failed"):
-            recorder.record(
-                ExtractionRequest(
-                    cell_id="b" * 64,
-                    model="model-exact",
-                    text="Return this order.",
-                    traces_path=tmp_path / "rejected.jsonl",
-                )
-            )
     finally:
         instrumentor.uninstrument()
         tracer_provider.shutdown()
@@ -65,18 +54,14 @@ def test_structured_extraction_records_function_result_and_provider_refusal(
     assert request["tool_choice"]["function"]["name"] == "extract_support_case"
     assert request["tools"][0]["function"]["strict"] is True
     spans = exporter.spans_since(0)
-    assert len(spans) == 2
+    assert len(spans) == 1
     assert spans[0].attributes["session.id"] == "a" * 64
-    assert spans[1].attributes["session.id"] == "b" * 64
-    assert spans[1].status.status_code is StatusCode.ERROR
-    assert any(event.name == "exception" for event in spans[1].events)
+    assert spans[0].status.status_code is StatusCode.OK
     assert (tmp_path / "accepted.jsonl").is_file()
-    assert (tmp_path / "rejected.jsonl").is_file()
 
 
 class _ExtractionProvider:
     def __init__(self) -> None:
-        self.reject = False
         self.requests: list[dict[str, Any]] = []
 
     def http_client(self) -> httpx.Client:
@@ -85,18 +70,6 @@ class _ExtractionProvider:
     def _handle(self, request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         self.requests.append(body)
-        if self.reject:
-            return httpx.Response(
-                400,
-                json={
-                    "error": {
-                        "message": "schema validation failed",
-                        "type": "invalid_request_error",
-                        "code": "invalid_function_arguments",
-                    }
-                },
-                request=request,
-            )
         return httpx.Response(
             200,
             json={

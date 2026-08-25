@@ -17,12 +17,20 @@ if TYPE_CHECKING or __package__:
     from scripts.datagen.generation import GenerationError, MatrixCell
     from scripts.datagen.model_backend import ModelBackend, ModelRequest, ModelResult
     from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
-    from scripts.datagen.transcript import RESERVED_TRANSCRIPT_PHRASES, is_bare_role_name
+    from scripts.datagen.transcript import (
+        contains_internal_context,
+        is_bare_role_name,
+        role_transition_is_valid,
+    )
 else:
     from generation import GenerationError, MatrixCell
     from model_backend import ModelBackend, ModelRequest, ModelResult
     from seed_mechanics import MaterializedSeedEnvironment
-    from transcript import RESERVED_TRANSCRIPT_PHRASES, is_bare_role_name
+    from transcript import (  # type: ignore[import-not-found,no-redef]
+        contains_internal_context,
+        is_bare_role_name,
+        role_transition_is_valid,
+    )
 
 SCRIPT_SCHEMA_VERSION = 1
 FailureMode = Literal[
@@ -215,7 +223,10 @@ def _parse_generated_message(value: Any, index: int) -> str:
         raise GenerationError(f"Conversation script message {index} must be an object")
     expected_role = "user" if index % 2 == 0 else "assistant"
     role = value.get("role")
-    if role != expected_role:
+    previous_role = None if index == 0 else ("assistant" if index % 2 == 0 else "user")
+    if role != expected_role or not role_transition_is_valid(
+        previous_role, role, allow_tools=False
+    ):
         raise GenerationError(
             f"Conversation script message {index} must have role {expected_role!r}, got {role!r}"
         )
@@ -246,9 +257,7 @@ def _failure_mode(value: Any) -> FailureMode:
 
 
 def _validate_transcript_text(cell: MatrixCell, content: str) -> None:
-    lowered = content.casefold()
-    forbidden = (*RESERVED_TRANSCRIPT_PHRASES, *cell.profile.seed_intensities)
-    if any(term.casefold() in lowered for term in forbidden):
+    if contains_internal_context(content, tuple(cell.profile.seed_intensities)):
         raise GenerationError(
             f"Generated transcript for cell {cell.cell_id!r} exposed internal context"
         )

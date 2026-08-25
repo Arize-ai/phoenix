@@ -17,7 +17,7 @@ from phoenix.datagen.schema import (
     SchemaValidationError,
     validate_fragment_v2,
 )
-from scripts.datagen.transcript import is_bare_role_name
+from scripts.datagen.transcript import is_bare_role_name, role_transition_is_valid
 
 NORMALIZER_VERSION = "visible-messages-nfkc-lower-ws-v1"
 VALIDITY_VERSION = "conversation-structure-v1"
@@ -418,13 +418,7 @@ def _is_whitespace_only(value: Any) -> bool:
 
 
 def _validate_role_transition(previous: str | None, role: str, index: int) -> None:
-    allowed = {
-        None: {"user"},
-        "user": {"assistant"},
-        "assistant": {"user", "tool"},
-        "tool": {"assistant", "tool"},
-    }
-    if role not in allowed[previous]:
+    if not role_transition_is_valid(previous, role, allow_tools=True):
         raise QualityError(f"messages[{index}].role {role!r} cannot follow {previous!r}")
 
 

@@ -277,6 +277,7 @@ def write_manifest(output_dir: Path) -> None:
         for span in _iter_spans(json.loads(line))
     ]
     manifest = {
+        "schema_version": 2,
         "scenario_name": SCENARIO_NAME,
         "instrumenter_package_versions": {
             package: importlib.metadata.version(package)

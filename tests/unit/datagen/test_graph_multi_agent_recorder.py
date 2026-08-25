@@ -1,10 +1,5 @@
 from pathlib import Path
 
-import pytest
-
-pytest.importorskip("langchain_core")
-pytest.importorskip("openinference.instrumentation.langchain")
-
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor

@@ -32,7 +32,7 @@ if TYPE_CHECKING or __package__:
         json_copy,
         write_immutable_json,
     )
-    from scripts.datagen.transcript import RESERVED_TRANSCRIPT_PHRASES, is_bare_role_name
+    from scripts.datagen.transcript import contains_internal_context, is_bare_role_name
 else:
     from fake_tools import DEFAULT_REGISTRY, InvocationLedger, ToolContext, ToolRegistry
     from generation import (
@@ -44,7 +44,10 @@ else:
     from model_backend import ModelBackend, ModelRequest
     from seed_mechanics import MaterializedSeedEnvironment
     from serialization import canonical_bytes, json_copy, write_immutable_json
-    from transcript import RESERVED_TRANSCRIPT_PHRASES, is_bare_role_name
+    from transcript import (  # type: ignore[import-not-found,no-redef]
+        contains_internal_context,
+        is_bare_role_name,
+    )
 
 AssistantMessage = Mapping[str, Any]
 ToolInvoker = Callable[[str, Mapping[str, Any]], Mapping[str, Any]]
@@ -776,23 +779,10 @@ def _fixture_set_for_environment(
 
 
 def _validate_generated_content(cell: MatrixCell, value: Any) -> None:
-    forbidden = (*RESERVED_TRANSCRIPT_PHRASES, *cell.profile.seed_intensities)
-    for content in _text_values(value):
-        lowered = content.casefold()
-        if any(term.casefold() in lowered for term in forbidden):
-            raise SelfPlayError(
-                f"generated transcript for cell {cell.cell_id!r} exposed internal context"
-            )
-
-
-def _text_values(value: Any) -> tuple[str, ...]:
-    if isinstance(value, str):
-        return (value,)
-    if isinstance(value, Mapping):
-        return tuple(content for item in value.values() for content in _text_values(item))
-    if isinstance(value, (list, tuple)):
-        return tuple(content for item in value for content in _text_values(item))
-    return ()
+    if contains_internal_context(value, tuple(cell.profile.seed_intensities)):
+        raise SelfPlayError(
+            f"generated transcript for cell {cell.cell_id!r} exposed internal context"
+        )
 
 
 def _validate_trace_ids(trace_ids: Sequence[Any]) -> None:
