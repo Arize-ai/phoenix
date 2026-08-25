@@ -5,6 +5,7 @@ export * from "./ProjectSpansPage";
 export * from "./ProjectTracesPage";
 export * from "./projectLoader";
 export * from "./evaluators/ProjectEvaluatorsPage";
+export * from "./evaluators/ProjectEvaluatorGalleryPage";
 export * from "./evaluators/projectEvaluatorsLoader";
 export * from "./evaluators/ProjectEvaluatorSlideoverRoutes";
 export * from "./metrics/ProjectMetricsPage";
