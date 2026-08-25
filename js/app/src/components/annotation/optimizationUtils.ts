@@ -9,10 +9,48 @@ export type AnnotationOptimizationConfig = {
   readonly upperBound?: number | null;
   readonly threshold?: number | null;
   readonly values?: ReadonlyArray<{
-    readonly label?: string;
+    readonly label?: string | null;
     readonly score: number | null;
   }>;
 };
+
+/**
+ * The subset of a GraphQL annotation config that carries optimization metadata.
+ * Annotation configs and evaluator output configs are the same GraphQL types, so
+ * both selections satisfy this.
+ */
+type OptimizationConfigFields = {
+  readonly annotationType?:
+    | AnnotationOptimizationConfig["annotationType"]
+    | null;
+  readonly optimizationDirection?: string | null;
+  readonly lowerBound?: number | null;
+  readonly upperBound?: number | null;
+  readonly threshold?: number | null;
+  readonly values?: AnnotationOptimizationConfig["values"];
+};
+
+/**
+ * Narrows a selected annotation or output config to its optimization metadata.
+ *
+ * Returns undefined for a config with no annotation type, which is what an
+ * unmatched inline fragment leaves behind and cannot be interpreted.
+ */
+export function toAnnotationOptimizationConfig(
+  config: OptimizationConfigFields
+): AnnotationOptimizationConfig | undefined {
+  if (config.annotationType == null) {
+    return undefined;
+  }
+  return {
+    annotationType: config.annotationType,
+    optimizationDirection: config.optimizationDirection,
+    lowerBound: config.lowerBound,
+    upperBound: config.upperBound,
+    threshold: config.threshold,
+    values: config.values,
+  };
+}
 
 /**
  * Normalizes the optimization direction, treating "NONE" as undefined.
@@ -97,6 +135,27 @@ export function getOptimizationBounds(
 }
 
 /**
+ * The score that separates positive from negative results: `threshold` when
+ * provided, the midpoint of the bounds when both are defined, undefined when
+ * neither pins it down.
+ */
+function getOptimizationPivot({
+  lowerBound,
+  upperBound,
+  threshold,
+}: {
+  lowerBound: number | undefined;
+  upperBound: number | undefined;
+  threshold?: number | undefined;
+}): number | undefined {
+  return threshold != null
+    ? threshold
+    : lowerBound != null && upperBound != null
+      ? (lowerBound + upperBound) / 2
+      : undefined;
+}
+
+/**
  * Determines if a score represents a "positive" optimization result.
  *
  * Uses `threshold` as the pivot when provided; falls back to `(lowerBound + upperBound) / 2`
@@ -123,12 +182,7 @@ export function getPositiveOptimization({
     return null;
   }
 
-  const pivot =
-    threshold != null
-      ? threshold
-      : lowerBound != null && upperBound != null
-        ? (lowerBound + upperBound) / 2
-        : undefined;
+  const pivot = getOptimizationPivot({ lowerBound, upperBound, threshold });
 
   if (pivot == null) {
     return null;
@@ -167,4 +221,55 @@ export function getPositiveOptimizationFromConfig({
     threshold,
     optimizationDirection,
   });
+}
+
+/**
+ * Classifies a two-label distribution as good versus bad, returning one flag
+ * per label in the order given.
+ *
+ * Returns null when the labels carry no such meaning, so callers can fall back
+ * to a neutral treatment instead of implying one. That covers:
+ *
+ * - anything other than exactly two labels
+ * - no optimization direction on the config
+ * - a label the config gives no score
+ * - a label whose score sits exactly at the pivot — neither good nor bad
+ * - both labels on the same side of the pivot
+ */
+export function getBinaryLabelOptimizations({
+  config,
+  labels,
+}: {
+  config: AnnotationOptimizationConfig | undefined;
+  labels: ReadonlyArray<string>;
+}): ReadonlyArray<boolean> | null {
+  if (labels.length !== 2) {
+    return null;
+  }
+  const { lowerBound, upperBound, threshold, optimizationDirection } =
+    getOptimizationBounds(config);
+  if (optimizationDirection == null) {
+    return null;
+  }
+  const pivot = getOptimizationPivot({ lowerBound, upperBound, threshold });
+  if (pivot == null) {
+    return null;
+  }
+  const optimizations: boolean[] = [];
+  for (const label of labels) {
+    const score = config?.values?.find((value) => value.label === label)?.score;
+    // A score at the pivot (e.g. the middle of a three-value scale) is neither
+    // good nor bad; painting it as either would mislead.
+    if (score == null || score === pivot) {
+      return null;
+    }
+    optimizations.push(
+      optimizationDirection === "MAXIMIZE" ? score > pivot : score < pivot
+    );
+  }
+  // Two labels on the same side of the pivot are not a positive/negative pair.
+  if (optimizations[0] === optimizations[1]) {
+    return null;
+  }
+  return optimizations;
 }

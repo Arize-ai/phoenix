@@ -596,6 +596,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             requirements/
+            scripts/prompts/
             src/phoenix/
             evals/
             packages/phoenix-evals/

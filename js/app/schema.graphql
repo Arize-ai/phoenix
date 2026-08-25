@@ -582,12 +582,12 @@ type BuiltInEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   inputSchema: JSON
   user: User
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
 }
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
@@ -740,12 +740,12 @@ type CodeEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   sandboxConfig: SandboxConfig
   inputMapping: EvaluatorInputMapping!
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   currentVersion: CodeEvaluatorVersion
   version(versionId: ID!): CodeEvaluatorVersion
   versionCount: Int!
@@ -1891,6 +1891,7 @@ interface Evaluator implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
@@ -2684,10 +2685,10 @@ type LLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
   projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
   inputSchema: JSON
