@@ -109,7 +109,9 @@ export const setPlaygroundRepetitionsOperation = defineUIOperation({
     "Set the playground-wide repetitions count in the currently mounted playground. " +
     "Use this before running when the user wants more confidence across repeated " +
     "LLM calls, is investigating flaky outputs, or wants to validate structured " +
-    "output or tool-call behavior before saving a prompt.",
+    "output or tool-call behavior before saving a prompt. `repetitions` must be " +
+    "between 1 and 30; do not stage a count outside that range — tell the user " +
+    "the limit instead.",
   inputSchema: setPlaygroundRepetitionsInputSchema,
   kind: "write",
   defaultSuccessOutput: "Playground repetitions updated.",

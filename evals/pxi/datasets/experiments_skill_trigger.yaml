@@ -197,12 +197,30 @@ examples:
         - role: assistant
           tool_calls:
             - id: r1
-              name: run_playground
-              args: {}
+              name: execute_browser_action
+              args:
+                summary: Run the prompt over the dataset as a recorded experiment.
+                script: |
+                  const run = await ui.playground.run({});
+                  return run;
         - role: tool
           tool_call_id: r1
-          name: run_playground
-          content: '{"status":"completed","datasetRun":true,"instances":[{"instanceId":101,"experimentId":"RXhwZXJpbWVudDoxMA=="}]}'
+          name: execute_browser_action
+          content: |
+            Script completed after 1 ui call.
+
+            Calls:
+            1. playground.run ok 41892ms 112ch
+
+            Return value:
+            {
+              "ok": true,
+              "output": {
+                "status": "completed",
+                "datasetRun": true,
+                "experimentIds": ["RXhwZXJpbWVudDoxMA=="]
+              }
+            }
         - role: user
           content: Nice — how did it do? Did anything regress compared to the baseline?
     expected:
