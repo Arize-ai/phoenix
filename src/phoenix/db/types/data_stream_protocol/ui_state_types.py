@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import ConfigDict, Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints, model_validator
 
 from phoenix.server.api.types.node import (
     CodeEvaluatorNodeId,
@@ -27,7 +27,7 @@ OtelSpanId: TypeAlias = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{16}
 
 
 class BaseUIContext(CamelBaseModel):
-    model_config = ConfigDict(extra="ignore")
+    pass
 
 
 class ProjectUIContext(BaseUIContext):
@@ -140,8 +140,6 @@ class DatasetUIContext(BaseUIContext):
 
 
 class UIContexts(CamelBaseModel):
-    model_config = ConfigDict(extra="ignore")
-
     project: ProjectUIContext | None = None
     trace: TraceUIContext | None = None
     session: SessionUIContext | None = None
