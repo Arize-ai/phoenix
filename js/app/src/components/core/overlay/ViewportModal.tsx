@@ -208,6 +208,7 @@ function ViewportModalOverlayInner({
 
   const overlay = (
     <div
+      data-overlay-container="modal"
       data-testid="viewport-modal-overlay"
       className={typeof className === "string" ? className : undefined}
       css={viewportModalOverlayCSS}

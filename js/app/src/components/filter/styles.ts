@@ -1,6 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
-import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
  * The popover surface shared by every floating element the filter field
@@ -19,7 +19,7 @@ export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
-    z-index: ${APP_FLOATING_Z_INDEX};
+    z-index: ${APP_PORTALED_OVERLAY_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than
@@ -33,7 +33,11 @@ export const typeaheadMenuCSS = css`
       font-family: var(--global-font-family-sans);
       font-size: var(--global-font-size-s);
       line-height: var(--global-line-height-s);
-      max-height: 400px;
+      /* Keep the menu short enough to fit on either side of a field in a
+         centered dialog. CodeMirror chooses above/below from the measured
+         height, so a viewport-relative cap prevents an unnecessary flip into
+         the viewport edge on compact screens. */
+      max-height: min(400px, 40vh);
       min-width: 280px;
       /* Wide enough that the longest shipped suggestion snippet (~77 mono
          chars) fits its own stacked line — see li.dsl-filter-suggestion */
@@ -131,6 +135,17 @@ export const typeaheadMenuCSS = css`
     padding: var(--global-dimension-size-100);
     color: var(--global-text-color-700);
     max-width: 300px;
+  }
+`;
+
+/**
+ * CodeMirror tooltips normally inherit the field's scoped Emotion styles.
+ * Inside a modal they are reparented to the overlay container to escape the
+ * dialog's transformed overflow clip, so repeat that scope at the portal root.
+ */
+export const portaledTypeaheadMenuCSS = css`
+  .dsl-filter-tooltip-root {
+    ${typeaheadMenuCSS}
   }
 `;
 
