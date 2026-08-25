@@ -2267,7 +2267,6 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
     (422, "POST", "v1/experiments/fake-id-{}/tags"),
     (422, "POST", "v1/projects"),
-    (404, "POST", "v1/projects/fake-id-{}/clear"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
@@ -2292,6 +2291,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "PATCH", "v1/prompts/fake-id-{}"),
     (422, "PATCH", "v1/datasets/fake-id-{}/splits/test-split"),
     # DELETE routes
+    (422, "DELETE", "v1/projects/fake-id-{}/traces"),
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
     (422, "DELETE", "v1/dataset_labels/fake-id-{}"),

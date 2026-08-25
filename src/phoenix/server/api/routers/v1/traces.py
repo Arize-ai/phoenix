@@ -281,6 +281,64 @@ async def list_project_traces(
     return GetTracesResponseBody(next_cursor=next_cursor, data=data)
 
 
+@router.delete(
+    "/projects/{project_identifier}/traces",
+    operation_id="deleteProjectTraces",
+    summary="Delete traces from a project",
+    description=(
+        "Delete traces from a project without deleting the project or its configuration. "
+        "Only traces whose start time is strictly before the required, exclusive `end_time` "
+        "bound are deleted. Associated spans are cascade deleted."
+    ),
+    response_description="No content returned after the matching traces are deleted",
+    status_code=204,
+    responses=add_errors_to_responses([404, 422]),
+)
+async def delete_project_traces(
+    request: Request,
+    project_identifier: str = Path(
+        description="The project identifier: either project ID or project name.",
+    ),
+    end_time: datetime = Query(
+        description="Required exclusive upper bound on trace start time (ISO 8601).",
+    ),
+) -> None:
+    normalized_end_time = normalize_datetime(end_time, timezone.utc)
+    assert normalized_end_time is not None
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        delete_statement = (
+            delete(models.Trace)
+            .where(models.Trace.project_rowid == project.id)
+            .returning(models.Trace.project_session_rowid)
+        )
+        delete_statement = delete_statement.where(models.Trace.start_time < normalized_end_time)
+        deleted_trace_project_session_ids = await session.scalars(delete_statement)
+        session_ids_to_check = [
+            id_ for id_ in set(deleted_trace_project_session_ids) if id_ is not None
+        ]
+
+        # Delete only sessions made empty by this operation. A bounded delete can leave newer
+        # traces in the same session, and deleting that session would cascade-delete those traces.
+        has_remaining_traces = (
+            select(models.Trace.id)
+            .where(models.Trace.project_session_rowid == models.ProjectSession.id)
+            .exists()
+        )
+        chunk_size = 10000
+        for i in range(0, len(session_ids_to_check), chunk_size):
+            chunk = session_ids_to_check[i : i + chunk_size]
+            await session.execute(
+                delete(models.ProjectSession).where(
+                    models.ProjectSession.id.in_(chunk),
+                    ~has_remaining_traces,
+                )
+            )
+        project_rowid = project.id
+    request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
+    return None
+
+
 def is_not_at_capacity(request: Request) -> None:
     if request.app.state.span_queue_is_full():
         SPAN_QUEUE_REJECTIONS.inc()

@@ -1224,8 +1224,10 @@ class TestSetProjectRetentionPolicy:
         assert response.status_code == 422
 
 
-class TestClearProject:
-    """POST /projects/{project_identifier}/clear"""
+class TestDeleteProjectTraces:
+    """DELETE /projects/{project_identifier}/traces"""
+
+    _END_TIME = "2025-01-01T00:00:00Z"
 
     @staticmethod
     async def _project_with_traces(
@@ -1261,40 +1263,46 @@ class TestClearProject:
                 ).all()
             )
 
-    async def test_clear_removes_all_traces_but_keeps_project(
+    async def test_delete_traces_before_bound_but_keep_project(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _ = await self._project_with_traces(db, 3)
-        response = await httpx_client.post(f"v1/projects/{project.name}/clear")
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"end_time": self._END_TIME},
+        )
         assert response.status_code == 204
         assert await self._trace_count(db, project.id) == 0
         # The project itself survives so ingestion can continue against it.
         async with db() as session:
             assert await session.get(models.Project, project.id) is not None
 
-    async def test_clear_accepts_project_global_id(
+    async def test_delete_project_traces_accepts_project_global_id(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _ = await self._project_with_traces(db, 2)
         gid = str(GlobalID(Project.__name__, str(project.id)))
-        response = await httpx_client.post(f"v1/projects/{gid}/clear")
+        response = await httpx_client.delete(
+            f"v1/projects/{gid}/traces",
+            params={"end_time": self._END_TIME},
+        )
         assert response.status_code == 204
         assert await self._trace_count(db, project.id) == 0
 
-    async def test_clear_respects_end_time_cutoff(
+    async def test_delete_project_traces_respects_end_time_cutoff(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """end_time is right-open: only traces starting strictly before it are deleted."""
         project, _ = await self._project_with_traces(db, 3)  # Jan 1, 2, 3
-        response = await httpx_client.post(
-            f"v1/projects/{project.name}/clear",
-            json={"end_time": "2024-01-03T00:00:00Z"},
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"end_time": "2024-01-03T00:00:00Z"},
         )
         assert response.status_code == 204
         # Jan 1 and Jan 2 deleted; Jan 3 survives because the bound is non-inclusive.
@@ -1306,19 +1314,22 @@ class TestClearProject:
             ).all()
         assert len(remaining) == 1
 
-    async def test_clear_leaves_other_projects_untouched(
+    async def test_delete_project_traces_leaves_other_projects_untouched(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         target, _ = await self._project_with_traces(db, 2)
         bystander, _ = await self._project_with_traces(db, 2)
-        response = await httpx_client.post(f"v1/projects/{target.name}/clear")
+        response = await httpx_client.delete(
+            f"v1/projects/{target.name}/traces",
+            params={"end_time": self._END_TIME},
+        )
         assert response.status_code == 204
         assert await self._trace_count(db, target.id) == 0
         assert await self._trace_count(db, bystander.id) == 2
 
-    async def test_clear_deletes_orphaned_project_sessions(
+    async def test_delete_project_traces_deletes_orphaned_project_sessions(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
@@ -1347,12 +1358,15 @@ class TestClearProject:
             await session.flush()
             session_rowid = project_session.id
 
-        response = await httpx_client.post(f"v1/projects/{project.name}/clear")
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"end_time": self._END_TIME},
+        )
         assert response.status_code == 204
         async with db() as session:
             assert await session.get(models.ProjectSession, session_rowid) is None
 
-    async def test_clear_empty_project_is_a_noop(
+    async def test_bounded_delete_preserves_session_with_newer_trace(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
@@ -1361,25 +1375,88 @@ class TestClearProject:
             project = models.Project(name=token_hex(16))
             session.add(project)
             await session.flush()
-        response = await httpx_client.post(f"v1/projects/{project.name}/clear")
+            project_session = models.ProjectSession(
+                session_id=token_hex(16),
+                project_id=project.id,
+                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2024, 1, 3, tzinfo=timezone.utc),
+            )
+            session.add(project_session)
+            await session.flush()
+            session.add_all(
+                [
+                    models.Trace(
+                        trace_id=token_hex(16),
+                        project_rowid=project.id,
+                        project_session_rowid=project_session.id,
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                        end_time=datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
+                    ),
+                    models.Trace(
+                        trace_id=token_hex(16),
+                        project_rowid=project.id,
+                        project_session_rowid=project_session.id,
+                        start_time=datetime(2024, 1, 3, tzinfo=timezone.utc),
+                        end_time=datetime(2024, 1, 3, 0, 1, tzinfo=timezone.utc),
+                    ),
+                ]
+            )
+            await session.flush()
+            session_rowid = project_session.id
+
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"end_time": "2024-01-02T00:00:00Z"},
+        )
+        assert response.status_code == 204
+        assert await self._trace_count(db, project.id) == 1
+        async with db() as session:
+            assert await session.get(models.ProjectSession, session_rowid) is not None
+
+    async def test_delete_project_traces_from_empty_project_is_a_noop(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(16))
+            session.add(project)
+            await session.flush()
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"end_time": self._END_TIME},
+        )
         assert response.status_code == 204
 
-    async def test_clear_unknown_project_returns_404(
+    async def test_delete_project_traces_from_unknown_project_returns_404(
         self,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        response = await httpx_client.post(f"v1/projects/{token_hex(16)}/clear")
+        response = await httpx_client.delete(
+            f"v1/projects/{token_hex(16)}/traces",
+            params={"end_time": self._END_TIME},
+        )
         assert response.status_code == 404
 
-    async def test_clear_rejects_malformed_end_time(
+    async def test_delete_project_traces_requires_end_time(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _ = await self._project_with_traces(db, 1)
-        response = await httpx_client.post(
-            f"v1/projects/{project.name}/clear",
-            json={"end_time": "not-a-timestamp"},
+        response = await httpx_client.delete(f"v1/projects/{project.name}/traces")
+        assert response.status_code == 422
+        assert await self._trace_count(db, project.id) == 1
+
+    async def test_delete_project_traces_rejects_malformed_end_time(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 1)
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"end_time": "not-a-timestamp"},
         )
         assert response.status_code == 422
         assert await self._trace_count(db, project.id) == 1

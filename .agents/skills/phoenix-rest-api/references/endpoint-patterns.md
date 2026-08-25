@@ -9,6 +9,8 @@ Keywords per [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) / [RFC 8174](htt
 - HTTP methods per [RFC 9110](https://httpwg.org/specs/rfc9110.html#methods): GET=read, POST=create, PUT=replace, PATCH=partial update, DELETE=remove.
 - Status codes per [RFC 9110 §15](https://httpwg.org/specs/rfc9110.html#status.codes). 2xx=success, 4xx=client error, 5xx=server error. MUST NOT mix.
 - Plural noun paths: `/datasets/:dataset_id/examples`. No verbs.
+- Bulk deletion targets the collection resource with DELETE, not an RPC-style verb path: use `DELETE /projects/:project_id/traces`, not `POST /projects/:project_id/clear` or `POST /traces/delete`. Name the collection for the aggregate actually deleted; deleting traces that cascade their spans is a trace deletion, not a span deletion.
+- Put DELETE filters such as time bounds in query parameters, not a request body. Destructive collection deletes MUST require a documented bound so an omitted query cannot silently become an unbounded sweep; add an explicit unbounded mode only when the product requires one. Collection deletes MUST be idempotent and SHOULD return 204.
 - Identifiers MAY be a GraphQL GlobalID or a natural key (e.g. name). SHOULD accept both when multiple exist.
 - Query params for filtering/sorting/pagination. snake_case names.
 - Cursor-based pagination only. Response: `{"data": [...], "next_cursor": "..."}`.
