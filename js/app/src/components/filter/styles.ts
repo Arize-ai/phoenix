@@ -223,6 +223,12 @@ export const dslFilterFieldCSS = css`
   background-color: var(--global-input-field-background-color);
   transition: all 0.2s ease-in-out;
   overflow-x: hidden;
+  /* Carry the focus ring's geometry at rest and reveal it with color alone,
+     the way the text inputs do. Leaving the outline unset means focus has to
+     transition off the initial medium-width outline, which animates a thicker
+     ring inward from outside the border. */
+  outline: var(--focus-ring-thickness) solid transparent;
+  outline-offset: calc(-1 * var(--focus-ring-thickness));
   &:hover {
     border-color: var(--global-input-field-border-color-active);
   }
@@ -230,8 +236,7 @@ export const dslFilterFieldCSS = css`
     border-color: var(--global-input-field-border-color-active);
   }
   &:has(.cm-content:focus-visible) {
-    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-    outline-offset: calc(-1 * var(--focus-ring-thickness));
+    outline-color: var(--focus-ring-color);
   }
   /* Flag invalidity only once the user has left the field — a red border
      while they're still typing/fixing the expression is too alarming */
