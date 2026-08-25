@@ -705,6 +705,18 @@ export function DSLFilterConditionField<
     tooltipParent,
   ]);
 
+  // Completion data can arrive after the user has already focused the empty
+  // field — the sampled record behind a mapping path field, a fetched name
+  // list. The focus trigger fired before there was anything to offer, and
+  // the reconfigure the new sources cause discards any open dropdown, so
+  // re-open it once the new sources are in place.
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus && editorView.state.doc.length === 0) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
+
   // Anchor the error to the sub-expression it came from once validation has
   // settled; a dispatched effect rather than a reconfigure, so an open
   // dropdown survives.

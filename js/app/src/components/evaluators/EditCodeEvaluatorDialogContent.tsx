@@ -1,8 +1,9 @@
+import { startCompletion } from "@codemirror/autocomplete";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { type EditorView } from "@uiw/react-codemirror";
 import {
   useCallback,
   useEffect,
@@ -890,6 +891,18 @@ export const CodeEvaluatorSourceEditor = ({
     [language, evaluatorMappingSource, evaluationContext]
   );
 
+  // The sampled record can arrive after the user has already put the cursor
+  // in a completable position — the reconfigure it causes discards any open
+  // dropdown, so re-open it. The source offers nothing outside those
+  // positions, so this is inert elsewhere in the source code.
+  const editorViewRef = useRef<EditorView | null>(null);
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
+
   const descriptionText =
     "Define an evaluate function that returns a score or label.";
 
@@ -992,6 +1005,9 @@ export const CodeEvaluatorSourceEditor = ({
                 onChange={onChange}
                 theme={codeMirrorTheme}
                 extensions={extensions}
+                onCreateEditor={(editorView) => {
+                  editorViewRef.current = editorView;
+                }}
                 height="100%"
                 indentWithTab
                 basicSetup={{

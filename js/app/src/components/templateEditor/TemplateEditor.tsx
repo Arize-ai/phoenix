@@ -1,3 +1,4 @@
+import { startCompletion } from "@codemirror/autocomplete";
 import { defaultKeymap } from "@codemirror/commands";
 import { css } from "@emotion/react";
 import type {
@@ -5,7 +6,7 @@ import type {
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
@@ -112,12 +113,27 @@ export const TemplateEditor = ({
     }
   }, [readOnly, defaultValue]);
 
+  // The evaluator's materialized inputs can arrive after the user has already
+  // opened a template variable — the reconfigure they cause discards any open
+  // dropdown, so re-open it. The completion source offers nothing outside an
+  // open `{{`, so this is inert anywhere else in the template.
+  const editorViewRef = useRef<EditorView | null>(null);
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
+
   return (
     <CodeMirror
       theme={codeMirrorTheme}
       extensions={extensions}
       basicSetup={basicSetupOptions}
       readOnly={readOnly}
+      onCreateEditor={(editorView) => {
+        editorViewRef.current = editorView;
+      }}
       {...props}
       value={value}
     />
