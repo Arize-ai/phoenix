@@ -21,6 +21,11 @@ import {
   Skeleton,
   Text,
 } from "@phoenix/components";
+import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import {
+  getOptimizationBounds,
+  getPositiveOptimization,
+} from "@phoenix/components/annotation/optimizationUtils";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
@@ -321,6 +326,11 @@ function EvaluatorTemplateDetails({
   onUseTemplate: () => void;
 }) {
   const choices = getProjectEvaluatorTemplateChoices(template);
+  const optimizationBounds = getOptimizationBounds({
+    annotationType: "CATEGORICAL",
+    optimizationDirection: template.optimizationDirection,
+    values: choices,
+  });
   return (
     <Flex direction="column" gap="size-200" height="100%">
       <Flex direction="column" gap="size-100">
@@ -381,7 +391,17 @@ function EvaluatorTemplateDetails({
               >
                 <Text size="S">{label}</Text>
                 <Text size="XS" color="text-500">
-                  {score}
+                  <AnnotationScoreText
+                    elementType="span"
+                    fontFamily="mono"
+                    size="XS"
+                    positiveOptimization={getPositiveOptimization({
+                      score,
+                      ...optimizationBounds,
+                    })}
+                  >
+                    {score}
+                  </AnnotationScoreText>
                 </Text>
               </Flex>
             </ListItem>
