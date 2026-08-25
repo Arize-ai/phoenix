@@ -22,7 +22,7 @@ from phoenix.datagen.composer import (
 )
 from phoenix.datagen.exporter import OTLPHTTPExporter
 from phoenix.datagen.loader import Scenario, ScenarioError, load_scenario
-from phoenix.datagen.replayer import Anomaly, AnomalyManifest, EmittedTrace, Replayer
+from phoenix.datagen.replayer import Anomaly, EmittedTrace, Replayer
 from phoenix.datagen.schema import (
     Archetype,
     Fragment,
@@ -40,7 +40,6 @@ from phoenix.datagen.schema import (
 
 __all__ = [
     "Anomaly",
-    "AnomalyManifest",
     "Archetype",
     "ComposedSession",
     "ComposedTrace",

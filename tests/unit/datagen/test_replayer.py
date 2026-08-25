@@ -1,8 +1,5 @@
 import dataclasses
 import hashlib
-import json
-from collections import Counter
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator
 from unittest.mock import patch
@@ -14,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 
-from phoenix.datagen import AnomalyManifest, ComposerConfig, Replayer, Scenario, load_scenario
+from phoenix.datagen import ComposerConfig, Replayer, Scenario, load_scenario
 
 _PROMPT_TOKENS = "llm.token_count.prompt"
 _COMPLETION_TOKENS = "llm.token_count.completion"
@@ -195,75 +192,6 @@ def test_flat_schedule_preserves_serialized_request_digest() -> None:
     assert digest.hexdigest() == "091fb569b16228818b88e0d8d4315a1f4013df135e9a885359a0fb376c30d3e2"
 
 
-def test_business_hours_schedule_uses_weekly_rate_tiers() -> None:
-    replayer = Replayer(_fixture_scenario(), epsilon=0, seed=7)
-    base_rate = 20.0
-    week_start = datetime(2024, 1, 8, tzinfo=timezone.utc)
-
-    effective_rates = [
-        60
-        / replayer.interarrival_seconds(
-            rate=base_rate,
-            burstiness=0,
-            rate_schedule="business-hours",
-            timezone="UTC",
-            now_ns=int((week_start + timedelta(hours=hour)).timestamp() * 1_000_000_000),
-        )
-        for hour in range(7 * 24)
-    ]
-
-    assert Counter(effective_rates) == {20.0: 40, 3.0: 30, 0.5: 50, 2.0: 48}
-
-
-def test_business_hours_schedule_uses_requested_timezone() -> None:
-    replayer = Replayer(_fixture_scenario(), epsilon=0, seed=7)
-    timestamp_ns = int(datetime(2024, 1, 9, 2, tzinfo=timezone.utc).timestamp() * 1_000_000_000)
-
-    utc_interval = replayer.interarrival_seconds(
-        rate=20,
-        burstiness=0,
-        rate_schedule="business-hours",
-        timezone="UTC",
-        now_ns=timestamp_ns,
-    )
-    new_york_interval = replayer.interarrival_seconds(
-        rate=20,
-        burstiness=0,
-        rate_schedule="business-hours",
-        timezone="America/New_York",
-        now_ns=timestamp_ns,
-    )
-
-    assert utc_interval == 120
-    assert new_york_interval == 20
-
-
-def test_business_hours_draws_do_not_change_emitted_requests() -> None:
-    scenario = _fixture_scenario()
-    with patch(
-        "phoenix.datagen.replayer.secrets.token_hex",
-        return_value="00112233445566778899aabbccddeeff",
-    ):
-        control = Replayer(scenario, epsilon=0.25, seed=7)
-        scheduled = Replayer(scenario, epsilon=0.25, seed=7)
-
-    control_requests = []
-    scheduled_requests = []
-    for index in range(4):
-        scheduled.interarrival_seconds(
-            rate=20,
-            burstiness=0.7,
-            rate_schedule="business-hours",
-            timezone="UTC",
-            now_ns=1_704_708_000_000_000_000 + index * 1_000_000_000,
-        )
-        now_ns = 10_000_000_000 + index * 1_000_000_000
-        control_requests.append(control.emit(now_ns=now_ns).request.SerializeToString())
-        scheduled_requests.append(scheduled.emit(now_ns=now_ns).request.SerializeToString())
-
-    assert scheduled_requests == control_requests
-
-
 def test_replayer_sets_project_resource_attribute() -> None:
     scenario = _fixture_scenario()
     for request in scenario.requests:
@@ -363,71 +291,9 @@ def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -
     } != session_ids
 
 
-def test_scheduled_start_places_ordinary_trace_at_backfill_boundary() -> None:
-    scenario = _fixture_scenario()
-    one_trace_scenario = Scenario(
-        manifest=scenario.manifest,
-        requests=scenario.requests[:1],
-        source=scenario.source,
-    )
-    wall_time_ns = 200_000_000_000_000
-    boundary_ns = wall_time_ns - 48 * 60 * 60 * 1_000_000_000
-
-    emitted = Replayer(one_trace_scenario, epsilon=0, seed=7).emit(
-        now_ns=wall_time_ns,
-        scheduled_start_ns=boundary_ns,
-    )
-
-    assert min(span.start_time_unix_nano for span in _iter_spans(emitted.request)) == boundary_ns
-
-
-def test_scheduled_start_anchors_earliest_composed_trace_monotonically() -> None:
-    scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
-    replayer = Replayer(
-        scenario,
-        epsilon=0,
-        seed=7,
-        composer_config=ComposerConfig(
-            session_fragments_median=2,
-            session_fragments_sigma=0,
-            session_fragments_max=2,
-            archetype_mix={"plain_chat": 1},
-            fragment_gap_median_seconds=5,
-            fragment_gap_sigma=0,
-            fragment_gap_max_seconds=5,
-        ),
-    )
-    wall_time_ns = 200_000_000_000_000
-    boundary_ns = wall_time_ns - 48 * 60 * 60 * 1_000_000_000
-
-    emissions = tuple(
-        replayer.emit(
-            now_ns=wall_time_ns,
-            scheduled_start_ns=boundary_ns + index * 1_000_000_000,
-        )
-        for index in range(4)
-    )
-    starts = [
-        min(span.start_time_unix_nano for span in _iter_spans(emission.request))
-        for emission in emissions
-    ]
-
-    assert starts[0] == boundary_ns
-    assert starts == sorted(starts)
-    assert [start - boundary_ns for start in starts] == [
-        0,
-        2_000_000_000,
-        7_600_000_000,
-        9_600_000_000,
-    ]
-
-
-def test_contamination_labels_match_anomaly_manifest(tmp_path: Path) -> None:
+def test_contamination_labels_match_anomaly_ground_truth() -> None:
     replayer = Replayer(_fixture_scenario(), epsilon=1, seed=11)
     emitted = replayer.emit(now_ns=10_000_000_000)
-    manifest_path = tmp_path / "anomalies.jsonl"
-
-    AnomalyManifest(manifest_path).write(emitted.anomalies, emitted_at_ns=20_000_000_000)
 
     spans = tuple(_iter_spans(emitted.request))
     labeled_ids = {
@@ -435,18 +301,15 @@ def test_contamination_labels_match_anomaly_manifest(tmp_path: Path) -> None:
         for span in spans
         if _attribute(span, "datagen.anomaly") is True
     }
-    manifest_rows = [json.loads(line) for line in manifest_path.read_text().splitlines()]
-    assert {row["run_nonce"] for row in manifest_rows} == {replayer.run_nonce}
-    assert {row["kind"] for row in manifest_rows} == {"token_inflation"}
-    assert {row["emitted_at_ns"] for row in manifest_rows} == {20_000_000_000}
-    manifest_ids = {(row["trace_id"], row["span_id"]) for row in manifest_rows}
-    assert labeled_ids == manifest_ids
+    assert {anomaly.run_nonce for anomaly in emitted.anomalies} == {replayer.run_nonce}
+    assert {anomaly.kind for anomaly in emitted.anomalies} == {"token_inflation"}
+    anomaly_ids = {(anomaly.trace_id, anomaly.span_id) for anomaly in emitted.anomalies}
+    assert labeled_ids == anomaly_ids
     assert len(labeled_ids) == len(spans)
     spans_by_id = {(span.trace_id.hex(), span.span_id.hex()): span for span in spans}
-    for row in manifest_rows:
-        span = spans_by_id[(row["trace_id"], row["span_id"])]
-        assert row["virtual_time_ns"] == span.start_time_unix_nano
-        inflated_fields = row["inflated_fields"]
+    for anomaly in emitted.anomalies:
+        span = spans_by_id[(anomaly.trace_id, anomaly.span_id)]
+        inflated_fields = anomaly.inflated_fields
         assert inflated_fields[_PROMPT_TOKENS] == _attribute(span, _PROMPT_TOKENS)
         assert inflated_fields[_COMPLETION_TOKENS] == _attribute(span, _COMPLETION_TOKENS)
         assert inflated_fields[_TOTAL_TOKENS] == _attribute(span, _TOTAL_TOKENS)
@@ -460,7 +323,7 @@ def test_contamination_labels_match_anomaly_manifest(tmp_path: Path) -> None:
     )
 
 
-def test_replayer_injects_seeded_errors_and_records_typed_manifest(tmp_path: Path) -> None:
+def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None:
     scenario = _fixture_scenario()
     tool_span = next(_iter_spans(scenario.requests[1]))
     next(
@@ -478,21 +341,10 @@ def test_replayer_injects_seeded_errors_and_records_typed_manifest(tmp_path: Pat
                 recorded_outputs[span.name] = output
 
     replayer = Replayer(scenario, epsilon=1, seed=17, error_rate=1)
-    manifest_path = tmp_path / "anomalies.jsonl"
-    manifest = AnomalyManifest(manifest_path)
-    emissions = []
-    emitted_at_by_span_id = {}
-    for index in range(scenario.manifest["trace_count"]):
-        emission = replayer.emit(now_ns=10_000_000_000 + index * 1_000_000_000)
-        emitted_at_ns = 20_000_000_000 + index
-        manifest.write(emission.anomalies, emitted_at_ns=emitted_at_ns)
-        emissions.append(emission)
-        emitted_at_by_span_id.update(
-            {
-                (span.trace_id.hex(), span.span_id.hex()): emitted_at_ns
-                for span in _iter_spans(emission.request)
-            }
-        )
+    emissions = [
+        replayer.emit(now_ns=10_000_000_000 + index * 1_000_000_000)
+        for index in range(scenario.manifest["trace_count"])
+    ]
 
     spans = tuple(span for emission in emissions for span in _iter_spans(emission.request))
     spans_by_id = {(span.trace_id.hex(), span.span_id.hex()): span for span in spans}
@@ -501,22 +353,13 @@ def test_replayer_injects_seeded_errors_and_records_typed_manifest(tmp_path: Pat
         for span_id, span in spans_by_id.items()
         if _attribute(span, "openinference.span.kind") in {"LLM", "TOOL"}
     }
-    rows = [json.loads(line) for line in manifest_path.read_text().splitlines()]
-    error_rows = [row for row in rows if row["kind"] == "error_injection"]
-    token_rows = [row for row in rows if row["kind"] == "token_inflation"]
+    anomalies = [anomaly for emission in emissions for anomaly in emission.anomalies]
+    error_records = [anomaly for anomaly in anomalies if anomaly.kind == "error_injection"]
+    token_records = [anomaly for anomaly in anomalies if anomaly.kind == "token_inflation"]
 
-    assert {(row["trace_id"], row["span_id"]) for row in error_rows} == set(eligible_spans)
-    assert {(row["trace_id"], row["span_id"]) for row in token_rows} == set(spans_by_id)
-    assert all(row["inflated_fields"] == {} for row in error_rows)
-    assert all(
-        row["virtual_time_ns"]
-        == spans_by_id[(row["trace_id"], row["span_id"])].start_time_unix_nano
-        for row in rows
-    )
-    assert all(
-        row["emitted_at_ns"] == emitted_at_by_span_id[(row["trace_id"], row["span_id"])]
-        for row in rows
-    )
+    assert {(record.trace_id, record.span_id) for record in error_records} == set(eligible_spans)
+    assert {(record.trace_id, record.span_id) for record in token_records} == set(spans_by_id)
+    assert all(record.inflated_fields == {} for record in error_records)
     for span_id, span in eligible_spans.items():
         exception_events = [event for event in span.events if event.name == "exception"]
         assert len(exception_events) == 1
@@ -530,18 +373,19 @@ def test_replayer_injects_seeded_errors_and_records_typed_manifest(tmp_path: Pat
         }
         assert span.status.code == Status.STATUS_CODE_ERROR
         assert _attribute(span, "output.value") == recorded_outputs[span.name]
-        assert {row["kind"] for row in rows if (row["trace_id"], row["span_id"]) == span_id} == {
-            "token_inflation",
-            "error_injection",
-        }
+        assert {
+            record.kind
+            for record in anomalies
+            if (record.trace_id, record.span_id) == span_id
+        } == {"token_inflation", "error_injection"}
 
     propagated_parent = next(span for span in spans if span.name == "turn-1")
     assert propagated_parent.status.code == Status.STATUS_CODE_ERROR
     assert not [event for event in propagated_parent.events if event.name == "exception"]
     assert not [
-        row
-        for row in error_rows
-        if (row["trace_id"], row["span_id"])
+        record
+        for record in error_records
+        if (record.trace_id, record.span_id)
         == (propagated_parent.trace_id.hex(), propagated_parent.span_id.hex())
     ]
 

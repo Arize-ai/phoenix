@@ -210,14 +210,11 @@ root; otherwise Phoenix uses `~/.cache/phoenix/datagen`.
 
 ## Replaying scenario traffic
 
-`phoenix datagen` supports four replay realism controls:
+`phoenix datagen` replays at a constant mean rate (`--rate`, `--burstiness`) and supports two
+content controls:
 
-- `--rate-schedule {flat,business-hours}` selects a constant rate or a weekly business-hours
-  profile. The default is `flat`.
-- `--timezone <IANA-name>` selects the timezone used to evaluate the business-hours profile. The
-  default is `UTC`.
-- `--backfill <duration>` starts the virtual replay timeline in the past. Durations use a positive
-  number followed by `s`, `m`, `h`, or `d`, such as `48h`.
+- `--epsilon <probability>` sets the per-span token-inflation anomaly probability. The default
+  is `0.02`.
 - `--error-rate <probability>` sets the probability of injecting a synthetic LLM or tool error.
   The default is `0`.
 
