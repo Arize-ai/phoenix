@@ -181,9 +181,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
-        graphql_mutations_enabled = (
-            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
-        )
+        graphql_mutations_enabled = resolved_contexts.graphql_mutations_enabled
         recording = request.app.state.system_settings.agent_trace_recording
         ingest_traces, export_remote_traces = _resolve_trace_recording(
             record_local_traces=body.ingest_traces,
@@ -227,8 +225,13 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             event_queue=request.state.event_queue,
             prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
+            phoenix_mcp_server=request.app.state.pxi_mcp_server,
+            principal=phoenix_user,
             enable_web_access=web_access_enabled,
-            allow_mutations=graphql_mutations_enabled,
+            # This deprecated route runs with ``deps=None`` and cannot surface
+            # an approval request, so mutations require an explicit bypass.
+            allow_mutations=(graphql_mutations_enabled and body.edit_permission == "bypass"),
+            require_mutation_approval=False,
             read_only=request.app.state.read_only,
             auth_enabled=request.app.state.authentication_enabled,
             user_id=user_id,

@@ -142,6 +142,7 @@ import {
   SavePromptToolDetails,
 } from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
+import { ToolApprovalRequest } from "./ToolApprovalRequest";
 import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import { getToolIconKey } from "./toolIconConfig";
 import {
@@ -678,6 +679,9 @@ function ToolInvocationPartDetails({
 }
 
 function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
+  if (part.state === "approval-requested") {
+    return true;
+  }
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
   if (uiBehavior?.autoOpen !== true) {
@@ -859,6 +863,7 @@ function GenericToolDetails({ part }: { part: ToolInvocationPart }) {
       <ToolPartExpandableSection>
         <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
       </ToolPartExpandableSection>
+      <ToolApprovalRequest part={part} />
       {part.state === "output-available" ? (
         <>
           <ToolPartLabel>Output</ToolPartLabel>

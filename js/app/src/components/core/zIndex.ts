@@ -1,14 +1,26 @@
 /**
- * Shared app stacking layers.
+ * CSS variable aliases for the canonical app stacking tokens in GlobalStyles.
+ * Constant names mirror the `--global-z-index-app-*` token names exactly so
+ * the constant, the token, and any prop value naming a band share one
+ * vocabulary. Stacking is orthogonal to modality: never derive a band from
+ * whether a surface is modal or non-modal.
  *
- * Non-modal floating UI should sit above page content but below modal
- * backdrops. Modal floating UI is reserved for controls that intentionally
- * remain available while a modal backdrop is mounted. Portaled popovers and
- * toasts use the top overlay layer so controls opened from floating surfaces
- * remain usable.
+ * The overlay-owned rungs (floating, portaled-overlay, modal, backdrop) are
+ * defined in `@phoenix/components/core/overlay` and re-exported here; this
+ * file adds the rungs only the application uses.
  */
-export const MODAL_OVERLAY_Z_INDEX = 1000;
-export const MODAL_DIALOG_Z_INDEX = MODAL_OVERLAY_Z_INDEX + 1;
-export const NON_MODAL_FLOATING_Z_INDEX = MODAL_OVERLAY_Z_INDEX - 1;
-export const MODAL_FLOATING_UI_Z_INDEX = MODAL_DIALOG_Z_INDEX + 1;
-export const PORTALED_OVERLAY_Z_INDEX = 100000;
+export {
+  APP_FLOATING_Z_INDEX,
+  APP_MODAL_BACKDROP_Z_INDEX,
+  APP_MODAL_Z_INDEX,
+  APP_PORTALED_OVERLAY_Z_INDEX,
+} from "@phoenix/components/core/overlay";
+
+export const APP_FLOATING_CONTROL_Z_INDEX =
+  "var(--global-z-index-app-floating-control)";
+export const APP_MODAL_FLOATING_Z_INDEX =
+  "var(--global-z-index-app-modal-floating)";
+export const APP_MODAL_FLOATING_CONTROL_Z_INDEX =
+  "var(--global-z-index-app-modal-floating-control)";
+export const APP_NOTIFICATION_Z_INDEX =
+  "var(--global-z-index-app-notification)";

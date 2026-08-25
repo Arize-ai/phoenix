@@ -6,25 +6,7 @@ import {
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
 
-import {
-  MODAL_DIALOG_Z_INDEX,
-  MODAL_OVERLAY_Z_INDEX,
-} from "@phoenix/components/core/zIndex";
-import { classNames } from "@phoenix/utils/classNames";
-
-import {
-  MODAL_OVERLAY_CLASS_NAME,
-  MODAL_PORTAL_CONTAINER_ATTR,
-} from "./constants";
-
-const modalSlideover = keyframes`
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-    `;
+import { APP_MODAL_BACKDROP_Z_INDEX, APP_MODAL_Z_INDEX } from "./stacking";
 const modalFade = keyframes`
   from {
     opacity: 0;
@@ -41,7 +23,7 @@ const modalZoom = keyframes`
     transform: scale(1);
   }
   `;
-const modalCSS = css`
+export const centeredModalCSS = css`
   --modal-width: var(--global-modal-width-M);
 
   &[data-size="S"] {
@@ -58,64 +40,47 @@ const modalCSS = css`
 
   &[data-size="fullscreen"] {
     --modal-width: var(--global-modal-width-FULLSCREEN);
-  }
-
-  &[data-variant="slideover"] {
-    --visual-viewport-height: 100vh;
-    width: var(--modal-width);
-    height: var(--visual-viewport-height);
-    position: fixed;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    z-index: 100;
-    top: 0;
-    right: 0;
-    left: auto;
-
-    &[data-entering] {
-      animation: ${modalSlideover} 300ms;
-    }
-
-    &[data-exiting] {
-      animation: ${modalSlideover} 300ms reverse ease-in;
-    }
+    --modal-fullscreen-block-margin: var(--global-dimension-size-600);
 
     .react-aria-Dialog {
-      height: 100%;
-      border-radius: 0;
-      border-left-color: var(--global-border-color-default);
-      border-top: none;
-      border-bottom: none;
-      border-right: none;
+      // Fullscreen dialogs get a definite height instead of sizing to their
+      // content, so every fullscreen form shares one geometry. Matching block
+      // margins keep the top navigation and its PXI control unobstructed while
+      // DialogContent pins the header and footer around its scrolling region.
+      height: calc(
+        100% - var(--modal-fullscreen-block-margin) -
+          var(--modal-fullscreen-block-margin)
+      );
+      max-height: calc(
+        100% - var(--modal-fullscreen-block-margin) -
+          var(--modal-fullscreen-block-margin)
+      );
     }
   }
 
-  &[data-variant="default"] {
+  &[data-entering] {
+    animation: ${modalFade} 200ms;
+  }
+
+  &[data-exiting] {
+    animation: ${modalFade} 200ms reverse ease-in;
+  }
+
+  .react-aria-Dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: ${APP_MODAL_Z_INDEX};
+    // 90% gives a decent amount of padding around the dialog when it would
+    // otherwise be cut off by the edges of the screen
+    max-height: calc(100% - var(--global-dimension-size-800));
+    overflow: auto;
+    // prevent bounce in safari when scrolling
+    overscroll-behavior: contain;
+
     &[data-entering] {
-      animation: ${modalFade} 200ms;
-    }
-
-    &[data-exiting] {
-      animation: ${modalFade} 200ms reverse ease-in;
-    }
-
-    .react-aria-Dialog {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: ${MODAL_DIALOG_Z_INDEX};
-      // 90% gives a decent amount of padding around the dialog when it would
-      // otherwise be cut off by the edges of the screen
-      max-height: calc(100% - var(--global-dimension-size-800));
-      overflow: auto;
-      // prevent bounce in safari when scrolling
-      overscroll-behavior: contain;
-
-      &[data-entering] {
-        animation: ${modalZoom} 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      }
+      animation: ${modalZoom} 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
   }
 
@@ -128,10 +93,26 @@ const modalCSS = css`
     border: 1px solid var(--global-border-color-default);
     outline: none;
 
+    &:has(> .react-aria-DialogContent) {
+      // Keep the rounded shell as the clipping boundary. The content owns
+      // scrolling so its scrollbar is clipped to the shell's border radius.
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    & > .react-aria-DialogContent {
+      min-height: 0;
+      overflow: auto;
+      // prevent bounce in safari when scrolling
+      overscroll-behavior: contain;
+    }
+
     & .dialog__header {
       position: sticky;
       top: 0;
       z-index: 1;
+      background-color: var(--global-background-color-default);
     }
   }
 `;
@@ -140,29 +121,21 @@ export type ModalSize = "S" | "M" | "L" | "fullscreen";
 
 export type ModalProps = AriaModalOverlayProps & {
   size?: ModalSize;
-  variant?: "default" | "slideover";
 };
 
 function Modal({ ref, ...props }: ModalProps & { ref?: Ref<HTMLDivElement> }) {
-  const { variant = "default", size = "M", ...rest } = props;
+  const { size = "M", ...rest } = props;
 
   return (
-    <AriaModal
-      {...rest}
-      {...{ [MODAL_PORTAL_CONTAINER_ATTR]: "" }}
-      data-size={size}
-      data-variant={variant}
-      ref={ref}
-      css={modalCSS}
-    />
+    <AriaModal {...rest} data-size={size} ref={ref} css={centeredModalCSS} />
   );
 }
 
-const modalOverlayCSS = css`
+export const modalBackdropCSS = css`
   position: fixed;
   inset: 0;
   background: var(--global-overlay-backdrop-color);
-  z-index: ${MODAL_OVERLAY_Z_INDEX};
+  z-index: ${APP_MODAL_BACKDROP_Z_INDEX};
 
   &[data-entering] {
     // ensure overlay animation is longer than child animations
@@ -183,8 +156,7 @@ function ModalOverlay({
     <AriaModalOverlay
       {...props}
       data-testid="modal-overlay"
-      css={modalOverlayCSS}
-      className={classNames(props.className, MODAL_OVERLAY_CLASS_NAME)}
+      css={modalBackdropCSS}
       // default to true, but allow for override
       isDismissable={props.isDismissable ?? true}
       ref={ref}

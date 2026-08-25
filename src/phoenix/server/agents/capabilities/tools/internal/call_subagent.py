@@ -7,6 +7,7 @@ from typing import Generic
 from pydantic import BaseModel
 from pydantic_ai import AgentRunResult, RunContext, Tool
 from pydantic_ai.agent.abstract import AbstractAgent
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from pydantic_ai.ui.vercel_ai import VercelAIEventStream
@@ -26,14 +27,13 @@ from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
     UIMessage,
 )
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
-Delegate a natural-language task to the Phoenix GraphQL server agent, which queries \
-the Phoenix backend and returns a concise answer. Use for any task that requires \
-data about projects, traces, spans, datasets, experiments, or evaluations.
+Delegate a natural-language task to the Phoenix GraphQL server agent, which queries the Phoenix backend and returns a concise answer. Use for any task that requires data about projects, traces, spans, datasets, experiments, or evaluations.
+The sub-agent does that work in its own context and returns only the answer you need. It has its own `bash` tool, running in a server-side virtual shell, that queries the Phoenix GraphQL API via the `phoenix-gql` command (read-only by default) and can write scratch files under its own workspace. Besides bash, it can also search the Phoenix documentation and the web when those tools are enabled. Its bash and file system are isolated from yours, and it returns only its final text answer, so any data it gathers must come back in that answer rather than as files you can read.
+Pass `task`, a single self-contained natural-language description of exactly what you need, along with `name`, a short human-readable name for the sub-agent. The sub-agent has no access to your context, so the task must be entirely self-contained and fully specified: explicitly pass along IDs, time ranges, and any other details rather than assuming they will be visible to the sub-agent.
 """
 
 
@@ -127,11 +127,10 @@ class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
 
 
 @dataclass
-class CallSubAgentCapability(AbstractStaticCapability[AgentDepsT], Generic[AgentDepsT]):
+class CallSubAgentCapability(AbstractCapability[AgentDepsT], Generic[AgentDepsT]):
     """Capability that adds the `call_subagent` tool to an agent."""
 
     server_agent: AbstractAgent[None, str]
-    instructions: str
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None]
 
@@ -141,9 +140,6 @@ class CallSubAgentCapability(AbstractStaticCapability[AgentDepsT], Generic[Agent
             publish_subagent_message_chunk=self.publish_subagent_message_chunk,
             set_subagent_final_tool_output=self.set_subagent_final_tool_output,
         )
-
-    def get_static_instructions(self) -> str:
-        return self.instructions
 
 
 def _has_renderable_ui_message_parts(message: UIMessage) -> bool:

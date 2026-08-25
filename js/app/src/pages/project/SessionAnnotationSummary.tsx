@@ -81,25 +81,8 @@ function SessionAnnotationSummaryValue(props: {
         timeRange: { type: "TimeRange!" }
         sessionFilterCondition: { type: "String", defaultValue: null }
       ) {
-        annotationConfigs {
-          edges {
-            node {
-              ... on AnnotationConfigBase {
-                annotationType
-              }
-              ... on CategoricalAnnotationConfig {
-                annotationType
-                id
-                optimizationDirection
-                name
-                values {
-                  label
-                  score
-                }
-              }
-            }
-          }
-        }
+        ...ProjectAnnotationConfigsByNameFragment
+          @arguments(annotationConfigNames: [$annotationName], first: 1)
         sessionAnnotationSummary(
           annotationName: $annotationName
           timeRange: $timeRange
@@ -130,7 +113,7 @@ function SessionAnnotationSummaryValue(props: {
     <AnnotationSummaryValueView
       name={annotationName}
       summary={data?.sessionAnnotationSummary}
-      annotationConfigs={data?.annotationConfigs}
+      project={data}
     />
   );
 }

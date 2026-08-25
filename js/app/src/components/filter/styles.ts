@@ -1,6 +1,6 @@
 import { css, keyframes } from "@emotion/react";
 
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
  * The popover surface shared by every floating element the filter field
@@ -20,6 +20,18 @@ export const dslFilterCodeMirrorCSS = css`
      controls out of view — without this the flex item's auto minimum is
      the full content width */
   min-width: 0;
+  .cm-scroller {
+    /* This is a single-line input, so keep long conditions horizontally
+       scrollable without letting scrollbar chrome consume vertical space and
+       create a second, unintended scroll axis. Caret movement, keyboard, and
+       trackpad scrolling still move the horizontal scrollport. */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
   .cm-content {
     padding: var(--global-dimension-size-100) 0;
   }
@@ -36,7 +48,7 @@ export const dslFilterCodeMirrorCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
-    z-index: ${NON_MODAL_FLOATING_Z_INDEX};
+    z-index: ${APP_FLOATING_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than

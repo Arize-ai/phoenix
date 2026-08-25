@@ -22,7 +22,6 @@ import {
   SystemSettingsWarning,
 } from "@phoenix/components/agent";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
@@ -34,11 +33,14 @@ import { settingsAgentsPageLoaderGql } from "./settingsAgentsPageLoader";
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
 
 /**
- * Whether the subagents (server-side bash tool) setting should be offered in the
- * UI. Hidden when the deployment sets PHOENIX_AGENTS_DISABLE_BASH, which prevents
- * subagents from being attached server-side. Does not affect the frontend bash tool.
+ * Whether the server-side agent runtime (bash tool, subagents, experimental
+ * capabilities) is enabled for this deployment. False when
+ * PHOENIX_AGENTS_DISABLE_BASH is set, which prevents those capabilities from
+ * being constructed server-side — settings that only configure them are
+ * hidden rather than offered as inert switches. Does not affect the frontend
+ * bash tool.
  */
-function shouldShowSubagentsSetting(agentBashDisabled: boolean): boolean {
+function isServerAgentRuntimeEnabled(agentBashDisabled: boolean): boolean {
   return !agentBashDisabled;
 }
 
@@ -223,7 +225,7 @@ function PersonalSettingsSection() {
       <AssistantDisplaySettings />
       <AgentSettingsForm>
         <AgentWebAccessSettings />
-        {shouldShowSubagentsSetting(window.Config.agentBashDisabled) ? (
+        {isServerAgentRuntimeEnabled(window.Config.agentBashDisabled) ? (
           <AgentSubagentsSettings />
         ) : null}
         <AgentObservabilitySettings isOnSettingsPage />
@@ -240,9 +242,6 @@ export function SettingsAgentsPage() {
     queryRef: loaderData,
   });
   const isAdmin = useIsAdminOrAuthDisabled();
-  const isExperimentalSettingsEnabled = useFeatureFlag(
-    "agent-experimental-settings"
-  );
   return (
     <Flex direction="column" gap="size-200">
       <Card
@@ -278,7 +277,7 @@ export function SettingsAgentsPage() {
               </div>
             </DisclosurePanel>
           </Disclosure>
-          {isExperimentalSettingsEnabled ? (
+          {isServerAgentRuntimeEnabled(window.Config.agentBashDisabled) ? (
             <Disclosure id={EXPERIMENTAL_SECTION_ID}>
               <AssistantSettingsSectionTrigger
                 title="Experimental settings"

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import inspect
 import logging
+import time
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from fastmcp.exceptions import ToolError
@@ -9,6 +12,7 @@ from phoenix.server.monty_runtime import (
     DEFAULT_GUEST_MAX_MEMORY_BYTES,
     DEFAULT_GUEST_MAX_RECURSION_DEPTH,
     MontyBusy,
+    MontyConsumer,
     MontyDeadlineExceeded,
     MontyRuntime,
     MontyShuttingDown,
@@ -42,6 +46,27 @@ def _discard_output(stream: str, text: str) -> None:
     del stream, text
 
 
+def _code_fingerprint(code: str) -> str:
+    """A stable log correlation key without repeating guest source at warning level."""
+    return hashlib.sha256(code.encode()).hexdigest()[:12]
+
+
+#: Room for any real diagnostic, short of what an exception could carry as a payload.
+_MAX_LOGGED_ERROR_CHARS = 2048
+
+
+def _bounded_message(exc: BaseException) -> str:
+    """The exception's message, capped.
+
+    Guest code can raise holding a query result. Real messages run to a few
+    hundred characters, so the cap removes payload, not diagnosis.
+    """
+    message = str(exc)
+    if len(message) <= _MAX_LOGGED_ERROR_CHARS:
+        return message
+    return f"{message[:_MAX_LOGGED_ERROR_CHARS]}... (truncated from {len(message)} chars)"
+
+
 class MontyPoolSandboxProvider:
     """FastMCP adapter for the server's shared Monty worker runtime.
 
@@ -50,6 +75,8 @@ class MontyPoolSandboxProvider:
 
     Args:
         runtime: Application-owned shared runtime.
+        consumer: Admission class this provider spends against. Each surface
+            takes its own so neither can exhaust the pool on the other's behalf.
         limits: Per-session guest limits. Defaults to :data:`DEFAULT_LIMITS`.
         total_timeout: End-to-end deadline for one ``execute``; prompt for a block
             awaiting a tool, but one already executing runs on to its guest
@@ -60,6 +87,7 @@ class MontyPoolSandboxProvider:
         self,
         *,
         runtime: MontyRuntime,
+        consumer: MontyConsumer = "mcp",
         limits: Optional["ResourceLimits"] = None,
         total_timeout: Optional[float] = DEFAULT_TOTAL_TIMEOUT,
     ) -> None:
@@ -67,7 +95,79 @@ class MontyPoolSandboxProvider:
         # this attribute.
         self.limits: "ResourceLimits" = (DEFAULT_LIMITS if limits is None else limits).copy()
         self._runtime = runtime
+        self._consumer: MontyConsumer = consumer
         self._total_timeout = total_timeout
+
+    def _instrument_external_functions(
+        self, external_functions: Optional[dict[str, Callable[..., Any]]]
+    ) -> Optional[dict[str, Callable[..., Any]]]:
+        """Log sandbox-to-host calls without recording caller-controlled values."""
+        if external_functions is None:
+            return None
+        instrumented = external_functions.copy()
+        call_tool = instrumented.get("call_tool")
+        if call_tool is None:
+            return instrumented
+
+        async def logged_call_tool(tool_name: str, params: dict[str, Any]) -> Any:
+            # Debug is for inspecting submissions, including the payload a guest
+            # sends. Warnings omit those values, staying visible when debug is off,
+            # but keep the exception: it is the diagnostic, and it restates the
+            # request -- a URL, a rejected value -- not text the guest wrote.
+            param_keys = sorted(params) if isinstance(params, dict) else None
+            started = time.perf_counter()
+            logger.debug(
+                "MCP code-mode host callback submitted "
+                "(consumer=%s, callback=call_tool, tool=%r, params=%r)",
+                self._consumer,
+                tool_name,
+                params,
+            )
+            try:
+                result = call_tool(tool_name, params)
+                if inspect.isawaitable(result):
+                    result = await result
+            except Exception as exc:
+                logger.warning(
+                    "MCP code-mode host callback failed "
+                    "(consumer=%s, callback=call_tool, tool=%r, param_keys=%s, "
+                    "elapsed_ms=%.1f, error=%s: %s)",
+                    self._consumer,
+                    tool_name,
+                    param_keys,
+                    (time.perf_counter() - started) * 1000,
+                    type(exc).__name__,
+                    _bounded_message(exc),
+                )
+                raise
+            logger.debug(
+                "MCP code-mode host callback completed "
+                "(consumer=%s, callback=call_tool, tool=%r, param_keys=%s, "
+                "elapsed_ms=%.1f, result_type=%s)",
+                self._consumer,
+                tool_name,
+                param_keys,
+                (time.perf_counter() - started) * 1000,
+                type(result).__name__,
+            )
+            return result
+
+        instrumented["call_tool"] = logged_call_tool
+        return instrumented
+
+    def _log_guest_failure(self, code: str, exc: Exception) -> None:
+        """Record a failure beside the debug source that produced it.
+
+        Debug only: the model reads the exception and rewrites the block, so a
+        guest error is a step in the loop rather than an operator's problem.
+        """
+        logger.debug(
+            "MCP code-mode execute failed (consumer=%s, code_sha256=%s, error=%s: %s)",
+            self._consumer,
+            _code_fingerprint(code),
+            type(exc).__name__,
+            _bounded_message(exc),
+        )
 
     async def run(
         self,
@@ -81,13 +181,24 @@ class MontyPoolSandboxProvider:
         Guest errors propagate unchanged so the model can correct its own code;
         sandbox failures become :class:`ToolError`.
         """
+        # The sandbox protocol reports a guest exception after its host callback
+        # has returned, so FastMCP's traceback identifies `execute` but not the
+        # submitted program that triggered it. Keep the complete program in
+        # debug logs, where it can be correlated with the following worker error.
+        # It may contain caller data, so this must remain debug-only.
+        logger.debug(
+            "MCP code-mode execute submitted (consumer=%s, code=%r)",
+            self._consumer,
+            code,
+        )
+        instrumented_external_functions = self._instrument_external_functions(external_functions)
         try:
             return await self._runtime.run(
                 code,
-                consumer="mcp",
+                consumer=self._consumer,
                 limits=self.limits,
                 inputs=inputs,
-                external_functions=external_functions,
+                external_functions=instrumented_external_functions,
                 print_callback=_discard_output,
                 total_timeout=self._total_timeout,
             )
@@ -135,6 +246,7 @@ class MontyPoolSandboxProvider:
             # Work around Monty #631, which discards some multi-line exception payloads.
             # https://github.com/pydantic/monty/issues/631
             if not str(exc).startswith("monty worker protocol error: invalid exception payload"):
+                self._log_guest_failure(code, exc)
                 raise
             logger.warning(
                 "Monty rejected an exception payload with an invalid source span; "
@@ -144,3 +256,6 @@ class MontyPoolSandboxProvider:
                 "A tool call failed, but the sandbox could not transfer its error details. "
                 "Retry the tool call with simpler code, or inspect the server logs."
             )
+        except Exception as exc:
+            self._log_guest_failure(code, exc)
+            raise

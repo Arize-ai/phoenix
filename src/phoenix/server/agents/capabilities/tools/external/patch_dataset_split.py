@@ -3,25 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "patch_dataset_split"
 
-DESCRIPTION = (
-    "Edit an existing split of the dataset the user is viewing — its name, description, and/or "
-    "color — identified by its current name. Only the fields you pass are changed. Pass "
-    "description: null to clear the description; name and color cannot be cleared, only "
-    "replaced with a new non-empty value. Does not change which rows are in the split (use "
-    "set_dataset_example_splits for that). Get the split's current name from "
-    "list_dataset_splits. Split names are unique; a duplicate new name fails."
-)
+DESCRIPTION = """\
+Edit an existing split of the dataset the user is viewing — its name, description, and/or color — identified by its current name. Only the fields you pass are changed. Pass description: null to clear the description; name and color cannot be cleared, only replaced with a new non-empty value. Does not change which examples are in the split (use set_dataset_example_splits for that).
+Get the split's current name from list_splits (splits are global, so any existing split can be edited by name). Split names are unique instance-wide; a duplicate new name fails.
+Propose the edit by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -59,19 +54,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class PatchDatasetSplitCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class PatchDatasetSplitCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         # Writes are blocked server-side for viewers; don't advertise to them.

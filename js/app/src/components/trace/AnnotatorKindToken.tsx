@@ -1,6 +1,5 @@
 import { Token } from "@phoenix/components";
-
-type AnnotatorKind = "HUMAN" | "LLM" | "CODE";
+import type { AnnotatorKind } from "@phoenix/constants";
 
 export function AnnotatorKindToken(props: { kind: AnnotatorKind }) {
   const { kind } = props;

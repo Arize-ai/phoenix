@@ -73,6 +73,11 @@ const snippets: DSLFilterSnippet[] = [
   },
 ];
 
+const longCondition =
+  "parent_id is None and annotations['category'].label == 'alpha' and " +
+  "annotations['quality'].score >= 0.8 and latency_ms >= 10_000 and " +
+  "metadata['environment'] == 'production'";
+
 /**
  * Simulates fetching completions for values that actually exist in the
  * user's data (e.g. annotation names)
@@ -130,15 +135,17 @@ export default meta;
  * "Applied condition" readout below it. Each template supplies the field.
  */
 function FilterFieldHarness({
+  initialValue = "",
   renderField,
 }: {
+  initialValue?: string;
   renderField: (fieldProps: {
     value: string;
     onChange: (value: string) => void;
     onApplied: (condition: string) => void;
   }) => ReactNode;
 }) {
-  const [value, setValue] = useState<string>("");
+  const [value, setValue] = useState<string>(initialValue);
   const [validCondition, setValidCondition] = useState<string>("");
   return (
     <View width="600px" padding="size-400">
@@ -158,24 +165,37 @@ function FilterFieldHarness({
   );
 }
 
+function DSLFilterFieldStory({
+  args,
+  initialValue,
+}: {
+  args: DSLFilterConditionFieldProps;
+  initialValue?: string;
+}) {
+  return (
+    <FilterFieldHarness
+      initialValue={initialValue}
+      renderField={({ value, onChange, onApplied }) => (
+        <DSLFilterConditionField
+          {...args}
+          value={value}
+          onChange={onChange}
+          completions={completions}
+          snippets={snippets}
+          loadCompletions={loadCompletions}
+          validateCondition={validateCondition}
+          onValidCondition={(validCondition) => {
+            onApplied(validCondition.condition);
+            args.onValidCondition(validCondition);
+          }}
+        />
+      )}
+    />
+  );
+}
+
 const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => (
-  <FilterFieldHarness
-    renderField={({ value, onChange, onApplied }) => (
-      <DSLFilterConditionField
-        {...args}
-        value={value}
-        onChange={onChange}
-        completions={completions}
-        snippets={snippets}
-        loadCompletions={loadCompletions}
-        validateCondition={validateCondition}
-        onValidCondition={(validCondition) => {
-          onApplied(validCondition.condition);
-          args.onValidCondition(validCondition);
-        }}
-      />
-    )}
-  />
+  <DSLFilterFieldStory args={args} />
 );
 
 /**
@@ -187,6 +207,15 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => (
 export const Default = {
   render: Template,
 };
+
+/**
+ * A single-line condition that exceeds the field width. The editor keeps the
+ * caret reachable through horizontal scrolling without adding vertical scroll
+ * or moving the surrounding controls.
+ */
+export const LongCondition: StoryFn<DSLFilterConditionFieldProps> = (args) => (
+  <DSLFilterFieldStory args={args} initialValue={longCondition} />
+);
 
 function AIQueryTemplate(args: DSLFilterConditionFieldProps) {
   return (

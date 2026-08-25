@@ -14,8 +14,8 @@ import {
   DocumentationHelp,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
 import type { settingsAnnotationsPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsAnnotationsPageLoaderQuery.graphql";
@@ -180,13 +180,13 @@ const SettingsAnnotations = ({
           >
             New Configuration
           </Button>
-          <ModalOverlay>
-            <Modal>
+          <ViewportModalOverlay>
+            <ViewportModal>
               <AnnotationConfigDialog
                 onAddAnnotationConfig={handleAddAnnotationConfig}
               />
-            </Modal>
-          </ModalOverlay>
+            </ViewportModal>
+          </ViewportModalOverlay>
         </DialogTrigger>
       }
     >

@@ -1,6 +1,7 @@
 export interface BashToolInput {
   command: string;
   summary?: string;
+  mutation_description?: string;
 }
 
 export function getBashToolInput(input: unknown): BashToolInput | null {
@@ -8,7 +9,8 @@ export function getBashToolInput(input: unknown): BashToolInput | null {
     return null;
   }
 
-  const { command, summary } = input as Partial<BashToolInput>;
+  const { command, summary, mutation_description } =
+    input as Partial<BashToolInput>;
 
   if (typeof command !== "string") {
     return null;
@@ -17,6 +19,9 @@ export function getBashToolInput(input: unknown): BashToolInput | null {
   return {
     command,
     ...(typeof summary === "string" ? { summary } : {}),
+    ...(typeof mutation_description === "string"
+      ? { mutation_description }
+      : {}),
   };
 }
 

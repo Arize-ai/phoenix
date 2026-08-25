@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<59472cb0779d4bb862d68fafc03e6fec>>
+ * @generated SignedSource<<d5ffe722cef5774f2b9a19065c79e9cf>>
  * @lightSyntaxTransform
  */
 
@@ -39,7 +39,7 @@ export type ProjectAnnotationMetricsSpanQuery$data = {
         readonly timestamp: string;
       }>;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationMetricsConfigFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   };
 };
 export type ProjectAnnotationMetricsSpanQuery = {
@@ -251,7 +251,7 @@ return {
                   (v5/*:: as any*/)
                 ],
                 "kind": "FragmentSpread",
-                "name": "ProjectAnnotationMetricsConfigFragment"
+                "name": "ProjectAnnotationConfigsByNameFragment"
               },
               (v8/*:: as any*/)
             ],
@@ -424,16 +424,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e8a1283a79a9bf9e5e0ee542ffe9e19b",
+    "cacheID": "644c681cf985c7ecc3e79af7a852f26d",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationMetricsSpanQuery",
     "operationKind": "query",
-    "text": "query ProjectAnnotationMetricsSpanQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationMetricsConfigFragment_3DyRD9\n      spanAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationMetricsConfigFragment_3DyRD9 on Project {\n  annotationConfigs(first: 1, names: [$annotationName]) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectAnnotationMetricsSpanQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment_3DyRD9\n      spanAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment_3DyRD9 on Project {\n  annotationConfigs(first: 1, names: [$annotationName]) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dd03c54fb9301e3f0ae6e1d3d498879f";
+(node as any).hash = "1373592362afe61d9d8636731df55497";
 
 export default node;

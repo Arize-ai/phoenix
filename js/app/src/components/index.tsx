@@ -7,6 +7,7 @@ export {
   Form,
   I18nProvider,
   Autocomplete,
+  PreviewTrigger,
   useFilter,
 } from "react-aria-components";
 export type {

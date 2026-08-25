@@ -27,6 +27,7 @@ import type {
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
+import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 
 import type { ModelConfig } from "./playground/types";
 
@@ -644,25 +645,10 @@ const BASE_ASSISTANT_STORAGE_KEY = "arize-phoenix-assistant";
 
 /**
  * Resolves the local-storage key for the persisted assistant state, scoped to
- * the deployment's root path.
- *
- * `localStorage` is origin-scoped and path-blind. In multi-tenant deployments
- * (e.g. Phoenix Cloud) many workspaces are served from distinct root paths on
- * the SAME browser origin, so a single shared key would let one workspace's
- * chat history load in another. Scoping by the root-path basename aligns this
- * with the per-deployment isolation boundary already enforced server-side by
- * PHOENIX_COOKIES_PATH (which is set to the same root path).
- *
- * Deployments without a root path (the common single-tenant case, e.g. OSS)
- * use the base key unchanged so existing history is preserved on upgrade.
- * Under a root path the new scoped key simply leaves the old unscoped blob
- * untouched; nothing reads it once the key changes.
+ * the deployment's root path (see {@link scopeStorageKeyToBasename} for why).
  */
 export function resolveAssistantStorageKey(): string {
-  const basename = (window.Config?.basename ?? "").replace(/\/+$/, "");
-  return basename
-    ? `${BASE_ASSISTANT_STORAGE_KEY}:${basename}`
-    : BASE_ASSISTANT_STORAGE_KEY;
+  return scopeStorageKeyToBasename(BASE_ASSISTANT_STORAGE_KEY);
 }
 
 /**

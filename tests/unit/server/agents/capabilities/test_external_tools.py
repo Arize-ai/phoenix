@@ -10,23 +10,19 @@ from phoenix.server.agents.capabilities.tools.external import (
     set_playground_experiment_recording,
     set_template_variables_path,
 )
-from phoenix.server.agents.prompts import AgentPrompts
 
 
-def test_load_dataset_instructions_expose_params_and_discovery_preflight() -> None:
-    """Pin the rendered ``load_dataset`` instruction structure, not its prose.
+def test_load_dataset_description_exposes_params_and_discovery_preflight() -> None:
+    """Pin the load-bearing facts in the ``load_dataset`` description, not its prose.
 
-    The template must name both parameters and carry a ``<preflight>`` block that
-    routes name discovery through ``phoenix-gql`` rather than baking dataset
-    inventory into the static prompt.
+    The description must name both parameters and route name discovery through
+    ``phoenix-gql`` rather than baking dataset inventory into the static prompt.
     """
-    rendered = AgentPrompts().load_dataset_tool.render()
+    description = load_dataset.DESCRIPTION
 
-    assert '<tool name="load_dataset">' in rendered
-    assert "datasetName" in rendered
-    assert "splitName" in rendered
-    assert "<preflight>" in rendered
-    assert "phoenix-gql" in rendered
+    assert "datasetName" in description
+    assert "splitName" in description
+    assert "phoenix-gql" in description
 
 
 def test_load_dataset_parameters_expose_only_dataset_name_and_optional_split_name() -> None:
@@ -46,11 +42,8 @@ def test_load_dataset_parameters_expose_only_dataset_name_and_optional_split_nam
     assert schema["properties"]["splitName"]["type"] == ["string", "null"]
 
 
-def test_set_template_variables_path_instructions_expose_structure_and_load_dataset_nudge() -> None:
-    rendered = AgentPrompts().set_template_variables_path_tool.render()
-
-    assert '<tool name="set_template_variables_path">' in rendered
-    assert "load_dataset" in rendered
+def test_set_template_variables_path_description_exposes_load_dataset_nudge() -> None:
+    assert "load_dataset" in set_template_variables_path.DESCRIPTION
 
 
 def test_set_template_variables_path_parameters_expose_only_nullable_path() -> None:
@@ -64,15 +57,14 @@ def test_set_template_variables_path_parameters_expose_only_nullable_path() -> N
     assert schema["properties"]["path"]["type"] == ["string", "null"]
 
 
-def test_set_appended_messages_path_instructions_expose_tool_tag_and_load_dataset_nudge() -> None:
-    """Pin the rendered ``set_appended_messages_path`` instruction structure."""
-    rendered = AgentPrompts().set_appended_messages_path_tool.render()
+def test_set_appended_messages_path_description_exposes_load_dataset_nudge() -> None:
+    """Pin the load-bearing facts in the ``set_appended_messages_path`` description."""
+    description = set_appended_messages_path.DESCRIPTION
 
-    assert '<tool name="set_appended_messages_path">' in rendered
-    assert "load_dataset" in rendered
+    assert "load_dataset" in description
     # The path is resolved relative to the example's ``input`` object, so the guidance
     # must steer the model away from prefixing the path with ``input.`` (PR 13623 review).
-    assert "relative to a dataset example's `input` object" in rendered
+    assert "relative to a dataset example's `input` object" in description
 
 
 def test_set_appended_messages_path_parameters_expose_only_nullable_required_path() -> None:
@@ -86,12 +78,11 @@ def test_set_appended_messages_path_parameters_expose_only_nullable_required_pat
     assert schema["properties"]["path"]["type"] == ["string", "null"]
 
 
-def test_set_playground_experiment_recording_instructions_expose_persistence_guidance() -> None:
-    rendered = AgentPrompts().set_playground_experiment_recording_tool.render()
+def test_set_playground_experiment_recording_description_exposes_persistence_guidance() -> None:
+    description = set_playground_experiment_recording.DESCRIPTION
 
-    assert '<tool name="set_playground_experiment_recording">' in rendered
-    assert "run_playground" in rendered
-    assert "save_prompt" in rendered
+    assert "run_playground" in description
+    assert "save_prompt" in description
 
 
 def test_set_playground_experiment_recording_parameters_expose_recording_flag() -> None:
@@ -153,23 +144,21 @@ def test_patch_experiment_parameters_require_only_experiment_id() -> None:
     assert schema["additionalProperties"] is False
 
 
-def test_patch_experiment_instructions_teach_metadata_conventions() -> None:
-    """Guard the load-bearing facts in the rendered patch_experiment instructions,
-    not their exact wording, so the prose can be reworded without breaking the test.
+def test_patch_experiment_description_teaches_metadata_conventions() -> None:
+    """Guard the load-bearing facts in the patch_experiment description, not their
+    exact wording, so the prose can be reworded without breaking the test.
 
-    The template must keep teaching the metadata conventions the agent relies on to
-    edit an experiment safely; each assertion below pins one of those facts.
+    The description must keep teaching the metadata conventions the agent relies on
+    to edit an experiment safely; each assertion below pins one of those facts.
     """
-    rendered = AgentPrompts().patch_experiment_tool.render()
+    description = patch_experiment.DESCRIPTION
 
-    # Renders the patch_experiment tool block.
-    assert '<tool name="patch_experiment">' in rendered
     # Teaches recording findings under an appended ``observations`` array.
-    assert "observations" in rendered
+    assert "observations" in description
     # Warns that metadata is replaced "as a whole" (no deep merge) — the key foot-gun.
-    assert "as a whole" in rendered
+    assert "as a whole" in description
     # Stays off the earlier "lab notebook" metaphor we deliberately dropped.
-    assert "lab notebook" not in rendered.lower()
+    assert "lab notebook" not in description.lower()
 
 
 def test_get_route_info_is_registered_as_external_tool() -> None:
@@ -224,25 +213,20 @@ def test_read_dataset_evaluator_definition_parameters_take_bounded_id_array() ->
     assert ids["maxItems"] == read_dataset_evaluator_definition.MAX_EVALUATOR_IDS
 
 
-def test_set_dataset_evaluator_selection_instructions_pin_whole_set_contract() -> None:
-    rendered = AgentPrompts().set_dataset_evaluator_selection_tool.render()
-
-    assert '<tool name="set_dataset_evaluator_selection">' in rendered
-    assert "datasetEvaluatorIds" in rendered
+def test_set_dataset_evaluator_selection_description_pins_whole_set_contract() -> None:
+    assert "datasetEvaluatorIds" in set_dataset_evaluator_selection.DESCRIPTION
 
 
-def test_open_dataset_evaluator_for_edit_instructions_pin_builtin_and_collision_guards() -> None:
-    rendered = AgentPrompts().open_dataset_evaluator_for_edit_tool.render()
+def test_open_dataset_evaluator_for_edit_description_pins_builtin_and_collision_guards() -> None:
+    description = open_dataset_evaluator_for_edit.DESCRIPTION
 
-    assert '<tool name="open_dataset_evaluator_for_edit">' in rendered
-    assert "datasetEvaluatorId" in rendered
-    assert "built-in" in rendered
-    assert "close the open form" in rendered
+    assert "datasetEvaluatorId" in description
+    assert "built-in" in description
+    assert "close the open form" in description
 
 
-def test_read_dataset_evaluator_definition_instructions_pin_read_only_contract() -> None:
-    rendered = AgentPrompts().read_dataset_evaluator_definition_tool.render()
+def test_read_dataset_evaluator_definition_description_pins_read_only_contract() -> None:
+    description = read_dataset_evaluator_definition.DESCRIPTION
 
-    assert '<tool name="read_dataset_evaluator_definition">' in rendered
-    assert "datasetEvaluatorIds" in rendered
-    assert "truncated" in rendered
+    assert "datasetEvaluatorIds" in description
+    assert "truncated" in description

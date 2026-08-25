@@ -20,6 +20,11 @@ export interface BadgeProps extends StylableProps {
    */
   children: ReactNode;
   /**
+   * Merged with the badge's own class. The emotion jsx transform also
+   * delivers a caller's `css` prop through this.
+   */
+  className?: string;
+  /**
    * The variant controls the badge color.
    * @default 'default'
    */

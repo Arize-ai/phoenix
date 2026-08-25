@@ -1,16 +1,11 @@
 import { z } from "zod";
 
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt/schemas";
-import { ModelProviders } from "@phoenix/constants/generativeConstants";
+import { modelProviderSchema } from "@phoenix/utils/generativeUtils";
 
 export const listPlaygroundModelTargetsInputSchema = z
   .preprocess((input) => (input == null ? {} : input), z.object({}).strict())
   .transform(() => ({}));
-
-const modelProviderSchema = z.custom<ModelProvider>(
-  (provider) => typeof provider === "string" && provider in ModelProviders,
-  { message: "Invalid model provider." }
-);
 
 const builtinModelTargetSchema = z.object({
   type: z.literal("builtin"),

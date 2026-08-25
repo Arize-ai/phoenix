@@ -771,14 +771,12 @@ def test_schema_qualification_still_qualifies_tables_and_joins() -> None:
     assert "public.spans" in out and "public.traces" in out
 
 
-def test_postgres_dynamic_json_key_renders_as_jsonb_extract_path() -> None:
+def test_postgres_dynamic_json_key_keeps_the_arrow_operator() -> None:
     """`attributes -> k.key` must not reach PostgreSQL as `json_extract_path`.
 
-    That function takes `json`, not `jsonb`. The rewrite emits the jsonb
-    spelling so a dynamic key from jsonb_each actually runs.
-
-    WORKAROUND sqlglot<=30.15.0 -- delete this assertion when pin > 30.16.0:
-    #8063 already keeps `->`. Invert to assert the operator survives.
+    That function takes `json`, not `jsonb`, and would refuse the stored column.
+    The operator renders as itself, which is both what the caller wrote and what
+    an expression index over the same accessor matches.
     """
     allowlist = load_allowlist("postgresql")
     sql = (
@@ -788,12 +786,12 @@ def test_postgres_dynamic_json_key_renders_as_jsonb_extract_path() -> None:
     root = admit(parse_sql(sql, dialect="postgresql"), allowlist=allowlist, dialect="postgresql")
     ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
     out = render(rewrite(root, ctx), dialect="postgresql")
-    assert "JSONB_EXTRACT_PATH" in out.upper()
-    assert "JSON_EXTRACT_PATH(" not in out.upper().replace("JSONB_EXTRACT_PATH(", "")
-    assert "jsonb_extract_path" in ctx.applied
+    assert "-> k.key" in out
+    assert "EXTRACT_PATH" not in out.upper()
+    assert "jsonb_extract_path" not in ctx.applied
 
 
-def test_postgres_dynamic_json_key_scalar_renders_as_jsonb_extract_path_text() -> None:
+def test_postgres_dynamic_json_key_scalar_keeps_the_arrow_operator() -> None:
     allowlist = load_allowlist("postgresql")
     sql = (
         "SELECT s.attributes ->> k.key AS v FROM spans s "
@@ -802,8 +800,65 @@ def test_postgres_dynamic_json_key_scalar_renders_as_jsonb_extract_path_text() -
     root = admit(parse_sql(sql, dialect="postgresql"), allowlist=allowlist, dialect="postgresql")
     ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
     out = render(rewrite(root, ctx), dialect="postgresql")
-    assert "JSONB_EXTRACT_PATH_TEXT" in out.upper()
-    assert "JSON_EXTRACT_PATH_TEXT" not in out.upper().replace("JSONB_EXTRACT_PATH_TEXT", "")
+    assert "->> k.key" in out
+    assert "EXTRACT_PATH" not in out.upper()
+    assert "jsonb_extract_path" not in ctx.applied
+
+
+@pytest.mark.parametrize(
+    ("sql", "expected_operand"),
+    [
+        # `->` and `||` share a precedence class and associate left, so an
+        # unparenthesised `a -> 'x' || 'y'` is `(a -> 'x') || 'y'`.
+        ("SELECT json_extract(attributes, 'a' || 'b') AS v FROM spans", "('a' || 'b')"),
+        # Nested accessors are in that class as well.
+        (
+            "SELECT json_extract(attributes, attributes ->> 'k') AS v FROM spans",
+            "(attributes ->> 'k')",
+        ),
+        # Comparison forms that are neither infix nor prefix operators, and so
+        # are reached by exp.Predicate rather than by Binary or Unary.
+        (
+            "SELECT json_extract(attributes, name BETWEEN 'a' AND 'b') AS v FROM spans",
+            "(name BETWEEN 'a' AND 'b')",
+        ),
+        (
+            "SELECT json_extract(attributes, name IN ('a', 'b')) AS v FROM spans",
+            "(name IN ('a', 'b'))",
+        ),
+    ],
+)
+def test_postgres_operator_json_key_is_parenthesised(sql: str, expected_operand: str) -> None:
+    """A computed key must reach PostgreSQL grouped as the caller wrote it.
+
+    Only the function spelling produces this tree: written as an operator, the
+    same text groups in the parser the way PostgreSQL groups it, leaving the
+    extraction below the outer operator rather than at the top.
+    """
+    allowlist = load_allowlist("postgresql")
+    root = admit(parse_sql(sql, dialect="postgresql"), allowlist=allowlist, dialect="postgresql")
+    ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="postgresql")
+    assert expected_operand in out
+    assert "json_operand_parens" in ctx.applied
+    # The emitted SQL must parse back to an extraction, not to the outer operator.
+    reparsed = sqlglot.parse_one(out, read="postgres")
+    assert isinstance(reparsed, exp.Select)
+    assert isinstance(reparsed.expressions[0].this, (exp.JSONExtract, exp.JSONExtractScalar))
+
+
+def test_postgres_atomic_json_key_is_not_parenthesised() -> None:
+    """Guards the test above: parenthesising everything would also satisfy it."""
+    allowlist = load_allowlist("postgresql")
+    sql = (
+        "SELECT s.attributes -> k.key AS v FROM spans s "
+        "CROSS JOIN LATERAL jsonb_each(s.attributes) AS k"
+    )
+    root = admit(parse_sql(sql, dialect="postgresql"), allowlist=allowlist, dialect="postgresql")
+    ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
+    out = render(rewrite(root, ctx), dialect="postgresql")
+    assert "-> k.key" in out
+    assert "json_operand_parens" not in ctx.applied
 
 
 def test_postgres_literal_json_key_keeps_the_arrow_operator() -> None:
@@ -904,7 +959,9 @@ def test_json_path_with_an_embedded_quote_is_left_alone() -> None:
     from phoenix.server.mcp.sql.rewrite import _quoted_json_path
 
     path = parse_sql("SELECT json_extract(attributes, '$.a') FROM spans", dialect="sqlite")
-    node = next(iter(path.find_all(__import__("sqlglot").exp.JSONExtract)))
+    # Both classes: which one `json_extract` parses to is a parser detail, and
+    # the canonicaliser walks both for that reason.
+    node = next(iter(path.find_all(exp.JSONExtract, exp.JSONExtractScalar)))
     assert _quoted_json_path(node.expression) == '$."a"'
 
 

@@ -1,5 +1,4 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -9,9 +8,10 @@ import {
   Empty,
   Flex,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
+import type { ViewportModalOverlayProps } from "@phoenix/components";
 import type { EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation.graphql";
@@ -42,7 +42,7 @@ type EditCodeDatasetEvaluatorSlideoverProps = {
   datasetId: string;
   updateConnectionIds?: string[];
   onUpdate?: () => void;
-} & ModalOverlayProps;
+} & Omit<ViewportModalOverlayProps, "children">;
 
 export function EditCodeDatasetEvaluatorSlideover({
   datasetEvaluatorId,
@@ -55,7 +55,7 @@ export function EditCodeDatasetEvaluatorSlideover({
 }: EditCodeDatasetEvaluatorSlideoverProps) {
   const isDirtyRef = useRef(false);
 
-  // Reset dirty state when slideover opens
+  // Reset dirty state when the dialog opens.
   useEffect(() => {
     if (isOpen) {
       isDirtyRef.current = false;
@@ -80,8 +80,12 @@ export function EditCodeDatasetEvaluatorSlideover({
   }, []);
 
   return (
-    <ModalOverlay {...props} isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <Modal variant="slideover" size="fullscreen">
+    <ViewportModalOverlay
+      {...props}
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+    >
+      <ViewportModal size="fullscreen">
         <Dialog aria-label="Edit code evaluator on dataset">
           {({ close }) => (
             <Suspense
@@ -104,8 +108,8 @@ export function EditCodeDatasetEvaluatorSlideover({
             </Suspense>
           )}
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }
 

@@ -1,7 +1,10 @@
 import { useState } from "react";
 
 import { Button, DialogTrigger, Icon, Icons } from "@phoenix/components";
-import { Modal, ModalOverlay } from "@phoenix/components/core/overlay";
+import {
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components/core/overlay";
 
 import { NewPromptLabelDialog } from "./NewPromptLabelDialog";
 
@@ -18,16 +21,16 @@ export function NewPromptLabelButton() {
       >
         New Label
       </Button>
-      <ModalOverlay
+      <ViewportModalOverlay
         isOpen={showNewPromptLabelDialog}
         onOpenChange={setShowNewPromptLabelDialog}
       >
-        <Modal size="S">
+        <ViewportModal size="S">
           <NewPromptLabelDialog
             onCompleted={() => setShowNewPromptLabelDialog(false)}
           />
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

@@ -3,22 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "list_datasets"
 
-DESCRIPTION = (
-    "List the datasets in this Phoenix instance, returning each dataset's id, name, and example "
-    "count. Read-only. Filter by a case-insensitive substring of the name and/or by label names, "
-    "and paginate with a cursor. Use this to resolve which dataset the user means and to check "
-    "whether a name is already taken before creating one. Prefer this over hand-writing GraphQL."
-)
+DESCRIPTION = """\
+List the datasets in this Phoenix instance, returning each dataset's id, name, and example count. Read-only. Use this to resolve the user's loose reference ("my regression set") into a specific dataset id, to check whether a name is already taken before create_dataset, or when the user asks what datasets exist. Prefer this over hand-writing GraphQL (e.g. via bash).
+The name filter is a case-insensitive substring match, so it can return several datasets. When more than one could be what the user means, do not assume the first — use ask_user to confirm which dataset before acting on it.
+To find datasets carrying a label, pass the label name(s) in `labelNames` (discover label names with list_labels); it can be combined with the name filter.
+If the result reports more pages, call again with the returned cursor in `after` to continue."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -65,11 +63,6 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class ListDatasetsCapability(AbstractStaticCapability[AgentDependencies]):
-    instructions: Template
-
+class ListDatasetsCapability(AbstractCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_static_instructions(self) -> str:
-        return self.instructions.render()

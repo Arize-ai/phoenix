@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -20,6 +21,8 @@ from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     NativeToolRetryCapability,
+    PhoenixMCPCapability,
+    PhoenixMCPToolset,
     SkillsCapability,
     build_anthropic_prompt_cache_capability,
     get_context_capability_function,
@@ -46,6 +49,11 @@ from phoenix.server.api.context import Context
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
+if TYPE_CHECKING:
+    from fastmcp import FastMCP
+
+    from phoenix.server.bearer_auth import PhoenixUser
+
 
 def get_skills_capability_function(
     *,
@@ -70,6 +78,8 @@ def build_agent(
     model: Model,
     prompts: AgentPrompts | None = None,
     docs_mcp_server: MCPToolset[AgentDependencies] | None = None,
+    phoenix_mcp_server: "FastMCP | None" = None,
+    principal: "PhoenixUser | None" = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
     server_agent: AbstractAgent[None, str] | None = None,
@@ -85,6 +95,7 @@ def build_agent(
     schema: strawberry.Schema | None = None,
     build_graphql_context: Callable[[], Context] | None = None,
     allow_mutations: bool = False,
+    require_mutation_approval: bool = True,
     initial_bash_snapshot: bytes | None = None,
     on_bash_snapshot: Callable[[bytes], None] | None = None,
 ) -> AbstractAgent[AgentDependencies, AgentOutput]:
@@ -111,19 +122,14 @@ def build_agent(
         WriteSpanNoteCapability(
             db=db,
             event_queue=event_queue,
-            instructions=resolved_prompts.write_span_note_tool.render(),
             read_only=read_only,
             auth_enabled=auth_enabled,
             user_id=user_id,
             is_viewer=is_viewer,
         ),
-        GetCurrentDatetimeCapability(
-            instructions=resolved_prompts.get_current_datetime_tool.render(),
-        ),
+        GetCurrentDatetimeCapability(),
         DynamicCapability(
-            capability_func=get_external_tool_capability_function(
-                prompts=resolved_prompts,
-            ),
+            capability_func=get_external_tool_capability_function(),
         ),
         DynamicCapability(
             capability_func=get_context_capability_function(prompts=resolved_prompts),
@@ -139,8 +145,8 @@ def build_agent(
             BashCapability[AgentDependencies](
                 schema=schema,
                 build_graphql_context=build_graphql_context,
-                instructions=resolved_prompts.bash_tool.render(),
                 allow_mutations=allow_mutations,
+                require_mutation_approval=require_mutation_approval,
                 initial_snapshot=initial_bash_snapshot,
                 on_snapshot=on_bash_snapshot,
             )
@@ -154,6 +160,19 @@ def build_agent(
                 instructions=resolved_prompts.docs_tool,
             )
         )
+    if phoenix_mcp_server is not None:
+        # Per agent: the toolset carries this request's principal and this run's
+        # tool-group reveals.
+        capabilities.append(
+            PhoenixMCPCapability[AgentDependencies](
+                mcp_server=PhoenixMCPToolset[AgentDependencies](
+                    phoenix_mcp_server,
+                    principal=principal,
+                    id="phoenix_rest_api",
+                ),
+                instructions=resolved_prompts.phoenix_mcp_tools,
+            )
+        )
     if enable_web_access:
         if (web_search := build_web_search_capability(model)) is not None:
             capabilities.append(web_search)
@@ -165,7 +184,6 @@ def build_agent(
         capabilities.append(
             CallSubAgentCapability[AgentDependencies](
                 server_agent=server_agent,
-                instructions=resolved_prompts.call_subagent_tool.render(),
                 publish_subagent_message_chunk=publish_subagent_message_chunk,
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )

@@ -60,6 +60,13 @@ export type DSLFilterAIQueryProps = {
    * "describe spans in plain English". Falls back to a generic prompt.
    */
   placeholder?: string;
+  /**
+   * Withholds the conversion behaviors (sparkle toggle, Enter/Mod-Enter
+   * conversion) while true — e.g. while the vocabulary the `dsl` was derived
+   * from is still loading, when a conversion would teach the model no field
+   * names. The settings entry point still renders.
+   */
+  isDisabled?: boolean;
 };
 
 /**
@@ -125,8 +132,12 @@ export function AIQueryDSLFilterField<
     props;
   // The user's AI-query preference. The settings entry point renders
   // regardless (it is how the feature gets enabled); the conversion
-  // behaviors only engage when this is true.
-  const isAIActive = usePreferencesContext((state) => state.isAIQueryEnabled);
+  // behaviors only engage when this is true and the caller hasn't
+  // disabled them (e.g. while the DSL's vocabulary is still loading).
+  const isAIQueryEnabled = usePreferencesContext(
+    (state) => state.isAIQueryEnabled
+  );
+  const isAIActive = isAIQueryEnabled && aiQuery.isDisabled !== true;
   const { status, downloadProgress, generate, cancel } = useAIQuery({
     dsl: aiQuery.dsl,
     validate: validateCondition,
@@ -385,6 +396,7 @@ export function AIQueryDSLFilterField<
   // win.
   const aiKeymap = useMemo(
     () =>
+      // eslint-disable-next-line react/refs
       keymap.of([
         {
           key: "Enter",

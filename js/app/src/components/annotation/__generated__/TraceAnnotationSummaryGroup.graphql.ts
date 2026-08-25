@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7df481dd66302cd8fa8401f4583457c9>>
+ * @generated SignedSource<<674400daff6f33721ae562e1c4b84a63>>
  * @lightSyntaxTransform
  */
 
@@ -8,29 +8,10 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type TraceAnnotationSummaryGroup$data = {
-  readonly project: {
-    readonly annotationConfigs: {
-      readonly edges: ReadonlyArray<{
-        readonly node: {
-          readonly annotationType?: AnnotationType;
-          readonly id?: string;
-          readonly name?: string;
-          readonly optimizationDirection?: OptimizationDirection;
-          readonly values?: ReadonlyArray<{
-            readonly label: string;
-            readonly score: number | null;
-          }>;
-        };
-      }>;
-    };
-    readonly id: string;
-  };
-  readonly traceAnnotationSummaries: ReadonlyArray<{
+  readonly summaryTraceAnnotationSummaries: ReadonlyArray<{
     readonly count: number;
     readonly labelCount: number;
     readonly labelFractions: ReadonlyArray<{
@@ -41,13 +22,15 @@ export type TraceAnnotationSummaryGroup$data = {
     readonly name: string;
     readonly scoreCount: number;
   }>;
-  readonly traceAnnotations: ReadonlyArray<{
+  readonly summaryTraceAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
     readonly createdAt: string;
+    readonly explanation: string | null;
     readonly id: string;
     readonly label: string | null;
     readonly name: string;
     readonly score: number | null;
+    readonly updatedAt: string;
     readonly user: {
       readonly profilePictureUrl: string | null;
       readonly username: string;
@@ -61,13 +44,19 @@ export type TraceAnnotationSummaryGroup$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
+var v0 = [
+  {
+    "kind": "Literal",
+    "name": "filter",
+    "value": {
+      "exclude": {
+        "names": [
+          "note"
+        ]
+      }
+    }
+  }
+],
 v1 = {
   "alias": null,
   "args": null,
@@ -81,13 +70,6 @@ v2 = {
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "score",
-  "storageKey": null
 };
 return {
   "argumentDefinitions": [],
@@ -96,105 +78,36 @@ return {
   "name": "TraceAnnotationSummaryGroup",
   "selections": [
     {
-      "alias": null,
-      "args": null,
-      "concreteType": "Project",
-      "kind": "LinkedField",
-      "name": "project",
-      "plural": false,
-      "selections": [
-        (v0/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "AnnotationConfigConnection",
-          "kind": "LinkedField",
-          "name": "annotationConfigs",
-          "plural": false,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "AnnotationConfigEdge",
-              "kind": "LinkedField",
-              "name": "edges",
-              "plural": true,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": null,
-                  "kind": "LinkedField",
-                  "name": "node",
-                  "plural": false,
-                  "selections": [
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "annotationType",
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "AnnotationConfigBase",
-                      "abstractKey": "__isAnnotationConfigBase"
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v0/*:: as any*/),
-                        (v1/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "optimizationDirection",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "CategoricalAnnotationValue",
-                          "kind": "LinkedField",
-                          "name": "values",
-                          "plural": true,
-                          "selections": [
-                            (v2/*:: as any*/),
-                            (v3/*:: as any*/)
-                          ],
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "CategoricalAnnotationConfig",
-                      "abstractKey": null
-                    }
-                  ],
-                  "storageKey": null
-                }
-              ],
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
+      "alias": "summaryTraceAnnotations",
+      "args": (v0/*:: as any*/),
       "concreteType": "TraceAnnotation",
       "kind": "LinkedField",
       "name": "traceAnnotations",
       "plural": true,
       "selections": [
-        (v0/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "id",
+          "storageKey": null
+        },
         (v1/*:: as any*/),
         (v2/*:: as any*/),
-        (v3/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "explanation",
+          "storageKey": null
+        },
         {
           "alias": null,
           "args": null,
@@ -207,6 +120,13 @@ return {
           "args": null,
           "kind": "ScalarField",
           "name": "createdAt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "updatedAt",
           "storageKey": null
         },
         {
@@ -235,11 +155,11 @@ return {
           "storageKey": null
         }
       ],
-      "storageKey": null
+      "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
     },
     {
-      "alias": null,
-      "args": null,
+      "alias": "summaryTraceAnnotationSummaries",
+      "args": (v0/*:: as any*/),
       "concreteType": "AnnotationSummary",
       "kind": "LinkedField",
       "name": "traceAnnotationSummaries",
@@ -294,7 +214,7 @@ return {
         },
         (v1/*:: as any*/)
       ],
-      "storageKey": null
+      "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
     }
   ],
   "type": "Trace",
@@ -302,6 +222,6 @@ return {
 };
 })();
 
-(node as any).hash = "e7ae39b92a3d988c3293d53e493b6ad2";
+(node as any).hash = "a56c33b5183d0bdf9f6002c9b58e3216";
 
 export default node;

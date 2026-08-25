@@ -226,10 +226,9 @@ class ExperimentRunMetricComparisons:
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
-        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
-        allowed = info.context.allowed_provider_names
-        if allowed is not None:
-            available_providers = [p for p in available_providers if p.name in allowed]
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
+            info.context.allowed_provider_names
+        )
         return [
             GenerativeProvider(
                 name=provider_key.value,
