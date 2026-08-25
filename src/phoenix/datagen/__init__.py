@@ -25,7 +25,6 @@ from phoenix.datagen.loader import Scenario, ScenarioError, load_scenario
 from phoenix.datagen.replayer import Anomaly, AnomalyManifest, EmittedTrace, Replayer
 from phoenix.datagen.schema import (
     Archetype,
-    ComposerDefaults,
     Fragment,
     FragmentRecordV2,
     GenerationLane,
@@ -46,7 +45,6 @@ __all__ = [
     "ComposedSession",
     "ComposedTrace",
     "ComposerConfig",
-    "ComposerDefaults",
     "EmittedTrace",
     "Fragment",
     "FragmentRecordV2",

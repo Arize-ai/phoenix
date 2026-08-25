@@ -17,7 +17,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
-from phoenix.datagen.fetcher import AssetFetchError, fetch_scenario, load_asset_index
+from phoenix.datagen.fetcher import ScenarioFetchError, fetch_scenario, load_scenario_index
 from phoenix.datagen.loader import ScenarioError, load_scenario
 from scripts.datagen.bank import BankError, package_generation_run, read_v2_bank
 
@@ -92,7 +92,7 @@ def command(
     args = build_parser().parse_args(argv)
     try:
         result = _dispatch(args)
-    except (AssetFetchError, BankError, OSError, ScenarioError, ValueError) as error:
+    except (ScenarioFetchError, BankError, OSError, ScenarioError, ValueError) as error:
         print(
             json.dumps({"error": type(error).__name__, "message": str(error)}),
             file=stderr,
@@ -218,7 +218,7 @@ def prepare_publication(
         json.dumps(index_document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
-    entry = load_asset_index(staged_index)[asset.scenario]
+    entry = load_scenario_index(staged_index)[asset.scenario]
     if (
         entry.url != public_url
         or entry.sha256 != asset.sha256

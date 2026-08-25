@@ -67,7 +67,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     commands = parser.add_subparsers(dest="datagen_command")
     pull_parser = commands.add_parser("pull", help="Download and cache a scenario bank.")
     pull_parser.set_defaults(func=pull)
-    pull_parser.add_argument("scenario", help="Scenario name from the published asset index.")
+    pull_parser.add_argument("scenario", help="Scenario name from the published scenario index.")
     parser.add_argument(
         "--endpoint",
         help="Phoenix collector base URL (env: PHOENIX_COLLECTOR_ENDPOINT).",
@@ -75,10 +75,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser.add_argument("--api-key", help="Phoenix API key (env: PHOENIX_API_KEY).")
     parser.add_argument(
         "--scenario",
-        help=(
-            "Published scenario name, local directory, or HTTP(S) directory "
-            "(env: PHOENIX_DATAGEN_SCENARIO)."
-        ),
+        help="Published scenario name or local directory (env: PHOENIX_DATAGEN_SCENARIO).",
     )
     parser.add_argument(
         "--project",
@@ -111,17 +108,17 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser.add_argument(
         "--session-fragments-median",
         type=_positive_float,
-        help="Median fragments per virtual session (default: manifest or 2).",
+        help="Median fragments per virtual session (default: 2).",
     )
     parser.add_argument(
         "--session-fragments-sigma",
         type=_nonnegative_float,
-        help="Lognormal variability for fragments per session (default: manifest or 1.0).",
+        help="Lognormal variability for fragments per session (default: 1.0).",
     )
     parser.add_argument(
         "--session-fragments-max",
         type=_positive_int,
-        help="Maximum fragments per virtual session (default: manifest or 24).",
+        help="Maximum fragments per virtual session (default: 24).",
     )
     parser.add_argument(
         "--archetype-mix",
@@ -131,17 +128,17 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser.add_argument(
         "--fragment-gap-median-seconds",
         type=_nonnegative_float,
-        help="Median virtual gap between fragments (default: manifest or 180).",
+        help="Median virtual gap between fragments (default: 180).",
     )
     parser.add_argument(
         "--fragment-gap-sigma",
         type=_nonnegative_float,
-        help="Lognormal variability for virtual fragment gaps (default: manifest or 0.9).",
+        help="Lognormal variability for virtual fragment gaps (default: 0.9).",
     )
     parser.add_argument(
         "--fragment-gap-max-seconds",
         type=_nonnegative_float,
-        help="Maximum virtual gap between fragments (default: manifest or 3600).",
+        help="Maximum virtual gap between fragments (default: 3600).",
     )
     parser.add_argument(
         "--rate-schedule",

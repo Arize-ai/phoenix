@@ -1,6 +1,24 @@
 {
-  "scenario": "split-trace",
+  "schema_version": 2,
+  "scenario_name": "split-trace",
+  "generated_at": "2026-08-25T00:00:00Z",
+  "generation_revision": "fixture-v1",
+  "matrix_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "matrix_seed": 11,
+  "fragment_count": 1,
   "trace_count": 1,
   "span_count": 2,
-  "encoding": "OTLP ExportTraceServiceRequest protobuf JSON, one request per line"
+  "span_kinds": ["UNKNOWN"],
+  "instrumenter_package_versions": {"synthetic": "1.0.0"},
+  "files": {
+    "fragments.jsonl": {
+      "sha256": "6eceee32196bc37cc9cef7a29050d1ab6685022b15b0e0a6fb98341a63bee1d7",
+      "size_bytes": 592
+    },
+    "traces.jsonl": {
+      "sha256": "b128f91e9fe567c1ae46a9886849185ef254105a1bc7333613f8fc0673396638",
+      "size_bytes": 653
+    }
+  },
+  "quality_gate_summary": {"accepted": 1, "rejected": 0}
 }

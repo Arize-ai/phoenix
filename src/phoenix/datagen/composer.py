@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import isfinite, log
-from typing import Any, Mapping, Sequence, cast
+from typing import Mapping, Sequence, cast
 
 import numpy as np
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
@@ -45,59 +45,6 @@ class ComposerConfig:
                 raise ValueError(f"unsupported archetype in mix: {archetype}")
             if not isfinite(weight) or weight <= 0:
                 raise ValueError(f"archetype weight for {archetype} must be greater than zero")
-
-    @classmethod
-    def from_manifest(
-        cls,
-        manifest: Mapping[str, Any],
-        *,
-        session_fragments_median: float | None = None,
-        session_fragments_sigma: float | None = None,
-        session_fragments_max: int | None = None,
-        archetype_mix: Mapping[Archetype, float] | None = None,
-        fragment_gap_median_seconds: float | None = None,
-        fragment_gap_sigma: float | None = None,
-        fragment_gap_max_seconds: float | None = None,
-    ) -> ComposerConfig:
-        """Resolve CLI overrides over manifest and built-in defaults."""
-        manifest_defaults = manifest.get("composer_defaults")
-        defaults = manifest_defaults if isinstance(manifest_defaults, Mapping) else {}
-
-        def resolved(
-            name: str,
-            override: float | int | None,
-            fallback: float | int,
-        ) -> float | int:
-            if override is not None:
-                return override
-            value = defaults.get(name)
-            return (
-                value
-                if isinstance(value, (int, float)) and not isinstance(value, bool)
-                else fallback
-            )
-
-        manifest_mix = defaults.get("archetype_mix")
-        resolved_mix = archetype_mix
-        if resolved_mix is None and isinstance(manifest_mix, Mapping) and manifest_mix:
-            resolved_mix = cast(Mapping[Archetype, float], manifest_mix)
-        return cls(
-            session_fragments_median=float(
-                resolved("session_fragments_median", session_fragments_median, 2.0)
-            ),
-            session_fragments_sigma=float(
-                resolved("session_fragments_sigma", session_fragments_sigma, 1.0)
-            ),
-            session_fragments_max=int(resolved("session_fragments_max", session_fragments_max, 24)),
-            archetype_mix=resolved_mix,
-            fragment_gap_median_seconds=float(
-                resolved("fragment_gap_median_seconds", fragment_gap_median_seconds, 180.0)
-            ),
-            fragment_gap_sigma=float(resolved("fragment_gap_sigma", fragment_gap_sigma, 0.9)),
-            fragment_gap_max_seconds=float(
-                resolved("fragment_gap_max_seconds", fragment_gap_max_seconds, 3600.0)
-            ),
-        )
 
 
 @dataclass(frozen=True)

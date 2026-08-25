@@ -9,7 +9,7 @@ from typing import Callable
 import pytest
 
 from phoenix.datagen import load_scenario
-from phoenix.datagen.fetcher import AssetFetchError, fetch_scenario, load_asset_index
+from phoenix.datagen.fetcher import ScenarioFetchError, fetch_scenario, load_scenario_index
 
 
 def test_fetch_scenario_caches_a_checksum_verified_bank(tmp_path: Path) -> None:
@@ -41,25 +41,35 @@ def test_fetch_scenario_caches_a_checksum_verified_bank(tmp_path: Path) -> None:
     assert downloads == 1
 
 
-def test_fetch_scenario_preserves_a_v1_starter_asset(tmp_path: Path) -> None:
-    archive = _build_archive(tmp_path, "legacy-starter", asset_schema_version=1)
-    index = _write_index(tmp_path, "legacy-starter", archive, asset_schema_version=1)
-
-    cached = fetch_scenario(
-        "legacy-starter",
-        cache_dir=tmp_path / "cache",
-        index_path=index,
-        downloader=_copy_downloader(archive),
+def test_fetch_scenario_refuses_a_version_1_index_entry(tmp_path: Path) -> None:
+    index = tmp_path / "index.json"
+    index.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "scenarios": {
+                    "legacy-starter": {
+                        "url": "https://assets.example/legacy-starter.tar.gz",
+                        "sha256": "0" * 64,
+                        "size_bytes": 1,
+                        "asset_schema_version": 1,
+                        "fragment_count": 0,
+                        "archetypes": [],
+                    }
+                },
+            }
+        )
     )
 
-    assert load_scenario(cached).schema_version == 1
+    with pytest.raises(ScenarioFetchError, match="'asset_schema_version' must be 2"):
+        fetch_scenario("legacy-starter", cache_dir=tmp_path / "cache", index_path=index)
 
 
 def test_fetch_scenario_refuses_a_checksum_mismatch(tmp_path: Path) -> None:
     archive = _build_archive(tmp_path, "remote-bank")
     index = _write_index(tmp_path, "remote-bank", archive, digest="0" * 64)
 
-    with pytest.raises(AssetFetchError, match="checksum mismatch"):
+    with pytest.raises(ScenarioFetchError, match="checksum mismatch"):
         fetch_scenario(
             "remote-bank",
             cache_dir=tmp_path / "cache",
@@ -74,7 +84,7 @@ def test_fetch_scenario_refuses_archive_traversal(tmp_path: Path) -> None:
     archive = _build_archive(tmp_path, "remote-bank", unsafe_member="../outside")
     index = _write_index(tmp_path, "remote-bank", archive)
 
-    with pytest.raises(AssetFetchError, match="unsafe member"):
+    with pytest.raises(ScenarioFetchError, match="unsafe member"):
         fetch_scenario(
             "remote-bank",
             cache_dir=tmp_path / "cache",
@@ -89,7 +99,7 @@ def test_fetch_scenario_refuses_manifest_file_digest_mismatch(tmp_path: Path) ->
     archive = _build_archive(tmp_path, "remote-bank", corrupt_traces=True)
     index = _write_index(tmp_path, "remote-bank", archive)
 
-    with pytest.raises(AssetFetchError, match="file metadata"):
+    with pytest.raises(ScenarioFetchError, match="file metadata"):
         fetch_scenario(
             "remote-bank",
             cache_dir=tmp_path / "cache",
@@ -98,7 +108,7 @@ def test_fetch_scenario_refuses_manifest_file_digest_mismatch(tmp_path: Path) ->
         )
 
 
-def test_load_asset_index_uses_a_cached_copy_when_offline(tmp_path: Path) -> None:
+def test_load_scenario_index_uses_a_cached_copy_when_offline(tmp_path: Path) -> None:
     archive = _build_archive(tmp_path, "remote-bank")
     source_index = _write_index(tmp_path, "remote-bank", archive)
     downloads = 0
@@ -111,19 +121,19 @@ def test_load_asset_index_uses_a_cached_copy_when_offline(tmp_path: Path) -> Non
         else:
             raise OSError("offline")
 
-    first = load_asset_index(cache_dir=tmp_path / "cache", downloader=download)
-    second = load_asset_index(cache_dir=tmp_path / "cache", downloader=download)
+    first = load_scenario_index(cache_dir=tmp_path / "cache", downloader=download)
+    second = load_scenario_index(cache_dir=tmp_path / "cache", downloader=download)
 
     assert first == second
     assert set(second) == {"remote-bank"}
 
 
-def test_load_asset_index_explains_how_to_recover_when_offline(tmp_path: Path) -> None:
+def test_load_scenario_index_explains_how_to_recover_when_offline(tmp_path: Path) -> None:
     def offline(_url: str, _destination: Path) -> None:
         raise OSError("offline")
 
-    with pytest.raises(AssetFetchError, match="PHOENIX_DATAGEN_ASSETS_BASE_URL"):
-        load_asset_index(cache_dir=tmp_path / "cache", downloader=offline)
+    with pytest.raises(ScenarioFetchError, match="PHOENIX_DATAGEN_SCENARIO_BASE_URL"):
+        load_scenario_index(cache_dir=tmp_path / "cache", downloader=offline)
 
 
 def test_load_scenario_lazily_resolves_an_indexed_name(
@@ -145,16 +155,11 @@ def _build_archive(
     unsafe_member: str | None = None,
     *,
     corrupt_traces: bool = False,
-    asset_schema_version: int = 2,
 ) -> Path:
-    fixture_name = "fragment_bank" if asset_schema_version == 2 else "scenario"
-    fixture = Path(__file__).parent / "fixtures" / fixture_name
+    fixture = Path(__file__).parent / "fixtures" / "fragment_bank"
     archive = tmp_path / f"{scenario}.tar.gz"
     with tarfile.open(archive, "w:gz") as output:
-        filenames = ["manifest.json", "traces.jsonl"]
-        if asset_schema_version == 2:
-            filenames.insert(1, "fragments.jsonl")
-        for filename in filenames:
+        for filename in ("manifest.json", "fragments.jsonl", "traces.jsonl"):
             if filename == "traces.jsonl" and corrupt_traces:
                 content = (fixture / filename).read_bytes() + b"\n"
                 member = tarfile.TarInfo(f"{scenario}/{filename}")
@@ -175,7 +180,6 @@ def _write_index(
     archive: Path,
     *,
     digest: str | None = None,
-    asset_schema_version: int = 2,
 ) -> Path:
     index = tmp_path / "index.json"
     content = archive.read_bytes()
@@ -188,9 +192,9 @@ def _write_index(
                         "url": f"https://assets.example/{archive.name}",
                         "sha256": digest or sha256(content).hexdigest(),
                         "size_bytes": len(content),
-                        "asset_schema_version": asset_schema_version,
-                        "fragment_count": 2 if asset_schema_version == 2 else 0,
-                        "archetypes": ["plain_chat", "rag"] if asset_schema_version == 2 else [],
+                        "asset_schema_version": 2,
+                        "fragment_count": 2,
+                        "archetypes": ["plain_chat", "rag"],
                     }
                 },
             }

@@ -121,6 +121,18 @@ def test_composer_keeps_same_archetype_sessions_within_one_application() -> None
     assert {session.fragments[0].domain for session in sessions} == {"support", "analytics"}
 
 
+def test_composer_runs_on_the_config_field_defaults() -> None:
+    scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
+    config = ComposerConfig()
+    composer = SessionComposer(scenario, config=config, random=np.random.default_rng(11))
+
+    session = composer.compose(now_ns=100_000_000_000)
+
+    assert 1 <= len(session.fragments) <= config.session_fragments_max
+    assert all(fragment.archetype == session.archetype for fragment in session.fragments)
+    assert session.end_time_ns == 100_000_000_000
+
+
 def _scenario_with_two_plain_chat_fragments() -> Scenario:
     scenario = load_scenario(Path(__file__).parent / "fixtures" / "fragment_bank")
     return Scenario(

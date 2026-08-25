@@ -136,18 +136,24 @@ class Replayer:
         )
         self._identity_random = np.random.default_rng(identity_seed)
         self._project_name = project_name or f"datagen-{_scenario_name(scenario)}"
+        composer_overrides: Mapping[str, Any] = {
+            "session_fragments_median": session_fragments_median,
+            "session_fragments_sigma": session_fragments_sigma,
+            "session_fragments_max": session_fragments_max,
+            "archetype_mix": archetype_mix,
+            "fragment_gap_median_seconds": fragment_gap_median_seconds,
+            "fragment_gap_sigma": fragment_gap_sigma,
+            "fragment_gap_max_seconds": fragment_gap_max_seconds,
+        }
         self._composer = (
             SessionComposer(
                 scenario,
-                config=ComposerConfig.from_manifest(
-                    scenario.manifest,
-                    session_fragments_median=session_fragments_median,
-                    session_fragments_sigma=session_fragments_sigma,
-                    session_fragments_max=session_fragments_max,
-                    archetype_mix=archetype_mix,
-                    fragment_gap_median_seconds=fragment_gap_median_seconds,
-                    fragment_gap_sigma=fragment_gap_sigma,
-                    fragment_gap_max_seconds=fragment_gap_max_seconds,
+                config=ComposerConfig(
+                    **{
+                        name: value
+                        for name, value in composer_overrides.items()
+                        if value is not None
+                    }
                 ),
                 random=self._random,
             )

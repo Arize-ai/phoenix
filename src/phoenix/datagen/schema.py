@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from math import isfinite
 from typing import Any, Literal, Mapping, Sequence, TypedDict, cast
 
 Archetype = Literal[
@@ -47,16 +46,6 @@ class FileMetadata(TypedDict):
     size_bytes: int
 
 
-class ComposerDefaults(TypedDict):
-    session_fragments_median: float
-    session_fragments_sigma: float
-    session_fragments_max: int
-    archetype_mix: Mapping[Archetype, float]
-    fragment_gap_median_seconds: float
-    fragment_gap_sigma: float
-    fragment_gap_max_seconds: float
-
-
 class ScenarioManifestV2(TypedDict):
     schema_version: Literal[2]
     scenario_name: str
@@ -71,7 +60,6 @@ class ScenarioManifestV2(TypedDict):
     instrumenter_package_versions: Mapping[str, str]
     files: Mapping[str, FileMetadata]
     quality_gate_summary: Mapping[str, Any]
-    composer_defaults: ComposerDefaults
 
 
 class ModelUsedRecord(TypedDict):
@@ -173,7 +161,6 @@ def validate_manifest_v2(value: Mapping[str, Any]) -> ScenarioManifestV2:
         _require_int(metadata, "size_bytes", minimum=0, prefix=field)
 
     _require_mapping(value, "quality_gate_summary")
-    _validate_composer_defaults(_require_mapping(value, "composer_defaults"))
     return cast(ScenarioManifestV2, value)
 
 
@@ -248,25 +235,6 @@ def validate_fragment_v2(value: Mapping[str, Any]) -> Fragment:
     )
 
 
-def _validate_composer_defaults(value: Mapping[str, Any]) -> None:
-    _require_number(value, "session_fragments_median", minimum=0, exclusive_minimum=True)
-    _require_number(value, "session_fragments_sigma", minimum=0)
-    _require_int(value, "session_fragments_max", minimum=1)
-    archetype_mix = _require_mapping(value, "archetype_mix")
-    for archetype, weight in archetype_mix.items():
-        if archetype not in ARCHETYPES:
-            raise SchemaValidationError(
-                f"composer_defaults.archetype_mix.{archetype}", "is not a supported archetype"
-            )
-        if not _is_number(weight) or weight <= 0:
-            raise SchemaValidationError(
-                f"composer_defaults.archetype_mix.{archetype}", "must be greater than zero"
-            )
-    _require_number(value, "fragment_gap_median_seconds", minimum=0)
-    _require_number(value, "fragment_gap_sigma", minimum=0)
-    _require_number(value, "fragment_gap_max_seconds", minimum=0)
-
-
 def _require_mapping(value: Mapping[str, Any], field: str) -> Mapping[str, Any]:
     item = value.get(field)
     if not isinstance(item, Mapping):
@@ -307,26 +275,6 @@ def _require_int(
     return item
 
 
-def _require_number(
-    value: Mapping[str, Any],
-    field: str,
-    *,
-    minimum: float,
-    exclusive_minimum: bool = False,
-) -> float:
-    item = value.get(field)
-    number = cast(int | float, item)
-    invalid = not _is_number(item)
-    if not invalid:
-        invalid = number <= minimum if exclusive_minimum else number < minimum
-    if invalid:
-        comparison = "greater than" if exclusive_minimum else "greater than or equal to"
-        raise SchemaValidationError(
-            f"composer_defaults.{field}", f"must be a number {comparison} {minimum}"
-        )
-    return float(number)
-
-
 def _require_literal(value: Mapping[str, Any], field: str, expected: Any) -> None:
     if value.get(field) != expected or type(value.get(field)) is not type(expected):
         raise SchemaValidationError(field, f"must be {expected!r}")
@@ -337,10 +285,6 @@ def _require_choice(value: Mapping[str, Any], field: str, choices: frozenset[str
     if not isinstance(item, str) or item not in choices:
         raise SchemaValidationError(field, f"must be one of {sorted(choices)!r}")
     return item
-
-
-def _is_number(value: Any) -> bool:
-    return type(value) in (int, float) and isfinite(value)
 
 
 def _field(prefix: str, field: str) -> str:

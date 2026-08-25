@@ -1,3 +1,4 @@
+import dataclasses
 import hashlib
 import json
 from collections import Counter
@@ -22,7 +23,7 @@ _TOTAL_TOKENS = "llm.token_count.total"
 
 def test_replayer_groups_trace_spans_across_jsonl_lines() -> None:
     scenario_path = Path(__file__).parent / "fixtures" / "split_trace"
-    scenario = load_scenario(scenario_path)
+    scenario = _without_fragments(load_scenario(scenario_path))
 
     assert len(scenario.requests) == scenario.manifest["trace_count"] == 1
     request = scenario.requests[0]
@@ -555,7 +556,12 @@ def test_replayer_rejects_invalid_error_rate(error_rate: float) -> None:
 
 
 def _fixture_scenario() -> Scenario:
-    return load_scenario(Path(__file__).parent / "fixtures" / "scenario")
+    return _without_fragments(load_scenario(Path(__file__).parent / "fixtures" / "scenario"))
+
+
+def _without_fragments(scenario: Scenario) -> Scenario:
+    """Drop fragments so Replayer skips session composition."""
+    return dataclasses.replace(scenario, fragments=())
 
 
 def _iter_spans(request: ExportTraceServiceRequest) -> Iterator[Span]:

@@ -21,7 +21,6 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
 from phoenix.datagen.schema import (
-    ComposerDefaults,
     Fragment,
     ScenarioManifestV2,
     SchemaValidationError,
@@ -71,7 +70,7 @@ def package_generation_run(
     generated_at: str,
     generation_revision: str,
     instrumenter_package_versions: Mapping[str, str],
-    composer_defaults: ComposerDefaults | None = None,
+    composer_defaults: Mapping[str, Any] | None = None,
 ) -> BankPackage:
     """Package accepted run fragments and their raw staged OTLP requests atomically."""
     run = GenerationRun.resume(run_dir)
@@ -679,7 +678,7 @@ def _judgment_summary(
     }
 
 
-def _default_composer(rows: Sequence[Mapping[str, Any]]) -> ComposerDefaults:
+def _default_composer(rows: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
     archetypes = sorted({row["archetype"] for row in rows})
     return {
         "session_fragments_median": 2.0,
