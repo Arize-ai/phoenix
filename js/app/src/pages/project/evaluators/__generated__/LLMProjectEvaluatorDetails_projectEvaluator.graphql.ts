@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bf86473a5f192e9a8aaff703bd0c421f>>
+ * @generated SignedSource<<86e95b7e76bbb9d96cb6aea1ae439fbb>>
  * @lightSyntaxTransform
  */
 
@@ -10,34 +10,10 @@
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type LLMProjectEvaluatorDetails_projectEvaluator$data = {
   readonly evaluator: {
     readonly kind: EvaluatorKind;
-    readonly outputConfigs?: ReadonlyArray<{
-      readonly __typename: "CategoricalAnnotationConfig";
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly values: ReadonlyArray<{
-        readonly label: string;
-        readonly score: number | null;
-      }>;
-    } | {
-      readonly __typename: "ContinuousAnnotationConfig";
-      readonly lowerBound: number | null;
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly upperBound: number | null;
-    } | {
-      readonly __typename: "FreeformAnnotationConfig";
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-    } | {
-      // This will never be '%other', but we need some
-      // value in case none of the concrete values match.
-      readonly __typename: "%other";
-    }>;
     readonly prompt?: {
       readonly id: string;
       readonly name: string;
@@ -48,18 +24,6 @@ export type LLMProjectEvaluatorDetails_projectEvaluator$data = {
       };
       readonly modelName: string;
       readonly modelProvider: ModelProvider;
-      readonly tools: {
-        readonly tools: ReadonlyArray<{
-          readonly __typename: "PromptToolFunction";
-          readonly function: {
-            readonly parameters: any;
-          };
-        } | {
-          // This will never be '%other', but we need some
-          // value in case none of the concrete values match.
-          readonly __typename: "%other";
-        }>;
-      } | null;
       readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main">;
     };
     readonly promptVersionTag?: {
@@ -132,13 +96,6 @@ v7 = {
   "args": null,
   "kind": "ScalarField",
   "name": "stopSequences",
-  "storageKey": null
-},
-v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "optimizationDirection",
   "storageKey": null
 };
 return {
@@ -471,54 +428,6 @@ return {
                   "storageKey": null
                 },
                 {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "PromptTools",
-                  "kind": "LinkedField",
-                  "name": "tools",
-                  "plural": false,
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": null,
-                      "kind": "LinkedField",
-                      "name": "tools",
-                      "plural": true,
-                      "selections": [
-                        (v1/*:: as any*/),
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "PromptToolFunctionDefinition",
-                              "kind": "LinkedField",
-                              "name": "function",
-                              "plural": false,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "parameters",
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "PromptToolFunction",
-                          "abstractKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "storageKey": null
-                },
-                {
                   "args": null,
                   "kind": "FragmentSpread",
                   "name": "PromptChatMessagesCard__main"
@@ -537,84 +446,6 @@ return {
                 (v0/*:: as any*/)
               ],
               "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": null,
-              "kind": "LinkedField",
-              "name": "outputConfigs",
-              "plural": true,
-              "selections": [
-                (v1/*:: as any*/),
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v0/*:: as any*/),
-                    (v8/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "CategoricalAnnotationValue",
-                      "kind": "LinkedField",
-                      "name": "values",
-                      "plural": true,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "label",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "score",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "CategoricalAnnotationConfig",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v0/*:: as any*/),
-                    (v8/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "lowerBound",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "upperBound",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "ContinuousAnnotationConfig",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v0/*:: as any*/),
-                    (v8/*:: as any*/)
-                  ],
-                  "type": "FreeformAnnotationConfig",
-                  "abstractKey": null
-                }
-              ],
-              "storageKey": null
             }
           ],
           "type": "LLMEvaluator",
@@ -629,6 +460,6 @@ return {
 };
 })();
 
-(node as any).hash = "6fdf5926d2b416baccc4a12f21117549";
+(node as any).hash = "af65dd83f6b42a07106cd87322f53817";
 
 export default node;
