@@ -167,7 +167,9 @@ export function getProjectEvaluatorStatus({
 }: {
   schedulabilityStatus: string;
   schedulabilityReason: string | null | undefined;
-  runSummary: ProjectEvaluatorRunSummary;
+  // Only the status is read, so callers that have just that -- the page header
+  // reads it off its own query -- need not fetch the counts as well.
+  runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
   if (schedulabilityStatus === "NOT_SCHEDULABLE") {
     return {
