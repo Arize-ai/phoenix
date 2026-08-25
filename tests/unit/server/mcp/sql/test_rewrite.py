@@ -174,7 +174,7 @@ def test_exempt_table_not_wrapped() -> None:
     root = parse_sql("SELECT name FROM projects", dialect="postgresql")
     root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
     out = render(rewrite(root, _ctx("postgresql")), dialect="postgresql")
-    assert "AS projects" not in out or "SELECT" in out
+    assert out == "SELECT name FROM public.projects LIMIT 501"
 
 
 # Index reflection: the classification is pure, so it is asserted without a
@@ -2208,8 +2208,10 @@ def test_a_json_key_containing_a_quote_is_escaped(sql: str, dialect: str) -> Non
 
 def test_a_json_key_without_a_quote_keeps_its_path_form() -> None:
     """Guards the test above: rewriting every path would also satisfy it."""
-    rendered = _rendered("SELECT attributes -> '$.llm' AS v FROM spans")
-    assert "json_path_quote_repair" not in _ctx("sqlite").applied
+    ctx, rendered = _rewritten("SELECT attributes -> '$.llm' AS v FROM spans", dialect="sqlite")
+    # The pass leaves the operator in place and swaps only the path, so the
+    # operator surviving is not evidence that the path did.
+    assert "json_path_quote_repair" not in ctx.applied
     assert "->" in rendered
 
 
