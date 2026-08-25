@@ -14,7 +14,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 
-from phoenix.datagen import AnomalyManifest, Replayer, Scenario, load_scenario
+from phoenix.datagen import AnomalyManifest, ComposerConfig, Replayer, Scenario, load_scenario
 
 _PROMPT_TOKENS = "llm.token_count.prompt"
 _COMPLETION_TOKENS = "llm.token_count.completion"
@@ -304,13 +304,15 @@ def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -
         scenario,
         epsilon=0,
         seed=7,
-        session_fragments_median=2,
-        session_fragments_sigma=0,
-        session_fragments_max=2,
-        archetype_mix={"plain_chat": 1},
-        fragment_gap_median_seconds=5,
-        fragment_gap_sigma=0,
-        fragment_gap_max_seconds=5,
+        composer_config=ComposerConfig(
+            session_fragments_median=2,
+            session_fragments_sigma=0,
+            session_fragments_max=2,
+            archetype_mix={"plain_chat": 1},
+            fragment_gap_median_seconds=5,
+            fragment_gap_sigma=0,
+            fragment_gap_max_seconds=5,
+        ),
     )
     wall_time_ns = 100_000_000_000
 
@@ -385,13 +387,15 @@ def test_scheduled_start_anchors_earliest_composed_trace_monotonically() -> None
         scenario,
         epsilon=0,
         seed=7,
-        session_fragments_median=2,
-        session_fragments_sigma=0,
-        session_fragments_max=2,
-        archetype_mix={"plain_chat": 1},
-        fragment_gap_median_seconds=5,
-        fragment_gap_sigma=0,
-        fragment_gap_max_seconds=5,
+        composer_config=ComposerConfig(
+            session_fragments_median=2,
+            session_fragments_sigma=0,
+            session_fragments_max=2,
+            archetype_mix={"plain_chat": 1},
+            fragment_gap_median_seconds=5,
+            fragment_gap_sigma=0,
+            fragment_gap_max_seconds=5,
+        ),
     )
     wall_time_ns = 200_000_000_000_000
     boundary_ns = wall_time_ns - 48 * 60 * 60 * 1_000_000_000

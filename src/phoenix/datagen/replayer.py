@@ -23,7 +23,6 @@ from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 
 from phoenix.datagen.composer import ComposerConfig, SessionComposer
 from phoenix.datagen.loader import Scenario
-from phoenix.datagen.schema import Archetype
 
 _SESSION_ID = "session.id"
 _PROMPT_TOKENS = "llm.token_count.prompt"
@@ -111,13 +110,7 @@ class Replayer:
         epsilon: float = 0.02,
         seed: int | None = None,
         project_name: str | None = None,
-        session_fragments_median: float | None = None,
-        session_fragments_sigma: float | None = None,
-        session_fragments_max: int | None = None,
-        archetype_mix: Mapping[Archetype, float] | None = None,
-        fragment_gap_median_seconds: float | None = None,
-        fragment_gap_sigma: float | None = None,
-        fragment_gap_max_seconds: float | None = None,
+        composer_config: ComposerConfig | None = None,
         error_rate: float = 0.0,
     ) -> None:
         if not 0.0 <= epsilon <= 1.0:
@@ -136,25 +129,10 @@ class Replayer:
         )
         self._identity_random = np.random.default_rng(identity_seed)
         self._project_name = project_name or "phoenix-datagen"
-        composer_overrides: Mapping[str, Any] = {
-            "session_fragments_median": session_fragments_median,
-            "session_fragments_sigma": session_fragments_sigma,
-            "session_fragments_max": session_fragments_max,
-            "archetype_mix": archetype_mix,
-            "fragment_gap_median_seconds": fragment_gap_median_seconds,
-            "fragment_gap_sigma": fragment_gap_sigma,
-            "fragment_gap_max_seconds": fragment_gap_max_seconds,
-        }
         self._composer = (
             SessionComposer(
                 scenario,
-                config=ComposerConfig(
-                    **{
-                        name: value
-                        for name, value in composer_overrides.items()
-                        if value is not None
-                    }
-                ),
+                config=composer_config or ComposerConfig(),
                 random=self._random,
             )
             if scenario.fragments

@@ -5,13 +5,11 @@ import re
 import time
 from argparse import Namespace
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Mapping, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, Mapping, TypeVar
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser, _SubParsersAction
-
-    from phoenix.datagen.schema import Archetype
 
 _DEFAULT_ENDPOINT = "http://localhost:6006"
 _DEFAULT_RATE = 12.0
@@ -44,13 +42,6 @@ class _Config:
     epsilon: float
     seed: int
     anomaly_manifest: str | None
-    session_fragments_median: float | None
-    session_fragments_sigma: float | None
-    session_fragments_max: int | None
-    archetype_mix: Mapping[Archetype, float] | None
-    fragment_gap_median_seconds: float | None
-    fragment_gap_sigma: float | None
-    fragment_gap_max_seconds: float | None
     rate_schedule: str
     timezone: str
     backfill_seconds: float | None
@@ -113,41 +104,6 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
         help="Append emitted anomaly ground truth as JSONL.",
     )
     parser.add_argument(
-        "--session-fragments-median",
-        type=_positive_float,
-        help="Median fragments per virtual session (default: 2).",
-    )
-    parser.add_argument(
-        "--session-fragments-sigma",
-        type=_nonnegative_float,
-        help="Lognormal variability for fragments per session (default: 1.0).",
-    )
-    parser.add_argument(
-        "--session-fragments-max",
-        type=_positive_int,
-        help="Maximum fragments per virtual session (default: 24).",
-    )
-    parser.add_argument(
-        "--archetype-mix",
-        type=_archetype_mix,
-        help="Comma-separated archetype weights such as plain_chat=2,rag=1.",
-    )
-    parser.add_argument(
-        "--fragment-gap-median-seconds",
-        type=_nonnegative_float,
-        help="Median virtual gap between fragments (default: 180).",
-    )
-    parser.add_argument(
-        "--fragment-gap-sigma",
-        type=_nonnegative_float,
-        help="Lognormal variability for virtual fragment gaps (default: 0.9).",
-    )
-    parser.add_argument(
-        "--fragment-gap-max-seconds",
-        type=_nonnegative_float,
-        help="Maximum virtual gap between fragments (default: 3600).",
-    )
-    parser.add_argument(
         "--rate-schedule",
         choices=("flat", "business-hours"),
         help="Replay rate profile (default: flat).",
@@ -183,13 +139,6 @@ def run(args: Namespace) -> None:
         epsilon=config.epsilon,
         seed=config.seed,
         project_name=config.project,
-        session_fragments_median=config.session_fragments_median,
-        session_fragments_sigma=config.session_fragments_sigma,
-        session_fragments_max=config.session_fragments_max,
-        archetype_mix=config.archetype_mix,
-        fragment_gap_median_seconds=config.fragment_gap_median_seconds,
-        fragment_gap_sigma=config.fragment_gap_sigma,
-        fragment_gap_max_seconds=config.fragment_gap_max_seconds,
         error_rate=config.error_rate,
     )
     anomaly_manifest = AnomalyManifest(config.anomaly_manifest) if config.anomaly_manifest else None
@@ -266,13 +215,6 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
         epsilon=args.epsilon if args.epsilon is not None else _DEFAULT_EPSILON,
         seed=args.seed if args.seed is not None else _DEFAULT_SEED,
         anomaly_manifest=args.anomaly_manifest,
-        session_fragments_median=args.session_fragments_median,
-        session_fragments_sigma=args.session_fragments_sigma,
-        session_fragments_max=args.session_fragments_max,
-        archetype_mix=args.archetype_mix,
-        fragment_gap_median_seconds=args.fragment_gap_median_seconds,
-        fragment_gap_sigma=args.fragment_gap_sigma,
-        fragment_gap_max_seconds=args.fragment_gap_max_seconds,
         rate_schedule=args.rate_schedule or _DEFAULT_RATE_SCHEDULE,
         timezone=_iana_timezone(args.timezone or _DEFAULT_TIMEZONE),
         backfill_seconds=(
@@ -313,38 +255,6 @@ def _nonnegative_float(value: str) -> float:
     if parsed < 0:
         raise ValueError("must not be negative")
     return parsed
-
-
-def _positive_int(value: str) -> int:
-    parsed = int(value)
-    if parsed <= 0:
-        raise ValueError("must be greater than zero")
-    return parsed
-
-
-def _archetype_mix(value: str) -> Mapping[Archetype, float]:
-    supported = {
-        "plain_chat",
-        "rag",
-        "tool_agent",
-        "graph_multi_agent",
-        "guardrailed",
-        "structured_extraction",
-    }
-    weights: dict[str, float] = {}
-    for item in value.split(","):
-        name, separator, raw_weight = item.partition("=")
-        if not separator or not name or not raw_weight:
-            raise ValueError("must use comma-separated name=weight entries")
-        if name not in supported:
-            raise ValueError(f"unsupported archetype: {name}")
-        if name in weights:
-            raise ValueError(f"duplicate archetype: {name}")
-        weight = _positive_float(raw_weight)
-        weights[name] = weight
-    if not weights:
-        raise ValueError("must contain at least one archetype weight")
-    return cast("Mapping[Archetype, float]", weights)
 
 
 def _probability(value: str) -> float:

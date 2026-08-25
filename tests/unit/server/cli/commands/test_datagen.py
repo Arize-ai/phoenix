@@ -34,20 +34,6 @@ def test_datagen_cli_flags_override_environment() -> None:
             "42",
             "--anomaly-manifest",
             "anomalies.jsonl",
-            "--session-fragments-median",
-            "3",
-            "--session-fragments-sigma",
-            "0.4",
-            "--session-fragments-max",
-            "12",
-            "--archetype-mix",
-            "plain_chat=2,rag=1",
-            "--fragment-gap-median-seconds",
-            "90",
-            "--fragment-gap-sigma",
-            "0.6",
-            "--fragment-gap-max-seconds",
-            "900",
             "--rate-schedule",
             "business-hours",
             "--timezone",
@@ -81,13 +67,6 @@ def test_datagen_cli_flags_override_environment() -> None:
     assert config.epsilon == 0.1
     assert config.seed == 42
     assert config.anomaly_manifest == "anomalies.jsonl"
-    assert config.session_fragments_median == 3
-    assert config.session_fragments_sigma == 0.4
-    assert config.session_fragments_max == 12
-    assert config.archetype_mix == {"plain_chat": 2, "rag": 1}
-    assert config.fragment_gap_median_seconds == 90
-    assert config.fragment_gap_sigma == 0.6
-    assert config.fragment_gap_max_seconds == 900
     assert config.rate_schedule == "business-hours"
     assert config.timezone == "America/New_York"
     assert config.backfill_seconds == 48 * 60 * 60
@@ -120,35 +99,13 @@ def test_datagen_replay_options_have_no_environment_aliases() -> None:
     assert config.anomaly_manifest is None
 
 
-def test_datagen_composer_options_have_no_environment_aliases() -> None:
+def test_datagen_rejects_removed_session_shape_flags() -> None:
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
     datagen.register(subparsers)
 
-    config = datagen._resolve_config(
-        parser.parse_args(["datagen"]),
-        {
-            "PHOENIX_DATAGEN_SESSION_FRAGMENTS_MEDIAN": "99",
-            "PHOENIX_DATAGEN_ARCHETYPE_MIX": "rag=1",
-            "PHOENIX_DATAGEN_FRAGMENT_GAP_MEDIAN_SECONDS": "99",
-            "PHOENIX_DATAGEN_RATE_SCHEDULE": "business-hours",
-            "PHOENIX_DATAGEN_TIMEZONE": "America/New_York",
-            "PHOENIX_DATAGEN_BACKFILL": "48h",
-            "PHOENIX_DATAGEN_ERROR_RATE": "1",
-        },
-    )
-
-    assert config.session_fragments_median is None
-    assert config.session_fragments_sigma is None
-    assert config.session_fragments_max is None
-    assert config.archetype_mix is None
-    assert config.fragment_gap_median_seconds is None
-    assert config.fragment_gap_sigma is None
-    assert config.fragment_gap_max_seconds is None
-    assert config.rate_schedule == "flat"
-    assert config.timezone == "UTC"
-    assert config.backfill_seconds is None
-    assert config.error_rate == 0
+    with pytest.raises(SystemExit):
+        parser.parse_args(["datagen", "--session-fragments-median", "3"])
 
 
 @pytest.mark.parametrize("value", ["48", "0h", "-1h", "1w"])
