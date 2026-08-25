@@ -23,21 +23,16 @@ phoenix serve
 Run the generator in a second terminal:
 
 ```bash
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006 \
-PHOENIX_PROJECT_NAME=datagen-demo \
-PHOENIX_DATAGEN_RATE=12 \
-PHOENIX_DATAGEN_EPSILON=0.02 \
-PHOENIX_DATAGEN_SEED=0 \
 phoenix datagen
 ```
 
-Stop the generator with `Ctrl+C`. Run `phoenix datagen --help` to see the scenario, burstiness,
-authentication, and anomaly-manifest options.
+Traces land in the `phoenix-datagen` project. Stop the generator with `Ctrl+C`. Run
+`phoenix datagen --help` to see the project, rate, scenario, burstiness, authentication, and
+anomaly-manifest options.
 
-The first run needs network access to the public Phoenix asset bucket. Later runs use the verified
-local cache if the index cannot be refreshed. To use another HTTPS scenario prefix, set
-`PHOENIX_DATAGEN_SCENARIO_BASE_URL`; to prefetch a scenario before going offline, run
-`phoenix datagen pull <scenario>`.
+Docker images ship with the trace data bundled. Outside Docker, the first run needs network
+access to the public Phoenix asset bucket; later runs use the verified local cache if the index
+cannot be refreshed. To prefetch before going offline, run `phoenix datagen pull`.
 
 ## Docker Compose
 
@@ -48,9 +43,9 @@ root, start Phoenix, PostgreSQL, and the generator with:
 docker compose --profile datagen up --build
 ```
 
-Running `docker compose up` without the profile does not start the generator. Override the project,
-rate, epsilon, or seed by setting `PHOENIX_PROJECT_NAME`, `PHOENIX_DATAGEN_RATE`,
-`PHOENIX_DATAGEN_EPSILON`, or `PHOENIX_DATAGEN_SEED` before the command.
+Running `docker compose up` without the profile does not start the generator. Adjust the rate,
+epsilon, or seed by adding flags to the service's command in `docker-compose.yml`, for example
+`phoenix datagen --rate 30`; override the project with `PHOENIX_PROJECT_NAME`.
 
 ## Helm
 
@@ -105,8 +100,8 @@ In a non-production Railway environment, add a second service beside the Phoenix
 3. Set `PHOENIX_COLLECTOR_ENDPOINT` to
    `http://${{phoenix.RAILWAY_PRIVATE_DOMAIN}}:6006`, replacing `phoenix` with the server service's
    Railway name.
-4. Add `PHOENIX_PROJECT_NAME`, `PHOENIX_DATAGEN_RATE`, `PHOENIX_DATAGEN_EPSILON`, and
-   `PHOENIX_DATAGEN_SEED` with your demo settings.
+4. Adjust the rate, epsilon, or seed with flags on the start command (for example
+   `phoenix datagen --rate 30`); override the project with `PHOENIX_PROJECT_NAME`.
 5. If the Phoenix service has authentication enabled, add `PHOENIX_API_KEY` as a sealed variable.
 
 Railway private service addresses use HTTP and remain inside the project environment. Do not add a
@@ -115,9 +110,9 @@ public domain to the generator service.
 ## Google Cloud Run
 
 Create a second Cloud Run job from the same image as the Phoenix service. Override the container
-command to `phoenix`, set the argument to `datagen`, and configure `PHOENIX_COLLECTOR_ENDPOINT` with
-the Phoenix service URL. Add the project, rate, epsilon, and seed environment variables shown
-above. If the Phoenix service requires authentication, also configure a Phoenix API key and ensure
+command to `phoenix`, set the arguments to `datagen` plus any rate, epsilon, or seed flags, and
+configure `PHOENIX_COLLECTOR_ENDPOINT` with the Phoenix service URL. If the Phoenix service
+requires authentication, also configure a Phoenix API key and ensure
 the job can reach its ingress.
 
 Because `phoenix datagen` runs continuously, set a job timeout for the intended demo window and stop

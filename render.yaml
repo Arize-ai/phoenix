@@ -57,14 +57,6 @@ services:
   #   envVars:
   #     - key: PHOENIX_COLLECTOR_ENDPOINT
   #       value: http://phoenix:6006
-  #     - key: PHOENIX_PROJECT_NAME
-  #       value: datagen-default
-  #     - key: PHOENIX_DATAGEN_RATE
-  #       value: "12"
-  #     - key: PHOENIX_DATAGEN_EPSILON
-  #       value: "0.02"
-  #     - key: PHOENIX_DATAGEN_SEED
-  #       value: "0"
   #     - key: PHOENIX_API_KEY
   #       sync: false
 

@@ -23,11 +23,3 @@ spec:
           env:
             - name: PHOENIX_COLLECTOR_ENDPOINT
               value: http://phoenix:6006
-            - name: PHOENIX_PROJECT_NAME
-              value: datagen-default
-            - name: PHOENIX_DATAGEN_RATE
-              value: "12"
-            - name: PHOENIX_DATAGEN_EPSILON
-              value: "0.02"
-            - name: PHOENIX_DATAGEN_SEED
-              value: "0"

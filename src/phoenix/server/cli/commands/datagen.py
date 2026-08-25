@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from phoenix.datagen.schema import Archetype
 
 _DEFAULT_ENDPOINT = "http://localhost:6006"
-_DEFAULT_SCENARIO = "default"
 _DEFAULT_RATE = 12.0
 _DEFAULT_BURSTINESS = 0.5
 _DEFAULT_EPSILON = 0.02
@@ -38,7 +37,7 @@ class _Config:
     endpoint: str
     api_key: str | None
     headers: Mapping[str, str]
-    scenario: str
+    scenario: str | None
     project: str | None
     rate: float
     burstiness: float
@@ -67,7 +66,12 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     commands = parser.add_subparsers(dest="datagen_command")
     pull_parser = commands.add_parser("pull", help="Download and cache a scenario bank.")
     pull_parser.set_defaults(func=pull)
-    pull_parser.add_argument("scenario", help="Scenario name from the published scenario index.")
+    pull_parser.add_argument(
+        "scenario",
+        nargs="?",
+        default=None,
+        help="Scenario name from the published index; defaults to the sole published scenario.",
+    )
     parser.add_argument(
         "--endpoint",
         help="Phoenix collector base URL (env: PHOENIX_COLLECTOR_ENDPOINT).",
@@ -75,7 +79,10 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser.add_argument("--api-key", help="Phoenix API key (env: PHOENIX_API_KEY).")
     parser.add_argument(
         "--scenario",
-        help="Published scenario name or local directory (env: PHOENIX_DATAGEN_SCENARIO).",
+        help=(
+            "Local scenario directory or published scenario name; "
+            "defaults to the bundled or sole published scenario."
+        ),
     )
     parser.add_argument(
         "--project",
@@ -84,22 +91,22 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser.add_argument(
         "--rate",
         type=_positive_float,
-        help="Mean traces per minute (env: PHOENIX_DATAGEN_RATE).",
+        help="Mean traces per minute (default: 12).",
     )
     parser.add_argument(
         "--burstiness",
         type=_nonnegative_float,
-        help="Interarrival variability; 0 is uniform (env: PHOENIX_DATAGEN_BURSTINESS).",
+        help="Interarrival variability; 0 is uniform (default: 0.5).",
     )
     parser.add_argument(
         "--epsilon",
         type=_probability,
-        help="Per-span contamination probability (env: PHOENIX_DATAGEN_EPSILON).",
+        help="Per-span contamination probability (default: 0.02).",
     )
     parser.add_argument(
         "--seed",
         type=int,
-        help="Random seed (env: PHOENIX_DATAGEN_SEED).",
+        help="Random seed (default: 0).",
     )
     parser.add_argument(
         "--anomaly-manifest",
@@ -252,43 +259,13 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
         ),
         api_key=args.api_key or environ.get("PHOENIX_API_KEY"),
         headers=parse_env_headers(environ.get("PHOENIX_CLIENT_HEADERS")),
-        scenario=_setting(
-            args.scenario,
-            environ,
-            "PHOENIX_DATAGEN_SCENARIO",
-            _DEFAULT_SCENARIO,
-            str,
-        ),
+        scenario=args.scenario,
         project=args.project or environ.get("PHOENIX_PROJECT_NAME"),
-        rate=_setting(
-            args.rate,
-            environ,
-            "PHOENIX_DATAGEN_RATE",
-            _DEFAULT_RATE,
-            _positive_float,
-        ),
-        burstiness=_setting(
-            args.burstiness,
-            environ,
-            "PHOENIX_DATAGEN_BURSTINESS",
-            _DEFAULT_BURSTINESS,
-            _nonnegative_float,
-        ),
-        epsilon=_setting(
-            args.epsilon,
-            environ,
-            "PHOENIX_DATAGEN_EPSILON",
-            _DEFAULT_EPSILON,
-            _probability,
-        ),
-        seed=_setting(
-            args.seed,
-            environ,
-            "PHOENIX_DATAGEN_SEED",
-            _DEFAULT_SEED,
-            int,
-        ),
-        anomaly_manifest=args.anomaly_manifest or environ.get("PHOENIX_DATAGEN_ANOMALY_MANIFEST"),
+        rate=args.rate if args.rate is not None else _DEFAULT_RATE,
+        burstiness=args.burstiness if args.burstiness is not None else _DEFAULT_BURSTINESS,
+        epsilon=args.epsilon if args.epsilon is not None else _DEFAULT_EPSILON,
+        seed=args.seed if args.seed is not None else _DEFAULT_SEED,
+        anomaly_manifest=args.anomaly_manifest,
         session_fragments_median=args.session_fragments_median,
         session_fragments_sigma=args.session_fragments_sigma,
         session_fragments_max=args.session_fragments_max,

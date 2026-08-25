@@ -45,9 +45,11 @@ class Scenario:
         return {next(_iter_spans(request)).trace_id.hex(): request for request in self.requests}
 
 
-def load_scenario(source: str | Path = "default") -> Scenario:
-    """Load a published scenario name or a local directory."""
-    scenario_path = _resolve_local_scenario(source)
+def load_scenario(source: str | Path | None = None) -> Scenario:
+    """Load a scenario: bundled assets, the sole published scenario, a name, or a directory."""
+    scenario_path = (
+        _resolve_default_scenario() if source is None else _resolve_local_scenario(source)
+    )
     display_source = str(scenario_path)
 
     manifest = _parse_manifest(_read_bytes(scenario_path / "manifest.json"), display_source)
@@ -68,6 +70,29 @@ def load_scenario(source: str | Path = "default") -> Scenario:
         source=display_source,
         fragments=fragments,
     )
+
+
+def _resolve_default_scenario() -> Path:
+    """Prefer a scenario bundled with the package; otherwise fetch the sole published one."""
+    assets_root = Path(__file__).parent / "assets"
+    bundled = sorted(
+        entry for entry in assets_root.glob("*") if (entry / "manifest.json").is_file()
+    )
+    if len(bundled) == 1:
+        return bundled[0]
+    if len(bundled) > 1:
+        names = sorted(entry.name for entry in bundled)
+        raise ScenarioError(
+            f"Multiple scenarios are bundled with this installation {names!r}; "
+            "pass --scenario to choose one"
+        )
+
+    from phoenix.datagen.fetcher import ScenarioFetchError, fetch_scenario
+
+    try:
+        return fetch_scenario()
+    except ScenarioFetchError as error:
+        raise ScenarioError(f"Unable to resolve the default scenario: {error}") from error
 
 
 def _resolve_local_scenario(source: str | Path) -> Path:

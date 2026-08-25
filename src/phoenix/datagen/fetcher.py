@@ -14,8 +14,7 @@ from typing import Any, Callable, Iterator, Mapping
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
-_DEFAULT_SCENARIO_BASE_URL = "https://storage.googleapis.com/arize-phoenix-assets/datagen"
-_SCENARIO_BASE_URL_ENV = "PHOENIX_DATAGEN_SCENARIO_BASE_URL"
+_SCENARIO_BASE_URL = "https://storage.googleapis.com/arize-phoenix-assets/datagen"
 _CACHE_CHECKSUMS_FILENAME = ".checksums.json"
 
 
@@ -37,7 +36,7 @@ Downloader = Callable[[str, Path], None]
 
 
 def fetch_scenario(
-    scenario: str,
+    scenario: str | None = None,
     *,
     cache_dir: Path | None = None,
     index_path: Path | None = None,
@@ -46,10 +45,15 @@ def fetch_scenario(
     """Fetch a scenario from the published index and return its cached directory."""
     cache_root = cache_dir or default_cache_dir()
     index = load_scenario_index(index_path, cache_dir=cache_root)
-    if scenario == "default" and scenario not in index:
+    if scenario is None:
         if not index:
             raise ScenarioFetchError("The datagen scenario index does not contain any scenarios")
-        scenario = min(index)
+        if len(index) > 1:
+            raise ScenarioFetchError(
+                f"The datagen scenario index contains several scenarios {sorted(index)!r}; "
+                "pass --scenario to choose one"
+            )
+        (scenario,) = index
     entry = index.get(scenario)
     if entry is None:
         raise ScenarioFetchError(
@@ -86,17 +90,10 @@ def load_scenario_index(
         cache_root = cache_dir or default_cache_dir()
         path = _acquire_index(
             cache_root,
-            index_url or f"{scenario_base_url()}/index.json",
+            index_url or f"{_SCENARIO_BASE_URL}/index.json",
             downloader or _download_file,
         )
     return _read_scenario_index(path)
-
-
-def scenario_base_url() -> str:
-    value = os.environ.get(_SCENARIO_BASE_URL_ENV, _DEFAULT_SCENARIO_BASE_URL).rstrip("/")
-    if urlparse(value).scheme != "https":
-        raise ScenarioFetchError(f"{_SCENARIO_BASE_URL_ENV} must use HTTPS")
-    return value
 
 
 def _read_scenario_index(path: Path) -> Mapping[str, ScenarioEntry]:
@@ -140,8 +137,7 @@ def _acquire_index(cache_root: Path, url: str, downloader: Downloader) -> Path:
                         return destination
                 raise ScenarioFetchError(
                     f"Unable to download the datagen scenario index from {url}: {error}. "
-                    f"Set {_SCENARIO_BASE_URL_ENV} to a published HTTPS scenario prefix, "
-                    "run 'phoenix datagen pull <scenario>' while online to prime the cache, "
+                    "Run 'phoenix datagen pull <scenario>' while online to prime the cache, "
                     "or pass a local scenario directory."
                 ) from error
             os.replace(temporary_path, destination)

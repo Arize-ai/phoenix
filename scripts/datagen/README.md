@@ -203,10 +203,10 @@ archive, verifies its indexed byte size and SHA-256, verifies the schema-v2 per-
 the manifest, and publishes the extracted files into the local cache. A previously cached index
 and scenario continue to work offline.
 
-Set `PHOENIX_DATAGEN_SCENARIO_BASE_URL` to an alternate HTTPS prefix for development or a private
-deployment. The prefix must expose `index.json`, whose scenario entries continue to use absolute
-HTTPS archive URLs. `XDG_CACHE_HOME` controls the cache root; otherwise Phoenix uses
-`~/.cache/phoenix/datagen`.
+With no `--scenario`, replay uses a scenario bundled into the installation (Docker images bake
+one in at build time) or, failing that, the sole scenario in the public index. Development and
+private deployments pass `--scenario <local directory>`. `XDG_CACHE_HOME` controls the cache
+root; otherwise Phoenix uses `~/.cache/phoenix/datagen`.
 
 ## Replaying scenario traffic
 

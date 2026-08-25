@@ -132,8 +132,33 @@ def test_load_scenario_index_explains_how_to_recover_when_offline(tmp_path: Path
     def offline(_url: str, _destination: Path) -> None:
         raise OSError("offline")
 
-    with pytest.raises(ScenarioFetchError, match="PHOENIX_DATAGEN_SCENARIO_BASE_URL"):
+    with pytest.raises(ScenarioFetchError, match="phoenix datagen pull"):
         load_scenario_index(cache_dir=tmp_path / "cache", downloader=offline)
+
+
+def test_fetch_scenario_defaults_to_the_sole_indexed_scenario(tmp_path: Path) -> None:
+    archive = _build_archive(tmp_path, "remote-bank")
+    index = _write_index(tmp_path, "remote-bank", archive)
+
+    cached = fetch_scenario(
+        cache_dir=tmp_path / "cache",
+        index_path=index,
+        downloader=_copy_downloader(archive),
+    )
+
+    assert cached.parent.parent.name == "cache"
+    assert (cached / "manifest.json").is_file()
+
+
+def test_fetch_scenario_requires_a_name_when_the_index_holds_several(tmp_path: Path) -> None:
+    archive = _build_archive(tmp_path, "remote-bank")
+    index_path = tmp_path / "multi-index.json"
+    entry = json.loads(_write_index(tmp_path, "remote-bank", archive).read_text())
+    entry["scenarios"]["second-bank"] = dict(entry["scenarios"]["remote-bank"])
+    index_path.write_text(json.dumps(entry))
+
+    with pytest.raises(ScenarioFetchError, match="pass --scenario"):
+        fetch_scenario(cache_dir=tmp_path / "cache", index_path=index_path)
 
 
 def test_load_scenario_lazily_resolves_an_indexed_name(

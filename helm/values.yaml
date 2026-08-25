@@ -52,13 +52,13 @@ datagen:
   # -- Destination project (PHOENIX_PROJECT_NAME). When empty, phoenix datagen uses its scenario-based default
   projectName: ""
 
-  # -- Mean traces per minute (PHOENIX_DATAGEN_RATE)
+  # -- Mean traces per minute
   rate: 12
 
-  # -- Per-span contamination probability (PHOENIX_DATAGEN_EPSILON)
+  # -- Per-span contamination probability
   epsilon: 0.02
 
-  # -- Random seed (PHOENIX_DATAGEN_SEED)
+  # -- Random seed
   seed: 0
 
   # -- Additional arguments passed to phoenix datagen

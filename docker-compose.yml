@@ -20,10 +20,6 @@ services:
       - phoenix
     environment:
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
-      - PHOENIX_PROJECT_NAME=${PHOENIX_PROJECT_NAME:-datagen-default}
-      - PHOENIX_DATAGEN_RATE=${PHOENIX_DATAGEN_RATE:-12}
-      - PHOENIX_DATAGEN_EPSILON=${PHOENIX_DATAGEN_EPSILON:-0.02}
-      - PHOENIX_DATAGEN_SEED=${PHOENIX_DATAGEN_SEED:-0}
   db:
     image: postgres:16
     restart: always

@@ -95,17 +95,29 @@ def test_datagen_cli_flags_override_environment() -> None:
     assert args.func is datagen.run
 
 
-def test_datagen_scenario_environment_fallback() -> None:
+def test_datagen_replay_options_have_no_environment_aliases() -> None:
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
     datagen.register(subparsers)
 
     config = datagen._resolve_config(
         parser.parse_args(["datagen"]),
-        {"PHOENIX_DATAGEN_SCENARIO": "openai_chat_sessions"},
+        {
+            "PHOENIX_DATAGEN_SCENARIO": "openai_chat_sessions",
+            "PHOENIX_DATAGEN_RATE": "99",
+            "PHOENIX_DATAGEN_BURSTINESS": "9",
+            "PHOENIX_DATAGEN_EPSILON": "1",
+            "PHOENIX_DATAGEN_SEED": "99",
+            "PHOENIX_DATAGEN_ANOMALY_MANIFEST": "anomalies.jsonl",
+        },
     )
 
-    assert config.scenario == "openai_chat_sessions"
+    assert config.scenario is None
+    assert config.rate == 12.0
+    assert config.burstiness == 0.5
+    assert config.epsilon == 0.02
+    assert config.seed == 0
+    assert config.anomaly_manifest is None
 
 
 def test_datagen_composer_options_have_no_environment_aliases() -> None:

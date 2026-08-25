@@ -107,11 +107,11 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | datagen.args | list | `[]` | Additional arguments passed to phoenix datagen |
 | datagen.enabled | bool | `false` | Enable the optional synthetic trace generator deployment |
 | datagen.endpoint | string | `""` | Phoenix collector endpoint. When empty, defaults to the Phoenix service DNS name |
-| datagen.epsilon | float | `0.02` | Per-span contamination probability (PHOENIX_DATAGEN_EPSILON) |
+| datagen.epsilon | float | `0.02` | Per-span contamination probability |
 | datagen.projectName | string | `""` | Destination project (PHOENIX_PROJECT_NAME). When empty, phoenix datagen uses its scenario-based default |
-| datagen.rate | int | `12` | Mean traces per minute (PHOENIX_DATAGEN_RATE) |
+| datagen.rate | int | `12` | Mean traces per minute |
 | datagen.resources | object | `{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resource configuration for the datagen container |
-| datagen.seed | int | `0` | Random seed (PHOENIX_DATAGEN_SEED) |
+| datagen.seed | int | `0` | Random seed |
 | deployment.affinity | object | `{}` |  |
 | deployment.nodeSelector | object | `{}` |  |
 | deployment.podLabels | object | `{}` | Extra labels for the Phoenix pods Required by admission webhooks that select on pod labels, e.g. `azure.workload.identity/use: "true"` for OAuth2 workload identity. |

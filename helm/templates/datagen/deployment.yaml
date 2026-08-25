@@ -27,10 +27,13 @@ spec:
           image: {{ .Values.image.registry }}/{{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
           command: ["phoenix", "datagen"]
-          {{- with .Values.datagen.args }}
           args:
+            - --rate={{ .Values.datagen.rate }}
+            - --epsilon={{ .Values.datagen.epsilon }}
+            - --seed={{ .Values.datagen.seed }}
+            {{- with .Values.datagen.args }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
           {{- if .Values.securityContext.container.enabled }}
           securityContext: {{- omit .Values.securityContext.container "enabled" | toYaml | nindent 12 }}
           {{- end }}
@@ -43,12 +46,6 @@ spec:
             - name: PHOENIX_PROJECT_NAME
               value: {{ . | quote }}
             {{- end }}
-            - name: PHOENIX_DATAGEN_RATE
-              value: {{ .Values.datagen.rate | quote }}
-            - name: PHOENIX_DATAGEN_EPSILON
-              value: {{ .Values.datagen.epsilon | quote }}
-            - name: PHOENIX_DATAGEN_SEED
-              value: {{ .Values.datagen.seed | quote }}
             {{- with .Values.datagen.additionalEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
