@@ -2,7 +2,7 @@ import gzip
 import zlib
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, cast
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -29,6 +29,7 @@ from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
+from phoenix.server.api.utils import delete_traces_and_orphan_sessions
 from phoenix.server.authorization import (
     is_not_locked,
     prevent_access_in_read_only_mode,
@@ -288,7 +289,8 @@ async def list_project_traces(
     description=(
         "Delete traces from a project without deleting the project or its configuration. "
         "Only traces whose start time is within the required `[start_time, end_time)` interval "
-        "are deleted. Associated spans are cascade deleted."
+        "are deleted. Associated spans are cascade deleted, and project sessions left with no "
+        "remaining traces are also deleted. Naive datetimes are interpreted as UTC."
     ),
     response_description="No content returned after the matching traces are deleted",
     status_code=204,
@@ -306,10 +308,8 @@ async def delete_project_traces(
         description="Required exclusive upper bound on trace start time (ISO 8601).",
     ),
 ) -> None:
-    normalized_start_time = normalize_datetime(start_time, timezone.utc)
-    normalized_end_time = normalize_datetime(end_time, timezone.utc)
-    assert normalized_start_time is not None
-    assert normalized_end_time is not None
+    normalized_start_time = cast(datetime, normalize_datetime(start_time, timezone.utc))
+    normalized_end_time = cast(datetime, normalize_datetime(end_time, timezone.utc))
     if normalized_start_time >= normalized_end_time:
         raise HTTPException(
             status_code=422,
@@ -317,38 +317,15 @@ async def delete_project_traces(
         )
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
-        delete_statement = (
-            delete(models.Trace)
-            .where(models.Trace.project_rowid == project.id)
-            .returning(models.Trace.project_session_rowid)
-        )
-        delete_statement = delete_statement.where(
-            models.Trace.start_time >= normalized_start_time,
-            models.Trace.start_time < normalized_end_time,
-        )
-        deleted_trace_project_session_ids = await session.scalars(delete_statement)
-        session_ids_to_check = [
-            id_ for id_ in set(deleted_trace_project_session_ids) if id_ is not None
-        ]
-
-        # Delete only sessions made empty by this operation. A bounded delete can leave newer
-        # traces in the same session, and deleting that session would cascade-delete those traces.
-        has_remaining_traces = (
-            select(models.Trace.id)
-            .where(models.Trace.project_session_rowid == models.ProjectSession.id)
-            .exists()
-        )
-        chunk_size = 10000
-        for i in range(0, len(session_ids_to_check), chunk_size):
-            chunk = session_ids_to_check[i : i + chunk_size]
-            await session.execute(
-                delete(models.ProjectSession).where(
-                    models.ProjectSession.id.in_(chunk),
-                    ~has_remaining_traces,
-                )
-            )
         project_rowid = project.id
-    request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
+        deleted_trace_count = await delete_traces_and_orphan_sessions(
+            session,
+            project_rowid,
+            start_time=normalized_start_time,
+            end_time=normalized_end_time,
+        )
+    if deleted_trace_count:
+        request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
     return None
 
 

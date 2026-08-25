@@ -763,7 +763,7 @@ export interface paths {
         post?: never;
         /**
          * Delete traces from a project
-         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted.
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.
          */
         delete: operations["deleteProjectTraces"];
         options?: never;

@@ -669,6 +669,7 @@
 ### REST API — Traces
 
 - [List Traces For A Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/list-traces-for-a-project): GET /v1/projects/{project_identifier}/traces — paginate traces in a project
+- [Delete Traces From A Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-traces-from-a-project): DELETE /v1/projects/{project_identifier}/traces — bulk-delete traces in a bounded [start_time, end_time) interval
 - [Delete A Trace By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier): DELETE /v1/traces/{trace_identifier} — delete a trace by ID or trace_id
 - [Create Trace Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations): POST /v1/trace_annotations — write one or more annotations on traces
 - [Create A Trace Note](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-a-trace-note): POST /v1/trace_notes — attach a free-text note to a trace
