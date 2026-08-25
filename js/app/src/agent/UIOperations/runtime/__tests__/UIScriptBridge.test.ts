@@ -10,6 +10,7 @@ import {
 } from "@phoenix/agent/UIOperations/runtime/UIScriptBridge";
 import type { UIOperationResult } from "@phoenix/agent/UIOperations/types";
 
+// oxlint-disable-next-line import/default -- Vite `?raw` import; the resolver can't see the synthesized default export
 import UIScriptBridgeSource from "../UIScriptBridge.ts?raw";
 
 /** A real approval-kind operation, so the bridge pauses the budget for it. */

@@ -4,6 +4,7 @@ import type {
   UIScriptMessageToMain,
   UIScriptMessageToWorker,
 } from "./protocol";
+// oxlint-disable-next-line import/default -- Vite `?worker&url` import; the resolver can't see the synthesized default export
 import UIScriptWorkerUrl from "./UIScriptWorker.ts?worker&url";
 
 /**

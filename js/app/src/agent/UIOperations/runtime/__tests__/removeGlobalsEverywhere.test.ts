@@ -5,6 +5,7 @@ import {
   removeGlobalsEverywhere,
 } from "@phoenix/agent/UIOperations/runtime/UIScriptWorker";
 
+// oxlint-disable-next-line import/default -- Vite `?raw` import; the resolver can't see the synthesized default export
 import workerSource from "../UIScriptWorker.ts?raw";
 
 describe("removeGlobalsEverywhere", () => {
