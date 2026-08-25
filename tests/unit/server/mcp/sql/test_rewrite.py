@@ -2256,6 +2256,25 @@ def test_a_json_key_containing_a_quote_is_escaped(sql: str, dialect: str) -> Non
     assert "''" in rendered
 
 
+@pytest.mark.parametrize(
+    "sql",
+    [
+        """SELECT attributes -> '$."c''d"[0]' AS v FROM spans""",
+        """SELECT attributes ->> '$."c''d"[1]' AS v FROM spans""",
+        """SELECT attributes -> '$."c''d".e[0]' AS v FROM spans""",
+    ],
+)
+def test_a_subscripted_path_with_a_quoted_key_is_escaped(sql: str) -> None:
+    """A subscript belongs to the path as much as a key does.
+
+    Repairing only all-key paths leaves the apostrophe unescaped here, and the
+    statement does not compile.
+    """
+    rendered = _rendered(sql)
+    assert rendered.count("'") % 2 == 0, f"unbalanced quotes: {rendered}"
+    assert "''" in rendered
+
+
 def test_a_json_key_without_a_quote_keeps_its_path_form() -> None:
     """Guards the test above: rewriting every path would also satisfy it."""
     ctx, rendered = _rewritten("SELECT attributes -> '$.llm' AS v FROM spans", dialect="sqlite")

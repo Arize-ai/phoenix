@@ -563,13 +563,16 @@ def _repair_quoted_json_path(root: exp.Expression, ctx: RewriteContext) -> exp.E
             continue
         parts = [part for part in path.expressions if not isinstance(part, exp.JSONPathRoot)]
         keys = [part.this for part in parts if isinstance(part, exp.JSONPathKey)]
-        if len(keys) != len(parts) or not any("'" in key for key in keys):
+        if not any(isinstance(key, str) and "'" in key for key in keys):
             continue
         if ctx.dialect == "sqlite":
+            # A subscript belongs to the path as much as a key does, and
+            # `_quoted_json_path` spells both, so the shape it accepts is the
+            # shape this repairs.
             spelled = _quoted_json_path(path)
             if spelled is None:
                 continue
-        elif len(keys) == 1:
+        elif len(keys) == len(parts) == 1:
             # The operator takes one key, and that key is the literal.
             spelled = keys[0]
         else:
