@@ -1437,11 +1437,6 @@ function BindingPreview({
           >
             {path} is checked by the server when the evaluator runs.
           </Alert>
-        ) : status === "optional-missing" ? (
-          <Text key={variable} size="S" color="text-500">
-            <code>{variable}</code> is optional and is not present on this{" "}
-            {recordNoun}.
-          </Text>
         ) : null
       )}
     </Flex>
