@@ -19,7 +19,11 @@ from urllib.request import urlopen
 
 from phoenix.datagen.fetcher import ScenarioFetchError, fetch_scenario, load_scenario_index
 from phoenix.datagen.loader import ScenarioError, load_scenario
-from scripts.datagen.bank import BankError, package_generation_run, read_v2_bank
+from scripts.datagen.scenario import (
+    ScenarioArchiveError,
+    package_generation_run,
+    read_scenario_archive,
+)
 
 _ARCHIVE_NAME = re.compile(r"[a-z0-9][a-z0-9_-]*\.tar\.gz")
 _BUCKET = "arize-phoenix-assets"
@@ -92,7 +96,7 @@ def command(
     args = build_parser().parse_args(argv)
     try:
         result = _dispatch(args)
-    except (ScenarioFetchError, BankError, OSError, ScenarioError, ValueError) as error:
+    except (ScenarioFetchError, ScenarioArchiveError, OSError, ScenarioError, ValueError) as error:
         print(
             json.dumps({"error": type(error).__name__, "message": str(error)}),
             file=stderr,
@@ -137,9 +141,9 @@ def validate_archive(archive: Path, *, asset_schema_version: int) -> ValidatedAs
     archive_digest = sha256(archive_bytes).hexdigest()
 
     if asset_schema_version == 2:
-        bank = read_v2_bank(archive)
-        fragment_count = bank.manifest["fragment_count"]
-        archetypes = tuple(sorted({fragment.archetype for fragment in bank.fragments}))
+        scenario_archive = read_scenario_archive(archive)
+        fragment_count = scenario_archive.manifest["fragment_count"]
+        archetypes = tuple(sorted({fragment.archetype for fragment in scenario_archive.fragments}))
     else:
         fragment_count = 0
         archetypes = ()

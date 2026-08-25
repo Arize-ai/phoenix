@@ -111,10 +111,12 @@ class QualityGate:
             self._add_baseline(fragment)
 
     @classmethod
-    def from_baseline_bank(cls, source: Path, *, rejects_path: Path | None = None) -> QualityGate:
-        from scripts.datagen.bank import read_v2_bank
+    def from_baseline_scenario(
+        cls, source: Path, *, rejects_path: Path | None = None
+    ) -> QualityGate:
+        from scripts.datagen.scenario import read_scenario_archive
 
-        return cls(read_v2_bank(source).fragments, rejects_path=rejects_path)
+        return cls(read_scenario_archive(source).fragments, rejects_path=rejects_path)
 
     def evaluate(
         self, candidate: Mapping[str, Any], messages: Sequence[Mapping[str, Any]]

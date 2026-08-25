@@ -10,6 +10,7 @@ from scripts.datagen.generate import command
 from scripts.datagen.generation import (
     AlreadyAccepted,
     ConfigurationMismatch,
+    GenerationError,
     GenerationRun,
     RunConfig,
     expand_seed_matrix,
@@ -246,6 +247,73 @@ def test_judge_pass_resumes_and_failures_do_not_reject_fragments(tmp_path: Path)
         if '"purpose":"judge"' in line
     ]
     assert [attempt["attempt_number"] for attempt in judge_attempts] == [1, 2]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"route_reason": "fault"}, "invalid fault judgment route"),
+        ({"route_reason": "unrouted"}, "invalid judgment route"),
+        ({"failure_mode": "tool_exception"}, "failure mode does not match"),
+        ({"outcome": None, "rationale": None}, "no completed judgment"),
+        ({"rationale": "x" * 601}, "no completed judgment"),
+        (
+            {"route_reason": "not_selected", "attempt_id": None, "outcome": None},
+            "may not carry an attempt or outcome",
+        ),
+    ],
+    ids=(
+        "fault-without-failure-mode",
+        "unknown-route",
+        "failure-mode-mismatch",
+        "routed-without-outcome",
+        "unbounded-rationale",
+        "unselected-with-rationale",
+    ),
+)
+def test_judgment_writes_require_a_consistent_route_and_outcome(
+    tmp_path: Path, overrides: dict[str, Any], match: str
+) -> None:
+    run = _run(tmp_path)
+    cell = run.cells[0]
+    generation = run.admitted_attempt(
+        cell.cell_id,
+        purpose="generation",
+        model=cell.assistant_model,
+        max_input_tokens=100,
+        max_output_tokens=100,
+    )
+    run.complete_attempt(
+        generation.attempt_id, input_tokens=1, cached_input_tokens=0, output_tokens=1
+    )
+    run.accept_cell(
+        cell.cell_id,
+        generation.attempt_id,
+        {"fragment_id": cell.cell_id, "failure_mode": "none"},
+    )
+    judge = run.admitted_attempt(
+        cell.cell_id,
+        purpose="judge",
+        model=run.config.frontier_model,
+        max_input_tokens=100,
+        max_output_tokens=100,
+    )
+    run.complete_attempt(judge.attempt_id, input_tokens=1, cached_input_tokens=0, output_tokens=1)
+    judgment = {
+        "cell_id": cell.cell_id,
+        "fragment_id": cell.cell_id,
+        "failure_mode": "none",
+        "route_reason": "baseline",
+        "outcome": "survived",
+        "rationale": "The answer remained correct.",
+        "attempt_id": judge.attempt_id,
+    }
+
+    with pytest.raises(GenerationError, match=match):
+        run.record_judgment({**judgment, **overrides})
+
+    run.record_judgment(judgment)
+    assert run.judgment_records[cell.cell_id] == judgment
 
 
 def test_codex_exec_attempt_records_provider_usage(tmp_path: Path) -> None:

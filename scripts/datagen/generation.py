@@ -831,18 +831,36 @@ class GenerationRun:
         return records
 
     def record_judgment(self, value: Mapping[str, Any]) -> None:
-        from scripts.datagen.judgments import append_immutable_record
+        """Append a judgment, enforcing its coupling to the accepted fragment it judges."""
+        from scripts.datagen.judgments import (
+            JUDGED_OUTCOMES,
+            MAX_RATIONALE_LENGTH,
+            ROUTE_REASONS,
+            append_immutable_record,
+        )
 
         cell_id = value.get("cell_id")
-        fragment_id = value.get("fragment_id")
-        if not isinstance(cell_id, str) or cell_id != fragment_id:
+        if not isinstance(cell_id, str) or cell_id != value.get("fragment_id"):
             raise GenerationError("judgment identity must contain matching cell and fragment IDs")
-        if cell_id not in self.accepted_cell_ids:
+        accepted = self.accepted_records.get(cell_id)
+        if accepted is None:
             raise GenerationError(f"cell {cell_id} must be accepted before judgment")
+        fragment = accepted.get("fragment")
+        failure_mode = (
+            fragment.get("failure_mode", "none") if isinstance(fragment, Mapping) else "none"
+        )
+        if value.get("failure_mode", "none") != failure_mode:
+            raise GenerationError(f"judgment failure mode does not match accepted cell {cell_id}")
         route_reason = value.get("route_reason")
+        if route_reason not in ROUTE_REASONS:
+            raise GenerationError(f"cell {cell_id} has an invalid judgment route")
+        if (failure_mode != "none") != (route_reason == "fault"):
+            raise GenerationError(f"cell {cell_id} has an invalid fault judgment route")
         attempt_id = value.get("attempt_id")
+        outcome = value.get("outcome")
+        rationale = value.get("rationale")
         if route_reason == "not_selected":
-            if attempt_id is not None or value.get("outcome") is not None:
+            if attempt_id is not None or outcome is not None or rationale is not None:
                 raise GenerationError("unselected judgments may not carry an attempt or outcome")
         else:
             states = self._attempt_states()
@@ -854,6 +872,13 @@ class GenerationRun:
                 or state["attempt"].cell_id != cell_id
             ):
                 raise GenerationError("routed judgments require a completed judge attempt")
+            if (
+                outcome not in JUDGED_OUTCOMES
+                or not isinstance(rationale, str)
+                or not rationale.strip()
+                or len(rationale) > MAX_RATIONALE_LENGTH
+            ):
+                raise GenerationError(f"routed cell {cell_id} has no completed judgment")
         append_immutable_record(
             self.directory / "judgments.jsonl",
             value,

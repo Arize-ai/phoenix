@@ -1,4 +1,4 @@
-"""Build and inspect canonical v2 datagen bank archives."""
+"""Build and inspect canonical schema-v2 datagen scenario archives."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ import tempfile
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterable, Iterator, Mapping, Sequence, TextIO
+from typing import Any, Iterable, Mapping, Sequence, TextIO, cast
 
 from google.protobuf.json_format import Parse, ParseError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
-from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
+from phoenix.datagen.loader import Scenario, ScenarioError, load_scenario
 from phoenix.datagen.schema import (
     Fragment,
     ScenarioManifestV2,
@@ -34,32 +34,53 @@ from scripts.datagen.quality import (
     NORMALIZER_VERSION,
     SHORT_FRAGMENT_RULE,
 )
+from scripts.datagen.serialization import canonical_bytes, read_jsonl
 
-_BANK_FILES = ("manifest.json", "fragments.jsonl", "traces.jsonl")
+_ARCHIVE_FILES = ("manifest.json", "fragments.jsonl", "traces.jsonl")
 _STATIC_QUALITY_FIELDS = (
     "normalizer_version",
     "dedup_thresholds",
     "judge_sample_fraction",
 )
+_PROJECTED_JUDGMENT_FIELDS = (
+    "seeds_present",
+    "engaged_seed_ids",
+    "seed_proximity",
+    "proximity_source",
+    "targeted_seed_id",
+    "seed_intensities",
+    "failure_mode",
+    "route_reason",
+    "outcome",
+    "rationale",
+    "contract_version",
+    "prompt_sha256",
+    "output_schema_sha256",
+    "content_sha256",
+    "attempt_id",
+    "provider",
+    "model",
+)
 
 
 @dataclass(frozen=True)
-class V2Bank:
+class ScenarioArchive:
     manifest: ScenarioManifestV2
     fragments: tuple[Fragment, ...]
     traces_bytes: bytes
+    requests: tuple[ExportTraceServiceRequest, ...]
 
 
 @dataclass(frozen=True)
-class BankPackage:
+class ScenarioPackage:
     path: Path
     sha256: str
     size_bytes: int
     manifest: ScenarioManifestV2
 
 
-class BankError(ValueError):
-    """Raised when staged data cannot form a valid v2 bank."""
+class ScenarioArchiveError(ValueError):
+    """Raised when staged data cannot form a valid schema-v2 scenario archive."""
 
 
 def package_generation_run(
@@ -70,8 +91,7 @@ def package_generation_run(
     generated_at: str,
     generation_revision: str,
     instrumenter_package_versions: Mapping[str, str],
-    composer_defaults: Mapping[str, Any] | None = None,
-) -> BankPackage:
+) -> ScenarioPackage:
     """Package accepted run fragments and their raw staged OTLP requests atomically."""
     run = GenerationRun.resume(run_dir)
     accepted = run.accepted_records
@@ -84,60 +104,63 @@ def package_generation_run(
             continue
         raw_fragment = record.get("fragment")
         if not isinstance(raw_fragment, Mapping):
-            raise BankError(f"accepted cell {cell.cell_id} has no fragment object")
+            raise ScenarioArchiveError(f"accepted cell {cell.cell_id} has no fragment object")
         judgment = judgments.get(cell.cell_id)
         if judgment is None:
-            raise BankError(f"accepted cell {cell.cell_id} has no terminal judgment route")
+            raise ScenarioArchiveError(
+                f"accepted cell {cell.cell_id} has no terminal judgment route"
+            )
         quality_results = raw_fragment.get("quality_results")
         projected_fragment = {
             **raw_fragment,
             "quality_results": {
                 **(dict(quality_results) if isinstance(quality_results, Mapping) else {}),
-                "judged_outcome": _judged_outcome_projection(
-                    cell.cell_id, raw_fragment.get("failure_mode"), judgment
-                ),
+                "judged_outcome": _judged_outcome_projection(judgment),
             },
         }
         try:
             fragment = validate_fragment_v2(projected_fragment)
         except SchemaValidationError as error:
-            raise BankError(
+            raise ScenarioArchiveError(
                 f"accepted cell {cell.cell_id} fragment field {error.field!r} {error}"
             ) from error
         if fragment.fragment_id != cell.cell_id:
-            raise BankError(
+            raise ScenarioArchiveError(
                 f"accepted cell {cell.cell_id} has fragment_id {fragment.fragment_id!r}"
             )
         rows.append(_fragment_document(fragment))
 
         attempt_id = record.get("attempt_id")
         if not isinstance(attempt_id, str):
-            raise BankError(f"accepted cell {cell.cell_id} has no attempt_id")
+            raise ScenarioArchiveError(f"accepted cell {cell.cell_id} has no attempt_id")
         try:
             attempt_number = int(attempt_id.rpartition(":")[2])
         except ValueError as error:
-            raise BankError(f"accepted cell {cell.cell_id} has invalid attempt_id") from error
+            raise ScenarioArchiveError(
+                f"accepted cell {cell.cell_id} has invalid attempt_id"
+            ) from error
         trace_path = (
             run_dir / "staging" / cell.cell_id / f"attempt-{attempt_number}" / "traces.jsonl"
         )
         try:
             trace_content = trace_path.read_bytes()
         except OSError as error:
-            raise BankError(
+            raise ScenarioArchiveError(
                 f"unable to read staged traces for cell {cell.cell_id}: {error}"
             ) from error
         if not trace_content or not trace_content.endswith(b"\n"):
-            raise BankError(f"staged traces for cell {cell.cell_id} must end with a newline")
+            raise ScenarioArchiveError(
+                f"staged traces for cell {cell.cell_id} must end with a newline"
+            )
         trace_parts.append(trace_content)
 
     if not rows:
-        raise BankError("generation run has no accepted fragments")
-    fragments_bytes = b"".join(_canonical_json(row) + b"\n" for row in rows)
+        raise ScenarioArchiveError("generation run has no accepted fragments")
+    fragments_bytes = b"".join(canonical_bytes(row) + b"\n" for row in rows)
     traces_bytes = b"".join(trace_parts)
-    trace_ids, span_count, span_kinds = _trace_stats(traces_bytes)
+    trace_ids, span_count, span_kinds = _span_statistics(_parse_staged_requests(traces_bytes))
     _validate_membership(rows, trace_ids)
-    defaults = composer_defaults or _default_composer(rows)
-    rejects = _read_jsonl(run_dir / "rejects.jsonl")
+    rejects = read_jsonl(run_dir / "rejects.jsonl", error=ScenarioArchiveError)
     judgment_summary = _judgment_summary(judgments.values(), judge_failures=run.judge_failure_count)
     quality_gate_summary: dict[str, Any] = {
         "accepted": len(rows),
@@ -173,33 +196,23 @@ def package_generation_run(
             "traces.jsonl": _file_metadata(traces_bytes),
         },
         "quality_gate_summary": quality_gate_summary,
-        "composer_defaults": defaults,
     }
-    try:
-        manifest = validate_manifest_v2(manifest_value)
-    except SchemaValidationError as error:
-        raise BankError(f"manifest field {error.field!r} {error}") from error
-    files = {
-        "manifest.json": _canonical_json(manifest) + b"\n",
-        "fragments.jsonl": fragments_bytes,
-        "traces.jsonl": traces_bytes,
-    }
-    _write_archive_atomic(destination, scenario_name, files)
-    archive_bytes = destination.read_bytes()
-    return BankPackage(
-        path=destination,
-        sha256=sha256(archive_bytes).hexdigest(),
-        size_bytes=len(archive_bytes),
-        manifest=manifest,
+    return _write_package(
+        destination,
+        _validated_manifest(manifest_value),
+        fragments_bytes=fragments_bytes,
+        traces_bytes=traces_bytes,
     )
 
 
-def merge_v2_banks(base_source: Path, supplement_source: Path, destination: Path) -> BankPackage:
-    """Merge a supplemental archive into the schema-v2 bank it declares as its base."""
+def merge_scenario_archives(
+    base_source: Path, supplement_source: Path, destination: Path
+) -> ScenarioPackage:
+    """Merge a supplemental archive into the schema-v2 scenario it declares as its base."""
     base_digest = _archive_sha256(base_source)
     supplement_digest = _archive_sha256(supplement_source)
-    base = read_v2_bank(base_source)
-    supplement = read_v2_bank(supplement_source)
+    base = read_scenario_archive(base_source)
+    supplement = read_scenario_archive(supplement_source)
     _validate_supplemental_lineage(base, base_digest, supplement)
     _validate_merge_compatibility(base.manifest, supplement.manifest)
 
@@ -208,7 +221,9 @@ def merge_v2_banks(base_source: Path, supplement_source: Path, destination: Path
         base_fragment_ids.intersection(fragment.fragment_id for fragment in supplement.fragments)
     )
     if duplicate_fragment_ids:
-        raise BankError(f"duplicate fragment IDs across merge inputs: {duplicate_fragment_ids}")
+        raise ScenarioArchiveError(
+            f"duplicate fragment IDs across merge inputs: {duplicate_fragment_ids}"
+        )
     base_trace_ids = {trace_id for fragment in base.fragments for trace_id in fragment.trace_ids}
     duplicate_trace_ids = sorted(
         base_trace_ids.intersection(
@@ -216,13 +231,15 @@ def merge_v2_banks(base_source: Path, supplement_source: Path, destination: Path
         )
     )
     if duplicate_trace_ids:
-        raise BankError(f"duplicate trace IDs across merge inputs: {duplicate_trace_ids}")
+        raise ScenarioArchiveError(
+            f"duplicate trace IDs across merge inputs: {duplicate_trace_ids}"
+        )
 
     fragments = (*base.fragments, *supplement.fragments)
     rows = [_fragment_document(fragment) for fragment in fragments]
-    fragments_bytes = b"".join(_canonical_json(row) + b"\n" for row in rows)
+    fragments_bytes = b"".join(canonical_bytes(row) + b"\n" for row in rows)
     traces_bytes = _concatenate_jsonl(base.traces_bytes, supplement.traces_bytes)
-    trace_ids, span_count, span_kinds = _trace_stats(traces_bytes)
+    trace_ids, span_count, span_kinds = _span_statistics((*base.requests, *supplement.requests))
     _validate_membership(rows, trace_ids)
     quality_gate_summary = _merge_quality_summaries(
         base.manifest,
@@ -231,10 +248,9 @@ def merge_v2_banks(base_source: Path, supplement_source: Path, destination: Path
         supplement_digest=supplement_digest,
         fragment_count=len(rows),
     )
-    scenario_name = base.manifest["scenario_name"]
     manifest_value = {
         "schema_version": 2,
-        "scenario_name": scenario_name,
+        "scenario_name": base.manifest["scenario_name"],
         "generated_at": supplement.manifest["generated_at"],
         "generation_revision": supplement.manifest["generation_revision"],
         "matrix_sha256": _merged_matrix_sha256(base.manifest, supplement.manifest),
@@ -251,20 +267,37 @@ def merge_v2_banks(base_source: Path, supplement_source: Path, destination: Path
             "traces.jsonl": _file_metadata(traces_bytes),
         },
         "quality_gate_summary": quality_gate_summary,
-        "composer_defaults": _default_composer(rows),
     }
+    return _write_package(
+        destination,
+        _validated_manifest(manifest_value),
+        fragments_bytes=fragments_bytes,
+        traces_bytes=traces_bytes,
+    )
+
+
+def _validated_manifest(value: Mapping[str, Any]) -> ScenarioManifestV2:
     try:
-        manifest = validate_manifest_v2(manifest_value)
+        return validate_manifest_v2(value)
     except SchemaValidationError as error:
-        raise BankError(f"manifest field {error.field!r} {error}") from error
+        raise ScenarioArchiveError(f"manifest field {error.field!r} {error}") from error
+
+
+def _write_package(
+    destination: Path,
+    manifest: ScenarioManifestV2,
+    *,
+    fragments_bytes: bytes,
+    traces_bytes: bytes,
+) -> ScenarioPackage:
     files = {
-        "manifest.json": _canonical_json(manifest) + b"\n",
+        "manifest.json": canonical_bytes(manifest) + b"\n",
         "fragments.jsonl": fragments_bytes,
         "traces.jsonl": traces_bytes,
     }
-    _write_archive_atomic(destination, scenario_name, files)
+    _write_archive_atomic(destination, manifest["scenario_name"], files)
     archive_bytes = destination.read_bytes()
-    return BankPackage(
+    return ScenarioPackage(
         path=destination,
         sha256=sha256(archive_bytes).hexdigest(),
         size_bytes=len(archive_bytes),
@@ -276,21 +309,27 @@ def _archive_sha256(source: Path) -> str:
     try:
         return sha256(source.read_bytes()).hexdigest()
     except OSError as error:
-        raise BankError(f"unable to read bank archive {source}: {error}") from error
+        raise ScenarioArchiveError(f"unable to read scenario archive {source}: {error}") from error
 
 
-def _validate_supplemental_lineage(base: V2Bank, base_digest: str, supplement: V2Bank) -> None:
+def _validate_supplemental_lineage(
+    base: ScenarioArchive, base_digest: str, supplement: ScenarioArchive
+) -> None:
     lineage = supplement.manifest["quality_gate_summary"].get("supplemental_lineage")
     if not isinstance(lineage, Mapping):
-        raise BankError("supplement quality_gate_summary.supplemental_lineage is required")
+        raise ScenarioArchiveError(
+            "supplement quality_gate_summary.supplemental_lineage is required"
+        )
     expected_scenario = base.manifest["scenario_name"]
     if lineage.get("base_scenario_name") != expected_scenario:
-        raise BankError(
+        raise ScenarioArchiveError(
             "supplement base scenario does not match the base archive: "
             f"{lineage.get('base_scenario_name')!r} != {expected_scenario!r}"
         )
     if lineage.get("base_archive_sha256") != base_digest:
-        raise BankError("supplement base archive SHA-256 does not match the base archive")
+        raise ScenarioArchiveError(
+            "supplement base archive SHA-256 does not match the base archive"
+        )
 
 
 def _validate_merge_compatibility(base: ScenarioManifestV2, supplement: ScenarioManifestV2) -> None:
@@ -298,9 +337,11 @@ def _validate_merge_compatibility(base: ScenarioManifestV2, supplement: Scenario
     supplement_summary = supplement["quality_gate_summary"]
     for field in _STATIC_QUALITY_FIELDS:
         if field not in base_summary or field not in supplement_summary:
-            raise BankError(f"merge inputs must declare quality_gate_summary.{field}")
+            raise ScenarioArchiveError(f"merge inputs must declare quality_gate_summary.{field}")
         if base_summary[field] != supplement_summary[field]:
-            raise BankError(f"merge inputs have incompatible quality_gate_summary.{field}")
+            raise ScenarioArchiveError(
+                f"merge inputs have incompatible quality_gate_summary.{field}"
+            )
 
 
 def _merge_quality_summaries(
@@ -353,7 +394,9 @@ def _archive_lineage(manifest: ScenarioManifestV2, archive_digest: str) -> dict[
 def _quality_count(summary: Mapping[str, Any], field: str, source: str) -> int:
     value = summary.get(field)
     if type(value) is not int or value < 0:
-        raise BankError(f"{source} quality_gate_summary.{field} must be a non-negative integer")
+        raise ScenarioArchiveError(
+            f"{source} quality_gate_summary.{field} must be a non-negative integer"
+        )
     return value
 
 
@@ -363,10 +406,10 @@ def _merge_count_maps(
     counts = {key: 0 for key in required_keys}
     for source, value in (("base", base), ("supplement", supplement)):
         if not isinstance(value, Mapping):
-            raise BankError(f"{source} quality_gate_summary.{field} must be an object")
+            raise ScenarioArchiveError(f"{source} quality_gate_summary.{field} must be an object")
         for key, count in value.items():
             if not isinstance(key, str) or not key or type(count) is not int or count < 0:
-                raise BankError(
+                raise ScenarioArchiveError(
                     f"{source} quality_gate_summary.{field} must map names to non-negative integers"
                 )
             counts[key] = counts.get(key, 0) + count
@@ -376,7 +419,9 @@ def _merge_count_maps(
 def _merge_judgment_summaries(base: Any, supplement: Any) -> dict[str, Any]:
     for source, value in (("base", base), ("supplement", supplement)):
         if not isinstance(value, Mapping):
-            raise BankError(f"{source} quality_gate_summary.judged_outcome must be an object")
+            raise ScenarioArchiveError(
+                f"{source} quality_gate_summary.judged_outcome must be an object"
+            )
     assert isinstance(base, Mapping) and isinstance(supplement, Mapping)
     return {
         "routes": _merge_count_maps(
@@ -405,7 +450,7 @@ def _merged_matrix_sha256(base: ScenarioManifestV2, supplement: ScenarioManifest
         "base_matrix_sha256": base["matrix_sha256"],
         "supplement_matrix_sha256": supplement["matrix_sha256"],
     }
-    return sha256(_canonical_json(document)).hexdigest()
+    return sha256(canonical_bytes(document)).hexdigest()
 
 
 def _concatenate_jsonl(*parts: bytes) -> bytes:
@@ -421,48 +466,57 @@ def _rejection_counts(rejects: Sequence[Mapping[str, Any]]) -> Mapping[str, int]
     return dict(sorted(counts.items()))
 
 
-def read_v2_bank(source: Path) -> V2Bank:
-    """Read and fully validate a v2 bank directory or archive."""
+def read_scenario_archive(source: Path) -> ScenarioArchive:
+    """Read a scenario directory or archive and apply every publish-time check."""
     if source.is_dir():
         try:
-            files = {filename: (source / filename).read_bytes() for filename in _BANK_FILES}
+            files = {filename: (source / filename).read_bytes() for filename in _ARCHIVE_FILES}
         except OSError as error:
-            raise BankError(f"unable to read bank {source}: {error}") from error
-        expected_root = source.name
+            raise ScenarioArchiveError(f"unable to read scenario {source}: {error}") from error
+        archive_root = None
     else:
-        files, expected_root = _read_archive(source)
-    try:
-        manifest_value = json.loads(files["manifest.json"])
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise BankError(f"invalid manifest.json in {source}: {error}") from error
-    if not isinstance(manifest_value, dict):
-        raise BankError(f"manifest.json in {source} must contain an object")
-    try:
-        manifest = validate_manifest_v2(manifest_value)
-    except SchemaValidationError as error:
-        raise BankError(f"manifest field {error.field!r} {error}") from error
-    if source.is_file() and manifest["scenario_name"] != expected_root:
-        raise BankError("archive root must equal manifest scenario_name")
+        files, archive_root = _read_archive(source)
+    scenario = _load_extracted(files, source)
+    manifest = cast(ScenarioManifestV2, scenario.manifest)
+    if archive_root is not None and manifest["scenario_name"] != archive_root:
+        raise ScenarioArchiveError("archive root must equal manifest scenario_name")
     for filename in ("fragments.jsonl", "traces.jsonl"):
         metadata = manifest["files"][filename]
         content = files[filename]
         if len(content) != metadata["size_bytes"]:
-            raise BankError(f"manifest files.{filename}.size_bytes does not match")
+            raise ScenarioArchiveError(f"manifest files.{filename}.size_bytes does not match")
         if sha256(content).hexdigest() != metadata["sha256"]:
-            raise BankError(f"manifest files.{filename}.sha256 does not match")
+            raise ScenarioArchiveError(f"manifest files.{filename}.sha256 does not match")
 
-    fragments = _parse_fragments(files["fragments.jsonl"])
-    trace_ids, span_count, span_kinds = _trace_stats(files["traces.jsonl"])
+    fragments = tuple(scenario.fragments)
+    requests = tuple(scenario.requests)
+    trace_ids, span_count, span_kinds = _span_statistics(requests)
     _validate_membership([_fragment_document(fragment) for fragment in fragments], trace_ids)
     if manifest["fragment_count"] != len(fragments):
-        raise BankError("manifest fragment_count does not match")
+        raise ScenarioArchiveError("manifest fragment_count does not match")
     if manifest["trace_count"] != len(trace_ids):
-        raise BankError("manifest trace_count does not match")
+        raise ScenarioArchiveError("manifest trace_count does not match")
     if manifest["span_count"] != span_count:
-        raise BankError("manifest span_count does not match")
+        raise ScenarioArchiveError("manifest span_count does not match")
     if set(manifest["span_kinds"]) != span_kinds:
-        raise BankError("manifest span_kinds does not match")
-    return V2Bank(manifest=manifest, fragments=fragments, traces_bytes=files["traces.jsonl"])
+        raise ScenarioArchiveError("manifest span_kinds does not match")
+    return ScenarioArchive(
+        manifest=manifest,
+        fragments=fragments,
+        traces_bytes=files["traces.jsonl"],
+        requests=requests,
+    )
+
+
+def _load_extracted(files: Mapping[str, bytes], source: Path) -> Scenario:
+    with tempfile.TemporaryDirectory(prefix="phoenix-datagen-scenario-") as directory:
+        extracted = Path(directory)
+        for filename, content in files.items():
+            (extracted / filename).write_bytes(content)
+        try:
+            return load_scenario(extracted)
+        except ScenarioError as error:
+            raise ScenarioArchiveError(f"invalid scenario {source}: {error}") from error
 
 
 def _read_archive(source: Path) -> tuple[dict[str, bytes], str]:
@@ -470,83 +524,38 @@ def _read_archive(source: Path) -> tuple[dict[str, bytes], str]:
         with tarfile.open(source, mode="r:gz") as archive:
             members = archive.getmembers()
             if any(not member.isfile() for member in members):
-                raise BankError("bank archive may contain only regular files")
+                raise ScenarioArchiveError("scenario archive may contain only regular files")
             paths = [PurePosixPath(member.name) for member in members]
             if any(len(path.parts) != 2 for path in paths):
-                raise BankError("bank archive must use one top-level scenario directory")
+                raise ScenarioArchiveError(
+                    "scenario archive must use one top-level scenario directory"
+                )
             roots = {path.parts[0] for path in paths}
             names = {path.parts[1] for path in paths}
-            if len(roots) != 1 or names != set(_BANK_FILES) or len(members) != len(_BANK_FILES):
-                raise BankError("bank archive must contain exactly the three canonical files")
+            if (
+                len(roots) != 1
+                or names != set(_ARCHIVE_FILES)
+                or len(members) != len(_ARCHIVE_FILES)
+            ):
+                raise ScenarioArchiveError(
+                    "scenario archive must contain exactly the three canonical files"
+                )
             files = {}
             for member, path in zip(members, paths):
                 handle = archive.extractfile(member)
                 if handle is None:
-                    raise BankError(f"unable to read archive member {member.name}")
+                    raise ScenarioArchiveError(f"unable to read archive member {member.name}")
                 files[path.parts[1]] = handle.read()
             return files, roots.pop()
     except (OSError, tarfile.TarError) as error:
-        raise BankError(f"unable to read bank archive {source}: {error}") from error
+        raise ScenarioArchiveError(f"unable to read scenario archive {source}: {error}") from error
 
 
-def _parse_fragments(content: bytes) -> tuple[Fragment, ...]:
-    fragments = []
-    fragment_ids: set[str] = set()
+def _parse_staged_requests(content: bytes) -> tuple[ExportTraceServiceRequest, ...]:
     try:
         lines = content.decode().splitlines()
     except UnicodeDecodeError as error:
-        raise BankError("fragments.jsonl is not UTF-8") from error
-    for line_number, line in enumerate(lines, start=1):
-        if not line.strip():
-            continue
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError as error:
-            raise BankError(f"invalid fragment at line {line_number}: {error}") from error
-        if not isinstance(value, dict):
-            raise BankError(f"fragment at line {line_number} must be an object")
-        try:
-            fragment = validate_fragment_v2(value)
-        except SchemaValidationError as error:
-            raise BankError(
-                f"fragment at line {line_number} field {error.field!r} {error}"
-            ) from error
-        if fragment.fragment_id in fragment_ids:
-            raise BankError(f"duplicate fragment_id {fragment.fragment_id!r}")
-        fragment_ids.add(fragment.fragment_id)
-        fragments.append(fragment)
-    if not fragments:
-        raise BankError("fragments.jsonl contains no fragments")
-    return tuple(fragments)
-
-
-def _trace_stats(content: bytes) -> tuple[set[str], int, set[str]]:
-    trace_ids: set[str] = set()
-    span_count = 0
-    span_kinds: set[str] = set()
-    for request in _parse_trace_requests(content):
-        for span in _iter_spans(request):
-            if len(span.trace_id) != 16:
-                raise BankError("trace span has a non-16-byte traceId")
-            if len(span.span_id) != 8:
-                raise BankError("trace span has a non-8-byte spanId")
-            trace_ids.add(span.trace_id.hex())
-            span_count += 1
-            span_kinds.update(
-                attribute.value.string_value
-                for attribute in span.attributes
-                if attribute.key == "openinference.span.kind" and attribute.value.string_value
-            )
-    if not span_kinds:
-        raise BankError("traces.jsonl contains no openinference.span.kind values")
-    return trace_ids, span_count, span_kinds
-
-
-def _parse_trace_requests(content: bytes) -> tuple[ExportTraceServiceRequest, ...]:
-    try:
-        lines = content.decode().splitlines()
-    except UnicodeDecodeError as error:
-        raise BankError("traces.jsonl is not UTF-8") from error
+        raise ScenarioArchiveError("staged traces are not UTF-8") from error
     requests = []
     for line_number, line in enumerate(lines, start=1):
         if not line.strip():
@@ -555,21 +564,32 @@ def _parse_trace_requests(content: bytes) -> tuple[ExportTraceServiceRequest, ..
         try:
             Parse(line, request)
         except ParseError as error:
-            raise BankError(
+            raise ScenarioArchiveError(
                 f"invalid ExportTraceServiceRequest protobuf JSON at line {line_number}: {error}"
             ) from error
-        if not any(_iter_spans(request)):
-            raise BankError(f"trace request at line {line_number} contains no spans")
         requests.append(request)
-    if not requests:
-        raise BankError("traces.jsonl contains no requests")
     return tuple(requests)
 
 
-def _iter_spans(request: ExportTraceServiceRequest) -> Iterator[Span]:
-    for resource_spans in request.resource_spans:
-        for scope_spans in resource_spans.scope_spans:
-            yield from scope_spans.spans
+def _span_statistics(
+    requests: Iterable[ExportTraceServiceRequest],
+) -> tuple[set[str], int, set[str]]:
+    trace_ids: set[str] = set()
+    span_count = 0
+    span_kinds: set[str] = set()
+    for request in requests:
+        for resource_spans in request.resource_spans:
+            for scope_spans in resource_spans.scope_spans:
+                for span in scope_spans.spans:
+                    trace_ids.add(span.trace_id.hex())
+                    span_count += 1
+                    span_kinds.update(
+                        attribute.value.string_value
+                        for attribute in span.attributes
+                        if attribute.key == "openinference.span.kind"
+                        and attribute.value.string_value
+                    )
+    return trace_ids, span_count, span_kinds
 
 
 def _validate_membership(rows: Sequence[Mapping[str, Any]], trace_ids: set[str]) -> None:
@@ -577,7 +597,7 @@ def _validate_membership(rows: Sequence[Mapping[str, Any]], trace_ids: set[str])
     for row in rows:
         for trace_id in row["trace_ids"]:
             if trace_id in owners:
-                raise BankError(
+                raise ScenarioArchiveError(
                     f"trace_id {trace_id} belongs to both {owners[trace_id]} "
                     f"and {row['fragment_id']}"
                 )
@@ -585,7 +605,7 @@ def _validate_membership(rows: Sequence[Mapping[str, Any]], trace_ids: set[str])
     missing = sorted(trace_ids - owners.keys())
     unknown = sorted(owners.keys() - trace_ids)
     if missing or unknown:
-        raise BankError(
+        raise ScenarioArchiveError(
             f"fragment trace membership mismatch: unassigned={missing}, unknown={unknown}"
         )
 
@@ -611,45 +631,8 @@ def _fragment_document(fragment: Fragment) -> dict[str, Any]:
     }
 
 
-def _judged_outcome_projection(
-    cell_id: str, failure_mode: Any, judgment: Mapping[str, Any]
-) -> dict[str, Any]:
-    if judgment.get("fragment_id") != cell_id or judgment.get("cell_id") != cell_id:
-        raise BankError(f"judgment identity does not match accepted cell {cell_id}")
-    if not isinstance(failure_mode, str) or judgment.get("failure_mode", "none") != failure_mode:
-        raise BankError(f"judgment failure mode does not match accepted cell {cell_id}")
-    route_reason = judgment.get("route_reason")
-    outcome = judgment.get("outcome")
-    rationale = judgment.get("rationale")
-    if route_reason not in {"fault", "trap_proximity", "baseline", "not_selected"}:
-        raise BankError(f"accepted cell {cell_id} has an invalid judgment route")
-    if (failure_mode != "none") != (route_reason == "fault"):
-        raise BankError(f"accepted cell {cell_id} has an invalid fault judgment route")
-    if route_reason == "not_selected":
-        if outcome is not None or rationale is not None:
-            raise BankError(f"unselected cell {cell_id} may not carry an outcome")
-    elif outcome not in {"survived", "degraded", "failed"} or not isinstance(rationale, str):
-        raise BankError(f"routed cell {cell_id} has no completed judgment")
-    projected_fields = (
-        "seeds_present",
-        "engaged_seed_ids",
-        "seed_proximity",
-        "proximity_source",
-        "targeted_seed_id",
-        "seed_intensities",
-        "failure_mode",
-        "route_reason",
-        "outcome",
-        "rationale",
-        "contract_version",
-        "prompt_sha256",
-        "output_schema_sha256",
-        "content_sha256",
-        "attempt_id",
-        "provider",
-        "model",
-    )
-    projection = {field: judgment.get(field) for field in projected_fields}
+def _judged_outcome_projection(judgment: Mapping[str, Any]) -> dict[str, Any]:
+    projection = {field: judgment.get(field) for field in _PROJECTED_JUDGMENT_FIELDS}
     projection["failure_mode"] = judgment.get("failure_mode", "none")
     return projection
 
@@ -678,44 +661,8 @@ def _judgment_summary(
     }
 
 
-def _default_composer(rows: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
-    archetypes = sorted({row["archetype"] for row in rows})
-    return {
-        "session_fragments_median": 2.0,
-        "session_fragments_sigma": 1.0,
-        "session_fragments_max": 24,
-        "archetype_mix": {archetype: 1.0 for archetype in archetypes},
-        "fragment_gap_median_seconds": 180.0,
-        "fragment_gap_sigma": 0.9,
-        "fragment_gap_max_seconds": 3600.0,
-    }
-
-
 def _file_metadata(content: bytes) -> dict[str, Any]:
     return {"sha256": sha256(content).hexdigest(), "size_bytes": len(content)}
-
-
-def _canonical_json(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
-
-
-def _read_jsonl(path: Path) -> list[Mapping[str, Any]]:
-    try:
-        lines = path.read_text().splitlines()
-    except OSError as error:
-        raise GenerationError(f"Unable to read journal {path}: {error}") from error
-    values: list[Mapping[str, Any]] = []
-    for line_number, line in enumerate(lines, start=1):
-        if not line.strip():
-            continue
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError as error:
-            raise GenerationError(f"Invalid JSON in {path} at line {line_number}") from error
-        if not isinstance(value, dict):
-            raise GenerationError(f"Expected object in {path} at line {line_number}")
-        values.append(value)
-    return values
 
 
 def _write_archive_atomic(
@@ -726,7 +673,7 @@ def _write_archive_atomic(
         or scenario_name in {".", ".."}
         or PurePosixPath(scenario_name).name != scenario_name
     ):
-        raise BankError("scenario_name must be one safe path component")
+        raise ScenarioArchiveError("scenario_name must be one safe path component")
     destination.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         dir=destination.parent, prefix=f".{destination.name}.", suffix=".tmp"
@@ -738,7 +685,7 @@ def _write_archive_atomic(
                 with tarfile.open(
                     fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT
                 ) as archive:
-                    for filename in _BANK_FILES:
+                    for filename in _ARCHIVE_FILES:
                         content = files[filename]
                         info = tarfile.TarInfo(f"{scenario_name}/{filename}")
                         info.size = len(content)
@@ -751,7 +698,7 @@ def _write_archive_atomic(
                         archive.addfile(info, fileobj=_BytesReader(content))
             raw.flush()
             os.fsync(raw.fileno())
-        read_v2_bank(temporary)
+        read_scenario_archive(temporary)
         os.replace(temporary, destination)
         directory_descriptor = os.open(destination.parent, os.O_RDONLY)
         try:
@@ -794,7 +741,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="record an instrumenter distribution version; repeat for every recorder dependency",
     )
 
-    merge = subparsers.add_parser("merge", help="merge a supplemental bank into its base")
+    merge = subparsers.add_parser("merge", help="merge a supplemental scenario into its base")
     merge.add_argument("--base", type=Path, required=True)
     merge.add_argument("--supplement", type=Path, required=True)
     merge.add_argument("--archive", type=Path, required=True)
@@ -821,10 +768,10 @@ def command(
                 ),
             )
         elif args.command == "merge":
-            package = merge_v2_banks(args.base, args.supplement, args.archive)
+            package = merge_scenario_archives(args.base, args.supplement, args.archive)
         else:
             raise AssertionError(args.command)
-    except (BankError, GenerationError, OSError, ValueError) as error:
+    except (ScenarioArchiveError, GenerationError, OSError, ValueError) as error:
         print(json.dumps({"error": type(error).__name__, "message": str(error)}), file=stderr)
         return 2
     print(json.dumps(_package_document(package), indent=2, sort_keys=True), file=stdout)
@@ -843,7 +790,7 @@ def _parse_instrumenter_versions(values: Sequence[str]) -> Mapping[str, str]:
     return versions
 
 
-def _package_document(package: BankPackage) -> dict[str, Any]:
+def _package_document(package: ScenarioPackage) -> dict[str, Any]:
     return {
         "archive": str(package.path),
         "sha256": package.sha256,

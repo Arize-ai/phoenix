@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from math import isfinite
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Collection, Literal, Mapping, Sequence, cast
 
 from scripts.datagen.model_backend import (
     ModelBackend,
@@ -27,6 +27,8 @@ ProximitySource = Literal["targeted", "recorded_engagement", "complete_empty"]
 JUDGING_INPUT_SCHEMA_VERSION = 1
 JUDGMENT_CONTRACT_VERSION = "judged-outcome-v1"
 MAX_RATIONALE_LENGTH = 600
+JUDGED_OUTCOMES = frozenset({"survived", "degraded", "failed"})
+ROUTE_REASONS = frozenset({"fault", "trap_proximity", "baseline", "not_selected"})
 
 _OUTPUT_SCHEMA: Mapping[str, Any] = {
     "type": "object",
@@ -305,7 +307,7 @@ class JudgmentContractV1:
             raise JudgmentError("judge output must contain exactly outcome and rationale")
         outcome = output.get("outcome")
         rationale = output.get("rationale")
-        if outcome not in {"survived", "degraded", "failed"}:
+        if outcome not in JUDGED_OUTCOMES:
             raise JudgmentError(f"unsupported judged outcome {outcome!r}")
         if not isinstance(rationale, str) or not rationale.strip():
             raise JudgmentError("judge rationale must be non-empty")
@@ -324,14 +326,6 @@ def route_judging_inputs(
     fragment_ids = [_string(fragment, "fragment_id") for fragment in fragments]
     if len(by_id) != len(inputs) or set(by_id) != set(fragment_ids):
         raise JudgmentError("accepted fragments and judging inputs must have identical identities")
-    fragment_modes = {
-        _string(fragment, "fragment_id"): _string_or_default(fragment, "failure_mode", "none")
-        for fragment in fragments
-    }
-    if any(by_id[fragment_id].failure_mode != mode for fragment_id, mode in fragment_modes.items()):
-        raise JudgmentError(
-            "accepted fragments and judging inputs must have identical failure modes"
-        )
     proximate = {item.fragment_id for item in inputs if item.seed_proximity}
     route_reasons = select_judge_routes(
         fragments,
@@ -453,14 +447,10 @@ def execute_judging(
 
 def _record_from_mapping(value: Mapping[str, Any]) -> JudgmentRecordV1:
     outcome = value.get("outcome")
-    if outcome is not None and outcome not in {"survived", "degraded", "failed"}:
+    if outcome is not None and outcome not in JUDGED_OUTCOMES:
         raise JudgmentError(f"unsupported persisted outcome {outcome!r}")
     seeds_present = _string_tuple(value, "seeds_present")
     engaged_seed_ids = _string_tuple(value, "engaged_seed_ids")
-    if tuple(sorted(set(seeds_present))) != seeds_present:
-        raise JudgmentError("persisted seeds_present must be sorted and unique")
-    if tuple(sorted(set(engaged_seed_ids))) != engaged_seed_ids:
-        raise JudgmentError("persisted engaged seed IDs must be sorted and unique")
     seed_intensities = value.get("seed_intensities")
     if not isinstance(seed_intensities, Mapping):
         raise JudgmentError("persisted seed_intensities must be an object")
@@ -472,21 +462,8 @@ def _record_from_mapping(value: Mapping[str, Any]) -> JudgmentRecordV1:
         "proximity_source",
         {"targeted", "recorded_engagement", "complete_empty"},
     )
-    route_reason = _choice(
-        value,
-        "route_reason",
-        {"fault", "trap_proximity", "baseline", "not_selected"},
-    )
-    rationale = value.get("rationale")
-    if outcome is None:
-        if rationale is not None:
-            raise JudgmentError("persisted unjudged outcome may not carry a rationale")
-    elif (
-        not isinstance(rationale, str)
-        or not rationale.strip()
-        or len(rationale) > MAX_RATIONALE_LENGTH
-    ):
-        raise JudgmentError("persisted judged outcome must carry a bounded rationale")
+    route_reason = _choice(value, "route_reason", ROUTE_REASONS)
+    rationale = _optional_string(value, "rationale")
     return JudgmentRecordV1(
         cell_id=_string(value, "cell_id"),
         fragment_id=_string(value, "fragment_id"),
@@ -499,7 +476,7 @@ def _record_from_mapping(value: Mapping[str, Any]) -> JudgmentRecordV1:
         failure_mode=_string_or_default(value, "failure_mode", "none"),
         route_reason=cast(RouteReason, route_reason),
         outcome=cast(JudgedOutcome | None, outcome),
-        rationale=cast(str | None, rationale),
+        rationale=rationale,
         contract_version=_string(value, "contract_version"),
         prompt_sha256=cast(str | None, value.get("prompt_sha256")),
         output_schema_sha256=_digest_string(value, "output_schema_sha256"),
@@ -516,6 +493,11 @@ def _validate_resumed_record(
     run: GenerationRun,
 ) -> None:
     item = route.input
+    request = (
+        JudgmentContractV1.build_request(route, model=run.config.frontier_model)
+        if route.selected
+        else None
+    )
     expected = {
         "cell_id": item.cell_id,
         "fragment_id": item.fragment_id,
@@ -529,32 +511,13 @@ def _validate_resumed_record(
         "route_reason": route.route_reason,
         "content_sha256": item.content_sha256,
         "output_schema_sha256": sha256(canonical_bytes(_OUTPUT_SCHEMA)).hexdigest(),
+        "provider": run.config.frontier_provider if request else None,
+        "model": run.config.frontier_model if request else None,
+        "prompt_sha256": (sha256(request.prompt.encode()).hexdigest() if request else None),
     }
     actual = {field: getattr(record, field) for field in expected}
     if actual != expected:
         raise JudgmentError("persisted judgment differs from the current immutable route")
-    if route.selected:
-        request = JudgmentContractV1.build_request(route, model=run.config.frontier_model)
-        if (
-            record.model != run.config.frontier_model
-            or record.provider != run.config.frontier_provider
-            or record.prompt_sha256 != sha256(request.prompt.encode()).hexdigest()
-            or record.outcome is None
-            or record.attempt_id is None
-        ):
-            raise JudgmentError("persisted judgment differs from the immutable judge binding")
-    elif any(
-        item is not None
-        for item in (
-            record.outcome,
-            record.rationale,
-            record.prompt_sha256,
-            record.attempt_id,
-            record.provider,
-            record.model,
-        )
-    ):
-        raise JudgmentError("persisted unselected judgment contains judge result fields")
 
 
 def append_immutable_record(path: Path, record: Mapping[str, Any], *, keys: Sequence[str]) -> None:
@@ -613,7 +576,7 @@ def _integer(value: Mapping[str, Any], field: str) -> int:
     return item
 
 
-def _choice(value: Mapping[str, Any], field: str, choices: set[str]) -> str:
+def _choice(value: Mapping[str, Any], field: str, choices: Collection[str]) -> str:
     item = _string(value, field)
     if item not in choices:
         raise JudgmentError(f"{field} must be one of {sorted(choices)!r}")

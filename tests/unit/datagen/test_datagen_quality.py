@@ -10,15 +10,6 @@ import pytest
 
 from phoenix.datagen import load_scenario
 from phoenix.datagen.schema import validate_fragment_v2
-from scripts.datagen.bank import (
-    BankError,
-    merge_v2_banks,
-    package_generation_run,
-    read_v2_bank,
-)
-from scripts.datagen.bank import (
-    command as bank_command,
-)
 from scripts.datagen.generation import (
     GenerationRun,
     RunConfig,
@@ -38,6 +29,15 @@ from scripts.datagen.quality import (
     VALIDITY_VERSION,
     QualityGate,
     select_judge_routes,
+)
+from scripts.datagen.scenario import (
+    ScenarioArchiveError,
+    merge_scenario_archives,
+    package_generation_run,
+    read_scenario_archive,
+)
+from scripts.datagen.scenario import (
+    command as scenario_command,
 )
 
 
@@ -101,7 +101,7 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
     archive = tmp_path / "quality-bank.tar.gz"
     output = io.StringIO()
     assert (
-        bank_command(
+        scenario_command(
             [
                 "package",
                 str(run.directory),
@@ -121,10 +121,10 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
         == 0
     )
     assert json.loads(output.getvalue())["fragment_count"] == 2
-    bank = read_v2_bank(archive)
+    archive_contents = read_scenario_archive(archive)
 
-    assert bank.traces_bytes == b"".join(staged_traces)
-    quality_summary = bank.manifest["quality_gate_summary"]
+    assert archive_contents.traces_bytes == b"".join(staged_traces)
+    quality_summary = archive_contents.manifest["quality_gate_summary"]
     assert quality_summary["supplemental_lineage"] == {
         "base_scenario_name": "datagen-e2e-20260822-r5",
         "base_archive_sha256": ("b5a0114413903245ea6bb2d7ab43f7f4fa1ad0e6273432a19192d31bad77f2ce"),
@@ -134,9 +134,11 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
     assert summary["judged"] == 2
     assert summary["unjudged"] == 0
     assert summary["outcomes"]["survived"] == 2
-    assert all("judged_outcome" in fragment.quality_results for fragment in bank.fragments)
+    assert all(
+        "judged_outcome" in fragment.quality_results for fragment in archive_contents.fragments
+    )
     fault_fragment = next(
-        fragment for fragment in bank.fragments if fragment.failure_mode != "none"
+        fragment for fragment in archive_contents.fragments if fragment.failure_mode != "none"
     )
     assert fault_fragment.quality_results["judged_outcome"]["failure_mode"] == "provider_timeout"
     assert fault_fragment.quality_results["judged_outcome"]["route_reason"] == "fault"
@@ -148,7 +150,7 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
             "quality-bank/traces.jsonl",
         ]
 
-    baseline_gate = QualityGate.from_baseline_bank(archive)
+    baseline_gate = QualityGate.from_baseline_scenario(archive)
     duplicate = baseline_gate.evaluate(
         _candidate("f" * 64, "plain_chat", "self_play", ["f" * 32]), messages
     )
@@ -161,7 +163,7 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
     malformed["unknownRecorderField"] = True
     first_stage = run.directory / "staging" / run.cells[0].cell_id / "attempt-1" / "traces.jsonl"
     first_stage.write_text(json.dumps(malformed) + "\n")
-    with pytest.raises(BankError, match="ExportTraceServiceRequest protobuf JSON"):
+    with pytest.raises(ScenarioArchiveError, match="ExportTraceServiceRequest protobuf JSON"):
         package_generation_run(
             run.directory,
             archive,
@@ -173,10 +175,10 @@ def test_quality_gate_accepts_cross_archetype_and_packages_raw_requests(
     assert archive.read_bytes() == published
 
 
-def test_merge_v2_banks_rebuilds_and_loads_the_combined_archive(tmp_path: Path) -> None:
-    base = _fixture_bank_archive(tmp_path, "base-source", scenario_name="base-bank")
+def test_merge_scenario_archives_rebuilds_and_loads_the_combined_archive(tmp_path: Path) -> None:
+    base = _fixture_scenario_archive(tmp_path, "base-source", scenario_name="base-bank")
     base_digest = sha256(base.read_bytes()).hexdigest()
-    supplement = _fixture_bank_archive(
+    supplement = _fixture_scenario_archive(
         tmp_path,
         "supplement-source",
         scenario_name="supplement-bank",
@@ -196,7 +198,7 @@ def test_merge_v2_banks_rebuilds_and_loads_the_combined_archive(tmp_path: Path) 
     output = io.StringIO()
 
     assert (
-        bank_command(
+        scenario_command(
             [
                 "merge",
                 "--base",
@@ -214,15 +216,15 @@ def test_merge_v2_banks_rebuilds_and_loads_the_combined_archive(tmp_path: Path) 
     package_document = json.loads(output.getvalue())
     assert package_document["fragment_count"] == 4
     assert package_document["trace_count"] == 6
-    bank = read_v2_bank(merged)
-    summary = bank.manifest["quality_gate_summary"]
-    assert bank.manifest["scenario_name"] == "base-bank"
-    assert bank.manifest["matrix_seed"] == 7
-    assert bank.manifest["matrix_sha256"] != "e" * 64
-    assert bank.manifest["fragment_count"] == 4
-    assert bank.manifest["trace_count"] == 6
-    assert bank.manifest["span_count"] == 8
-    assert bank.manifest["instrumenter_package_versions"] == {"synthetic": "1.0.0"}
+    archive_contents = read_scenario_archive(merged)
+    summary = archive_contents.manifest["quality_gate_summary"]
+    assert archive_contents.manifest["scenario_name"] == "base-bank"
+    assert archive_contents.manifest["matrix_seed"] == 7
+    assert archive_contents.manifest["matrix_sha256"] != "e" * 64
+    assert archive_contents.manifest["fragment_count"] == 4
+    assert archive_contents.manifest["trace_count"] == 6
+    assert archive_contents.manifest["span_count"] == 8
+    assert archive_contents.manifest["instrumenter_package_versions"] == {"synthetic": "1.0.0"}
     assert summary["accepted"] == 4
     assert summary["rejected"] == 4
     assert summary["rejected_by_gate"] == {"generation": 3, "validity": 1}
@@ -240,7 +242,7 @@ def test_merge_v2_banks_rebuilds_and_loads_the_combined_archive(tmp_path: Path) 
         summary["merge_lineage"]["supplement"]["archive_sha256"]
         == sha256(supplement.read_bytes()).hexdigest()
     )
-    assert sum(fragment.failure_mode != "none" for fragment in bank.fragments) == 1
+    assert sum(fragment.failure_mode != "none" for fragment in archive_contents.fragments) == 1
     assert validate_archive(merged, asset_schema_version=2).fragment_count == 4
 
     extracted = tmp_path / "loaded" / "base-bank"
@@ -270,7 +272,7 @@ def test_merge_v2_banks_rebuilds_and_loads_the_combined_archive(tmp_path: Path) 
     ],
     ids=("fragment-id", "trace-id", "quality-settings"),
 )
-def test_merge_v2_banks_rejects_cross_bank_identity_or_configuration(
+def test_merge_scenario_archives_rejects_cross_archive_identity_or_configuration(
     tmp_path: Path,
     trace_byte_offset: int,
     fragment_ids: tuple[str, str],
@@ -278,9 +280,9 @@ def test_merge_v2_banks_rejects_cross_bank_identity_or_configuration(
     sample_fraction: float,
     match: str,
 ) -> None:
-    base = _fixture_bank_archive(tmp_path, "base-source", scenario_name="base-bank")
+    base = _fixture_scenario_archive(tmp_path, "base-source", scenario_name="base-bank")
     base_digest = sha256(base.read_bytes()).hexdigest()
-    supplement = _fixture_bank_archive(
+    supplement = _fixture_scenario_archive(
         tmp_path,
         "supplement-source",
         scenario_name="supplement-bank",
@@ -295,13 +297,13 @@ def test_merge_v2_banks_rejects_cross_bank_identity_or_configuration(
         },
     )
 
-    with pytest.raises(BankError, match=match):
-        merge_v2_banks(base, supplement, tmp_path / "base-bank.tar.gz")
+    with pytest.raises(ScenarioArchiveError, match=match):
+        merge_scenario_archives(base, supplement, tmp_path / "base-bank.tar.gz")
 
 
-def test_merge_v2_banks_requires_the_exact_declared_base(tmp_path: Path) -> None:
-    base = _fixture_bank_archive(tmp_path, "base-source", scenario_name="base-bank")
-    supplement = _fixture_bank_archive(
+def test_merge_scenario_archives_requires_the_exact_declared_base(tmp_path: Path) -> None:
+    base = _fixture_scenario_archive(tmp_path, "base-source", scenario_name="base-bank")
+    supplement = _fixture_scenario_archive(
         tmp_path,
         "supplement-source",
         scenario_name="supplement-bank",
@@ -314,8 +316,8 @@ def test_merge_v2_banks_requires_the_exact_declared_base(tmp_path: Path) -> None
         },
     )
 
-    with pytest.raises(BankError, match="base archive SHA-256"):
-        merge_v2_banks(base, supplement, tmp_path / "base-bank.tar.gz")
+    with pytest.raises(ScenarioArchiveError, match="base archive SHA-256"):
+        merge_scenario_archives(base, supplement, tmp_path / "base-bank.tar.gz")
 
 
 def test_short_fragment_jaccard_threshold_is_inclusive(tmp_path: Path) -> None:
@@ -445,7 +447,7 @@ def test_legacy_bad_tier_remains_readable_in_schema_v2() -> None:
     assert validate_fragment_v2(fragment).quality_tier == "deliberately_bad"
 
 
-def _fixture_bank_archive(
+def _fixture_scenario_archive(
     tmp_path: Path,
     archive_id: str,
     *,
