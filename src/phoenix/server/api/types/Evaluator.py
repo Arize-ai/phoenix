@@ -211,6 +211,16 @@ class Evaluator(Node):
         return self.id < 0
 
     @strawberry.field
+    async def output_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[BuiltInEvaluatorOutputConfig]:
+        # Every concrete evaluator declares the annotations it writes. Exposing
+        # that on the interface lets callers select it once instead of repeating
+        # the selection for each implementing type.
+        raise NotImplementedError
+
+    @strawberry.field
     async def datasets(
         self,
         info: Info[Context, None],
