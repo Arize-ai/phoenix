@@ -83,6 +83,21 @@ export function getModelsByProvider(
 }
 
 /**
+ * Where a surface's model executions resolve credentials from. Playground
+ * passes browser-local credentials with its requests, so local keys make a
+ * provider genuinely usable there ("any"). Surfaces that send through the
+ * server's `/v1/chat/completions` proxy authenticate exclusively with
+ * server-side credentials ("server") — browser-local keys must not make a
+ * provider look ready or count as provisioned, or the menu offers models the
+ * execution path cannot authenticate.
+ */
+export type ModelCredentialSource = "any" | "server";
+
+// Stable empty store so the "server" credential source doesn't invalidate
+// the memoized readiness computations on every render.
+const NO_LOCAL_CREDENTIALS: LocalProviderCredentials = {};
+
+/**
  * Loads the model catalog (built-in providers, custom providers, playground
  * models) shared by the model pickers and the agent session model readers.
  *
@@ -91,11 +106,15 @@ export function getModelsByProvider(
  *   Defaults to "store-and-network" so pickers stay fresh; consumers that
  *   mount alongside a picker on the same surface can pass "store-or-network"
  *   to reuse its response instead of issuing a duplicate network fetch.
+ * @param params.credentialSource - which credential store the surface's
+ *   execution path can actually use; see {@link ModelCredentialSource}.
  */
 export function useModelMenuData({
   fetchPolicy = "store-and-network",
+  credentialSource = "any",
 }: {
   fetchPolicy?: FetchPolicy;
+  credentialSource?: ModelCredentialSource;
 } = {}) {
   const data = useLazyLoadQuery<useModelMenuDataQuery>(
     graphql`
@@ -199,9 +218,14 @@ export function useModelMenuData({
     [customProviders, installedBuiltInProviders]
   );
 
-  const localCredentials: LocalProviderCredentials = useCredentialsContext(
-    (state) => state
-  );
+  const storedLocalCredentials: LocalProviderCredentials =
+    useCredentialsContext((state) => state);
+  // Server-proxied surfaces cannot authenticate with browser-local keys, so
+  // readiness/provisioned/needs-credentials all compute as if none exist.
+  const localCredentials: LocalProviderCredentials =
+    credentialSource === "server"
+      ? NO_LOCAL_CREDENTIALS
+      : storedLocalCredentials;
 
   // Every provider annotated with whether it still needs credentials, so
   // menu items can hint at unconfigured providers.

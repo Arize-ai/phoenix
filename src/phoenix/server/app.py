@@ -240,6 +240,8 @@ class AppConfig(NamedTuple):
     auth_error_messages: dict[AuthErrorCode, str]
     """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
+    password_reset_email_enabled: bool = False
+    """ Whether password reset emails can be sent """
     basic_auth_disabled: bool = False
     ldap_enabled: bool = False
     """ Whether LDAP authentication is configured """
@@ -326,6 +328,7 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "password_reset_email_enabled": self._app_config.password_reset_email_enabled,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "ldap_enabled": self._app_config.ldap_enabled,
                     "ldap_manual_user_creation_enabled": self._app_config.ldap_manual_user_creation_enabled,  # noqa: E501
@@ -706,12 +709,12 @@ def _lifespan(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
                     )
-            # Probe the shared runtime once when either consumer can use it.
+            # Probe the shared runtime once when any consumer can use it.
             # Failure is non-fatal because Monty is an optional server feature.
-            if (
-                getattr(app.state, "mcp_code_mode_sandbox", None) is not None
-                or "MONTY" in get_env_allowed_sandbox_providers()
-            ):
+            mounted_mcp_code_mode = getattr(app.state, "mcp_code_mode_sandbox", None) is not None
+            agent_mcp_code_mode = getattr(app.state, "pxi_mcp_sandbox", None) is not None
+            monty_allowed_by_config = "MONTY" in get_env_allowed_sandbox_providers()
+            if mounted_mcp_code_mode or agent_mcp_code_mode or monty_allowed_by_config:
                 try:
                     await sandbox_runtime.monty.probe_runtime()
                 except Exception:
@@ -1230,6 +1233,26 @@ def create_app(
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
+    # The agent's own instance, independent of the mount and its configuration.
+    # Read-only: mutations belong to the agent's editing tools, which route
+    # approval through the user. Its sandbox takes the ``agent`` admission class,
+    # capped one below the worker pool size: consumers compete for workers and a
+    # loser waits at checkout, but no consumer can hold them all.
+    pxi_mcp_server = None
+    pxi_mcp_sandbox = None
+    if not get_env_disable_agent_assistant():
+        from phoenix.server.mcp_server import build_phoenix_mcp_server
+
+        pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
+            app,
+            monty_runtime=sandbox_runtime.monty,
+            code_mode=True,
+            monty_consumer="agent",
+            read_only=True,
+            db=db,
+        )
+    app.state.pxi_mcp_server = pxi_mcp_server
+    app.state.pxi_mcp_sandbox = pxi_mcp_sandbox
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
@@ -1259,6 +1282,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    password_reset_email_enabled=email_sender is not None,
                     basic_auth_disabled=basic_auth_disabled,
                     ldap_enabled=ldap_config is not None,
                     # Disable manual user creation when LDAP disabled or no email attr
@@ -1313,6 +1337,10 @@ def create_app(
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.sandbox_runtime = sandbox_runtime
     app.state.graphql_schema = graphql_schema
+    # Snapshot the provider allow-list once at app creation so the REST and
+    # GraphQL surfaces answer from the same (startup-validated) value.
+    allowed_provider_names = get_env_allowed_providers()
+    app.state.allowed_provider_names = allowed_provider_names
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,
         system_settings=system_settings,
@@ -1325,7 +1353,7 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
         event_queue=dml_event_handler,
-        allowed_provider_names=get_env_allowed_providers(),
+        allowed_provider_names=allowed_provider_names,
         read_only=read_only,
         authentication_enabled=authentication_enabled,
         secret=secret,

@@ -213,10 +213,11 @@ If setting `authorization` headers explicitly, ensure that the header field is *
 
 ## Agent Authentication Discovery
 
-Phoenix serves two discovery endpoints so AI agents can learn how to authenticate against a deployed instance. Both are always available and require no configuration:
+Phoenix serves three discovery endpoints so AI agents can learn how to authenticate against a deployed instance. All are always available and require no configuration:
 
 - `GET /auth.md` — a human- and agent-readable Markdown guide describing this deployment's auth model. When authentication is disabled it states that all endpoints are public; when enabled it directs the caller to create an API key under **Settings → API Keys** and send an `Authorization: Bearer <token>` header. It follows the [auth.md convention](https://workos.com/auth-md/docs/apps).
 - `GET /.well-known/oauth-protected-resource` — [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) Protected Resource Metadata (JSON), advertising the resource, that bearer tokens are sent in the header, and a link to `/auth.md`.
+- `GET /.well-known/oauth-protected-resource/mcp` — the same RFC 9728 metadata scoped to the built-in [MCP server](/docs/phoenix/integrations/remote-mcp), advertising `/mcp` as the protected resource so MCP clients can discover how to authenticate against it. It is served only when the MCP server is mounted at `/mcp` (the default) and otherwise responds `404`.
 
 When authentication is enabled, `401 Unauthorized` responses include a `WWW-Authenticate` header pointing at the Protected Resource Metadata endpoint, giving agents a stable entry point for discovering how to authenticate. When the [OAuth2 authorization server](#oauth2-authorization-server) is enabled, the metadata also advertises it, so OAuth-capable clients (such as MCP clients) can log in interactively; other clients are provisioned out of band with [API keys](#api-keys), and access is always governed by the role of the user the credential belongs to.
 

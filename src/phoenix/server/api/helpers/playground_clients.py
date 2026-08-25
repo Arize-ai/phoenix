@@ -102,6 +102,7 @@ from phoenix.server.api.types.GenerativeProvider import (
 from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
+    import httpx2
     from anthropic import AsyncAnthropic
     from anthropic.lib.streaming import AsyncMessageStreamManager
     from anthropic.types import MessageParam, TextBlockParam, ToolUseBlockParam
@@ -2070,6 +2071,11 @@ def _anthropic_beta_headers_for_tools(
     return {"anthropic-beta": ",".join(betas)}
 
 
+# `messages.create()` accepts no sampling parameters. `extra_body` merges them into
+# the request JSON, which is how the models that support them receive them.
+_ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
+
+
 # Anthropic models that use adaptive thinking (`thinking: {"type": "adaptive"}`).
 # These models removed `temperature`, `top_p`, `top_k`, and extended thinking
 # (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
@@ -2234,12 +2240,14 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
         extra_body: dict[str, Any] | None = None
         if invocation_parameters:
             anthropic_params = invocation_parameters.anthropic
+            # Sampling parameters reach the request JSON through `extra_body`.
+            sampling_params: dict[str, Any] = {}
             if isinstance(anthropic_params.temperature, float):
-                params["temperature"] = anthropic_params.temperature
+                sampling_params["temperature"] = anthropic_params.temperature
             if isinstance(anthropic_params.stop_sequences, list):
                 params["stop_sequences"] = anthropic_params.stop_sequences
             if isinstance(anthropic_params.top_p, float):
-                params["top_p"] = anthropic_params.top_p
+                sampling_params["top_p"] = anthropic_params.top_p
             output_config_in = anthropic_params.output_config
             if isinstance(output_config_in, PromptAnthropicOutputConfig):
                 if output_config is None:
@@ -2262,8 +2270,11 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 if thinking.display:
                     adaptive_param["display"] = thinking.display
                 params["thinking"] = adaptive_param
+            # A configured `extra_body` overrides the sampling parameters above.
             if isinstance(anthropic_params.extra_body, dict):
-                extra_body = anthropic_params.extra_body
+                extra_body = {**sampling_params, **anthropic_params.extra_body}
+            elif sampling_params:
+                extra_body = sampling_params
 
         if output_config is not None:
             params["output_config"] = output_config
@@ -2281,7 +2292,15 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
         input_value: dict[str, Any] = dict(params)
         if extra_body:
-            input_value["extra_body"] = extra_body
+            # Sampling parameters are top-level fields on the wire, so record them as
+            # such; the nested entry is for keys the caller asked to pass through.
+            input_value.update(
+                {k: v for k, v in extra_body.items() if k in _ANTHROPIC_SAMPLING_PARAM_KEYS}
+            )
+            if passthrough := {
+                k: v for k, v in extra_body.items() if k not in _ANTHROPIC_SAMPLING_PARAM_KEYS
+            }:
+                input_value["extra_body"] = passthrough
         span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         input_value.pop("messages", None)
@@ -2900,6 +2919,7 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
 
 
 GEMINI_3_MODELS = [
+    "gemini-3.7-flash",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
@@ -2963,19 +2983,27 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLE
 
 
 class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
+    """Records the outgoing request URL on the span without altering the request.
+
+    Provider SDKs disagree on their HTTP library: the openai SDK is built on httpx2, the
+    others on httpx. Both are accepted because only ``request.url`` is read.
+    """
+
     def __init__(
         self,
-        wrapped: httpx.AsyncClient,
+        wrapped: httpx.AsyncClient | httpx2.AsyncClient,
         span: OTelSpan,
     ):
         super().__init__(wrapped)
         self._self_span = span
 
-    async def send(self, request: httpx.Request, **kwargs: Any) -> httpx.Response:
+    async def send(
+        self, request: httpx.Request | httpx2.Request, **kwargs: Any
+    ) -> httpx.Response | httpx2.Response:
         self._self_span.set_attribute(URL_FULL, str(request.url))
         self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
         response = await self.__wrapped__.send(request, **kwargs)
-        return cast(httpx.Response, response)
+        return cast("httpx.Response | httpx2.Response", response)
 
 
 CustomProviderId: TypeAlias = int

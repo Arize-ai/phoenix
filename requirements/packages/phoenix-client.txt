@@ -1,9 +1,9 @@
 -r ../ci.txt
 arize-phoenix-evals
-harbor>=0.18.0; python_version >= "3.12"
+harbor>=0.21.0; python_version >= "3.12"
 pandas<3
 pandas-stubs<3
 google-genai>=2.17.0
 openai>=1.62.0
-anthropic>=0.49.0
+anthropic>=1,<2
 nest-asyncio

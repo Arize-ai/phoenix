@@ -3,22 +3,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "set_template_variables_path"
 
-DESCRIPTION = (
-    "Set the dataset field path that playground template variables resolve against, "
-    "when a prompt references dataset fields outside the default `input` root. This "
-    "only updates browser UI state; it does not edit prompt messages or run the playground."
-)
+DESCRIPTION = """\
+Set the dataset field path that playground template variables resolve against, when a prompt references dataset fields outside the default `input` root. Set it proactively when prompt variables reference fields outside `input` and resolve empty — don't wait for the user to ask.
+The path selects which dataset field a variable name resolves against (`input`, `reference`, or `metadata`); an empty string or null means the whole example (the example root).
+Variable names are relative to this path: a name's first segment must be a key at the path. Under `input`, a field is named `question`; at the example root, the same field is `input.question` and an output field is `reference.answer`.
+Changing the path changes which names resolve, so the prompt's variable names must match the new root. This tool changes only the path, not prompt messages; rename the references with `edit_prompt_instance`.
+This only updates browser UI state and only applies when a dataset is loaded. If no dataset is loaded, call `load_dataset` first."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -45,19 +45,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class SetTemplateVariablesPathCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class SetTemplateVariablesPathCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         return ctx.deps.contexts.playground is not None

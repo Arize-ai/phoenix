@@ -7,21 +7,15 @@ import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
-// Carries the filter for the same reason the spans query does: a traces table
-// seeded from the URL but loaded unfiltered renders rows the filter excludes
-// and then corrects itself.
+
 export const ProjectPageQueriesTracesQuery = graphql`
-  query ProjectPageQueriesTracesQuery(
-    $id: ID!
-    $timeRange: TimeRange!
-    $filterCondition: String
-  ) {
+  query ProjectPageQueriesTracesQuery($id: ID!, $timeRange: TimeRange!) {
     project: node(id: $id) {
       ... on Project {
         name
         hasTraces
       }
-      ...TracesTable_spans @arguments(filterCondition: $filterCondition)
+      ...TracesTable_spans
     }
   }
 `;
@@ -89,12 +83,6 @@ export const ProjectPageQueryReferenceContext = createContext<{
   ) => void;
   sessionsQueryReference: PreloadedQuery<ProjectPageSessionsQueryType> | null;
   tracesQueryReference: PreloadedQuery<ProjectPageTracesQueryType> | null;
-  /** As `spansFilterSeed`, for the traces tab. */
-  tracesFilterSeed: SettledSpanFilterSeed | null;
-  resolveTracesSeed: (
-    seed: SettledSpanFilterSeed,
-    persistToUrl?: boolean
-  ) => void;
   projectConfigQueryReference: PreloadedQuery<ProjectPageProjectConfigQueryType> | null;
 }>({
   spansQueryReference: null,
@@ -102,8 +90,6 @@ export const ProjectPageQueryReferenceContext = createContext<{
   resolveSpansSeed: () => {},
   sessionsQueryReference: null,
   tracesQueryReference: null,
-  tracesFilterSeed: null,
-  resolveTracesSeed: () => {},
   projectConfigQueryReference: null,
 });
 

@@ -58,7 +58,7 @@ export const JSONToolEditor = ({
         : getToolDefinitionDisplay(tool.definition, instance.model.provider);
     const newDefinition = JSON.stringify(displayValue, null, 2);
     if (isJSONString({ str: newDefinition, excludeNull: true })) {
-      // eslint-disable-next-line react-hooks-js/set-state-in-effect
+      // eslint-disable-next-line react/set-state-in-effect
       setInitialEditorValue(newDefinition);
     }
   }, [instanceProvider, store, playgroundInstanceId, toolId]);

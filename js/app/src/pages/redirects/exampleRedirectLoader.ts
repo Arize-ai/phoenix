@@ -5,6 +5,7 @@ import { redirect } from "react-router";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { exampleRedirectLoaderQuery } from "./__generated__/exampleRedirectLoaderQuery.graphql";
+import { notFound } from "./notFound";
 
 export async function exampleRedirectLoader({ params }: LoaderFunctionArgs) {
   const { datasetId, externalId } = params;
@@ -36,8 +37,10 @@ export async function exampleRedirectLoader({ params }: LoaderFunctionArgs) {
   if (response?.example) {
     return redirect(`/datasets/${datasetId}/examples/${response.example.id}`);
   } else {
-    throw new Error(
-      `Example with external ID "${externalId}" not found in dataset "${datasetId}"`
-    );
+    throw notFound({
+      kind: "entity",
+      entityType: "dataset example",
+      identifier: externalId,
+    });
   }
 }

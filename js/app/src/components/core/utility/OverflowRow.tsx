@@ -12,6 +12,9 @@ import { Popover, PopoverArrow } from "../overlay";
 import { outlinedPillCSS } from "../styles";
 import { View } from "../view";
 
+/** The badge's wrapper, the one child that is the row's own output */
+const BADGE_SLOT_CLASS = "overflow-row__badge-slot";
+
 type FirstLine = {
   visibleCount: number;
   /** The right edge of the last visible item, where the badge is placed */
@@ -48,17 +51,19 @@ const overflowRowCSS = css`
   }
 
   // Not even the first item fits. The items stay in flow so they can still be
-  // measured when the row is given its width back.
+  // measured when the row is given its width back. Items may sit behind
+  // boxless wrappers; visibility inherits through those, so hiding the
+  // children reaches them.
   &.overflow-row--badge-only {
     min-width: var(--global-dimension-size-600);
-    > *:not(.overflow-row__badge-slot) {
+    > *:not(.${BADGE_SLOT_CLASS}) {
       visibility: hidden;
     }
   }
 
-  // Boxless, so the measurement skips the badge and the content observer can
-  // tell the row's own output from its children's.
-  .overflow-row__badge-slot {
+  // Boxless so the slot never lays out as a flex item of its own; measurement
+  // and the content observer exclude it by class.
+  .${BADGE_SLOT_CLASS} {
     display: contents;
   }
 
@@ -102,14 +107,28 @@ function hasBox(element: HTMLElement): boolean {
 }
 
 /**
- * Only elements that render a box are items — boxless wrappers (the badge slot,
- * display: contents event guards, closed popovers) are skipped.
+ * An item is an element that renders a box, optionally behind `display:
+ * contents` wrappers (the event guard around each pill): such a wrapper lays
+ * no box out itself — its children are the row's own flex items — so
+ * resolution descends through it. The badge slot is the row's own output and
+ * is skipped, as are boxless leftovers like closed popovers and bare text
+ * (which can never be measured or clipped).
  */
-function getItems(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.children).filter(
-    (element): element is HTMLElement =>
-      element instanceof HTMLElement && hasBox(element)
-  );
+function getItems(parent: HTMLElement): HTMLElement[] {
+  return Array.from(parent.children).flatMap((child) => {
+    if (
+      !(child instanceof HTMLElement) ||
+      child.classList.contains(BADGE_SLOT_CLASS)
+    ) {
+      return [];
+    }
+    if (hasBox(child)) {
+      return [child];
+    }
+    return getComputedStyle(child).display === "contents"
+      ? getItems(child)
+      : [];
+  });
 }
 
 /**
@@ -163,9 +182,13 @@ function measureOverflow(container: HTMLElement): OverflowMeasurement {
 
 /** Each recorded under its own flag, so only what this row added is removed */
 const CLIPPED_ITEM_ATTRIBUTES = [
-  { name: "inert", value: "", flag: "overflowRowInert" },
-  { name: "aria-hidden", value: "true", flag: "overflowRowAriaHidden" },
+  { name: "inert", value: "", flag: "data-overflow-row-inert" },
+  { name: "aria-hidden", value: "true", flag: "data-overflow-row-aria-hidden" },
 ] as const;
+
+const CLIPPED_ITEM_FLAG_SELECTOR = CLIPPED_ITEM_ATTRIBUTES.map(
+  ({ flag }) => `[${flag}]`
+).join(",");
 
 /**
  * Takes the clipped items out of the tab order and the accessibility tree. They
@@ -188,7 +211,7 @@ function setClippedItems({
       // A child that already hides itself keeps ownership of the attribute, so
       // restoring cannot delete state React would not put back.
       if (!item.hasAttribute(name)) {
-        item.dataset[flag] = "true";
+        item.setAttribute(flag, "true");
         item.setAttribute(name, value);
       }
     }
@@ -198,19 +221,19 @@ function setClippedItems({
 /** Undoes only what {@link setClippedItems} applied, never a child's own state */
 function restoreClippedItem(element: HTMLElement) {
   for (const { name, flag } of CLIPPED_ITEM_ATTRIBUTES) {
-    if (element.dataset[flag]) {
-      delete element.dataset[flag];
+    if (element.hasAttribute(flag)) {
+      element.removeAttribute(flag);
       element.removeAttribute(name);
     }
   }
 }
 
 function restoreClippedItems(container: HTMLElement) {
-  for (const element of Array.from(container.children)) {
-    if (element instanceof HTMLElement) {
-      restoreClippedItem(element);
-    }
-  }
+  // Items can sit inside display: contents wrappers, so the flagged elements
+  // are found by their flags rather than by walking direct children.
+  container
+    .querySelectorAll<HTMLElement>(CLIPPED_ITEM_FLAG_SELECTOR)
+    .forEach(restoreClippedItem);
 }
 
 const CONTENT_OBSERVER_OPTIONS = {
@@ -226,7 +249,7 @@ const CONTENT_OBSERVER_OPTIONS = {
 function isBadgeMutation(record: MutationRecord): boolean {
   const isInBadgeSlot = (node: Node) => {
     const element = node instanceof Element ? node : node.parentElement;
-    return element?.closest(".overflow-row__badge-slot") != null;
+    return element?.closest(`.${BADGE_SLOT_CLASS}`) != null;
   };
   if (record.type === "childList") {
     return [...record.addedNodes, ...record.removedNodes].every(isInBadgeSlot);
@@ -264,22 +287,22 @@ function OverflowRowPopoverItems({
       return undefined;
     }
     const hideRowVisibleItems = () => {
-      const all = Array.from(container.children).filter(
-        (element): element is HTMLElement => element instanceof HTMLElement
-      );
-      // Undo only this effect's own hiding: some children own their inline
+      // Undo only this effect's own hiding: some elements own their inline
       // display (the event guards), and React would not restore what we wipe.
-      for (const element of all) {
-        if (element.dataset.overflowRowHidden) {
+      // Restoring first also gives hidden items their boxes back, so the item
+      // resolution below sees the full set in order.
+      container
+        .querySelectorAll<HTMLElement>("[data-overflow-row-hidden]")
+        .forEach((element) => {
           element.style.display = "";
           delete element.dataset.overflowRowHidden;
-        }
-      }
-      const items = all.filter(hasBox);
-      items.slice(0, visibleCount).forEach((element) => {
-        element.style.display = "none";
-        element.dataset.overflowRowHidden = "true";
-      });
+        });
+      getItems(container)
+        .slice(0, visibleCount)
+        .forEach((element) => {
+          element.style.display = "none";
+          element.dataset.overflowRowHidden = "true";
+        });
     };
     hideRowVisibleItems();
     // The items can change under an open popover (a streaming refetch). The
@@ -310,6 +333,10 @@ function OverflowRowPopoverItems({
  * Items are measured where they render: flex wrapping pushes what doesn't fit
  * onto clipped lines, and the row counts what left the first line. So nothing
  * is cut mid-item, and the row never has to know what its children are.
+ *
+ * Each item must be an element that renders a box, optionally behind
+ * `display: contents` wrappers — bare text children are never measured,
+ * clipped, or shown in the badge's popover, so wrap text in an element.
  */
 export function OverflowRow({
   children,
@@ -416,7 +443,7 @@ export function OverflowRow({
     >
       {children}
       {!isExpanded && overflow !== null ? (
-        <div className="overflow-row__badge-slot">
+        <div className={BADGE_SLOT_CLASS}>
           <DialogTrigger>
             <AriaButton
               className="overflow-row__badge"

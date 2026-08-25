@@ -1,22 +1,23 @@
 import type { LanguageModel } from "ai";
 
-import { createServerLanguageModel } from "@phoenix/components/generative/serverLanguageModel";
+import {
+  createServerLanguageModel,
+  encodeServerModelId,
+} from "@phoenix/components/generative/serverLanguageModel";
 
 import type { AIQueryServerModelConfig } from "./types";
 
 /**
  * Encodes a server model config as the model string the Phoenix server's
- * OpenAI-compatible `/v1/chat/completions` endpoint understands:
- * `{provider}:{model_name}` for built-in providers and
- * `custom:{provider_id}:{model_name}` for stored custom provider records.
- * The server splits on the first colon(s), so model names containing colons
- * (e.g. `llama3:8b`) survive intact.
+ * OpenAI-compatible `/v1/chat/completions` endpoint understands (see
+ * {@link encodeServerModelId} for the wire format).
  */
 export function toServerModelId(config: AIQueryServerModelConfig): string {
-  if (config.source === "custom") {
-    return `custom:${config.providerId}:${config.modelName}`;
-  }
-  return `${config.provider.toLowerCase()}:${config.modelName}`;
+  return encodeServerModelId(
+    config.source === "custom"
+      ? { customProviderId: config.providerId, modelName: config.modelName }
+      : { provider: config.provider, modelName: config.modelName }
+  );
 }
 
 /**

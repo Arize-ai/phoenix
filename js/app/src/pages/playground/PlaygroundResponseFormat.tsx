@@ -77,7 +77,7 @@ export function PlaygroundResponseFormat({
     }
     const newResponseFormatDefinition = JSON.stringify(displayValue, null, 2);
     if (isJSONString({ str: newResponseFormatDefinition, excludeNull: true })) {
-      // eslint-disable-next-line react-hooks-js/set-state-in-effect
+      // eslint-disable-next-line react/set-state-in-effect
       setInitialResponseFormatDefinition(newResponseFormatDefinition);
     }
   }, [instanceProvider, store, playgroundInstanceId]);

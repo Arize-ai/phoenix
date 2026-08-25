@@ -229,7 +229,10 @@ export function TraceTokenCountTimeSeries({
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
   return (
-    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush
+      onTimeRangeSelected={onTimeRangeSelected}
+      scale={scale}
+    >
       {({ chartProps }) => (
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
@@ -334,7 +337,10 @@ function TraceTokenDetailsTimeSeries({
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
   return (
-    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush
+      onTimeRangeSelected={onTimeRangeSelected}
+      scale={scale}
+    >
       {({ chartProps }) => (
         <ChartEmptyStateOverlay
           isEmpty={!hasData}

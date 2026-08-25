@@ -115,6 +115,30 @@ const dimensionsCSS = css`
   }
 `;
 
+const zIndexCSS = css`
+  :root,
+  .theme {
+    /* Component-local layers. These values only compete within the same
+       stacking context; the gaps leave room for intermediate states. */
+    --global-z-index-local-base: 0;
+    --global-z-index-local-raised: 100;
+    --global-z-index-local-overlay: 200;
+    --global-z-index-local-control: 300;
+
+    /* Root app surfaces. Each category owns a 1,000-point band so new layers
+       can be inserted without renumbering unrelated categories. */
+    --global-z-index-app-drawer: 500;
+    --global-z-index-app-floating: 1000;
+    --global-z-index-app-floating-control: 1100;
+    --global-z-index-app-modal-backdrop: 2000;
+    --global-z-index-app-modal: 2100;
+    --global-z-index-app-modal-floating: 2200;
+    --global-z-index-app-modal-floating-control: 2300;
+    --global-z-index-app-portaled-overlay: 3000;
+    --global-z-index-app-notification: 4000;
+  }
+`;
+
 export const darkThemeCSS = css`
   :root,
   .theme--dark {
@@ -1434,7 +1458,8 @@ const appGlobalStylesCSS = css`
     background-color: var(--global-color-gray-100);
 
     margin: 0;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     #root,
     #root > div[data-overlay-container="true"],
     #root > div[data-overlay-container="true"] > .theme {
@@ -1458,27 +1483,41 @@ const appGlobalStylesCSS = css`
     border: none;
     padding: 0;
   }
-  /* this css class is added to html via modernizr @see modernizr.js */
-  .no-hiddenscroll {
-    /* Works on Firefox */
-    * {
+  /* Firefox recognizes ::-webkit-scrollbar for compatibility, but does not
+     support the complete pseudo-element family. Probe the thumb so Firefox
+     uses the standard properties instead of partially applying this style. */
+  @supports not selector(::-webkit-scrollbar-thumb) {
+    html:not([data-native-scrollbars]),
+    html:not([data-native-scrollbars]) * {
       scrollbar-width: thin;
-      scrollbar-color: var(--global-color-gray-300) var(--global-color-gray-400);
+      scrollbar-color: rgba(var(--global-color-gray-900-rgb), 0.18) transparent;
+    }
+  }
+
+  @supports selector(::-webkit-scrollbar-thumb) {
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
     }
 
-    /* Works on Chrome, Edge, and Safari */
-    *::-webkit-scrollbar {
-      width: 14px;
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-track,
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-corner {
+      background: transparent;
     }
 
-    *::-webkit-scrollbar-track {
-      background: var(--global-color-gray-100);
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb {
+      background-color: rgba(var(--global-color-gray-900-rgb), 0.18);
+      border: 3px solid transparent;
+      border-radius: var(--global-rounding-full);
+      background-clip: padding-box;
     }
 
-    *::-webkit-scrollbar-thumb {
-      background-color: var(--global-color-gray-75);
-      border-radius: 8px;
-      border: 1px solid var(--global-color-gray-300);
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(var(--global-color-gray-900-rgb), 0.3);
+    }
+
+    html:not([data-native-scrollbars]) ::-webkit-scrollbar-button {
+      display: none;
     }
   }
 
@@ -1609,6 +1648,7 @@ export function GlobalStyles() {
     <Global
       styles={css(
         dimensionsCSS,
+        zIndexCSS,
         staticCSS,
         themeCSS,
         derivedCSS(theme),

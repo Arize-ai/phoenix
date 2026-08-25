@@ -3,24 +3,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "set_variable_values"
 
-DESCRIPTION = (
-    "Set manual input values for template variables in the currently mounted "
-    "playground. Use this when the user asks to fill, provide, change, or set "
-    "playground variables before running or comparing prompts. This only updates "
-    "variable values in browser UI state; it does not edit prompt messages, change "
-    "dataset mappings, or run the playground."
-)
+DESCRIPTION = """\
+Set manual input values for template variables in the currently mounted playground. Use this when the user asks to fill, provide, set, update, or clear playground variable inputs, or provides concrete variable values before asking you to run, test, or compare a playground prompt.
+Pass variable keys exactly as they appear in the prompt template, including dots or bracket notation if present.
+Values are strings. Convert concise scalar user input to strings; do not invent missing values.
+This only updates manual variable inputs in browser UI state; it does not edit prompt messages, change dataset variable mappings, or run the playground.
+If the user wants to run after variables are set, call `run_playground` after this tool succeeds."""
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -66,19 +64,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class SetVariableValuesCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class SetVariableValuesCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         return ctx.deps.contexts.playground is not None

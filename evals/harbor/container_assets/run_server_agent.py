@@ -100,6 +100,7 @@ async def run(args: argparse.Namespace) -> None:
                 # Mirror the /agents route so the eval exercises the same base
                 # prompt production serves, not build_server_agent's default.
                 prompts=ServerAgentPrompts(base=AgentPrompts().base),
+                phoenix_mcp_server=app.state.pxi_mcp_server,
                 allow_mutations=_resolve_allow_mutations(args),
                 tracer_provider=tracer_provider,
             )

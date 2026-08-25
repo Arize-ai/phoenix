@@ -6,7 +6,6 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 from pydantic_ai.usage import RequestUsage
 from sqlalchemy import delete, func, select, update
@@ -16,8 +15,8 @@ from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import PhoenixUIMessage, TextUIPart, TurnTraceContext
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.agents.capabilities.tools.external import edit_code_evaluator_draft
 from phoenix.server.agents.context import ResolvedContexts
-from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
     SandboxAvailability,
 )
@@ -658,23 +657,19 @@ class TestAgentDependenciesShape:
         assert deps.sandbox_availability.has_usable is False
 
 
-class TestEditCodeEvaluatorDraftToolRendering:
-    """The code-evaluator draft-edit tool template no longer inlines a sandbox
-    inventory. It renders without any ``available_sandbox_configs`` variable and
-    directs the agent to fetch the selectable set on-demand via ``phoenix-gql``,
-    requesting env-var names but never ``secretKey``."""
-
-    def _edit_template(self) -> Template:
-        return AgentPrompts().edit_code_evaluator_draft_tool
+class TestEditCodeEvaluatorDraftToolDescription:
+    """The code-evaluator draft-edit tool does not inline a sandbox inventory. Its
+    description directs the agent to fetch the selectable set on-demand via
+    ``phoenix-gql``, requesting env-var names but never ``secretKey``."""
 
     def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:
-        rendered = self._edit_template().render()
-        assert "phoenix-gql" in rendered
-        assert "sandboxProviders" in rendered
-        assert "envVars { name }" in rendered
-        # The projection requests env-var names only; the prompt explicitly
+        description = edit_code_evaluator_draft.DESCRIPTION
+        assert "phoenix-gql" in description
+        assert "sandboxProviders" in description
+        assert "envVars { name }" in description
+        # The projection requests env-var names only; the description explicitly
         # forbids requesting the secret-bearing field.
-        assert "never `secretKey`" in rendered
+        assert "never `secretKey`" in description
 
 
 class TestChatRequestBodyInstrumentUserId:

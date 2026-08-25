@@ -1,24 +1,25 @@
-import type { SizeValue } from "@phoenix/types/sizing";
+import type { SizeValue } from "./sizing";
 
 /**
  * Default initial size for resizable drawers when no persisted size or
  * caller-provided `defaultSize` is available. Callers may override via
  * the `defaultSize` prop on `<Drawer>`. Expressed as a percentage of the
- * viewport width.
+ * application viewport width.
  */
 export const DRAWER_DEFAULT_SIZE: SizeValue = "35%";
 
 /**
  * Default minimum size for resizable drawers (e.g. trace, session,
  * evaluator detail drawers). Callers may override via the `minSize` prop
- * on `<Drawer>`. Expressed as a percentage of the viewport width.
+ * on `<Drawer>`. Expressed as a percentage of the application viewport width.
  */
 export const DRAWER_DEFAULT_MIN_SIZE: SizeValue = "40%";
 
 /**
- * Default maximum size for resizable drawers — leaves 5% of the viewport
- * visible so users can interact with content behind the drawer. Callers
- * may override via the `maxSize` prop on `<Drawer>`.
+ * Default maximum size for resizable drawers. Expansion is additionally
+ * capped so the side navigation stays clear by {@link DRAWER_SIDE_NAV_GAP_PX},
+ * or — with no navigation to measure — so at least
+ * {@link DRAWER_VISIBLE_GUTTER_PX} of the page stays visible.
  */
 export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
 
@@ -31,21 +32,21 @@ export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
 export const DRAWER_HARD_MIN_SIZE_PX = 320;
 
 /**
- * Stable class added to every Phoenix drawer so app-level code can observe
- * drawer presence without depending on individual route state.
+ * Breathing room between the side navigation's right edge and a maximally
+ * expanded drawer. The navigation's width is *measured live* (and observed
+ * for resizes), so collapsed, expanded, and mid-animation states are all
+ * handled by adding this gap to whatever the nav currently occupies.
  */
-export const DRAWER_CLASS_NAME = "phoenix-drawer";
+export const DRAWER_SIDE_NAV_GAP_PX = 28;
 
 /**
- * Stable class added to every Phoenix modal overlay so app-level code can
- * observe the topmost modal without depending on React Aria internals.
+ * Floor on the page area that stays visible at maximum drawer expansion,
+ * for when there is no side navigation to measure — an unhosted drawer
+ * rendered outside the app frame (Storybook, tests), or the first paint
+ * before the nav ref registers. Drawers are non-modal, so some clickable
+ * page must always remain. When a nav is present, `nav width +
+ * DRAWER_SIDE_NAV_GAP_PX` meets or exceeds this floor and wins the `max()`
+ * in the Drawer's gutter calculation (collapsed nav + gap happens to equal
+ * exactly 80; the values drift independently on purpose).
  */
-export const MODAL_OVERLAY_CLASS_NAME = "react-aria-ModalOverlay";
-
-/**
- * Marks the element inside a modal overlay that same-modal portals should use
- * as their container. Portaling into this element keeps those portals inside
- * React Aria's modal scope instead of making them overlay-dismiss targets.
- */
-export const MODAL_PORTAL_CONTAINER_ATTR = "data-modal-portal-container";
-export const MODAL_PORTAL_CONTAINER_SELECTOR = `[${MODAL_PORTAL_CONTAINER_ATTR}]`;
+export const DRAWER_VISIBLE_GUTTER_PX = 80;
