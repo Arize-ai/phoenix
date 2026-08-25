@@ -14,6 +14,10 @@ import {
   ListBox,
   ListBoxItem,
   ListItem,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectValue,
   Skeleton,
   Text,
   View,
@@ -167,34 +171,65 @@ function EvaluatorGallery() {
             {useCaseItems.map(renderCategoryItem)}
           </ListBoxSection>
         </ListBox>
-        <Flex
-          direction="column"
-          gap="size-50"
+        <EvaluatorScratchActions
           className="project-evaluator-gallery__scratch-actions"
-        >
-          <Button
-            size="S"
-            variant="quiet"
-            onPress={() => navigate(paths.galleryNewLlm)}
-          >
-            Start from a blank prompt
-          </Button>
-          <Button
-            size="S"
-            variant="quiet"
-            onPress={() => navigate(paths.galleryNewCode)}
-          >
-            Create a code evaluator
-          </Button>
-        </Flex>
+          onCreateLlmEvaluator={() => navigate(paths.galleryNewLlm)}
+          onCreateCodeEvaluator={() => navigate(paths.galleryNewCode)}
+        />
       </nav>
 
       <section
         className="project-evaluator-gallery__templates"
         aria-labelledby="evaluator-template-list-title"
       >
+        <Select
+          aria-label="Evaluator template category"
+          className="project-evaluator-gallery__compact-category-select"
+          value={activeCategory}
+          onChange={(category) => {
+            if (typeof category === "string") {
+              setSelectedCategory(category);
+            }
+          }}
+        >
+          <Button size="S">
+            <SelectValue />
+            <SelectChevronUpDownIcon />
+          </Button>
+          <Popover isNonModal closeOnInteractOutside>
+            <ListBox css={compactCategoryListCSS}>
+              <ListBoxSection id="compact-quick-start">
+                <Header className="project-evaluator-gallery__category-section-heading">
+                  <Text
+                    elementType="h2"
+                    size="XS"
+                    weight="heavy"
+                    color="text-500"
+                  >
+                    Quick start
+                  </Text>
+                </Header>
+                {quickStartItems.map(renderCategoryItem)}
+              </ListBoxSection>
+              <ListBoxSection id="compact-use-cases">
+                <Header className="project-evaluator-gallery__category-section-heading">
+                  <Text
+                    elementType="h2"
+                    size="XS"
+                    weight="heavy"
+                    color="text-500"
+                  >
+                    Use cases
+                  </Text>
+                </Header>
+                {useCaseItems.map(renderCategoryItem)}
+              </ListBoxSection>
+            </ListBox>
+          </Popover>
+        </Select>
         <Text
           id="evaluator-template-list-title"
+          className="project-evaluator-gallery__template-list-title"
           elementType="h2"
           size="S"
           weight="heavy"
@@ -238,6 +273,11 @@ function EvaluatorGallery() {
             </ListBoxItem>
           )}
         </ListBox>
+        <EvaluatorScratchActions
+          className="project-evaluator-gallery__compact-scratch-actions"
+          onCreateLlmEvaluator={() => navigate(paths.galleryNewLlm)}
+          onCreateCodeEvaluator={() => navigate(paths.galleryNewCode)}
+        />
       </section>
 
       <aside className="project-evaluator-gallery__details" aria-live="polite">
@@ -255,6 +295,27 @@ function EvaluatorGallery() {
         )}
       </aside>
     </div>
+  );
+}
+
+function EvaluatorScratchActions({
+  className,
+  onCreateLlmEvaluator,
+  onCreateCodeEvaluator,
+}: {
+  className: string;
+  onCreateLlmEvaluator: () => void;
+  onCreateCodeEvaluator: () => void;
+}) {
+  return (
+    <Flex direction="column" gap="size-50" className={className}>
+      <Button size="S" variant="quiet" onPress={onCreateLlmEvaluator}>
+        Start from a blank prompt
+      </Button>
+      <Button size="S" variant="quiet" onPress={onCreateCodeEvaluator}>
+        Create a code evaluator
+      </Button>
+    </Flex>
   );
 }
 
@@ -364,6 +425,28 @@ function EvaluatorGalleryError() {
   );
 }
 
+const compactCategoryListCSS = css`
+  gap: var(--global-dimension-size-100);
+
+  .react-aria-ListBoxSection {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .project-evaluator-gallery__category-section-heading {
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .react-aria-ListBoxItem {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--global-dimension-size-100);
+  }
+`;
+
 const galleryCSS = css`
   box-sizing: border-box;
   display: grid;
@@ -429,11 +512,17 @@ const galleryCSS = css`
     text-transform: uppercase;
   }
 
-  .project-evaluator-gallery__scratch-actions {
+  .project-evaluator-gallery__scratch-actions,
+  .project-evaluator-gallery__compact-scratch-actions {
     flex: none;
     padding-top: var(--global-dimension-size-200);
     border-top: var(--global-border-size-thin) solid
       var(--global-border-color-default);
+  }
+
+  .project-evaluator-gallery__compact-category-select,
+  .project-evaluator-gallery__compact-scratch-actions {
+    display: none;
   }
 
   .project-evaluator-gallery__template-list {
@@ -476,49 +565,43 @@ const galleryCSS = css`
   }
 
   @media (max-width: 900px) {
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
     grid-template-columns:
-      minmax(var(--global-dimension-size-3000), 0.65fr)
-      minmax(320px, 1.5fr);
+      minmax(var(--global-dimension-size-3000), 1fr)
+      minmax(var(--global-dimension-size-5000), 1fr);
 
-    .project-evaluator-gallery__categories,
-    .project-evaluator-gallery__templates,
-    .project-evaluator-gallery__details {
-      min-height: auto;
-      overflow: visible;
+    .project-evaluator-gallery__categories {
+      display: none;
     }
 
-    .project-evaluator-gallery__category-list,
-    .project-evaluator-gallery__template-list {
+    .project-evaluator-gallery__compact-category-select {
+      display: block;
       flex: none;
-      overflow: visible;
+      width: 100%;
     }
 
     .project-evaluator-gallery__templates {
-      border-right: 0;
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .project-evaluator-gallery__template-list-title {
+      display: none;
+    }
+
+    .project-evaluator-gallery__template-list {
+      grid-template-columns: minmax(var(--global-dimension-size-3000), 1fr);
+    }
+
+    .project-evaluator-gallery__compact-scratch-actions {
+      display: flex;
+      margin-top: var(--global-dimension-size-200);
     }
 
     .project-evaluator-gallery__details {
-      grid-column: 1 / -1;
-      border-top: var(--global-border-size-thin) solid
-        var(--global-border-color-default);
-    }
-  }
-
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-
-    .project-evaluator-gallery__categories,
-    .project-evaluator-gallery__templates {
-      border-right: 0;
-      border-bottom: var(--global-border-size-thin) solid
-        var(--global-border-color-default);
-    }
-
-    .project-evaluator-gallery__details {
-      grid-column: auto;
-      border-top: 0;
+      grid-column: 2;
+      grid-row: 1;
     }
   }
 `;
