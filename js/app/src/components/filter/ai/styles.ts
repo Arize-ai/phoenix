@@ -42,7 +42,7 @@ export const aiQueryFilterFieldCSS = css`
   .dsl-filter-condition-field[data-variant="prose"] {
     border-color: transparent;
     &:has(.cm-content:focus-visible) {
-      outline: none;
+      outline-color: transparent;
     }
   }
   /* The converting glyph keeps the resting glyph's footprint (no layout
