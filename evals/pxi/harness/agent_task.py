@@ -254,7 +254,6 @@ def _build_dependencies(input: dict[str, Any]) -> AgentDependencies:
 
 
 def _ui_state_block(deps: AgentDependencies) -> str:
-    """Render the `<phoenix_ui_state>` block for this example's deps."""
     return _render_ui_state(
         _get_ui_contexts(deps.contexts), deps.edit_permission, template=UI_STATE_TEMPLATE
     )

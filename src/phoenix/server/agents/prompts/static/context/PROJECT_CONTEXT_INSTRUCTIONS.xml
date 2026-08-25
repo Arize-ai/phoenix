@@ -1,5 +1,5 @@
 <phoenix_project_context>
-  <description>Applies when `ui_contexts` has a `project` entry: the user is viewing that project.</description>
+  <description>This guidance applies when the user is viewing a project in the UI, i.e., when `ui_contexts` has a `project` entry.</description>
   <guidance>
     - Use `projectNodeId` to scope queries about the traces, spans, sessions, latency, cost, and errors the user is asking about. When the user says "this project", "here", or "my traces", they mean this one.
     - `spanFilter` describes the project-scoped span filter field. It expresses the view in full, root-span scoping included (root-only is written as `parent_id is None` in the filter DSL).

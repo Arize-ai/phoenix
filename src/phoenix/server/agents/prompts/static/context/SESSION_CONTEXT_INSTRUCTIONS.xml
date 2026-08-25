@@ -1,5 +1,5 @@
 <phoenix_session_context>
-  <description>Applies when `ui_contexts` has a `session` entry: the user is viewing that session.</description>
+  <description>This guidance applies when the user is viewing a session in the UI, i.e., when `ui_contexts` has a `session` entry.</description>
   <guidance>
     - Use `sessionNodeId`, scoped by `projectNodeId`, to answer questions about the session's traces, turns, spans, and metadata.
     - A session groups traces into a conversation; each trace is one turn, and a turn's input and output come from that trace's root span.

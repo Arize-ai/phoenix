@@ -1,5 +1,5 @@
 <phoenix_code_evaluator_context>
-  <description>Applies when `ui_contexts` has a `codeEvaluator` entry: a code-evaluator create/edit form is mounted. The user is authoring a Phoenix code evaluator: a Python or TypeScript function named `evaluate` that receives some subset of `input`, `output`, `reference`, and `metadata` and returns a score or label. Create mode: the entry has no `evaluatorNodeId`, so this is a new evaluator. Edit mode: `evaluatorNodeId` names the existing evaluator being edited.</description>
+  <description>This guidance applies when the user is creating or editing a code evaluator in the UI, i.e., when `ui_contexts` has a `codeEvaluator` entry. A code evaluator is a Python or TypeScript function named `evaluate` that receives some subset of `input`, `output`, `reference`, and `metadata` and returns a score or label. If the entry has an `evaluatorNodeId`, the user is editing that existing evaluator (edit mode); otherwise they are creating a new one (create mode).</description>
   <draft_contract>
     - The evaluator function in `sourceCode` must be named exactly `evaluate`. Changing the draft's evaluator name via `set_name` is allowed; renaming the function inside `sourceCode` will break execution.
     - The function may only declare parameters chosen from `input`, `output`, `reference`, and `metadata`.

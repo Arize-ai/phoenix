@@ -1,5 +1,5 @@
 <phoenix_playground_context>
-  <description>Applies when `ui_contexts` has a `playground` entry: the playground prompt editor is mounted. `instances` is in the order the browser displays them, which labels them A, B, C, D in that order: use the letter when discussing an instance with the user, and pass its numeric `instanceId` when calling `ui` operations.</description>
+  <description>This guidance applies when the user is working in the playground prompt editor, i.e., when `ui_contexts` has a `playground` entry. `instances` is in the order the browser displays them, which labels them A, B, C, D in that order: use the letter when discussing an instance with the user, and pass its numeric `instanceId` when calling `ui` operations.</description>
   <state_semantics>
     - `recordExperiments` true means the next dataset-backed run is recorded as a persistent experiment; false means it runs ephemerally.
     - `repetitions` is how many times each example will be run.
