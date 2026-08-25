@@ -1,46 +1,24 @@
 from __future__ import annotations
 
-import re
-from base64 import b64decode
-from binascii import Error as BinasciiError
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import AfterValidator, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import ConfigDict, Field, StringConstraints, model_validator
+
+from phoenix.server.api.types.node import (
+    CodeEvaluatorNodeId,
+    DatasetEvaluatorNodeId,
+    DatasetNodeId,
+    DatasetVersionNodeId,
+    ExperimentNodeId,
+    LLMEvaluatorNodeId,
+    ProjectNodeId,
+    ProjectSessionNodeId,
+    PromptNodeId,
+    PromptVersionNodeId,
+    SpanNodeId,
+)
 
 from ._models import CamelBaseModel
-
-_INTEGER_PAYLOAD = re.compile(r"[0-9]+")
-
-
-def _relay_node_of(type_name: str) -> AfterValidator:
-    """Validate a Relay global id whose payload decodes to ``<type_name>:<int>``."""
-
-    def check(value: str) -> str:
-        try:
-            decoded = b64decode(value, validate=True).decode()
-        except (BinasciiError, UnicodeDecodeError, ValueError) as error:
-            raise ValueError(f"{value!r} is not a base64-encoded Relay node id") from error
-        actual_type, _, payload = decoded.partition(":")
-        if actual_type != type_name:
-            raise ValueError(f"expected a {type_name} node id, got {decoded!r}")
-        if not _INTEGER_PAYLOAD.fullmatch(payload):
-            raise ValueError(f"{type_name} node id {decoded!r} has a non-integer payload")
-        return value
-
-    return AfterValidator(check)
-
-
-ProjectNodeId: TypeAlias = Annotated[str, _relay_node_of("Project")]
-ProjectSessionNodeId: TypeAlias = Annotated[str, _relay_node_of("ProjectSession")]
-SpanNodeId: TypeAlias = Annotated[str, _relay_node_of("Span")]
-PromptNodeId: TypeAlias = Annotated[str, _relay_node_of("Prompt")]
-PromptVersionNodeId: TypeAlias = Annotated[str, _relay_node_of("PromptVersion")]
-DatasetNodeId: TypeAlias = Annotated[str, _relay_node_of("Dataset")]
-DatasetVersionNodeId: TypeAlias = Annotated[str, _relay_node_of("DatasetVersion")]
-ExperimentNodeId: TypeAlias = Annotated[str, _relay_node_of("Experiment")]
-DatasetEvaluatorNodeId: TypeAlias = Annotated[str, _relay_node_of("DatasetEvaluator")]
-CodeEvaluatorNodeId: TypeAlias = Annotated[str, _relay_node_of("CodeEvaluator")]
-LLMEvaluatorNodeId: TypeAlias = Annotated[str, _relay_node_of("LLMEvaluator")]
 
 EditPermission: TypeAlias = Literal["manual", "bypass"]
 
