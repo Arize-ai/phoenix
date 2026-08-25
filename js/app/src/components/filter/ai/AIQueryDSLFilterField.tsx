@@ -458,7 +458,6 @@ export function AIQueryDSLFilterField<
 
   return (
     <AIOutline
-      glowMode="contained"
       isFullWidth
       state={aiOutlineState}
       shouldFlash

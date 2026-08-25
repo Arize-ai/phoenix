@@ -350,8 +350,18 @@ export const WithAIQueryInClippedLayout = {
     await userEvent.click(
       await body.findByRole("button", { name: "Plain-English query" })
     );
+    // The treatment draws within the field's own bounds, so the clipping
+    // ancestor cannot cut it — assert the ring never extends past the field
     const outline = document.querySelector(".ai-outline");
-    await expect(outline).toHaveAttribute("data-glow-mode", "contained");
+    const stroke = outline?.querySelector(".ai-outline__stroke");
+    await expect(outline).not.toBeNull();
+    await expect(stroke).not.toBeNull();
+    const outlineRect = outline!.getBoundingClientRect();
+    const strokeRect = stroke!.getBoundingClientRect();
+    await expect(strokeRect.left).toBeGreaterThanOrEqual(outlineRect.left);
+    await expect(strokeRect.top).toBeGreaterThanOrEqual(outlineRect.top);
+    await expect(strokeRect.right).toBeLessThanOrEqual(outlineRect.right);
+    await expect(strokeRect.bottom).toBeLessThanOrEqual(outlineRect.bottom);
   },
 };
 
