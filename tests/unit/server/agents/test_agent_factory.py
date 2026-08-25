@@ -54,7 +54,9 @@ _DEFAULT_PROMPTS = AgentPrompts()
 
 _FULLY_MOUNTED_CONTEXTS = ResolvedContexts(
     project=ProjectUIContext(type="project", project_node_id="UHJvamVjdDox", span_filter="error"),
-    playground=PlaygroundUIContext(type="playground", instance_ids=[1]),
+    playground=PlaygroundUIContext(
+        type="playground", instances=[PlaygroundInstanceUIContext(instance_id=1)]
+    ),
     dataset=DatasetUIContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
     llm_evaluator=LlmEvaluatorUIContext(type="llm_evaluator", evaluator_node_id=None),
     code_evaluator=CodeEvaluatorUIContext(type="code_evaluator", evaluator_node_id=None),

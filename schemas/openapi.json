@@ -10393,6 +10393,7 @@
             "title": "Timezone"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -11109,6 +11110,7 @@
             "title": "Evaluatornodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"
@@ -12521,6 +12523,7 @@
             "title": "Datasetversionnodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -14210,6 +14213,7 @@
             "title": "Mutationsenabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -15024,6 +15028,7 @@
             "title": "Evaluatornodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"
@@ -16110,6 +16115,7 @@
             "title": "Modelname"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "provider",
@@ -16142,6 +16148,7 @@
             "title": "Modelname"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "customProviderId",
@@ -16179,6 +16186,7 @@
             "title": "Isapplied"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "datasetEvaluatorId",
@@ -16219,6 +16227,7 @@
             "default": false
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "PlaygroundExperimentScaffoldUIContext"
       },
@@ -16265,6 +16274,7 @@
             "title": "Experimentid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "instanceId"
@@ -16313,6 +16323,7 @@
             "title": "Evaluators"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"
@@ -16398,6 +16409,7 @@
             "title": "Spanfilter"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -17950,6 +17962,7 @@
             "title": "Promptnodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -18335,6 +18348,7 @@
             "title": "Promptversionnodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -18854,6 +18868,7 @@
             "title": "Sessionnodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -19624,6 +19639,7 @@
             "title": "Otelspanid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"
@@ -19684,6 +19700,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -20819,6 +20836,7 @@
             "title": "Oteltraceid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -21014,6 +21032,7 @@
             ]
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "UIContexts"
       },
@@ -21583,6 +21602,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
