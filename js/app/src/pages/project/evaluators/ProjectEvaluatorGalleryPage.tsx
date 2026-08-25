@@ -394,14 +394,8 @@ function EvaluatorTemplateDetails({
           ))}
         </List>
       </Flex>
-      <Button
-        variant="primary"
-        onPress={onUseTemplate}
-        css={css`
-          margin-top: auto;
-        `}
-      >
-        Use this evaluator
+      <Button variant="primary" onPress={onUseTemplate}>
+        Customize this evaluator
       </Button>
     </Flex>
   );
