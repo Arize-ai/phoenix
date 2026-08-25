@@ -137,7 +137,7 @@ from phoenix.server.middleware.anonymous_cors import (
     anonymous_paths,
 )
 from phoenix.server.middleware.gzip import GZipMiddleware
-from phoenix.server.middleware.ui_script_worker_csp import UIScriptWorkerCSPMiddleware
+from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMiddleware
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
@@ -1397,7 +1397,7 @@ def create_app(
     # Sandboxes execute_browser_action scripts at the platform level: a worker adopts the
     # CSP of its script response, so the worker asset gets connect-src 'none'
     # (see the middleware's docstring).
-    app.add_middleware(UIScriptWorkerCSPMiddleware)
+    app.add_middleware(JSSandboxWorkerCSPMiddleware)
     return app
 
 

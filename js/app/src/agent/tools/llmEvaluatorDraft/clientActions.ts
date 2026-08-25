@@ -1,6 +1,6 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
-import { parseUIOperationCallContext } from "@phoenix/agent/UIOperations/types";
+import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import { SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";

@@ -12,8 +12,8 @@ import {
 import { useSearchParams } from "react-router";
 
 import type { SetSpansFilterInput } from "@phoenix/agent/tools/spansFilter";
-import { registerUIOperations } from "@phoenix/agent/UIOperations/catalog";
-import { setSpansFilterOperation } from "@phoenix/agent/UIOperations/operations/spansFilter";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import { setSpansFilterOperation } from "@phoenix/agent/uiOperations/operations/spansFilter";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";

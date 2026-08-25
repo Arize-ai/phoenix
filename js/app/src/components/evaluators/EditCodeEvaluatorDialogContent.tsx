@@ -28,12 +28,12 @@ import {
   type SandboxConfigIndex,
   toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import { registerUIOperations } from "@phoenix/agent/UIOperations/catalog";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
 import {
   editCodeEvaluatorDraftOperation,
   readCodeEvaluatorDraftOperation,
   submitCodeEvaluatorDraftOperation,
-} from "@phoenix/agent/UIOperations/operations/codeEvaluatorDraft";
+} from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
   Button,

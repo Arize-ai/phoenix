@@ -52,7 +52,7 @@ export default defineConfig(() => {
     preview: {
       port: 6006,
     },
-    // execute_browser_action's UIScriptWorker must emit as an ES module chunk (hashed
+    // execute_browser_action's JSSandboxWorker must emit as an ES module chunk (hashed
     // .js), not a copied .ts asset. `type: "module"` Workers require this.
     worker: {
       format: "es" as const,

@@ -4,8 +4,8 @@ import {
   createDatasetLabelOperation,
   deleteDatasetLabelsOperation,
   setDatasetLabelsOperation,
-} from "@phoenix/agent/UIOperations/operations/datasetLabels";
-import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
+} from "@phoenix/agent/uiOperations/operations/datasetLabels";
+import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {

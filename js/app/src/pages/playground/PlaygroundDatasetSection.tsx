@@ -8,12 +8,12 @@ import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAge
 import { createReadDatasetEvaluatorDefinitionClientAction } from "@phoenix/agent/tools/datasetEvaluatorDefinition";
 import { createOpenDatasetEvaluatorForEditClientAction } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
 import { createSetDatasetEvaluatorSelectionClientAction } from "@phoenix/agent/tools/datasetEvaluatorSelection";
-import { registerUIOperations } from "@phoenix/agent/UIOperations/catalog";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
 import {
   openDatasetEvaluatorForEditOperation,
   readDatasetEvaluatorDefinitionOperation,
   selectDatasetEvaluatorsOperation,
-} from "@phoenix/agent/UIOperations/operations/datasetEvaluators";
+} from "@phoenix/agent/uiOperations/operations/datasetEvaluators";
 import { Flex } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";

@@ -1,4 +1,4 @@
-import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
+import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { applySpanAnnotations } from "./applySpanAnnotations";

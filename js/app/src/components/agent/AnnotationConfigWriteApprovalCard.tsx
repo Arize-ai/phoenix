@@ -38,7 +38,7 @@ function describeDraft(draft: AnnotationConfigDraft): Record<string, unknown> {
 /**
  * Normalize a pending annotation-config write to the shared
  * {@link ApprovalPreview}, for both the standalone-tool card below and the
- * script-child approval cards `ExecuteUIToolDetails` renders for
+ * script-child approval cards `ExecuteBrowserActionToolDetails` renders for
  * `ui.annotationConfig.*` operations.
  */
 export function annotationConfigWriteApprovalPreview(

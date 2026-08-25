@@ -3,8 +3,8 @@ import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import { createTestLlmEvaluatorDraftClientAction } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { registerUIOperations } from "@phoenix/agent/UIOperations/catalog";
-import { testLlmEvaluatorDraftOperation } from "@phoenix/agent/UIOperations/operations/llmEvaluatorDraft";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import { testLlmEvaluatorDraftOperation } from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
 import {
   Alert,
   Button,

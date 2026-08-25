@@ -2,9 +2,9 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import {
-  abortActiveUIScriptRun,
+  abortActiveJSSandboxRun,
   EXECUTE_BROWSER_ACTION_TOOL_NAME,
-} from "@phoenix/agent/UIOperations/executeUIAgentTool";
+} from "@phoenix/agent/uiOperations/executeBrowserActionTool";
 import type { AgentState } from "@phoenix/store/agentStore";
 
 type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
@@ -12,10 +12,10 @@ type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
 /**
  * The approval pending-state maps that `execute_browser_action` script calls can write.
  * Entries are keyed by the inner operation call id
- * (`<executeUIToolCallId>:<sequence>`), so cleanup for an `execute_browser_action` tool
+ * (`<executeBrowserActionToolCallId>:<sequence>`), so cleanup for an `execute_browser_action` tool
  * call clears every entry whose key carries that tool call's prefix.
  */
-const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
+const EXECUTE_BROWSER_ACTION_PENDING_MAP_CLEANERS: ReadonlyArray<{
   getKeys: (state: AgentState) => string[];
   clear: (state: AgentState, key: string) => void;
 }> = [
@@ -78,16 +78,16 @@ const EXECUTE_UI_PENDING_MAP_CLEANERS: ReadonlyArray<{
  * aborts the script run (terminating its worker) and clears any pending
  * approval entries its inner operation calls staged.
  */
-function cleanupExecuteUIToolState(
+function cleanupExecuteBrowserActionToolState(
   state: AgentState,
   toolCallId: string
 ): void {
-  abortActiveUIScriptRun({
+  abortActiveJSSandboxRun({
     toolCallId,
     reason: "The script run was interrupted.",
   });
   const childKeyPrefix = `${toolCallId}:`;
-  for (const cleaner of EXECUTE_UI_PENDING_MAP_CLEANERS) {
+  for (const cleaner of EXECUTE_BROWSER_ACTION_PENDING_MAP_CLEANERS) {
     for (const key of cleaner.getKeys(state)) {
       if (key.startsWith(childKeyPrefix)) {
         cleaner.clear(state, key);
@@ -118,7 +118,7 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
       }
     }
   },
-  [EXECUTE_BROWSER_ACTION_TOOL_NAME]: cleanupExecuteUIToolState,
+  [EXECUTE_BROWSER_ACTION_TOOL_NAME]: cleanupExecuteBrowserActionToolState,
 };
 
 /**

@@ -643,7 +643,7 @@ export type AgentClientActionResult =
   // `output` is JSON-serializable: UI-operation results cross a worker
   // postMessage boundary and are embedded in `execute_browser_action` tool output.
   // `code` is a stable machine-readable failure category (see
-  // `UIOperationErrorCode` in UIOperations/types.ts for the canonical set)
+  // `UIOperationErrorCode` in uiOperations/types.ts for the canonical set)
   // so scripts can branch on failures without string-matching English.
   { ok: true; output?: unknown } | { ok: false; error: string; code?: string };
 

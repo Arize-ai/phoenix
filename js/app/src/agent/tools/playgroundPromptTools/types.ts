@@ -1,7 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 import type {
   CanonicalToolChoice,
   PlaygroundStore,

@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { AgentContextSync } from "@phoenix/agent/context/AgentContextSync";
-import { RootUIOperationsRegistration } from "@phoenix/agent/UIOperations/RootUIOperationsRegistration";
+import { RootUIOperationsRegistration } from "@phoenix/agent/uiOperations/RootUIOperationsRegistration";
 import { isFullStoryEnabled, setIdentity } from "@phoenix/analytics/fullstory";
 import { AgentChatRuntimeProvider } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";

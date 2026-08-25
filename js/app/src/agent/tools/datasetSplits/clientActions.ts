@@ -6,8 +6,8 @@ import {
   deleteDatasetSplitsOperation,
   patchDatasetSplitOperation,
   setDatasetExampleSplitsOperation,
-} from "@phoenix/agent/UIOperations/operations/datasetSplits";
-import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
+} from "@phoenix/agent/uiOperations/operations/datasetSplits";
+import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {

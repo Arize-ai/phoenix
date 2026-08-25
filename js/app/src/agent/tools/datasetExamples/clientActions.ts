@@ -5,8 +5,8 @@ import {
   addDatasetExamplesOperation,
   deleteDatasetExamplesOperation,
   patchDatasetExamplesOperation,
-} from "@phoenix/agent/UIOperations/operations/datasetWrites";
-import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
+} from "@phoenix/agent/uiOperations/operations/datasetWrites";
+import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { commitAddDatasetExamples } from "./addDatasetExamples";

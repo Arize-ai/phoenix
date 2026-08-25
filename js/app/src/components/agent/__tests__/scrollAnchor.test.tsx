@@ -39,7 +39,9 @@ function renderScrollAnchor(stopScroll: () => void): Anchor {
   }
   act(() => {
     root.render(
-      <ChatScrollContext.Provider value={{ stopScroll }}>
+      <ChatScrollContext.Provider
+        value={{ stopScroll, scrollToBottom: vi.fn() }}
+      >
         <Harness />
       </ChatScrollContext.Provider>
     );

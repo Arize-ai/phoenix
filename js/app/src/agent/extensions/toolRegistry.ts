@@ -10,15 +10,15 @@
  * Browser UI-state operations (time range, spans filter, playground prompts,
  * evaluator drafts, dataset/annotation writes, …) are no longer individual
  * tools: they live in the UI-operation catalog
- * (`@phoenix/agent/UIOperations`) and execute through the `search_browser_actions` /
+ * (`@phoenix/agent/uiOperations`) and execute through the `search_browser_actions` /
  * `execute_browser_action` meta-tools registered below. The dataset read tools are
  * retired too — reads go through the server-side `bash` tool's `phoenix-gql`.
  */
 import { askUserAgentTool } from "@phoenix/agent/tools/elicit";
 import { getRouteInfoAgentTool } from "@phoenix/agent/tools/getRouteInfo";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
-import { executeUIAgentTool } from "@phoenix/agent/UIOperations/executeUIAgentTool";
-import { searchUIAgentTool } from "@phoenix/agent/UIOperations/searchUIAgentTool";
+import { executeBrowserActionTool } from "@phoenix/agent/uiOperations/executeBrowserActionTool";
+import { searchBrowserActionsTool } from "@phoenix/agent/uiOperations/searchBrowserActionsTool";
 
 import type { AgentToolDefinition } from "./registry/defineTool";
 import { createAgentToolDispatcher } from "./registry/dispatch";
@@ -31,8 +31,8 @@ export type { AgentToolCall, AgentToolUIBehavior } from "./registry/defineTool";
  * agent-authored script against them in a sandboxed worker.
  */
 const UIOperationTools: AgentToolDefinition[] = [
-  searchUIAgentTool,
-  executeUIAgentTool,
+  searchBrowserActionsTool,
+  executeBrowserActionTool,
 ];
 
 /**

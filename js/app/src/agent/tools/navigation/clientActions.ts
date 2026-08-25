@@ -3,7 +3,7 @@ import { matchPath } from "react-router";
 import { normalizeInputPath } from "@phoenix/agent/tools/getRouteInfo/parsers";
 import { getRegisteredRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/routeCatalogRegistry";
 import type { RouteCatalogEntry } from "@phoenix/agent/tools/getRouteInfo/types";
-import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
+import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { bindPendingNavigationActions } from "./pendingNavigation";

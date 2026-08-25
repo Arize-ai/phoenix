@@ -22,7 +22,7 @@ export function stageDatasetWriteOperation({
   agentStore,
 }: {
   pending: {
-    /** Inner operation call id (`<executeUIToolCallId>:<sequence>`). */
+    /** Inner operation call id (`<executeBrowserActionToolCallId>:<sequence>`). */
     toolCallId: string;
     /** Operation name (e.g. `dataset.create`), for attribution. */
     toolName: string;

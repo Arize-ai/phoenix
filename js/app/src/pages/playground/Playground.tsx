@@ -43,49 +43,49 @@ import {
 import { createSavePromptClientAction } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { createSetTemplateVariablesPathClientAction } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { createSetVariableValuesClientAction } from "@phoenix/agent/tools/playgroundVariableValues";
-import { registerUIOperations } from "@phoenix/agent/UIOperations/catalog";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
 import {
   editCodeEvaluatorDraftOperation,
   openCodeEvaluatorFormOperation,
   readCodeEvaluatorDraftOperation,
   testCodeEvaluatorDraftOperation,
-} from "@phoenix/agent/UIOperations/operations/codeEvaluatorDraft";
+} from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
 import {
   editLlmEvaluatorDraftOperation,
   openLlmEvaluatorFormOperation,
   readLlmEvaluatorDraftOperation,
   testLlmEvaluatorDraftOperation,
-} from "@phoenix/agent/UIOperations/operations/llmEvaluatorDraft";
-import { loadDatasetOperation } from "@phoenix/agent/UIOperations/operations/playgroundLoadDataset";
+} from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
+import { loadDatasetOperation } from "@phoenix/agent/uiOperations/operations/playgroundLoadDataset";
 import {
   listPlaygroundModelTargetsOperation,
   setPlaygroundModelOperation,
-} from "@phoenix/agent/UIOperations/operations/playgroundModel";
+} from "@phoenix/agent/uiOperations/operations/playgroundModel";
 import {
   addPromptInstanceOperation,
   clonePromptInstanceOperation,
   editPromptOperation,
   readPromptOperation,
   removePromptInstanceOperation,
-} from "@phoenix/agent/UIOperations/operations/playgroundPrompt";
+} from "@phoenix/agent/uiOperations/operations/playgroundPrompt";
 import {
   readPromptToolsOperation,
   writePromptToolsOperation,
-} from "@phoenix/agent/UIOperations/operations/playgroundPromptTools";
+} from "@phoenix/agent/uiOperations/operations/playgroundPromptTools";
 import {
   cancelPlaygroundRunOperation,
   readExperimentResultsOperation,
   readPlaygroundOutputOperation,
   runPlaygroundOperation,
-} from "@phoenix/agent/UIOperations/operations/playgroundRun";
-import { savePromptOperation } from "@phoenix/agent/UIOperations/operations/playgroundSavePrompt";
+} from "@phoenix/agent/uiOperations/operations/playgroundRun";
+import { savePromptOperation } from "@phoenix/agent/uiOperations/operations/playgroundSavePrompt";
 import {
   setAppendedMessagesPathOperation,
   setPlaygroundExperimentRecordingOperation,
   setPlaygroundRepetitionsOperation,
   setTemplateVariablesPathOperation,
   setVariableValuesOperation,
-} from "@phoenix/agent/UIOperations/operations/playgroundSettings";
+} from "@phoenix/agent/uiOperations/operations/playgroundSettings";
 import {
   Button,
   Flex,

@@ -43,8 +43,8 @@ import {
   SET_SPANS_FILTER_TOOL_NAME,
 } from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
-import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/UIOperations/executeUIAgentTool";
-import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/UIOperations/searchUIAgentTool";
+import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/uiOperations/executeBrowserActionTool";
+import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/uiOperations/searchBrowserActionsTool";
 import { Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
@@ -72,6 +72,7 @@ import {
   formatBatchSpanAnnotateState,
   getBatchSpanAnnotateToolPreview,
 } from "./BatchSpanAnnotateToolDetails";
+import { useChatScrollContext } from "./ChatScrollContext";
 import {
   CreateDatasetToolDetails,
   getCreateDatasetToolPreview,
@@ -99,10 +100,10 @@ import {
   getEditLlmEvaluatorDraftToolPreview,
 } from "./EditLLMEvaluatorDraftToolDetails";
 import {
-  ExecuteUIToolDetails,
-  formatExecuteUIState,
-  getExecuteUIToolPreview,
-} from "./ExecuteUIToolDetails";
+  ExecuteBrowserActionToolDetails,
+  formatExecuteBrowserActionState,
+  getExecuteBrowserActionToolPreview,
+} from "./ExecuteBrowserActionToolDetails";
 import {
   getLoadSkillToolPreview,
   LOAD_SKILL_TOOL_NAME,
@@ -515,15 +516,20 @@ export function ToolPart({
 }
 
 /**
- * Smoothly scrolls `element` to the top of its nearest scrollable ancestor,
- * scrolling only that container.
+ * Reveals `element` at the top of its nearest scrollable ancestor with a
+ * single instant write, scrolling only that container.
  *
- * Unlike the native `Element.scrollIntoView`, which scrolls every scrollable
- * ancestor (and can move the whole page/layout), this confines the scroll to
- * the chat message list. The native behavior previously bubbled up to the
- * floating panel's `overflow: hidden` flex column, clipping the panel header
- * and leaving a gap beneath the footer when a tool part auto-opened for
- * approval. Does nothing when no scrollable ancestor is found.
+ * Two deliberate constraints, both learned the hard way:
+ * - Only the nearest scroll container moves. Native `Element.scrollIntoView`
+ *   scrolls every ancestor, which previously shifted the floating panel's
+ *   `overflow: hidden` frame and clipped its header/footer.
+ * - The write is instant, not smooth. The transcript's policy is that
+ *   programmatic scrolls are single synchronous assignments (see
+ *   `useChatFollowScroll`): a multi-frame smooth animation here left a moving
+ *   baseline for the expand/collapse scroll anchor to measure against and a
+ *   second writer for user gestures to fight.
+ *
+ * Does nothing when no scrollable ancestor is found.
  *
  * @param element - The element to bring into view within its scroll container.
  */
@@ -534,11 +540,10 @@ function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
   }
   const parentRect = scrollParent.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
-  // Distance to scroll so the element's top sits near the top of the viewport
-  // with a small margin for context.
+  // Land the element's top near the top of the viewport with a small margin
+  // for context.
   const topMargin = 16;
-  const delta = elementRect.top - parentRect.top - topMargin;
-  scrollParent.scrollBy({ top: delta, behavior: "smooth" });
+  scrollParent.scrollTop += elementRect.top - parentRect.top - topMargin;
 }
 
 /**
@@ -593,6 +598,7 @@ function ToolInvocationPartDetails({
 }) {
   const toolName = getToolName(part);
   const UIBehavior = getAgentToolUIBehavior(toolName);
+  const chatScrollContext = useChatScrollContext();
   const hasAutoOpenedRef = useRef(false);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
@@ -621,12 +627,22 @@ function ToolInvocationPartDetails({
     if (UIBehavior?.scrollIntoViewOnMount !== true) {
       return;
     }
+    // Release follow-bottom before scrolling the card into view; otherwise
+    // the next streaming resize would immediately pin the transcript back to
+    // the bottom and hide the approval again. Same policy as
+    // `useScrollAnchor.capture` for manual toggles.
+    chatScrollContext?.stopScroll();
     requestAnimationFrame(() => {
       if (detailsRef.current) {
         scrollElementIntoViewWithinScrollParent(detailsRef.current);
       }
     });
-  }, [shouldAutoOpen, UIBehavior?.scrollIntoViewOnMount, detailsRef]);
+  }, [
+    shouldAutoOpen,
+    UIBehavior?.scrollIntoViewOnMount,
+    detailsRef,
+    chatScrollContext,
+  ]);
 
   const isQuiet = variant === "quiet";
   const showQuietSummary = isQuiet && !isRenderedOpen;
@@ -1057,10 +1073,10 @@ function getToolPresentation(
   switch (toolName) {
     case EXECUTE_BROWSER_ACTION_TOOL_NAME:
       return {
-        preview: getExecuteUIToolPreview(part),
-        stateLabel: formatExecuteUIState(part),
+        preview: getExecuteBrowserActionToolPreview(part),
+        stateLabel: formatExecuteBrowserActionState(part),
         statusVariant,
-        details: <ExecuteUIToolDetails part={part} />,
+        details: <ExecuteBrowserActionToolDetails part={part} />,
       };
     case SEARCH_BROWSER_ACTIONS_TOOL_NAME:
       return {

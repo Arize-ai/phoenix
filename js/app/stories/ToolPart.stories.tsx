@@ -57,8 +57,8 @@ import type {
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
-import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/UIOperations/executeUIAgentTool";
-import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/UIOperations/searchUIAgentTool";
+import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/uiOperations/executeBrowserActionTool";
+import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/uiOperations/searchBrowserActionsTool";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -819,7 +819,7 @@ export const CallSubagentError: Story = {
 // execute_browser_action tool mocks
 // ---------------------------------------------------------------------------
 
-const executeUIScript = [
+const executeBrowserActionScript = [
   "const before = await ui.playground.prompt.read({ instanceId: 0 });",
   "if (!before.ok) return before;",
   "log(`editing revision ${before.output.revision}`);",
@@ -836,9 +836,9 @@ const executeUIScript = [
   "});",
 ].join("\n");
 
-const executeUIInput = {
+const executeBrowserActionInput = {
   summary: "Tighten the system prompt on playground instance A.",
-  script: executeUIScript,
+  script: executeBrowserActionScript,
 };
 
 function promptSnapshotFixture(content: string) {
@@ -856,14 +856,14 @@ function promptSnapshotFixture(content: string) {
   };
 }
 
-const executeUIAwaitingApprovalPart = makePart({
+const executeBrowserActionAwaitingApprovalPart = makePart({
   toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
   toolCallId: "execute-ui-prompt-edit",
   state: "input-available",
-  input: executeUIInput,
+  input: executeBrowserActionInput,
 });
 
-const executeUIPendingPromptEdit: PendingPromptEdit = {
+const executeBrowserActionPendingPromptEdit: PendingPromptEdit = {
   // Inner operation call id: `<toolCallId>:<sequence>`.
   toolCallId: "execute-ui-prompt-edit:1",
   sessionId: "session-playground-demo",
@@ -878,11 +878,11 @@ const executeUIPendingPromptEdit: PendingPromptEdit = {
   reject: async () => undefined,
 };
 
-const executeUICompletedPart = makePart({
+const executeBrowserActionCompletedPart = makePart({
   toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
   toolCallId: "execute-ui-completed",
   state: "output-available",
-  input: executeUIInput,
+  input: executeBrowserActionInput,
   output: [
     "Script completed after 2 ui calls.",
     "Logs:\nediting revision prompt-d2f07c04",
@@ -890,7 +890,7 @@ const executeUICompletedPart = makePart({
   ].join("\n\n"),
 });
 
-const executeUIStreamingPart = makePart({
+const executeBrowserActionStreamingPart = makePart({
   toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
   toolCallId: "execute-ui-streaming",
   state: "input-streaming",
@@ -905,29 +905,29 @@ const executeUIStreamingPart = makePart({
  * syntax-highlighted script above, the proposed change as a unified diff, and
  * the Accept/Reject actions that resolve the awaiting script.
  */
-export const ExecuteUIAwaitingPromptEditApproval: Story = {
-  args: { part: executeUIAwaitingApprovalPart },
+export const ExecuteBrowserActionAwaitingPromptEditApproval: Story = {
+  args: { part: executeBrowserActionAwaitingApprovalPart },
   decorators: [
     withAgentStoreSetup((store) => {
       store
         .getState()
         .setPendingPromptEdit(
-          executeUIPendingPromptEdit.toolCallId,
-          executeUIPendingPromptEdit
+          executeBrowserActionPendingPromptEdit.toolCallId,
+          executeBrowserActionPendingPromptEdit
         );
     }),
   ],
 };
 
 /** An execute_browser_action script that completed, showing logs and the return value. */
-export const ExecuteUICompleted: Story = {
-  args: { part: executeUICompletedPart },
+export const ExecuteBrowserActionCompleted: Story = {
+  args: { part: executeBrowserActionCompletedPart },
   decorators: [withAgentStore()],
 };
 
 /** An execute_browser_action call whose summary and script are still streaming in. */
-export const ExecuteUIStreaming: Story = {
-  args: { part: executeUIStreamingPart },
+export const ExecuteBrowserActionStreaming: Story = {
+  args: { part: executeBrowserActionStreamingPart },
   decorators: [withAgentStore()],
 };
 
@@ -996,12 +996,12 @@ export const SearchUIRunning: Story = {
 // prompt-tool write, evaluator drafts) and those that fall back to a raw-JSON
 // `stringifyToolValue` summary (save prompt, load dataset, instance removal)
 // now that they run through the meta-tool instead of their bespoke tool card.
-// Each inner op is keyed `<executeUIToolCallId>:<sequence>`; the story stages a
+// Each inner op is keyed `<executeBrowserActionToolCallId>:<sequence>`; the story stages a
 // pending entry under that key and `useScriptChildApprovals` picks it up.
 // ---------------------------------------------------------------------------
 
 /** An execute_browser_action host part awaiting one inner-operation approval. */
-function executeUIHostPart(
+function executeBrowserActionHostPart(
   toolCallId: string,
   summary: string,
   script: string
@@ -1062,7 +1062,7 @@ function makeLlmEvaluatorSnapshot(
   };
 }
 
-const executeUISavePromptChild = {
+const executeBrowserActionSavePromptChild = {
   toolCallId: "execute-ui-save-prompt:1",
   sessionId: "session-playground-demo",
   input: { instanceId: 0, description: "Tighten the routing instructions." },
@@ -1085,9 +1085,9 @@ const executeUISavePromptChild = {
  * a labeled, curated payload (prompt name, label, tags) rather than a raw
  * `stringifyToolValue(pending.preview)` dump.
  */
-export const ExecuteUIAwaitingSavePromptApproval: Story = {
+export const ExecuteBrowserActionAwaitingSavePromptApproval: Story = {
   args: {
-    part: executeUIHostPart(
+    part: executeBrowserActionHostPart(
       "execute-ui-save-prompt",
       "Save the tightened support-router prompt.",
       "return await ui.playground.savePrompt({ instanceId: 0 });"
@@ -1098,14 +1098,14 @@ export const ExecuteUIAwaitingSavePromptApproval: Story = {
       store
         .getState()
         .setPendingSavePrompt(
-          executeUISavePromptChild.toolCallId,
-          executeUISavePromptChild
+          executeBrowserActionSavePromptChild.toolCallId,
+          executeBrowserActionSavePromptChild
         );
     }),
   ],
 };
 
-const executeUILoadDatasetChild = {
+const executeBrowserActionLoadDatasetChild = {
   toolCallId: "execute-ui-load-dataset:1",
   sessionId: "session-playground-demo",
   input: { datasetName: "support-conversations", splitName: "validation" },
@@ -1128,9 +1128,9 @@ const executeUILoadDatasetChild = {
  * Load-dataset through execute_browser_action renders the shared ApprovalCard with a
  * labeled `{ dataset, split }` payload rather than the raw pending input.
  */
-export const ExecuteUIAwaitingLoadDatasetApproval: Story = {
+export const ExecuteBrowserActionAwaitingLoadDatasetApproval: Story = {
   args: {
-    part: executeUIHostPart(
+    part: executeBrowserActionHostPart(
       "execute-ui-load-dataset",
       "Load the support-conversations validation split.",
       'return await ui.playground.loadDataset({ datasetName: "support-conversations", splitName: "validation" });'
@@ -1141,14 +1141,14 @@ export const ExecuteUIAwaitingLoadDatasetApproval: Story = {
       store
         .getState()
         .setPendingLoadDataset(
-          executeUILoadDatasetChild.toolCallId,
-          executeUILoadDatasetChild
+          executeBrowserActionLoadDatasetChild.toolCallId,
+          executeBrowserActionLoadDatasetChild
         );
     }),
   ],
 };
 
-const executeUIInstanceRemovalChild = {
+const executeBrowserActionInstanceRemovalChild = {
   toolCallId: "execute-ui-instance-removal:1",
   sessionId: "session-playground-demo",
   instanceId: 1,
@@ -1158,9 +1158,9 @@ const executeUIInstanceRemovalChild = {
 } satisfies PendingPromptInstanceRemoval;
 
 /** An execute_browser_action inner op removing a playground prompt instance (summary-only). */
-export const ExecuteUIAwaitingInstanceRemovalApproval: Story = {
+export const ExecuteBrowserActionAwaitingInstanceRemovalApproval: Story = {
   args: {
-    part: executeUIHostPart(
+    part: executeBrowserActionHostPart(
       "execute-ui-instance-removal",
       "Remove playground prompt instance B.",
       "return await ui.playground.prompt.removeInstance({ instanceId: 1 });"
@@ -1171,14 +1171,14 @@ export const ExecuteUIAwaitingInstanceRemovalApproval: Story = {
       store
         .getState()
         .setPendingPromptInstanceRemoval(
-          executeUIInstanceRemovalChild.toolCallId,
-          executeUIInstanceRemovalChild
+          executeBrowserActionInstanceRemovalChild.toolCallId,
+          executeBrowserActionInstanceRemovalChild
         );
     }),
   ],
 };
 
-const executeUIPromptToolWriteChild = {
+const executeBrowserActionPromptToolWriteChild = {
   toolCallId: "execute-ui-prompt-tools:1",
   sessionId: "session-playground-demo",
   instanceId: 0,
@@ -1224,9 +1224,9 @@ const executeUIPromptToolWriteChild = {
 } satisfies PendingPromptToolWrite;
 
 /** An execute_browser_action inner op writing playground prompt tools (renders a diff). */
-export const ExecuteUIAwaitingPromptToolWriteApproval: Story = {
+export const ExecuteBrowserActionAwaitingPromptToolWriteApproval: Story = {
   args: {
-    part: executeUIHostPart(
+    part: executeBrowserActionHostPart(
       "execute-ui-prompt-tools",
       "Add a get_weather tool to playground instance A.",
       "return await ui.playground.promptTools.write({ instanceId: 0, tools: [ /* ... */ ] });"
@@ -1237,14 +1237,14 @@ export const ExecuteUIAwaitingPromptToolWriteApproval: Story = {
       store
         .getState()
         .setPendingPromptToolWrite(
-          executeUIPromptToolWriteChild.toolCallId,
-          executeUIPromptToolWriteChild
+          executeBrowserActionPromptToolWriteChild.toolCallId,
+          executeBrowserActionPromptToolWriteChild
         );
     }),
   ],
 };
 
-const executeUICodeEvaluatorChild = {
+const executeBrowserActionCodeEvaluatorChild = {
   toolCallId: "execute-ui-code-eval:1",
   sessionId: "session-playground-demo",
   before: makeCodeEvaluatorSnapshot(),
@@ -1258,9 +1258,9 @@ const executeUICodeEvaluatorChild = {
 } satisfies PendingCodeEvaluatorEdit;
 
 /** An execute_browser_action inner op editing a code-evaluator draft (renders a diff). */
-export const ExecuteUIAwaitingCodeEvaluatorEditApproval: Story = {
+export const ExecuteBrowserActionAwaitingCodeEvaluatorEditApproval: Story = {
   args: {
-    part: executeUIHostPart(
+    part: executeBrowserActionHostPart(
       "execute-ui-code-eval",
       "Rewrite the hallucination evaluator to check tool usage.",
       "return await ui.evaluators.code.edit({ operations: [ /* ... */ ] });"
@@ -1271,14 +1271,14 @@ export const ExecuteUIAwaitingCodeEvaluatorEditApproval: Story = {
       store
         .getState()
         .setPendingCodeEvaluatorEdit(
-          executeUICodeEvaluatorChild.toolCallId,
-          executeUICodeEvaluatorChild
+          executeBrowserActionCodeEvaluatorChild.toolCallId,
+          executeBrowserActionCodeEvaluatorChild
         );
     }),
   ],
 };
 
-const executeUILlmEvaluatorChild = {
+const executeBrowserActionLlmEvaluatorChild = {
   toolCallId: "execute-ui-llm-eval:1",
   sessionId: "session-playground-demo",
   before: makeLlmEvaluatorSnapshot(),
@@ -1305,9 +1305,9 @@ const executeUILlmEvaluatorChild = {
 } satisfies PendingLlmEvaluatorEdit;
 
 /** An execute_browser_action inner op editing an LLM-evaluator draft (renders a diff). */
-export const ExecuteUIAwaitingLlmEvaluatorEditApproval: Story = {
+export const ExecuteBrowserActionAwaitingLlmEvaluatorEditApproval: Story = {
   args: {
-    part: executeUIHostPart(
+    part: executeBrowserActionHostPart(
       "execute-ui-llm-eval",
       "Sharpen the LLM judge system prompt.",
       "return await ui.evaluators.llm.edit({ operations: [ /* ... */ ] });"
@@ -1318,8 +1318,8 @@ export const ExecuteUIAwaitingLlmEvaluatorEditApproval: Story = {
       store
         .getState()
         .setPendingLlmEvaluatorEdit(
-          executeUILlmEvaluatorChild.toolCallId,
-          executeUILlmEvaluatorChild
+          executeBrowserActionLlmEvaluatorChild.toolCallId,
+          executeBrowserActionLlmEvaluatorChild
         );
     }),
   ],

@@ -1,6 +1,6 @@
 import { stageDatasetWriteOperation } from "@phoenix/agent/shared/pendingDatasetWrite";
-import { createDatasetOperation } from "@phoenix/agent/UIOperations/operations/datasetWrites";
-import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
+import { createDatasetOperation } from "@phoenix/agent/uiOperations/operations/datasetWrites";
+import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { commitCreateDataset } from "./createDataset";

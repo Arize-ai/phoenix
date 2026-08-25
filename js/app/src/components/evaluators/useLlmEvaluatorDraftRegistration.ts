@@ -16,12 +16,12 @@ import {
   type LlmEvaluatorDraftHost,
   reconcileJudgeOperations,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { registerUIOperations } from "@phoenix/agent/UIOperations/catalog";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
 import {
   editLlmEvaluatorDraftOperation,
   readLlmEvaluatorDraftOperation,
   submitLlmEvaluatorDraftOperation,
-} from "@phoenix/agent/UIOperations/operations/llmEvaluatorDraft";
+} from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";

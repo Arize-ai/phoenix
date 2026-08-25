@@ -1,7 +1,7 @@
 import { getActiveContext } from "@phoenix/agent/context/selectors";
 import { stageDatasetWriteOperation } from "@phoenix/agent/shared/pendingDatasetWrite";
-import { addSpansToDatasetOperation } from "@phoenix/agent/UIOperations/operations/datasetWrites";
-import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
+import { addSpansToDatasetOperation } from "@phoenix/agent/uiOperations/operations/datasetWrites";
+import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { commitAddSpansToDataset } from "./addSpansToDataset";

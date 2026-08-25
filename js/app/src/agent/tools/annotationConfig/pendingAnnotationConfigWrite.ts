@@ -64,7 +64,7 @@ export function stageAnnotationConfigWriteOperation({
   agentStore,
 }: {
   pending: {
-    /** Inner operation call id (`<executeUIToolCallId>:<sequence>`). */
+    /** Inner operation call id (`<executeBrowserActionToolCallId>:<sequence>`). */
     toolCallId: string;
     /** Operation name (e.g. `annotationConfig.create`), for attribution. */
     toolName: string;

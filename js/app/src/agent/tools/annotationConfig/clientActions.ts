@@ -1,8 +1,8 @@
 import {
   createAnnotationConfigOperation,
   updateAnnotationConfigOperation,
-} from "@phoenix/agent/UIOperations/operations/annotationConfig";
-import type { UIOperationHandler } from "@phoenix/agent/UIOperations/types";
+} from "@phoenix/agent/uiOperations/operations/annotationConfig";
+import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { toAnnotationConfigDraft } from "./buildAnnotationConfigInput";

@@ -20,7 +20,7 @@ export type {
   EvaluatorSubmitToolOutput,
 };
 
-import type { UIOperationResultEmitter } from "@phoenix/agent/UIOperations/types";
+import type { UIOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 
 import type {
   editCodeEvaluatorDraftInputSchema,

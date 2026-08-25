@@ -1,4 +1,4 @@
-import { parseUIOperationCallContext } from "@phoenix/agent/UIOperations/types";
+import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 

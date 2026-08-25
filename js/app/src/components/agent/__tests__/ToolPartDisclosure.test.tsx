@@ -21,6 +21,7 @@ vi.mock("@phoenix/components/markdown", () => ({
   ),
 }));
 
+import { ChatScrollContext } from "../ChatScrollContext";
 import { getToolPartPreview, ToolPart } from "../ToolPart";
 import type { ToolInvocationPart } from "../toolPartTypes";
 
@@ -164,5 +165,38 @@ describe("tool disclosure controls", () => {
 
     expect(container.textContent).toContain("Visible answer");
     expect(container.textContent).not.toContain("(empty)");
+  });
+
+  it("stops stick-to-bottom when a scroll-into-view tool auto-opens", () => {
+    // Regression: when an `execute_browser_action` call auto-opened for an
+    // approval, the scroll-into-view ran while the stick-to-bottom controller
+    // was still animating toward the bottom. The two fought — the approval
+    // card stalled half clipped and the transcript stopped responding to the
+    // user's scrolling. The auto-open effect must release the controller
+    // before scrolling the card into view.
+    const stopScroll = vi.fn();
+    act(() => {
+      root.render(
+        <AgentProvider>
+          <ChatScrollContext.Provider
+            value={{ stopScroll, scrollToBottom: vi.fn() }}
+          >
+            <ToolPart
+              part={createToolPart({
+                type: "tool-execute_browser_action",
+                toolCallId: "tool-call-browser-action",
+                state: "approval-requested",
+                input: { summary: "Edit the draft", script: "return 1;" },
+                output: undefined,
+              })}
+            />
+          </ChatScrollContext.Provider>
+        </AgentProvider>
+      );
+    });
+
+    expect(stopScroll).toHaveBeenCalled();
+    // The card auto-opened for the approval.
+    expect(container.querySelector("details")?.open).toBe(true);
   });
 });
