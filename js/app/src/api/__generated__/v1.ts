@@ -763,7 +763,7 @@ export interface paths {
         post?: never;
         /**
          * Delete traces from a project
-         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is strictly before the required, exclusive `end_time` bound are deleted. Associated spans are cascade deleted.
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted.
          */
         delete: operations["deleteProjectTraces"];
         options?: never;
@@ -10091,6 +10091,8 @@ export interface operations {
     deleteProjectTraces: {
         parameters: {
             query: {
+                /** @description Required inclusive lower bound on trace start time (ISO 8601). */
+                start_time: string;
                 /** @description Required exclusive upper bound on trace start time (ISO 8601). */
                 end_time: string;
             };

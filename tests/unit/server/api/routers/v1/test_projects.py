@@ -1227,6 +1227,7 @@ class TestSetProjectRetentionPolicy:
 class TestDeleteProjectTraces:
     """DELETE /projects/{project_identifier}/traces"""
 
+    _START_TIME = "2024-01-01T00:00:00Z"
     _END_TIME = "2025-01-01T00:00:00Z"
 
     @staticmethod
@@ -1263,7 +1264,7 @@ class TestDeleteProjectTraces:
                 ).all()
             )
 
-    async def test_delete_traces_before_bound_but_keep_project(
+    async def test_delete_traces_in_interval_but_keep_project(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
@@ -1271,7 +1272,7 @@ class TestDeleteProjectTraces:
         project, _ = await self._project_with_traces(db, 3)
         response = await httpx_client.delete(
             f"v1/projects/{project.name}/traces",
-            params={"end_time": self._END_TIME},
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
         )
         assert response.status_code == 204
         assert await self._trace_count(db, project.id) == 0
@@ -1288,31 +1289,38 @@ class TestDeleteProjectTraces:
         gid = str(GlobalID(Project.__name__, str(project.id)))
         response = await httpx_client.delete(
             f"v1/projects/{gid}/traces",
-            params={"end_time": self._END_TIME},
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
         )
         assert response.status_code == 204
         assert await self._trace_count(db, project.id) == 0
 
-    async def test_delete_project_traces_respects_end_time_cutoff(
+    async def test_delete_project_traces_respects_inclusive_exclusive_interval(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
-        """end_time is right-open: only traces starting strictly before it are deleted."""
+        """The interval includes start_time and excludes end_time."""
         project, _ = await self._project_with_traces(db, 3)  # Jan 1, 2, 3
         response = await httpx_client.delete(
             f"v1/projects/{project.name}/traces",
-            params={"end_time": "2024-01-03T00:00:00Z"},
+            params={
+                "start_time": "2024-01-02T00:00:00Z",
+                "end_time": "2024-01-03T00:00:00Z",
+            },
         )
         assert response.status_code == 204
-        # Jan 1 and Jan 2 deleted; Jan 3 survives because the bound is non-inclusive.
+        # Jan 2 is deleted. Jan 1 precedes the inclusive lower bound, and Jan 3 is exactly
+        # the exclusive upper bound, so both survive.
         async with db() as session:
             remaining = (
                 await session.scalars(
                     select(models.Trace.start_time).where(models.Trace.project_rowid == project.id)
                 )
             ).all()
-        assert len(remaining) == 1
+        assert set(remaining) == {
+            datetime(2024, 1, 1, tzinfo=timezone.utc),
+            datetime(2024, 1, 3, tzinfo=timezone.utc),
+        }
 
     async def test_delete_project_traces_leaves_other_projects_untouched(
         self,
@@ -1323,7 +1331,7 @@ class TestDeleteProjectTraces:
         bystander, _ = await self._project_with_traces(db, 2)
         response = await httpx_client.delete(
             f"v1/projects/{target.name}/traces",
-            params={"end_time": self._END_TIME},
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
         )
         assert response.status_code == 204
         assert await self._trace_count(db, target.id) == 0
@@ -1360,7 +1368,7 @@ class TestDeleteProjectTraces:
 
         response = await httpx_client.delete(
             f"v1/projects/{project.name}/traces",
-            params={"end_time": self._END_TIME},
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
         )
         assert response.status_code == 204
         async with db() as session:
@@ -1406,7 +1414,10 @@ class TestDeleteProjectTraces:
 
         response = await httpx_client.delete(
             f"v1/projects/{project.name}/traces",
-            params={"end_time": "2024-01-02T00:00:00Z"},
+            params={
+                "start_time": self._START_TIME,
+                "end_time": "2024-01-02T00:00:00Z",
+            },
         )
         assert response.status_code == 204
         assert await self._trace_count(db, project.id) == 1
@@ -1424,7 +1435,7 @@ class TestDeleteProjectTraces:
             await session.flush()
         response = await httpx_client.delete(
             f"v1/projects/{project.name}/traces",
-            params={"end_time": self._END_TIME},
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
         )
         assert response.status_code == 204
 
@@ -1434,29 +1445,85 @@ class TestDeleteProjectTraces:
     ) -> None:
         response = await httpx_client.delete(
             f"v1/projects/{token_hex(16)}/traces",
-            params={"end_time": self._END_TIME},
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
         )
         assert response.status_code == 404
 
-    async def test_delete_project_traces_requires_end_time(
+    @pytest.mark.parametrize(
+        "params",
+        [
+            pytest.param({}, id="both-missing"),
+            pytest.param({"end_time": _END_TIME}, id="start-time-missing"),
+            pytest.param({"start_time": _START_TIME}, id="end-time-missing"),
+        ],
+    )
+    async def test_delete_project_traces_requires_both_bounds(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
-    ) -> None:
-        project, _ = await self._project_with_traces(db, 1)
-        response = await httpx_client.delete(f"v1/projects/{project.name}/traces")
-        assert response.status_code == 422
-        assert await self._trace_count(db, project.id) == 1
-
-    async def test_delete_project_traces_rejects_malformed_end_time(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
+        params: dict[str, str],
     ) -> None:
         project, _ = await self._project_with_traces(db, 1)
         response = await httpx_client.delete(
             f"v1/projects/{project.name}/traces",
-            params={"end_time": "not-a-timestamp"},
+            params=params,
+        )
+        assert response.status_code == 422
+        assert await self._trace_count(db, project.id) == 1
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            pytest.param(
+                {"start_time": "not-a-timestamp", "end_time": _END_TIME},
+                id="malformed-start-time",
+            ),
+            pytest.param(
+                {"start_time": _START_TIME, "end_time": "not-a-timestamp"},
+                id="malformed-end-time",
+            ),
+        ],
+    )
+    async def test_delete_project_traces_rejects_malformed_bounds(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+        params: dict[str, str],
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 1)
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params=params,
+        )
+        assert response.status_code == 422
+        assert await self._trace_count(db, project.id) == 1
+
+    @pytest.mark.parametrize(
+        ("start_time", "end_time"),
+        [
+            pytest.param(
+                "2024-01-02T00:00:00Z",
+                "2024-01-02T00:00:00Z",
+                id="empty-interval",
+            ),
+            pytest.param(
+                "2024-01-03T00:00:00Z",
+                "2024-01-02T00:00:00Z",
+                id="reversed-interval",
+            ),
+        ],
+    )
+    async def test_delete_project_traces_rejects_non_increasing_bounds(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+        start_time: str,
+        end_time: str,
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 1)
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"start_time": start_time, "end_time": end_time},
         )
         assert response.status_code == 422
         assert await self._trace_count(db, project.id) == 1

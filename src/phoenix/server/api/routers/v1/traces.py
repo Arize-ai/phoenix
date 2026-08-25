@@ -287,8 +287,8 @@ async def list_project_traces(
     summary="Delete traces from a project",
     description=(
         "Delete traces from a project without deleting the project or its configuration. "
-        "Only traces whose start time is strictly before the required, exclusive `end_time` "
-        "bound are deleted. Associated spans are cascade deleted."
+        "Only traces whose start time is within the required `[start_time, end_time)` interval "
+        "are deleted. Associated spans are cascade deleted."
     ),
     response_description="No content returned after the matching traces are deleted",
     status_code=204,
@@ -299,12 +299,22 @@ async def delete_project_traces(
     project_identifier: str = Path(
         description="The project identifier: either project ID or project name.",
     ),
+    start_time: datetime = Query(
+        description="Required inclusive lower bound on trace start time (ISO 8601).",
+    ),
     end_time: datetime = Query(
         description="Required exclusive upper bound on trace start time (ISO 8601).",
     ),
 ) -> None:
+    normalized_start_time = normalize_datetime(start_time, timezone.utc)
     normalized_end_time = normalize_datetime(end_time, timezone.utc)
+    assert normalized_start_time is not None
     assert normalized_end_time is not None
+    if normalized_start_time >= normalized_end_time:
+        raise HTTPException(
+            status_code=422,
+            detail="`start_time` must be strictly earlier than `end_time`.",
+        )
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
         delete_statement = (
@@ -312,7 +322,10 @@ async def delete_project_traces(
             .where(models.Trace.project_rowid == project.id)
             .returning(models.Trace.project_session_rowid)
         )
-        delete_statement = delete_statement.where(models.Trace.start_time < normalized_end_time)
+        delete_statement = delete_statement.where(
+            models.Trace.start_time >= normalized_start_time,
+            models.Trace.start_time < normalized_end_time,
+        )
         deleted_trace_project_session_ids = await session.scalars(delete_statement)
         session_ids_to_check = [
             id_ for id_ in set(deleted_trace_project_session_ids) if id_ is not None

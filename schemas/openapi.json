@@ -4791,7 +4791,7 @@
           "traces"
         ],
         "summary": "Delete traces from a project",
-        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is strictly before the required, exclusive `end_time` bound are deleted. Associated spans are cascade deleted.",
+        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted.",
         "operationId": "deleteProjectTraces",
         "parameters": [
           {
@@ -4804,6 +4804,18 @@
               "title": "Project Identifier"
             },
             "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Required inclusive lower bound on trace start time (ISO 8601).",
+              "title": "Start Time"
+            },
+            "description": "Required inclusive lower bound on trace start time (ISO 8601)."
           },
           {
             "name": "end_time",
