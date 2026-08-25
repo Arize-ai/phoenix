@@ -20,7 +20,9 @@ def test_codex_exec_uses_isolated_structured_cli_contract() -> None:
             {"type": "thread.started", "thread_id": "thread-1"},
             {"type": "turn.completed", "usage": {"input_tokens": 8, "output_tokens": 3}},
         ]
-        return SimpleNamespace(returncode=0, stdout="\n".join(map(json.dumps, events)).encode(), stderr=b"note\xff")
+        return SimpleNamespace(
+            returncode=0, stdout="\n".join(map(json.dumps, events)).encode(), stderr=b"note\xff"
+        )
 
     result = CodexExecBackend(executable="codex-test", run_process=run).generate(_request())
 
@@ -51,7 +53,9 @@ def test_codex_exec_preserves_unknown_usage_as_null() -> None:
     assert CodexExecBackend(run_process=run).generate(_request()).usage is None
 
 
-@pytest.mark.parametrize("event", [{"type": "turn.failed", "error": "bad"}, {"type": "error", "message": "bad"}])
+@pytest.mark.parametrize(
+    "event", [{"type": "turn.failed", "error": "bad"}, {"type": "error", "message": "bad"}]
+)
 def test_codex_exec_rejects_terminal_failures(event: dict[str, str]) -> None:
     def run(argv: list[str], **kwargs: Any) -> SimpleNamespace:
         return SimpleNamespace(returncode=0, stdout=(json.dumps(event) + "\n").encode(), stderr=b"")
@@ -61,4 +65,6 @@ def test_codex_exec_rejects_terminal_failures(event: dict[str, str]) -> None:
 
 
 def _request() -> ModelRequest:
-    return ModelRequest("request-1", "generation", "model-exact", "Return JSON.", {"type": "object"}, 100)
+    return ModelRequest(
+        "request-1", "generation", "model-exact", "Return JSON.", {"type": "object"}, 100
+    )
