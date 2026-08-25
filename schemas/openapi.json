@@ -10076,54 +10076,6 @@
         ],
         "title": "AgentSessionSummary"
       },
-      "AgentSpanContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "span",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Projectnodeid"
-          },
-          "spanNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Spannodeid"
-          },
-          "otelSpanId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Otelspanid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type"
-        ],
-        "title": "AgentSpanContext",
-        "description": "Span the user has selected.\n\nExactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry\nhex) must be set. ``project_node_id`` is optional because a span can be\nselected from views outside a project route."
-      },
       "AnnotateSessionsRequestBody": {
         "properties": {
           "data": {
@@ -10954,34 +10906,34 @@
             "$ref": "#/components/schemas/AppContext"
           },
           {
-            "$ref": "#/components/schemas/ProjectContext"
+            "$ref": "#/components/schemas/ProjectUIContext"
           },
           {
-            "$ref": "#/components/schemas/TraceContext"
+            "$ref": "#/components/schemas/TraceUIContext"
           },
           {
-            "$ref": "#/components/schemas/SessionContext"
+            "$ref": "#/components/schemas/SessionUIContext"
           },
           {
-            "$ref": "#/components/schemas/PromptContext"
+            "$ref": "#/components/schemas/PromptUIContext"
           },
           {
-            "$ref": "#/components/schemas/PromptVersionContext"
+            "$ref": "#/components/schemas/PromptVersionUIContext"
           },
           {
-            "$ref": "#/components/schemas/AgentSpanContext"
+            "$ref": "#/components/schemas/SpanUIContext"
           },
           {
-            "$ref": "#/components/schemas/PlaygroundContext"
+            "$ref": "#/components/schemas/PlaygroundUIContext"
           },
           {
-            "$ref": "#/components/schemas/CodeEvaluatorContext"
+            "$ref": "#/components/schemas/CodeEvaluatorUIContext"
           },
           {
-            "$ref": "#/components/schemas/LlmEvaluatorContext"
+            "$ref": "#/components/schemas/LlmEvaluatorUIContext"
           },
           {
-            "$ref": "#/components/schemas/DatasetContext"
+            "$ref": "#/components/schemas/DatasetUIContext"
           },
           {
             "$ref": "#/components/schemas/GraphQLContext"
@@ -10999,18 +10951,18 @@
           "propertyName": "type",
           "mapping": {
             "app": "#/components/schemas/AppContext",
-            "code_evaluator": "#/components/schemas/CodeEvaluatorContext",
-            "dataset": "#/components/schemas/DatasetContext",
+            "code_evaluator": "#/components/schemas/CodeEvaluatorUIContext",
+            "dataset": "#/components/schemas/DatasetUIContext",
             "graphql": "#/components/schemas/GraphQLContext",
-            "llm_evaluator": "#/components/schemas/LlmEvaluatorContext",
-            "playground": "#/components/schemas/PlaygroundContext",
-            "project": "#/components/schemas/ProjectContext",
-            "prompt": "#/components/schemas/PromptContext",
-            "prompt_version": "#/components/schemas/PromptVersionContext",
-            "session": "#/components/schemas/SessionContext",
-            "span": "#/components/schemas/AgentSpanContext",
+            "llm_evaluator": "#/components/schemas/LlmEvaluatorUIContext",
+            "playground": "#/components/schemas/PlaygroundUIContext",
+            "project": "#/components/schemas/ProjectUIContext",
+            "prompt": "#/components/schemas/PromptUIContext",
+            "prompt_version": "#/components/schemas/PromptVersionUIContext",
+            "session": "#/components/schemas/SessionUIContext",
+            "span": "#/components/schemas/SpanUIContext",
             "subagents": "#/components/schemas/SubagentsContext",
-            "trace": "#/components/schemas/TraceContext",
+            "trace": "#/components/schemas/TraceUIContext",
             "web_access": "#/components/schemas/WebAccessContext"
           }
         }
@@ -11138,7 +11090,7 @@
         "title": "ChatRequestBody",
         "description": "Assistant chat submit request payload."
       },
-      "CodeEvaluatorContext": {
+      "CodeEvaluatorUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -11161,8 +11113,7 @@
         "required": [
           "type"
         ],
-        "title": "CodeEvaluatorContext",
-        "description": "Code-evaluator create/edit form mounted in the current browser route."
+        "title": "CodeEvaluatorUIContext"
       },
       "CompactAgentSessionRequestBody": {
         "properties": {
@@ -12384,37 +12335,6 @@
         ],
         "title": "Dataset"
       },
-      "DatasetContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dataset",
-            "title": "Type"
-          },
-          "datasetNodeId": {
-            "type": "string",
-            "title": "Datasetnodeid"
-          },
-          "datasetVersionNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Datasetversionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "datasetNodeId"
-        ],
-        "title": "DatasetContext",
-        "description": "Dataset the user is currently viewing or has bound to a workflow.\n\nCarries the dataset's relay node id and, when known, the active version\nnode id. These IDs scope the create-form handoff link and the sampling of\nactive dataset examples used as prompt context; the dataset schema itself\nis open."
-      },
       "DatasetExample": {
         "properties": {
           "id": {
@@ -12577,6 +12497,36 @@
           "updated_at"
         ],
         "title": "DatasetSplit"
+      },
+      "DatasetUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dataset",
+            "title": "Type"
+          },
+          "datasetNodeId": {
+            "type": "string",
+            "title": "Datasetnodeid"
+          },
+          "datasetVersionNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetversionnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "datasetNodeId"
+        ],
+        "title": "DatasetUIContext"
       },
       "DatasetVersion": {
         "properties": {
@@ -15055,7 +15005,7 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
-      "LlmEvaluatorContext": {
+      "LlmEvaluatorUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -15078,8 +15028,7 @@
         "required": [
           "type"
         ],
-        "title": "LlmEvaluatorContext",
-        "description": "LLM-evaluator create/edit form mounted in the current browser route."
+        "title": "LlmEvaluatorUIContext"
       },
       "LocalUser": {
         "properties": {
@@ -16113,6 +16062,25 @@
             "type": "boolean",
             "title": "Iscompactionmessage",
             "default": false
+          },
+          "uiContexts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UIContexts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
           }
         },
         "additionalProperties": false,
@@ -16125,7 +16093,7 @@
         "title": "PhoenixUserMessageMetadata",
         "description": "The ``phoenix`` metadata namespace the browser attaches to outgoing\nuser messages."
       },
-      "PlaygroundBuiltinModelContext": {
+      "PlaygroundBuiltinModelUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -16147,59 +16115,9 @@
           "provider",
           "modelName"
         ],
-        "title": "PlaygroundBuiltinModelContext",
-        "description": "Built-in playground model selection."
+        "title": "PlaygroundBuiltinModelUIContext"
       },
-      "PlaygroundContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "playground",
-            "title": "Type"
-          },
-          "recordExperiments": {
-            "type": "boolean",
-            "title": "Recordexperiments",
-            "default": true
-          },
-          "repetitions": {
-            "type": "integer",
-            "title": "Repetitions",
-            "default": 1
-          },
-          "nextExperimentScaffold": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PlaygroundExperimentScaffoldContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "instances": {
-            "items": {
-              "$ref": "#/components/schemas/PlaygroundInstanceContext"
-            },
-            "type": "array",
-            "title": "Instances"
-          },
-          "evaluators": {
-            "items": {
-              "$ref": "#/components/schemas/PlaygroundEvaluatorContext"
-            },
-            "type": "array",
-            "title": "Evaluators"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type"
-        ],
-        "title": "PlaygroundContext",
-        "description": "Playground prompt editor state mounted in the current browser route."
-      },
-      "PlaygroundCustomProviderModelContext": {
+      "PlaygroundCustomProviderModelUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -16231,10 +16149,9 @@
           "provider",
           "modelName"
         ],
-        "title": "PlaygroundCustomProviderModelContext",
-        "description": "Custom-provider playground model selection."
+        "title": "PlaygroundCustomProviderModelUIContext"
       },
-      "PlaygroundEvaluatorContext": {
+      "PlaygroundEvaluatorUIContext": {
         "properties": {
           "datasetEvaluatorId": {
             "type": "string",
@@ -16270,10 +16187,9 @@
           "isBuiltin",
           "isApplied"
         ],
-        "title": "PlaygroundEvaluatorContext",
-        "description": "One dataset evaluator on the mounted playground's roster. ``name`` is\nuser-controlled; sanitize at every model-visible boundary."
+        "title": "PlaygroundEvaluatorUIContext"
       },
-      "PlaygroundExperimentScaffoldContext": {
+      "PlaygroundExperimentScaffoldUIContext": {
         "properties": {
           "name": {
             "anyOf": [
@@ -16304,10 +16220,9 @@
           }
         },
         "type": "object",
-        "title": "PlaygroundExperimentScaffoldContext",
-        "description": "Experiment name/description/metadata the user has staged for the playground's\n*next* dataset-backed run, before that run has started.\n\nThe playground UI lets the user pre-set how the next recorded run's experiment\nwill be named, described, and tagged (via the experiment-recording UI operation\nor the recording form). That staged state is surfaced here so the agent can\nsee what is already set and avoid re-staging it.\n\nField semantics:\n- ``name`` / ``description``: the staged values, surfaced to the model verbatim,\n  or ``None`` when the user has not staged them.\n- ``has_metadata``: a presence flag, not the value. Only *whether* metadata has\n  been staged is model-relevant (so the agent knows not to re-attach it); the\n  metadata object itself is deliberately kept out of the prompt.\n\nA field left unstaged (``None`` / ``False``) falls back to the server default when\nthe run starts. The scaffold is consumed once that next run begins."
+        "title": "PlaygroundExperimentScaffoldUIContext"
       },
-      "PlaygroundInstanceContext": {
+      "PlaygroundInstanceUIContext": {
         "properties": {
           "instanceId": {
             "type": "integer",
@@ -16318,17 +16233,17 @@
               {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/PlaygroundBuiltinModelContext"
+                    "$ref": "#/components/schemas/PlaygroundBuiltinModelUIContext"
                   },
                   {
-                    "$ref": "#/components/schemas/PlaygroundCustomProviderModelContext"
+                    "$ref": "#/components/schemas/PlaygroundCustomProviderModelUIContext"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
-                    "builtin": "#/components/schemas/PlaygroundBuiltinModelContext",
-                    "custom": "#/components/schemas/PlaygroundCustomProviderModelContext"
+                    "builtin": "#/components/schemas/PlaygroundBuiltinModelUIContext",
+                    "custom": "#/components/schemas/PlaygroundCustomProviderModelUIContext"
                   }
                 }
               },
@@ -16354,8 +16269,55 @@
         "required": [
           "instanceId"
         ],
-        "title": "PlaygroundInstanceContext",
-        "description": "One mounted playground instance and its current model selection.\n\n``experiment_id`` carries the relay node id of the experiment produced by\nthis instance's last dataset-backed run, or ``None`` when the instance has\nnot produced one. Ephemeral experiments are included: they remain queryable\nuntil the server sweeps them ~24h after their last update."
+        "title": "PlaygroundInstanceUIContext"
+      },
+      "PlaygroundUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "playground",
+            "title": "Type"
+          },
+          "recordExperiments": {
+            "type": "boolean",
+            "title": "Recordexperiments",
+            "default": true
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions",
+            "default": 1
+          },
+          "nextExperimentScaffold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundExperimentScaffoldUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instances": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundInstanceUIContext"
+            },
+            "type": "array",
+            "title": "Instances"
+          },
+          "evaluators": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundEvaluatorUIContext"
+            },
+            "type": "array",
+            "title": "Evaluators"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PlaygroundUIContext"
       },
       "Project": {
         "properties": {
@@ -16387,7 +16349,33 @@
         ],
         "title": "Project"
       },
-      "ProjectContext": {
+      "ProjectRetentionPolicyData": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id",
+            "description": "The retention policy the project now uses, or null when the project falls back to the default policy."
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "policy_id"
+        ],
+        "title": "ProjectRetentionPolicyData"
+      },
+      "ProjectUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -16415,34 +16403,7 @@
           "type",
           "projectNodeId"
         ],
-        "title": "ProjectContext",
-        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all. It\ndescribes the view in full, root-span scoping included (which is expressed\nwithin the filter DSL as ``parent_id is None``)."
-      },
-      "ProjectRetentionPolicyData": {
-        "properties": {
-          "project_id": {
-            "type": "string",
-            "title": "Project Id"
-          },
-          "policy_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Policy Id",
-            "description": "The retention policy the project now uses, or null when the project falls back to the default policy."
-          }
-        },
-        "type": "object",
-        "required": [
-          "project_id",
-          "policy_id"
-        ],
-        "title": "ProjectRetentionPolicyData"
+        "title": "ProjectUIContext"
       },
       "Prompt": {
         "properties": {
@@ -16881,26 +16842,6 @@
           "messages"
         ],
         "title": "PromptChatTemplate"
-      },
-      "PromptContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "prompt",
-            "title": "Type"
-          },
-          "promptNodeId": {
-            "type": "string",
-            "title": "Promptnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "promptNodeId"
-        ],
-        "title": "PromptContext",
-        "description": "Prompt the user is currently viewing."
       },
       "PromptData": {
         "properties": {
@@ -17997,6 +17938,25 @@
         ],
         "title": "PromptTools"
       },
+      "PromptUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId"
+        ],
+        "title": "PromptUIContext"
+      },
       "PromptVersion": {
         "properties": {
           "description": {
@@ -18154,31 +18114,6 @@
           "id"
         ],
         "title": "PromptVersion"
-      },
-      "PromptVersionContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "prompt_version",
-            "title": "Type"
-          },
-          "promptNodeId": {
-            "type": "string",
-            "title": "Promptnodeid"
-          },
-          "promptVersionNodeId": {
-            "type": "string",
-            "title": "Promptversionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "promptNodeId",
-          "promptVersionNodeId"
-        ],
-        "title": "PromptVersionContext",
-        "description": "Prompt version the user is currently viewing."
       },
       "PromptVersionData": {
         "properties": {
@@ -18383,6 +18318,30 @@
           "name"
         ],
         "title": "PromptVersionTagData"
+      },
+      "PromptVersionUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt_version",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          },
+          "promptVersionNodeId": {
+            "type": "string",
+            "title": "Promptversionnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId",
+          "promptVersionNodeId"
+        ],
+        "title": "PromptVersionUIContext"
       },
       "PromptXAIInvocationParameters": {
         "properties": {
@@ -18760,31 +18719,6 @@
         ],
         "title": "SessionAnnotationsResponseBody"
       },
-      "SessionContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "type": "string",
-            "title": "Projectnodeid"
-          },
-          "sessionNodeId": {
-            "type": "string",
-            "title": "Sessionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "projectNodeId",
-          "sessionNodeId"
-        ],
-        "title": "SessionContext",
-        "description": "Session the user is currently viewing."
-      },
       "SessionData": {
         "properties": {
           "id": {
@@ -18903,6 +18837,30 @@
           "end_time"
         ],
         "title": "SessionTraceData"
+      },
+      "SessionUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "sessionNodeId": {
+            "type": "string",
+            "title": "Sessionnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId",
+          "sessionNodeId"
+        ],
+        "title": "SessionUIContext"
       },
       "SetDatasetLabelsForDatasetResponseBody": {
         "properties": {
@@ -19623,6 +19581,54 @@
           "note"
         ],
         "title": "SpanNoteData"
+      },
+      "SpanUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "span",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectnodeid"
+          },
+          "spanNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spannodeid"
+          },
+          "otelSpanId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{16}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otelspanid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "SpanUIContext"
       },
       "SpansResponseBody": {
         "properties": {
@@ -20644,30 +20650,6 @@
         ],
         "title": "TraceAnnotationsResponseBody"
       },
-      "TraceContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "trace",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "type": "string",
-            "title": "Projectnodeid"
-          },
-          "otelTraceId": {
-            "type": "string",
-            "title": "Oteltraceid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "projectNodeId",
-          "otelTraceId"
-        ],
-        "title": "TraceContext"
-      },
       "TraceData": {
         "properties": {
           "id": {
@@ -20820,6 +20802,31 @@
         ],
         "title": "TraceSpanData"
       },
+      "TraceUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "trace",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "otelTraceId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Oteltraceid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId",
+          "otelTraceId"
+        ],
+        "title": "TraceUIContext"
+      },
       "TransferTracesData": {
         "properties": {
           "transferred_trace_count": {
@@ -20903,6 +20910,112 @@
         ],
         "title": "TurnTraceContext",
         "description": "The trace identity a turn's spans are parented to."
+      },
+      "UIContexts": {
+        "properties": {
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpanUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "promptVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playground": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "codeEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeEvaluatorUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "llmEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LlmEvaluatorUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "UIContexts"
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {

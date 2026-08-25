@@ -27,6 +27,7 @@ from phoenix.server.agents.capabilities.tools.internal.bash import (
 from phoenix.server.agents.capabilities.tools.internal.write_span_note import (
     WriteSpanNoteCapability,
 )
+from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
 from phoenix.server.agents.prompts import ServerAgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
@@ -113,8 +114,6 @@ def build_server_agent(
             toolset=SkillsToolset[None](
                 skills=[PHOENIX_GRAPHQL_SKILL, SPAN_CODING_SKILL],
                 load_skill_template=resolved_prompts.load_skill,
-                load_skill_tool_template=resolved_prompts.load_skill_tool,
-                read_skill_resource_tool_template=resolved_prompts.read_skill_resource_tool,
             ),
             instructions=resolved_prompts.skills,
         )
@@ -173,6 +172,8 @@ def build_server_agent(
                 set_subagent_final_tool_output=_discard_subagent_final_tool_output,
             )
         )
+    if is_viewer:
+        capabilities.append(ViewerAccessCapability(instructions=resolved_prompts.viewer_access))
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
@@ -181,7 +182,7 @@ def build_server_agent(
         model,
         name="ServerAgent",
         deps_type=type(None),
-        instructions=resolved_prompts.base.render(),
+        instructions=resolved_prompts.base,
         capabilities=[traced_capability],
     )
     return OpenInferenceAgentWrapper(agent, tracer=tracer)

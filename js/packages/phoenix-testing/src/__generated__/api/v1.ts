@@ -2043,27 +2043,6 @@ export interface components {
             /** Is Ephemeral */
             is_ephemeral: boolean;
         };
-        /**
-         * AgentSpanContext
-         * @description Span the user has selected.
-         *
-         *     Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
-         *     hex) must be set. ``project_node_id`` is optional because a span can be
-         *     selected from views outside a project route.
-         */
-        AgentSpanContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "span";
-            /** Projectnodeid */
-            projectNodeId?: string | null;
-            /** Spannodeid */
-            spanNodeId?: string | null;
-            /** Otelspanid */
-            otelSpanId?: string | null;
-        };
         /** AnnotateSessionsRequestBody */
         AnnotateSessionsRequestBody: {
             /** Data */
@@ -2390,7 +2369,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectUIContext"] | components["schemas"]["TraceUIContext"] | components["schemas"]["SessionUIContext"] | components["schemas"]["PromptUIContext"] | components["schemas"]["PromptVersionUIContext"] | components["schemas"]["SpanUIContext"] | components["schemas"]["PlaygroundUIContext"] | components["schemas"]["CodeEvaluatorUIContext"] | components["schemas"]["LlmEvaluatorUIContext"] | components["schemas"]["DatasetUIContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
          * ChatRequestBody
          * @description Assistant chat submit request payload.
@@ -2458,11 +2437,8 @@ export interface components {
              */
             instrumentUserId?: boolean;
         };
-        /**
-         * CodeEvaluatorContext
-         * @description Code-evaluator create/edit form mounted in the current browser route.
-         */
-        CodeEvaluatorContext: {
+        /** CodeEvaluatorUIContext */
+        CodeEvaluatorUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -2969,26 +2945,6 @@ export interface components {
             /** Example Count */
             example_count: number;
         };
-        /**
-         * DatasetContext
-         * @description Dataset the user is currently viewing or has bound to a workflow.
-         *
-         *     Carries the dataset's relay node id and, when known, the active version
-         *     node id. These IDs scope the create-form handoff link and the sampling of
-         *     active dataset examples used as prompt context; the dataset schema itself
-         *     is open.
-         */
-        DatasetContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "dataset";
-            /** Datasetnodeid */
-            datasetNodeId: string;
-            /** Datasetversionnodeid */
-            datasetVersionNodeId?: string | null;
-        };
         /** DatasetExample */
         DatasetExample: {
             /** Id */
@@ -3058,6 +3014,18 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DatasetUIContext */
+        DatasetUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "dataset";
+            /** Datasetnodeid */
+            datasetNodeId: string;
+            /** Datasetversionnodeid */
+            datasetVersionNodeId?: string | null;
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -4000,11 +3968,8 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * LlmEvaluatorContext
-         * @description LLM-evaluator create/edit form mounted in the current browser route.
-         */
-        LlmEvaluatorContext: {
+        /** LlmEvaluatorUIContext */
+        LlmEvaluatorUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4438,12 +4403,16 @@ export interface components {
              * @default false
              */
             isCompactionMessage?: boolean;
+            uiContexts?: components["schemas"]["UIContexts"] | null;
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
         };
-        /**
-         * PlaygroundBuiltinModelContext
-         * @description Built-in playground model selection.
-         */
-        PlaygroundBuiltinModelContext: {
+        /** PlaygroundBuiltinModelUIContext */
+        PlaygroundBuiltinModelUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4454,11 +4423,61 @@ export interface components {
             /** Modelname */
             modelName: string;
         };
-        /**
-         * PlaygroundContext
-         * @description Playground prompt editor state mounted in the current browser route.
-         */
-        PlaygroundContext: {
+        /** PlaygroundCustomProviderModelUIContext */
+        PlaygroundCustomProviderModelUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "custom";
+            /** Customproviderid */
+            customProviderId: string;
+            /** Customprovidername */
+            customProviderName: string;
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /** PlaygroundEvaluatorUIContext */
+        PlaygroundEvaluatorUIContext: {
+            /** Datasetevaluatorid */
+            datasetEvaluatorId: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "LLM" | "CODE" | "BUILTIN";
+            /** Isbuiltin */
+            isBuiltin: boolean;
+            /** Isapplied */
+            isApplied: boolean;
+        };
+        /** PlaygroundExperimentScaffoldUIContext */
+        PlaygroundExperimentScaffoldUIContext: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Hasmetadata
+             * @default false
+             */
+            hasMetadata?: boolean;
+        };
+        /** PlaygroundInstanceUIContext */
+        PlaygroundInstanceUIContext: {
+            /** Instanceid */
+            instanceId: number;
+            /** Model */
+            model?: (components["schemas"]["PlaygroundBuiltinModelUIContext"] | components["schemas"]["PlaygroundCustomProviderModelUIContext"]) | null;
+            /** Experimentid */
+            experimentId?: string | null;
+        };
+        /** PlaygroundUIContext */
+        PlaygroundUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4474,98 +4493,11 @@ export interface components {
              * @default 1
              */
             repetitions?: number;
-            nextExperimentScaffold?: components["schemas"]["PlaygroundExperimentScaffoldContext"] | null;
+            nextExperimentScaffold?: components["schemas"]["PlaygroundExperimentScaffoldUIContext"] | null;
             /** Instances */
-            instances?: components["schemas"]["PlaygroundInstanceContext"][];
+            instances?: components["schemas"]["PlaygroundInstanceUIContext"][];
             /** Evaluators */
-            evaluators?: components["schemas"]["PlaygroundEvaluatorContext"][];
-        };
-        /**
-         * PlaygroundCustomProviderModelContext
-         * @description Custom-provider playground model selection.
-         */
-        PlaygroundCustomProviderModelContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "custom";
-            /** Customproviderid */
-            customProviderId: string;
-            /** Customprovidername */
-            customProviderName: string;
-            /** Provider */
-            provider: string;
-            /** Modelname */
-            modelName: string;
-        };
-        /**
-         * PlaygroundEvaluatorContext
-         * @description One dataset evaluator on the mounted playground's roster. ``name`` is
-         *     user-controlled; sanitize at every model-visible boundary.
-         */
-        PlaygroundEvaluatorContext: {
-            /** Datasetevaluatorid */
-            datasetEvaluatorId: string;
-            /** Name */
-            name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "LLM" | "CODE" | "BUILTIN";
-            /** Isbuiltin */
-            isBuiltin: boolean;
-            /** Isapplied */
-            isApplied: boolean;
-        };
-        /**
-         * PlaygroundExperimentScaffoldContext
-         * @description Experiment name/description/metadata the user has staged for the playground's
-         *     *next* dataset-backed run, before that run has started.
-         *
-         *     The playground UI lets the user pre-set how the next recorded run's experiment
-         *     will be named, described, and tagged (via the experiment-recording UI operation
-         *     or the recording form). That staged state is surfaced here so the agent can
-         *     see what is already set and avoid re-staging it.
-         *
-         *     Field semantics:
-         *     - ``name`` / ``description``: the staged values, surfaced to the model verbatim,
-         *       or ``None`` when the user has not staged them.
-         *     - ``has_metadata``: a presence flag, not the value. Only *whether* metadata has
-         *       been staged is model-relevant (so the agent knows not to re-attach it); the
-         *       metadata object itself is deliberately kept out of the prompt.
-         *
-         *     A field left unstaged (``None`` / ``False``) falls back to the server default when
-         *     the run starts. The scaffold is consumed once that next run begins.
-         */
-        PlaygroundExperimentScaffoldContext: {
-            /** Name */
-            name?: string | null;
-            /** Description */
-            description?: string | null;
-            /**
-             * Hasmetadata
-             * @default false
-             */
-            hasMetadata?: boolean;
-        };
-        /**
-         * PlaygroundInstanceContext
-         * @description One mounted playground instance and its current model selection.
-         *
-         *     ``experiment_id`` carries the relay node id of the experiment produced by
-         *     this instance's last dataset-backed run, or ``None`` when the instance has
-         *     not produced one. Ephemeral experiments are included: they remain queryable
-         *     until the server sweeps them ~24h after their last update.
-         */
-        PlaygroundInstanceContext: {
-            /** Instanceid */
-            instanceId: number;
-            /** Model */
-            model?: (components["schemas"]["PlaygroundBuiltinModelContext"] | components["schemas"]["PlaygroundCustomProviderModelContext"]) | null;
-            /** Experimentid */
-            experimentId?: string | null;
+            evaluators?: components["schemas"]["PlaygroundEvaluatorUIContext"][];
         };
         /** Project */
         Project: {
@@ -4576,27 +4508,6 @@ export interface components {
             /** Id */
             id: string;
         };
-        /**
-         * ProjectContext
-         * @description Project the user is currently viewing.
-         *
-         *     ``span_filter`` carries the project-scoped span filter expression when the
-         *     span filter field is mounted — empty string when the field is mounted with
-         *     no condition applied, ``None`` when the field is not present at all. It
-         *     describes the view in full, root-span scoping included (which is expressed
-         *     within the filter DSL as ``parent_id is None``).
-         */
-        ProjectContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "project";
-            /** Projectnodeid */
-            projectNodeId: string;
-            /** Spanfilter */
-            spanFilter?: string | null;
-        };
         /** ProjectRetentionPolicyData */
         ProjectRetentionPolicyData: {
             /** Project Id */
@@ -4606,6 +4517,18 @@ export interface components {
              * @description The retention policy the project now uses, or null when the project falls back to the default policy.
              */
             policy_id: string | null;
+        };
+        /** ProjectUIContext */
+        ProjectUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "project";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Spanfilter */
+            spanFilter?: string | null;
         };
         /** Prompt */
         Prompt: {
@@ -4795,19 +4718,6 @@ export interface components {
             type: "chat";
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
-        };
-        /**
-         * PromptContext
-         * @description Prompt the user is currently viewing.
-         */
-        PromptContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "prompt";
-            /** Promptnodeid */
-            promptNodeId: string;
         };
         /** PromptData */
         PromptData: {
@@ -5290,6 +5200,16 @@ export interface components {
             /** Disable Parallel Tool Calls */
             disable_parallel_tool_calls?: boolean;
         };
+        /** PromptUIContext */
+        PromptUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt";
+            /** Promptnodeid */
+            promptNodeId: string;
+        };
         /** PromptVersion */
         PromptVersion: {
             /** Description */
@@ -5308,21 +5228,6 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
-        };
-        /**
-         * PromptVersionContext
-         * @description Prompt version the user is currently viewing.
-         */
-        PromptVersionContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "prompt_version";
-            /** Promptnodeid */
-            promptNodeId: string;
-            /** Promptversionnodeid */
-            promptVersionNodeId: string;
         };
         /** PromptVersionData */
         PromptVersionData: {
@@ -5354,6 +5259,18 @@ export interface components {
             name: components["schemas"]["Identifier"];
             /** Description */
             description?: string | null;
+        };
+        /** PromptVersionUIContext */
+        PromptVersionUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt_version";
+            /** Promptnodeid */
+            promptNodeId: string;
+            /** Promptversionnodeid */
+            promptVersionNodeId: string;
         };
         /** PromptXAIInvocationParameters */
         PromptXAIInvocationParameters: {
@@ -5535,21 +5452,6 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * SessionContext
-         * @description Session the user is currently viewing.
-         */
-        SessionContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "session";
-            /** Projectnodeid */
-            projectNodeId: string;
-            /** Sessionnodeid */
-            sessionNodeId: string;
-        };
         /** SessionData */
         SessionData: {
             /** Id */
@@ -5624,6 +5526,18 @@ export interface components {
              * Format: date-time
              */
             end_time: string;
+        };
+        /** SessionUIContext */
+        SessionUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "session";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Sessionnodeid */
+            sessionNodeId: string;
         };
         /** SetDatasetLabelsForDatasetResponseBody */
         SetDatasetLabelsForDatasetResponseBody: {
@@ -6010,6 +5924,20 @@ export interface components {
              * @default
              */
             identifier?: string;
+        };
+        /** SpanUIContext */
+        SpanUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "span";
+            /** Projectnodeid */
+            projectNodeId?: string | null;
+            /** Spannodeid */
+            spanNodeId?: string | null;
+            /** Otelspanid */
+            otelSpanId?: string | null;
         };
         /** SpansResponseBody */
         SpansResponseBody: {
@@ -6436,18 +6364,6 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /** TraceContext */
-        TraceContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "trace";
-            /** Projectnodeid */
-            projectNodeId: string;
-            /** Oteltraceid */
-            otelTraceId: string;
-        };
         /** TraceData */
         TraceData: {
             /** Id */
@@ -6531,6 +6447,18 @@ export interface components {
              */
             end_time: string;
         };
+        /** TraceUIContext */
+        TraceUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "trace";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Oteltraceid */
+            otelTraceId: string;
+        };
         /** TransferTracesData */
         TransferTracesData: {
             /**
@@ -6575,6 +6503,19 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
+        };
+        /** UIContexts */
+        UIContexts: {
+            project?: components["schemas"]["ProjectUIContext"] | null;
+            trace?: components["schemas"]["TraceUIContext"] | null;
+            session?: components["schemas"]["SessionUIContext"] | null;
+            span?: components["schemas"]["SpanUIContext"] | null;
+            prompt?: components["schemas"]["PromptUIContext"] | null;
+            promptVersion?: components["schemas"]["PromptVersionUIContext"] | null;
+            dataset?: components["schemas"]["DatasetUIContext"] | null;
+            playground?: components["schemas"]["PlaygroundUIContext"] | null;
+            codeEvaluator?: components["schemas"]["CodeEvaluatorUIContext"] | null;
+            llmEvaluator?: components["schemas"]["LlmEvaluatorUIContext"] | null;
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {

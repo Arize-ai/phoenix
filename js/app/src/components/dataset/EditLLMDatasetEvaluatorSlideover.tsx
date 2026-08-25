@@ -181,6 +181,7 @@ const EditEvaluatorDialog = ({
             }
           }
           evaluator {
+            id
             description
             kind
             name
@@ -387,7 +388,7 @@ const EditEvaluatorDialog = ({
           isSubmitting={isUpdating}
           mode="update"
           error={error}
-          evaluatorNodeId={datasetEvaluatorId}
+          evaluatorNodeId={datasetEvaluator.evaluator.id}
         />
       )}
     </EvaluatorStoreProvider>

@@ -427,7 +427,7 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     discover, so they are pinned against the code-mode tool names."""
     from phoenix.server.agents.prompts import AgentPrompts
 
-    rendered = AgentPrompts().phoenix_mcp_tools.render()
+    rendered = AgentPrompts().phoenix_mcp_tools
 
     for tool in ("execute", "call_tool", "search", "get_schema", "tags"):
         assert tool in rendered
@@ -451,7 +451,7 @@ async def test_the_instructions_account_for_every_directly_named_catalog_tool() 
     """
     from phoenix.server.agents.prompts import AgentPrompts
 
-    rendered = AgentPrompts().phoenix_mcp_tools.render()
+    rendered = AgentPrompts().phoenix_mcp_tools
     runtime = MontyRuntime()
     mcp, _ = build_phoenix_mcp_server(
         _rest_app([]),

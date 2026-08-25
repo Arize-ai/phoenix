@@ -6,11 +6,10 @@ from typing import TYPE_CHECKING
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
-from pydantic_ai import Agent, DeferredToolRequests, RunContext
+from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.capabilities import (
     AbstractCapability,
-    CapabilityFunc,
     CombinedCapability,
     DynamicCapability,
 )
@@ -24,8 +23,8 @@ from phoenix.server.agents.capabilities import (
     PhoenixMCPCapability,
     PhoenixMCPToolset,
     SkillsCapability,
+    UIContextsCapability,
     build_anthropic_prompt_cache_capability,
-    get_context_capability_function,
 )
 from phoenix.server.agents.capabilities.skills import SkillsToolset
 from phoenix.server.agents.capabilities.tools.external import (
@@ -37,9 +36,10 @@ from phoenix.server.agents.capabilities.tools.internal import (
     WriteSpanNoteCapability,
 )
 from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
+from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
-from phoenix.server.agents.skills import get_skills_for_contexts
+from phoenix.server.agents.skills import get_skills
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
@@ -55,22 +55,14 @@ if TYPE_CHECKING:
     from phoenix.server.bearer_auth import PhoenixUser
 
 
-def get_skills_capability_function(
-    *,
-    prompts: AgentPrompts,
-) -> CapabilityFunc[AgentDependencies]:
-    def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
-        return SkillsCapability(
-            toolset=SkillsToolset[AgentDependencies](
-                skills=get_skills_for_contexts(ctx.deps.contexts),
-                load_skill_template=prompts.load_skill,
-                load_skill_tool_template=prompts.load_skill_tool,
-                read_skill_resource_tool_template=prompts.read_skill_resource_tool,
-            ),
-            instructions=prompts.skills,
-        )
-
-    return _build
+def build_skills_capability(*, prompts: AgentPrompts) -> SkillsCapability[AgentDependencies]:
+    return SkillsCapability(
+        toolset=SkillsToolset[AgentDependencies](
+            skills=get_skills(),
+            load_skill_template=prompts.load_skill,
+        ),
+        instructions=prompts.skills,
+    )
 
 
 def build_agent(
@@ -131,14 +123,8 @@ def build_agent(
         DynamicCapability(
             capability_func=get_external_tool_capability_function(),
         ),
-        DynamicCapability(
-            capability_func=get_context_capability_function(prompts=resolved_prompts),
-        ),
-        DynamicCapability(
-            capability_func=get_skills_capability_function(
-                prompts=resolved_prompts,
-            ),
-        ),
+        UIContextsCapability(instructions=resolved_prompts.ui_contexts),
+        build_skills_capability(prompts=resolved_prompts),
     ]
     if schema is not None and build_graphql_context is not None:
         capabilities.append(
@@ -188,6 +174,8 @@ def build_agent(
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
         )
+    if is_viewer:
+        capabilities.append(ViewerAccessCapability(instructions=resolved_prompts.viewer_access))
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
@@ -203,7 +191,7 @@ def build_agent(
         name="PXIAgent",
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
-        instructions=resolved_prompts.base.render(),
+        instructions=resolved_prompts.base,
         capabilities=[traced_capability, NativeToolRetryCapability()],
     )
     return agent

@@ -42,8 +42,7 @@ class GraphQLMutationPolicy:
         return self.allow_mutations and (not self.require_approval or self.approved)
 
 
-_BASH_TOOL_DESCRIPTION_TEMPLATE = Template(
-    """\
+_BASH_TOOL_DESCRIPTION = """\
 Run a shell command inside a server-side virtual shell to run built-in utilities and \
 operate on a scratch filesystem.
 
@@ -78,9 +77,8 @@ entire approval prompt the user reads before the command runs, so describe the \
 actual change, not your goal. Omitting it on a mutating command does not skip \
 approval — the mutation is refused and you must re-issue the call with it.
 
-Returns a dict with the command's `stdout`, `stderr`, and `exitCode`.
-""",
-)
+Returns a dict with the command's `stdout`, `stderr`, and `exitCode`.\
+"""
 
 
 def _operation_types(query: str) -> set[GraphQLOperationType]:
@@ -535,7 +533,7 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                 Tool(
                     bash,
                     takes_ctx=True,
-                    description=_BASH_TOOL_DESCRIPTION_TEMPLATE.render(),
+                    description=_BASH_TOOL_DESCRIPTION,
                 )
             ]
         )

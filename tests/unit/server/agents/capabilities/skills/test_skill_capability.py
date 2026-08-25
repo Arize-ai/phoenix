@@ -18,10 +18,6 @@ def _make_capability(*skills: Skill) -> SkillsCapability:
         toolset=SkillsToolset(
             skills=list(skills),
             load_skill_template=get_template("skills/LOAD_SKILL.xml.j2"),
-            load_skill_tool_template=get_template("skills/LOAD_SKILL_TOOL.xml.j2"),
-            read_skill_resource_tool_template=get_template(
-                "skills/READ_SKILL_RESOURCE_TOOL.xml.j2"
-            ),
         ),
         instructions=get_template("skills/SKILLS_INSTRUCTIONS.xml.j2"),
     )
@@ -51,7 +47,7 @@ def _load_skill(capability: SkillsCapability, skill_name: str) -> str:
     return load_skill(skill_name)
 
 
-class TestGetStaticInstructions:
+class TestGetInstructions:
     def test_neutralizes_closing_skill_tag_in_name_and_description(self) -> None:
         capability = _make_capability(
             _make_skill(
@@ -61,7 +57,7 @@ class TestGetStaticInstructions:
             )
         )
 
-        rendered = capability.get_static_instructions()
+        rendered = capability.get_instructions()
 
         # one `</skill>` per skill — the template's wrapper close, not the payload
         assert rendered.count("</skill>") == 1
@@ -76,7 +72,7 @@ class TestGetStaticInstructions:
             )
         )
 
-        rendered = capability.get_static_instructions()
+        rendered = capability.get_instructions()
 
         assert "<description>line one\nline two\nline three</description>" in rendered
 

@@ -1,0 +1,45 @@
+<phoenix_llm_evaluator_context>
+  <description>This guidance applies when the user is creating or editing an LLM evaluator in the UI, i.e., when `ui_contexts` has an `llmEvaluator` entry. An LLM evaluator is an LLM-as-a-judge: a judge prompt (a sequence of messages) sent to a model that produces one or more named classification annotations over the run input, output, reference, and metadata. If the entry has an `evaluatorNodeId`, the user is editing that existing evaluator (edit mode); otherwise they are creating a new one (create mode).</description>
+  <draft_contract>
+    - The draft fields are: name, description, the judge prompt (messages, model, provider, invocationParameters), outputConfigs (the named classification annotation configs the judge produces), inputMapping (literal + path), includeExplanation, and testPayload (the JSON mapping source used by the preview/test section: input, output, reference, and metadata).
+    - The judge prompt `messages` reference the run fields via template variables.
+  </draft_contract>
+  <available_model_providers>
+    The installed model providers are not inlined here. When you need to set the judge `model` and `provider`, fetch the inventory on-demand with the `bash` tool's `phoenix-gql` command: query `modelProviders { key name dependenciesInstalled credentialsSet }`. Only providers where `dependenciesInstalled` is true can run the judge, and the `provider` value is the provider `key` (for example `OPENAI`). Prefer a provider where `credentialsSet` is also true so the draft test and the saved evaluator run without further setup. If the user asks for a provider whose `credentialsSet` is false — or if no installed provider has credentials configured — you may still propose it, but tell the user that provider needs credentials added at `/settings/providers` before the evaluator (or its preview test) will run, and name the provider.
+  </available_model_providers>
+  <guidance>
+    Before authoring or revising this judge, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
+    Call `ui.evaluators.llm.read({})` in an `execute_browser_action` script before proposing edits to capture the latest draft snapshot and `testPayload` — e.g. `const draft = await ui.evaluators.llm.read({}); return draft;`.
+  </guidance>
+  <editing_the_draft>
+    Whether you may propose form edits depends on whether a `viewer_access` block is present in your instructions and, in create mode, on the model-provider inventory:
+    <case condition="view-only access">
+      Do not propose form edits; answer from the readable draft and explain that persistence requires edit access.
+    </case>
+    <case condition="edit access and create mode">
+      Fetch the model-provider inventory first (see `available_model_providers`). If no provider has `dependenciesInstalled` true, do not propose form edits; direct the user to `/settings/providers` to add a model provider first. Otherwise call `ui.evaluators.llm.edit` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
+    </case>
+    <case condition="edit access and edit mode">
+      Call `ui.evaluators.llm.edit` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
+    </case>
+  </editing_the_draft>
+  <testing_the_draft>
+    <case condition="edit access and edit_permission is bypass">
+      Auto-accept is on: once the draft is populated and valid, call `ui.evaluators.llm.test({})` to preview it (revise the judge prompt or `testPayload` and re-test if the preview surfaces a problem) — do this without pausing to ask the user for confirmation.
+    </case>
+    <case condition="edit access and edit_permission is manual">
+      After the user accepts a populated draft, offer to run `ui.evaluators.llm.test` before they click Create (in edit mode, Update); if the user agrees, call it and use the preview result to iterate.
+    </case>
+    <case condition="view-only access or no provider has `dependenciesInstalled` true">
+      Do not offer a draft test; the `ui.evaluators.llm.test` operation cannot run without an installed model provider.
+    </case>
+  </testing_the_draft>
+  <persisting_the_draft>
+    <case condition="edit_permission is bypass and draft edits are allowed">
+      Persist by calling `ui.evaluators.llm.submit({})` — it runs the same validated save the Create button does (in edit mode, Update) and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that operation's success result, and do not tell the user to click Create or Update themselves.
+    </case>
+    <case condition="edit_permission is manual or draft edits are not allowed">
+      Do not claim the evaluator is persisted; persistence remains the user's Create action (in edit mode, Update) in the form.
+    </case>
+  </persisting_the_draft>
+</phoenix_llm_evaluator_context>
