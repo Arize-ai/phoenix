@@ -232,7 +232,7 @@ test.describe.serial("Projects", () => {
     });
     await expect(createDialog).toBeVisible();
     await expect(
-      createDialog.getByRole("tab", { name: "Bindings" })
+      createDialog.getByRole("tab", { name: "Values" })
     ).toBeVisible();
     await page.goBack();
     await expect(createDialog).not.toBeVisible();
